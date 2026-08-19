@@ -639,8 +639,14 @@ class AnaxiIndex:
             ).fetchall()
             coverage = connection.execute(
                 """
-                SELECT AVG(line_coverage) AS line_coverage,
-                       AVG(branch_coverage) AS branch_coverage
+                SELECT COALESCE(
+                           CAST(SUM(covered_lines) AS REAL) / NULLIF(SUM(total_lines), 0),
+                           AVG(line_coverage)
+                       ) AS line_coverage,
+                       AVG(branch_coverage) AS branch_coverage,
+                       COUNT(DISTINCT artifact_id) AS measured_files,
+                       SUM(covered_lines) AS covered_lines,
+                       SUM(total_lines) AS measured_lines
                 FROM coverage_measurements
                 WHERE snapshot_id = ? AND artifact_id IS NOT NULL
                 """,
@@ -822,6 +828,145 @@ class AnaxiIndex:
             (item for item in materialized if int(item["files"]) > 0),
             key=lambda item: (-int(item["lines_of_code"]), item["name"]),
         )
+
+    def modules(
+        self, repository_id: int, snapshot_id: int | None = None
+    ) -> list[dict[str, Any]]:
+        """Return the file-level intelligence ledger for inventory views and agents."""
+
+        snapshot = self._resolve_snapshot(repository_id, snapshot_id)
+        if snapshot is None:
+            return []
+        sid = int(snapshot["id"])
+        with self.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT a.id AS artifact_id, a.artifact_type, a.canonical_path,
+                       a.first_seen_commit, fv.id AS artifact_version_id, fv.path,
+                       fv.language, fv.runtime, fv.declared_group, fv.inferred_group,
+                       fv.raw_hash, fv.structural_hash, fv.lines_of_code, fv.comment_lines,
+                       fv.complexity, fv.summary, fv.responsibilities_json,
+                       fv.public_interfaces_json, fv.analyzer, fv.analysis_status,
+                       fv.parse_error, fv.first_seen_at, fv.last_changed_at,
+                       COALESCE(incoming.count, 0) AS fan_in,
+                       COALESCE(outgoing.count, 0) AS fan_out,
+                       coverage.line_coverage,
+                       COALESCE(history.change_count, 0) AS change_count,
+                       history.first_changed_at, history.last_changed_at AS last_commit_at,
+                       history.additions, history.deletions,
+                       (SELECT gc.commit_sha FROM git_changes gc
+                        WHERE gc.repository_id = ? AND gc.path = fv.path
+                        ORDER BY gc.committed_at ASC LIMIT 1) AS first_change_commit,
+                       (SELECT gc.commit_sha FROM git_changes gc
+                        WHERE gc.repository_id = ? AND gc.path = fv.path
+                        ORDER BY gc.committed_at DESC LIMIT 1) AS last_change_commit,
+                       (SELECT gc.subject FROM git_changes gc
+                        WHERE gc.repository_id = ? AND gc.path = fv.path
+                        ORDER BY gc.committed_at DESC LIMIT 1) AS last_change_subject
+                FROM file_versions fv
+                JOIN artifacts a ON a.id = fv.artifact_id
+                LEFT JOIN (
+                    SELECT target_artifact_id, COUNT(*) AS count FROM relationships
+                    WHERE snapshot_id = ? AND target_artifact_id IS NOT NULL
+                    GROUP BY target_artifact_id
+                ) incoming ON incoming.target_artifact_id = a.id
+                LEFT JOIN (
+                    SELECT source_artifact_id, COUNT(*) AS count FROM relationships
+                    WHERE snapshot_id = ? GROUP BY source_artifact_id
+                ) outgoing ON outgoing.source_artifact_id = a.id
+                LEFT JOIN (
+                    SELECT snapshot_id, artifact_id, MAX(line_coverage) AS line_coverage
+                    FROM coverage_measurements WHERE artifact_id IS NOT NULL
+                    GROUP BY snapshot_id, artifact_id
+                ) coverage ON coverage.snapshot_id = fv.snapshot_id
+                          AND coverage.artifact_id = a.id
+                LEFT JOIN (
+                    SELECT repository_id, path, COUNT(*) AS change_count,
+                           MIN(committed_at) AS first_changed_at,
+                           MAX(committed_at) AS last_changed_at,
+                           SUM(COALESCE(additions, 0)) AS additions,
+                           SUM(COALESCE(deletions, 0)) AS deletions
+                    FROM git_changes WHERE repository_id = ?
+                    GROUP BY repository_id, path
+                ) history ON history.repository_id = a.repository_id AND history.path = fv.path
+                WHERE fv.snapshot_id = ? ORDER BY fv.path
+                """,
+                (repository_id, repository_id, repository_id, sid, sid, repository_id, sid),
+            ).fetchall()
+            group_rows = connection.execute(
+                """
+                SELECT name, parent_name, source FROM groups
+                WHERE repository_id = ?
+                ORDER BY CASE source WHEN 'declared' THEN 0 ELSE 1 END
+                """,
+                (repository_id,),
+            ).fetchall()
+            claim_rows = connection.execute(
+                """
+                SELECT sc.* FROM semantic_claims sc
+                JOIN file_versions fv ON fv.id = sc.artifact_version_id
+                WHERE fv.snapshot_id = ? AND sc.claim_type = 'module_analysis'
+                """,
+                (sid,),
+            ).fetchall()
+            finding_rows = connection.execute(
+                """
+                SELECT id, finding_type, severity, summary, status, affected_artifacts_json
+                FROM findings WHERE repository_id = ?
+                  AND status NOT IN ('resolved', 'dismissed')
+                """,
+                (repository_id,),
+            ).fetchall()
+
+        parents: dict[str, str | None] = {}
+        for row in group_rows:
+            parents.setdefault(str(row["name"]), row["parent_name"])
+
+        claims: dict[int, dict[str, Any]] = {}
+        for row in claim_rows:
+            claims[int(row["artifact_version_id"])] = {
+                "value": json.loads(row["value_json"] or "{}"),
+                "source": row["source"],
+                "confidence": row["confidence"],
+            }
+
+        findings_by_path: dict[str, list[dict[str, Any]]] = {}
+        for row in finding_rows:
+            finding = dict(row)
+            paths = json.loads(finding.pop("affected_artifacts_json") or "[]")
+            for path in paths:
+                findings_by_path.setdefault(str(path), []).append(finding)
+
+        result: list[dict[str, Any]] = []
+        for row in rows:
+            item = dict(row)
+            item["responsibilities"] = json.loads(item.pop("responsibilities_json") or "[]")
+            item["public_interfaces"] = json.loads(item.pop("public_interfaces_json") or "[]")
+            group = item["declared_group"] or item["inferred_group"] or "ungrouped"
+            area = str(group)
+            visited: set[str] = set()
+            while parents.get(area) and area not in visited:
+                visited.add(area)
+                area = str(parents[area])
+            item["name"] = Path(item["path"]).name
+            item["architecture_area"] = area
+            item["architecture_subsystem"] = group if group != area else None
+            item["architecture_group"] = group
+            item["architecture_source"] = "configured" if item["declared_group"] else "inferred"
+            claim = claims.get(int(item["artifact_version_id"]))
+            if claim:
+                item["deterministic_summary"] = item["summary"]
+                item["summary"] = claim["value"].get("summary") or item["summary"]
+                item["summary_source"] = claim["source"]
+                item["summary_confidence"] = claim["confidence"]
+            else:
+                item["summary_source"] = "deterministic"
+                item["summary_confidence"] = 1.0
+            active_findings = findings_by_path.get(item["path"], [])
+            item["active_findings"] = active_findings
+            item["evaluation"] = _module_evaluation(item, active_findings)
+            result.append(item)
+        return result
 
     def _resolve_snapshot(self, repository_id: int, snapshot_id: int | None) -> sqlite3.Row | None:
         with self.connect() as connection:
@@ -1103,6 +1248,84 @@ class AnaxiIndex:
                 (status, status, utc_now(), finding_id, repository_id),
             )
             return cursor.rowcount > 0
+
+
+_PATTERN_REVIEWS = {
+    "architecture_drift": "Architecture-role review",
+    "architecture_violation": "Layer boundary or adapter review",
+    "dependency_cycle": "Dependency inversion or boundary review",
+    "high_fan_in": "Stable interface boundary review",
+    "high_fan_out": "Facade or orchestration boundary review",
+    "long_function": "Focused operation extraction review",
+    "module_complexity": "Module cohesion and extraction review",
+    "possible_dead_code": "Ownership or removal review",
+    "symbol_complexity": "Strategy or decision-table review",
+    "weak_test_coverage": "Test seam review",
+}
+
+
+def _module_evaluation(
+    item: dict[str, Any], findings: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Build reproducible triage signals without pretending they are pattern suitability."""
+
+    loc = int(item.get("lines_of_code") or 0)
+    complexity = float(item.get("complexity") or 0)
+    coupling = int(item.get("fan_in") or 0) + int(item.get("fan_out") or 0)
+    changes = int(item.get("change_count") or 0)
+    severity_points = {"critical": 8, "error": 7, "warning": 5, "info": 2}
+    finding_pressure = min(
+        20,
+        sum(severity_points.get(str(finding.get("severity")), 2) for finding in findings),
+    )
+    score = round(
+        min(loc / 500, 1) * 25
+        + min(complexity / 50, 1) * 20
+        + min(coupling / 30, 1) * 20
+        + min(changes / 20, 1) * 15
+        + finding_pressure
+    )
+    label = "Low"
+    if score >= 75:
+        label = "Priority"
+    elif score >= 50:
+        label = "Review"
+    elif score >= 25:
+        label = "Watch"
+
+    reasons: list[str] = []
+    if loc >= 500:
+        reasons.append(f"Large module ({loc:,} LOC)")
+    if complexity >= 25:
+        reasons.append(f"High detected decision complexity ({complexity:g})")
+    if coupling >= 20:
+        reasons.append(f"Highly connected ({coupling} incoming + outgoing links)")
+    if changes >= 10:
+        reasons.append(f"Frequently changed ({changes} indexed commits)")
+    if findings:
+        reasons.append(f"{len(findings)} active architecture finding(s)")
+    if not reasons:
+        reasons.append("No threshold-level deterministic signal")
+
+    candidates = sorted(
+        {
+            _PATTERN_REVIEWS[finding["finding_type"]]
+            for finding in findings
+            if finding.get("finding_type") in _PATTERN_REVIEWS
+        }
+    )
+    return {
+        "attention_score": min(100, score),
+        "attention_label": label,
+        "attention_reasons": reasons,
+        "pattern_status": "candidate_review" if candidates else "not_evaluated",
+        "pattern_candidates": candidates,
+        "suitability_score": None,
+        "note": (
+            "Candidates are detector-grounded review prompts, not approved refactors. "
+            "Pattern suitability scoring requires the semantic pattern-evaluation pipeline."
+        ),
+    }
 
 
 def _decode_json_columns(value: dict[str, Any]) -> dict[str, Any]:

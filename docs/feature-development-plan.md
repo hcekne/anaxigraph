@@ -26,6 +26,11 @@ The current shareable slice now includes:
 - a viewport-height graph by default, normal/tall alternatives, and a squarer maximum layout
 - color-coded architecture regions behind modules
 - history playback that preserves the user's pan, zoom, and selected module across frames
+- a sortable, filterable module inventory exposing file purpose, architecture placement, LOC,
+  complexity, coupling, imported coverage, Git biography, findings, and deterministic attention
+- weighted architecture regions sized by their module populations, with outlined, grid-spaced nodes
+- explicit coverage-input diagnostics that distinguish missing reports from unmatched reports and
+  measured zero coverage
 
 The next temporal slice is the commit bibliography: milestone-aware sampling, commit subjects and
 architecture deltas in the UI, stable graph-delta animation, speed controls, compare mode, and
@@ -179,6 +184,11 @@ Each file version will expose:
 - first seen, last content change, last structural change, and last intent change
 - concise “what changed and why it matters” delta from the prior intent version
 - provider/model/prompt version, evidence, confidence, and review state
+
+**Baseline shipped:** the Modules dashboard and `CODEINTEL_MODULES` expose the deterministic
+inventory, provenance-aware summaries when available, Git dates, and a reproducible 0–100
+attention score. This score is triage—not pattern suitability. Intent fingerprints, semantic
+deltas, and reviewed suitability scores remain future work below.
 
 ### Incremental pipeline
 

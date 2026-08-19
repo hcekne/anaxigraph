@@ -9,13 +9,14 @@ from codeintel.scanner import RepositoryScanner
 def test_scan_persists_graph_metrics_coverage_and_findings(repository, database):
     stats = RepositoryScanner(database).scan(repository)
 
-    assert stats.discovered == 10
-    assert stats.analyzed == 10
+    assert stats.discovered == 9
+    assert stats.analyzed == 9
     assert stats.relationships >= 6
     overview = database.overview(stats.repository_id)
-    assert overview["files"] == 10
+    assert overview["files"] == 9
     assert overview["symbols"] >= 7
     assert overview["coverage"]["line_coverage"] == 0.5
+    assert overview["coverage"]["measured_files"] == 1
     snapshot = database.snapshots(stats.repository_id)[0]
     assert snapshot["file_count"] == overview["files"]
     assert snapshot["lines_of_code"] == overview["lines_of_code"]
@@ -25,6 +26,11 @@ def test_scan_persists_graph_metrics_coverage_and_findings(repository, database)
     nodes = {item["path"]: item for item in graph["nodes"]}
     assert "ignored/secret.py" not in nodes
     assert nodes["pkg/core.py"]["declared_group"] == "domain"
+    modules = {item["path"]: item for item in database.modules(stats.repository_id)}
+    assert modules["pkg/core.py"]["architecture_area"] == "domain"
+    assert modules["pkg/core.py"]["summary"] == "Public calculation service."
+    assert modules["pkg/core.py"]["evaluation"]["attention_score"] >= 0
+    assert modules["pkg/core.py"]["evaluation"]["suitability_score"] is None
     internal = {
         (
             next(item["path"] for item in graph["nodes"] if item["id"] == edge["source"]),
@@ -35,6 +41,26 @@ def test_scan_persists_graph_metrics_coverage_and_findings(repository, database)
     assert ("pkg/core.py", "pkg/util.py") in internal
     assert ("web/App.tsx", "web/helper.ts") in internal
     assert database.findings(stats.repository_id)
+
+
+def test_unchanged_scan_refreshes_ignored_coverage_report(repository, database):
+    scanner = RepositoryScanner(database)
+    first = scanner.scan(repository)
+    report = repository / "coverage.xml"
+    report_content = report.read_text(encoding="utf-8")
+    assert database.overview(first.repository_id)["coverage"]["line_coverage"] == 0.5
+
+    report.unlink()
+    missing = scanner.scan(repository, run_type="update")
+    assert missing.snapshot_id == first.snapshot_id
+    assert missing.analyzed == 0
+    assert database.overview(first.repository_id)["coverage"]["line_coverage"] is None
+
+    report.write_text(report_content, encoding="utf-8")
+    restored = scanner.scan(repository, run_type="update")
+    assert restored.snapshot_id == first.snapshot_id
+    assert restored.analyzed == 0
+    assert database.overview(first.repository_id)["coverage"]["line_coverage"] == 0.5
 
 
 def test_incremental_decision_tree_reuses_raw_and_metadata_only_changes(repository, database):

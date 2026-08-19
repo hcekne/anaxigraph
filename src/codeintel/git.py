@@ -145,7 +145,7 @@ class GitChange:
     deletions: int | None
 
 
-def recent_changes(root: Path, *, limit: int = 500) -> list[GitChange]:
+def recent_changes(root: Path, *, limit: int = 5_000) -> list[GitChange]:
     if not is_repository(root):
         return []
     # Record and field separators avoid ambiguity from spaces and tabs in subjects.

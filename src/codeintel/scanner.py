@@ -105,51 +105,53 @@ class RepositoryScanner:
                     )
                 if revision is None:
                     self.database.set_current_snapshot(repository_id, existing_id)
-                    if existing_snapshot["snapshot_kind"] == "commit":
-                        with self.database.transaction() as connection:
-                            connection.execute(
-                                "DELETE FROM metrics WHERE snapshot_id = ?", (existing_id,)
-                            )
-                            connection.execute(
-                                "DELETE FROM coverage_measurements WHERE snapshot_id = ?",
+                    with self.database.transaction() as connection:
+                        self._ingest_git_history(
+                            connection, repository_id=repository_id, root=root
+                        )
+                        connection.execute(
+                            "DELETE FROM metrics WHERE snapshot_id = ?", (existing_id,)
+                        )
+                        connection.execute(
+                            "DELETE FROM coverage_measurements WHERE snapshot_id = ?",
+                            (existing_id,),
+                        )
+                        artifacts = {
+                            row["path"]: int(row["artifact_id"])
+                            for row in connection.execute(
+                                """
+                                SELECT path, artifact_id FROM file_versions
+                                WHERE snapshot_id = ?
+                                """,
                                 (existing_id,),
                             )
-                            artifacts = {
-                                row["path"]: int(row["artifact_id"])
-                                for row in connection.execute(
-                                    """
-                                    SELECT path, artifact_id FROM file_versions
-                                    WHERE snapshot_id = ?
-                                    """,
-                                    (existing_id,),
-                                )
-                            }
-                            collect_coverage(
-                                connection,
-                                root=root,
-                                config=config,
-                                snapshot_id=existing_id,
-                                artifacts_by_path=artifacts,
-                            )
-                            evaluate_architecture(
-                                connection,
-                                repository_id=repository_id,
-                                snapshot_id=existing_id,
-                                config=config,
-                                manage_finding_lifecycle=True,
-                            )
-                            connection.execute(
-                                """
-                                UPDATE snapshots SET snapshot_kind = 'working_tree', dirty = ?,
-                                    branch = ?, analysis_timestamp = ? WHERE id = ?
-                                """,
-                                (
-                                    int(git_metadata.dirty),
-                                    git_metadata.branch,
-                                    utc_now(),
-                                    existing_id,
-                                ),
-                            )
+                        }
+                        collect_coverage(
+                            connection,
+                            root=root,
+                            config=config,
+                            snapshot_id=existing_id,
+                            artifacts_by_path=artifacts,
+                        )
+                        evaluate_architecture(
+                            connection,
+                            repository_id=repository_id,
+                            snapshot_id=existing_id,
+                            config=config,
+                            manage_finding_lifecycle=True,
+                        )
+                        connection.execute(
+                            """
+                            UPDATE snapshots SET snapshot_kind = 'working_tree', dirty = ?,
+                                branch = ?, analysis_timestamp = ? WHERE id = ?
+                            """,
+                            (
+                                int(git_metadata.dirty),
+                                git_metadata.branch,
+                                utc_now(),
+                                existing_id,
+                            ),
+                        )
                 counts = self._snapshot_counts(existing_id)
                 duration = int((time.monotonic() - started) * 1_000)
                 self.database.finish_run(

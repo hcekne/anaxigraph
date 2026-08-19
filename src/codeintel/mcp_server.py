@@ -107,6 +107,56 @@ def create_anaxi_mcp_server(
         return database.overview(int(row["id"]))
 
     @server.tool(
+        name="CODEINTEL_MODULES",
+        description=(
+            "List and filter the AnaxiIndex module inventory, including architecture area, "
+            "summary, size, coupling, coverage, Git activity, findings, and review signals."
+        ),
+    )
+    def modules(
+        query: str = "",
+        area: str = "",
+        subsystem: str = "",
+        language: str = "",
+        sort: str = "path",
+        descending: bool = False,
+        limit: int = 200,
+        repository: str = "",
+    ) -> dict[str, Any]:
+        row, _ = context(repository)
+        items = database.modules(int(row["id"]))
+        lowered = query.strip().lower()
+        if lowered:
+            items = [
+                item
+                for item in items
+                if lowered in f"{item['path']} {item['summary']}".lower()
+            ]
+        if area:
+            items = [item for item in items if item["architecture_area"] == area]
+        if subsystem:
+            items = [item for item in items if item["architecture_subsystem"] == subsystem]
+        if language:
+            items = [item for item in items if item["language"] == language]
+        allowed_sort = {
+            "path",
+            "lines_of_code",
+            "complexity",
+            "fan_in",
+            "fan_out",
+            "change_count",
+            "first_changed_at",
+            "last_commit_at",
+        }
+        sort_key = sort if sort in allowed_sort else "path"
+        items.sort(
+            key=lambda item: (item.get(sort_key) is None, item.get(sort_key) or ""),
+            reverse=descending,
+        )
+        bounded = max(1, min(limit, 1_000))
+        return {"total": len(items), "modules": items[:bounded]}
+
+    @server.tool(
         name="CODEINTEL_SEARCH",
         description="Find the most relevant modules and symbols for a codebase concept or feature.",
     )

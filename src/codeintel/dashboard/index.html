@@ -35,6 +35,7 @@
 
     <nav class="tabs" aria-label="Dashboard sections">
       <button class="tab active" data-view="overview">Overview</button>
+      <button class="tab" data-view="modules">Modules</button>
       <button class="tab" data-view="graph">Graph</button>
       <button class="tab" data-view="architecture">Architecture</button>
       <button class="tab" data-view="history">History</button>
@@ -76,6 +77,81 @@
             <button class="text-button" data-switch="architecture">See all findings →</button>
           </div>
           <div id="finding-preview" class="finding-list"></div>
+        </article>
+      </section>
+
+      <section id="view-modules" class="view">
+        <article class="panel module-intro">
+          <div>
+            <p class="eyebrow">AnaxiIndex file intelligence</p>
+            <h2>Module inventory</h2>
+            <p class="panel-copy">One row per file in the selected snapshot. Filter and sort
+              deterministic facts, architecture placement, purpose, Git activity, coverage, and
+              review signals. Expand a row for provenance and pattern-review context.</p>
+          </div>
+          <div class="module-legend" aria-label="Inventory information types">
+            <span><i class="fact-dot"></i>Fact</span>
+            <span><i class="interpretation-dot"></i>Interpretation</span>
+            <span><i class="recommendation-dot"></i>Review signal</span>
+          </div>
+        </article>
+        <article class="panel module-inventory">
+          <div class="module-controls">
+            <label class="module-search">
+              Find module or purpose
+              <input id="module-search" type="search" placeholder="auth, workflow, storage…" />
+            </label>
+            <label>
+              Area
+              <select id="module-area-filter"><option value="">All areas</option></select>
+            </label>
+            <label>
+              Subsystem
+              <select id="module-subsystem-filter"><option value="">All subsystems</option></select>
+            </label>
+            <label>
+              Language
+              <select id="module-language-filter"><option value="">All languages</option></select>
+            </label>
+            <label>
+              Rows
+              <select id="module-page-size">
+                <option value="50">50</option>
+                <option value="100" selected>100</option>
+                <option value="250">250</option>
+              </select>
+            </label>
+          </div>
+          <div class="module-table-heading">
+            <p id="module-result-count" class="muted"></p>
+            <p class="module-score-help">Attention is a 0–100 triage score from size, complexity,
+              coupling, churn, and active findings—not a pattern-suitability score.</p>
+          </div>
+          <div class="module-table-wrap">
+            <table class="module-table">
+              <thead>
+                <tr>
+                  <th><button data-module-sort="path">Module</button></th>
+                  <th><button data-module-sort="architecture_area">Architecture</button></th>
+                  <th><button data-module-sort="summary">Purpose</button></th>
+                  <th class="numeric"><button data-module-sort="lines_of_code">LOC</button></th>
+                  <th class="numeric"><button data-module-sort="complexity">Complexity</button></th>
+                  <th class="numeric"><button data-module-sort="coupling">Links</button></th>
+                  <th class="numeric"><button data-module-sort="line_coverage">Coverage</button></th>
+                  <th class="numeric"><button data-module-sort="change_count">Changes</button></th>
+                  <th><button data-module-sort="first_changed_at">First indexed</button></th>
+                  <th><button data-module-sort="last_commit_at">Last worked</button></th>
+                  <th class="numeric"><button data-module-sort="attention_score">Attention</button></th>
+                </tr>
+              </thead>
+              <tbody id="module-table-body"></tbody>
+            </table>
+          </div>
+          <div class="module-pagination">
+            <button id="module-previous" class="secondary-button" type="button">Previous</button>
+            <span id="module-page-label" class="snapshot-label"></span>
+            <button id="module-next" class="secondary-button" type="button">Next</button>
+          </div>
         </article>
       </section>
 

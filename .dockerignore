@@ -6,6 +6,7 @@
 .venv
 __pycache__
 build
+coverage.xml
 dist
 *.db
 *.db-shm

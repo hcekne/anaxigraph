@@ -40,8 +40,17 @@ async def test_dashboard_rest_api_exposes_current_intelligence(
         assert "persistent repository knowledge store" in glossary["product"]["anaxi_index"]
         assert glossary["findings"]["statuses"]["planned"]["label"] == "Planned for agent"
         overview = (await client.get("/api/overview")).json()
-        assert overview["files"] == 10
+        assert overview["files"] == 9
         assert overview["group_hierarchy"]
+        assert overview["coverage"]["state"] == "imported"
+        assert overview["coverage"]["configured_inputs"] == [
+            {"path": "coverage.xml", "exists": True, "format": "xml"}
+        ]
+        modules = (await client.get("/api/modules")).json()
+        assert len(modules) == 9
+        core = next(item for item in modules if item["path"] == "pkg/core.py")
+        assert core["architecture_area"] == "domain"
+        assert core["evaluation"]["suitability_score"] is None
         graph = (await client.get("/api/graph")).json()
         assert graph["nodes"]
         scope = await client.post(
@@ -94,6 +103,7 @@ async def test_streamable_http_mcp_is_compatible_with_maxos_client_contract(repo
                     names = {tool.name for tool in tools.tools}
                     assert {
                         "CODEINTEL_OVERVIEW",
+                        "CODEINTEL_MODULES",
                         "CODEINTEL_SEARCH",
                         "CODEINTEL_FILE",
                         "CODEINTEL_SCOPE",
@@ -104,7 +114,13 @@ async def test_streamable_http_mcp_is_compatible_with_maxos_client_contract(repo
                     } <= names
                     overview = await session.call_tool("CODEINTEL_OVERVIEW", arguments={})
                     assert overview.isError is False
-                    assert overview.structuredContent["files"] == 10
+                    assert overview.structuredContent["files"] == 9
+                    modules = await session.call_tool(
+                        "CODEINTEL_MODULES", arguments={"language": "python", "limit": 3}
+                    )
+                    assert modules.isError is False
+                    assert modules.structuredContent["total"] >= 3
+                    assert len(modules.structuredContent["modules"]) == 3
                     guide = await session.call_tool(
                         "CODEINTEL_GUIDE", arguments={"topic": "findings"}
                     )

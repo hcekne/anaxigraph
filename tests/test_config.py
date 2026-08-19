@@ -13,6 +13,9 @@ def test_config_loads_groups_rules_and_ignore(repository):
     assert config.declared_group("web/App.tsx") == "presentation"
     assert config.is_ignored("ignored/secret.py")
     assert config.is_ignored(".git/config")
+    assert config.is_ignored("coverage.xml")
+    assert config.is_ignored("backend/coverage.xml")
+    assert config.is_ignored("frontend/coverage/lcov.info")
     assert not config.is_ignored("pkg/core.py")
     assert {rule.rule_id for rule in config.architecture.rules} == {
         "small-module-signal",

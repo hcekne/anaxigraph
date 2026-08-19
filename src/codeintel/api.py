@@ -184,6 +184,29 @@ def create_app(
         target = target_for_path(row_path)
         return load_config(target.path, target.config_path) if target else load_config(row_path)
 
+    def coverage_diagnostics(row: dict[str, Any], coverage: dict[str, Any]) -> dict[str, Any]:
+        root = Path(row["path"]).resolve()
+        config = selected_config(row)
+        inputs = []
+        for configured in config.coverage_files:
+            path = Path(configured)
+            candidate = path if path.is_absolute() else root / path
+            inputs.append(
+                {
+                    "path": configured,
+                    "exists": candidate.is_file(),
+                    "format": "lcov" if candidate.name == "lcov.info" else candidate.suffix.lstrip(".") or "unknown",
+                }
+            )
+        imported = coverage.get("line_coverage") is not None
+        available = sum(1 for item in inputs if item["exists"])
+        return {
+            **coverage,
+            "state": "imported" if imported else "unmatched" if available else "missing",
+            "configured_inputs": inputs,
+            "available_inputs": available,
+        }
+
     def is_scan_target(row: dict[str, Any]) -> bool:
         return target_for_path(Path(row["path"])) is not None
 
@@ -235,7 +258,16 @@ def create_app(
         repository_id: int | None = None, snapshot_id: int | None = None
     ) -> dict[str, Any]:
         row = selected_repository(repository_id)
-        return database.overview(int(row["id"]), snapshot_id)
+        result = database.overview(int(row["id"]), snapshot_id)
+        result["coverage"] = coverage_diagnostics(row, result.get("coverage") or {})
+        return result
+
+    @app.get("/api/modules")
+    def modules(
+        repository_id: int | None = None, snapshot_id: int | None = None
+    ) -> list[dict[str, Any]]:
+        row = selected_repository(repository_id)
+        return database.modules(int(row["id"]), snapshot_id)
 
     @app.get("/api/graph")
     def graph(

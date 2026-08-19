@@ -85,6 +85,27 @@ refresh registered mounts, but cannot submit arbitrary host paths. All mounts re
 only the AnaxiIndex file at `/state/codeintel.db` changes. The legacy filename is retained so
 existing Docker volumes continue to open without migration.
 
+## Import test coverage
+
+AnaxiGraph imports coverage reports; it never runs untrusted repository tests during a scan. Add
+the paths produced by each repository's existing test or CI pipeline to its `.anaxigraph.yml`:
+
+```yaml
+coverage:
+  files:
+    - backend/coverage.xml
+    - frontend/coverage/lcov.info
+```
+
+The Overview shows every configured input as found or missing. A present report whose file paths
+do not map to the snapshot is reported as unmatched rather than as 0% coverage. Generate the
+report with the target repository's own test command, then choose **Refresh scan**. AnaxiGraph's
+development suite uses:
+
+```bash
+uv run pytest --cov=src/codeintel --cov-report=xml:coverage.xml
+```
+
 ## Keep all repositories current
 
 The main service scans every registry entry on startup. You can click **Refresh scan** for the

@@ -3,6 +3,7 @@ const state = {
   repositoryId: null,
   glossary: null,
   overview: null,
+  modules: [],
   graph: { nodes: [], edges: [], snapshot: null },
   findings: [],
   snapshots: [],
@@ -21,6 +22,9 @@ const state = {
   historyPlaying: false,
   historyPollTimer: null,
   lastAgentPrompt: "",
+  moduleSort: { key: "lines_of_code", direction: "desc" },
+  modulePage: 1,
+  expandedModuleId: null,
 };
 
 const colors = [
@@ -87,8 +91,9 @@ async function loadRepository() {
   stopHistoryPlayback();
   window.clearTimeout(state.historyPollTimer);
   try {
-    const [overview, graph, findings, snapshots, trends, historyInfo] = await Promise.all([
+    const [overview, modules, graph, findings, snapshots, trends, historyInfo] = await Promise.all([
       request(api("/api/overview")),
+      request(api("/api/modules")),
       request(api("/api/graph")),
       request(api("/api/findings")),
       request(api("/api/snapshots")),
@@ -96,6 +101,7 @@ async function loadRepository() {
       request(api("/api/history")),
     ]);
     state.overview = overview;
+    state.modules = modules;
     state.graph = graph;
     state.findings = findings;
     state.snapshots = snapshots;
@@ -105,6 +111,8 @@ async function loadRepository() {
     state.highlightedPaths.clear();
     state.protectedPaths.clear();
     state.conflictPaths.clear();
+    state.modulePage = 1;
+    state.expandedModuleId = null;
     buildGroupIndex(overview.group_hierarchy || []);
 
     const repository = selectedRepository();
@@ -118,6 +126,8 @@ async function loadRepository() {
       : "This repository is indexed but is not mounted as this server's scan target";
 
     renderOverview();
+    renderModuleFilters();
+    renderModules();
     renderFindings();
     renderHistory();
     renderOverlayHelp();
@@ -167,6 +177,12 @@ function renderOverview() {
         ? "Not imported"
         : `${(value.coverage.line_coverage * 100).toFixed(1)}%`,
     ],
+    [
+      "Test-linked dependencies",
+      value.coverage?.relationship_coverage == null
+        ? "No links"
+        : `${(value.coverage.relationship_coverage * 100).toFixed(1)}%`,
+    ],
   ];
   byId("metric-grid").innerHTML = metrics.map(([label, metric]) => (
     `<div class="metric"><span>${escapeHtml(label)}</span><strong>${typeof metric === "number" ? format.format(metric) : escapeHtml(metric ?? "—")}</strong></div>`
@@ -179,10 +195,19 @@ function renderOverview() {
   );
 
   const notice = byId("coverage-notice");
-  const coverageMissing = value.coverage?.line_coverage == null;
+  const coverage = value.coverage || {};
+  const coverageMissing = coverage.line_coverage == null;
   notice.hidden = !coverageMissing;
   if (coverageMissing) {
-    notice.textContent = `${state.glossary?.coverage?.missing || "No coverage input was imported."} Generate a configured coverage.xml or lcov.info file, then refresh the scan.`;
+    const inputs = coverage.configured_inputs || [];
+    const found = inputs.filter((item) => item.exists).length;
+    const inputRows = inputs.map((item) => (
+      `<li><code>${escapeHtml(item.path)}</code><span>${item.exists ? "found" : "missing"}</span></li>`
+    )).join("");
+    const reason = coverage.state === "unmatched"
+      ? "A configured report exists, but none of its file paths matched modules in this snapshot."
+      : "The selected repository has not generated any of its configured coverage reports. Coverage is produced by the repository's test runner; AnaxiGraph deliberately does not execute target code during a scan.";
+    notice.innerHTML = `<strong>Line coverage has not been imported.</strong><p>${escapeHtml(reason)}</p><details><summary>Coverage inputs · ${found}/${inputs.length} found</summary><ul class="coverage-inputs">${inputRows || "<li>No coverage paths are configured.</li>"}</ul></details><p class="coverage-next">Generate one of these reports in the repository, then choose <strong>Refresh scan</strong>. Static test-linked dependencies are still reported separately above.</p>`;
   }
 }
 
@@ -200,6 +225,8 @@ function renderGroupHierarchy(groups) {
     container.innerHTML = `<p class="muted">No groups were detected.</p>`;
     return;
   }
+  const maximum = Math.max(...groups.map((group) => Number(group.lines_of_code || 0)), 1);
+  const repositoryLoc = Math.max(Number(state.overview?.lines_of_code || 0), 1);
   container.innerHTML = groups.slice(0, 14).map((group) => {
     const color = groupColor(group.name);
     const direct = group.direct_files > 0 && group.children?.length
@@ -216,22 +243,159 @@ function renderGroupHierarchy(groups) {
       || (children.length
         ? `Roll-up of ${children.length} architecture subgroups.`
         : `${humanize(group.name)} modules grouped by repository policy or path inference.`);
+    const share = Number(group.lines_of_code || 0) / repositoryLoc * 100;
+    const scale = Number(group.lines_of_code || 0) / maximum * 100;
+    const composition = children.length
+      ? `<div class="group-composition" title="Subsystem share of ${escapeAttr(humanize(group.name))} LOC">${children.map((child) => {
+        const childColor = child.name.startsWith("other-")
+          ? mix(color, "#ffffff", 0.22)
+          : architectureColor(child.name);
+        const width = Number(child.lines_of_code || 0) / Math.max(Number(group.lines_of_code || 0), 1) * 100;
+        return `<span class="group-segment" style="width:${width}%;background:${childColor}"></span>`;
+      }).join("")}</div>`
+      : "";
     const childHtml = children.length
-      ? `<div class="group-children">${children.map((child) => (
-        `<span class="group-child" title="${escapeAttr(child.description || "Architecture subgroup")}">${escapeHtml(child.label || childLabel(child.name, group.name))}<em>${format.format(child.lines_of_code || 0)} LOC</em></span>`
-      )).join("")}</div>`
-      : `<div class="bar-track"><div class="bar-fill" style="width:100%;background:${color}"></div></div>`;
-    return `<article class="group-family" style="--group-color:${color}"><div class="group-family-header"><strong>${escapeHtml(humanize(group.name))}<span class="source-badge">${escapeHtml(sourceLabel(group.source))}</span></strong><span>${format.format(group.files)} files · ${format.format(group.lines_of_code)} LOC</span></div><p>${escapeHtml(description)}</p>${childHtml}</article>`;
+      ? `<div class="group-children">${children.map((child) => {
+        const childColor = child.name.startsWith("other-")
+          ? mix(color, "#ffffff", 0.22)
+          : architectureColor(child.name);
+        return `<span class="group-child" style="--child-color:${childColor}" title="${escapeAttr(child.description || "Architecture subgroup")}"><i class="group-child-dot"></i>${escapeHtml(child.label || childLabel(child.name, group.name))}<em>${format.format(child.lines_of_code || 0)} LOC</em></span>`;
+      }).join("")}</div>`
+      : "";
+    const badge = children.length
+      ? group.direct_files > 0 ? "area + other files" : "area roll-up"
+      : sourceLabel(group.source);
+    return `<article class="group-family" style="--group-color:${color}"><div class="group-family-header"><strong>${escapeHtml(humanize(group.name))}<span class="source-badge">${escapeHtml(badge)}</span></strong><span>${format.format(group.files)} files · ${format.format(group.lines_of_code)} LOC</span></div><p>${escapeHtml(description)}</p><div class="group-scale"><div class="bar-track" title="Relative to the largest architecture area"><div class="bar-fill" style="width:${Math.max(1, scale)}%;background:${color}"></div></div><span class="group-scale-label">${share.toFixed(1)}% of repo LOC</span></div>${composition}${childHtml}</article>`;
   }).join("");
 }
 
 function sourceLabel(source) {
-  return ({ declared: "configured", inferred: "inferred", mixed: "mixed", derived: "roll-up" })[source] || source || "group";
+  return ({
+    declared: "configured",
+    inferred: "inferred fallback",
+    mixed: "configured + fallback",
+    derived: "area roll-up",
+  })[source] || source || "group";
 }
 
 function childLabel(name, parent) {
   const prefix = `${parent}-`;
   return humanize(name.startsWith(prefix) ? name.slice(prefix.length) : name);
+}
+
+function renderModuleFilters() {
+  const options = (key) => [...new Set(state.modules.map((item) => item[key]).filter(Boolean))]
+    .sort((left, right) => String(left).localeCompare(String(right)));
+  const populate = (id, values, label) => {
+    byId(id).innerHTML = `<option value="">All ${label}</option>${values.map((value) => (
+      `<option value="${escapeAttr(value)}">${escapeHtml(humanize(value))}</option>`
+    )).join("")}`;
+  };
+  populate("module-area-filter", options("architecture_area"), "areas");
+  populate("module-subsystem-filter", options("architecture_subsystem"), "subsystems");
+  populate("module-language-filter", options("language"), "languages");
+}
+
+function moduleValue(item, key) {
+  if (key === "coupling") return Number(item.fan_in || 0) + Number(item.fan_out || 0);
+  if (key === "attention_score") return Number(item.evaluation?.attention_score || 0);
+  return item[key];
+}
+
+function filteredModules() {
+  const query = byId("module-search").value.trim().toLowerCase();
+  const area = byId("module-area-filter").value;
+  const subsystem = byId("module-subsystem-filter").value;
+  const language = byId("module-language-filter").value;
+  const filtered = state.modules.filter((item) => {
+    const evaluation = item.evaluation || {};
+    const haystack = [
+      item.path,
+      item.summary,
+      item.architecture_area,
+      item.architecture_subsystem,
+      ...(item.responsibilities || []),
+      ...(evaluation.pattern_candidates || []),
+    ].join(" ").toLowerCase();
+    return (!query || haystack.includes(query))
+      && (!area || item.architecture_area === area)
+      && (!subsystem || item.architecture_subsystem === subsystem)
+      && (!language || item.language === language);
+  });
+  const { key, direction } = state.moduleSort;
+  filtered.sort((left, right) => {
+    const a = moduleValue(left, key);
+    const b = moduleValue(right, key);
+    if (a == null && b == null) return left.path.localeCompare(right.path);
+    if (a == null) return 1;
+    if (b == null) return -1;
+    const comparison = typeof a === "number" && typeof b === "number"
+      ? a - b
+      : String(a).localeCompare(String(b));
+    return (direction === "asc" ? comparison : -comparison)
+      || left.path.localeCompare(right.path);
+  });
+  return filtered;
+}
+
+function renderModules() {
+  const items = filteredModules();
+  const pageSize = Number(byId("module-page-size").value || 100);
+  const pages = Math.max(1, Math.ceil(items.length / pageSize));
+  state.modulePage = Math.min(Math.max(1, state.modulePage), pages);
+  const start = (state.modulePage - 1) * pageSize;
+  const visible = items.slice(start, start + pageSize);
+  byId("module-result-count").textContent = `${format.format(items.length)} of ${format.format(state.modules.length)} modules`;
+  byId("module-page-label").textContent = `Page ${state.modulePage} of ${pages}`;
+  byId("module-previous").disabled = state.modulePage <= 1;
+  byId("module-next").disabled = state.modulePage >= pages;
+  document.querySelectorAll("[data-module-sort]").forEach((button) => {
+    const active = button.dataset.moduleSort === state.moduleSort.key;
+    button.classList.toggle("active", active);
+    if (active) button.dataset.direction = state.moduleSort.direction === "asc" ? "↑" : "↓";
+    else delete button.dataset.direction;
+  });
+  byId("module-table-body").innerHTML = visible.map((item) => {
+    const evaluation = item.evaluation || {};
+    const coverage = item.line_coverage == null
+      ? `<span class="coverage-value missing">—</span>`
+      : `<span class="coverage-value">${(Number(item.line_coverage) * 100).toFixed(0)}%</span>`;
+    const architecture = item.architecture_subsystem
+      ? `<strong>${escapeHtml(humanize(item.architecture_area))}</strong><span>${escapeHtml(humanize(item.architecture_subsystem))}</span>`
+      : `<strong>${escapeHtml(humanize(item.architecture_area))}</strong><span>${escapeHtml(item.architecture_source)}</span>`;
+    const attention = String(evaluation.attention_label || "low").toLowerCase();
+    const expanded = Number(state.expandedModuleId) === Number(item.artifact_id);
+    const row = `<tr class="module-row" data-module-id="${item.artifact_id}" aria-expanded="${expanded}"><td><span class="module-name">${escapeHtml(item.name)}</span><code class="module-path">${escapeHtml(item.path)}</code></td><td class="architecture-cell">${architecture}</td><td class="module-summary">${escapeHtml(item.summary)}</td><td class="numeric">${format.format(item.lines_of_code)}</td><td class="numeric">${format.format(item.complexity)}</td><td class="numeric" title="${format.format(item.fan_in)} incoming · ${format.format(item.fan_out)} outgoing">${format.format(Number(item.fan_in || 0) + Number(item.fan_out || 0))}</td><td class="numeric">${coverage}</td><td class="numeric">${format.format(item.change_count || 0)}</td><td>${formatDate(item.first_changed_at)}</td><td>${formatDate(item.last_commit_at)}</td><td class="numeric"><span class="attention-pill ${escapeAttr(attention)}" title="${escapeAttr((evaluation.attention_reasons || []).join(" · "))}">${format.format(evaluation.attention_score || 0)}</span></td></tr>`;
+    return expanded ? row + moduleDetailRow(item) : row;
+  }).join("") || `<tr><td colspan="11"><p class="muted">No modules match these filters.</p></td></tr>`;
+}
+
+function moduleDetailRow(item) {
+  const evaluation = item.evaluation || {};
+  const candidates = evaluation.pattern_candidates || [];
+  const responsibilities = item.responsibilities || [];
+  const history = [
+    item.first_change_commit
+      ? `First indexed change ${String(item.first_change_commit).slice(0, 8)} · ${formatDate(item.first_changed_at)}`
+      : "No indexed first-change commit",
+    item.last_change_commit
+      ? `Last change ${String(item.last_change_commit).slice(0, 8)} · ${formatDate(item.last_commit_at)}`
+      : "No indexed last-change commit",
+    item.last_change_subject || "No commit subject indexed",
+  ];
+  return `<tr class="module-detail-row"><td colspan="11"><div class="module-detail"><div><h3>Purpose · ${escapeHtml(item.summary_source)}</h3><p>${escapeHtml(item.summary)}</p><p><code class="module-path">raw ${escapeHtml(String(item.raw_hash).slice(0, 12))} · structure ${escapeHtml(String(item.structural_hash).slice(0, 12))}</code></p><div class="module-detail-actions"><button class="secondary-button" data-module-graph="${escapeAttr(item.path)}" type="button">Open in graph</button></div></div><div><h3>Responsibilities</h3>${detailList(responsibilities, "No structured responsibilities detected")}<h3>Git biography</h3>${detailList(history)}</div><div><h3>Attention · ${escapeHtml(evaluation.attention_label || "Low")}</h3>${detailList(evaluation.attention_reasons)}<h3>Pattern review</h3>${detailList(candidates, "No detector-grounded pattern candidate yet")}<p>${escapeHtml(evaluation.note || "")}</p></div></div></td></tr>`;
+}
+
+function detailList(values = [], empty = "No data") {
+  const items = values || [];
+  return `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("") || `<li>${escapeHtml(empty)}</li>`}</ul>`;
+}
+
+function formatDate(value) {
+  if (!value) return "—";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value).slice(0, 10);
+  return parsed.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
 function findingCards(items, actions = true) {
@@ -311,6 +475,52 @@ function architectureColor(group) {
   return mix(base, "#ffffff", 0.08 + (hash(group) % 13) / 100);
 }
 
+function weightedRectangles(items, bounds, gap = 8) {
+  const rectangles = new Map();
+  const partition = (entries, rectangle) => {
+    if (!entries.length) return;
+    if (entries.length === 1) {
+      const inset = Math.min(gap, rectangle.width * 0.08, rectangle.height * 0.08);
+      rectangles.set(entries[0].key, {
+        x: rectangle.x + inset,
+        y: rectangle.y + inset,
+        width: Math.max(10, rectangle.width - inset * 2),
+        height: Math.max(10, rectangle.height - inset * 2),
+      });
+      return;
+    }
+    const total = entries.reduce((sum, item) => sum + item.weight, 0);
+    let split = 1;
+    let firstWeight = entries[0].weight;
+    while (split < entries.length - 1 && firstWeight + entries[split].weight <= total / 2) {
+      firstWeight += entries[split].weight;
+      split += 1;
+    }
+    const ratio = Math.max(0.08, Math.min(0.92, firstWeight / total));
+    if (rectangle.width >= rectangle.height) {
+      const firstWidth = rectangle.width * ratio;
+      partition(entries.slice(0, split), { ...rectangle, width: firstWidth });
+      partition(entries.slice(split), {
+        x: rectangle.x + firstWidth,
+        y: rectangle.y,
+        width: rectangle.width - firstWidth,
+        height: rectangle.height,
+      });
+    } else {
+      const firstHeight = rectangle.height * ratio;
+      partition(entries.slice(0, split), { ...rectangle, height: firstHeight });
+      partition(entries.slice(split), {
+        x: rectangle.x,
+        y: rectangle.y + firstHeight,
+        width: rectangle.width,
+        height: rectangle.height - firstHeight,
+      });
+    }
+  };
+  partition(items, bounds);
+  return rectangles;
+}
+
 function layoutGraph(resetView = true) {
   const nodes = state.graph.nodes || [];
   const canvas = byId("graph-canvas");
@@ -344,47 +554,71 @@ function layoutGraph(resetView = true) {
     const rightOrder = rootOrder.get(right) ?? 10_000;
     return leftOrder - rightOrder || left.localeCompare(right);
   });
-  const aspect = Math.max(0.65, Math.min(1.8, width / height));
-  const columns = Math.max(1, Math.ceil(Math.sqrt(rootNames.length * aspect)));
-  const rows = Math.ceil(rootNames.length / columns);
-  const cellW = width / columns;
-  const cellH = height / Math.max(rows, 1);
+  const rootEntries = rootNames.map((root) => ({
+    key: root,
+    weight: Math.max(
+      4,
+      [...roots.get(root).values()].reduce((sum, members) => sum + members.length, 0),
+    ),
+  }));
+  const rootRectangles = weightedRectangles(
+    rootEntries,
+    { x: 0, y: 0, width, height },
+    10,
+  );
   state.positions.clear();
   state.groupRegions = [];
-  rootNames.forEach((root, index) => {
-    const col = index % columns;
-    const row = Math.floor(index / columns);
-    const padding = Math.max(12, Math.min(cellW, cellH) * 0.045);
+  rootNames.forEach((root) => {
+    const rectangle = rootRectangles.get(root);
+    if (!rectangle) return;
+    const nodeCount = [...roots.get(root).values()]
+      .reduce((sum, members) => sum + members.length, 0);
     const region = {
       root,
-      x: col * cellW + padding,
-      y: row * cellH + padding,
-      width: Math.max(10, cellW - padding * 2),
-      height: Math.max(10, cellH - padding * 2),
+      ...rectangle,
+      nodeCount,
       color: groupColor(root),
     };
     state.groupRegions.push(region);
-    const subgroups = [...roots.get(root).keys()].sort();
-    const usableY = region.y + 24;
-    const usableH = Math.max(10, region.height - 28);
-    const subAspect = Math.max(0.7, region.width / usableH);
-    const subColumns = Math.max(1, Math.ceil(Math.sqrt(subgroups.length * subAspect)));
-    const subRows = Math.ceil(subgroups.length / subColumns);
-    const subW = region.width / subColumns;
-    const subH = usableH / Math.max(1, subRows);
-    subgroups.forEach((group, groupIndex) => {
-      const groupCol = groupIndex % subColumns;
-      const groupRow = Math.floor(groupIndex / subColumns);
-      const centerX = region.x + (groupCol + 0.5) * subW;
-      const centerY = usableY + (groupRow + 0.5) * subH;
-      roots.get(root).get(group).forEach((node) => {
+    const subgroupEntries = [...roots.get(root).entries()]
+      .filter(([, members]) => members.length)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([group, members]) => ({ key: group, weight: members.length }));
+    const subgroupRectangles = weightedRectangles(
+      subgroupEntries,
+      {
+        x: region.x + 5,
+        y: region.y + Math.min(26, region.height * 0.2),
+        width: Math.max(10, region.width - 10),
+        height: Math.max(10, region.height - Math.min(31, region.height * 0.24)),
+      },
+      3,
+    );
+    subgroupEntries.forEach(({ key: group }) => {
+      const subregion = subgroupRectangles.get(group);
+      const members = [...roots.get(root).get(group)].sort((left, right) => (
+        left.path.localeCompare(right.path)
+      ));
+      if (!subregion || !members.length) return;
+      const innerWidth = Math.max(8, subregion.width - 8);
+      const innerHeight = Math.max(8, subregion.height - 8);
+      const columns = Math.max(
+        1,
+        Math.ceil(Math.sqrt(members.length * innerWidth / Math.max(innerHeight, 1))),
+      );
+      const rows = Math.ceil(members.length / columns);
+      const cellWidth = innerWidth / columns;
+      const cellHeight = innerHeight / Math.max(rows, 1);
+      members.forEach((node, index) => {
         const value = hash(node.path);
-        const angle = (value % 3600) / 3600 * Math.PI * 2;
-        const distribution = Math.sqrt(((value >>> 10) % 1000) / 1000);
-        const radius = Math.min(subW, subH) * (0.08 + distribution * 0.34);
+        const column = index % columns;
+        const row = Math.floor(index / columns);
+        const jitter = Math.min(cellWidth, cellHeight) * 0.12;
+        const jitterX = (((value & 255) / 255) - 0.5) * jitter;
+        const jitterY = ((((value >>> 8) & 255) / 255) - 0.5) * jitter;
         state.positions.set(String(node.id), {
-          x: centerX + Math.cos(angle) * radius,
-          y: centerY + Math.sin(angle) * radius,
+          x: subregion.x + 4 + (column + 0.5) * cellWidth + jitterX,
+          y: subregion.y + 4 + (row + 0.5) * cellHeight + jitterY,
           group,
         });
       });
@@ -468,7 +702,8 @@ function drawGraph() {
       context.globalAlpha = 0.72;
       context.fillStyle = region.color;
       context.font = `${11 / scale}px ui-sans-serif, system-ui, sans-serif`;
-      context.fillText(humanize(region.root), region.x + 10 / scale, region.y + 17 / scale);
+      const label = `${humanize(region.root)} · ${format.format(region.nodeCount)}`;
+      context.fillText(label, region.x + 10 / scale, region.y + 17 / scale);
     });
     context.globalAlpha = 1;
   }
@@ -495,7 +730,12 @@ function drawGraph() {
     context.beginPath();
     context.arc(position.x, position.y, radius, 0, Math.PI * 2);
     context.fill();
+    context.strokeStyle = "rgba(2, 10, 8, .92)";
+    context.lineWidth = 1.25 / scale;
+    context.stroke();
     if (state.selectedNode && String(state.selectedNode.id) === String(node.id)) {
+      context.beginPath();
+      context.arc(position.x, position.y, radius + 2.5 / scale, 0, Math.PI * 2);
       context.strokeStyle = "#ffffff";
       context.lineWidth = 2 / scale;
       context.stroke();
@@ -555,9 +795,10 @@ async function inspectNode(node) {
   state.selectedNode = node;
   drawGraph();
   const panel = byId("inspector");
-  panel.innerHTML = `<p class="eyebrow">Module inspector</p><h2>${escapeHtml(node.path)}</h2><p class="muted">Loading details…</p>`;
+  const displayName = String(node.path).split("/").pop();
+  panel.innerHTML = `<p class="eyebrow">Module inspector</p><h2>${escapeHtml(displayName)}</h2><code class="inspector-path">${escapeHtml(node.path)}</code><p class="muted">Loading details…</p>`;
   if (String(node.id).startsWith("external:")) {
-    panel.innerHTML = `<p class="eyebrow">External dependency</p><h2>${escapeHtml(node.path)}</h2><p class="muted">This node is referenced by repository code but is not a file analyzed inside this repository.</p>`;
+    panel.innerHTML = `<p class="eyebrow">External dependency</p><h2>${escapeHtml(displayName)}</h2><code class="inspector-path">${escapeHtml(node.path)}</code><p class="muted">This node is referenced by repository code but is not a file analyzed inside this repository.</p>`;
     return;
   }
   try {
@@ -573,7 +814,20 @@ async function inspectNode(node) {
       `<button data-path="${escapeAttr(item.source_path || "")}">${escapeHtml(item.source_path || "")}</button>`
     )).join("");
     const responsibilities = (file.responsibilities || []).map((item) => `<span class="tag">${escapeHtml(item)}</span>`).join("");
-    panel.innerHTML = `<p class="eyebrow">${escapeHtml(effectiveGroup(file))}</p><h2>${escapeHtml(file.path)}</h2><p class="muted">${escapeHtml(file.summary)}</p><dl><dt>Language</dt><dd>${escapeHtml(file.language)}</dd><dt>LOC</dt><dd>${format.format(file.lines_of_code)}</dd><dt>Complexity</dt><dd>${file.complexity}</dd><dt title="Changes when any source byte changes">Raw hash</dt><dd>${escapeHtml(String(file.raw_hash || "").slice(0, 10))}</dd><dt title="Tracks normalized code structure and ignores some metadata-only edits">Structural hash</dt><dd>${escapeHtml(String(file.structural_hash || "").slice(0, 10))}</dd><dt>Last analysis</dt><dd>${escapeHtml(file.analysis_status)}</dd></dl><h3>Detected responsibilities</h3><div class="tag-list">${responsibilities || `<span class="muted">No structured semantic claim yet</span>`}</div><h3>Public interfaces</h3><div class="tag-list">${(file.public_interfaces || []).slice(0, 18).map((item) => `<span class="tag">${escapeHtml(item)}</span>`).join("") || `<span class="muted">None detected</span>`}</div><h3>Uses</h3><div class="relation-list">${relationships || `<span class="muted">No outgoing relationship detected</span>`}</div><h3>Used by</h3><div class="relation-list">${dependants || `<span class="muted">No incoming relationship detected</span>`}</div><h3>Recent changes</h3><div class="relation-list">${detail.history.slice(0, 6).map((item) => `<span class="muted">${escapeHtml(item.commit_sha.slice(0, 8))} · ${escapeHtml(item.subject)}</span>`).join("") || `<span class="muted">No Git history loaded</span>`}</div>`;
+    const inventory = state.modules.find((item) => item.path === file.path) || {};
+    const semantic = detail.semantic_claims.find((item) => item.claim_type === "module_analysis");
+    const purpose = semantic?.value?.summary || inventory.summary || file.summary;
+    const purposeSource = semantic
+      ? `${semantic.provider || "semantic provider"} interpretation · ${(Number(semantic.confidence || 0) * 100).toFixed(0)}% confidence`
+      : "Deterministic analyzer summary";
+    const area = inventory.architecture_area || state.groupParents.get(effectiveGroup(file)) || effectiveGroup(file);
+    const subsystem = inventory.architecture_subsystem || effectiveGroup(file);
+    const coverage = node.line_coverage == null
+      ? "Not imported"
+      : `${(Number(node.line_coverage) * 100).toFixed(1)}%`;
+    const evaluation = inventory.evaluation || {};
+    const patternCandidates = evaluation.pattern_candidates || [];
+    panel.innerHTML = `<p class="eyebrow">${escapeHtml(humanize(area))} · ${escapeHtml(humanize(subsystem))}</p><h2>${escapeHtml(displayName)}</h2><code class="inspector-path">${escapeHtml(file.path)}</code><h3>Purpose</h3><p class="muted">${escapeHtml(purpose)}</p><p class="inspector-provenance">${escapeHtml(purposeSource)}</p><dl><dt>Language</dt><dd>${escapeHtml(file.language)}</dd><dt>Runtime</dt><dd>${escapeHtml(file.runtime || "—")}</dd><dt>LOC</dt><dd>${format.format(file.lines_of_code)}</dd><dt>Complexity</dt><dd>${file.complexity}</dd><dt>Incoming links</dt><dd>${format.format(node.fan_in || 0)}</dd><dt>Outgoing links</dt><dd>${format.format(node.fan_out || 0)}</dd><dt>Line coverage</dt><dd>${coverage}</dd><dt>Indexed changes</dt><dd>${format.format(node.change_count || 0)}</dd><dt>First indexed</dt><dd>${formatDate(inventory.first_changed_at)}</dd><dt>Last worked</dt><dd>${formatDate(inventory.last_commit_at)}</dd><dt title="Changes when any source byte changes">Raw hash</dt><dd><code>${escapeHtml(String(file.raw_hash || "").slice(0, 10))}</code></dd><dt title="Tracks normalized code structure and ignores some metadata-only edits">Structural hash</dt><dd><code>${escapeHtml(String(file.structural_hash || "").slice(0, 10))}</code></dd><dt>Analysis state</dt><dd>${escapeHtml(file.analysis_status)}</dd></dl><h3>Detected responsibilities</h3><div class="tag-list">${responsibilities || `<span class="muted">No structured responsibility detected</span>`}</div><h3>Pattern review</h3><div class="tag-list">${patternCandidates.map((item) => `<span class="tag">${escapeHtml(item)}</span>`).join("") || `<span class="muted">No detector-grounded pattern candidate yet</span>`}</div><h3>Public interfaces</h3><div class="tag-list">${(file.public_interfaces || []).slice(0, 18).map((item) => `<span class="tag">${escapeHtml(item)}</span>`).join("") || `<span class="muted">None detected</span>`}</div><h3>Uses</h3><div class="relation-list">${relationships || `<span class="muted">No outgoing relationship detected</span>`}</div><h3>Used by</h3><div class="relation-list">${dependants || `<span class="muted">No incoming relationship detected</span>`}</div><h3>Recent changes</h3><div class="relation-list">${detail.history.slice(0, 6).map((item) => `<span class="muted">${escapeHtml(item.commit_sha.slice(0, 8))} · ${escapeHtml(item.subject)}</span>`).join("") || `<span class="muted">No Git history loaded</span>`}</div>`;
   } catch (error) {
     panel.innerHTML += `<p class="muted">${escapeHtml(error.message)}</p>`;
   }
@@ -806,6 +1060,49 @@ function setupEvents() {
   });
   document.querySelectorAll("[data-switch]").forEach((button) => {
     button.addEventListener("click", () => switchView(button.dataset.switch));
+  });
+  byId("module-search").addEventListener("input", () => {
+    state.modulePage = 1;
+    renderModules();
+  });
+  ["module-area-filter", "module-subsystem-filter", "module-language-filter", "module-page-size"]
+    .forEach((id) => byId(id).addEventListener("change", () => {
+      state.modulePage = 1;
+      renderModules();
+    }));
+  document.querySelectorAll("[data-module-sort]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const key = button.dataset.moduleSort;
+      state.moduleSort = state.moduleSort.key === key
+        ? { key, direction: state.moduleSort.direction === "asc" ? "desc" : "asc" }
+        : { key, direction: ["path", "architecture_area", "summary"].includes(key) ? "asc" : "desc" };
+      state.modulePage = 1;
+      renderModules();
+    });
+  });
+  byId("module-previous").addEventListener("click", () => {
+    state.modulePage -= 1;
+    renderModules();
+  });
+  byId("module-next").addEventListener("click", () => {
+    state.modulePage += 1;
+    renderModules();
+  });
+  byId("module-table-body").addEventListener("click", (event) => {
+    const graphButton = event.target.closest("[data-module-graph]");
+    if (graphButton) {
+      const node = state.graph.nodes.find((item) => item.path === graphButton.dataset.moduleGraph);
+      if (node) {
+        switchView("graph");
+        window.setTimeout(() => inspectNode(node), 0);
+      }
+      return;
+    }
+    const row = event.target.closest(".module-row");
+    if (!row) return;
+    const id = Number(row.dataset.moduleId);
+    state.expandedModuleId = Number(state.expandedModuleId) === id ? null : id;
+    renderModules();
   });
   byId("repository-select").addEventListener("change", async (event) => {
     state.repositoryId = Number(event.target.value);

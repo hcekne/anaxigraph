@@ -7,6 +7,10 @@ source code without modifying the target, persists a versioned dependency graph,
 architecture health, renders an interactive dashboard, and gives coding agents bounded task
 context and impact analysis.
 
+The dashboard includes a filterable Modules ledger for purpose, architecture placement, size,
+complexity, coupling, Git activity, imported coverage, findings, and review attention. Graph
+regions scale with their module populations so dense areas receive proportionally more space.
+
 The product has three named surfaces:
 
 - **AnaxiGraph** is the dashboard, analysis engine, and overall project.

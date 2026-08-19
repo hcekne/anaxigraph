@@ -24,6 +24,8 @@ DEFAULT_IGNORE = (
     ".next/**",
     ".nuxt/**",
     "coverage/**",
+    "**/coverage.xml",
+    "**/lcov.info",
     "htmlcov/**",
     "__pycache__/**",
     ".pytest_cache/**",
