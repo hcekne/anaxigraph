@@ -1,0 +1,214 @@
+project:
+  name: MaxOS Agent Harness
+
+architecture:
+  policy: ARCHITECTURE.md
+  protected_paths:
+    - backend/app/services/authz.py
+    - backend/app/services/identity.py
+    - backend/app/services/path_safety.py
+    - backend/app/services/safe_writes.py
+    - backend/app/services/mcp_client.py
+    - backend/app/services/secret_encryption.py
+    - runner-launcher/app/containment_policy.py
+    - runner-launcher/app/security.py
+    - agent-runner/app/providers/**
+    - shared/provider_manifest.json
+    - backend/migrations/**
+  rules:
+    - id: module-size
+      type: max_module_loc
+      severity: warning
+      description: MaxOS requires design review above 400 physical lines and caps new files at 500.
+      max: 400
+      paths:
+        - backend/app/**
+        - frontend/src/**
+        - agent-runner/app/**
+        - runner-launcher/app/**
+        - native-worker/maxos_worker/**
+    - id: function-size
+      type: max_function_lines
+      severity: info
+      max: 25
+      paths:
+        - backend/app/**
+        - frontend/src/**
+        - agent-runner/app/**
+        - runner-launcher/app/**
+    - id: symbol-complexity
+      type: max_symbol_complexity
+      severity: warning
+      max: 15
+    - id: fan-out
+      type: max_fan_out
+      severity: warning
+      max: 20
+    - id: dependency-cycles
+      type: no_cycles
+      severity: error
+    - id: stale-unreferenced-source
+      type: dead_code
+      severity: info
+      minimum_age_days: 120
+    - id: models-never-import-services
+      type: forbid_dependency
+      severity: error
+      description: MaxOS models must not import the service layer.
+      from: backend-models
+      to: backend-services
+      recommendation: Move behavior into a service and keep the model dependency-free.
+    - id: models-never-import-api
+      type: forbid_dependency
+      severity: error
+      description: MaxOS models must not import HTTP routers.
+      from: backend-models
+      to: backend-api
+    - id: services-never-import-api
+      type: forbid_dependency
+      severity: error
+      description: The documented backend direction is api → services → models.
+      from: backend-services
+      to: backend-api
+    - id: frontend-lib-never-import-features
+      type: forbid_dependency
+      severity: error
+      description: The documented frontend direction is app → features → lib.
+      from: frontend-lib
+      to: frontend-features
+
+groups:
+  testing:
+    level: subsystem
+    description: Automated backend, frontend, runner, launcher, and native-worker verification.
+    paths:
+      - backend/tests/**
+      - frontend/tests/**
+      - frontend/src/**/*.test.*
+      - frontend/src/**/*.spec.*
+      - agent-runner/tests/**
+      - runner-launcher/tests/**
+      - native-worker/tests/**
+  backend-api:
+    level: subsystem
+    parent: backend
+    description: HTTP routes and transport adapters that translate requests into service calls.
+    paths: [backend/app/api/**]
+  backend-services:
+    level: subsystem
+    parent: backend
+    description: Application workflows and orchestration between API, models, and integrations.
+    paths: [backend/app/services/**]
+  backend-models:
+    level: subsystem
+    parent: backend
+    description: Persistent data shapes and domain records kept independent from transport logic.
+    paths: [backend/app/models/**]
+  backend-temporal:
+    level: subsystem
+    parent: backend
+    description: Durable Temporal workflows, activities, and workflow-specific integration code.
+    paths: [backend/app/temporal/**]
+  backend-migrations:
+    level: subsystem
+    parent: backend
+    description: Ordered database schema changes with higher deployment and rollback sensitivity.
+    paths: [backend/migrations/**]
+  frontend-features:
+    level: subsystem
+    parent: frontend
+    description: User-facing product capabilities grouped by feature and interaction flow.
+    paths: [frontend/src/features/**]
+  frontend-lib:
+    level: subsystem
+    parent: frontend
+    description: Reusable frontend utilities, primitives, clients, and shared contracts.
+    paths: [frontend/src/lib/**]
+  frontend-shell:
+    level: subsystem
+    parent: frontend
+    description: Application entry points and top-level composition of frontend features.
+    paths:
+      - frontend/src/App.*
+      - frontend/src/main.*
+      - frontend/src/WorkflowBuilder.*
+  agent-runtime:
+    level: runtime
+    description: Isolated execution runtime that invokes model providers and agent tooling.
+    paths: [agent-runner/**]
+  runner-launcher:
+    level: runtime
+    description: Security and containment boundary that launches agent runner processes.
+    paths: [runner-launcher/**]
+  native-worker:
+    level: runtime
+    description: Native worker process and host-facing background operations.
+    paths: [native-worker/**]
+  native-companion:
+    level: runtime
+    description: macOS companion application and platform-specific integration surface.
+    paths: [native-companion/**]
+  infrastructure:
+    level: runtime
+    description: Deployment, CI, containers, proxies, and environment provisioning.
+    paths:
+      - infra/**
+      - .github/**
+      - docker-compose*.yml
+      - Caddyfile
+  shared-contracts:
+    level: subsystem
+    description: Cross-runtime schemas and contracts that must remain compatible across services.
+    paths: [shared/**]
+  documentation:
+    level: subsystem
+    description: Architecture, product, operations, and contributor knowledge.
+    paths:
+      - docs/**
+      - '*.md'
+  developer-tooling:
+    level: subsystem
+    description: Repository maintenance, generation, linting, and local-development automation.
+    paths:
+      - scripts/**
+      - pyproject.toml
+      - .pre-commit-config.yaml
+
+agent:
+  context_limit: 30
+  neighbor_depth: 2
+  protected_paths:
+    - backend/app/services/authz.py
+    - backend/app/services/identity.py
+    - backend/app/services/path_safety.py
+    - backend/app/services/safe_writes.py
+    - backend/app/services/mcp_client.py
+    - runner-launcher/app/containment_policy.py
+    - runner-launcher/app/security.py
+    - shared/provider_manifest.json
+    - backend/migrations/**
+
+coverage:
+  files:
+    - backend/coverage.xml
+    - frontend/coverage/lcov.info
+    - agent-runner/coverage.xml
+    - runner-launcher/coverage.xml
+
+ignore:
+  - data/**
+  - .secrets/**
+  - .claude/settings.local.json
+  - frontend/node_modules/**
+  - frontend/dist/**
+  - frontend/coverage/**
+  - frontend/playwright-report/**
+  - frontend/test-results/**
+  - backend/htmlcov/**
+  - backend/.pytest_cache/**
+  - docs/archive/**
+  - '**/*.snap'
+  - '**/package-lock.json'
+  - '**/uv.lock'
+
+max_file_bytes: 3000000

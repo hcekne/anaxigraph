@@ -1,0 +1,13 @@
+.codeintel
+.anaxigraph
+.git
+.pytest_cache
+.ruff_cache
+.venv
+__pycache__
+build
+dist
+*.db
+*.db-shm
+*.db-wal
+*.egg-info

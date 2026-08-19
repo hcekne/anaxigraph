@@ -1,0 +1,102 @@
+name: anaxigraph
+
+x-anaxigraph-service: &anaxigraph-service
+  image: anaxigraph:local
+  build:
+    context: .
+  init: true
+  read_only: true
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  tmpfs:
+    - /tmp:size=128m,mode=1777
+  volumes:
+    - type: bind
+      source: ${ANAXIGRAPH_REPOSITORY:-${CODEINTEL_REPOSITORY:-../maxos_agent}}
+      target: /repo
+      read_only: true
+    - type: bind
+      source: ${ANAXIGRAPH_REPOSITORIES_ROOT:-${CODEINTEL_REPOSITORIES_ROOT:-..}}
+      target: /repositories
+      read_only: true
+    - type: bind
+      source: .
+      target: /anaxigraph
+      read_only: true
+    - type: bind
+      source: ./examples
+      target: /config/policies
+      read_only: true
+    - type: bind
+      source: ${ANAXIGRAPH_REGISTRY:-${CODEINTEL_REGISTRY:-./repositories.example.yml}}
+      target: /config/repositories.yml
+      read_only: true
+    - type: volume
+      source: anaxi_index
+      target: /state
+  restart: unless-stopped
+  stop_grace_period: 20s
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "3"
+services:
+  anaxigraph:
+    <<: *anaxigraph-service
+    command:
+      - serve
+      - --registry
+      - /config/repositories.yml
+      - --db
+      - /state/codeintel.db
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8765"
+      - --scan-on-start
+    ports:
+      - "${ANAXIGRAPH_BIND_ADDRESS:-${CODEINTEL_BIND_ADDRESS:-127.0.0.1}}:${ANAXIGRAPH_PORT:-${CODEINTEL_PORT:-8765}}:8765"
+    networks:
+      anaxigraph:
+        aliases:
+          - codeintel
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/healthz', timeout=3).read()"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 90s
+
+  # Optional continuous refresh. Enable with: docker compose --profile watch up -d
+  anaxigraph-watch:
+    <<: *anaxigraph-service
+    profiles:
+      - watch
+    command:
+      - watch
+      - --registry
+      - /config/repositories.yml
+      - --db
+      - /state/codeintel.db
+      - --interval
+      - "${ANAXIGRAPH_WATCH_INTERVAL:-${CODEINTEL_WATCH_INTERVAL:-10}}"
+    depends_on:
+      anaxigraph:
+        condition: service_healthy
+    networks:
+      - anaxigraph
+
+volumes:
+  anaxi_index:
+    # Preserve the existing named volume and every indexed repository during the rename.
+    name: codeintel_codeintel_state
+
+networks:
+  anaxigraph:

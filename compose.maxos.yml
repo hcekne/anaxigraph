@@ -1,0 +1,22 @@
+# Attach AnaxiGraph to the network created by the MaxOS Compose project.
+# Start MaxOS first, then layer this file over compose.yml.
+services:
+  anaxigraph:
+    networks:
+      anaxigraph:
+        aliases:
+          - codeintel
+      maxos:
+        aliases:
+          - anaxigraph
+          - codeintel
+
+  anaxigraph-watch:
+    networks:
+      anaxigraph: {}
+      maxos: {}
+
+networks:
+  maxos:
+    external: true
+    name: ${MAXOS_DOCKER_NETWORK:-maxos_agent_default}

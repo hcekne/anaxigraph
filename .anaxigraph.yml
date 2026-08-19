@@ -1,0 +1,67 @@
+project:
+  name: AnaxiGraph
+
+architecture:
+  policy: docs/coding-patterns.md
+  protected_paths:
+    - src/codeintel/storage.py
+    - src/codeintel/mcp_server.py
+  rules:
+    - id: module-size
+      type: max_module_loc
+      severity: warning
+      max: 500
+      paths: [src/**]
+    - id: function-size
+      type: max_function_lines
+      severity: info
+      max: 40
+      paths: [src/**]
+    - id: symbol-complexity
+      type: max_symbol_complexity
+      severity: warning
+      max: 15
+    - id: fan-out
+      type: max_fan_out
+      severity: warning
+      max: 15
+    - id: dependency-cycles
+      type: no_cycles
+      severity: error
+
+groups:
+  extraction:
+    paths:
+      - src/codeintel/analyzers/**
+      - src/codeintel/languages.py
+      - src/codeintel/scanner.py
+  intelligence:
+    paths:
+      - src/codeintel/architecture.py
+      - src/codeintel/coverage.py
+      - src/codeintel/agent.py
+      - src/codeintel/semantic.py
+  persistence:
+    paths: [src/codeintel/storage.py]
+  interfaces:
+    paths:
+      - src/codeintel/api.py
+      - src/codeintel/mcp_server.py
+      - src/codeintel/cli.py
+      - src/codeintel/dashboard/**
+  tests:
+    paths: [tests/**]
+  documentation:
+    paths:
+      - docs/**
+      - '*.md'
+
+agent:
+  context_limit: 25
+  neighbor_depth: 2
+  protected_paths:
+    - src/codeintel/storage.py
+    - src/codeintel/mcp_server.py
+
+coverage:
+  files: [coverage.xml]

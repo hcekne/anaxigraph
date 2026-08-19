@@ -1,0 +1,14 @@
+# Paths are inside the container. Compose mounts the primary repository at /repo and the
+# host collection root at /repositories, both read-only. Add or remove entries here; the
+# dashboard cannot browse arbitrary host paths that are not in this allowlist.
+repositories:
+  maxos-agent:
+    path: /repo
+    config: /config/policies/maxos-agent.anaxigraph.yml
+    # Evenly sample the complete first-parent history, always including init and HEAD.
+    history_snapshots: 64
+
+  anaxigraph:
+    path: /anaxigraph
+    config: /anaxigraph/.anaxigraph.yml
+    history_snapshots: 48

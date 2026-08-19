@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#ff4d8d" />
+    <title>AnaxiGraph</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
+    <link rel="alternate icon" href="/favicon.ico" />
+    <link rel="mask-icon" href="/assets/mask-icon.svg" color="#ff4d8d" />
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand-block">
+        <div class="brand-heading">
+          <img class="brand-mark" src="/assets/favicon.svg" alt="" />
+          <div>
+            <p class="eyebrow">Temporal architecture observatory</p>
+            <h1>AnaxiGraph</h1>
+          </div>
+        </div>
+        <p class="current-repository">Current repository · <strong id="project-name">Loading…</strong></p>
+      </div>
+      <div class="topbar-actions">
+        <label class="repository-picker">
+          Current repository
+          <select id="repository-select" aria-label="Selected repository"></select>
+        </label>
+        <span id="snapshot-label" class="snapshot-label">No snapshot</span>
+        <button id="refresh-button" class="button">Refresh scan</button>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="Dashboard sections">
+      <button class="tab active" data-view="overview">Overview</button>
+      <button class="tab" data-view="graph">Graph</button>
+      <button class="tab" data-view="architecture">Architecture</button>
+      <button class="tab" data-view="history">History</button>
+      <button class="tab" data-view="agents">Agents</button>
+    </nav>
+
+    <main>
+      <section id="view-overview" class="view active">
+        <div id="metric-grid" class="metric-grid"></div>
+        <div id="coverage-notice" class="notice" hidden></div>
+        <div class="two-column">
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Repository composition</p>
+                <h2>Languages</h2>
+              </div>
+            </div>
+            <div id="language-bars" class="bars"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Areas and their subsystems</p>
+                <h2>Architecture map</h2>
+                <p class="panel-copy">Configured path groups are rolled up under parent areas. A
+                  fallback group is inferred only when repository policy does not match a file.</p>
+              </div>
+            </div>
+            <div id="group-bars" class="group-families"></div>
+          </article>
+        </div>
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Immediate attention</p>
+              <h2>Active findings</h2>
+            </div>
+            <button class="text-button" data-switch="architecture">See all findings →</button>
+          </div>
+          <div id="finding-preview" class="finding-list"></div>
+        </article>
+      </section>
+
+      <section id="view-graph" class="view">
+        <div class="graph-layout">
+          <article class="panel graph-panel">
+            <div class="graph-controls">
+              <label>
+                Overlay
+                <select id="overlay-select">
+                  <option value="architecture">Architecture</option>
+                  <option value="coupling">Coupling</option>
+                  <option value="complexity">Complexity</option>
+                  <option value="coverage">Test coverage</option>
+                  <option value="change">Change frequency</option>
+                  <option value="dead-code">Dead code</option>
+                  <option value="agent">Agent safety</option>
+                  <option value="drift">Architecture drift</option>
+                </select>
+              </label>
+              <label>
+                Node size
+                <select id="size-select">
+                  <option value="lines_of_code">LOC</option>
+                  <option value="complexity">Complexity</option>
+                  <option value="fan_in">Fan-in</option>
+                  <option value="fan_out">Fan-out</option>
+                  <option value="change_count">Change frequency</option>
+                </select>
+              </label>
+              <label class="search-label">
+                Find module
+                <input id="graph-search" type="search" placeholder="workbench, workflow, auth…" />
+              </label>
+              <label class="checkbox-label">
+                <input id="external-toggle" type="checkbox" />
+                External dependencies
+              </label>
+              <label class="checkbox-label">
+                <input id="architecture-regions-toggle" type="checkbox" checked />
+                Architecture regions
+              </label>
+              <label>
+                Canvas height
+                <select id="height-select">
+                  <option value="720">Normal</option>
+                  <option value="1040">Tall</option>
+                  <option value="viewport" selected>Viewport</option>
+                </select>
+              </label>
+              <button id="fit-graph-button" class="secondary-button" type="button">Fit graph</button>
+              <button id="focus-graph-button" class="secondary-button" type="button">Focus</button>
+              <button id="graph-history-play-button" class="secondary-button" type="button">Replay history</button>
+              <button id="fullscreen-graph-button" class="secondary-button" type="button">Fullscreen</button>
+            </div>
+            <div id="overlay-help" class="graph-explainer"></div>
+            <div class="canvas-wrap">
+              <canvas id="graph-canvas" aria-label="Repository dependency graph"></canvas>
+              <div id="graph-legend" class="graph-legend"></div>
+              <div class="zoom-help">Wheel to zoom · drag to pan · select a node to inspect</div>
+            </div>
+          </article>
+          <aside id="inspector" class="panel inspector">
+            <p class="eyebrow">Module inspector</p>
+            <h2>Select a node</h2>
+            <p class="muted">Click a graph node to inspect its purpose, interfaces, dependencies, history, and findings.</p>
+          </aside>
+        </div>
+      </section>
+
+      <section id="view-architecture" class="view">
+        <article class="panel workflow-guide">
+          <div>
+            <p class="eyebrow">From signal to verified change</p>
+            <h2>How the review workflow works</h2>
+            <p class="muted">A finding is an inspection signal, not an automatic instruction to
+              refactor. Review it, plan it when you want an agent to act, then let a later scan
+              verify that the condition actually disappeared.</p>
+          </div>
+          <div id="finding-workflow" class="workflow-steps"></div>
+        </article>
+        <article class="panel">
+          <div class="panel-heading finding-controls">
+            <div>
+              <p class="eyebrow">Persistent review workflow</p>
+              <h2>Architecture findings</h2>
+            </div>
+            <label>
+              Status
+              <select id="finding-status-filter">
+                <option value="active">Active</option>
+                <option value="new">New</option>
+                <option value="acknowledged">Reviewed</option>
+                <option value="planned">Planned for agent</option>
+                <option value="regressed">Regressed</option>
+                <option value="all">All</option>
+                <option value="resolved">Resolved</option>
+                <option value="dismissed">Dismissed</option>
+              </select>
+            </label>
+          </div>
+          <div id="findings-table" class="finding-list full"></div>
+        </article>
+      </section>
+
+      <section id="view-history" class="view">
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Visual biography</p>
+              <h2>Architecture over time</h2>
+              <p id="history-help" class="panel-copy"></p>
+            </div>
+            <div class="history-actions">
+              <span id="history-value" class="snapshot-label"></span>
+              <button id="history-import-button" class="secondary-button" type="button">Import Git history</button>
+              <button id="history-play-button" class="secondary-button" type="button">Play</button>
+            </div>
+          </div>
+          <input id="history-range" class="timeline" type="range" min="0" max="0" value="0" />
+          <div id="history-commits" class="history-commits"></div>
+          <div id="trend-grid" class="metric-grid compact"></div>
+        </article>
+      </section>
+
+      <section id="view-agents" class="view">
+        <article class="panel agent-intro">
+          <p class="eyebrow">Human-approved context for coding agents</p>
+          <h2>Use repository intelligence while you code</h2>
+          <p class="muted">This page does not edit code. It calculates what an agent should read,
+            what depends on the proposed change, which tests matter, and where extra review is
+            required. AnaxiMCP gives Codex the same context directly from AnaxiIndex.</p>
+          <code>CODEINTEL_FINDINGS(status="planned") → CODEINTEL_FINDING_CONTEXT → CODEINTEL_FILE / CODEINTEL_IMPACT</code>
+        </article>
+        <div class="two-column agents-layout">
+          <article class="panel">
+            <p class="eyebrow">Find the right coding context</p>
+            <h2>Plan a coding task</h2>
+            <p class="muted">Describe the outcome. AnaxiGraph finds likely implementation files,
+              connected modules, tests, rules, and existing findings.</p>
+            <form id="scope-form" class="agent-form">
+              <label>
+                Coding goal
+                <textarea id="scope-goal" required placeholder="Add saved prompts to the Workbench"></textarea>
+              </label>
+              <label>
+                Branch (optional)
+                <input id="scope-branch" placeholder="feature/workbench-saved-prompts" />
+              </label>
+              <button class="button" type="submit">Find task context</button>
+            </form>
+          </article>
+          <article class="panel">
+            <p class="eyebrow">Check before editing shared code</p>
+            <h2>Who depends on this?</h2>
+            <p class="muted">Enter a file or unique symbol to see direct and indirect dependants,
+              relevant tests, migrations, protected boundaries, and branch conflicts.</p>
+            <form id="impact-form" class="agent-form">
+              <label>
+                File or symbol
+                <input id="impact-target" required placeholder="WorkflowDefinition" />
+              </label>
+              <button class="button" type="submit">Analyze impact</button>
+            </form>
+          </article>
+        </div>
+        <article id="agent-result" class="panel result-panel">
+          <p class="muted">Task context, change impact, or a planned finding handoff will appear here.</p>
+        </article>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="/assets/app.js"></script>
+  </body>
+</html>

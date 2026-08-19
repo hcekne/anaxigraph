@@ -1,0 +1,156 @@
+from __future__ import annotations
+
+import json
+import subprocess
+
+from codeintel.scanner import RepositoryScanner
+
+
+def test_scan_persists_graph_metrics_coverage_and_findings(repository, database):
+    stats = RepositoryScanner(database).scan(repository)
+
+    assert stats.discovered == 10
+    assert stats.analyzed == 10
+    assert stats.relationships >= 6
+    overview = database.overview(stats.repository_id)
+    assert overview["files"] == 10
+    assert overview["symbols"] >= 7
+    assert overview["coverage"]["line_coverage"] == 0.5
+    snapshot = database.snapshots(stats.repository_id)[0]
+    assert snapshot["file_count"] == overview["files"]
+    assert snapshot["lines_of_code"] == overview["lines_of_code"]
+    assert snapshot["relationship_count"] == stats.relationships
+
+    graph = database.graph(stats.repository_id)
+    nodes = {item["path"]: item for item in graph["nodes"]}
+    assert "ignored/secret.py" not in nodes
+    assert nodes["pkg/core.py"]["declared_group"] == "domain"
+    internal = {
+        (
+            next(item["path"] for item in graph["nodes"] if item["id"] == edge["source"]),
+            next(item["path"] for item in graph["nodes"] if item["id"] == edge["target"]),
+        )
+        for edge in graph["edges"]
+    }
+    assert ("pkg/core.py", "pkg/util.py") in internal
+    assert ("web/App.tsx", "web/helper.ts") in internal
+    assert database.findings(stats.repository_id)
+
+
+def test_incremental_decision_tree_reuses_raw_and_metadata_only_changes(repository, database):
+    scanner = RepositoryScanner(database)
+    first = scanner.scan(repository)
+    with database.transaction() as connection:
+        connection.execute(
+            "UPDATE snapshots SET metadata_json = '{}' WHERE id = ?", (first.snapshot_id,)
+        )
+    unchanged = scanner.scan(repository, run_type="update")
+    assert unchanged.snapshot_id == first.snapshot_id
+    assert unchanged.analyzed == 0
+    assert unchanged.reused == first.discovered
+    with database.connect() as connection:
+        metadata = json.loads(
+            connection.execute(
+                "SELECT metadata_json FROM snapshots WHERE id = ?", (first.snapshot_id,)
+            ).fetchone()[0]
+        )
+    assert metadata["analysis_signature"]
+
+    core = repository / "pkg" / "core.py"
+    core.write_text(
+        core.read_text(encoding="utf-8") + "\n# Documentation only.\n", encoding="utf-8"
+    )
+    metadata = scanner.scan(repository, run_type="update")
+    detail = database.file_details(metadata.repository_id, "pkg/core.py")
+    assert detail["file"]["analysis_status"] == "metadata_only"
+
+    core.write_text(
+        core.read_text(encoding="utf-8").replace(
+            "return double(value)", "return double(value) if value >= 0 else 0"
+        ),
+        encoding="utf-8",
+    )
+    structural = scanner.scan(repository, run_type="update")
+    detail = database.file_details(structural.repository_id, "pkg/core.py")
+    assert detail["file"]["analysis_status"] == "structural_changed"
+    assert structural.analyzed == 1
+    assert structural.reused == structural.discovered - 1
+
+
+def test_deleted_artifact_is_temporal_not_silently_removed(repository, database):
+    scanner = RepositoryScanner(database)
+    first = scanner.scan(repository)
+    (repository / "web" / "helper.ts").unlink()
+    second = scanner.scan(repository, run_type="update")
+
+    assert second.deleted == 1
+    assert database.file_details(second.repository_id, "web/helper.ts") is None
+    assert (
+        database.file_details(first.repository_id, "web/helper.ts", first.snapshot_id) is not None
+    )
+    with database.connect() as connection:
+        row = connection.execute(
+            "SELECT deleted_commit FROM artifacts WHERE canonical_path = 'web/helper.ts'"
+        ).fetchone()
+    assert row["deleted_commit"]
+
+
+def test_commit_revision_scan_reads_git_without_checkout(repository, database):
+    scanner = RepositoryScanner(database)
+    revision = (
+        __import__("subprocess")
+        .check_output(["git", "-C", str(repository), "rev-parse", "HEAD"], text=True)
+        .strip()
+    )
+    stats = scanner.scan(repository, revision=revision, run_type="history")
+
+    snapshot = database.latest_snapshot(stats.repository_id)
+    assert snapshot["snapshot_kind"] == "commit"
+    assert snapshot["dirty"] == 0
+    assert snapshot["commit_sha"] == revision
+
+
+def test_historical_scan_does_not_replace_current_snapshot(repository, database):
+    scanner = RepositoryScanner(database)
+    old_revision = subprocess.check_output(
+        ["git", "-C", str(repository), "rev-parse", "HEAD"], text=True
+    ).strip()
+    core = repository / "pkg" / "core.py"
+    core.write_text(core.read_text(encoding="utf-8") + "\nNEW_VALUE = 1\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repository), "add", "pkg/core.py"], check=True)
+    subprocess.run(["git", "-C", str(repository), "commit", "-qm", "Add current value"], check=True)
+    current = scanner.scan(repository)
+
+    historical = scanner.scan(repository, revision=old_revision, run_type="history")
+
+    assert historical.snapshot_id != current.snapshot_id
+    assert database.latest_snapshot(current.repository_id)["id"] == current.snapshot_id
+
+
+def test_group_hierarchy_rolls_declared_subsystem_into_parent(repository, database):
+    config = repository / ".codeintel.yml"
+    config.write_text(
+        config.read_text(encoding="utf-8").replace(
+            "groups:\n  domain:\n    paths: [pkg/**]",
+            """groups:
+  domain-core:
+    level: subsystem
+    parent: domain
+    description: Core domain behavior.
+    paths: [pkg/core.py]
+  domain:
+    level: area
+    description: Domain implementation.
+    paths: [pkg/**]""",
+        ),
+        encoding="utf-8",
+    )
+
+    stats = RepositoryScanner(database).scan(repository)
+    hierarchy = database.overview(stats.repository_id)["group_hierarchy"]
+    domain = next(item for item in hierarchy if item["name"] == "domain")
+    core = next(item for item in domain["children"] if item["name"] == "domain-core")
+
+    assert domain["files"] >= core["files"] == 1
+    assert domain["lines_of_code"] >= core["lines_of_code"]
+    assert core["description"] == "Core domain behavior."
