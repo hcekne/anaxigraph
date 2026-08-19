@@ -16,6 +16,7 @@ def test_config_loads_groups_rules_and_ignore(repository):
     assert config.is_ignored("coverage.xml")
     assert config.is_ignored("backend/coverage.xml")
     assert config.is_ignored("frontend/coverage/lcov.info")
+    assert config.coverage_required is False
     assert not config.is_ignored("pkg/core.py")
     assert {rule.rule_id for rule in config.architecture.rules} == {
         "small-module-signal",
@@ -37,3 +38,15 @@ def test_current_config_name_wins_over_legacy_file(tmp_path: Path):
 
     assert config.project_name == "AnaxiGraph"
     assert config.config_path == tmp_path / ".anaxigraph.yml"
+
+
+def test_coverage_warning_can_be_explicitly_required(tmp_path: Path):
+    (tmp_path / ".anaxigraph.yml").write_text(
+        "coverage:\n  required: true\n  files: [reports/coverage.xml]\n",
+        encoding="utf-8",
+    )
+
+    config = load_config(tmp_path)
+
+    assert config.coverage_required is True
+    assert config.coverage_files == ("reports/coverage.xml",)

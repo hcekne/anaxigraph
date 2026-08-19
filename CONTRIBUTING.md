@@ -12,6 +12,20 @@ uv run ruff check .
 node --check src/codeintel/dashboard/app.js
 ```
 
+Dashboard changes also have browser-level visual contracts. Start the Compose service, install
+Playwright once, then run them against the live dashboard:
+
+```bash
+docker compose up --build -d
+npm install
+npx playwright install --with-deps chromium
+npm run test:visual
+```
+
+These tests assert layout behavior that unit tests cannot: one architecture LOC bar per card,
+coverage warning semantics, contained graph labels, area-filter relayout, module review scope, and
+repository settings.
+
 For the container workflow, copy `.env.example` to `.env` and
 `repositories.example.yml` to `repositories.yml`, then point the registry only at repositories you
 are authorized to inspect. Run `docker compose up --build -d` and open

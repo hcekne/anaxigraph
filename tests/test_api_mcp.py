@@ -43,6 +43,7 @@ async def test_dashboard_rest_api_exposes_current_intelligence(
         assert overview["files"] == 9
         assert overview["group_hierarchy"]
         assert overview["coverage"]["state"] == "imported"
+        assert overview["coverage"]["required"] is False
         assert overview["coverage"]["configured_inputs"] == [
             {"path": "coverage.xml", "exists": True, "format": "xml"}
         ]
@@ -50,7 +51,13 @@ async def test_dashboard_rest_api_exposes_current_intelligence(
         assert len(modules) == 9
         core = next(item for item in modules if item["path"] == "pkg/core.py")
         assert core["architecture_area"] == "domain"
+        assert core["evaluation"]["monitored_by_default"] is True
         assert core["evaluation"]["suitability_score"] is None
+        documentation = next(
+            item for item in modules if item["path"] == "docs/architecture.md"
+        )
+        assert documentation["evaluation"]["monitored_by_default"] is False
+        assert documentation["evaluation"]["attention_score"] is None
         graph = (await client.get("/api/graph")).json()
         assert graph["nodes"]
         scope = await client.post(

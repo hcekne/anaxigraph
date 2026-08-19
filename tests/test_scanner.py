@@ -30,7 +30,12 @@ def test_scan_persists_graph_metrics_coverage_and_findings(repository, database)
     assert modules["pkg/core.py"]["architecture_area"] == "domain"
     assert modules["pkg/core.py"]["summary"] == "Public calculation service."
     assert modules["pkg/core.py"]["evaluation"]["attention_score"] >= 0
+    assert modules["pkg/core.py"]["evaluation"]["monitored_by_default"] is True
     assert modules["pkg/core.py"]["evaluation"]["suitability_score"] is None
+    documentation = modules["docs/architecture.md"]["evaluation"]
+    assert documentation["monitored_by_default"] is False
+    assert documentation["attention_score"] is None
+    assert documentation["attention_label"] == "Reference"
     internal = {
         (
             next(item["path"] for item in graph["nodes"] if item["id"] == edge["source"]),

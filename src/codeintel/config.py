@@ -118,6 +118,7 @@ class CodeIntelConfig:
         "coverage/lcov.info",
         "lcov.info",
     )
+    coverage_required: bool = False
     max_file_bytes: int = 2_000_000
     config_path: Path | None = None
 
@@ -280,6 +281,7 @@ def load_config(repository: Path, config_path: Path | None = None) -> CodeIntelC
         aliases={str(key): str(value) for key, value in (raw.get("aliases") or {}).items()},
         coverage_files=_tuple_of_strings(raw.get("coverage", {}).get("files"))
         or CodeIntelConfig().coverage_files,
+        coverage_required=bool(raw.get("coverage", {}).get("required", False)),
         max_file_bytes=int(raw.get("max_file_bytes", 2_000_000)),
         config_path=selected if selected.exists() else None,
     )

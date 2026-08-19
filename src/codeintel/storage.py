@@ -1269,6 +1269,33 @@ def _module_evaluation(
 ) -> dict[str, Any]:
     """Build reproducible triage signals without pretending they are pattern suitability."""
 
+    artifact_type = str(item.get("artifact_type") or "source")
+    monitored = artifact_type in {"source", "test"}
+    if not monitored:
+        kind = {
+            "documentation": "Documentation/reference file",
+            "configuration": "Configuration/manifest file",
+            "asset": "Presentation asset",
+        }.get(artifact_type, f"{artifact_type.capitalize()} artifact")
+        return {
+            "monitored_by_default": False,
+            "monitoring_reason": (
+                f"{kind}; retained in AnaxiIndex but excluded from source-code attention triage."
+            ),
+            "attention_score": None,
+            "attention_label": "Reference",
+            "attention_reasons": [
+                f"{kind}; size and churn are not source-module refactoring signals"
+            ],
+            "pattern_status": "not_applicable",
+            "pattern_candidates": [],
+            "suitability_score": None,
+            "note": (
+                "Reference artifacts remain searchable and visible on demand, but are not "
+                "ranked against executable modules."
+            ),
+        }
+
     loc = int(item.get("lines_of_code") or 0)
     complexity = float(item.get("complexity") or 0)
     coupling = int(item.get("fan_in") or 0) + int(item.get("fan_out") or 0)
@@ -1315,6 +1342,8 @@ def _module_evaluation(
         }
     )
     return {
+        "monitored_by_default": True,
+        "monitoring_reason": "Executable source or test module included in attention triage.",
         "attention_score": min(100, score),
         "attention_label": label,
         "attention_reasons": reasons,

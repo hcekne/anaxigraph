@@ -203,6 +203,7 @@ def create_app(
         return {
             **coverage,
             "state": "imported" if imported else "unmatched" if available else "missing",
+            "required": config.coverage_required,
             "configured_inputs": inputs,
             "available_inputs": available,
         }
@@ -235,19 +236,25 @@ def create_app(
                 else (1, 0)
             )
         )
-        return [
-            {
-                **row,
-                "scannable": is_scan_target(row),
-                "registry_key": (
-                    target.key if (target := target_for_path(Path(row["path"]))) else None
-                ),
-                "default": bool(
-                    targets and Path(row["path"]).resolve() == targets[0].path.resolve()
-                ),
-            }
-            for row in rows
-        ]
+        result = []
+        for row in rows:
+            target = target_for_path(Path(row["path"]))
+            config = selected_config(row)
+            result.append(
+                {
+                    **row,
+                    "scannable": target is not None,
+                    "registry_key": target.key if target else None,
+                    "default": bool(
+                        targets and Path(row["path"]).resolve() == targets[0].path.resolve()
+                    ),
+                    "config_path": str(
+                        (target.config_path if target else None) or config.config_path or ""
+                    ),
+                    "history_snapshots": target.history_snapshots if target else None,
+                }
+            )
+        return result
 
     @app.get("/api/glossary")
     def glossary() -> dict[str, Any]:

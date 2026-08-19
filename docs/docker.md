@@ -92,15 +92,18 @@ the paths produced by each repository's existing test or CI pipeline to its `.an
 
 ```yaml
 coverage:
+  # Optional by default. Set true only when a missing report should be a warning.
+  required: false
   files:
     - backend/coverage.xml
     - frontend/coverage/lcov.info
 ```
 
-The Overview shows every configured input as found or missing. A present report whose file paths
-do not map to the snapshot is reported as unmatched rather than as 0% coverage. Generate the
-report with the target repository's own test command, then choose **Refresh scan**. AnaxiGraph's
-development suite uses:
+When coverage is optional, a missing report is shown neutrally as **No report** rather than as a
+failed scan. Set `required: true` when the dashboard should warn about a missing CI artifact. A
+present report whose file paths do not map to the snapshot is reported as unmatched rather than
+as 0% coverage. Generate the report with the target repository's own test command, then choose
+**Refresh scan** to import it. AnaxiGraph's development suite uses:
 
 ```bash
 uv run pytest --cov=src/codeintel --cov-report=xml:coverage.xml

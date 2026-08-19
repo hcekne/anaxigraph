@@ -12,6 +12,9 @@ dist/
 .codeintel/
 .anaxigraph/
 .env
+node_modules/
+test-results/
+playwright-report/
 *.db
 *.db-shm
 *.db-wal

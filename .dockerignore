@@ -4,6 +4,9 @@
 .pytest_cache
 .ruff_cache
 .venv
+node_modules
+test-results
+playwright-report
 __pycache__
 build
 coverage.xml

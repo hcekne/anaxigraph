@@ -40,6 +40,7 @@
       <button class="tab" data-view="architecture">Architecture</button>
       <button class="tab" data-view="history">History</button>
       <button class="tab" data-view="agents">Agents</button>
+      <button class="tab" data-view="settings">Settings</button>
     </nav>
 
     <main>
@@ -113,6 +114,10 @@
               Language
               <select id="module-language-filter"><option value="">All languages</option></select>
             </label>
+            <label class="module-reference-toggle checkbox-label">
+              <input id="module-include-reference" type="checkbox" />
+              Include docs, config &amp; assets
+            </label>
             <label>
               Rows
               <select id="module-page-size">
@@ -134,6 +139,7 @@
                   <th><button data-module-sort="path">Module</button></th>
                   <th><button data-module-sort="architecture_area">Architecture</button></th>
                   <th><button data-module-sort="summary">Purpose</button></th>
+                  <th>Pattern / rewrite</th>
                   <th class="numeric"><button data-module-sort="lines_of_code">LOC</button></th>
                   <th class="numeric"><button data-module-sort="complexity">Complexity</button></th>
                   <th class="numeric"><button data-module-sort="coupling">Links</button></th>
@@ -194,6 +200,16 @@
                 <input id="architecture-regions-toggle" type="checkbox" checked />
                 Architecture regions
               </label>
+              <details id="graph-area-picker" class="graph-area-picker">
+                <summary>Areas · <span id="graph-area-count">all</span></summary>
+                <div class="graph-area-menu">
+                  <div class="graph-area-actions">
+                    <strong>Visible architecture areas</strong>
+                    <button id="graph-area-all" class="text-button" type="button">Show all</button>
+                  </div>
+                  <div id="graph-area-options" class="graph-area-options"></div>
+                </div>
+              </details>
               <label>
                 Canvas height
                 <select id="height-select">
@@ -320,6 +336,59 @@
         </div>
         <article id="agent-result" class="panel result-panel">
           <p class="muted">Task context, change impact, or a planned finding handoff will appear here.</p>
+        </article>
+      </section>
+
+      <section id="view-settings" class="view">
+        <article class="panel settings-intro">
+          <div>
+            <p class="eyebrow">Repository connections</p>
+            <h2>How AnaxiGraph works with your code</h2>
+            <p class="panel-copy">Repositories stay read-only. A scan turns their files, Git
+              history, relationships, findings, and optional coverage into AnaxiIndex records.
+              The dashboard, REST API, and AnaxiMCP all read the same indexed snapshot.</p>
+          </div>
+          <div class="repository-flow" aria-label="Repository analysis data flow">
+            <span>Read-only repository</span><i>→</i><span>Scanner</span><i>→</i>
+            <span>AnaxiIndex</span><i>→</i><span>Dashboard · REST · AnaxiMCP</span>
+          </div>
+        </article>
+        <div class="two-column settings-layout">
+          <article class="panel">
+            <p class="eyebrow">Live service configuration</p>
+            <h2>Connected repositories</h2>
+            <div id="settings-repositories" class="settings-repositories"></div>
+          </article>
+          <article class="panel">
+            <p class="eyebrow">Add another repository</p>
+            <h2>Mount once, then allowlist</h2>
+            <p class="muted">A running browser cannot create a Docker host mount. Add the parent
+              folder to <code>.env</code>, register its container path, then recreate the service.</p>
+            <ol class="settings-steps">
+              <li><strong>Mount your repository collection</strong><pre id="settings-env-example">ANAXIGRAPH_REPOSITORIES_ROOT=/absolute/path/to/repos</pre></li>
+              <li><strong>Add its container path to repositories.yml</strong><pre id="settings-registry-example">repositories:
+  my-project:
+    path: /repositories/my-project
+    config: /repositories/my-project/.anaxigraph.yml
+    history_snapshots: 64</pre></li>
+              <li><strong>Apply the operator configuration</strong><pre id="settings-compose-example">docker compose up --build -d</pre></li>
+            </ol>
+            <div class="settings-copy-actions">
+              <button class="secondary-button" type="button" data-copy-target="settings-registry-example">Copy registry example</button>
+              <a class="text-button" href="https://github.com/hcekne/anaxigraph/blob/main/docs/docker.md" target="_blank" rel="noreferrer">Docker guide →</a>
+            </div>
+          </article>
+        </div>
+        <article class="panel integration-settings">
+          <div>
+            <p class="eyebrow">Coding-agent access</p>
+            <h2>Use the same intelligence while coding</h2>
+            <p class="muted">Connect Codex or another MCP client to <code id="settings-mcp-url"></code>.
+              Use <code>CODEINTEL_REPOSITORIES</code> to choose a repository, then query findings,
+              file context, impact, or a task work envelope. AnaxiMCP reads AnaxiIndex; it does not
+              grant the agent write access to the mounted repository.</p>
+          </div>
+          <button class="secondary-button" type="button" data-copy-target="settings-mcp-url">Copy MCP URL</button>
         </article>
       </section>
     </main>

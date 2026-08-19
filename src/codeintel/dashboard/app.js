@@ -18,6 +18,7 @@ const state = {
   groupRegions: [],
   groupParents: new Map(),
   groupRoots: [],
+  hiddenGroups: new Set(),
   historyPlayToken: 0,
   historyPlaying: false,
   historyPollTimer: null,
@@ -113,7 +114,9 @@ async function loadRepository() {
     state.conflictPaths.clear();
     state.modulePage = 1;
     state.expandedModuleId = null;
+    state.hiddenGroups.clear();
     buildGroupIndex(overview.group_hierarchy || []);
+    renderGraphAreaOptions();
 
     const repository = selectedRepository();
     byId("project-name").textContent = repository?.name || "No repository";
@@ -128,6 +131,7 @@ async function loadRepository() {
     renderOverview();
     renderModuleFilters();
     renderModules();
+    renderSettings();
     renderFindings();
     renderHistory();
     renderOverlayHelp();
@@ -148,6 +152,16 @@ function renderRepositorySelector() {
   select.title = state.repositories.length === 1
     ? "One repository is indexed. Additional indexed repositories will appear here."
     : "Switch every dashboard view to another indexed repository.";
+}
+
+function renderSettings() {
+  const selectedId = Number(state.repositoryId);
+  byId("settings-repositories").innerHTML = state.repositories.map((item) => {
+    const current = Number(item.id) === selectedId;
+    const scanState = item.scannable ? "Mounted read-only · refresh enabled" : "Indexed only";
+    return `<article class="settings-repository ${current ? "current" : ""}"><div><strong>${escapeHtml(item.name)}</strong>${current ? "<span>current</span>" : ""}</div><dl><dt>Registry key</dt><dd><code>${escapeHtml(item.registry_key || "not registered")}</code></dd><dt>Container path</dt><dd><code>${escapeHtml(item.path)}</code></dd><dt>Policy</dt><dd><code>${escapeHtml(item.config_path || "automatic discovery")}</code></dd><dt>Git frames</dt><dd>${item.history_snapshots == null ? "—" : format.format(item.history_snapshots)}</dd><dt>Access</dt><dd>${escapeHtml(scanState)}</dd></dl></article>`;
+  }).join("");
+  byId("settings-mcp-url").textContent = `${window.location.origin}/mcp`;
 }
 
 function displaySnapshot(snapshot, historical = false) {
@@ -174,7 +188,7 @@ function renderOverview() {
     [
       "Line coverage",
       value.coverage?.line_coverage == null
-        ? "Not imported"
+        ? "No report"
         : `${(value.coverage.line_coverage * 100).toFixed(1)}%`,
     ],
     [
@@ -197,8 +211,9 @@ function renderOverview() {
   const notice = byId("coverage-notice");
   const coverage = value.coverage || {};
   const coverageMissing = coverage.line_coverage == null;
-  notice.hidden = !coverageMissing;
-  if (coverageMissing) {
+  const coverageRequired = coverage.required === true;
+  notice.hidden = !coverageMissing || !coverageRequired;
+  if (coverageMissing && coverageRequired) {
     const inputs = coverage.configured_inputs || [];
     const found = inputs.filter((item) => item.exists).length;
     const inputRows = inputs.map((item) => (
@@ -207,7 +222,7 @@ function renderOverview() {
     const reason = coverage.state === "unmatched"
       ? "A configured report exists, but none of its file paths matched modules in this snapshot."
       : "The selected repository has not generated any of its configured coverage reports. Coverage is produced by the repository's test runner; AnaxiGraph deliberately does not execute target code during a scan.";
-    notice.innerHTML = `<strong>Line coverage has not been imported.</strong><p>${escapeHtml(reason)}</p><details><summary>Coverage inputs · ${found}/${inputs.length} found</summary><ul class="coverage-inputs">${inputRows || "<li>No coverage paths are configured.</li>"}</ul></details><p class="coverage-next">Generate one of these reports in the repository, then choose <strong>Refresh scan</strong>. Static test-linked dependencies are still reported separately above.</p>`;
+    notice.innerHTML = `<strong>Required line coverage is unavailable.</strong><p>${escapeHtml(reason)}</p><details><summary>Coverage inputs · ${found}/${inputs.length} found</summary><ul class="coverage-inputs">${inputRows || "<li>No coverage paths are configured.</li>"}</ul></details><p class="coverage-next">Run the repository's own test or CI command first. <strong>Refresh scan</strong> only imports a report that already exists; it does not execute target code. Static test-linked dependencies are still reported separately above.</p>`;
   }
 }
 
@@ -245,15 +260,16 @@ function renderGroupHierarchy(groups) {
         : `${humanize(group.name)} modules grouped by repository policy or path inference.`);
     const share = Number(group.lines_of_code || 0) / repositoryLoc * 100;
     const scale = Number(group.lines_of_code || 0) / maximum * 100;
-    const composition = children.length
-      ? `<div class="group-composition" title="Subsystem share of ${escapeAttr(humanize(group.name))} LOC">${children.map((child) => {
+    const segments = children.length
+      ? children.map((child) => {
         const childColor = child.name.startsWith("other-")
           ? mix(color, "#ffffff", 0.22)
           : architectureColor(child.name);
         const width = Number(child.lines_of_code || 0) / Math.max(Number(group.lines_of_code || 0), 1) * 100;
-        return `<span class="group-segment" style="width:${width}%;background:${childColor}"></span>`;
-      }).join("")}</div>`
-      : "";
+        const label = child.label || childLabel(child.name, group.name);
+        return `<span class="group-segment" style="width:${width}%;background:${childColor}" title="${escapeAttr(label)} · ${format.format(child.lines_of_code || 0)} LOC"></span>`;
+      }).join("")
+      : `<span class="group-segment" style="width:100%;background:${color}" title="${escapeAttr(humanize(group.name))} · ${format.format(group.lines_of_code || 0)} LOC"></span>`;
     const childHtml = children.length
       ? `<div class="group-children">${children.map((child) => {
         const childColor = child.name.startsWith("other-")
@@ -265,7 +281,7 @@ function renderGroupHierarchy(groups) {
     const badge = children.length
       ? group.direct_files > 0 ? "area + other files" : "area roll-up"
       : sourceLabel(group.source);
-    return `<article class="group-family" style="--group-color:${color}"><div class="group-family-header"><strong>${escapeHtml(humanize(group.name))}<span class="source-badge">${escapeHtml(badge)}</span></strong><span>${format.format(group.files)} files · ${format.format(group.lines_of_code)} LOC</span></div><p>${escapeHtml(description)}</p><div class="group-scale"><div class="bar-track" title="Relative to the largest architecture area"><div class="bar-fill" style="width:${Math.max(1, scale)}%;background:${color}"></div></div><span class="group-scale-label">${share.toFixed(1)}% of repo LOC</span></div>${composition}${childHtml}</article>`;
+    return `<article class="group-family" style="--group-color:${color}"><div class="group-family-header"><strong>${escapeHtml(humanize(group.name))}<span class="source-badge">${escapeHtml(badge)}</span></strong><span>${format.format(group.files)} files · ${format.format(group.lines_of_code)} LOC</span></div><p>${escapeHtml(description)}</p><div class="group-scale"><div class="bar-track" title="Colored length is relative LOC; segments are subsystem shares"><div class="group-bar-fill" style="width:${Math.max(1, scale)}%">${segments}</div></div><span class="group-scale-label">${share.toFixed(1)}% of repo LOC</span></div>${childHtml}</article>`;
   }).join("");
 }
 
@@ -298,7 +314,10 @@ function renderModuleFilters() {
 
 function moduleValue(item, key) {
   if (key === "coupling") return Number(item.fan_in || 0) + Number(item.fan_out || 0);
-  if (key === "attention_score") return Number(item.evaluation?.attention_score || 0);
+  if (key === "attention_score") {
+    const score = item.evaluation?.attention_score;
+    return score == null ? null : Number(score);
+  }
   return item[key];
 }
 
@@ -307,6 +326,7 @@ function filteredModules() {
   const area = byId("module-area-filter").value;
   const subsystem = byId("module-subsystem-filter").value;
   const language = byId("module-language-filter").value;
+  const includeReference = byId("module-include-reference").checked;
   const filtered = state.modules.filter((item) => {
     const evaluation = item.evaluation || {};
     const haystack = [
@@ -317,7 +337,8 @@ function filteredModules() {
       ...(item.responsibilities || []),
       ...(evaluation.pattern_candidates || []),
     ].join(" ").toLowerCase();
-    return (!query || haystack.includes(query))
+    return (includeReference || evaluation.monitored_by_default !== false)
+      && (!query || haystack.includes(query))
       && (!area || item.architecture_area === area)
       && (!subsystem || item.architecture_subsystem === subsystem)
       && (!language || item.language === language);
@@ -345,7 +366,11 @@ function renderModules() {
   state.modulePage = Math.min(Math.max(1, state.modulePage), pages);
   const start = (state.modulePage - 1) * pageSize;
   const visible = items.slice(start, start + pageSize);
-  byId("module-result-count").textContent = `${format.format(items.length)} of ${format.format(state.modules.length)} modules`;
+  const reviewable = state.modules.filter((item) => item.evaluation?.monitored_by_default !== false).length;
+  const hidden = state.modules.length - reviewable;
+  byId("module-result-count").textContent = byId("module-include-reference").checked
+    ? `${format.format(items.length)} of ${format.format(state.modules.length)} modules`
+    : `${format.format(items.length)} reviewable modules · ${format.format(hidden)} reference artifacts hidden`;
   byId("module-page-label").textContent = `Page ${state.modulePage} of ${pages}`;
   byId("module-previous").disabled = state.modulePage <= 1;
   byId("module-next").disabled = state.modulePage >= pages;
@@ -364,10 +389,17 @@ function renderModules() {
       ? `<strong>${escapeHtml(humanize(item.architecture_area))}</strong><span>${escapeHtml(humanize(item.architecture_subsystem))}</span>`
       : `<strong>${escapeHtml(humanize(item.architecture_area))}</strong><span>${escapeHtml(item.architecture_source)}</span>`;
     const attention = String(evaluation.attention_label || "low").toLowerCase();
+    const candidates = evaluation.pattern_candidates || [];
+    const pattern = candidates.length
+      ? `<span class="pattern-candidate" title="${escapeAttr(candidates.join(" · "))}">${escapeHtml(candidates[0])}${candidates.length > 1 ? ` +${candidates.length - 1}` : ""}</span>`
+      : `<span class="pattern-none">${evaluation.monitored_by_default === false ? "Not evaluated" : "No grounded proposal"}</span>`;
+    const attentionValue = evaluation.attention_score == null
+      ? `<span class="attention-pill reference" title="${escapeAttr(evaluation.monitoring_reason || "Reference artifact")}">—</span>`
+      : `<span class="attention-pill ${escapeAttr(attention)}" title="${escapeAttr((evaluation.attention_reasons || []).join(" · "))}">${format.format(evaluation.attention_score)}</span>`;
     const expanded = Number(state.expandedModuleId) === Number(item.artifact_id);
-    const row = `<tr class="module-row" data-module-id="${item.artifact_id}" aria-expanded="${expanded}"><td><span class="module-name">${escapeHtml(item.name)}</span><code class="module-path">${escapeHtml(item.path)}</code></td><td class="architecture-cell">${architecture}</td><td class="module-summary">${escapeHtml(item.summary)}</td><td class="numeric">${format.format(item.lines_of_code)}</td><td class="numeric">${format.format(item.complexity)}</td><td class="numeric" title="${format.format(item.fan_in)} incoming · ${format.format(item.fan_out)} outgoing">${format.format(Number(item.fan_in || 0) + Number(item.fan_out || 0))}</td><td class="numeric">${coverage}</td><td class="numeric">${format.format(item.change_count || 0)}</td><td>${formatDate(item.first_changed_at)}</td><td>${formatDate(item.last_commit_at)}</td><td class="numeric"><span class="attention-pill ${escapeAttr(attention)}" title="${escapeAttr((evaluation.attention_reasons || []).join(" · "))}">${format.format(evaluation.attention_score || 0)}</span></td></tr>`;
+    const row = `<tr class="module-row" data-module-id="${item.artifact_id}" aria-expanded="${expanded}"><td><span class="module-name">${escapeHtml(item.name)}</span><code class="module-path">${escapeHtml(item.path)}</code></td><td class="architecture-cell">${architecture}</td><td class="module-summary">${escapeHtml(item.summary)}</td><td class="pattern-cell">${pattern}</td><td class="numeric">${format.format(item.lines_of_code)}</td><td class="numeric">${format.format(item.complexity)}</td><td class="numeric" title="${format.format(item.fan_in)} incoming · ${format.format(item.fan_out)} outgoing">${format.format(Number(item.fan_in || 0) + Number(item.fan_out || 0))}</td><td class="numeric">${coverage}</td><td class="numeric">${format.format(item.change_count || 0)}</td><td>${formatDate(item.first_changed_at)}</td><td>${formatDate(item.last_commit_at)}</td><td class="numeric">${attentionValue}</td></tr>`;
     return expanded ? row + moduleDetailRow(item) : row;
-  }).join("") || `<tr><td colspan="11"><p class="muted">No modules match these filters.</p></td></tr>`;
+  }).join("") || `<tr><td colspan="12"><p class="muted">No modules match these filters.</p></td></tr>`;
 }
 
 function moduleDetailRow(item) {
@@ -383,7 +415,7 @@ function moduleDetailRow(item) {
       : "No indexed last-change commit",
     item.last_change_subject || "No commit subject indexed",
   ];
-  return `<tr class="module-detail-row"><td colspan="11"><div class="module-detail"><div><h3>Purpose · ${escapeHtml(item.summary_source)}</h3><p>${escapeHtml(item.summary)}</p><p><code class="module-path">raw ${escapeHtml(String(item.raw_hash).slice(0, 12))} · structure ${escapeHtml(String(item.structural_hash).slice(0, 12))}</code></p><div class="module-detail-actions"><button class="secondary-button" data-module-graph="${escapeAttr(item.path)}" type="button">Open in graph</button></div></div><div><h3>Responsibilities</h3>${detailList(responsibilities, "No structured responsibilities detected")}<h3>Git biography</h3>${detailList(history)}</div><div><h3>Attention · ${escapeHtml(evaluation.attention_label || "Low")}</h3>${detailList(evaluation.attention_reasons)}<h3>Pattern review</h3>${detailList(candidates, "No detector-grounded pattern candidate yet")}<p>${escapeHtml(evaluation.note || "")}</p></div></div></td></tr>`;
+  return `<tr class="module-detail-row"><td colspan="12"><div class="module-detail"><div><h3>Purpose · ${escapeHtml(item.summary_source)}</h3><p>${escapeHtml(item.summary)}</p><p><code class="module-path">raw ${escapeHtml(String(item.raw_hash).slice(0, 12))} · structure ${escapeHtml(String(item.structural_hash).slice(0, 12))}</code></p><div class="module-detail-actions"><button class="secondary-button" data-module-graph="${escapeAttr(item.path)}" type="button">Open in graph</button></div></div><div><h3>Responsibilities</h3>${detailList(responsibilities, "No structured responsibilities detected")}<h3>Git biography</h3>${detailList(history)}</div><div><h3>Review scope · ${evaluation.monitored_by_default === false ? "Reference" : "Monitored"}</h3><p>${escapeHtml(evaluation.monitoring_reason || "Included in attention triage.")}</p><h3>Attention · ${escapeHtml(evaluation.attention_label || "Low")}</h3>${detailList(evaluation.attention_reasons)}<h3>Pattern review</h3>${detailList(candidates, "No detector-grounded pattern candidate yet")}<p>${escapeHtml(evaluation.note || "")}</p></div></div></td></tr>`;
 }
 
 function detailList(values = [], empty = "No data") {
@@ -468,6 +500,35 @@ function effectiveGroup(node) {
   return node.declared_group || node.inferred_group || "ungrouped";
 }
 
+function rootGroup(node) {
+  const group = effectiveGroup(node);
+  return state.groupParents.get(group) || group;
+}
+
+function visibleGraphNodes() {
+  return (state.graph.nodes || []).filter((node) => !state.hiddenGroups.has(rootGroup(node)));
+}
+
+function renderGraphAreaOptions() {
+  const counts = new Map();
+  (state.graph.nodes || []).forEach((node) => {
+    const root = rootGroup(node);
+    counts.set(root, (counts.get(root) || 0) + 1);
+  });
+  const order = new Map(state.groupRoots.map((group, index) => [group.name, index]));
+  const roots = [...counts].sort(([left], [right]) => (
+    (order.get(left) ?? 10_000) - (order.get(right) ?? 10_000)
+      || left.localeCompare(right)
+  ));
+  byId("graph-area-options").innerHTML = roots.map(([root, count]) => (
+    `<label><input type="checkbox" data-graph-area="${escapeAttr(root)}" ${state.hiddenGroups.has(root) ? "" : "checked"} /><i style="background:${groupColor(root)}"></i><span>${escapeHtml(humanize(root))}</span><em>${format.format(count)}</em></label>`
+  )).join("");
+  const visible = roots.filter(([root]) => !state.hiddenGroups.has(root)).length;
+  byId("graph-area-count").textContent = visible === roots.length
+    ? `all ${roots.length}`
+    : `${visible}/${roots.length}`;
+}
+
 function architectureColor(group) {
   const parent = state.groupParents.get(group) || group;
   const base = groupColor(parent);
@@ -521,8 +582,88 @@ function weightedRectangles(items, bounds, gap = 8) {
   return rectangles;
 }
 
+function squarifiedRectangles(items, bounds, gap = 8) {
+  const rectangles = new Map();
+  if (!items.length || bounds.width <= 0 || bounds.height <= 0) return rectangles;
+  const totalWeight = items.reduce((sum, item) => sum + item.weight, 0) || 1;
+  const areaScale = bounds.width * bounds.height / totalWeight;
+  const remainingItems = [...items]
+    .sort((left, right) => right.weight - left.weight || left.key.localeCompare(right.key))
+    .map((item) => ({ ...item, area: item.weight * areaScale }));
+  let remaining = { ...bounds };
+  let row = [];
+
+  const worstAspect = (entries, side) => {
+    if (!entries.length || side <= 0) return Number.POSITIVE_INFINITY;
+    const total = entries.reduce((sum, item) => sum + item.area, 0);
+    const largest = Math.max(...entries.map((item) => item.area));
+    const smallest = Math.min(...entries.map((item) => item.area));
+    return Math.max(
+      side * side * largest / (total * total),
+      total * total / (side * side * smallest),
+    );
+  };
+
+  const placeRow = (entries) => {
+    const total = entries.reduce((sum, item) => sum + item.area, 0);
+    const inset = gap / 2;
+    if (remaining.width >= remaining.height) {
+      const rowWidth = total / Math.max(remaining.height, 1);
+      let cursor = remaining.y;
+      entries.forEach((item) => {
+        const itemHeight = item.area / Math.max(rowWidth, 1);
+        rectangles.set(item.key, {
+          x: remaining.x + inset,
+          y: cursor + inset,
+          width: Math.max(10, rowWidth - gap),
+          height: Math.max(10, itemHeight - gap),
+        });
+        cursor += itemHeight;
+      });
+      remaining = {
+        x: remaining.x + rowWidth,
+        y: remaining.y,
+        width: Math.max(0, remaining.width - rowWidth),
+        height: remaining.height,
+      };
+    } else {
+      const rowHeight = total / Math.max(remaining.width, 1);
+      let cursor = remaining.x;
+      entries.forEach((item) => {
+        const itemWidth = item.area / Math.max(rowHeight, 1);
+        rectangles.set(item.key, {
+          x: cursor + inset,
+          y: remaining.y + inset,
+          width: Math.max(10, itemWidth - gap),
+          height: Math.max(10, rowHeight - gap),
+        });
+        cursor += itemWidth;
+      });
+      remaining = {
+        x: remaining.x,
+        y: remaining.y + rowHeight,
+        width: remaining.width,
+        height: Math.max(0, remaining.height - rowHeight),
+      };
+    }
+  };
+
+  while (remainingItems.length) {
+    const candidate = remainingItems[0];
+    const side = Math.min(remaining.width, remaining.height);
+    if (!row.length || worstAspect([...row, candidate], side) <= worstAspect(row, side)) {
+      row.push(remainingItems.shift());
+    } else {
+      placeRow(row);
+      row = [];
+    }
+  }
+  if (row.length) placeRow(row);
+  return rectangles;
+}
+
 function layoutGraph(resetView = true) {
-  const nodes = state.graph.nodes || [];
+  const nodes = visibleGraphNodes();
   const canvas = byId("graph-canvas");
   const width = canvas.clientWidth;
   const height = canvas.clientHeight;
@@ -539,7 +680,7 @@ function layoutGraph(resetView = true) {
     if (!map.has(group.name)) map.set(group.name, []);
     (group.children || []).forEach((child) => seedGroup(map, child));
   };
-  state.groupRoots.forEach((root) => {
+  state.groupRoots.filter((root) => !state.hiddenGroups.has(root.name)).forEach((root) => {
     const map = new Map();
     seedGroup(map, root);
     roots.set(root.name, map);
@@ -549,19 +690,20 @@ function layoutGraph(resetView = true) {
     if (!roots.has(root)) roots.set(root, new Map());
     roots.get(root).set(group, members);
   });
-  const rootNames = [...roots.keys()].sort((left, right) => {
-    const leftOrder = rootOrder.get(left) ?? 10_000;
-    const rightOrder = rootOrder.get(right) ?? 10_000;
-    return leftOrder - rightOrder || left.localeCompare(right);
+  const rootNames = [...roots.keys()]
+    .filter((root) => [...roots.get(root).values()].some((members) => members.length))
+    .sort((left, right) => {
+      const leftOrder = rootOrder.get(left) ?? 10_000;
+      const rightOrder = rootOrder.get(right) ?? 10_000;
+      return leftOrder - rightOrder || left.localeCompare(right);
+    });
+  const rootEntries = rootNames.map((root) => {
+    const nodeCount = [...roots.get(root).values()]
+      .reduce((sum, members) => sum + members.length, 0);
+    const labelFloor = 28 + humanize(root).length * 2.4;
+    return { key: root, weight: Math.max(48, labelFloor, nodeCount) };
   });
-  const rootEntries = rootNames.map((root) => ({
-    key: root,
-    weight: Math.max(
-      4,
-      [...roots.get(root).values()].reduce((sum, members) => sum + members.length, 0),
-    ),
-  }));
-  const rootRectangles = weightedRectangles(
+  const rootRectangles = squarifiedRectangles(
     rootEntries,
     { x: 0, y: 0, width, height },
     10,
@@ -579,7 +721,15 @@ function layoutGraph(resetView = true) {
       nodeCount,
       color: groupColor(root),
     };
+    region.labelLines = regionLabelLines(region);
+    region.labelOverflow = region.labelLines.some((line) => (
+      estimateLabelWidth(line) > Math.max(1, region.width - 20)
+    )) || region.height < region.labelLines.length * 14 + 18;
     state.groupRegions.push(region);
+    const headerHeight = Math.min(
+      Math.max(28, region.labelLines.length * 14 + 8),
+      Math.max(28, region.height * 0.34),
+    );
     const subgroupEntries = [...roots.get(root).entries()]
       .filter(([, members]) => members.length)
       .sort(([left], [right]) => left.localeCompare(right))
@@ -588,9 +738,9 @@ function layoutGraph(resetView = true) {
       subgroupEntries,
       {
         x: region.x + 5,
-        y: region.y + Math.min(26, region.height * 0.2),
+        y: region.y + headerHeight,
         width: Math.max(10, region.width - 10),
-        height: Math.max(10, region.height - Math.min(31, region.height * 0.24)),
+        height: Math.max(10, region.height - headerHeight - 5),
       },
       3,
     );
@@ -624,8 +774,40 @@ function layoutGraph(resetView = true) {
       });
     });
   });
+  canvas.dataset.regionCount = String(state.groupRegions.length);
+  canvas.dataset.visibleNodeCount = String(nodes.length);
+  canvas.dataset.labelOverflow = String(
+    state.groupRegions.filter((region) => region.labelOverflow).length,
+  );
   if (resetView) state.transform = { x: 0, y: 0, scale: 1 };
   renderLegend();
+}
+
+function estimateLabelWidth(value) {
+  return String(value).length * 6.35;
+}
+
+function regionLabelLines(region) {
+  const name = humanize(region.root);
+  const count = `${format.format(region.nodeCount)} module${region.nodeCount === 1 ? "" : "s"}`;
+  const available = Math.max(40, region.width - 20);
+  if (estimateLabelWidth(`${name} · ${format.format(region.nodeCount)}`) <= available) {
+    return [`${name} · ${format.format(region.nodeCount)}`];
+  }
+  const lines = [];
+  let current = "";
+  name.split(" ").forEach((word) => {
+    const candidate = current ? `${current} ${word}` : word;
+    if (current && estimateLabelWidth(candidate) > available) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = candidate;
+    }
+  });
+  if (current) lines.push(current);
+  lines.push(count);
+  return lines;
 }
 
 function nodeMetric(node) {
@@ -686,8 +868,9 @@ function drawGraph() {
   context.save();
   context.translate(x, y);
   context.scale(scale, scale);
-  const visibleIds = new Set(state.graph.nodes.map((node) => String(node.id)));
-  const metricMaximum = Math.max(...state.graph.nodes.map(nodeMetric), 1);
+  const visibleNodes = visibleGraphNodes();
+  const visibleIds = new Set(visibleNodes.map((node) => String(node.id)));
+  const metricMaximum = Math.max(...visibleNodes.map(nodeMetric), 1);
   context.lineCap = "round";
   if (byId("architecture-regions-toggle").checked) {
     state.groupRegions.forEach((region) => {
@@ -699,11 +882,21 @@ function drawGraph() {
       context.strokeStyle = region.color;
       context.lineWidth = 1 / scale;
       context.stroke();
-      context.globalAlpha = 0.72;
+      context.save();
+      roundedRectangle(context, region.x, region.y, region.width, region.height, 12 / scale);
+      context.clip();
+      context.globalAlpha = 0.82;
       context.fillStyle = region.color;
       context.font = `${11 / scale}px ui-sans-serif, system-ui, sans-serif`;
-      const label = `${humanize(region.root)} · ${format.format(region.nodeCount)}`;
-      context.fillText(label, region.x + 10 / scale, region.y + 17 / scale);
+      region.labelLines.forEach((line, index) => {
+        context.fillText(
+          line,
+          region.x + 10 / scale,
+          region.y + (17 + index * 14) / scale,
+          Math.max(10, region.width - 20 / scale),
+        );
+      });
+      context.restore();
     });
     context.globalAlpha = 1;
   }
@@ -720,7 +913,7 @@ function drawGraph() {
     context.stroke();
   });
   const search = byId("graph-search").value.trim().toLowerCase();
-  state.graph.nodes.forEach((node) => {
+  visibleNodes.forEach((node) => {
     const position = state.positions.get(String(node.id));
     if (!position) return;
     const radius = nodeRadius(node, metricMaximum);
@@ -765,10 +958,13 @@ function renderLegend() {
   const overlay = byId("overlay-select").value;
   let items;
   if (overlay === "architecture") {
-    items = state.groupRoots.slice(0, 12).map((group) => [humanize(group.name), groupColor(group.name)]);
+    items = state.groupRoots
+      .filter((group) => !state.hiddenGroups.has(group.name))
+      .slice(0, 12)
+      .map((group) => [humanize(group.name), groupColor(group.name)]);
   } else if (overlay === "agent") {
     items = [["Task context", "#72e0b3"], ["Protected", "#f4bd69"], ["Branch collision", "#f07970"]];
-  } else if (overlay === "coverage" && state.graph.nodes.every((node) => node.line_coverage == null)) {
+  } else if (overlay === "coverage" && visibleGraphNodes().every((node) => node.line_coverage == null)) {
     items = [["No imported coverage", "#3e504b"]];
   } else if (overlay === "drift") {
     items = [["Matches / no declaration", "#46645b"], ["Configured and inferred differ", "#f07970"]];
@@ -921,6 +1117,7 @@ async function graphAtSnapshot(snapshotId, preserveCamera = true) {
   state.selectedNode = selectedPath
     ? state.graph.nodes.find((node) => node.path === selectedPath) || null
     : null;
+  renderGraphAreaOptions();
   const currentId = Number(state.overview?.snapshot?.id);
   displaySnapshot(state.graph.snapshot, Number(snapshotId) !== currentId);
   layoutGraph(!preserveCamera);
@@ -1065,7 +1262,7 @@ function setupEvents() {
     state.modulePage = 1;
     renderModules();
   });
-  ["module-area-filter", "module-subsystem-filter", "module-language-filter", "module-page-size"]
+  ["module-area-filter", "module-subsystem-filter", "module-language-filter", "module-include-reference", "module-page-size"]
     .forEach((id) => byId(id).addEventListener("change", () => {
       state.modulePage = 1;
       renderModules();
@@ -1158,12 +1355,32 @@ function setupEvents() {
   });
   byId("graph-search").addEventListener("input", drawGraph);
   byId("architecture-regions-toggle").addEventListener("change", drawGraph);
+  byId("graph-area-options").addEventListener("change", (event) => {
+    const input = event.target.closest("[data-graph-area]");
+    if (!input) return;
+    if (input.checked) state.hiddenGroups.delete(input.dataset.graphArea);
+    else state.hiddenGroups.add(input.dataset.graphArea);
+    if (state.selectedNode && state.hiddenGroups.has(rootGroup(state.selectedNode))) {
+      state.selectedNode = null;
+      byId("inspector").innerHTML = `<p class="eyebrow">Module inspector</p><h2>Select a node</h2><p class="muted">Click a graph node to inspect its purpose, interfaces, dependencies, history, and findings.</p>`;
+    }
+    renderGraphAreaOptions();
+    layoutGraph(true);
+    drawGraph();
+  });
+  byId("graph-area-all").addEventListener("click", () => {
+    state.hiddenGroups.clear();
+    renderGraphAreaOptions();
+    layoutGraph(true);
+    drawGraph();
+  });
   byId("external-toggle").addEventListener("change", async () => {
     const snapshotId = state.graph.snapshot?.id || state.overview?.snapshot?.id;
     state.graph = await request(api("/api/graph", {
       snapshot_id: snapshotId,
       include_external: byId("external-toggle").checked,
     }));
+    renderGraphAreaOptions();
     layoutGraph(false);
     drawGraph();
   });
@@ -1246,6 +1463,17 @@ function setupEvents() {
       toast("Select and copy the highlighted prompt.");
     }
   });
+  byId("view-settings").addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-copy-target]");
+    if (!button) return;
+    const target = byId(button.dataset.copyTarget);
+    try {
+      await navigator.clipboard.writeText(target?.textContent || "");
+      toast("Copied to clipboard.");
+    } catch (_) {
+      toast("Clipboard access is unavailable; select the text to copy it.", true);
+    }
+  });
   byId("inspector").addEventListener("click", (event) => {
     const target = event.target.closest("[data-path]");
     if (!target?.dataset.path) return;
@@ -1306,8 +1534,9 @@ function setupCanvasEvents() {
     const rect = canvas.getBoundingClientRect();
     const x = (event.clientX - rect.left - state.transform.x) / state.transform.scale;
     const y = (event.clientY - rect.top - state.transform.y) / state.transform.scale;
-    const metricMaximum = Math.max(...state.graph.nodes.map(nodeMetric), 1);
-    const node = [...state.graph.nodes].reverse().find((item) => {
+    const nodes = visibleGraphNodes();
+    const metricMaximum = Math.max(...nodes.map(nodeMetric), 1);
+    const node = [...nodes].reverse().find((item) => {
       const position = state.positions.get(String(item.id));
       return position && Math.hypot(position.x - x, position.y - y) <= nodeRadius(item, metricMaximum) + 3;
     });
