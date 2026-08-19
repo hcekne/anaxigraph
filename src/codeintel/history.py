@@ -57,7 +57,7 @@ def import_git_history(
     progress: Callable[[int, int, str], None] | None = None,
 ) -> HistoryImportResult:
     root = Path(repository).expanduser().resolve()
-    if not git.is_repository(root):
+    if not git.has_commits(root):
         current = RepositoryScanner(database).scan(
             root, config_path=config_path, run_type="history_current"
         )

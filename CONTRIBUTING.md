@@ -22,9 +22,9 @@ npx playwright install --with-deps chromium
 npm run test:visual
 ```
 
-These tests assert layout behavior that unit tests cannot: one architecture LOC bar per card,
-coverage warning semantics, contained graph labels, area-filter relayout, module review scope, and
-repository settings.
+These tests assert layout behavior that unit tests cannot: first-run onboarding, one architecture
+LOC bar per card, coverage warning semantics, contained graph labels, area-filter relayout, module
+review scope, and repository settings.
 
 For the container workflow, copy `.env.example` to `.env` and
 `repositories.example.yml` to `repositories.yml`, then point the registry only at repositories you

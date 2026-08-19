@@ -40,6 +40,13 @@ def is_repository(root: Path) -> bool:
     return result.returncode == 0 and result.stdout.strip() == "true"
 
 
+def has_commits(root: Path) -> bool:
+    if not is_repository(root):
+        return False
+    result = _run(root, "rev-parse", "--verify", "HEAD", check=False)
+    return result.returncode == 0
+
+
 def metadata(root: Path, *, revision: str | None = None) -> GitMetadata:
     if not is_repository(root):
         return GitMetadata(
@@ -52,7 +59,20 @@ def metadata(root: Path, *, revision: str | None = None) -> GitMetadata:
             default_branch=None,
         )
     revision = revision or "HEAD"
-    commit_sha = _run(root, "rev-parse", revision).stdout.strip()
+    commit = _run(root, "rev-parse", "--verify", revision, check=False)
+    if commit.returncode != 0:
+        branch_result = _run(root, "branch", "--show-current", check=False)
+        remote = _run(root, "remote", "get-url", "origin", check=False)
+        return GitMetadata(
+            commit_sha="unversioned",
+            parent_commit_sha=None,
+            branch=branch_result.stdout.strip() or "unversioned",
+            commit_timestamp=None,
+            dirty=True,
+            remote_url=remote.stdout.strip() if remote.returncode == 0 else None,
+            default_branch=None,
+        )
+    commit_sha = commit.stdout.strip()
     parent = _run(root, "rev-parse", f"{revision}^", check=False)
     parent_sha = parent.stdout.strip() if parent.returncode == 0 else None
     if revision == "HEAD":

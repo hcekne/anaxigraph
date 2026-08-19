@@ -19,7 +19,12 @@ async def test_dashboard_rest_api_exposes_current_intelligence(
     stale_repository.mkdir()
     (stale_repository / "old.py").write_text("legacy = True\n", encoding="utf-8")
     RepositoryScanner(database).scan(stale_repository)
-    app = create_app(database=database, repository=repository, enable_mcp=False)
+    app = create_app(
+        database=database,
+        repository=repository,
+        enable_mcp=False,
+        repository_history_snapshots=23,
+    )
 
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app),
@@ -29,6 +34,7 @@ async def test_dashboard_rest_api_exposes_current_intelligence(
         assert (await client.get("/")).status_code == 200
         repositories = (await client.get("/api/repositories")).json()
         assert repositories[0]["scannable"] is True
+        assert repositories[0]["history_snapshots"] == 23
         assert [row["path"] for row in repositories] == [str(repository.resolve())]
         stale_row = database.repository(stale_repository)
         assert stale_row is not None

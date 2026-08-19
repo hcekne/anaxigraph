@@ -45,6 +45,30 @@
 
     <main>
       <section id="view-overview" class="view active">
+        <article id="onboarding-guide" class="panel onboarding-guide" hidden>
+          <div class="onboarding-heading">
+            <div>
+              <p class="eyebrow">First run · guided tour</p>
+              <h2>See the codebase. Carry that context into your coding agent.</h2>
+              <p class="panel-copy">AnaxiGraph reads the mounted repository, records its current
+                structure and Git biography in AnaxiIndex, then serves the same evidence to this
+                dashboard and to agents through AnaxiMCP. It never edits the repository.</p>
+            </div>
+            <div class="onboarding-progress" aria-label="Onboarding progress">
+              <strong id="onboarding-progress-value">1/4</strong>
+              <span>steps complete</span>
+              <button class="text-button" type="button" data-onboarding-action="dismiss">Hide guide</button>
+            </div>
+          </div>
+          <div class="onboarding-flow" aria-label="How AnaxiGraph works">
+            <span>Read-only repository</span><i>→</i><span>AnaxiIndex</span><i>→</i>
+            <span>Dashboard</span><b>+</b><span>AnaxiMCP</span>
+          </div>
+          <div id="onboarding-steps" class="onboarding-steps"></div>
+          <p class="onboarding-safety"><strong>You stay in control.</strong> Findings are review
+            signals. Planning one gives an agent bounded context; only a later scan can verify it
+            as resolved.</p>
+        </article>
         <div id="metric-grid" class="metric-grid"></div>
         <div id="coverage-notice" class="notice" hidden></div>
         <div class="two-column">
@@ -361,22 +385,22 @@
           </article>
           <article class="panel">
             <p class="eyebrow">Add another repository</p>
-            <h2>Mount once, then allowlist</h2>
-            <p class="muted">A running browser cannot create a Docker host mount. Add the parent
-              folder to <code>.env</code>, register its container path, then recreate the service.</p>
+            <h2>Initialize it beside the code</h2>
+            <p class="muted">Run one non-destructive command from the repository you want to
+              understand. It detects obvious areas and writes an editable policy plus a dedicated,
+              read-only Compose sidecar. Existing files are kept unless you explicitly use
+              <code>--force</code>.</p>
             <ol class="settings-steps">
-              <li><strong>Mount your repository collection</strong><pre id="settings-env-example">ANAXIGRAPH_REPOSITORIES_ROOT=/absolute/path/to/repos</pre></li>
-              <li><strong>Add its container path to repositories.yml</strong><pre id="settings-registry-example">repositories:
-  my-project:
-    path: /repositories/my-project
-    config: /repositories/my-project/.anaxigraph.yml
-    history_snapshots: 64</pre></li>
-              <li><strong>Apply the operator configuration</strong><pre id="settings-compose-example">docker compose up --build -d</pre></li>
+              <li><strong>From the target repository</strong><pre id="settings-init-command">uvx --from git+https://github.com/hcekne/anaxigraph anaxigraph init .</pre></li>
+              <li><strong>Start its sidecar</strong><pre id="settings-compose-example">docker compose -f compose.anaxigraph.yml up -d</pre></li>
+              <li><strong>Open its dashboard</strong><pre id="settings-open-example">http://127.0.0.1:8765</pre></li>
             </ol>
             <div class="settings-copy-actions">
-              <button class="secondary-button" type="button" data-copy-target="settings-registry-example">Copy registry example</button>
+              <button class="secondary-button" type="button" data-copy-target="settings-init-command">Copy init command</button>
               <a class="text-button" href="https://github.com/hcekne/anaxigraph/blob/main/docs/docker.md" target="_blank" rel="noreferrer">Docker guide →</a>
             </div>
+            <p class="settings-advanced">Operating one dashboard across several allowlisted mounts?
+              The Docker guide also covers the shared multi-repository registry mode.</p>
           </article>
         </div>
         <article class="panel integration-settings">
@@ -387,8 +411,12 @@
               Use <code>CODEINTEL_REPOSITORIES</code> to choose a repository, then query findings,
               file context, impact, or a task work envelope. AnaxiMCP reads AnaxiIndex; it does not
               grant the agent write access to the mounted repository.</p>
+            <pre id="settings-codex-command" class="settings-agent-command"></pre>
           </div>
-          <button class="secondary-button" type="button" data-copy-target="settings-mcp-url">Copy MCP URL</button>
+          <div class="settings-agent-actions">
+            <button class="secondary-button" type="button" data-copy-target="settings-codex-command">Copy Codex command</button>
+            <button id="show-onboarding-button" class="text-button" type="button">Show guided tour</button>
+          </div>
         </article>
       </section>
     </main>

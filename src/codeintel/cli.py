@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 import time
 import webbrowser
@@ -17,6 +18,7 @@ from codeintel.agent import agent_scope, branch_collisions, impact_analysis
 from codeintel.api import create_app
 from codeintel.config import load_config
 from codeintel.history import import_git_history
+from codeintel.onboarding import initialize_repository
 from codeintel.registry import RepositoryTarget, load_repository_registry
 from codeintel.scanner import RepositoryScanner
 from codeintel.storage import Database
@@ -44,6 +46,54 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--version", action="version", version="AnaxiGraph 0.1.0")
     commands = parser.add_subparsers(dest="command", required=True)
+
+    initialize = commands.add_parser(
+        "init",
+        help="Create a safe repository policy and Docker sidecar setup",
+        description=(
+            "Detect obvious repository areas and generate a reviewable AnaxiGraph policy plus "
+            "a read-only Docker Compose sidecar. Existing files are never replaced unless "
+            "--force is given."
+        ),
+    )
+    initialize.add_argument("repository", nargs="?", type=Path, default=Path.cwd())
+    initialize.add_argument("--project-name", help="Human-readable project name")
+    initialize.add_argument("--config-name", default=".anaxigraph.yml")
+    initialize.add_argument("--compose-name", default="compose.anaxigraph.yml")
+    initialize.add_argument(
+        "--no-compose",
+        action="store_true",
+        help="Generate only the repository policy for a local CLI installation",
+    )
+    initialize.add_argument(
+        "--image",
+        default="ghcr.io/hcekne/anaxigraph:latest",
+        help="Container image written to Compose",
+    )
+    initialize.add_argument("--port", type=int, default=8765, help="Local dashboard port")
+    initialize.add_argument(
+        "--history-snapshots",
+        type=int,
+        default=64,
+        help="Representative Git history frames to import (default: 64)",
+    )
+    initialize.add_argument(
+        "--force",
+        action="store_true",
+        help="Replace existing generated filenames after explicit review",
+    )
+    initialize.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show detected setup without writing files",
+    )
+    initialize.add_argument(
+        "--start",
+        action="store_true",
+        help="Start the generated Docker Compose service after writing it",
+    )
+    initialize.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
+    initialize.set_defaults(handler=_initialize)
 
     scan = commands.add_parser("scan", help="Build a complete current repository map")
     _repository_arguments(scan)
@@ -156,6 +206,12 @@ def _serve_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--scan-on-start", action="store_true")
+    parser.add_argument(
+        "--history-snapshots",
+        type=int,
+        default=64,
+        help="Representative Git frames for a single --repository target (default: 64)",
+    )
     parser.add_argument("--allow-agent-scan", action="store_true")
     parser.add_argument(
         "--allowed-host",
@@ -164,6 +220,62 @@ def _serve_arguments(parser: argparse.ArgumentParser) -> None:
         help="Allowed MCP Host header (repeatable, supports :*)",
     )
     parser.add_argument("--open", action="store_true", help="Open the dashboard in a browser")
+
+
+def _initialize(args: argparse.Namespace) -> dict[str, Any] | None:
+    if args.start and args.dry_run:
+        raise ValueError("--start cannot be combined with --dry-run")
+    if args.start and args.no_compose:
+        raise ValueError("--start requires a generated Compose file")
+    result = initialize_repository(
+        args.repository,
+        project_name=args.project_name,
+        config_name=args.config_name,
+        compose_name=None if args.no_compose else args.compose_name,
+        image=args.image,
+        port=args.port,
+        history_snapshots=args.history_snapshots,
+        force=args.force,
+        dry_run=args.dry_run,
+    )
+    if args.start:
+        started = subprocess.run(
+            ["docker", "compose", "-f", args.compose_name, "up", "-d"],
+            cwd=result["repository"],
+            check=False,
+        )
+        if started.returncode:
+            raise RuntimeError(
+                f"Docker Compose exited with status {started.returncode}; generated files were kept"
+            )
+        result["status"] = "started"
+    if args.json:
+        return result
+
+    verb = "Plan for" if args.dry_run else "AnaxiGraph setup for"
+    print(f"{verb} {result['project_name']}")
+    print(f"Repository: {result['repository']}")
+    print()
+    for item in result["files"]:
+        label = item["action"].replace("_", " ")
+        print(f"  {label:15} {Path(item['path']).name} · {item['purpose']}")
+    detected = result["detected"]
+    groups = ", ".join(detected["groups"]) or "no obvious top-level areas"
+    print(f"\nDetected areas: {groups}")
+    if detected["architecture_policy"]:
+        print(f"Architecture policy: {detected['architecture_policy']}")
+    print("\nNext steps")
+    if result["commands"]["start"]:
+        print(f"  1. Start:   {result['commands']['start']}")
+        print(f"  2. Open:    {result['dashboard_url']}")
+        print(f"  3. Codex:   {result['commands']['connect_codex']}")
+        print("\nThe repository is mounted read-only; AnaxiIndex persists in a Docker volume.")
+    else:
+        print(f"  1. Start:   {result['commands']['local']}")
+        print(f"  2. Codex:   {result['commands']['connect_codex']}")
+    if args.start:
+        print(f"\nContainer started. Open {result['dashboard_url']}")
+    return None
 
 
 def _scan(args: argparse.Namespace) -> dict[str, Any]:
@@ -250,6 +362,8 @@ def _watch(args: argparse.Namespace) -> None:
 
 
 def _serve(args: argparse.Namespace) -> None:
+    if not 0 <= args.history_snapshots <= 2_000:
+        raise ValueError("History snapshots must be between 0 and 2000")
     repository = args.repository.expanduser().resolve() if args.repository else None
     targets = load_repository_registry(args.registry) if args.registry else ()
     database = Database(args.db)
@@ -262,6 +376,7 @@ def _serve(args: argparse.Namespace) -> None:
         allowed_hosts=args.allowed_hosts,
         allow_scan_tool=args.allow_agent_scan,
         repository_targets=targets,
+        repository_history_snapshots=args.history_snapshots,
     )
     url = f"http://{'127.0.0.1' if args.host == '0.0.0.0' else args.host}:{args.port}"
     print(f"Dashboard: {url}", file=sys.stderr)

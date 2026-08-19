@@ -63,6 +63,76 @@ function selectedRepository() {
   return state.repositories.find((item) => Number(item.id) === Number(state.repositoryId));
 }
 
+function onboardingStorageKey() {
+  return `anaxigraph.onboarding.${state.repositoryId || "unknown"}`;
+}
+
+function onboardingState() {
+  try {
+    return JSON.parse(window.localStorage.getItem(onboardingStorageKey()) || "{}");
+  } catch (_) {
+    return {};
+  }
+}
+
+function updateOnboarding(values) {
+  const next = { ...onboardingState(), ...values };
+  try {
+    window.localStorage.setItem(onboardingStorageKey(), JSON.stringify(next));
+  } catch (_) {
+    // The tour still works when browser storage is disabled; progress simply is not persisted.
+  }
+  renderOnboarding();
+}
+
+function renderOnboarding() {
+  const guide = byId("onboarding-guide");
+  const progress = onboardingState();
+  guide.hidden = progress.dismissed === true;
+  if (guide.hidden) return;
+
+  const indexed = Boolean(state.overview?.snapshot);
+  const completed = [indexed, progress.explored, progress.reviewed, progress.agent].filter(Boolean).length;
+  const mcpUrl = `${window.location.origin}/mcp`;
+  const codexCommand = `codex mcp add anaxigraph --url ${mcpUrl}`;
+  const historyFrames = Number(state.historyInfo?.analyzed_commits || 0);
+  const historyCopy = historyFrames > 1
+    ? `${format.format(historyFrames)} Git graph frames are ready to replay.`
+    : "The Git biography imports in the background after the current scan.";
+  byId("onboarding-progress-value").textContent = `${completed}/4`;
+  byId("onboarding-steps").innerHTML = [
+    {
+      complete: indexed,
+      title: "Index the repository",
+      copy: indexed
+        ? `${format.format(state.overview.files || 0)} files are mapped from the current snapshot. ${historyCopy}`
+        : "The first read-only scan is still building AnaxiIndex.",
+      action: '<button class="secondary-button" type="button" data-onboarding-view="modules">Browse modules</button>',
+    },
+    {
+      complete: progress.explored,
+      title: "See the system",
+      copy: "Explore architecture regions and dependency paths, or replay how the graph grew across Git history.",
+      action: '<button class="secondary-button" type="button" data-onboarding-view="graph">Open architecture graph</button>',
+    },
+    {
+      complete: progress.reviewed,
+      title: "Turn a signal into a plan",
+      copy: "Review findings, dismiss noise, or mark one Planned when you want an agent-ready work handoff.",
+      action: '<button class="secondary-button" type="button" data-onboarding-view="architecture">Open review workflow</button>',
+    },
+    {
+      complete: progress.agent,
+      title: "Connect your coding agent",
+      copy: "Codex and other MCP clients can query the same repository evidence while you work.",
+      code: codexCommand,
+      action: '<button class="secondary-button" type="button" data-onboarding-action="copy-agent">Copy Codex command</button>',
+    },
+  ].map((step, index) => (
+    `<section class="onboarding-step ${step.complete ? "complete" : ""}"><div class="onboarding-step-header"><span class="onboarding-step-number">${step.complete ? "✓" : index + 1}</span><span class="onboarding-step-status">${step.complete ? "Complete" : "Next"}</span></div><h3>${escapeHtml(step.title)}</h3><p>${escapeHtml(step.copy)}</p>${step.code ? `<code>${escapeHtml(step.code)}</code>` : ""}${step.action}</section>`
+  )).join("");
+}
+
 async function load() {
   try {
     const [repositories, glossary] = await Promise.all([
@@ -129,6 +199,7 @@ async function loadRepository() {
       : "This repository is indexed but is not mounted as this server's scan target";
 
     renderOverview();
+    renderOnboarding();
     renderModuleFilters();
     renderModules();
     renderSettings();
@@ -161,7 +232,9 @@ function renderSettings() {
     const scanState = item.scannable ? "Mounted read-only · refresh enabled" : "Indexed only";
     return `<article class="settings-repository ${current ? "current" : ""}"><div><strong>${escapeHtml(item.name)}</strong>${current ? "<span>current</span>" : ""}</div><dl><dt>Registry key</dt><dd><code>${escapeHtml(item.registry_key || "not registered")}</code></dd><dt>Container path</dt><dd><code>${escapeHtml(item.path)}</code></dd><dt>Policy</dt><dd><code>${escapeHtml(item.config_path || "automatic discovery")}</code></dd><dt>Git frames</dt><dd>${item.history_snapshots == null ? "—" : format.format(item.history_snapshots)}</dd><dt>Access</dt><dd>${escapeHtml(scanState)}</dd></dl></article>`;
   }).join("");
-  byId("settings-mcp-url").textContent = `${window.location.origin}/mcp`;
+  const mcpUrl = `${window.location.origin}/mcp`;
+  byId("settings-mcp-url").textContent = mcpUrl;
+  byId("settings-codex-command").textContent = `codex mcp add anaxigraph --url ${mcpUrl}`;
 }
 
 function displaySnapshot(snapshot, historical = false) {
@@ -1082,6 +1155,7 @@ async function refreshHistoryData() {
     state.trends = trends.snapshots || [];
     state.historyInfo = historyInfo;
     renderHistory();
+    renderOnboarding();
   } catch (error) {
     toast(error.message, true);
   }
@@ -1253,7 +1327,10 @@ async function handleFindingAction(button) {
 
 function setupEvents() {
   document.querySelectorAll(".tab").forEach((button) => {
-    button.addEventListener("click", () => switchView(button.dataset.view));
+    button.addEventListener("click", () => {
+      markOnboardingView(button.dataset.view);
+      switchView(button.dataset.view);
+    });
   });
   document.querySelectorAll("[data-switch]").forEach((button) => {
     button.addEventListener("click", () => switchView(button.dataset.switch));
@@ -1463,6 +1540,29 @@ function setupEvents() {
       toast("Select and copy the highlighted prompt.");
     }
   });
+  byId("onboarding-guide").addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-onboarding-action], [data-onboarding-view]");
+    if (!button) return;
+    if (button.dataset.onboardingAction === "dismiss") {
+      updateOnboarding({ dismissed: true });
+      return;
+    }
+    if (button.dataset.onboardingAction === "copy-agent") {
+      const command = `codex mcp add anaxigraph --url ${window.location.origin}/mcp`;
+      try {
+        await navigator.clipboard.writeText(command);
+        updateOnboarding({ agent: true });
+        toast("Codex MCP command copied.");
+      } catch (_) {
+        toast("Clipboard access is unavailable; copy the command shown in the guide.", true);
+      }
+      return;
+    }
+    if (button.dataset.onboardingView) {
+      markOnboardingView(button.dataset.onboardingView);
+      switchView(button.dataset.onboardingView);
+    }
+  });
   byId("view-settings").addEventListener("click", async (event) => {
     const button = event.target.closest("[data-copy-target]");
     if (!button) return;
@@ -1473,6 +1573,11 @@ function setupEvents() {
     } catch (_) {
       toast("Clipboard access is unavailable; select the text to copy it.", true);
     }
+  });
+  byId("show-onboarding-button").addEventListener("click", () => {
+    updateOnboarding({ dismissed: false });
+    switchView("overview");
+    byId("onboarding-guide").scrollIntoView({ behavior: "smooth", block: "start" });
   });
   byId("inspector").addEventListener("click", (event) => {
     const target = event.target.closest("[data-path]");
@@ -1542,6 +1647,14 @@ function setupCanvasEvents() {
     });
     if (node) inspectNode(node);
   });
+}
+
+function markOnboardingView(name) {
+  if (["modules", "graph", "history"].includes(name)) {
+    updateOnboarding({ explored: true });
+  } else if (name === "architecture") {
+    updateOnboarding({ reviewed: true });
+  }
 }
 
 async function reloadFindings() {

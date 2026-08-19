@@ -4,6 +4,23 @@ Docker Compose is the recommended way to run AnaxiGraph. Target repositories are
 read-only, the SQLite graph lives in a named volume, and the dashboard is bound to localhost by
 default. One service can index and switch between multiple repositories.
 
+## Recommended: one repository sidecar
+
+From any target repository, generate a dedicated Compose file and editable policy:
+
+```bash
+uvx --from git+https://github.com/hcekne/anaxigraph anaxigraph init .
+docker compose -f compose.anaxigraph.yml up -d
+```
+
+This pulls `ghcr.io/hcekne/anaxigraph:latest`, binds only the current repository at `/repo` in
+read-only mode, and persists its AnaxiIndex in a project-scoped named volume. Existing generated
+filenames are not overwritten unless `--force` is explicit. See the [onboarding guide](onboarding.md)
+for the guided dashboard and MCP workflow.
+
+The remaining sections describe the checked-in operator Compose stack, which is intended for
+AnaxiGraph development and a shared multi-repository service.
+
 ## Start the included two-repository setup
 
 The zero-configuration development layout is:
@@ -33,7 +50,7 @@ Git biographies then import in the background and report progress on the History
 | REST API | `http://127.0.0.1:8765/api/overview` |
 | MCP | `http://127.0.0.1:8765/mcp` |
 
-## Configure your own repositories
+## Shared multi-repository service
 
 Copy the templates:
 

@@ -77,3 +77,18 @@ def test_repository_registry_resolves_relative_paths(tmp_path):
     assert [target.key for target in targets] == ["first", "second"]
     assert targets[0].path == first.resolve()
     assert targets[0].history_snapshots == 24
+
+
+def test_unborn_git_repository_scans_without_history_failure(tmp_path, database):
+    repository = tmp_path / "unborn"
+    repository.mkdir()
+    (repository / "app.py").write_text("value = 1\n", encoding="utf-8")
+    subprocess.run(["git", "init", "-q", str(repository)], check=True)
+
+    stats = RepositoryScanner(database).scan(repository)
+    result = import_git_history(database, repository, max_snapshots=12)
+
+    assert stats.analyzed == 1
+    assert database.latest_snapshot(stats.repository_id)["commit_sha"] == "unversioned"
+    assert result.total_commits == 0
+    assert result.selected_commits == 0

@@ -51,6 +51,7 @@ def create_app(
     allowed_hosts: list[str] | None = None,
     allow_scan_tool: bool = False,
     repository_targets: tuple[RepositoryTarget, ...] = (),
+    repository_history_snapshots: int = 0,
 ) -> FastAPI:
     targets = list(repository_targets)
     if repository is not None and all(
@@ -62,7 +63,7 @@ def create_app(
                 key="default",
                 path=repository.resolve(),
                 config_path=config_path.resolve() if config_path else None,
-                history_snapshots=0,
+                history_snapshots=repository_history_snapshots,
             ),
         )
     default_repository = targets[0].path if targets else repository
@@ -111,7 +112,7 @@ def create_app(
                 }
 
     def start_history_import(target: RepositoryTarget) -> bool:
-        if target.history_snapshots < 1 or not git.is_repository(target.path):
+        if target.history_snapshots < 1 or not git.has_commits(target.path):
             return False
         key = str(target.path.resolve())
         with history_lock:
@@ -320,7 +321,7 @@ def create_app(
         target = target_for_path(Path(row["path"]))
         timeline = database.timeline_snapshots(int(row["id"]), limit=2_000)
         commits = []
-        if target and git.is_repository(target.path):
+        if target and git.has_commits(target.path):
             commits = git.revisions(target.path, limit=None, oldest_first=True)
         with history_lock:
             job = dict(history_jobs.get(str(Path(row["path"]).resolve()), {}))
@@ -349,7 +350,7 @@ def create_app(
                 status_code=403,
                 detail="This indexed repository is not mounted as a scan target",
             )
-        if not git.is_repository(target.path):
+        if not git.has_commits(target.path):
             raise HTTPException(status_code=400, detail="Repository has no Git history")
         started = start_history_import(target)
         return {

@@ -1,0 +1,473 @@
+"""Safe first-run setup for using AnaxiGraph beside an existing repository."""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import shlex
+import tomllib
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+from codeintel import git
+from codeintel.config import load_config
+from codeintel.languages import detect_language
+
+DEFAULT_CONTAINER_IMAGE = "ghcr.io/hcekne/anaxigraph:latest"
+DEFAULT_COMPOSE_FILE = "compose.anaxigraph.yml"
+DEFAULT_CONFIG_FILE = ".anaxigraph.yml"
+
+_IGNORED_DIRECTORY_NAMES = {
+    ".anaxigraph",
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".next",
+    ".nuxt",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pycache__",
+    "build",
+    "coverage",
+    "dist",
+    "htmlcov",
+    "node_modules",
+    "target",
+    "vendor",
+    "venv",
+}
+
+_GROUP_DETAILS = {
+    "agent-runner": ("agent-runtime", "Agent execution, model-provider, and tool runtime code."),
+    "api": ("api", "Public or internal transport and API boundary."),
+    "backend": ("backend", "Backend application and service implementation."),
+    "client": ("frontend", "User-facing client application."),
+    "deploy": ("infrastructure", "Deployment and runtime infrastructure."),
+    "docs": ("documentation", "Architecture, operating, and contributor documentation."),
+    "documentation": ("documentation", "Architecture, operating, and contributor documentation."),
+    "frontend": ("frontend", "User-facing frontend application."),
+    "infra": ("infrastructure", "Deployment and runtime infrastructure."),
+    "infrastructure": ("infrastructure", "Deployment and runtime infrastructure."),
+    "lib": ("library", "Shared library implementation."),
+    "migrations": ("database-migrations", "Ordered database schema changes."),
+    "packages": ("packages", "Workspace packages and shared libraries."),
+    "scripts": ("developer-tooling", "Repository maintenance and developer automation."),
+    "server": ("backend", "Backend server implementation."),
+    "services": ("services", "Application services and independently deployable components."),
+    "src": ("source", "Primary product implementation."),
+    "test": ("testing", "Automated verification and test support code."),
+    "tests": ("testing", "Automated verification and test support code."),
+    "tools": ("developer-tooling", "Repository maintenance and developer automation."),
+    "ui": ("frontend", "User-facing interface implementation."),
+    "web": ("frontend", "User-facing web application."),
+}
+
+_GROUP_PRIORITY = {
+    "frontend": 10,
+    "backend": 20,
+    "source": 30,
+    "services": 35,
+    "packages": 40,
+    "library": 45,
+    "testing": 70,
+    "documentation": 80,
+    "developer-tooling": 90,
+    "infrastructure": 100,
+    "database-migrations": 110,
+}
+
+
+def initialize_repository(
+    repository: str | Path,
+    *,
+    project_name: str | None = None,
+    config_name: str = DEFAULT_CONFIG_FILE,
+    compose_name: str | None = DEFAULT_COMPOSE_FILE,
+    image: str = DEFAULT_CONTAINER_IMAGE,
+    port: int = 8765,
+    history_snapshots: int = 64,
+    force: bool = False,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """Generate an editable policy and a read-only Docker sidecar definition."""
+
+    root = Path(repository).expanduser().resolve()
+    if not root.is_dir():
+        raise ValueError(f"Repository directory does not exist: {root}")
+    if not 1 <= port <= 65_535:
+        raise ValueError("Port must be between 1 and 65535")
+    if not 0 <= history_snapshots <= 2_000:
+        raise ValueError("History snapshots must be between 0 and 2000")
+    if not image.strip() or any(character.isspace() for character in image):
+        raise ValueError("Container image must be a non-empty reference without whitespace")
+    if not config_name or Path(config_name).name != config_name:
+        raise ValueError("Config filename must be a filename inside the repository root")
+    if compose_name is not None and (
+        not compose_name or Path(compose_name).name != compose_name
+    ):
+        raise ValueError("Compose filename must be a filename inside the repository root")
+
+    name = project_name.strip() if project_name and project_name.strip() else detect_project_name(root)
+    slug = project_slug(name)
+    groups = detect_repository_groups(root)
+    policy = detect_architecture_policy(root)
+    coverage_files = detect_coverage_files(root)
+    config_content = render_repository_config(
+        name,
+        groups=groups,
+        architecture_policy=policy,
+        coverage_files=coverage_files,
+    )
+    planned_files = [(root / config_name, config_content, "repository policy")]
+    if compose_name:
+        planned_files.append(
+            (
+                root / compose_name,
+                render_compose(
+                    project_slug_value=slug,
+                    image=image,
+                    port=port,
+                    history_snapshots=history_snapshots,
+                ),
+                "Docker sidecar",
+            )
+        )
+
+    files = []
+    for path, content, purpose in planned_files:
+        existed = path.exists()
+        if existed and not force:
+            action = "skipped"
+        else:
+            action = "would_overwrite" if existed else "would_create"
+            if not dry_run:
+                _write_text_atomic(path, content)
+                action = "overwritten" if existed else "created"
+        files.append({"path": str(path), "purpose": purpose, "action": action})
+
+    dashboard_url = f"http://127.0.0.1:{port}"
+    mcp_url = f"{dashboard_url}/mcp"
+    compose_command = (
+        f"docker compose -f {shlex.quote(compose_name)} up -d" if compose_name else None
+    )
+    return {
+        "status": "dry_run" if dry_run else "initialized",
+        "repository": str(root),
+        "project_name": name,
+        "project_slug": slug,
+        "detected": {
+            "groups": [group[0] for group in groups],
+            "architecture_policy": policy,
+            "coverage_files": coverage_files,
+        },
+        "files": files,
+        "commands": {
+            "start": compose_command,
+            "start_with_watch": (
+                f"docker compose -f {shlex.quote(compose_name)} --profile watch up -d"
+                if compose_name
+                else None
+            ),
+            "logs": (
+                f"docker compose -f {shlex.quote(compose_name)} logs -f anaxigraph"
+                if compose_name
+                else None
+            ),
+            "local": (
+                f"anaxigraph serve --repository {shlex.quote(str(root))} "
+                "--scan-on-start --open"
+            ),
+            "connect_codex": f"codex mcp add anaxigraph --url {mcp_url}",
+        },
+        "dashboard_url": dashboard_url,
+        "mcp_url": mcp_url,
+        "codex_config": f'[mcp_servers.anaxigraph]\nurl = "{mcp_url}"\n',
+    }
+
+
+def detect_project_name(repository: Path) -> str:
+    """Prefer existing project metadata, then fall back to the checkout name."""
+
+    for config_name in (".anaxigraph.yml", ".codeintel.yml"):
+        path = repository / config_name
+        if path.is_file():
+            try:
+                value = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+                name = (value.get("project") or {}).get("name")
+                if name:
+                    return str(name)
+            except (OSError, yaml.YAMLError, AttributeError):
+                pass
+
+    package_json = repository / "package.json"
+    if package_json.is_file():
+        try:
+            value = json.loads(package_json.read_text(encoding="utf-8"))
+            if value.get("name"):
+                return display_name(str(value["name"]))
+        except (OSError, json.JSONDecodeError, AttributeError):
+            pass
+
+    pyproject = repository / "pyproject.toml"
+    if pyproject.is_file():
+        try:
+            value = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+            name = (value.get("project") or {}).get("name")
+            if name:
+                return display_name(str(name))
+        except (OSError, tomllib.TOMLDecodeError, AttributeError):
+            pass
+    return display_name(repository.name) or "Repository"
+
+
+def display_name(value: str) -> str:
+    unscoped = value.rsplit("/", 1)[-1]
+    words = [word for word in re.split(r"[-_.\s]+", unscoped) if word]
+    return " ".join(word if any(character.isupper() for character in word) else word.title() for word in words)
+
+
+def project_slug(value: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    return (slug or "repository")[:50].rstrip("-")
+
+
+def detect_repository_groups(repository: Path) -> list[tuple[str, str, str]]:
+    """Return (group name, path glob, description) for obvious top-level areas."""
+
+    existing_config = load_config(repository)
+    listed_files = git.listed_files(repository)
+    analyzable_git_directories = {
+        Path(path).parts[0]
+        for path in listed_files
+        if len(Path(path).parts) > 1 and detect_language(path)
+    }
+    candidates: list[tuple[str, str, str]] = []
+    used_names: set[str] = set()
+    for directory in sorted(repository.iterdir(), key=lambda item: item.name.lower()):
+        if not directory.is_dir() or directory.name.startswith("."):
+            continue
+        if directory.name.lower() in _IGNORED_DIRECTORY_NAMES:
+            continue
+        if existing_config.is_ignored(directory.name, is_dir=True):
+            continue
+        if listed_files and directory.name not in analyzable_git_directories:
+            continue
+        if not listed_files and not _contains_analyzable_file(directory, repository):
+            continue
+        normalized = project_slug(directory.name)
+        configured_name, description = _GROUP_DETAILS.get(
+            normalized,
+            (normalized, f"Detected top-level {display_name(directory.name)} area."),
+        )
+        name = configured_name
+        suffix = 2
+        while name in used_names:
+            name = f"{configured_name}-{suffix}"
+            suffix += 1
+        used_names.add(name)
+        candidates.append((name, f"{directory.name}/**", description))
+
+    candidates.sort(
+        key=lambda group: (_GROUP_PRIORITY.get(group[0], 60), group[0], group[1])
+    )
+    return candidates[:16]
+
+
+def detect_architecture_policy(repository: Path) -> str | None:
+    configured = load_config(repository).architecture.policy
+    if configured:
+        return configured
+    for candidate in (
+        "ARCHITECTURE.md",
+        "architecture.md",
+        "docs/architecture.md",
+        "docs/ARCHITECTURE.md",
+    ):
+        if (repository / candidate).is_file():
+            return candidate
+    return None
+
+
+def detect_coverage_files(repository: Path) -> list[str]:
+    found: list[str] = []
+    for current, directories, files in os.walk(repository):
+        current_path = Path(current)
+        relative = current_path.relative_to(repository)
+        directories[:] = [
+            name
+            for name in directories
+            if not name.startswith(".") and name.lower() not in _IGNORED_DIRECTORY_NAMES
+        ]
+        if len(relative.parts) >= 5:
+            directories[:] = []
+        for name in files:
+            if name not in {"coverage.xml", "lcov.info"}:
+                continue
+            candidate = (relative / name).as_posix()
+            found.append(candidate.removeprefix("./"))
+    return sorted(dict.fromkeys(found)) or ["coverage.xml", "coverage/lcov.info", "lcov.info"]
+
+
+def render_repository_config(
+    project_name: str,
+    *,
+    groups: list[tuple[str, str, str]],
+    architecture_policy: str | None,
+    coverage_files: list[str],
+) -> str:
+    source_paths = [
+        path
+        for name, path, _ in groups
+        if name not in {"testing", "documentation", "developer-tooling", "infrastructure"}
+    ]
+    architecture: dict[str, Any] = {
+        "rules": [
+            {
+                "id": "module-size-review",
+                "type": "max_module_loc",
+                "severity": "info",
+                "description": "Review source modules above 500 physical lines for cohesion.",
+                "max": 500,
+                **({"paths": source_paths} if source_paths else {}),
+            },
+            {
+                "id": "symbol-complexity-review",
+                "type": "max_symbol_complexity",
+                "severity": "warning",
+                "max": 15,
+            },
+            {
+                "id": "dependency-cycle-review",
+                "type": "no_cycles",
+                "severity": "warning",
+            },
+        ]
+    }
+    if architecture_policy:
+        architecture = {"policy": architecture_policy, **architecture}
+    value: dict[str, Any] = {
+        "project": {"name": project_name},
+        "architecture": architecture,
+    }
+    if groups:
+        value["groups"] = {
+            name: {
+                "level": "area",
+                "description": description,
+                "paths": [path],
+            }
+            for name, path, description in groups
+        }
+    value["coverage"] = {"required": False, "files": coverage_files}
+    value["agent"] = {"context_limit": 25, "neighbor_depth": 2}
+    header = (
+        "# Generated by `anaxigraph init`. Edit and commit this repository policy.\n"
+        "# Findings are review signals; AnaxiGraph never refactors target code automatically.\n\n"
+    )
+    return header + yaml.safe_dump(value, sort_keys=False, allow_unicode=True, width=100)
+
+
+def render_compose(
+    *,
+    project_slug_value: str,
+    image: str,
+    port: int,
+    history_snapshots: int,
+) -> str:
+    return f"""# Generated by `anaxigraph init`. The repository mount is read-only.
+name: anaxigraph-{project_slug_value}
+
+x-anaxigraph-service: &anaxigraph-service
+  image: ${{ANAXIGRAPH_IMAGE:-{image}}}
+  init: true
+  read_only: true
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  tmpfs:
+    - /tmp:size=128m,mode=1777
+  volumes:
+    - type: bind
+      source: .
+      target: /repo
+      read_only: true
+    - type: volume
+      source: anaxi_index
+      target: /state
+  restart: unless-stopped
+
+services:
+  anaxigraph:
+    <<: *anaxigraph-service
+    command:
+      - serve
+      - --repository
+      - /repo
+      - --db
+      - /state/anaxi-index.db
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8765"
+      - --history-snapshots
+      - "{history_snapshots}"
+      - --scan-on-start
+    ports:
+      - "127.0.0.1:${{ANAXIGRAPH_PORT:-{port}}}:8765"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/healthz', timeout=3).read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 120s
+
+  anaxigraph-watch:
+    <<: *anaxigraph-service
+    profiles: [watch]
+    command:
+      - watch
+      - /repo
+      - --db
+      - /state/anaxi-index.db
+      - --interval
+      - "${{ANAXIGRAPH_WATCH_INTERVAL:-10}}"
+    depends_on:
+      anaxigraph:
+        condition: service_healthy
+
+volumes:
+  anaxi_index:
+
+# AnaxiGraph imports {history_snapshots} representative Git frames in the background after startup.
+"""
+
+
+def _contains_analyzable_file(directory: Path, repository: Path) -> bool:
+    examined = 0
+    for current, directories, files in os.walk(directory):
+        directories[:] = [
+            name
+            for name in directories
+            if not name.startswith(".") and name.lower() not in _IGNORED_DIRECTORY_NAMES
+        ]
+        for name in files:
+            examined += 1
+            path = (Path(current) / name).relative_to(repository).as_posix()
+            if detect_language(path):
+                return True
+            if examined >= 3_000:
+                return False
+    return False
+
+
+def _write_text_atomic(path: Path, content: str) -> None:
+    temporary = path.with_name(f".{path.name}.anaxigraph-tmp")
+    temporary.write_text(content, encoding="utf-8")
+    temporary.replace(path)

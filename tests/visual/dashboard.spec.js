@@ -70,5 +70,33 @@ test("settings explains every connected repository and MCP handoff", async ({ pa
   expect(await page.locator(".settings-repository").count()).toBeGreaterThanOrEqual(1);
   await expect(page.locator(".settings-repository.current")).toHaveCount(1);
   await expect(page.locator("#settings-mcp-url")).toHaveText(`${new URL(page.url()).origin}/mcp`);
-  await expect(page.locator("#settings-registry-example")).toContainText("/repositories/my-project");
+  await expect(page.locator("#settings-init-command")).toContainText("anaxigraph init .");
+  await expect(page.locator("#settings-codex-command")).toHaveText(
+    `codex mcp add anaxigraph --url ${new URL(page.url()).origin}/mcp`,
+  );
+});
+
+test("first-run tour explains the workflow and can be reopened", async ({ page }) => {
+  await openDashboard(page);
+  const guide = page.locator("#onboarding-guide");
+  await expect(guide).toBeVisible();
+  await expect(page.locator("#onboarding-progress-value")).toHaveText("1/4");
+  await expect(guide).toContainText("Read-only repository");
+  await expect(guide).toContainText("AnaxiIndex");
+  await expect(guide).toContainText("AnaxiMCP");
+  await expect(guide).toContainText(
+    `codex mcp add anaxigraph --url ${new URL(page.url()).origin}/mcp`,
+  );
+
+  await guide.getByRole("button", { name: "Open architecture graph" }).click();
+  await expect(page.locator("#view-graph")).toBeVisible();
+  await page.getByRole("button", { name: "Overview", exact: true }).click();
+  await expect(page.locator("#onboarding-progress-value")).toHaveText("2/4");
+
+  await guide.getByRole("button", { name: "Hide guide" }).click();
+  await expect(guide).toBeHidden();
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Show guided tour" }).click();
+  await expect(page.locator("#view-overview")).toBeVisible();
+  await expect(guide).toBeVisible();
 });

@@ -21,55 +21,69 @@ The product has three named surfaces:
 The initial implementation is deliberately Python-first while supporting the mixed Python,
 TypeScript, JavaScript, JSX, CSS, configuration, and documentation repository used by MaxOS.
 
-## Recommended: Docker Compose
+## Get running in five minutes
 
-If `anaxigraph` and `maxos_agent` are sibling directories, the checked-in registry starts with both
-repositories available in one dashboard:
+AnaxiGraph normally runs as a Docker sidecar beside the repository you are coding in. From that
+repository, generate a safe, reviewable setup:
 
 ```bash
+uvx --from git+https://github.com/hcekne/anaxigraph anaxigraph init .
+docker compose -f compose.anaxigraph.yml up -d
+```
+
+The initializer writes `.anaxigraph.yml` and `compose.anaxigraph.yml` without replacing existing
+files. The Compose service mounts the repository read-only, persists AnaxiIndex in a named volume,
+scans the current tree, and imports representative graph frames from the initial Git commit
+through HEAD.
+
+Open `http://127.0.0.1:8765`, follow the four-step dashboard tour, then connect Codex:
+
+```bash
+codex mcp add anaxigraph --url http://127.0.0.1:8765/mcp
+codex mcp list
+```
+
+Other MCP clients use the same `http://127.0.0.1:8765/mcp` endpoint. See the complete
+[onboarding guide](docs/onboarding.md) for the human-to-agent workflow, optional coverage, history,
+custom ports, updates, and reset behavior.
+
+Follow startup or scanning with:
+
+```bash
+docker compose -f compose.anaxigraph.yml logs -f anaxigraph
+```
+
+To refresh automatically while you code, enable the optional watcher:
+
+```bash
+docker compose -f compose.anaxigraph.yml --profile watch up -d
+```
+
+## Shared multi-repository service
+
+The repository also contains an operator setup for one dashboard across several allowlisted
+read-only mounts. This is useful for a team installation or for switching projects without
+running several ports:
+
+```bash
+git clone https://github.com/hcekne/anaxigraph.git
+cd anaxigraph
+cp .env.example .env
+cp repositories.example.yml repositories.yml
+# Edit the host mounts and registry, then:
 docker compose up --build -d
-docker compose ps
 ```
 
-The container scans both allowlisted read-only mounts before becoming healthy, then imports
-sampled Git history in the background. Open `http://127.0.0.1:8765`; AnaxiMCP is available at
-`http://127.0.0.1:8765/mcp`. The repository is mounted read-only and AnaxiIndex persists in the
-Docker state volume.
-
-Follow startup or scan progress with:
-
-```bash
-docker compose logs -f anaxigraph
-```
-
-To refresh automatically while files change, enable the optional watcher:
-
-```bash
-docker compose --profile watch up --build -d
-```
-
-For direct container-to-container access from MaxOS, start MaxOS first and add the network overlay:
-
-```bash
-docker compose -f compose.yml -f compose.maxos.yml up --build -d
-```
-
-MaxOS can then use `http://anaxigraph:8765/mcp`; the previous `codeintel` hostname remains a
-network alias. See [Docker operation](docs/docker.md) and
-[MaxOS integration](docs/maxos-agent.md) for configuration and lifecycle commands.
-
-To add repositories, copy `repositories.example.yml`, list their container paths and policy files,
-and set `ANAXIGRAPH_REGISTRY` in `.env`. The browser can select registered repositories but cannot
-ask the server to browse arbitrary host paths. See [Docker operation](docs/docker.md) for the
-multi-repository setup and [the product development plan](docs/feature-development-plan.md) for
-the semantic intent ledger and scored pattern intelligence roadmap.
+The browser cannot ask the server to browse arbitrary host paths. See
+[Docker operation](docs/docker.md) and [MaxOS integration](docs/maxos-agent.md).
 
 ## Local CLI
 
 ```bash
 uv tool install -e .
+anaxigraph init /path/to/repository --no-compose
 anaxigraph scan /path/to/repository
-anaxigraph serve --repository /path/to/repository --open
+anaxigraph serve --repository /path/to/repository --scan-on-start --open
 ```
 
 AnaxiIndex is stored outside the target at
