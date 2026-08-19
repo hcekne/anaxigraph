@@ -27,10 +27,16 @@ from anaxigraph.models import (
     SemanticClaim,
     Symbol,
 )
+from anaxigraph.relationships import (
+    AMBIGUOUS_INTERNAL,
+    EXTERNAL,
+    RESOLVED_INTERNAL,
+    UNRESOLVED_INTERNAL,
+)
 from anaxigraph.semantic import CommandSemanticProvider, SemanticAnalysisError
 from anaxigraph.storage import AnaxiIndex, utc_now
 
-ANALYSIS_VERSION = 2
+ANALYSIS_VERSION = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,6 +57,14 @@ class PreparedFile:
     last_changed_at: str
     semantic_claim: SemanticClaim | None = None
     semantic_error: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ResolvedDependency:
+    target_id: int | None
+    target_external: str | None
+    resolution_status: str
+    candidate_paths: tuple[str, ...] = ()
 
 
 class RepositoryScanner:
@@ -631,15 +645,15 @@ class RepositoryScanner:
         config: AnaxiGraphConfig,
     ) -> int:
         resolver = _DependencyResolver(prepared, artifacts, config)
-        aggregated: dict[tuple[int, int | None, str | None, str], dict[str, Any]] = {}
+        aggregated: dict[tuple[int, int | None, str | None, str, str], dict[str, Any]] = {}
         for item in prepared:
             source_path = item.discovered.path
             source_id = artifacts[source_path]
             for dependency in item.analysis.dependencies:
                 targets = resolver.resolve(source_path, item.discovered.language, dependency)
-                if not targets:
-                    targets = [(None, dependency.target)]
-                for target_id, target_external in targets:
+                for target in targets:
+                    target_id = target.target_id
+                    target_external = target.target_external
                     if target_id == source_id and dependency.relationship_type == "imports":
                         continue
                     key = (
@@ -647,33 +661,56 @@ class RepositoryScanner:
                         target_id,
                         target_external if target_id is None else None,
                         dependency.relationship_type,
+                        target.resolution_status,
                     )
+                    confidence = dependency.confidence
+                    if target.resolution_status == AMBIGUOUS_INTERNAL:
+                        confidence = min(confidence, 0.5)
+                    elif target.resolution_status == UNRESOLVED_INTERNAL:
+                        confidence = min(confidence, 0.35)
                     current = aggregated.setdefault(
                         key,
                         {
-                            "confidence": dependency.confidence,
+                            "confidence": confidence,
                             "weight": 0,
                             "evidence": [],
                             "line": dependency.line,
                             "source": _relationship_source(
                                 item.discovered.language, dependency.relationship_type
                             ),
+                            "candidate_paths": set(),
+                            "original_targets": set(),
                         },
                     )
                     current["weight"] += 1
-                    current["confidence"] = max(current["confidence"], dependency.confidence)
+                    current["confidence"] = max(current["confidence"], confidence)
+                    current["candidate_paths"].update(target.candidate_paths)
+                    current["original_targets"].add(dependency.target)
                     if dependency.evidence and dependency.evidence not in current["evidence"]:
                         current["evidence"].append(dependency.evidence)
                     current["line"] = min(
                         value for value in (current["line"], dependency.line) if value >= 0
                     )
-        for (source_id, target_id, external, relation_type), value in aggregated.items():
+        for (
+            source_id,
+            target_id,
+            external,
+            relation_type,
+            resolution_status,
+        ), value in aggregated.items():
+            metadata = {
+                "resolution_status": resolution_status,
+                "original_targets": sorted(value["original_targets"]),
+            }
+            if value["candidate_paths"]:
+                metadata["candidate_paths"] = sorted(value["candidate_paths"])
             connection.execute(
                 """
                 INSERT INTO relationships(
                     snapshot_id, source_artifact_id, target_artifact_id, target_external,
-                    relationship_type, source, confidence, evidence, source_line, weight
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    relationship_type, source, confidence, evidence, source_line, weight,
+                    metadata_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     snapshot_id,
@@ -686,6 +723,7 @@ class RepositoryScanner:
                     " | ".join(value["evidence"][:5])[:2_000],
                     value["line"],
                     value["weight"],
+                    json.dumps(metadata, sort_keys=True),
                 ),
             )
         return len(aggregated)
@@ -861,24 +899,79 @@ class _DependencyResolver:
             for symbol in item.analysis.symbols:
                 self.symbols.setdefault(symbol.name, set()).add(path)
                 self.symbols.setdefault(symbol.qualified_name, set()).add(path)
+        self.python_roots = {
+            module.split(".", 1)[0] for module in self.python_modules if module
+        }
 
     def resolve(
         self, source_path: str, language: str, dependency: Dependency
-    ) -> list[tuple[int | None, str | None]]:
+    ) -> list[ResolvedDependency]:
         if dependency.target.startswith("symbol:"):
             name = dependency.target.removeprefix("symbol:")
-            matches = self.symbols.get(name, set())
+            matches = sorted(self.symbols.get(name, set()))
             if len(matches) == 1:
-                path = next(iter(matches))
-                return [(self.artifacts[path], None)]
-            return []
+                return [
+                    ResolvedDependency(
+                        self.artifacts[matches[0]], None, RESOLVED_INTERNAL
+                    )
+                ]
+            if matches:
+                return [
+                    ResolvedDependency(
+                        None,
+                        dependency.target,
+                        AMBIGUOUS_INTERNAL,
+                        tuple(matches),
+                    )
+                ]
+            return [
+                ResolvedDependency(None, dependency.target, UNRESOLVED_INTERNAL)
+            ]
         if language == "python":
-            paths = self._resolve_python(source_path, dependency)
-        else:
-            paths = self._resolve_path_import(source_path, dependency.target)
-        return [(self.artifacts[path], None) for path in paths]
+            paths, ambiguous, normalized_target = self._resolve_python(source_path, dependency)
+            result = [
+                ResolvedDependency(self.artifacts[path], None, RESOLVED_INTERNAL)
+                for path in paths
+            ]
+            if ambiguous:
+                result.append(
+                    ResolvedDependency(
+                        None,
+                        dependency.target,
+                        AMBIGUOUS_INTERNAL,
+                        tuple(ambiguous),
+                    )
+                )
+            if result:
+                return result
+            internal = dependency.target.startswith(".") or (
+                normalized_target.split(".", 1)[0] in self.python_roots
+            )
+            return [
+                ResolvedDependency(
+                    None,
+                    dependency.target,
+                    UNRESOLVED_INTERNAL if internal else EXTERNAL,
+                )
+            ]
+        paths = self._resolve_path_import(source_path, dependency.target)
+        if paths:
+            return [
+                ResolvedDependency(self.artifacts[path], None, RESOLVED_INTERNAL)
+                for path in paths
+            ]
+        internal = self._is_internal_path_target(dependency.target)
+        return [
+            ResolvedDependency(
+                None,
+                dependency.target,
+                UNRESOLVED_INTERNAL if internal else EXTERNAL,
+            )
+        ]
 
-    def _resolve_python(self, source_path: str, dependency: Dependency) -> list[str]:
+    def _resolve_python(
+        self, source_path: str, dependency: Dependency
+    ) -> tuple[list[str], list[str], str]:
         target = dependency.target
         candidates: list[str] = []
         if target.startswith("."):
@@ -892,13 +985,22 @@ class _DependencyResolver:
         candidates.append(target)
         candidates.extend(f"{target}.{name}".strip(".") for name in dependency.names)
         matches: list[str] = []
+        ambiguous: set[str] = set()
         for candidate in candidates:
             values = self.python_modules.get(candidate, set())
             if len(values) == 1:
                 path = next(iter(values))
                 if path not in matches:
                     matches.append(path)
-        return matches[:10]
+            elif len(values) > 1:
+                ambiguous.update(values)
+        return matches[:10], sorted(ambiguous), target
+
+    def _is_internal_path_target(self, target: str) -> bool:
+        clean = target.split("?", 1)[0].split("#", 1)[0]
+        if clean.startswith((".", "/")):
+            return True
+        return any(clean.startswith(alias.rstrip("*")) for alias in self.config.aliases)
 
     def _resolve_path_import(self, source_path: str, target: str) -> list[str]:
         clean = target.split("?", 1)[0].split("#", 1)[0]

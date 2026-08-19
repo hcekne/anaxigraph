@@ -92,6 +92,7 @@
             as resolved.</p>
         </article>
         <div id="metric-grid" class="metric-grid"></div>
+        <div id="graph-quality-notice" class="notice evidence-notice" hidden></div>
         <div id="coverage-notice" class="notice" hidden></div>
         <div class="two-column">
           <article class="panel">
@@ -314,7 +315,9 @@
                 <option value="dismissed">Dismissed</option>
               </select>
             </label>
+            <button id="finding-show-all" class="secondary-button" type="button" hidden>Show more</button>
           </div>
+          <p id="finding-result-note" class="panel-copy finding-result-note"></p>
           <div id="findings-table" class="finding-list full"></div>
         </article>
       </section>

@@ -48,11 +48,15 @@ async def test_dashboard_rest_api_exposes_current_intelligence(
         overview = (await client.get("/api/overview")).json()
         assert overview["files"] == 9
         assert overview["group_hierarchy"]
+        assert overview["graph_quality"]["resolution_rate"] == 1.0
         assert overview["coverage"]["state"] == "imported"
         assert overview["coverage"]["required"] is False
         assert overview["coverage"]["configured_inputs"] == [
             {"path": "coverage.xml", "exists": True, "format": "xml"}
         ]
+        findings = (await client.get("/api/findings")).json()
+        assert findings[0]["priority_score"] >= findings[-1]["priority_score"]
+        assert findings[0]["priority_reasons"]
         modules = (await client.get("/api/modules")).json()
         assert len(modules) == 9
         core = next(item for item in modules if item["path"] == "pkg/core.py")

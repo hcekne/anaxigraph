@@ -88,7 +88,7 @@ architecture:
     - id: small-module-signal
       type: max_module_loc
       severity: info
-      max: 6
+      max: 4
     - id: web-domain-boundary
       type: forbid_dependency
       severity: error

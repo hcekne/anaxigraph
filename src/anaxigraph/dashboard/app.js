@@ -26,6 +26,7 @@ const state = {
   moduleSort: { key: "lines_of_code", direction: "desc" },
   modulePage: 1,
   expandedModuleId: null,
+  findingsExpanded: false,
   themeColors: null,
 };
 
@@ -235,7 +236,7 @@ async function loadRepository() {
       request(api("/api/overview")),
       request(api("/api/modules")),
       request(api("/api/graph")),
-      request(api("/api/findings")),
+      request(api("/api/findings", { limit: 2000 })),
       request(api("/api/snapshots")),
       request(api("/api/trends")),
       request(api("/api/history")),
@@ -253,6 +254,7 @@ async function loadRepository() {
     state.conflictPaths.clear();
     state.modulePage = 1;
     state.expandedModuleId = null;
+    state.findingsExpanded = false;
     state.hiddenGroups.clear();
     buildGroupIndex(overview.group_hierarchy || []);
     renderGraphAreaOptions();
@@ -319,12 +321,19 @@ function displaySnapshot(snapshot, historical = false) {
 
 function renderOverview() {
   const value = state.overview || {};
+  const graphQuality = value.graph_quality || {};
   const findingCount = Object.values(value.findings || {}).reduce((sum, item) => sum + item, 0);
   const metrics = [
     ["Files", value.files],
     ["Lines of code", value.lines_of_code],
     ["Symbols", value.symbols],
     ["Dependencies", value.relationships],
+    [
+      "Internal link resolution",
+      graphQuality.resolution_rate == null
+        ? "No internal refs"
+        : `${(graphQuality.resolution_rate * 100).toFixed(1)}%`,
+    ],
     ["Avg complexity", Number(value.average_complexity || 0).toFixed(1)],
     ["Active findings", findingCount],
     [
@@ -349,6 +358,20 @@ function renderOverview() {
     state.findings.filter((item) => !["resolved", "dismissed"].includes(item.status)).slice(0, 6),
     false,
   );
+
+  const qualityNotice = byId("graph-quality-notice");
+  const unresolved = Number(graphQuality.unresolved_internal || 0);
+  const ambiguous = Number(graphQuality.ambiguous_internal || 0);
+  const fallback = Number(graphQuality.fallback_files || 0);
+  const parseErrors = Number(graphQuality.parse_error_files || 0);
+  const evidencePartial = graphQuality.status === "partial" || fallback > 0 || parseErrors > 0;
+  qualityNotice.hidden = !evidencePartial;
+  if (evidencePartial) {
+    const resolution = graphQuality.resolution_rate == null
+      ? "No internal references were available to score."
+      : `${(graphQuality.resolution_rate * 100).toFixed(1)}% of likely internal references resolved to one indexed module.`;
+    qualityNotice.innerHTML = `<strong>Graph evidence is partial, and advice is confidence-gated.</strong><p>${escapeHtml(resolution)} ${format.format(ambiguous)} ambiguous and ${format.format(unresolved)} unresolved internal reference(s) are retained rather than silently discarded. ${format.format(fallback)} file(s) use fallback analysis${parseErrors ? `; ${format.format(parseErrors)} file(s) have parse errors` : ""}. Dead-code suggestions are suppressed when relationship resolution is too weak.</p><p class="coverage-next">${escapeHtml(graphQuality.extraction_caveat || graphQuality.caveat || "Dynamic runtime wiring may not appear in a static graph.")}</p>`;
+  }
 
   const notice = byId("coverage-notice");
   const coverage = value.coverage || {};
@@ -579,13 +602,16 @@ function findingCards(items, actions = true) {
     const status = guide?.label || humanize(item.status);
     const confidence = `${(Number(item.confidence || 0) * 100).toFixed(0)}% detection confidence`;
     const confidenceHelp = state.glossary?.findings?.confidence || "Confidence describes detector evidence, not severity.";
+    const priority = item.priority_score == null
+      ? ""
+      : `<span class="finding-priority" title="${escapeAttr((item.priority_reasons || []).join(" · "))}">${escapeHtml(item.priority_label || "Priority")} ${format.format(item.priority_score)}/100</span> · `;
     const action = item.recommended_action
       ? `<div class="finding-action-copy"><strong>Suggested next step</strong><p>${escapeHtml(item.recommended_action)}</p></div>`
       : "";
     const tags = item.affected_artifacts?.length
       ? `<div class="tag-list">${item.affected_artifacts.slice(0, 8).map((path) => `<span class="tag">${escapeHtml(path)}</span>`).join("")}</div>`
       : "";
-    return `<article class="finding-card"><span class="severity ${escapeHtml(item.severity)}"></span><div><div class="finding-meta">${escapeHtml(humanize(item.finding_type))} · ${escapeHtml(status)} · <span class="finding-provenance" title="${escapeAttr(confidenceHelp)}">${escapeHtml(confidence)}</span> · ${escapeHtml(item.source || "deterministic")}</div><h3>${escapeHtml(item.summary)}</h3><p>${escapeHtml(item.explanation)}</p>${action}${tags}</div>${actions ? findingActionButtons(item) : ""}</article>`;
+    return `<article class="finding-card"><span class="severity ${escapeHtml(item.severity)}"></span><div><div class="finding-meta">${priority}${escapeHtml(humanize(item.finding_type))} · ${escapeHtml(status)} · <span class="finding-provenance" title="${escapeAttr(confidenceHelp)}">${escapeHtml(confidence)}</span> · ${escapeHtml(item.source || "deterministic")}</div><h3>${escapeHtml(item.summary)}</h3><p>${escapeHtml(item.explanation)}</p>${action}${tags}</div>${actions ? findingActionButtons(item) : ""}</article>`;
   }).join("");
 }
 
@@ -616,7 +642,21 @@ function renderFindings() {
     : filter === "active"
       ? state.findings.filter((item) => !["resolved", "dismissed"].includes(item.status))
       : state.findings.filter((item) => item.status === filter);
-  byId("findings-table").innerHTML = findingCards(items);
+  const visible = state.findingsExpanded ? items : items.slice(0, 10);
+  const totalActive = Object.values(state.overview?.findings || {}).reduce(
+    (sum, value) => sum + Number(value || 0),
+    0,
+  );
+  const total = filter === "active" ? Math.max(totalActive, items.length) : items.length;
+  byId("finding-result-note").textContent = !state.findingsExpanded && items.length > 10
+    ? `Showing the 10 highest-priority signals of ${format.format(total)} finding(s). Priority combines severity, confidence, churn, complexity, blast radius, breadth, and imported coverage.`
+    : `Showing ${format.format(visible.length)} of ${format.format(total)} finding(s), ordered by architectural priority.`;
+  const more = byId("finding-show-all");
+  more.hidden = items.length <= 10;
+  more.textContent = state.findingsExpanded
+    ? "Show top 10"
+    : `Show all ${format.format(items.length)}`;
+  byId("findings-table").innerHTML = findingCards(visible);
 }
 
 function renderWorkflowGuide() {
@@ -1542,7 +1582,14 @@ function setupEvents() {
     layoutGraph(false);
     drawGraph();
   });
-  byId("finding-status-filter").addEventListener("change", renderFindings);
+  byId("finding-status-filter").addEventListener("change", () => {
+    state.findingsExpanded = false;
+    renderFindings();
+  });
+  byId("finding-show-all").addEventListener("click", () => {
+    state.findingsExpanded = !state.findingsExpanded;
+    renderFindings();
+  });
   byId("findings-table").addEventListener("click", (event) => {
     const button = event.target.closest("[data-finding]");
     if (button) handleFindingAction(button);
@@ -1739,7 +1786,7 @@ function markOnboardingView(name) {
 }
 
 async function reloadFindings() {
-  state.findings = await request(api("/api/findings"));
+  state.findings = await request(api("/api/findings", { limit: 2000 }));
   renderFindings();
   renderOverview();
   drawGraph();

@@ -90,6 +90,7 @@ class SemanticConfig:
 class AgentConfig:
     context_limit: int = 25
     neighbor_depth: int = 2
+    payload_limit_bytes: int = 20_000
     protected_paths: tuple[str, ...] = ()
     test_patterns: tuple[str, ...] = (
         "tests/**",
@@ -271,6 +272,7 @@ def load_config(repository: Path, config_path: Path | None = None) -> AnaxiGraph
         agent=AgentConfig(
             context_limit=int(agent.get("context_limit", 25)),
             neighbor_depth=int(agent.get("neighbor_depth", 2)),
+            payload_limit_bytes=max(4_000, int(agent.get("payload_limit_bytes", 20_000))),
             protected_paths=_tuple_of_strings(agent.get("protected_paths")),
             test_patterns=_tuple_of_strings(agent.get("test_patterns"))
             or AgentConfig().test_patterns,

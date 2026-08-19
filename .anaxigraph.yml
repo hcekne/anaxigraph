@@ -59,6 +59,7 @@ groups:
 agent:
   context_limit: 25
   neighbor_depth: 2
+  payload_limit_bytes: 20000
   protected_paths:
     - src/anaxigraph/storage.py
     - src/anaxigraph/mcp_server.py

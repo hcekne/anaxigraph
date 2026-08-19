@@ -177,6 +177,7 @@ groups:
 agent:
   context_limit: 30
   neighbor_depth: 2
+  payload_limit_bytes: 20000
   protected_paths:
     - backend/app/services/authz.py
     - backend/app/services/identity.py

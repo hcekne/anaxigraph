@@ -11,6 +11,11 @@ from pathlib import Path
 from typing import Any
 
 from anaxigraph.models import GitMetadata
+from anaxigraph.relationships import (
+    relationship_metadata,
+    relationship_quality,
+    resolution_status,
+)
 
 SCHEMA_VERSION = 2
 
@@ -600,10 +605,13 @@ class AnaxiIndex:
                 """,
                 (snapshot_id,),
             ).fetchone()
-            relationships = connection.execute(
-                "SELECT COUNT(*) AS count FROM relationships WHERE snapshot_id = ?",
+            relationship_rows = connection.execute(
+                """
+                SELECT target_artifact_id, metadata_json
+                FROM relationships WHERE snapshot_id = ?
+                """,
                 (snapshot_id,),
-            ).fetchone()
+            ).fetchall()
             symbols = connection.execute(
                 """
                 SELECT COUNT(*) AS count FROM symbols s
@@ -663,11 +671,17 @@ class AnaxiIndex:
                 """,
                 (snapshot_id, snapshot_id),
             ).fetchone()
+            graph_quality = _graph_quality(
+                connection,
+                snapshot_id,
+                [dict(row) for row in relationship_rows],
+            )
         return {
             "repository_id": repository_id,
             "snapshot": dict(snapshot),
             **dict(totals or {}),
-            "relationships": int(relationships["count"] if relationships else 0),
+            "relationships": len(relationship_rows),
+            "graph_quality": graph_quality,
             "symbols": int(symbols["count"] if symbols else 0),
             "findings": {row["severity"]: row["count"] for row in findings},
             "languages": [dict(row) for row in languages],
@@ -1036,22 +1050,35 @@ class AnaxiIndex:
                 """
                 SELECT r.id, r.source_artifact_id AS source, r.target_artifact_id AS target,
                        r.target_external, r.relationship_type AS type, r.source AS evidence_source,
-                       r.confidence, r.weight, r.evidence, r.source_line
+                       r.confidence, r.weight, r.evidence, r.source_line, r.metadata_json
                 FROM relationships r WHERE r.snapshot_id = ?
                 ORDER BY r.source_artifact_id, r.target_artifact_id, r.target_external
                 """,
                 (sid,),
             ).fetchall()
+            quality = _graph_quality(
+                connection,
+                sid,
+                [dict(row) for row in edge_rows],
+            )
         nodes = [dict(row) for row in node_rows]
         edges = []
-        external_ids: dict[str, str] = {}
+        external_nodes: dict[str, tuple[str, str]] = {}
         for row in edge_rows:
             edge = dict(row)
+            metadata = relationship_metadata(edge)
+            edge["resolution_status"] = resolution_status(edge)
+            edge["candidate_paths"] = metadata.get("candidate_paths", [])
+            edge["metadata"] = metadata
+            edge.pop("metadata_json", None)
             if edge["target"] is None:
                 if not include_external:
                     continue
                 label = edge["target_external"]
-                external_id = external_ids.setdefault(label, f"external:{label}")
+                external_id = f"{edge['resolution_status']}:{label}"
+                external_nodes.setdefault(
+                    external_id, (str(label), edge["resolution_status"])
+                )
                 edge["target"] = external_id
             edges.append(edge)
         if include_external:
@@ -1059,20 +1086,29 @@ class AnaxiIndex:
                 {
                     "id": external_id,
                     "path": label,
-                    "language": "external",
+                    "language": "external" if status == "external" else "unresolved",
                     "lines_of_code": 0,
                     "complexity": 0,
-                    "summary": f"External dependency {label}",
-                    "declared_group": "external",
-                    "inferred_group": "external",
-                    "analysis_status": "external",
+                    "summary": (
+                        f"External dependency {label}"
+                        if status == "external"
+                        else f"{status.replace('_', ' ').title()} reference {label}"
+                    ),
+                    "declared_group": "external" if status == "external" else "unresolved",
+                    "inferred_group": "external" if status == "external" else "unresolved",
+                    "analysis_status": status,
                     "fan_in": 0,
                     "fan_out": 0,
                     "line_coverage": None,
                 }
-                for label, external_id in external_ids.items()
+                for external_id, (label, status) in external_nodes.items()
             )
-        return {"snapshot": dict(snapshot), "nodes": nodes, "edges": edges}
+        return {
+            "snapshot": dict(snapshot),
+            "nodes": nodes,
+            "edges": edges,
+            "quality": quality,
+        }
 
     def file_details(
         self, repository_id: int, path: str, snapshot_id: int | None = None
@@ -1141,8 +1177,8 @@ class AnaxiIndex:
         return {
             "file": result,
             "symbols": [dict(row) for row in symbols],
-            "relationships": [dict(row) for row in relationships],
-            "dependants": [dict(row) for row in dependants],
+            "relationships": [_decode_relationship(dict(row)) for row in relationships],
+            "dependants": [_decode_relationship(dict(row)) for row in dependants],
             "history": [dict(row) for row in history],
             "semantic_claims": [_decode_json_columns(dict(row)) for row in claims],
         }
@@ -1192,24 +1228,68 @@ class AnaxiIndex:
         statuses: tuple[str, ...] = (),
         limit: int = 500,
     ) -> list[dict[str, Any]]:
+        snapshot = self._resolve_snapshot(repository_id, None)
         params: list[Any] = [repository_id]
         condition = "repository_id = ?"
         if statuses:
             placeholders = ",".join("?" for _ in statuses)
             condition += f" AND status IN ({placeholders})"
             params.extend(statuses)
-        params.append(limit)
         with self.connect() as connection:
             rows = connection.execute(
                 f"""
                 SELECT * FROM findings WHERE {condition}
-                ORDER BY CASE severity WHEN 'critical' THEN 0 WHEN 'error' THEN 1
-                         WHEN 'warning' THEN 2 ELSE 3 END,
-                         last_detected_at DESC LIMIT ?
+                ORDER BY last_detected_at DESC
                 """,
                 params,
             ).fetchall()
-        return [_decode_json_columns(dict(row)) for row in rows]
+            module_stats: dict[str, dict[str, Any]] = {}
+            if snapshot is not None:
+                sid = int(snapshot["id"])
+                stat_rows = connection.execute(
+                    """
+                    SELECT fv.path, fv.complexity,
+                           COALESCE(incoming.count, 0) AS fan_in,
+                           COALESCE(outgoing.count, 0) AS fan_out,
+                           COALESCE(history.change_count, 0) AS change_count,
+                           coverage.line_coverage
+                    FROM file_versions fv
+                    LEFT JOIN (
+                        SELECT target_artifact_id, COUNT(*) AS count FROM relationships
+                        WHERE snapshot_id = ? AND target_artifact_id IS NOT NULL
+                        GROUP BY target_artifact_id
+                    ) incoming ON incoming.target_artifact_id = fv.artifact_id
+                    LEFT JOIN (
+                        SELECT source_artifact_id, COUNT(*) AS count FROM relationships
+                        WHERE snapshot_id = ? GROUP BY source_artifact_id
+                    ) outgoing ON outgoing.source_artifact_id = fv.artifact_id
+                    LEFT JOIN (
+                        SELECT path, COUNT(*) AS change_count FROM git_changes
+                        WHERE repository_id = ? GROUP BY path
+                    ) history ON history.path = fv.path
+                    LEFT JOIN (
+                        SELECT artifact_id, MAX(line_coverage) AS line_coverage
+                        FROM coverage_measurements WHERE snapshot_id = ?
+                        AND artifact_id IS NOT NULL GROUP BY artifact_id
+                    ) coverage ON coverage.artifact_id = fv.artifact_id
+                    WHERE fv.snapshot_id = ?
+                    """,
+                    (sid, sid, repository_id, sid, sid),
+                ).fetchall()
+                module_stats = {str(row["path"]): dict(row) for row in stat_rows}
+
+        ranked = []
+        for row in rows:
+            item = _decode_json_columns(dict(row))
+            item.update(_finding_priority(item, module_stats))
+            ranked.append(item)
+        return sorted(
+            ranked,
+            key=lambda item: (
+                -int(item["priority_score"]),
+                -int(item["id"]),
+            ),
+        )[:limit]
 
     def finding(self, repository_id: int, finding_id: int) -> dict[str, Any] | None:
         with self.connect() as connection:
@@ -1355,6 +1435,113 @@ def _module_evaluation(
             "Pattern suitability scoring requires the semantic pattern-evaluation pipeline."
         ),
     }
+
+
+def _finding_priority(
+    finding: dict[str, Any], module_stats: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
+    """Rank review signals by risk and repository behavior, not threshold type alone."""
+
+    severity = str(finding.get("severity") or "info")
+    score = {"critical": 45, "error": 38, "warning": 24, "info": 8}.get(severity, 8)
+    confidence = max(0.0, min(1.0, float(finding.get("confidence") or 0)))
+    score += round(confidence * 12)
+    paths = [str(path) for path in finding.get("affected_artifacts") or ()]
+    affected = [module_stats[path] for path in paths if path in module_stats]
+    changes = max((int(item.get("change_count") or 0) for item in affected), default=0)
+    degree = max(
+        (
+            int(item.get("fan_in") or 0) + int(item.get("fan_out") or 0)
+            for item in affected
+        ),
+        default=0,
+    )
+    complexity = max((float(item.get("complexity") or 0) for item in affected), default=0)
+    score += round(min(changes / 20, 1) * 14)
+    score += round(min(degree / 30, 1) * 16)
+    score += round(min(len(paths) / 5, 1) * 8)
+    if changes and complexity:
+        score += round(min(changes / 10, 1) * min(complexity / 50, 1) * 10)
+    measured_coverage = [
+        float(item["line_coverage"])
+        for item in affected
+        if item.get("line_coverage") is not None
+    ]
+    if measured_coverage:
+        score += round((1 - min(measured_coverage)) * 5)
+    if finding.get("status") == "regressed":
+        score += 8
+
+    score = min(100, score)
+    label = "Low"
+    if score >= 80:
+        label = "Urgent"
+    elif score >= 60:
+        label = "High"
+    elif score >= 35:
+        label = "Medium"
+
+    reasons = [f"{severity.title()} severity · {confidence:.0%} confidence"]
+    if changes:
+        reasons.append(f"Hot path: up to {changes} indexed changes")
+    if degree:
+        reasons.append(f"Blast radius: up to {degree} incoming + outgoing links")
+    if changes and complexity >= 10:
+        reasons.append(f"Behavioral hotspot: churn × complexity {complexity:g}")
+    if len(paths) > 1:
+        reasons.append(f"Spans {len(paths)} modules")
+    if measured_coverage:
+        reasons.append(f"Lowest imported line coverage {min(measured_coverage):.0%}")
+    if finding.get("status") == "regressed":
+        reasons.append("Previously resolved condition has returned")
+    return {
+        "priority_score": score,
+        "priority_label": label,
+        "priority_reasons": reasons,
+        "priority_version": "risk-churn-blast-v1",
+    }
+
+
+def _graph_quality(
+    connection: sqlite3.Connection,
+    snapshot_id: int,
+    relationship_rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    result = relationship_quality(relationship_rows)
+    analyzer_rows = connection.execute(
+        """
+        SELECT analyzer, COUNT(*) AS files,
+               SUM(CASE WHEN parse_error IS NOT NULL THEN 1 ELSE 0 END) AS parse_errors
+        FROM file_versions WHERE snapshot_id = ? GROUP BY analyzer ORDER BY analyzer
+        """,
+        (snapshot_id,),
+    ).fetchall()
+    analyzers = {
+        str(row["analyzer"]): int(row["files"] or 0) for row in analyzer_rows
+    }
+    result.update(
+        {
+            "analyzers": analyzers,
+            "ast_files": analyzers.get("builtin-python-ast", 0),
+            "lexical_files": analyzers.get("builtin-js-lexer", 0),
+            "fallback_files": analyzers.get("builtin-text", 0),
+            "parse_error_files": sum(int(row["parse_errors"] or 0) for row in analyzer_rows),
+            "extraction_caveat": (
+                "Python uses an AST parser; JavaScript and TypeScript use lexical extraction; "
+                "other supported text formats use fallback analysis."
+            ),
+        }
+    )
+    return result
+
+
+def _decode_relationship(value: dict[str, Any]) -> dict[str, Any]:
+    metadata = relationship_metadata(value)
+    value["resolution_status"] = resolution_status(value)
+    value["candidate_paths"] = metadata.get("candidate_paths", [])
+    value["metadata"] = metadata
+    value.pop("metadata_json", None)
+    return value
 
 
 def _decode_json_columns(value: dict[str, Any]) -> dict[str, Any]:

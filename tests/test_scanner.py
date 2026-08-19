@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import json
 import subprocess
+from collections import Counter
 
+from anaxigraph.architecture import _dead_code_findings
+from anaxigraph.config import RuleConfig
 from anaxigraph.scanner import RepositoryScanner
 
 
@@ -17,6 +20,8 @@ def test_scan_persists_graph_metrics_coverage_and_findings(repository, database)
     assert overview["symbols"] >= 7
     assert overview["coverage"]["line_coverage"] == 0.5
     assert overview["coverage"]["measured_files"] == 1
+    assert overview["graph_quality"]["resolution_rate"] == 1.0
+    assert overview["graph_quality"]["resolved_internal"] >= 6
     snapshot = database.snapshots(stats.repository_id)[0]
     assert snapshot["file_count"] == overview["files"]
     assert snapshot["lines_of_code"] == overview["lines_of_code"]
@@ -45,7 +50,128 @@ def test_scan_persists_graph_metrics_coverage_and_findings(repository, database)
     }
     assert ("pkg/core.py", "pkg/util.py") in internal
     assert ("web/App.tsx", "web/helper.ts") in internal
-    assert database.findings(stats.repository_id)
+    findings = database.findings(stats.repository_id)
+    assert findings
+    assert [item["priority_score"] for item in findings] == sorted(
+        (item["priority_score"] for item in findings), reverse=True
+    )
+    assert all(item["priority_reasons"] for item in findings)
+    assert all(item["priority_version"] == "risk-churn-blast-v1" for item in findings)
+    assert not any(
+        item["finding_type"] == "module_complexity"
+        and "docs/architecture.md" in item["affected_artifacts"]
+        for item in findings
+    )
+
+
+def test_scan_retains_ambiguous_unresolved_and_external_relationship_evidence(
+    repository, database
+):
+    (repository / "src").mkdir()
+    (repository / "shared.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (repository / "src" / "shared.py").write_text("VALUE = 2\n", encoding="utf-8")
+    (repository / "pkg" / "evidence.py").write_text(
+        "import shared\nfrom .missing import value\nimport requests\n",
+        encoding="utf-8",
+    )
+
+    stats = RepositoryScanner(database).scan(repository)
+    detail = database.file_details(stats.repository_id, "pkg/evidence.py")
+    assert detail is not None
+    by_target = {item["target_external"]: item for item in detail["relationships"]}
+
+    assert by_target["shared"]["resolution_status"] == "ambiguous_internal"
+    assert by_target["shared"]["candidate_paths"] == ["shared.py", "src/shared.py"]
+    assert by_target[".missing"]["resolution_status"] == "unresolved_internal"
+    assert by_target["requests"]["resolution_status"] == "external"
+    quality = database.overview(stats.repository_id)["graph_quality"]
+    assert quality["status"] == "partial"
+    assert quality["ambiguous_internal"] >= 1
+    assert quality["unresolved_internal"] >= 1
+    assert quality["resolution_rate"] < 1
+
+    graph = database.graph(stats.repository_id, include_external=True)
+    evidence_edges = [
+        item
+        for item in graph["edges"]
+        if item["target_external"] in {"shared", ".missing", "requests"}
+    ]
+    assert {item["resolution_status"] for item in evidence_edges} == {
+        "ambiguous_internal",
+        "unresolved_internal",
+        "external",
+    }
+
+
+def test_dead_code_advice_is_suppressed_when_relationship_resolution_is_weak(
+    repository, database
+):
+    (repository / "pkg" / "orphan.py").write_text("VALUE = 1\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repository), "add", "pkg/orphan.py"], check=True)
+    subprocess.run(
+        ["git", "-C", str(repository), "commit", "-qm", "Add old orphan"], check=True
+    )
+    stats = RepositoryScanner(database).scan(repository)
+    rule = RuleConfig(
+        rule_id="dead-test",
+        rule_type="dead_code",
+        severity="info",
+        params={"minimum_age_days": 90, "minimum_resolution_rate": 0.8},
+    )
+
+    with database.transaction() as connection:
+        connection.execute(
+            "UPDATE git_changes SET committed_at = '2000-01-01T00:00:00+00:00' "
+            "WHERE repository_id = ? AND path = 'pkg/orphan.py'",
+            (stats.repository_id,),
+        )
+        files = [
+            dict(row)
+            for row in connection.execute(
+                """
+                SELECT fv.*, a.id AS artifact_id, a.artifact_type
+                FROM file_versions fv JOIN artifacts a ON a.id = fv.artifact_id
+                WHERE fv.snapshot_id = ?
+                """,
+                (stats.snapshot_id,),
+            )
+        ]
+        internal = [
+            dict(row)
+            for row in connection.execute(
+                "SELECT * FROM relationships WHERE snapshot_id = ? "
+                "AND target_artifact_id IS NOT NULL",
+                (stats.snapshot_id,),
+            )
+        ]
+        fan_in = Counter(int(row["target_artifact_id"]) for row in internal)
+        connection.execute(
+            "UPDATE relationships SET metadata_json = "
+            "'{\"resolution_status\":\"unresolved_internal\"}' WHERE snapshot_id = ?",
+            (stats.snapshot_id,),
+        )
+        suppressed = _dead_code_findings(
+            connection,
+            rule=rule,
+            repository_id=stats.repository_id,
+            files=files,
+            fan_in=fan_in,
+        )
+        assert not any(item.affected_artifacts == ("pkg/orphan.py",) for item in suppressed)
+
+        connection.execute(
+            "UPDATE relationships SET metadata_json = "
+            "'{\"resolution_status\":\"resolved_internal\"}' WHERE snapshot_id = ?",
+            (stats.snapshot_id,),
+        )
+        trusted = _dead_code_findings(
+            connection,
+            rule=rule,
+            repository_id=stats.repository_id,
+            files=files,
+            fan_in=fan_in,
+        )
+        assert any(item.affected_artifacts == ("pkg/orphan.py",) for item in trusted)
 
 
 def test_unchanged_scan_refreshes_ignored_coverage_report(repository, database):

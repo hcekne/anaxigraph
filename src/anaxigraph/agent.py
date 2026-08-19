@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
 from collections import defaultdict, deque
@@ -82,7 +83,13 @@ def agent_scope(
             if _is_protected(files[artifact_id]["path"], config)
         }
         rules = _applicable_rules(connection, repository_id, files, relevant_ids)
-        findings = _applicable_findings(connection, repository_id, files, relevant_ids)
+        findings = _applicable_findings(
+            connection,
+            repository_id,
+            files,
+            relevant_ids,
+            set(primary_ids),
+        )
         interfaces = _interfaces(connection, snapshot_id, primary_ids)
 
     conflicts = _branch_conflicts(
@@ -120,7 +127,7 @@ def agent_scope(
         for path in sorted(tests)
         if path not in recommended and len(recommended) < config.agent.context_limit
     )
-    return {
+    payload = {
         "goal": goal,
         "branch": branch,
         "repository_id": repository_id,
@@ -153,6 +160,7 @@ def agent_scope(
             "conflicting_files": len(conflict_paths),
         },
     }
+    return _bound_scope_payload(payload, config.agent.payload_limit_bytes)
 
 
 def finding_context(
@@ -616,7 +624,11 @@ def _applicable_rules(
     paths = [files[item]["path"] for item in artifact_ids]
     result: list[dict[str, Any]] = []
     for row in connection.execute(
-        "SELECT * FROM architecture_rules WHERE repository_id = ? AND enabled = 1",
+        """
+        SELECT rule_id, rule_type, severity, description, source, config_json
+        FROM architecture_rules WHERE repository_id = ? AND enabled = 1
+        ORDER BY rule_id
+        """,
         (repository_id,),
     ):
         item = dict(row)
@@ -627,8 +639,21 @@ def _applicable_rules(
             for path in paths
             for pattern in ([patterns] if isinstance(patterns, str) else patterns)
         ):
-            item["config"] = config
-            result.append(item)
+            compact = {
+                key: value
+                for key, value in (config or {}).items()
+                if value not in (None, "", [], {}, ())
+            }
+            result.append(
+                {
+                    "rule_id": item["rule_id"],
+                    "type": item["rule_type"],
+                    "severity": item["severity"],
+                    **({"description": item["description"]} if item["description"] else {}),
+                    "source": item["source"],
+                    **({"parameters": compact} if compact else {}),
+                }
+            )
     return result
 
 
@@ -637,8 +662,10 @@ def _applicable_findings(
     repository_id: int,
     files: dict[int, dict[str, Any]],
     artifact_ids: set[int],
+    primary_ids: set[int],
 ) -> list[dict[str, Any]]:
     paths = {files[item]["path"] for item in artifact_ids}
+    primary_paths = {files[item]["path"] for item in primary_ids}
     result = []
     for row in connection.execute(
         """
@@ -653,10 +680,113 @@ def _applicable_findings(
     ):
         item = dict(row)
         affected = set(_json(item.pop("affected_artifacts_json", "[]")))
-        if affected & paths:
+        relevant = affected & paths
+        if relevant:
             item["affected_artifacts"] = sorted(affected)
+            direct = affected & primary_paths
+            severity_score = {
+                "critical": 72,
+                "error": 62,
+                "warning": 42,
+                "info": 20,
+            }.get(str(item["severity"]), 20)
+            score = min(
+                100,
+                severity_score
+                + (18 if direct else 7)
+                + min(6, len(relevant) * 2)
+                + round(float(item["confidence"] or 0) * 4),
+            )
+            reasons = [f"{item['severity']} severity"]
+            reasons.append(
+                "affects a primary task file"
+                if direct
+                else "affects a dependency in the task context"
+            )
+            if len(affected) > 1:
+                reasons.append(f"spans {len(affected)} files")
+            item["priority_score"] = score
+            item["priority_reasons"] = reasons
             result.append(item)
-    return result[:50]
+    return sorted(
+        result,
+        key=lambda item: (-int(item["priority_score"]), int(item["id"])),
+    )[:12]
+
+
+def _bound_scope_payload(payload: dict[str, Any], limit_bytes: int) -> dict[str, Any]:
+    """Keep MCP task context within a predictable wire budget without dropping primary files."""
+
+    limit = max(4_000, int(limit_bytes))
+    omitted = {
+        "related_files": 0,
+        "known_findings": 0,
+        "interfaces": 0,
+        "branch_conflicts": 0,
+        "rule_details": 0,
+        "summaries_compacted": 0,
+        "protected_file_details": 0,
+        "primary_file_details": 0,
+    }
+    payload["payload_budget"] = {
+        "limit_bytes": limit,
+        "estimated_bytes": 0,
+        "truncated": False,
+        "omitted": omitted,
+    }
+
+    def size() -> int:
+        return len(
+            json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        )
+
+    while size() > limit and payload["related_files"]:
+        payload["related_files"].pop()
+        omitted["related_files"] += 1
+    while size() > limit and payload["known_findings"]:
+        payload["known_findings"].pop()
+        omitted["known_findings"] += 1
+    while size() > limit and payload["interfaces"]:
+        payload["interfaces"].pop()
+        omitted["interfaces"] += 1
+    if size() > limit:
+        for rule in payload["architecture_rules"]:
+            removed = 0
+            removed += int(rule.pop("description", None) is not None)
+            removed += int(rule.pop("parameters", None) is not None)
+            omitted["rule_details"] += removed
+    while size() > limit and payload["active_branch_conflicts"]:
+        payload["active_branch_conflicts"].pop()
+        omitted["branch_conflicts"] += 1
+    if size() > limit:
+        for collection in (payload["primary_files"], payload["protected_files"]):
+            for item in collection:
+                summary = str(item.get("summary") or "")
+                if len(summary) > 120:
+                    item["summary"] = summary[:117].rstrip() + "..."
+                    omitted["summaries_compacted"] += 1
+    if size() > limit:
+        omitted["protected_file_details"] = len(payload["protected_files"])
+        payload["protected_files"] = [
+            {"path": item["path"], "group": item.get("group")}
+            for item in payload["protected_files"]
+        ]
+    if size() > limit:
+        omitted["primary_file_details"] = len(payload["primary_files"])
+        payload["primary_files"] = [
+            {
+                "path": item["path"],
+                "summary": str(item.get("summary") or "")[:80],
+                "group": item.get("group"),
+            }
+            for item in payload["primary_files"]
+        ]
+
+    payload["payload_budget"]["truncated"] = any(omitted.values())
+    payload["payload_budget"]["estimated_bytes"] = size()
+    # Updating the byte count can change its own digit width. A second pass makes the estimate exact.
+    payload["payload_budget"]["estimated_bytes"] = size()
+    return payload
 
 
 def _resolve_target(

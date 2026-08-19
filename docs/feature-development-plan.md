@@ -12,6 +12,85 @@ The product loop is:
 observe -> explain -> decide -> plan -> implement with an agent -> rescan -> verify -> remember
 ```
 
+## Product thesis — a temporal architecture advisor
+
+AnaxiGraph's moat is not a prettier dependency diagram. It is the combination of repository
+memory, evidence-aware architectural judgment, and a safe handoff to coding agents. The product
+should continuously answer four questions:
+
+1. **What does this code mean?** Every module and important symbol has a durable dossier: purpose,
+   responsibilities, contracts, side effects, architecture role, history, and provenance.
+2. **What deserves attention now?** Findings are ranked by risk, churn, blast radius, confidence,
+   and coverage—not dumped as an unprioritized linter feed.
+3. **How could the design improve?** The advisor finds repeated responsibilities, duplication,
+   misplaced boundaries, dead-code candidates, and pattern opportunities at symbol, module,
+   subsystem, area, and repository levels.
+4. **How should new work fit?** Before an agent edits code, AnaxiGraph supplies local precedents,
+   affected contracts, likely files, protected boundaries, relevant tests, risks, and a verification
+   plan. After the edit, the next scan checks the intended outcome.
+
+The core promise is: **keep AI-accelerated codebases understandable and architecturally sound as
+they evolve, without pretending uncertain static or model-derived evidence is fact.**
+
+## Product mechanics worth adopting
+
+We should borrow proven mechanics, not product identities:
+
+- From [CodeScene's hotspot model](https://codescene.com/product/hotspots): combine complexity with
+  change frequency and blast radius so the first ten recommendations matter more than the next
+  hundred threshold breaches.
+- From [Graphify's evidence model](https://github.com/ChrisRoyse/Graphify): make extracted,
+  inferred, ambiguous, and unresolved relationships inspectable. AnaxiGraph extends this with
+  lifecycle state and temporal provenance.
+- From [Knip's reachability approach](https://knip.dev/explanations/entry-files): begin unused-code
+  analysis at configured entry points and model dynamic/framework conventions before suggesting
+  deletion.
+- From [PMD CPD](https://pmd.github.io/pmd/pmd_userdocs_cpd.html): use token/structure similarity as
+  deterministic evidence for repeated implementation before asking semantic analysis whether the
+  responsibilities are actually the same.
+- From [ArchUnit](https://www.archunit.org/) and
+  [OpenRewrite](https://docs.openrewrite.org/): express architecture expectations as testable
+  policy and represent approved refactors as reviewable recipes with explicit preconditions.
+- From Git's [`cat-file --batch`](https://git-scm.com/docs/git-cat-file): batch historical object
+  reads so temporal reconstruction remains practical on large repositories.
+
+We do not adopt recommendations merely because another tool emits them. Every AnaxiGraph verdict
+must expose evidence, counter-evidence, confidence, expected benefit, migration cost, and the
+conditions that would invalidate it.
+
+## Immediate trust-and-signal foundation
+
+This slice precedes richer pattern advice because architectural recommendations are only as honest
+as their dependency evidence and only as useful as their ranking.
+
+- **Shipped:** persist each extracted reference as `resolved_internal`, `ambiguous_internal`,
+  `unresolved_internal`, or `external`, including candidate paths instead of silently losing them.
+- **Shipped:** publish relationship-resolution and analyzer-mix metrics through AnaxiIndex,
+  REST, AnaxiMCP, and the dashboard.
+- **Shipped:** suppress file-deletion advice when graph resolution is below a configured trust
+  threshold, and treat ambiguous candidates as possible incoming use.
+- **Shipped:** rank task-context findings and enforce a byte budget on MCP scope payloads while
+  preserving primary files and policy references.
+- **Shipped:** rank the global finding ledger using severity, confidence, churn, complexity,
+  fan-in/blast radius, affected breadth, regression state, and imported coverage. The dashboard
+  opens on a top-ten queue with the full ranked ledger available on demand, and reference-file
+  size is excluded from source refactor triage unless policy explicitly opts in.
+- **Next:** batch Git history extraction and deduplicate unchanged temporal facts before increasing
+  default history depth.
+- **Next:** replace the JavaScript lexer and long-tail fallback with parser-backed analyzers,
+  beginning with tree-sitter JavaScript/TypeScript, Go, Rust, Java, and C/C++.
+
+Acceptance criteria for this foundation:
+
+- An unresolved import is visible as unresolved evidence and never mislabeled as a known external.
+- The overview explains what fraction of likely internal references resolved uniquely and which
+  analyzer class covered each file.
+- “Possible dead code” never appears solely because the resolver discarded a plausible inbound
+  edge, and no deletion recommendation is emitted when the graph is below the trust threshold.
+- A normal agent scope response stays under its configured wire budget, prioritizes findings that
+  touch primary task files, and reports exactly what was omitted.
+- Backend and browser tests prove the evidence state and its user-visible explanation.
+
 ## Implementation status — 19 August 2026
 
 The current shareable slice now includes:
@@ -32,10 +111,11 @@ The current shareable slice now includes:
 - explicit coverage-input diagnostics that distinguish missing reports from unmatched reports and
   measured zero coverage
 
-The next temporal slice is the commit bibliography: milestone-aware sampling, commit subjects and
-architecture deltas in the UI, stable graph-delta animation, speed controls, compare mode, and
-client-ready exports. The intent ledger and pattern scoring remain the next major intelligence
-layers after that foundation.
+The immediate slice is the trust-and-signal foundation above. The next temporal slice is the commit
+bibliography: milestone-aware sampling, commit subjects and architecture deltas in the UI, stable
+graph-delta animation, speed controls, compare mode, and client-ready exports. Module dossiers,
+intent history, and pattern scoring then become the primary intelligence layer rather than a
+distant visualization add-on.
 
 Three kinds of information must remain visibly separate:
 
@@ -183,6 +263,11 @@ Each file version will expose:
 - first seen, last content change, last structural change, and last intent change
 - concise “what changed and why it matters” delta from the prior intent version
 - provider/model/prompt version, evidence, confidence, and review state
+- semantically related modules and an explanation of whether they collaborate, duplicate, or
+  contradict one another
+- symbol- and module-level reachability, configured/runtime entry-point evidence, and explicit
+  reasons a removal candidate may be a false positive
+- local implementation precedents to follow when adding adjacent functionality
 
 **Baseline shipped:** the Modules dashboard and `ANAXIGRAPH_MODULES` expose the deterministic
 inventory, provenance-aware summaries when available, Git dates, and a reproducible 0–100
@@ -205,6 +290,9 @@ confidence fallback, and no semantic claim is presented as parser fact.
 ### Acceptance criteria
 
 - The inventory answers what a file does, who uses it, what it uses, and when its meaning changed.
+- A module dossier answers “what owns this responsibility elsewhere?”, “should these modules
+  merge?”, “is any symbol or whole module plausibly unused?”, and “where should adjacent work go?”
+  without asserting more than its evidence supports.
 - Documentation-only edits do not create false intent changes.
 - Model or prompt upgrades do not silently masquerade as code changes.
 - Every semantic delta links back to source evidence and its prior version.
@@ -222,6 +310,11 @@ Pattern analysis operates at symbol, module, subsystem, area, and repository lev
 - Evaluate new proposals against local precedent, coupling, change frequency, test seams,
   ownership boundaries, migration cost, and expected future variants.
 - Link each proposal to supporting and contradicting examples in the repository.
+- Distinguish consolidation, extraction, relocation, interface stabilization, pattern adoption,
+  and removal proposals; do not force every issue into a named Gang-of-Four pattern.
+- Compare proposed new functionality with the current architecture and return a build guide:
+  preferred extension point, existing abstraction to reuse, files/contracts likely to change,
+  anti-patterns to avoid, tests to extend, and post-change invariants to verify.
 
 ### Scoring
 
@@ -239,6 +332,10 @@ implementation/migration cost 0-10 deduction
 Confidence is reported separately from suitability. “82 suitability, 54 confidence” means the
 pattern looks valuable if the inferred facts are correct, but more evidence or human review is
 needed. The score must never hide its evidence or trade-offs.
+
+Every proposal also reports separate 1–100 dimensions for expected benefit, implementation
+urgency, and execution safety. A high-fit abstraction can therefore remain low urgency, while a
+high-value but low-safety removal remains a review candidate rather than agent-ready work.
 
 ### Review workflow
 

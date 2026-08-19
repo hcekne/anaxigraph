@@ -11,6 +11,12 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from anaxigraph.config import AnaxiGraphConfig, RuleConfig, path_matches
+from anaxigraph.relationships import (
+    AMBIGUOUS_INTERNAL,
+    relationship_metadata,
+    relationship_quality,
+    resolution_status,
+)
 from anaxigraph.storage import utc_now
 
 
@@ -68,7 +74,7 @@ DEFAULT_RULES = (
         rule_type="dead_code",
         severity="info",
         description="Combine static reachability and change age to identify candidates only.",
-        params={"minimum_age_days": 90},
+        params={"minimum_age_days": 90, "minimum_resolution_rate": 0.95},
     ),
 )
 
@@ -186,7 +192,14 @@ def _evaluate_rule(
     maximum = float(rule.params.get("max", 0) or 0)
     if rule.rule_type == "max_module_loc":
         for item in files:
-            if _in_rule_scope(item["path"], rule) and item["lines_of_code"] > maximum:
+            reviewable = item["artifact_type"] in {"source", "test"} or bool(
+                rule.params.get("include_reference", False)
+            )
+            if (
+                reviewable
+                and _in_rule_scope(item["path"], rule)
+                and item["lines_of_code"] > maximum
+            ):
                 result.append(
                     _finding(
                         rule,
@@ -404,6 +417,32 @@ def _dead_code_findings(
     files: list[dict[str, Any]],
     fan_in: Counter[int],
 ) -> list[Finding]:
+    if not files:
+        return []
+    snapshot_id = int(files[0]["snapshot_id"])
+    relationship_rows = [
+        dict(row)
+        for row in connection.execute(
+            """
+            SELECT target_artifact_id, metadata_json
+            FROM relationships WHERE snapshot_id = ?
+            """,
+            (snapshot_id,),
+        )
+    ]
+    quality = relationship_quality(relationship_rows)
+    resolution_rate = quality["resolution_rate"]
+    minimum_resolution = float(rule.params.get("minimum_resolution_rate", 0.95))
+    if resolution_rate is None or resolution_rate < minimum_resolution:
+        # No incoming edge is not evidence of dead code when too many internal references
+        # could not be resolved. Suppression is deliberately safer than a false deletion hint.
+        return []
+    possible_incoming: set[str] = set()
+    for row in relationship_rows:
+        if resolution_status(row) != AMBIGUOUS_INTERNAL:
+            continue
+        possible_incoming.update(relationship_metadata(row).get("candidate_paths") or ())
+
     age_days = int(rule.params.get("minimum_age_days", 90))
     cutoff = datetime.now(UTC) - timedelta(days=age_days)
     last_changes = {
@@ -422,6 +461,7 @@ def _dead_code_findings(
         if (
             item["artifact_type"] != "source"
             or fan_in[int(item["artifact_id"])]
+            or path in possible_incoming
             or not _in_rule_scope(path, rule)
             or _looks_like_entrypoint(path)
         ):
@@ -447,9 +487,13 @@ def _dead_code_findings(
                     "Dynamic registration and runtime use have not been disproven."
                 ),
                 paths=(path,),
-                evidence=("incoming_static_relationships=0", f"days_since_change={days}"),
+                evidence=(
+                    "incoming_static_relationships=0",
+                    f"days_since_change={days}",
+                    f"internal_resolution_rate={resolution_rate:.4f}",
+                ),
                 action="Check route, dependency-injection, event, configuration, and runtime registrations before deletion.",
-                confidence=0.62,
+                confidence=round(min(0.8, 0.45 + 0.3 * resolution_rate), 2),
             )
         )
     return result

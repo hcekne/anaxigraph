@@ -52,6 +52,22 @@ test("missing optional coverage is neutral rather than a failed scan", async ({ 
     .toHaveText("No report");
 });
 
+test("relationship completeness and analyzer limits are visible", async ({ page }) => {
+  await openDashboard(page);
+  await expect(
+    page.locator(".metric", { hasText: "Internal link resolution" }).locator("strong"),
+  ).toContainText("%");
+  const notice = page.locator("#graph-quality-notice");
+  await expect(notice).toBeVisible();
+  await expect(notice).toContainText("Graph evidence is partial");
+  await expect(notice).toContainText("Dead-code suggestions are suppressed");
+  await page.getByRole("button", { name: "Architecture", exact: true }).click();
+  await expect(page.locator(".finding-priority").first()).toContainText("/100");
+  await expect(page.locator("#finding-result-note")).toContainText("highest-priority signals");
+  await expect(page.locator("#findings-table .finding-card")).toHaveCount(10);
+  await expect(page.locator("#finding-show-all")).toBeVisible();
+});
+
 test("graph area labels fit and deselecting an area rebuilds the viewport", async ({ page }) => {
   await openDashboard(page);
   await page.getByRole("button", { name: "Graph", exact: true }).click();
