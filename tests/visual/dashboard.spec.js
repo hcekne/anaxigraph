@@ -6,6 +6,30 @@ async function openDashboard(page) {
   await expect(page.locator(".group-family").first()).toBeVisible();
 }
 
+test("Constellation light is the default and theme choices persist", async ({ page }) => {
+  await openDashboard(page);
+  const root = page.locator("html");
+  const picker = page.locator("#theme-select");
+
+  await expect(root).toHaveAttribute("data-theme", "constellation-light");
+  await expect(picker).toHaveValue("constellation-light");
+  await expect(picker.locator("option")).toHaveCount(4);
+  expect(await page.evaluate(() => (
+    getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()
+  ))).toBe("#f5f2ec");
+  await expect(page.locator(".onboarding-step code")).toHaveCSS("color", "rgb(17, 101, 125)");
+
+  for (const theme of ["constellation-dark", "high-contrast", "anaxigraph"]) {
+    await picker.selectOption(theme);
+    await expect(root).toHaveAttribute("data-theme", theme);
+  }
+
+  await picker.selectOption("constellation-dark");
+  await page.reload();
+  await expect(root).toHaveAttribute("data-theme", "constellation-dark");
+  await expect(picker).toHaveValue("constellation-dark");
+});
+
 test("architecture cards have one LOC bar, segmented in place", async ({ page }) => {
   await openDashboard(page);
   const cards = page.locator(".group-family");
@@ -74,6 +98,9 @@ test("settings explains every connected repository and MCP handoff", async ({ pa
   await expect(page.locator("#settings-codex-command")).toHaveText(
     `codex mcp add anaxigraph --url ${new URL(page.url()).origin}/mcp`,
   );
+  await expect(page.locator("#view-settings")).toContainText(
+    "Run the command below in a normal terminal on the machine where Codex runs",
+  );
 });
 
 test("first-run tour explains the workflow and can be reopened", async ({ page }) => {
@@ -84,6 +111,7 @@ test("first-run tour explains the workflow and can be reopened", async ({ page }
   await expect(guide).toContainText("Read-only repository");
   await expect(guide).toContainText("AnaxiIndex");
   await expect(guide).toContainText("AnaxiMCP");
+  await expect(guide).toContainText("normal terminal on the machine where Codex runs");
   await expect(guide).toContainText(
     `codex mcp add anaxigraph --url ${new URL(page.url()).origin}/mcp`,
   );

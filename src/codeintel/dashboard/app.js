@@ -26,14 +26,83 @@ const state = {
   moduleSort: { key: "lines_of_code", direction: "desc" },
   modulePage: 1,
   expandedModuleId: null,
+  themeColors: null,
 };
 
-const colors = [
-  "#72e0b3", "#7db8ff", "#f4bd69", "#b99cf7",
-  "#f07970", "#5fd0df", "#d2e274", "#f3a9d0",
-];
+const supportedThemes = new Set([
+  "constellation-light", "constellation-dark", "high-contrast", "anaxigraph",
+]);
+const architecturePalettes = {
+  "constellation-light": [
+    "#167a96", "#315f9f", "#b87513", "#7652a4",
+    "#a12b43", "#327b82", "#6d7a29", "#a04b78",
+  ],
+  "constellation-dark": [
+    "#7ae5ff", "#8eb7ff", "#ffcf72", "#c0a3ff",
+    "#ff9aa8", "#66d6d9", "#d4df80", "#f2a9cf",
+  ],
+  "high-contrast": [
+    "#00ffff", "#66ccff", "#ffff00", "#ff66ff",
+    "#ff4d4d", "#00ff99", "#ccff33", "#ff99cc",
+  ],
+  anaxigraph: [
+    "#72e0b3", "#7db8ff", "#f4bd69", "#b99cf7",
+    "#f07970", "#5fd0df", "#d2e274", "#f3a9d0",
+  ],
+};
 const byId = (id) => document.getElementById(id);
 const format = new Intl.NumberFormat();
+
+function currentTheme() {
+  const value = document.documentElement.dataset.theme;
+  return supportedThemes.has(value) ? value : "constellation-light";
+}
+
+function readThemeColors() {
+  const styles = window.getComputedStyle(document.documentElement);
+  const value = (name) => styles.getPropertyValue(name).trim();
+  return {
+    cool: value("--graph-cool"),
+    hot: value("--graph-hot"),
+    warm: value("--graph-warm"),
+    low: value("--graph-low"),
+    missing: value("--graph-missing"),
+    drift: value("--graph-drift"),
+    idle: value("--graph-idle"),
+    safe: value("--graph-safe"),
+    edge: value("--graph-edge"),
+    nodeStroke: value("--graph-node-stroke"),
+    selected: value("--graph-selected"),
+    label: value("--graph-label"),
+  };
+}
+
+function applyTheme(theme, persist = true) {
+  const value = supportedThemes.has(theme) ? theme : "constellation-light";
+  document.documentElement.dataset.theme = value;
+  if (persist) {
+    try {
+      window.localStorage.setItem("anaxigraph.theme", value);
+    } catch (_) {
+      // The theme still applies when storage is unavailable.
+    }
+  }
+  if (byId("theme-select")) byId("theme-select").value = value;
+  const styles = window.getComputedStyle(document.documentElement);
+  const meta = byId("theme-color");
+  if (meta) meta.content = styles.getPropertyValue("--bg").trim();
+  state.themeColors = readThemeColors();
+  if (state.overview) {
+    renderOverview();
+    renderGraphAreaOptions();
+    layoutGraph(false);
+    drawGraph();
+  }
+}
+
+function setupTheme() {
+  applyTheme(currentTheme(), false);
+}
 
 async function request(url, options) {
   const response = await fetch(url, options);
@@ -124,7 +193,7 @@ function renderOnboarding() {
     {
       complete: progress.agent,
       title: "Connect your coding agent",
-      copy: "Codex and other MCP clients can query the same repository evidence while you work.",
+      copy: "Run this once in a normal terminal on the machine where Codex runs—not inside a chat. Future sessions on that host can then query the same repository evidence.",
       code: codexCommand,
       action: '<button class="secondary-button" type="button" data-onboarding-action="copy-agent">Copy Codex command</button>',
     },
@@ -336,7 +405,7 @@ function renderGroupHierarchy(groups) {
     const segments = children.length
       ? children.map((child) => {
         const childColor = child.name.startsWith("other-")
-          ? mix(color, "#ffffff", 0.22)
+          ? mix(color, architectureMixTarget(), 0.22)
           : architectureColor(child.name);
         const width = Number(child.lines_of_code || 0) / Math.max(Number(group.lines_of_code || 0), 1) * 100;
         const label = child.label || childLabel(child.name, group.name);
@@ -346,7 +415,7 @@ function renderGroupHierarchy(groups) {
     const childHtml = children.length
       ? `<div class="group-children">${children.map((child) => {
         const childColor = child.name.startsWith("other-")
-          ? mix(color, "#ffffff", 0.22)
+          ? mix(color, architectureMixTarget(), 0.22)
           : architectureColor(child.name);
         return `<span class="group-child" style="--child-color:${childColor}" title="${escapeAttr(child.description || "Architecture subgroup")}"><i class="group-child-dot"></i>${escapeHtml(child.label || childLabel(child.name, group.name))}<em>${format.format(child.lines_of_code || 0)} LOC</em></span>`;
       }).join("")}</div>`
@@ -606,7 +675,11 @@ function architectureColor(group) {
   const parent = state.groupParents.get(group) || group;
   const base = groupColor(parent);
   if (parent === group) return base;
-  return mix(base, "#ffffff", 0.08 + (hash(group) % 13) / 100);
+  return mix(base, architectureMixTarget(), 0.08 + (hash(group) % 13) / 100);
+}
+
+function architectureMixTarget() {
+  return currentTheme() === "high-contrast" ? "#000000" : "#ffffff";
 }
 
 function weightedRectangles(items, bounds, gap = 8) {
@@ -892,35 +965,38 @@ function nodeRadius(node, maximum) {
 }
 
 function groupColor(group) {
+  const colors = architecturePalettes[currentTheme()] || architecturePalettes["constellation-light"];
   return colors[Math.abs(hash(group)) % colors.length];
 }
 
-function heat(value, maximum, cool = "#72e0b3", hot = "#f07970") {
+function heat(value, maximum, cool = null, hot = null) {
+  const theme = state.themeColors || readThemeColors();
   const amount = Math.min(1, Math.max(0, value / Math.max(maximum, 1)));
-  return mix(cool, hot, amount);
+  return mix(cool || theme.cool, hot || theme.hot, amount);
 }
 
 function nodeColor(node) {
   const overlay = byId("overlay-select").value;
+  const theme = state.themeColors || readThemeColors();
   if (overlay === "architecture") return architectureColor(effectiveGroup(node));
-  if (overlay === "coupling") return heat(Number(node.fan_in) + Number(node.fan_out), 25, "#436b61", "#f07970");
-  if (overlay === "complexity") return heat(Number(node.complexity), 60, "#72e0b3", "#f07970");
-  if (overlay === "coverage") return node.line_coverage == null ? "#3e504b" : heat(1 - Number(node.line_coverage), 1, "#72e0b3", "#f07970");
-  if (overlay === "change") return heat(Number(node.change_count || 0), 30, "#4c6660", "#f4bd69");
-  if (overlay === "drift") return node.declared_group && node.inferred_group && node.declared_group !== node.inferred_group ? "#f07970" : "#46645b";
+  if (overlay === "coupling") return heat(Number(node.fan_in) + Number(node.fan_out), 25, theme.low, theme.hot);
+  if (overlay === "complexity") return heat(Number(node.complexity), 60, theme.cool, theme.hot);
+  if (overlay === "coverage") return node.line_coverage == null ? theme.missing : heat(1 - Number(node.line_coverage), 1, theme.cool, theme.hot);
+  if (overlay === "change") return heat(Number(node.change_count || 0), 30, theme.low, theme.warm);
+  if (overlay === "drift") return node.declared_group && node.inferred_group && node.declared_group !== node.inferred_group ? theme.hot : theme.drift;
   if (overlay === "dead-code") {
     const dead = state.findings.some((finding) => finding.finding_type === "possible_dead_code"
       && finding.affected_artifacts?.includes(node.path)
       && !["resolved", "dismissed"].includes(finding.status));
-    return dead ? "#f4bd69" : "#40534d";
+    return dead ? theme.warm : theme.idle;
   }
   if (overlay === "agent") {
-    if (state.conflictPaths.has(node.path)) return "#f07970";
-    if (state.protectedPaths.has(node.path)) return "#f4bd69";
-    if (state.highlightedPaths.has(node.path)) return "#72e0b3";
-    return "#344943";
+    if (state.conflictPaths.has(node.path)) return theme.hot;
+    if (state.protectedPaths.has(node.path)) return theme.warm;
+    if (state.highlightedPaths.has(node.path)) return theme.cool;
+    return theme.safe;
   }
-  return "#72e0b3";
+  return theme.cool;
 }
 
 function drawGraph() {
@@ -944,6 +1020,7 @@ function drawGraph() {
   const visibleNodes = visibleGraphNodes();
   const visibleIds = new Set(visibleNodes.map((node) => String(node.id)));
   const metricMaximum = Math.max(...visibleNodes.map(nodeMetric), 1);
+  const theme = state.themeColors || readThemeColors();
   context.lineCap = "round";
   if (byId("architecture-regions-toggle").checked) {
     state.groupRegions.forEach((region) => {
@@ -978,7 +1055,7 @@ function drawGraph() {
     const source = state.positions.get(String(edge.source));
     const target = state.positions.get(String(edge.target));
     if (!source || !target || !visibleIds.has(String(edge.target))) return;
-    context.strokeStyle = "rgba(145,170,161,.11)";
+    context.strokeStyle = theme.edge;
     context.lineWidth = Math.min(2.4, 0.35 + Math.log2(Number(edge.weight || 1) + 1) * 0.35) / scale;
     context.beginPath();
     context.moveTo(source.x, source.y);
@@ -996,18 +1073,18 @@ function drawGraph() {
     context.beginPath();
     context.arc(position.x, position.y, radius, 0, Math.PI * 2);
     context.fill();
-    context.strokeStyle = "rgba(2, 10, 8, .92)";
+    context.strokeStyle = theme.nodeStroke;
     context.lineWidth = 1.25 / scale;
     context.stroke();
     if (state.selectedNode && String(state.selectedNode.id) === String(node.id)) {
       context.beginPath();
       context.arc(position.x, position.y, radius + 2.5 / scale, 0, Math.PI * 2);
-      context.strokeStyle = "#ffffff";
+      context.strokeStyle = theme.selected;
       context.lineWidth = 2 / scale;
       context.stroke();
     }
     if (scale > 1.25 && radius > 4.5 && matches) {
-      context.fillStyle = "rgba(234,245,240,.78)";
+      context.fillStyle = theme.label;
       context.font = `${10 / scale}px ui-monospace, monospace`;
       context.fillText(node.path.split("/").pop(), position.x + radius + 3 / scale, position.y + 3 / scale);
     }
@@ -1029,6 +1106,7 @@ function roundedRectangle(context, x, y, width, height, radius) {
 
 function renderLegend() {
   const overlay = byId("overlay-select").value;
+  const theme = state.themeColors || readThemeColors();
   let items;
   if (overlay === "architecture") {
     items = state.groupRoots
@@ -1036,15 +1114,15 @@ function renderLegend() {
       .slice(0, 12)
       .map((group) => [humanize(group.name), groupColor(group.name)]);
   } else if (overlay === "agent") {
-    items = [["Task context", "#72e0b3"], ["Protected", "#f4bd69"], ["Branch collision", "#f07970"]];
+    items = [["Task context", theme.cool], ["Protected", theme.warm], ["Branch collision", theme.hot]];
   } else if (overlay === "coverage" && visibleGraphNodes().every((node) => node.line_coverage == null)) {
-    items = [["No imported coverage", "#3e504b"]];
+    items = [["No imported coverage", theme.missing]];
   } else if (overlay === "drift") {
-    items = [["Matches / no declaration", "#46645b"], ["Configured and inferred differ", "#f07970"]];
+    items = [["Matches / no declaration", theme.drift], ["Configured and inferred differ", theme.hot]];
   } else if (overlay === "dead-code") {
-    items = [["No signal", "#40534d"], ["Inspect static reachability", "#f4bd69"]];
+    items = [["No signal", theme.idle], ["Inspect static reachability", theme.warm]];
   } else {
-    items = [["Lower signal", "#436b61"], ["Higher signal", overlay === "change" ? "#f4bd69" : "#f07970"]];
+    items = [["Lower signal", theme.low], ["Higher signal", overlay === "change" ? theme.warm : theme.hot]];
   }
   byId("graph-legend").innerHTML = items.map(([label, color]) => (
     `<span class="legend-item"><i class="legend-dot" style="background:${color}"></i>${escapeHtml(label)}</span>`
@@ -1326,6 +1404,9 @@ async function handleFindingAction(button) {
 }
 
 function setupEvents() {
+  byId("theme-select").addEventListener("change", (event) => {
+    applyTheme(event.target.value);
+  });
   document.querySelectorAll(".tab").forEach((button) => {
     button.addEventListener("click", () => {
       markOnboardingView(button.dataset.view);
@@ -1682,7 +1763,7 @@ function switchView(name, preserveGraphCamera = false) {
 function toast(message, error = false) {
   const element = byId("toast");
   element.textContent = message;
-  element.style.borderColor = error ? "rgba(240,121,112,.5)" : "";
+  element.style.borderColor = error ? "var(--red)" : "";
   element.classList.add("visible");
   window.clearTimeout(toast.timer);
   toast.timer = window.setTimeout(() => element.classList.remove("visible"), 4200);
@@ -1728,5 +1809,6 @@ function delay(milliseconds) {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 }
 
+setupTheme();
 setupEvents();
 load();

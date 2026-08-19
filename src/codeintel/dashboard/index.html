@@ -1,11 +1,24 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="constellation-light">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark light" />
-    <meta name="theme-color" content="#ff4d8d" />
+    <meta id="theme-color" name="theme-color" content="#f5f2ec" />
     <title>AnaxiGraph</title>
+    <script>
+      (() => {
+        const supported = new Set([
+          "constellation-light", "constellation-dark", "high-contrast", "anaxigraph",
+        ]);
+        try {
+          const saved = window.localStorage.getItem("anaxigraph.theme");
+          if (supported.has(saved)) document.documentElement.dataset.theme = saved;
+        } catch (_) {
+          // Storage can be unavailable in privacy-restricted browser contexts.
+        }
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
     <link rel="alternate icon" href="/favicon.ico" />
     <link rel="mask-icon" href="/assets/mask-icon.svg" color="#ff4d8d" />
@@ -24,6 +37,15 @@
         <p class="current-repository">Current repository · <strong id="project-name">Loading…</strong></p>
       </div>
       <div class="topbar-actions">
+        <label class="theme-picker">
+          Theme
+          <select id="theme-select" aria-label="Color theme">
+            <option value="constellation-light">Constellation light</option>
+            <option value="constellation-dark">Constellation dark</option>
+            <option value="high-contrast">High contrast</option>
+            <option value="anaxigraph">AnaxiGraph original</option>
+          </select>
+        </label>
         <label class="repository-picker">
           Current repository
           <select id="repository-select" aria-label="Selected repository"></select>
@@ -407,7 +429,9 @@
           <div>
             <p class="eyebrow">Coding-agent access</p>
             <h2>Use the same intelligence while coding</h2>
-            <p class="muted">Connect Codex or another MCP client to <code id="settings-mcp-url"></code>.
+            <p class="muted"><strong>Run the command below in a normal terminal on the machine
+              where Codex runs—not inside a Codex chat.</strong> Connect Codex or another MCP client
+              to <code id="settings-mcp-url"></code>.
               Use <code>CODEINTEL_REPOSITORIES</code> to choose a repository, then query findings,
               file context, impact, or a task work envelope. AnaxiMCP reads AnaxiIndex; it does not
               grant the agent write access to the mounted repository.</p>

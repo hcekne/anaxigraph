@@ -65,11 +65,21 @@ tour** restores it.
 
 ## Connect Codex
 
-With the sidecar healthy, add its Streamable HTTP MCP endpoint:
+With the sidecar healthy, add its Streamable HTTP MCP endpoint. Run this in a **normal terminal
+on the machine where Codex runs**; it is not a command to type into a Codex chat:
 
 ```bash
 codex mcp add anaxigraph --url http://127.0.0.1:8765/mcp
 codex mcp list
+```
+
+The command can be run from any directory. By default it saves the server in
+`~/.codex/config.toml`, so later Codex sessions on that host can use AnaxiGraph while you work in
+any repository. Start or restart Codex in the repository you actually intend to edit:
+
+```bash
+cd /path/to/the/repository
+codex
 ```
 
 Codex CLI, the Codex IDE extension, and the ChatGPT desktop app share MCP configuration on the
@@ -83,6 +93,31 @@ url = "http://127.0.0.1:8765/mcp"
 
 See the official [Codex MCP documentation](https://learn.chatgpt.com/docs/extend/mcp) for client
 configuration details.
+
+### When the dashboard is on a Linux server
+
+If AnaxiGraph and Codex both run on that Linux server, Codex connects directly to
+`http://127.0.0.1:8765/mcp`. Your Mac's SSH port forward is only what lets the browser on your Mac
+open the dashboard; it is not part of the Linux Codex-to-AnaxiMCP connection.
+
+```text
+Codex on Linux ── http://127.0.0.1:8765/mcp ──→ AnaxiMCP container
+Mac browser     ── SSH port forward ───────────→ dashboard on :8765
+```
+
+Run this on the Linux server:
+
+```bash
+curl http://127.0.0.1:8765/healthz
+codex mcp add anaxigraph --url http://127.0.0.1:8765/mcp
+codex mcp list
+cd ~/repos/maxos_agent
+codex
+```
+
+If Codex runs on your Mac, it can use the locally forwarded URL while the SSH tunnel remains
+active. If Codex runs in another container on the same Docker network, use the service address
+`http://anaxigraph:8765/mcp`.
 
 AnaxiMCP is read-only by default. A useful coding workflow is:
 
@@ -141,4 +176,3 @@ docker compose -f compose.anaxigraph.yml down
 
 `down` keeps the index volume. `down --volumes` deletes the complete AnaxiIndex and imported
 history for that sidecar, so use it only for an intentional reset.
-
