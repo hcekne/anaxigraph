@@ -9,17 +9,17 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.server import Settings as FastMCPSettings
 from mcp.server.transport_security import TransportSecuritySettings
 
-from codeintel.agent import agent_scope, branch_collisions, finding_context, impact_analysis
-from codeintel.config import load_config
-from codeintel.guidance import product_glossary
-from codeintel.registry import RepositoryTarget
-from codeintel.scanner import RepositoryScanner
-from codeintel.storage import Database
+from anaxigraph.agent import agent_scope, branch_collisions, finding_context, impact_analysis
+from anaxigraph.config import load_config
+from anaxigraph.guidance import product_glossary
+from anaxigraph.registry import RepositoryTarget
+from anaxigraph.scanner import RepositoryScanner
+from anaxigraph.storage import AnaxiIndex
 
 
 def create_anaxi_mcp_server(
     *,
-    database: Database,
+    database: AnaxiIndex,
     repository: Path | None,
     config_path: Path | None,
     allowed_hosts: list[str] | None = None,
@@ -36,7 +36,6 @@ def create_anaxi_mcp_server(
             "127.0.0.1:*",
             "localhost:*",
             "[::1]:*",
-            "codeintel:*",
             "anaxigraph:*",
             "testserver",
         ]
@@ -46,7 +45,7 @@ def create_anaxi_mcp_server(
         instructions=(
             "AnaxiMCP exposes the AnaxiIndex knowledge held by AnaxiGraph. "
             "Use these tools to understand repository architecture before editing. "
-            "Prefer CODEINTEL_SCOPE for a new goal and CODEINTEL_IMPACT before changing a shared interface. "
+            "Prefer ANAXIGRAPH_SCOPE for a new goal and ANAXIGRAPH_IMPACT before changing a shared interface. "
             "Parser facts and LLM inferences are labeled separately. Findings are recommendations, not permission to refactor."
         ),
         stateless_http=True,
@@ -82,7 +81,7 @@ def create_anaxi_mcp_server(
         return load_config(root, target.config_path if target else config_path)
 
     @server.tool(
-        name="CODEINTEL_REPOSITORIES",
+        name="ANAXIGRAPH_REPOSITORIES",
         description="List indexed repositories and the selector to pass to other AnaxiGraph tools.",
     )
     def repositories() -> dict[str, Any]:
@@ -99,7 +98,7 @@ def create_anaxi_mcp_server(
         }
 
     @server.tool(
-        name="CODEINTEL_OVERVIEW",
+        name="ANAXIGRAPH_OVERVIEW",
         description="Return current repository size, languages, groups, coverage, and architecture finding counts.",
     )
     def overview(repository: str = "") -> dict[str, Any]:
@@ -107,7 +106,7 @@ def create_anaxi_mcp_server(
         return database.overview(int(row["id"]))
 
     @server.tool(
-        name="CODEINTEL_MODULES",
+        name="ANAXIGRAPH_MODULES",
         description=(
             "List and filter the AnaxiIndex module inventory, including architecture area, "
             "summary, size, coupling, coverage, Git activity, findings, and review signals."
@@ -157,7 +156,7 @@ def create_anaxi_mcp_server(
         return {"total": len(items), "modules": items[:bounded]}
 
     @server.tool(
-        name="CODEINTEL_SEARCH",
+        name="ANAXIGRAPH_SEARCH",
         description="Find the most relevant modules and symbols for a codebase concept or feature.",
     )
     def search(query: str, limit: int = 20, repository: str = "") -> dict[str, Any]:
@@ -169,7 +168,7 @@ def create_anaxi_mcp_server(
         }
 
     @server.tool(
-        name="CODEINTEL_FILE",
+        name="ANAXIGRAPH_FILE",
         description="Inspect one module's summary, symbols, dependencies, dependants, Git history, and semantic provenance.",
     )
     def file_details(path: str, repository: str = "") -> dict[str, Any]:
@@ -180,7 +179,7 @@ def create_anaxi_mcp_server(
         return result
 
     @server.tool(
-        name="CODEINTEL_SCOPE",
+        name="ANAXIGRAPH_SCOPE",
         description="Build the smallest useful task context for a coding goal, including files, tests, protected boundaries, findings, and branch collisions.",
     )
     def scope(goal: str, branch: str = "", repository: str = "") -> dict[str, Any]:
@@ -195,7 +194,7 @@ def create_anaxi_mcp_server(
         )
 
     @server.tool(
-        name="CODEINTEL_IMPACT",
+        name="ANAXIGRAPH_IMPACT",
         description="Traverse reverse dependencies before changing a file or symbol and return dependants, tests, migrations, protected paths, and risk.",
     )
     def impact(target: str, branch: str = "", repository: str = "") -> dict[str, Any]:
@@ -210,7 +209,7 @@ def create_anaxi_mcp_server(
         )
 
     @server.tool(
-        name="CODEINTEL_FINDINGS",
+        name="ANAXIGRAPH_FINDINGS",
         description=(
             "List persistent review signals. Use status='planned' for work a human has explicitly "
             "approved for an agent; active signals are not automatic permission to refactor."
@@ -230,7 +229,7 @@ def create_anaxi_mcp_server(
         }
 
     @server.tool(
-        name="CODEINTEL_FINDING_CONTEXT",
+        name="ANAXIGRAPH_FINDING_CONTEXT",
         description=(
             "Turn one finding into an actionable handoff with affected files, impact, tests, "
             "protected paths, risk, and verification steps. Planned status means human-approved."
@@ -247,7 +246,7 @@ def create_anaxi_mcp_server(
         )
 
     @server.tool(
-        name="CODEINTEL_GUIDE",
+        name="ANAXIGRAPH_GUIDE",
         description=(
             "Explain architecture groups, graph overlays, finding states, confidence, and the "
             "human-to-agent workflow in plain language."
@@ -262,7 +261,7 @@ def create_anaxi_mcp_server(
         return {topic: value[topic]}
 
     @server.tool(
-        name="CODEINTEL_BRANCH_COLLISIONS",
+        name="ANAXIGRAPH_BRANCH_COLLISIONS",
         description="Compare local and origin feature branches and report files changed by more than one branch.",
     )
     def collisions(repository: str = "") -> dict[str, Any]:
@@ -272,7 +271,7 @@ def create_anaxi_mcp_server(
     if allow_scan_tool:
 
         @server.tool(
-            name="CODEINTEL_SCAN",
+            name="ANAXIGRAPH_SCAN",
             description="Refresh the configured repository snapshot. The target is read-only; only AnaxiIndex changes.",
         )
         def scan(repository: str = "") -> dict[str, Any]:
@@ -293,7 +292,3 @@ def _safe_relative_path(value: str) -> str:
     if not normalized or normalized.startswith("../") or "/../" in f"/{normalized}/":
         raise ValueError("A repository-relative file path is required")
     return normalized
-
-
-# Compatibility alias retained for existing Python integrations.
-create_mcp_server = create_anaxi_mcp_server

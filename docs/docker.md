@@ -99,8 +99,7 @@ docker compose up --build -d
 
 The registry is an operator-controlled security boundary. The browser and API can select and
 refresh registered mounts, but cannot submit arbitrary host paths. All mounts remain read-only;
-only the AnaxiIndex file at `/state/codeintel.db` changes. The legacy filename is retained so
-existing Docker volumes continue to open without migration.
+only the AnaxiIndex file at `/state/anaxi-index.db` changes.
 
 ## Import test coverage
 
@@ -123,7 +122,7 @@ as 0% coverage. Generate the report with the target repository's own test comman
 **Refresh scan** to import it. AnaxiGraph's development suite uses:
 
 ```bash
-uv run pytest --cov=src/codeintel --cov-report=xml:coverage.xml
+uv run pytest --cov=src/anaxigraph --cov-report=xml:coverage.xml
 ```
 
 ## Keep all repositories current
@@ -143,14 +142,14 @@ To reconstruct history from the command line:
 ```bash
 docker compose exec anaxigraph anaxigraph history /repo \
   --config /repo/.anaxigraph.yml \
-  --db /state/codeintel.db \
+  --db /state/anaxi-index.db \
   --limit 64
 ```
 
 ## Use AnaxiMCP from coding agents
 
 For a local Codex or other MCP client, use AnaxiMCP at `http://127.0.0.1:8765/mcp`. The
-`CODEINTEL_REPOSITORIES` tool lists selectors. All repository-aware tools accept an optional
+`ANAXIGRAPH_REPOSITORIES` tool lists selectors. All repository-aware tools accept an optional
 `repository` ID or name; omitting it uses the first configured target.
 
 When another container needs direct access, attach the MaxOS network overlay:
@@ -159,8 +158,7 @@ When another container needs direct access, attach the MaxOS network overlay:
 docker compose -f compose.yml -f compose.maxos.yml up --build -d
 ```
 
-That client can use `http://anaxigraph:8765/mcp` on the shared Docker network. The former
-`http://codeintel:8765/mcp` address remains a network alias for existing clients.
+That client can use `http://anaxigraph:8765/mcp` on the shared Docker network.
 
 ## Upgrade, stop, or reset
 

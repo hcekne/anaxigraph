@@ -12,9 +12,9 @@ from typing import Any
 
 import yaml
 
-from codeintel import git
-from codeintel.config import load_config
-from codeintel.languages import detect_language
+from anaxigraph import git
+from anaxigraph.config import load_config
+from anaxigraph.languages import detect_language
 
 DEFAULT_CONTAINER_IMAGE = "ghcr.io/hcekne/anaxigraph:latest"
 DEFAULT_COMPOSE_FILE = "compose.anaxigraph.yml"
@@ -194,7 +194,7 @@ def initialize_repository(
 def detect_project_name(repository: Path) -> str:
     """Prefer existing project metadata, then fall back to the checkout name."""
 
-    for config_name in (".anaxigraph.yml", ".codeintel.yml"):
+    for config_name in (".anaxigraph.yml",):
         path = repository / config_name
         if path.is_file():
             try:

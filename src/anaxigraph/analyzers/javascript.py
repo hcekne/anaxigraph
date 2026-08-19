@@ -6,8 +6,8 @@ import hashlib
 import re
 from pathlib import PurePosixPath
 
-from codeintel.languages import detect_language
-from codeintel.models import Dependency, FileAnalysis, Symbol
+from anaxigraph.languages import detect_language
+from anaxigraph.models import Dependency, FileAnalysis, Symbol
 
 _IMPORT_PATTERNS = (
     re.compile(

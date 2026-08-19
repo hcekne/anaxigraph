@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 
-from codeintel.config import CodeIntelConfig
+from anaxigraph.config import AnaxiGraphConfig
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,7 +25,7 @@ def collect_coverage(
     connection: sqlite3.Connection,
     *,
     root: Path,
-    config: CodeIntelConfig,
+    config: AnaxiGraphConfig,
     snapshot_id: int,
     artifacts_by_path: dict[str, int],
 ) -> int:

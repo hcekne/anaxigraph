@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import subprocess
 
-from codeintel.history import import_git_history, sampled_revisions
-from codeintel.registry import load_repository_registry
-from codeintel.scanner import RepositoryScanner
+from anaxigraph.history import import_git_history, sampled_revisions
+from anaxigraph.registry import load_repository_registry
+from anaxigraph.scanner import RepositoryScanner
 
 
 def test_lifetime_sampling_keeps_initial_and_head():

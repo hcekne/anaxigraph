@@ -17,10 +17,10 @@ COPY pyproject.toml README.md MANIFEST.in LICENSE /app/
 COPY src /app/src
 RUN pip install --no-cache-dir .
 
-RUN useradd --create-home --uid 10001 codeintel \
+RUN useradd --create-home --uid 10001 anaxigraph \
     && mkdir -p /state \
-    && chown codeintel:codeintel /state
-USER codeintel
+    && chown anaxigraph:anaxigraph /state
+USER anaxigraph
 
 EXPOSE 8765
 ENTRYPOINT ["anaxigraph"]

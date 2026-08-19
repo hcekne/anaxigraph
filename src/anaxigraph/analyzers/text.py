@@ -9,7 +9,7 @@ from pathlib import PurePosixPath
 
 import yaml
 
-from codeintel.models import Dependency, FileAnalysis
+from anaxigraph.models import Dependency, FileAnalysis
 
 _CSS_IMPORT = re.compile(r"@(?:import|use|forward)\s+(?:url\()?['\"]([^'\"]+)['\"]")
 _MARKDOWN_LINK = re.compile(r"\[[^]]+\]\((?!https?://|mailto:|#)([^)#?]+)")
@@ -85,7 +85,7 @@ class TextAnalyzer:
 
 
 def _language_for_path(path: str) -> str:
-    from codeintel.languages import detect_language
+    from anaxigraph.languages import detect_language
 
     return detect_language(path) or "text"
 

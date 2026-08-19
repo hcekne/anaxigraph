@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from codeintel.storage import Database
+from anaxigraph.storage import AnaxiIndex
 
 
 @pytest.fixture
@@ -73,7 +73,7 @@ def repository(tmp_path: Path) -> Path:
 """,
         encoding="utf-8",
     )
-    (root / ".codeintel.yml").write_text(
+    (root / ".anaxigraph.yml").write_text(
         """project:
   name: Sample Observatory
 groups:
@@ -119,5 +119,5 @@ ignore:
 
 
 @pytest.fixture
-def database(tmp_path: Path) -> Database:
-    return Database(tmp_path / "state" / "codeintel.db")
+def database(tmp_path: Path) -> AnaxiIndex:
+    return AnaxiIndex(tmp_path / "state" / "anaxi-index.db")

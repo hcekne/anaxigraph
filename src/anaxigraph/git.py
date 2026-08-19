@@ -6,7 +6,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from codeintel.models import GitMetadata
+from anaxigraph.models import GitMetadata
 
 
 class GitError(RuntimeError):

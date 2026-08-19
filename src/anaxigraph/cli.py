@@ -14,14 +14,14 @@ from typing import Any
 
 import uvicorn
 
-from codeintel.agent import agent_scope, branch_collisions, impact_analysis
-from codeintel.api import create_app
-from codeintel.config import load_config
-from codeintel.history import import_git_history
-from codeintel.onboarding import initialize_repository
-from codeintel.registry import RepositoryTarget, load_repository_registry
-from codeintel.scanner import RepositoryScanner
-from codeintel.storage import Database
+from anaxigraph.agent import agent_scope, branch_collisions, impact_analysis
+from anaxigraph.api import create_app
+from anaxigraph.config import load_config
+from anaxigraph.history import import_git_history
+from anaxigraph.onboarding import initialize_repository
+from anaxigraph.registry import RepositoryTarget, load_repository_registry
+from anaxigraph.scanner import RepositoryScanner
+from anaxigraph.storage import AnaxiIndex
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -187,7 +187,7 @@ def _repository_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--config",
         type=Path,
-        help="Configuration file (defaults to .anaxigraph.yml; .codeintel.yml is supported)",
+        help="Configuration file (defaults to .anaxigraph.yml)",
     )
     parser.add_argument("--db", type=Path, default=_default_db(), help="External SQLite database")
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
@@ -279,7 +279,7 @@ def _initialize(args: argparse.Namespace) -> dict[str, Any] | None:
 
 
 def _scan(args: argparse.Namespace) -> dict[str, Any]:
-    stats = RepositoryScanner(Database(args.db)).scan(
+    stats = RepositoryScanner(AnaxiIndex(args.db)).scan(
         args.repository,
         config_path=args.config,
         run_type=args.run_type,
@@ -288,7 +288,7 @@ def _scan(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def _review(args: argparse.Namespace) -> dict[str, Any]:
-    database = Database(args.db)
+    database = AnaxiIndex(args.db)
     stats = RepositoryScanner(database).scan(
         args.repository,
         config_path=args.config,
@@ -318,7 +318,7 @@ def _history(args: argparse.Namespace) -> dict[str, Any]:
             print(f"[{index}/{total}] {commit_sha[:12]}", file=sys.stderr)
 
     result = import_git_history(
-        Database(args.db),
+        AnaxiIndex(args.db),
         args.repository,
         config_path=args.config,
         max_snapshots=args.limit,
@@ -332,7 +332,7 @@ def _history(args: argparse.Namespace) -> dict[str, Any]:
 def _watch(args: argparse.Namespace) -> None:
     if args.interval < 0.2:
         raise ValueError("Watch interval must be at least 0.2 seconds")
-    scanner = RepositoryScanner(Database(args.db))
+    scanner = RepositoryScanner(AnaxiIndex(args.db))
     targets = (
         load_repository_registry(args.registry)
         if args.registry
@@ -366,7 +366,7 @@ def _serve(args: argparse.Namespace) -> None:
         raise ValueError("History snapshots must be between 0 and 2000")
     repository = args.repository.expanduser().resolve() if args.repository else None
     targets = load_repository_registry(args.registry) if args.registry else ()
-    database = Database(args.db)
+    database = AnaxiIndex(args.db)
     app = create_app(
         database=database,
         repository=repository,
@@ -432,7 +432,7 @@ def _export(args: argparse.Namespace) -> dict[str, Any] | None:
 
 
 def _finding(args: argparse.Namespace) -> dict[str, Any]:
-    database = Database(args.db)
+    database = AnaxiIndex(args.db)
     row = database.repository(args.repository)
     if row is None:
         raise ValueError("Repository has not been scanned")
@@ -443,8 +443,8 @@ def _finding(args: argparse.Namespace) -> dict[str, Any]:
 
 def _ensure_current(
     args: argparse.Namespace,
-) -> tuple[Database, int, Any]:
-    database = Database(args.db)
+) -> tuple[AnaxiIndex, int, Any]:
+    database = AnaxiIndex(args.db)
     stats = RepositoryScanner(database).scan(
         args.repository,
         config_path=args.config,
@@ -462,20 +462,18 @@ def _print(value: Any, *, as_json: bool) -> None:
 
 
 def _default_db() -> Path:
-    configured = os.environ.get("ANAXIGRAPH_DB") or os.environ.get("CODEINTEL_DB")
+    configured = os.environ.get("ANAXIGRAPH_DB")
     if configured:
         return Path(configured).expanduser()
     state_root = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state"))
-    current = state_root / "anaxigraph" / "anaxi-index.db"
-    legacy = state_root / "codeintel" / "codeintel.db"
-    return legacy if legacy.exists() and not current.exists() else current
+    return state_root / "anaxigraph" / "anaxi-index.db"
 
 
 def _repository_from_env() -> Path | None:
-    value = os.environ.get("ANAXIGRAPH_REPOSITORY") or os.environ.get("CODEINTEL_REPOSITORY")
+    value = os.environ.get("ANAXIGRAPH_REPOSITORY")
     return Path(value).expanduser() if value else None
 
 
 def _registry_from_env() -> Path | None:
-    value = os.environ.get("ANAXIGRAPH_REGISTRY") or os.environ.get("CODEINTEL_REGISTRY")
+    value = os.environ.get("ANAXIGRAPH_REGISTRY")
     return Path(value).expanduser() if value else None

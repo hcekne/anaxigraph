@@ -14,7 +14,6 @@ DEFAULT_IGNORE = (
     ".git/**",
     ".hg/**",
     ".svn/**",
-    ".codeintel/**",
     ".anaxigraph/**",
     ".venv/**",
     "venv/**",
@@ -104,7 +103,7 @@ class AgentConfig:
 
 
 @dataclass(frozen=True, slots=True)
-class CodeIntelConfig:
+class AnaxiGraphConfig:
     project_name: str | None = None
     ignore: tuple[str, ...] = DEFAULT_IGNORE
     include: tuple[str, ...] = ()
@@ -228,14 +227,12 @@ def _rules(value: Any) -> tuple[RuleConfig, ...]:
     return tuple(result)
 
 
-def load_config(repository: Path, config_path: Path | None = None) -> CodeIntelConfig:
+def load_config(repository: Path, config_path: Path | None = None) -> AnaxiGraphConfig:
     repository = repository.resolve()
     if config_path:
         selected = config_path.resolve()
     else:
-        current = repository / ".anaxigraph.yml"
-        legacy = repository / ".codeintel.yml"
-        selected = current if current.exists() or not legacy.exists() else legacy
+        selected = repository / ".anaxigraph.yml"
     raw: dict[str, Any] = {}
     if selected.exists():
         loaded = yaml.safe_load(selected.read_text(encoding="utf-8")) or {}
@@ -252,7 +249,7 @@ def load_config(repository: Path, config_path: Path | None = None) -> CodeIntelC
         for name, paths in (architecture.get("boundaries") or {}).items()
     }
     configured_ignore = _tuple_of_strings(raw.get("ignore"))
-    return CodeIntelConfig(
+    return AnaxiGraphConfig(
         project_name=str(project.get("name")) if project.get("name") else None,
         ignore=tuple(dict.fromkeys((*DEFAULT_IGNORE, *configured_ignore))),
         include=_tuple_of_strings(raw.get("include")),
@@ -280,7 +277,7 @@ def load_config(repository: Path, config_path: Path | None = None) -> CodeIntelC
         ),
         aliases={str(key): str(value) for key, value in (raw.get("aliases") or {}).items()},
         coverage_files=_tuple_of_strings(raw.get("coverage", {}).get("files"))
-        or CodeIntelConfig().coverage_files,
+        or AnaxiGraphConfig().coverage_files,
         coverage_required=bool(raw.get("coverage", {}).get("required", False)),
         max_file_bytes=int(raw.get("max_file_bytes", 2_000_000)),
         config_path=selected if selected.exists() else None,

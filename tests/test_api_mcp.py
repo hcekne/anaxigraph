@@ -5,9 +5,9 @@ import pytest
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
-from codeintel.api import create_app
-from codeintel.mcp_server import create_anaxi_mcp_server, create_mcp_server
-from codeintel.scanner import RepositoryScanner
+from anaxigraph.api import create_app
+from anaxigraph.mcp_server import create_anaxi_mcp_server
+from anaxigraph.scanner import RepositoryScanner
 
 
 @pytest.mark.anyio
@@ -17,7 +17,7 @@ async def test_dashboard_rest_api_exposes_current_intelligence(
     RepositoryScanner(database).scan(repository)
     stale_repository = tmp_path / "stale-repository"
     stale_repository.mkdir()
-    (stale_repository / "old.py").write_text("legacy = True\n", encoding="utf-8")
+    (stale_repository / "old.py").write_text("stale = True\n", encoding="utf-8")
     RepositoryScanner(database).scan(stale_repository)
     app = create_app(
         database=database,
@@ -82,17 +82,16 @@ async def test_dashboard_rest_api_exposes_current_intelligence(
         assert context_response.status_code == 200, context_response.text
         context = context_response.json()
         assert context["ready_for_agent"] is True
-        assert "CODEINTEL_FINDING_CONTEXT" in context["agent_prompt"]
+        assert "ANAXIGRAPH_FINDING_CONTEXT" in context["agent_prompt"]
         assert context["verification"]
 
 
 @pytest.mark.anyio
-async def test_streamable_http_mcp_is_compatible_with_maxos_client_contract(repository, database):
-    assert create_mcp_server is create_anaxi_mcp_server
+async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database):
     stats = RepositoryScanner(database).scan(repository)
     finding_id = database.findings(stats.repository_id)[0]["id"]
     database.update_finding_status(stats.repository_id, finding_id, "planned")
-    server = create_mcp_server(
+    server = create_anaxi_mcp_server(
         database=database,
         repository=repository,
         config_path=None,
@@ -115,38 +114,38 @@ async def test_streamable_http_mcp_is_compatible_with_maxos_client_contract(repo
                     tools = await session.list_tools()
                     names = {tool.name for tool in tools.tools}
                     assert {
-                        "CODEINTEL_OVERVIEW",
-                        "CODEINTEL_MODULES",
-                        "CODEINTEL_SEARCH",
-                        "CODEINTEL_FILE",
-                        "CODEINTEL_SCOPE",
-                        "CODEINTEL_IMPACT",
-                        "CODEINTEL_FINDINGS",
-                        "CODEINTEL_FINDING_CONTEXT",
-                        "CODEINTEL_GUIDE",
+                        "ANAXIGRAPH_OVERVIEW",
+                        "ANAXIGRAPH_MODULES",
+                        "ANAXIGRAPH_SEARCH",
+                        "ANAXIGRAPH_FILE",
+                        "ANAXIGRAPH_SCOPE",
+                        "ANAXIGRAPH_IMPACT",
+                        "ANAXIGRAPH_FINDINGS",
+                        "ANAXIGRAPH_FINDING_CONTEXT",
+                        "ANAXIGRAPH_GUIDE",
                     } <= names
-                    overview = await session.call_tool("CODEINTEL_OVERVIEW", arguments={})
+                    overview = await session.call_tool("ANAXIGRAPH_OVERVIEW", arguments={})
                     assert overview.isError is False
                     assert overview.structuredContent["files"] == 9
                     modules = await session.call_tool(
-                        "CODEINTEL_MODULES", arguments={"language": "python", "limit": 3}
+                        "ANAXIGRAPH_MODULES", arguments={"language": "python", "limit": 3}
                     )
                     assert modules.isError is False
                     assert modules.structuredContent["total"] >= 3
                     assert len(modules.structuredContent["modules"]) == 3
                     guide = await session.call_tool(
-                        "CODEINTEL_GUIDE", arguments={"topic": "findings"}
+                        "ANAXIGRAPH_GUIDE", arguments={"topic": "findings"}
                     )
                     assert guide.isError is False
                     assert guide.structuredContent["findings"]["statuses"]["planned"]["label"]
                     scope = await session.call_tool(
-                        "CODEINTEL_SCOPE",
+                        "ANAXIGRAPH_SCOPE",
                         arguments={"goal": "Change Calculator behavior"},
                     )
                     assert scope.isError is False
                     assert scope.structuredContent["primary_files"][0]["path"] == "pkg/core.py"
                     finding_context = await session.call_tool(
-                        "CODEINTEL_FINDING_CONTEXT",
+                        "ANAXIGRAPH_FINDING_CONTEXT",
                         arguments={"finding_id": finding_id},
                     )
                     assert finding_context.isError is False

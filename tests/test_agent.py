@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from codeintel.agent import agent_scope, impact_analysis
-from codeintel.config import load_config
-from codeintel.scanner import RepositoryScanner
+from anaxigraph.agent import agent_scope, impact_analysis
+from anaxigraph.config import load_config
+from anaxigraph.scanner import RepositoryScanner
 
 
 def test_agent_scope_is_bounded_and_includes_tests_protection_and_rules(repository, database):

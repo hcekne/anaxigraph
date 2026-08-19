@@ -9,7 +9,6 @@ htmlcov/
 build/
 dist/
 .venv/
-.codeintel/
 .anaxigraph/
 .env
 node_modules/

@@ -14,11 +14,11 @@ x-anaxigraph-service: &anaxigraph-service
     - /tmp:size=128m,mode=1777
   volumes:
     - type: bind
-      source: ${ANAXIGRAPH_REPOSITORY:-${CODEINTEL_REPOSITORY:-../maxos_agent}}
+      source: ${ANAXIGRAPH_REPOSITORY:-../maxos_agent}
       target: /repo
       read_only: true
     - type: bind
-      source: ${ANAXIGRAPH_REPOSITORIES_ROOT:-${CODEINTEL_REPOSITORIES_ROOT:-..}}
+      source: ${ANAXIGRAPH_REPOSITORIES_ROOT:-..}
       target: /repositories
       read_only: true
     - type: bind
@@ -30,7 +30,7 @@ x-anaxigraph-service: &anaxigraph-service
       target: /config/policies
       read_only: true
     - type: bind
-      source: ${ANAXIGRAPH_REGISTRY:-${CODEINTEL_REGISTRY:-./repositories.example.yml}}
+      source: ${ANAXIGRAPH_REGISTRY:-./repositories.example.yml}
       target: /config/repositories.yml
       read_only: true
     - type: volume
@@ -51,18 +51,16 @@ services:
       - --registry
       - /config/repositories.yml
       - --db
-      - /state/codeintel.db
+      - /state/anaxi-index.db
       - --host
       - 0.0.0.0
       - --port
       - "8765"
       - --scan-on-start
     ports:
-      - "${ANAXIGRAPH_BIND_ADDRESS:-${CODEINTEL_BIND_ADDRESS:-127.0.0.1}}:${ANAXIGRAPH_PORT:-${CODEINTEL_PORT:-8765}}:8765"
+      - "${ANAXIGRAPH_BIND_ADDRESS:-127.0.0.1}:${ANAXIGRAPH_PORT:-8765}:8765"
     networks:
-      anaxigraph:
-        aliases:
-          - codeintel
+      - anaxigraph
     healthcheck:
       test:
         - CMD
@@ -84,9 +82,9 @@ services:
       - --registry
       - /config/repositories.yml
       - --db
-      - /state/codeintel.db
+      - /state/anaxi-index.db
       - --interval
-      - "${ANAXIGRAPH_WATCH_INTERVAL:-${CODEINTEL_WATCH_INTERVAL:-10}}"
+      - "${ANAXIGRAPH_WATCH_INTERVAL:-10}"
     depends_on:
       anaxigraph:
         condition: service_healthy
@@ -95,8 +93,7 @@ services:
 
 volumes:
   anaxi_index:
-    # Preserve the existing named volume and every indexed repository during the rename.
-    name: codeintel_codeintel_state
+    name: anaxigraph_anaxi_index
 
 networks:
   anaxigraph:

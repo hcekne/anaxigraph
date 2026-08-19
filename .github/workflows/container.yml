@@ -29,7 +29,7 @@ jobs:
           uv sync --extra dev --locked
           uv run ruff check .
           uv run pytest
-          node --check src/codeintel/dashboard/app.js
+          node --check src/anaxigraph/dashboard/app.js
 
   build:
     needs: verify

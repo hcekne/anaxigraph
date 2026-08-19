@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from codeintel.analyzers.javascript import JavaScriptAnalyzer
-from codeintel.analyzers.python import PythonAnalyzer
-from codeintel.analyzers.text import TextAnalyzer
+from anaxigraph.analyzers.javascript import JavaScriptAnalyzer
+from anaxigraph.analyzers.python import PythonAnalyzer
+from anaxigraph.analyzers.text import TextAnalyzer
 
 
 def test_python_ast_extracts_symbols_imports_calls_and_stable_structural_hash():

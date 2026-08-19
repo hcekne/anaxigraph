@@ -9,9 +9,9 @@ from math import log
 from pathlib import Path
 from typing import Any
 
-from codeintel import git
-from codeintel.config import CodeIntelConfig, path_matches
-from codeintel.storage import Database
+from anaxigraph import git
+from anaxigraph.config import AnaxiGraphConfig, path_matches
+from anaxigraph.storage import AnaxiIndex
 
 _WORD = re.compile(r"[A-Za-z][A-Za-z0-9_-]+")
 _STOPWORDS = {
@@ -33,12 +33,12 @@ _STOPWORDS = {
 
 
 def agent_scope(
-    database: Database,
+    database: AnaxiIndex,
     *,
     repository_id: int,
     goal: str,
     branch: str | None,
-    config: CodeIntelConfig,
+    config: AnaxiGraphConfig,
 ) -> dict[str, Any]:
     repository = database.repository(repository_id)
     if repository is None:
@@ -156,12 +156,12 @@ def agent_scope(
 
 
 def finding_context(
-    database: Database,
+    database: AnaxiIndex,
     *,
     repository_id: int,
     finding_id: int,
     branch: str | None,
-    config: CodeIntelConfig,
+    config: AnaxiGraphConfig,
 ) -> dict[str, Any]:
     """Turn one reviewed finding into structured, agent-ready engineering context."""
 
@@ -220,9 +220,9 @@ def finding_context(
         f"Affected files: {', '.join(affected) if affected else 'No file was attached by the detector.'}",
         "",
         "Before editing, use the AnaxiMCP tools:",
-        f"1. Call CODEINTEL_FINDING_CONTEXT with finding_id={finding_id}.",
-        "2. Inspect the recommended files with CODEINTEL_FILE.",
-        "3. Call CODEINTEL_IMPACT before changing a shared interface.",
+        f"1. Call ANAXIGRAPH_FINDING_CONTEXT with finding_id={finding_id}.",
+        "2. Inspect the recommended files with ANAXIGRAPH_FILE.",
+        "3. Call ANAXIGRAPH_IMPACT before changing a shared interface.",
         "4. Make the smallest cohesive change and run the listed relevant tests.",
         "5. Refresh AnaxiGraph and confirm the finding disappears without introducing new errors.",
     ]
@@ -254,12 +254,12 @@ def finding_context(
 
 
 def impact_analysis(
-    database: Database,
+    database: AnaxiIndex,
     *,
     repository_id: int,
     target: str,
     branch: str | None,
-    config: CodeIntelConfig,
+    config: AnaxiGraphConfig,
 ) -> dict[str, Any]:
     repository = database.repository(repository_id)
     if repository is None:
@@ -333,7 +333,7 @@ def impact_analysis(
 
 
 def branch_collisions(
-    database: Database,
+    database: AnaxiIndex,
     *,
     repository_id: int,
 ) -> dict[str, Any]:
@@ -702,7 +702,7 @@ def _branch_conflicts(root: Path, paths: set[str], branch: str | None) -> list[d
     return result
 
 
-def _is_protected(path: str, config: CodeIntelConfig) -> bool:
+def _is_protected(path: str, config: AnaxiGraphConfig) -> bool:
     patterns = (*config.architecture.protected_paths, *config.agent.protected_paths)
     return any(path_matches(path, pattern) for pattern in patterns)
 

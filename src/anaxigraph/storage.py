@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from codeintel.models import GitMetadata
+from anaxigraph.models import GitMetadata
 
 SCHEMA_VERSION = 2
 
@@ -1366,7 +1366,3 @@ def _decode_json_columns(value: dict[str, Any]) -> dict[str, Any]:
             except json.JSONDecodeError:
                 value[decoded_key] = None
     return value
-
-
-# Compatibility alias retained for existing integrations and internal imports.
-Database = AnaxiIndex

@@ -4,8 +4,8 @@ project:
 architecture:
   policy: docs/coding-patterns.md
   protected_paths:
-    - src/codeintel/storage.py
-    - src/codeintel/mcp_server.py
+    - src/anaxigraph/storage.py
+    - src/anaxigraph/mcp_server.py
   rules:
     - id: module-size
       type: max_module_loc
@@ -32,23 +32,23 @@ architecture:
 groups:
   extraction:
     paths:
-      - src/codeintel/analyzers/**
-      - src/codeintel/languages.py
-      - src/codeintel/scanner.py
+      - src/anaxigraph/analyzers/**
+      - src/anaxigraph/languages.py
+      - src/anaxigraph/scanner.py
   intelligence:
     paths:
-      - src/codeintel/architecture.py
-      - src/codeintel/coverage.py
-      - src/codeintel/agent.py
-      - src/codeintel/semantic.py
+      - src/anaxigraph/architecture.py
+      - src/anaxigraph/coverage.py
+      - src/anaxigraph/agent.py
+      - src/anaxigraph/semantic.py
   persistence:
-    paths: [src/codeintel/storage.py]
+    paths: [src/anaxigraph/storage.py]
   interfaces:
     paths:
-      - src/codeintel/api.py
-      - src/codeintel/mcp_server.py
-      - src/codeintel/cli.py
-      - src/codeintel/dashboard/**
+      - src/anaxigraph/api.py
+      - src/anaxigraph/mcp_server.py
+      - src/anaxigraph/cli.py
+      - src/anaxigraph/dashboard/**
   tests:
     paths: [tests/**]
   documentation:
@@ -60,8 +60,8 @@ agent:
   context_limit: 25
   neighbor_depth: 2
   protected_paths:
-    - src/codeintel/storage.py
-    - src/codeintel/mcp_server.py
+    - src/anaxigraph/storage.py
+    - src/anaxigraph/mcp_server.py
 
 coverage:
   files: [coverage.xml]

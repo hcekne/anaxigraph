@@ -10,8 +10,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from codeintel.config import CodeIntelConfig, RuleConfig, path_matches
-from codeintel.storage import utc_now
+from anaxigraph.config import AnaxiGraphConfig, RuleConfig, path_matches
+from anaxigraph.storage import utc_now
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,7 +78,7 @@ def evaluate_architecture(
     *,
     repository_id: int,
     snapshot_id: int,
-    config: CodeIntelConfig,
+    config: AnaxiGraphConfig,
     manage_finding_lifecycle: bool = True,
 ) -> list[Finding]:
     files = [

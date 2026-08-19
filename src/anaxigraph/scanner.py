@@ -13,15 +13,22 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from codeintel import __version__, git
-from codeintel.analyzers import AnalyzerRegistry, builtin_registry
-from codeintel.architecture import evaluate_architecture
-from codeintel.config import CodeIntelConfig, load_config
-from codeintel.coverage import collect_coverage
-from codeintel.languages import artifact_type, detect_language
-from codeintel.models import Dependency, FileAnalysis, GitMetadata, ScanStats, SemanticClaim, Symbol
-from codeintel.semantic import CommandSemanticProvider, SemanticAnalysisError
-from codeintel.storage import Database, utc_now
+from anaxigraph import __version__, git
+from anaxigraph.analyzers import AnalyzerRegistry, builtin_registry
+from anaxigraph.architecture import evaluate_architecture
+from anaxigraph.config import AnaxiGraphConfig, load_config
+from anaxigraph.coverage import collect_coverage
+from anaxigraph.languages import artifact_type, detect_language
+from anaxigraph.models import (
+    Dependency,
+    FileAnalysis,
+    GitMetadata,
+    ScanStats,
+    SemanticClaim,
+    Symbol,
+)
+from anaxigraph.semantic import CommandSemanticProvider, SemanticAnalysisError
+from anaxigraph.storage import AnaxiIndex, utc_now
 
 ANALYSIS_VERSION = 2
 
@@ -49,7 +56,7 @@ class PreparedFile:
 class RepositoryScanner:
     def __init__(
         self,
-        database: Database,
+        database: AnaxiIndex,
         *,
         registry: AnalyzerRegistry | None = None,
     ) -> None:
@@ -92,7 +99,7 @@ class RepositoryScanner:
                 snapshot_metadata = json.loads(existing_snapshot["metadata_json"] or "{}")
                 snapshot_metadata.update(
                     {
-                        "codeintel_version": __version__,
+                        "anaxigraph_version": __version__,
                         "analysis_version": ANALYSIS_VERSION,
                         "analysis_signature": analysis_signature(config),
                         "config_path": str(config.config_path) if config.config_path else None,
@@ -295,7 +302,7 @@ class RepositoryScanner:
     def _discover(
         self,
         root: Path,
-        config: CodeIntelConfig,
+        config: AnaxiGraphConfig,
         *,
         revision: str | None,
     ) -> list[DiscoveredFile]:
@@ -367,7 +374,7 @@ class RepositoryScanner:
         self,
         discovered: list[DiscoveredFile],
         previous: dict[str, dict[str, Any]],
-        config: CodeIntelConfig,
+        config: AnaxiGraphConfig,
     ) -> list[PreparedFile]:
         now = utc_now()
         semantic_provider = (
@@ -444,7 +451,7 @@ class RepositoryScanner:
         git_metadata: GitMetadata,
         fingerprint: str,
         revision: str | None,
-        config: CodeIntelConfig,
+        config: AnaxiGraphConfig,
     ) -> int:
         cursor = connection.execute(
             """
@@ -465,7 +472,7 @@ class RepositoryScanner:
                 int(git_metadata.dirty),
                 json.dumps(
                     {
-                        "codeintel_version": __version__,
+                        "anaxigraph_version": __version__,
                         "analysis_version": ANALYSIS_VERSION,
                         "analysis_signature": analysis_signature(config),
                         "config_path": str(config.config_path) if config.config_path else None,
@@ -537,7 +544,7 @@ class RepositoryScanner:
         snapshot_id: int,
         prepared: list[PreparedFile],
         artifacts: dict[str, int],
-        config: CodeIntelConfig,
+        config: AnaxiGraphConfig,
     ) -> dict[str, int]:
         version_ids: dict[str, int] = {}
         for item in prepared:
@@ -621,7 +628,7 @@ class RepositoryScanner:
         snapshot_id: int,
         prepared: list[PreparedFile],
         artifacts: dict[str, int],
-        config: CodeIntelConfig,
+        config: AnaxiGraphConfig,
     ) -> int:
         resolver = _DependencyResolver(prepared, artifacts, config)
         aggregated: dict[tuple[int, int | None, str | None, str], dict[str, Any]] = {}
@@ -691,7 +698,7 @@ class RepositoryScanner:
         snapshot_id: int,
         prepared: list[PreparedFile],
         artifacts: dict[str, int],
-        config: CodeIntelConfig,
+        config: AnaxiGraphConfig,
     ) -> None:
         group_ids: dict[tuple[str, str], int] = {}
         for group in config.groups:
@@ -839,7 +846,7 @@ class _DependencyResolver:
         self,
         prepared: list[PreparedFile],
         artifacts: dict[str, int],
-        config: CodeIntelConfig,
+        config: AnaxiGraphConfig,
     ) -> None:
         self.paths = set(artifacts)
         self.artifacts = artifacts
@@ -942,7 +949,7 @@ def defaultdict_set() -> dict[str, set[str]]:
     return {}
 
 
-def _walk_files(root: Path, config: CodeIntelConfig) -> list[str]:
+def _walk_files(root: Path, config: AnaxiGraphConfig) -> list[str]:
     result: list[str] = []
     for current, directories, files in os.walk(root, followlinks=False):
         current_path = Path(current)
@@ -1006,10 +1013,10 @@ def _analysis_from_previous(value: dict[str, Any]) -> FileAnalysis:
 
 
 def _content_fingerprint(
-    files: list[DiscoveredFile], config: CodeIntelConfig, git_metadata: GitMetadata
+    files: list[DiscoveredFile], config: AnaxiGraphConfig, git_metadata: GitMetadata
 ) -> str:
     digest = hashlib.sha256()
-    digest.update(f"codeintel:{__version__}:analysis:{ANALYSIS_VERSION}\0".encode())
+    digest.update(f"anaxigraph:{__version__}:analysis:{ANALYSIS_VERSION}\0".encode())
     digest.update(git_metadata.commit_sha.encode())
     digest.update(_config_json(config).encode())
     for item in files:
@@ -1019,14 +1026,14 @@ def _content_fingerprint(
     return digest.hexdigest()
 
 
-def analysis_signature(config: CodeIntelConfig) -> str:
+def analysis_signature(config: AnaxiGraphConfig) -> str:
     digest = hashlib.sha256()
-    digest.update(f"codeintel:{__version__}:analysis:{ANALYSIS_VERSION}\0".encode())
+    digest.update(f"anaxigraph:{__version__}:analysis:{ANALYSIS_VERSION}\0".encode())
     digest.update(_config_json(config).encode())
     return digest.hexdigest()
 
 
-def _config_json(config: CodeIntelConfig) -> str:
+def _config_json(config: AnaxiGraphConfig) -> str:
     config_value = dataclasses.asdict(config)
     # Mount points differ between local and container runs; only policy content affects analysis.
     config_value.pop("config_path", None)

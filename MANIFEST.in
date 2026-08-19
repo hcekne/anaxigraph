@@ -9,4 +9,4 @@ include repositories.example.yml
 include repo_instructions.md
 recursive-include docs *.md
 recursive-include examples *.yml
-recursive-include src/codeintel/dashboard *.html *.css *.js *.svg
+recursive-include src/anaxigraph/dashboard *.html *.css *.js *.svg

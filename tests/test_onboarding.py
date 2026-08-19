@@ -5,13 +5,21 @@ from pathlib import Path
 
 import yaml
 
-from codeintel.cli import main
-from codeintel.config import load_config
-from codeintel.onboarding import initialize_repository
+from anaxigraph.cli import main
+from anaxigraph.config import load_config
+from anaxigraph.onboarding import initialize_repository
 
 
 def test_initializer_generates_reviewable_policy_and_read_only_sidecar(repository: Path):
-    result = initialize_repository(repository, port=9123, history_snapshots=37)
+    (repository / ".anaxigraph.yml").unlink()
+    (repository / "ignored" / "secret.py").unlink()
+    (repository / "ignored").rmdir()
+    result = initialize_repository(
+        repository,
+        project_name="Sample Observatory",
+        port=9123,
+        history_snapshots=37,
+    )
 
     assert result["project_name"] == "Sample Observatory"
     assert result["detected"]["groups"] == [
@@ -62,7 +70,17 @@ def test_initializer_never_overwrites_without_force(repository: Path):
 
 
 def test_initializer_dry_run_and_json_cli_do_not_write(repository: Path, capsys):
-    main(["init", str(repository), "--dry-run", "--json"])
+    (repository / ".anaxigraph.yml").unlink()
+    main(
+        [
+            "init",
+            str(repository),
+            "--project-name",
+            "Sample Observatory",
+            "--dry-run",
+            "--json",
+        ]
+    )
 
     result = json.loads(capsys.readouterr().out)
     assert result["status"] == "dry_run"
@@ -75,7 +93,12 @@ def test_initializer_dry_run_and_json_cli_do_not_write(repository: Path, capsys)
 
 
 def test_initializer_can_generate_local_policy_only(repository: Path):
-    result = initialize_repository(repository, compose_name=None)
+    (repository / ".anaxigraph.yml").unlink()
+    result = initialize_repository(
+        repository,
+        project_name="Sample Observatory",
+        compose_name=None,
+    )
 
     assert len(result["files"]) == 1
     assert result["commands"]["start"] is None

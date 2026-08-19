@@ -7,10 +7,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from codeintel import git
-from codeintel.config import load_config
-from codeintel.scanner import RepositoryScanner, analysis_signature
-from codeintel.storage import Database
+from anaxigraph import git
+from anaxigraph.config import load_config
+from anaxigraph.scanner import RepositoryScanner, analysis_signature
+from anaxigraph.storage import AnaxiIndex
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,7 +47,7 @@ def sampled_revisions(values: list[str], limit: int) -> list[str]:
 
 
 def import_git_history(
-    database: Database,
+    database: AnaxiIndex,
     repository: str | Path,
     *,
     config_path: str | Path | None = None,

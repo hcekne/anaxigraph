@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="src/codeintel/dashboard/favicon.svg" width="112" alt="AnaxiGraph logo" />
+  <img src="src/anaxigraph/dashboard/favicon.svg" width="112" alt="AnaxiGraph logo" />
 </p>
 
 <h1 align="center">AnaxiGraph</h1>
 
 <p align="center">
-  <strong>See the system behind the source.</strong><br />
-  Architecture visibility for people and grounded repository intelligence for coding agents.
+  <strong>Keep AI-accelerated codebases coherent as they grow.</strong><br />
+  See the architecture, control entropy, and give coding agents grounded context.
 </p>
 
 <p align="center">
@@ -22,17 +22,28 @@
   <a href="CONTRIBUTING.md">Contribute</a>
 </p>
 
-AnaxiGraph is a standalone, temporal architecture observatory for software repositories. It scans
-source and Git history without modifying the target, persists a versioned dependency graph,
-evaluates architecture health, renders an interactive dashboard, and gives coding agents bounded
-task context and impact analysis.
+AI makes it easy to add code faster than a team can understand the architecture absorbing it.
+Hidden coupling, duplicated behavior, inconsistent abstractions, and one-off agent changes can
+quietly accumulate into spaghetti code.
+
+AnaxiGraph creates an architectural feedback loop for that problem. It turns a repository and its
+Git history into a living, explorable system map, helping people and coding agents understand how
+the code fits together before they change it. The goal is not architecture-by-score; it is to make
+important trade-offs visible, evidence-backed, and reviewable while there is still time to act.
 
 | | What you get |
 |---|---|
-| 🔭 **Visibility** | Move between a bird's-eye architecture map and individual module evidence. |
-| 🕰️ **Biography** | Replay how the repository graph grew across real Git history. |
-| 🧭 **Auditability** | Trace findings and interpretations back to files, relationships, and snapshots. |
-| 🤖 **Agent context** | Give Codex a small, evidence-backed work envelope through read-only MCP tools. |
+| 🧹 **Control entropy** | Catch growing modules, dependency cycles, boundary erosion, and repeated responsibilities before they harden into spaghetti code. |
+| 🏛️ **Build for change** | Review whether boundaries, patterns, and abstraction candidates fit the codebase you have and the system you are building toward. |
+| 🕸️ **Graph understanding** | Move from a bird's-eye architecture map to the dependencies, history, and evidence behind an individual module. |
+| 🕰️ **Repository biography** | Replay how the system grew across real Git history instead of seeing only today's tree. |
+| 🧭 **Auditability** | Trace findings and interpretations back to files, relationships, commits, and snapshots. |
+| 🤖 **Safer AI coding** | Give Codex a small, evidence-backed work envelope so agent changes respect the wider architecture. |
+
+Under the hood, AnaxiGraph is a standalone temporal architecture observatory. It scans source and
+Git history without modifying the target, persists a versioned dependency graph, evaluates
+architecture signals, renders an interactive dashboard, and serves bounded context and impact
+analysis to coding agents.
 
 The dashboard includes a filterable Modules ledger for purpose, architecture placement, size,
 complexity, coupling, Git activity, imported coverage, findings, and review attention. Graph
@@ -45,8 +56,8 @@ regions scale with their module populations so dense areas receive proportionall
   relationships, intent, findings, and history.
 - **🔌 AnaxiMCP** exposes that knowledge to Codex and other coding agents over MCP.
 
-The initial implementation is deliberately Python-first while supporting the mixed Python,
-TypeScript, JavaScript, JSX, CSS, configuration, and documentation repository used by MaxOS.
+The analysis engine is Python-first and supports mixed repositories containing Python,
+TypeScript, JavaScript, JSX, CSS, configuration, and documentation.
 
 ## 🚀 Get running in five minutes
 
@@ -66,10 +77,10 @@ through HEAD.
 
 Open <http://127.0.0.1:8765> and follow the four-step dashboard tour.
 
-## 🤖 Connect Codex — this is a terminal command
+## 🤖 Connect Codex
 
-Run the following in a **shell on the machine where Codex itself runs**. It is not a message to
-type into a Codex chat, and it can be run from any directory:
+Run the following in a shell on the machine where Codex itself runs. It can be run from any
+directory:
 
 ```bash
 codex mcp add anaxigraph --url http://127.0.0.1:8765/mcp
@@ -93,30 +104,31 @@ repository's `.codex/config.toml` instead:
 url = "http://127.0.0.1:8765/mcp"
 ```
 
-### Linux server + Mac browser
+### Remote Linux server + local browser
 
-When AnaxiGraph and Codex both run on your Linux server, the route is direct:
+When AnaxiGraph and Codex run on a remote Linux server while you view the dashboard from another
+computer, the Codex-to-AnaxiMCP route is direct:
 
 ```text
-Codex on Linux ── http://127.0.0.1:8765/mcp ──→ AnaxiMCP container
-Mac browser     ── SSH port forward ───────────→ dashboard on :8765
+Codex on server ── http://127.0.0.1:8765/mcp ──→ AnaxiMCP container
+Local browser   ── SSH port forward ───────────→ dashboard on :8765
 ```
 
-The SSH tunnel is only needed by the Mac browser. Codex on Linux does **not** go through the Mac
-or through the tunnel—it reaches the published container port on its own host. A concrete server
-session looks like this:
+The SSH tunnel is only needed by the browser. Codex on the server does not go through your local
+computer or the tunnel; it reaches the published container port on its own host. A server session
+looks like this:
 
 ```bash
 # Run on the Linux server where Codex runs
 curl http://127.0.0.1:8765/healthz
 codex mcp add anaxigraph --url http://127.0.0.1:8765/mcp
 codex mcp list
-cd ~/repos/maxos_agent
+cd /path/to/your/repository
 codex
 ```
 
-If Codex runs on your Mac instead, the same URL works only while the SSH port forward is active.
-If Codex itself runs in another container on the same Docker network, use
+If Codex runs on your local computer instead, the forwarded URL works while the SSH tunnel is
+active. If Codex itself runs in another container on the same Docker network, use
 `http://anaxigraph:8765/mcp` instead of `127.0.0.1`.
 
 Other MCP clients use the same endpoint. See the complete [onboarding guide](docs/onboarding.md)
@@ -167,7 +179,7 @@ anaxigraph serve --repository /path/to/repository --scan-on-start --open
 
 AnaxiIndex is stored outside the target at
 `${XDG_STATE_HOME:-~/.local/state}/anaxigraph/anaxi-index.db`. Override it with `--db` or
-`ANAXIGRAPH_DB`. Existing `CODEINTEL_DB` values and legacy state paths remain supported.
+`ANAXIGRAPH_DB`.
 
 Useful commands:
 
@@ -195,14 +207,7 @@ The `serve` and `mcp` commands both expose the dashboard and JSON API at
 - architecture findings with stable identity and lifecycle state
 - semantic claims with provider/model/prompt provenance kept separate from parser facts
 
-The target repository only needs an optional `.anaxigraph.yml`; legacy `.codeintel.yml` files are
-still recognized. Analysis state remains external.
-
-## 🧩 Compatibility
-
-The Python import namespace remains `codeintel`, the `codeintel` CLI remains an alias, and existing
-`CODEINTEL_*` environment variables and MCP tool identifiers continue to work. This keeps current
-MaxOS and container integrations stable while all new user-facing examples use AnaxiGraph.
+The target repository only needs an optional `.anaxigraph.yml`; analysis state remains external.
 
 ## 🛠️ Development
 

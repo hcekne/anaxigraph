@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 
-from codeintel.scanner import RepositoryScanner
+from anaxigraph.scanner import RepositoryScanner
 
 
 def test_scan_persists_graph_metrics_coverage_and_findings(repository, database):
@@ -159,7 +159,7 @@ def test_historical_scan_does_not_replace_current_snapshot(repository, database)
 
 
 def test_group_hierarchy_rolls_declared_subsystem_into_parent(repository, database):
-    config = repository / ".codeintel.yml"
+    config = repository / ".anaxigraph.yml"
     config.write_text(
         config.read_text(encoding="utf-8").replace(
             "groups:\n  domain:\n    paths: [pkg/**]",

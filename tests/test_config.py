@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from codeintel.config import load_config, path_matches
+from anaxigraph.config import load_config, path_matches
 
 
 def test_config_loads_groups_rules_and_ignore(repository):
@@ -30,8 +30,7 @@ def test_globs_match_root_and_nested_paths():
     assert path_matches(".git/config", ".git/**")
 
 
-def test_current_config_name_wins_over_legacy_file(tmp_path: Path):
-    (tmp_path / ".codeintel.yml").write_text("project: {name: Legacy}\n", encoding="utf-8")
+def test_default_config_name_is_anaxigraph(tmp_path: Path):
     (tmp_path / ".anaxigraph.yml").write_text("project: {name: AnaxiGraph}\n", encoding="utf-8")
 
     config = load_config(tmp_path)

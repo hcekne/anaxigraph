@@ -10,7 +10,7 @@ import tokenize
 from pathlib import PurePosixPath
 from typing import Iterable
 
-from codeintel.models import Dependency, FileAnalysis, Symbol
+from anaxigraph.models import Dependency, FileAnalysis, Symbol
 
 
 class PythonAnalyzer:

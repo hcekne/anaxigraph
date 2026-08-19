@@ -17,8 +17,7 @@ docker compose -f compose.yml -f compose.maxos.yml ps
 This builds AnaxiGraph, mounts the allowlisted repositories read-only, performs their current
 scans, persists state in a named volume, publishes the dashboard at `http://127.0.0.1:8765`, and
 joins the MaxOS network. Git biographies continue importing in the background.
-Use `http://anaxigraph:8765/mcp` for the connection URL inside MaxOS. The previous `codeintel`
-hostname remains an alias. If the repositories are not
+Use `http://anaxigraph:8765/mcp` for the connection URL inside MaxOS. If the repositories are not
 siblings, copy `.env.example` to `.env` and set `ANAXIGRAPH_REPOSITORY`.
 
 ## Run directly
@@ -49,24 +48,23 @@ MaxOS backend:
 
 ```bash
 docker build -t anaxigraph:local /absolute/path/to/anaxigraph
-docker volume create codeintel_state
+docker volume create anaxigraph_anaxi_index
 docker run -d \
   --name anaxigraph \
   --network maxos_agent_default \
-  --network-alias codeintel \
+  --network-alias anaxigraph \
   --read-only \
   --tmpfs /tmp \
   -v /absolute/path/to/maxos_agent:/repo:ro \
-  -v codeintel_state:/state \
+  -v anaxigraph_anaxi_index:/state \
   -v /absolute/path/to/anaxigraph/examples:/config:ro \
   anaxigraph:local mcp \
     --repository /repo \
     --config /config/maxos-agent.anaxigraph.yml \
-    --db /state/codeintel.db \
+    --db /state/anaxi-index.db \
     --host 0.0.0.0 \
     --port 8765 \
     --allowed-host 'anaxigraph:*' \
-    --allowed-host 'codeintel:*' \
     --scan-on-start
 ```
 
@@ -91,29 +89,29 @@ In **Settings → MCP connections**, create a connection with:
 
 Run **Check** and inspect **Tools**. MaxOS should discover:
 
-- `CODEINTEL_REPOSITORIES`
-- `CODEINTEL_OVERVIEW`
-- `CODEINTEL_SEARCH`
-- `CODEINTEL_FILE`
-- `CODEINTEL_SCOPE`
-- `CODEINTEL_IMPACT`
-- `CODEINTEL_FINDINGS`
-- `CODEINTEL_FINDING_CONTEXT`
-- `CODEINTEL_GUIDE`
-- `CODEINTEL_BRANCH_COLLISIONS`
+- `ANAXIGRAPH_REPOSITORIES`
+- `ANAXIGRAPH_OVERVIEW`
+- `ANAXIGRAPH_SEARCH`
+- `ANAXIGRAPH_FILE`
+- `ANAXIGRAPH_SCOPE`
+- `ANAXIGRAPH_IMPACT`
+- `ANAXIGRAPH_FINDINGS`
+- `ANAXIGRAPH_FINDING_CONTEXT`
+- `ANAXIGRAPH_GUIDE`
+- `ANAXIGRAPH_BRANCH_COLLISIONS`
 
 Enable **Available to chat and workflow agents**, then select the connection under **Context &
 tools → Agent tools** in a Workbench chat or on an AI workflow node. A useful first call is:
 
 ```text
-Call CODEINTEL_SCOPE for my coding goal before inspecting files. Stay inside the recommended
-context unless direct evidence requires expanding it. Call CODEINTEL_IMPACT before changing a
+Call ANAXIGRAPH_SCOPE for my coding goal before inspecting files. Stay inside the recommended
+context unless direct evidence requires expanding it. Call ANAXIGRAPH_IMPACT before changing a
 shared interface or protected file. Treat active findings as review signals, not permission to
-refactor. Use CODEINTEL_FINDINGS with status="planned" for work I approved in the dashboard, then
-call CODEINTEL_FINDING_CONTEXT before editing.
+refactor. Use ANAXIGRAPH_FINDINGS with status="planned" for work I approved in the dashboard, then
+call ANAXIGRAPH_FINDING_CONTEXT before editing.
 ```
 
-For a non-default repository, first call `CODEINTEL_REPOSITORIES`, then pass its ID or name in the
+For a non-default repository, first call `ANAXIGRAPH_REPOSITORIES`, then pass its ID or name in the
 optional `repository` argument of the overview, search, file, scope, impact, finding, and collision
 tools.
 

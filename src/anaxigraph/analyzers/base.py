@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from codeintel.models import FileAnalysis
+from anaxigraph.models import FileAnalysis
 
 
 class LanguageAnalyzer(Protocol):

@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 authors = [{ name = "AnaxiGraph contributors" }]
-keywords = ["architecture", "static-analysis", "knowledge-graph", "mcp", "code-intelligence"]
+keywords = ["architecture", "static-analysis", "knowledge-graph", "mcp", "repository-analysis"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
@@ -35,8 +35,7 @@ dev = [
 ]
 
 [project.scripts]
-anaxigraph = "codeintel.cli:main"
-codeintel = "codeintel.cli:main"
+anaxigraph = "anaxigraph.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/hcekne/anaxigraph"
@@ -50,7 +49,7 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-codeintel = ["dashboard/*.html", "dashboard/*.css", "dashboard/*.js", "dashboard/*.svg"]
+anaxigraph = ["dashboard/*.html", "dashboard/*.css", "dashboard/*.js", "dashboard/*.svg"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"

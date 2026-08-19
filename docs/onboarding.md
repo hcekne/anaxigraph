@@ -65,17 +65,17 @@ tour** restores it.
 
 ## Connect Codex
 
-With the sidecar healthy, add its Streamable HTTP MCP endpoint. Run this in a **normal terminal
-on the machine where Codex runs**; it is not a command to type into a Codex chat:
+With the sidecar healthy, add its Streamable HTTP MCP endpoint. Run this in a shell on the machine
+where Codex itself runs. It can be run from any directory:
 
 ```bash
 codex mcp add anaxigraph --url http://127.0.0.1:8765/mcp
 codex mcp list
 ```
 
-The command can be run from any directory. By default it saves the server in
-`~/.codex/config.toml`, so later Codex sessions on that host can use AnaxiGraph while you work in
-any repository. Start or restart Codex in the repository you actually intend to edit:
+By default it saves the server in `~/.codex/config.toml`, so later Codex sessions on that host can
+use AnaxiGraph while you work in any repository. Start or restart Codex in the repository you
+actually intend to edit:
 
 ```bash
 cd /path/to/the/repository
@@ -94,15 +94,15 @@ url = "http://127.0.0.1:8765/mcp"
 See the official [Codex MCP documentation](https://learn.chatgpt.com/docs/extend/mcp) for client
 configuration details.
 
-### When the dashboard is on a Linux server
+### Remote Linux server + local browser
 
-If AnaxiGraph and Codex both run on that Linux server, Codex connects directly to
-`http://127.0.0.1:8765/mcp`. Your Mac's SSH port forward is only what lets the browser on your Mac
-open the dashboard; it is not part of the Linux Codex-to-AnaxiMCP connection.
+If AnaxiGraph and Codex both run on a remote Linux server, Codex connects directly to
+`http://127.0.0.1:8765/mcp`. An SSH port forward is only needed to open the dashboard in a browser
+on another computer; it is not part of the server-side Codex-to-AnaxiMCP connection.
 
 ```text
-Codex on Linux ── http://127.0.0.1:8765/mcp ──→ AnaxiMCP container
-Mac browser     ── SSH port forward ───────────→ dashboard on :8765
+Codex on server ── http://127.0.0.1:8765/mcp ──→ AnaxiMCP container
+Local browser   ── SSH port forward ───────────→ dashboard on :8765
 ```
 
 Run this on the Linux server:
@@ -111,21 +111,21 @@ Run this on the Linux server:
 curl http://127.0.0.1:8765/healthz
 codex mcp add anaxigraph --url http://127.0.0.1:8765/mcp
 codex mcp list
-cd ~/repos/maxos_agent
+cd /path/to/the/repository
 codex
 ```
 
-If Codex runs on your Mac, it can use the locally forwarded URL while the SSH tunnel remains
+If Codex runs on your local computer, it can use the forwarded URL while the SSH tunnel remains
 active. If Codex runs in another container on the same Docker network, use the service address
 `http://anaxigraph:8765/mcp`.
 
 AnaxiMCP is read-only by default. A useful coding workflow is:
 
-1. Ask the agent to call `CODEINTEL_OVERVIEW` or `CODEINTEL_SEARCH` to orient itself.
-2. Before a change, call `CODEINTEL_SCOPE` for a small affected-file and test envelope, or
-   `CODEINTEL_IMPACT` for reverse-dependency risk.
+1. Ask the agent to call `ANAXIGRAPH_OVERVIEW` or `ANAXIGRAPH_SEARCH` to orient itself.
+2. Before a change, call `ANAXIGRAPH_SCOPE` for a small affected-file and test envelope, or
+   `ANAXIGRAPH_IMPACT` for reverse-dependency risk.
 3. For an approved architecture finding, choose **Plan for agent** in the dashboard and use
-   `CODEINTEL_FINDING_CONTEXT` to retrieve its evidence, scope, and verification steps.
+   `ANAXIGRAPH_FINDING_CONTEXT` to retrieve its evidence, scope, and verification steps.
 4. Make and test the change in the normal coding repository. AnaxiGraph never writes it.
 5. Refresh the scan. The finding resolves only when its measured condition disappears.
 

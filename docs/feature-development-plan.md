@@ -97,7 +97,7 @@ This is the first implementation slice.
 - Expose the shared product glossary to the dashboard and agents.
 - Add a single-finding context endpoint/tool so an agent can retrieve the same handoff shown in
   the dashboard.
-- Keep `CODEINTEL_FINDINGS(status="planned")` as the explicit human-approved queue.
+- Keep `ANAXIGRAPH_FINDINGS(status="planned")` as the explicit human-approved queue.
 - Continue to include active findings and architecture rules inside task scope results.
 
 ### Acceptance criteria
@@ -119,7 +119,7 @@ that registry; selecting a repository never becomes a general host-filesystem br
 
 - **Shipped:** registry keys, read-only container paths, config paths, and history frame budgets.
 - **Shipped:** one dashboard/MCP endpoint for multiple repositories, with optional repository
-  selectors on MCP tools and `CODEINTEL_REPOSITORIES` discovery.
+  selectors on MCP tools and `ANAXIGRAPH_REPOSITORIES` discovery.
 - **Shipped:** registry-wide scan-on-start and watcher operation.
 - **Next:** persist the registry key separately from the checkout path so moving a mount never
   creates a second logical repository.
@@ -130,8 +130,7 @@ that registry; selecting a repository never becomes a general host-filesystem br
 
 - Two repositories remain independently selectable across container rebuilds.
 - A dashboard request cannot scan an unregistered path or cross repository IDs.
-- Each repository can use its own `.anaxigraph.yml` and schedule; legacy `.codeintel.yml` files
-  remain supported.
+- Each repository can use its own `.anaxigraph.yml` and schedule.
 - The one-repository Compose path remains the simple default.
 
 ## Phase 3 — temporal reconstruction and graph playback (baseline shipped)
@@ -185,7 +184,7 @@ Each file version will expose:
 - concise “what changed and why it matters” delta from the prior intent version
 - provider/model/prompt version, evidence, confidence, and review state
 
-**Baseline shipped:** the Modules dashboard and `CODEINTEL_MODULES` expose the deterministic
+**Baseline shipped:** the Modules dashboard and `ANAXIGRAPH_MODULES` expose the deterministic
 inventory, provenance-aware summaries when available, Git dates, and a reproducible 0–100
 attention score. This score is triage—not pattern suitability. Intent fingerprints, semantic
 deltas, and reviewed suitability scores remain future work below.

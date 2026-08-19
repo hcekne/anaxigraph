@@ -88,8 +88,8 @@ AGENT_WORKFLOW = {
         "it, relevant tests, migrations, protected paths, and branch collisions."
     ),
     "planned_queue": (
-        "A human plans a finding in the dashboard. An agent calls CODEINTEL_FINDINGS with "
-        "status='planned', then CODEINTEL_FINDING_CONTEXT for the selected finding before editing."
+        "A human plans a finding in the dashboard. An agent calls ANAXIGRAPH_FINDINGS with "
+        "status='planned', then ANAXIGRAPH_FINDING_CONTEXT for the selected finding before editing."
     ),
 }
 

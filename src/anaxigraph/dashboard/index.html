@@ -346,7 +346,7 @@
           <p class="muted">This page does not edit code. It calculates what an agent should read,
             what depends on the proposed change, which tests matter, and where extra review is
             required. AnaxiMCP gives Codex the same context directly from AnaxiIndex.</p>
-          <code>CODEINTEL_FINDINGS(status="planned") → CODEINTEL_FINDING_CONTEXT → CODEINTEL_FILE / CODEINTEL_IMPACT</code>
+          <code>ANAXIGRAPH_FINDINGS(status="planned") → ANAXIGRAPH_FINDING_CONTEXT → ANAXIGRAPH_FILE / ANAXIGRAPH_IMPACT</code>
         </article>
         <div class="two-column agents-layout">
           <article class="panel">
@@ -432,7 +432,7 @@
             <p class="muted"><strong>Run the command below in a normal terminal on the machine
               where Codex runs—not inside a Codex chat.</strong> Connect Codex or another MCP client
               to <code id="settings-mcp-url"></code>.
-              Use <code>CODEINTEL_REPOSITORIES</code> to choose a repository, then query findings,
+              Use <code>ANAXIGRAPH_REPOSITORIES</code> to choose a repository, then query findings,
               file context, impact, or a task work envelope. AnaxiMCP reads AnaxiIndex; it does not
               grant the agent write access to the mounted repository.</p>
             <pre id="settings-codex-command" class="settings-agent-command"></pre>

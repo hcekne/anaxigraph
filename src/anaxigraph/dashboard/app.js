@@ -213,7 +213,7 @@ async function load() {
     if (!repositories.length) throw new Error("No repository has been indexed yet.");
 
     const requested = Number(new URLSearchParams(window.location.search).get("repository"));
-    const remembered = Number(window.localStorage.getItem("codeintel.repository"));
+    const remembered = Number(window.localStorage.getItem("anaxigraph.repository"));
     const candidate = repositories.find((item) => Number(item.id) === requested)
       || repositories.find((item) => Number(item.id) === remembered)
       || repositories.find((item) => item.default)
@@ -1351,7 +1351,7 @@ function renderFindingHandoff(value) {
   renderOverlayHelp();
   renderLegend();
   drawGraph();
-  result.innerHTML = `<div class="panel-heading"><div><p class="eyebrow">Finding #${finding.id} · agent handoff</p><h2>${escapeHtml(finding.summary)}</h2><p class="panel-copy">${escapeHtml(value.workflow_note)}</p></div><span class="risk ${escapeHtml(value.risk)}">${escapeHtml(value.risk)} risk</span></div><div class="result-columns">${resultList("Recommended context", value.recommended_context)}${resultList("Relevant tests", value.relevant_tests)}${resultList("Protected paths", value.protected_paths)}${resultList("Verification", value.verification)}</div><h3>Copy this into Codex</h3><textarea id="agent-prompt" class="agent-prompt" readonly>${escapeHtml(state.lastAgentPrompt)}</textarea><div class="handoff-actions"><button id="copy-agent-prompt" class="button" type="button">Copy agent prompt</button><span class="muted">The structured version is available through CODEINTEL_FINDING_CONTEXT.</span></div>`;
+  result.innerHTML = `<div class="panel-heading"><div><p class="eyebrow">Finding #${finding.id} · agent handoff</p><h2>${escapeHtml(finding.summary)}</h2><p class="panel-copy">${escapeHtml(value.workflow_note)}</p></div><span class="risk ${escapeHtml(value.risk)}">${escapeHtml(value.risk)} risk</span></div><div class="result-columns">${resultList("Recommended context", value.recommended_context)}${resultList("Relevant tests", value.relevant_tests)}${resultList("Protected paths", value.protected_paths)}${resultList("Verification", value.verification)}</div><h3>Copy this into Codex</h3><textarea id="agent-prompt" class="agent-prompt" readonly>${escapeHtml(state.lastAgentPrompt)}</textarea><div class="handoff-actions"><button id="copy-agent-prompt" class="button" type="button">Copy agent prompt</button><span class="muted">The structured version is available through ANAXIGRAPH_FINDING_CONTEXT.</span></div>`;
 }
 
 function resultList(title, values = []) {
@@ -1461,7 +1461,7 @@ function setupEvents() {
   });
   byId("repository-select").addEventListener("change", async (event) => {
     state.repositoryId = Number(event.target.value);
-    window.localStorage.setItem("codeintel.repository", state.repositoryId);
+    window.localStorage.setItem("anaxigraph.repository", state.repositoryId);
     const url = new URL(window.location.href);
     url.searchParams.set("repository", state.repositoryId);
     window.history.replaceState({}, "", url);

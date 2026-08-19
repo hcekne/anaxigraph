@@ -1,9 +1,9 @@
 """Built-in analyzer registry."""
 
-from codeintel.analyzers.base import AnalyzerRegistry
-from codeintel.analyzers.javascript import JavaScriptAnalyzer
-from codeintel.analyzers.python import PythonAnalyzer
-from codeintel.analyzers.text import TextAnalyzer
+from anaxigraph.analyzers.base import AnalyzerRegistry
+from anaxigraph.analyzers.javascript import JavaScriptAnalyzer
+from anaxigraph.analyzers.python import PythonAnalyzer
+from anaxigraph.analyzers.text import TextAnalyzer
 
 
 def builtin_registry() -> AnalyzerRegistry:

@@ -1,4 +1,4 @@
-"""AnaxiGraph public package with the stable ``codeintel`` import namespace."""
+"""AnaxiGraph public Python package."""
 
 from __future__ import annotations
 

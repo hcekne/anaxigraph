@@ -6,8 +6,8 @@ import json
 import subprocess
 from typing import Any
 
-from codeintel.config import SemanticConfig
-from codeintel.models import FileAnalysis, SemanticClaim
+from anaxigraph.config import SemanticConfig
+from anaxigraph.models import FileAnalysis, SemanticClaim
 
 PROMPT_CONTRACT = """Analyze one source file. Return only a JSON object with keys:
 summary (string), responsibilities (string array), inputs (string array), outputs (string array),

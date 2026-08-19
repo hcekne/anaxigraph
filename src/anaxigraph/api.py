@@ -14,15 +14,15 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, Field
 
-from codeintel import git
-from codeintel.agent import agent_scope, branch_collisions, finding_context, impact_analysis
-from codeintel.config import load_config
-from codeintel.guidance import product_glossary
-from codeintel.history import import_git_history
-from codeintel.mcp_server import create_anaxi_mcp_server
-from codeintel.registry import RepositoryTarget
-from codeintel.scanner import RepositoryScanner
-from codeintel.storage import Database
+from anaxigraph import git
+from anaxigraph.agent import agent_scope, branch_collisions, finding_context, impact_analysis
+from anaxigraph.config import load_config
+from anaxigraph.guidance import product_glossary
+from anaxigraph.history import import_git_history
+from anaxigraph.mcp_server import create_anaxi_mcp_server
+from anaxigraph.registry import RepositoryTarget
+from anaxigraph.scanner import RepositoryScanner
+from anaxigraph.storage import AnaxiIndex
 
 
 class ScopeRequest(BaseModel):
@@ -43,7 +43,7 @@ class FindingStatusRequest(BaseModel):
 
 def create_app(
     *,
-    database: Database,
+    database: AnaxiIndex,
     repository: Path | None = None,
     config_path: Path | None = None,
     scan_on_start: bool = False,
@@ -478,7 +478,7 @@ def create_app(
             item["metrics"][metric["name"]] = metric["value"]
         return {"snapshots": list(reversed(list(grouped.values())[:limit]))}
 
-    dashboard = package_files("codeintel.dashboard")
+    dashboard = package_files("anaxigraph.dashboard")
 
     @app.get("/", response_class=HTMLResponse)
     def dashboard_index() -> FileResponse:

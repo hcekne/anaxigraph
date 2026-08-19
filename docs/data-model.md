@@ -1,9 +1,9 @@
 # AnaxiIndex data model
 
 AnaxiIndex is AnaxiGraph's persistent repository memory. Its SQLite schema is created idempotently
-by `codeintel.storage.AnaxiIndex` (`Database` remains a compatibility alias). It is temporal rather
-than a mutable file catalogue: every module keeps stable identity while its versions, intent,
-relationships, metrics, findings, and history accumulate over time.
+by `anaxigraph.storage.AnaxiIndex`. It is temporal rather than a mutable file catalogue: every
+module keeps stable identity while its versions, intent, relationships, metrics, findings, and
+history accumulate over time.
 
 | Table | Identity and purpose |
 |---|---|

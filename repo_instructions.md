@@ -1,8 +1,8 @@
-# AnaxiGraph — Codebase Intelligence & Architecture Observatory
+# AnaxiGraph — Repository Architecture Observatory
 
 ## Working concept
 
-A standalone, reusable codebase intelligence system that continuously maps, interprets, monitors, and explains a software repository.
+A standalone, reusable architecture system that continuously maps, interprets, monitors, and explains a software repository.
 
 The system combines:
 
@@ -116,7 +116,7 @@ Potential responsibilities of an extractor include:
 - grouping related areas of the codebase
 - producing machine-readable graph output
 
-The Codebase Intelligence layer should sit **above** this.
+The AnaxiGraph analysis layer should sit **above** this.
 
 Conceptually:
 
@@ -127,7 +127,7 @@ Git repository
 Static extractors / Graphify / Tree-sitter
       |
       v
-AnaxiIndex (Code Intelligence Database)
+AnaxiIndex (Repository Intelligence Store)
       |
       +----------------------+
       |                      |
@@ -160,7 +160,7 @@ The analyzer should therefore run externally.
 For example:
 
 ```text
-docker compose run code-intel scan /repo
+docker compose run anaxigraph scan /repo
 ```
 
 or:
@@ -1660,7 +1660,7 @@ For example:
 ```text
 MaxOS
   |
-  +--> Codebase Intelligence API
+  +--> AnaxiGraph API
             |
             +--> current repository state
             +--> architecture findings
@@ -1695,7 +1695,7 @@ The project has a coherent public identity.
 
 ## Independent release cycle
 
-Codebase Intelligence can evolve without coupling releases to MaxOS.
+AnaxiGraph can evolve without coupling releases to MaxOS.
 
 ## Multiple consumers
 

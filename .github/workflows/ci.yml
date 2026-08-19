@@ -29,4 +29,4 @@ jobs:
       - name: Run Python tests
         run: uv run pytest
       - name: Check dashboard JavaScript
-        run: node --check src/codeintel/dashboard/app.js
+        run: node --check src/anaxigraph/dashboard/app.js

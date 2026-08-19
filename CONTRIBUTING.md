@@ -9,7 +9,7 @@ architecture detectors, dashboard improvements, and documentation changes are we
 uv sync --extra dev
 uv run pytest
 uv run ruff check .
-node --check src/codeintel/dashboard/app.js
+node --check src/anaxigraph/dashboard/app.js
 ```
 
 Dashboard changes also have browser-level visual contracts. Start the Compose service, install

@@ -3,13 +3,8 @@
 services:
   anaxigraph:
     networks:
-      anaxigraph:
-        aliases:
-          - codeintel
-      maxos:
-        aliases:
-          - anaxigraph
-          - codeintel
+      anaxigraph: {}
+      maxos: {}
 
   anaxigraph-watch:
     networks:
