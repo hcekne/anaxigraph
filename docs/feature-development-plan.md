@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.3
+**Roadmap version:** 3.4
 
 **Updated:** 20 August 2026
 
@@ -97,7 +97,7 @@ regression thresholds.
 | History benchmark | Measured 3,000-file/eight-frame import: 69.566 seconds, 23,970 blob reads, 23,970 `file_versions` for 3,217 distinct artifact/raw versions, 47,896 relationship rows, and a 49.56 MB vacuumed index | Unchanged source is repeatedly read and snapshot-heavy facts/edges are repeatedly materialized |
 | Graph delivery | `/api/graph` can return the full graph in one response | Fine for small loopback use, unsafe for large/team deployments |
 | Authentication | No API or MCP authentication | Acceptable only for loopback sidecar mode |
-| Installation | PyPI still serves the functional but superseded 0.1.0 release; source 0.2.0 provides one-command local startup, explicit agent connection, the dual-client plugin, generated hardened Compose, and a protected release workflow | Source onboarding is complete, but the exact public `uvx anaxigraph up` promise remains blocked until 0.2.0 is released through the configured trusted-publisher environment |
+| Installation | PyPI 0.2.0 provides one-command local startup, explicit agent connection, the dual-client plugin, generated hardened Compose, and a protected release workflow; a clean public `uvx anaxigraph up` journey is verified | The first-run distribution barrier is closed; PyPI's matching trusted-publisher registration remains mandatory before the next version can use the routine OIDC path |
 | Internal module size | Four legacy implementation modules exceed 500 physical lines; `storage.py` is a 422-line facade, `scanner.py` is 358 lines, `cli.py` is 22 lines, and `onboarding.py` is 319 lines, all without exceptions | Phase 3 removed both first-run exceptions; Phase 3b next decomposes the dashboard, agent, and architecture owners before Phase 5 extracts the API |
 
 The current oversized implementation modules are:
@@ -1051,7 +1051,7 @@ Resolution normally comes from a later scan, not a “make green” button.
 
 # Phase 3 — one-command local adoption
 
-**Status:** SOURCE COMPLETE — BLOCKED BY THE 0.2.0 PUBLIC RELEASE
+**Status:** COMPLETE — 0.2.0 PUBLICLY VERIFIED
 
 **Goal:** provide a working dashboard in one command and a connected coding agent in at most one
 additional explicit action.
@@ -1084,8 +1084,9 @@ enough to lead onboarding and validates the exact command from a clean supported
 
 ### Phase 3.1 closure evidence
 
-**Completed in source on 20 August 2026.** The 0.2.0 source version is the deliberate next release
-candidate; it has not been tagged or published by this milestone.
+**Completed in source on 20 August 2026.** The 0.2.0 source version became the immutable `v0.2.0`
+release on the same date. The release outcome and its one remaining operational hardening action are
+recorded below and in `docs/releasing.md`.
 
 | Contract | Delivered evidence |
 |---|---|
@@ -1094,15 +1095,15 @@ candidate; it has not been tagged or published by this milestone.
 | Artifact contents | The verifier requires exactly one pure-Python wheel and one sdist, checks the console entry point, every shipped dashboard asset, archive-safe paths, package name/version, Python floor, and absence of retired product paths |
 | License contract | Built Metadata 2.4 must contain `License-Expression: Apache-2.0`, exactly one `License-File: LICENSE`, and the actual license under the wheel's `.dist-info/licenses` directory |
 | Clean installs | A Linux/macOS × Python 3.11/3.12 CI matrix installs wheel and sdist separately, runs their CLI, resolves packaged dashboard resources, initializes a new Git repository, scans it, and exercises the local `uvx --from <wheel>` path |
-| Protected publication | A dedicated GitHub-release workflow rejects mismatched or already-published versions, builds once, requests the protected `pypi` environment, and publishes through PyPI trusted OIDC without a stored API token |
+| Protected publication | A dedicated GitHub-release workflow rejects mismatched or already-published versions, builds once, and requests the protected `pypi` environment without a stored API token; its first OIDC exchange correctly failed closed because the matching publisher had not yet been registered in PyPI |
 | Supply-chain evidence | Each release produces distribution SHA-256 values, release-contract JSON, SPDX JSON SBOM, installed dependency/license inventory, and GitHub attestations; container tags must match the Python version and their BuildKit SBOM/provenance digest receives a registry attestation |
 | Maintainer procedure | `docs/releasing.md` records the trusted-publisher/environment setup, protected tag flow, preflight, artifact verification, digest pinning, and immutable-version recovery policy |
 | Local rehearsal | The exact normalized wheel and sdist passed Twine, installed in independent virtual environments, reported `AnaxiGraph 0.2.0`, and the wheel initialized/scanned a fresh fixture; PyPI returned the candidate version as unused |
 | Repository gate | All 120 Python tests pass at 85.79% coverage, changed executable coverage is 86.4%, all pre-commit/size/complexity/coupling/layer checks pass, both Compose definitions validate, the bounded benchmark completes, and all 12 Chromium contracts pass |
 
-The repository owner must still configure the `pypi` GitHub environment and its matching PyPI
-trusted-publisher record before approving the first automated release. That operational control is
-intentionally not represented by a repository secret and does not block the next source phase.
+The `pypi` GitHub environment now requires maintainer approval and accepts only `v*` tags. The
+matching publisher must still be added in PyPI's project UI before the next release; that
+operational control is intentionally not represented by a repository secret.
 
 ## 3.2 Make initialization express the intended workflow
 
@@ -1277,11 +1278,9 @@ command family and first-run responsibility has a bounded owner.
 
 ### Phase 3 exit evidence and release blocker
 
-**Completed in source on 20 August 2026.** Seven of the eight product criteria are closed. The
-remaining criterion is deliberately external and immutable: PyPI currently exposes only 0.1.0,
-which predates `anaxigraph up`. Therefore the exact documented `uvx anaxigraph up` command cannot
-be declared generally available until the tested 0.2.0 artifacts are published and installed back
-from the public index.
+**Completed and publicly verified on 20 August 2026.** All eight product criteria are closed. PyPI
+serves 0.2.0, and the exact documented `uvx anaxigraph up` command starts a healthy dashboard from
+a fresh repository without a Git source URL or manually authored configuration.
 
 | Contract | Evidence and disposition |
 |---|---|
@@ -1303,29 +1302,43 @@ five- and ten-minute ceilings detect hangs or catastrophic regressions; future r
 them from accumulated runner data instead of treating this development server's sub-second values
 as universal promises.
 
-#### Blocking release operation
+#### Release outcome and remaining hardening
 
-The trusted workflow is present, but the repository currently has no GitHub environment named
-`pypi`, and the public index currently contains only 0.1.0. Closing Phase 3 requires repository-owner
-control and an immutable public action:
+The immutable `v0.2.0` release was built from commit `bf7fc17`. Main CI, the container workflow,
+and local preflight passed before tagging. The protected release job then built and attested the
+wheel, source distribution, plugin ZIP, SBOM, checksums, dependency inventory, and release contract.
 
-1. add the `pypi` environment in GitHub, with the intended approval/protection rules;
-2. add the matching trusted publisher to the existing PyPI `anaxigraph` project for
-   `hcekne/anaxigraph`, workflow `release.yml`, environment `pypi`;
-3. push the completed source and let required CI pass on `main`;
-4. create and publish the immutable GitHub release `v0.2.0` rather than moving or reusing a tag;
-5. require the release workflow to publish through OIDC and then install `anaxigraph==0.2.0` from
-   public PyPI before this phase changes to **COMPLETE**.
+The first OIDC exchange failed closed with `invalid-publisher`: GitHub's claims matched
+`hcekne/anaxigraph`, `release.yml`, and environment `pypi`, but PyPI had no corresponding publisher.
+Under explicit maintainer authorization, the exact downloaded workflow artifacts were checksum-
+and attestation-verified and uploaded through the documented emergency Twine path. PyPI's recorded
+SHA-256 values match those artifacts. A clean public install reported `AnaxiGraph 0.2.0`, and the
+public `uvx anaxigraph up` path reached `/healthz`, created policy and AnaxiIndex state, and exited
+cleanly. The GitHub release retains the verified bundle and publication record.
 
-Do not bypass this gate with a routine local Twine upload. The manual-token path is reserved for an
-explicitly approved emergency and would not prove the protected release contract this phase exists
-to establish.
+The versioned multi-architecture image is public at `ghcr.io/hcekne/anaxigraph:0.2.0`; its manifest
+digest is `sha256:597fddedb5c1d4cdd3f469ee7dfc30d7d0333dd4c103e26bf2c31524d7ce4230`
+and its registry attestation verifies against this repository.
+
+Before any version after 0.2.0 is published, a PyPI project owner must add this exact trusted
+publisher in the `anaxigraph` Publishing settings:
+
+| Field | Required value |
+|---|---|
+| Owner | `hcekne` |
+| Repository | `anaxigraph` |
+| Workflow | `release.yml` |
+| Environment | `pypi` |
+
+That one-time UI registration blocks the **next publication**, not Phase 3b source development. Do
+not use Twine again for a routine release; the next release must prove the OIDC publish and public-
+install jobs end to end.
 
 ---
 
 # Phase 3b — dashboard/evaluator decomposition and self-analysis
 
-**Status:** BLOCKED BY THE PHASE 3 PUBLIC RELEASE
+**Status:** ACTIVE
 
 **Goal:** remove the remaining dashboard and evaluator size exceptions, then prove that
 AnaxiGraph's deterministic attention model can act as a stable regression check on its own code.
@@ -2029,7 +2042,8 @@ queue and the document cannot drift apart.
 | 31 | **COMPLETE** — Package and contract-test the AnaxiMCP bootstrap workflow as supported agent skills/plugins | §3.4 |
 | 32 | **COMPLETE** — Collapse onboarding around one start action, one connection action, and the agent-funded semantic loop | §3.5 |
 | 33 | **COMPLETE** — Decompose CLI/onboarding responsibilities and remove both size-ratchet exceptions | §3.6 |
-| 34 | **BLOCKED — SOURCE COMPLETE** — First-user, idempotency, Docker/local, skill, and quality evidence passes; configure trusted publishing and publish/verify immutable 0.2.0 to close the final public-install criterion | Phase 3 gate |
+| 34 | **COMPLETE** — First-user, idempotency, Docker/local, skill, quality, immutable 0.2.0 publication, public install, and versioned container evidence pass | Phase 3 gate |
+| 35 | **NEXT** — Decompose architecture evaluation, agent intelligence, and dashboard responsibilities without growing another legacy ratchet | §3b.1 |
 
 Items 9 and 10 are the user-visible Phase 0 changes. The completed 0.1.0 publication is the narrow,
 recorded exception described in §0.6; the work that remains in these queue items is restricted to
