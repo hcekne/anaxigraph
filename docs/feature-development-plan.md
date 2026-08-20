@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 2.3
+**Roadmap version:** 2.4
 
 **Updated:** 20 August 2026
 
@@ -44,10 +44,10 @@ The recommendations are adopted with seven important refinements:
   Landing a new algorithm, a new schema, a migration, and a large refactor behind a single gate
   would make a wrong frame impossible to attribute. Two smaller gates are more consecutive, not
   less.
-- **Numeric targets are provisional until P0.1 ratifies them.** Every duration, ratio, and row
-  count in this document originated from a review of the 76-file AnaxiGraph repository or from
-  extrapolation. They are recorded as intent and become binding thresholds only after the Phase 0
-  benchmark reproduces them on committed fixtures.
+- **P0.1 numbers are now measured and ratified.** The committed schema-6 baseline was recorded on
+  revision `cd73765` with a deterministic 3,000-file, eight-frame fixture. Exact correctness/work
+  counters and same-runner ratios are binding; the recorded server's absolute timings remain
+  reference values rather than universal laptop promises.
 
 This document supersedes the previous phase order. Already shipped capabilities are retained, but
 unfinished work is now arranged around explicit dependencies and measurable exit gates.
@@ -94,7 +94,7 @@ regression thresholds.
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
 | Semantic understanding | Durable `module-dossier-v4` records, fingerprint invalidation, leased agent work, provenance, and budget controls | Differentiating foundation; internal seven-mixin composition needs simplification before expansion |
 | Parser depth | Python AST plus a regex-oriented JavaScript/TypeScript analyzer; long-tail languages use text heuristics | The product cannot yet make equally strong graph claims for most repositories |
-| History benchmark | Reviewed eight-frame import: 24.7 seconds, 481 `file_versions` for 218 distinct artifact/structure pairs, and 3,426 relationship rows | Unchanged files and edges are repeatedly analyzed and materialized |
+| History benchmark | Measured 3,000-file/eight-frame import: 69.566 seconds, 23,970 blob reads, 23,970 `file_versions` for 3,217 distinct artifact/raw versions, 47,896 relationship rows, and a 49.56 MB vacuumed index | Unchanged source is repeatedly read and snapshot-heavy facts/edges are repeatedly materialized |
 | Graph delivery | `/api/graph` can return the full graph in one response | Fine for small loopback use, unsafe for large/team deployments |
 | Authentication | No API or MCP authentication | Acceptable only for loopback sidecar mode |
 | Installation | A tested `anaxigraph` 0.1.0 wheel and source distribution are public on PyPI; generated Compose, MCP connection, semantic enablement, and agent bootstrap still require separate actions | The distribution-name and package-availability barriers are removed, but there are still too many steps between curiosity and full value |
@@ -248,12 +248,14 @@ The point is that the decision is written down, not that it happens on a schedul
 
 # Phase 0 — engineering guardrails and reproducible baselines
 
-**Status:** NEXT
+**Status:** IN PROGRESS — 0.1 COMPLETE; 0.2 NEXT
 
 **Goal:** prevent AnaxiGraph's implementation from becoming the spaghetti code it warns users
 about, while producing trustworthy performance and quality baselines for later phases.
 
 ## 0.1 Reproduce the baseline
+
+**Status:** COMPLETE on 20 August 2026
 
 Create committed benchmark fixtures and a machine-readable report for:
 
@@ -281,6 +283,32 @@ The repository commits the generator, seed, expected manifest, and compact corre
 3,000 generated files. Benchmarks must print environment metadata and may not fail solely because
 one developer's laptop is slower. CI regression gates use ratios or a dedicated stable runner;
 correctness counters are exact everywhere.
+
+The committed report is
+[`benchmarks/results/baseline-schema6.json`](../benchmarks/results/baseline-schema6.json). It was
+generated from clean revision `cd73765` on Linux x86-64, Python 3.11.15, SQLite 3.53.1, and 16
+reported CPUs. The synthetic history is capped at 5% changed files in any selected transition and
+contains modifications, renames, deletions, additions, interface changes, metadata-only changes,
+and ambiguous imports.
+
+| Measurement | Ratified schema-6 baseline |
+|---|---:|
+| Current AnaxiGraph scan | 92 files · 3,176 ms · 76,947,456-byte peak resident set |
+| Synthetic history | 3,000 files · 8 frames · 69,566 ms · 8,695.75 ms/frame |
+| Historical source reads | 23,970 blobs · 4,167,430 bytes |
+| Analysis work | 3,217 analyzer invocations · 23,753 reused analyses |
+| File storage | 23,970 heavy rows · 3,217 distinct artifact/raw versions · 3,216 distinct artifact/structural versions |
+| Relationship storage | 47,896 edge rows · no reusable relationship-bundle table |
+| Index size | 50,290,744 bytes before compaction · 49,561,600 bytes after `VACUUM` |
+| Large graph REST response | 3,000 nodes · 5,924 edges · 3,266,988 bytes · 113.27 ms cold · 83.89 ms warm median |
+| Browser render | 511 ms to overview · 89 ms to graph · 3,000 visible nodes, measured in the pinned Playwright container |
+| Agent scope | 5,757 bytes · approximately 1,440 tokens · all 8 expected primary candidates, no unexpected primary files |
+| Quality baseline | 53 tests · 80.636% total · CLI 51.077% · history 92.593% · storage/migrations 82.738% |
+
+These measurements replace the review's extrapolated 24.7-second/76-file reference throughout the
+binding temporal gates below. Benchmark code records host/browser availability explicitly and
+falls back to the pinned Playwright container when compatible browser libraries are absent on the
+host.
 
 ## 0.2 Install tracked commit hooks
 
@@ -609,11 +637,17 @@ subprocess cost.
 
 ## Phase 1a performance and exit gate
 
-Targets below are provisional until ratified by the P0.1 report on committed fixtures and the
-documented benchmark runner.
+Targets below are binding against the committed P0.1 schema-6 report. Timing and memory gates run
+on the same stable runner or compare before/after in the same benchmark job; exact work counters
+are machine-independent.
 
-- history wall time on the reproduced eight-frame benchmark falls from approximately 24.7 seconds
-  to at most 8 seconds;
+- median history wall time across three runs of the 3,000-file/eight-frame profile is at most 45%
+  of the 69,566 ms baseline (31,305 ms on the recorded runner);
+- historical source reads are at most 3,250, down from 23,970, covering the first complete frame
+  plus changed/added/renamed sources and a small explicit safety margin;
+- analyzer invocations are at most the fixture's 3,217 distinct artifact/raw versions unless the
+  report identifies a deliberate analyzer/policy invalidation;
+- peak resident memory is no more than 125% of baseline (152,494,080 bytes on the recorded runner);
 - unchanged, non-invalidated files invoke no source analyzer and have no blob read;
 - every add, modify, delete, rename, copy, type-change, and resolver-context correctness fixture
   from 1a.1 passes;
@@ -623,9 +657,8 @@ documented benchmark runner.
   through the adaptive table;
 - the dashboard, current-tree scan, modules, findings, and agent scope remain usable while a
   history import runs;
-- the synthetic 3,000-file adaptive import completes within the target ratified in Phase 0 — the
-  provisional intent is 10 minutes, but no 3,000-file measurement exists at roadmap creation, so
-  P0.1 sets the binding number;
+- while history imports, the 3,000-node benchmark remains within 125% of the P0.1 browser baseline:
+  639 ms to initial overview and 112 ms to graph on the pinned runner;
 - `storage.py` and `scanner.py` have not grown.
 
 Row counts and index size are explicitly **not** part of this gate. They belong to Phase 1b.
@@ -705,9 +738,9 @@ reconstruction budget before choosing the final schema:
 - expose reconstruction depth, checkpoint use, query duration, and returned row count in benchmark
   diagnostics.
 
-The checkpoint interval and latency thresholds are ratified from the Phase 0 baseline and the
-Phase 1b prototype. Current-snapshot queries should remain constant-depth, while historical queries
-must have a documented maximum depth rather than recursively walking an unbounded timeline.
+The Phase 0 baseline sets the latency ceilings below; the Phase 1b prototype validates the chosen
+checkpoint representation against them. Current-snapshot queries remain constant-depth, while
+historical queries may traverse at most 16 deltas before using a derived checkpoint.
 
 ## 1b.3 Decompose the temporal implementation while changing it
 
@@ -726,19 +759,20 @@ The exact package names follow the ADR, but by the end of this phase:
 
 ## Phase 1b performance and exit gate
 
-Targets below are provisional until ratified by the P0.1 report.
+Targets below are binding against the committed P0.1 schema-6 report:
 
-- immutable heavy file-version rows are within 10% of distinct analyzed versions rather than the
-  baseline 481 copies for 218 distinct structures;
-- relationship edges are not fully re-materialized for every frame;
+- immutable heavy file-version rows are at most 3,539, within 10% of the 3,217 distinct analyzed
+  artifact/raw versions rather than the baseline 23,970 snapshot copies;
+- persisted canonical relationship edges/sets are at most 11,974 (25% of the 47,896-row baseline)
+  and are not fully re-materialized for every frame;
 - symbols are stored against the immutable analyzed file version and are not copied per snapshot;
 - index size scales with changed versions and relationship contexts, and the benchmark report
-  demonstrates at least a 5× reduction versus the prior schema on the low-churn profile — defined
-  as the synthetic fixture's 5%-changed-files-per-frame history, not an informal description;
+  demonstrates at least a 5× reduction versus the 49,561,600-byte vacuumed baseline: at most
+  9,912,320 bytes on the synthetic fixture capped at 5% changed files per selected transition;
 - every Phase 1a correctness fixture still passes unchanged against the new schema;
-- cold and warm current/historical graph reads meet the ratified latency budget, no user-facing
-  query traverses more than the ratified checkpoint interval, and current-snapshot latency does not
-  regress by more than the allowed Phase 0 ratio;
+- current graph reads are at most 136 ms cold and 101 ms warm median (120% of baseline); oldest and
+  middle historical reads are at most 168 ms warm median; no user-facing query traverses more than
+  16 deltas before using a checkpoint;
 - deleting and rebuilding derived checkpoints produces identical canonical graph results;
 - version-6 indexes migrate without data loss, retain a restorable backup before compaction, and
   abort cleanly on injected migration failure;
@@ -1619,8 +1653,8 @@ queue and the document cannot drift apart.
 
 | # | Item | Specified in |
 |---:|---|---|
-| 1 | Add the reproducible history/storage/performance benchmark and capture baseline output | §0.1 |
-| 2 | Ratify the Phase 1a and 1b numeric targets from that report and write them into this document | §0.1 |
+| 1 | **COMPLETE** — Add the reproducible history/storage/performance benchmark and capture baseline output | §0.1 |
+| 2 | **COMPLETE** — Ratify the Phase 1a and 1b numeric targets from that report and write them into this document | §0.1 |
 | 3 | Add the module-size checker, the current eight-file ratchet baseline, and checker tests | §0.3 |
 | 4 | Add tracked pre-commit configuration and installation documentation | §0.2 |
 | 5 | Run the same size/lint/test checks in CI and make them eligible as required checks | §0.2 |

@@ -1,0 +1,326 @@
+{
+  "current_repository": {
+    "api": {
+      "cold_request_ms": 14.23,
+      "graph_edges": 301,
+      "graph_nodes": 92,
+      "graph_payload_bytes": 169489,
+      "warm_request_median_ms": 11.31
+    },
+    "scan": {
+      "analysis_run_id": 1,
+      "analyzed": 92,
+      "analyzer_invocations": 92,
+      "analyzer_invocations_by_suffix": {
+        "css": 1,
+        "go": 1,
+        "html": 1,
+        "java": 1,
+        "js": 4,
+        "json": 4,
+        "md": 12,
+        "mjs": 1,
+        "none": 1,
+        "py": 55,
+        "rs": 1,
+        "toml": 1,
+        "ts": 1,
+        "txt": 1,
+        "yml": 7
+      },
+      "deleted": 0,
+      "discovered": 92,
+      "duration_ms": 3173,
+      "findings": 147,
+      "peak_resident_bytes": 76947456,
+      "peak_resident_delta_bytes": 8978432,
+      "relationships": 774,
+      "repository_id": 1,
+      "reused": 0,
+      "snapshot_id": 1,
+      "wall_time_ms": 3176
+    },
+    "vacuum": {
+      "after_bytes": 1150976,
+      "before_bytes": 1150976
+    }
+  },
+  "environment": {
+    "anaxigraph_revision": "cd737651ec11afddef070cfd9ec6beaeae8c4d78",
+    "anaxigraph_version": "0.1.0",
+    "cpu_count": 16,
+    "generated_at": "2026-08-20T12:07:17.964297+00:00",
+    "machine": "x86_64",
+    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+    "python": "3.11.15",
+    "sqlite": "3.53.1",
+    "working_tree_dirty": false
+  },
+  "fixture": {
+    "change_counts": {
+      "added": 30,
+      "ambiguous_replacements": 3,
+      "deleted": 30,
+      "interface_changes": 3,
+      "metadata_only_changes": 1,
+      "modified": 150,
+      "renamed": 30
+    },
+    "commits": 8,
+    "expected_distinct_artifact_raw_versions": 3217,
+    "expected_distinct_artifact_structural_versions": 3216,
+    "final_files": 3000,
+    "operations": [
+      {
+        "files": 3000,
+        "kind": "initial"
+      },
+      {
+        "count": 150,
+        "kind": "modify",
+        "paths": [
+          "src/sample/modules/module_00000.py",
+          "src/sample/modules/module_00001.py",
+          "src/sample/modules/module_00002.py",
+          "src/sample/modules/module_00003.py",
+          "src/sample/modules/module_00004.py",
+          "src/sample/modules/module_00005.py",
+          "src/sample/modules/module_00006.py",
+          "src/sample/modules/module_00007.py",
+          "src/sample/modules/module_00008.py",
+          "src/sample/modules/module_00009.py"
+        ]
+      },
+      {
+        "count": 30,
+        "kind": "rename",
+        "paths": [
+          {
+            "from": "src/sample/modules/module_00150.py",
+            "to": "src/sample/modules/renamed_00150.py"
+          },
+          {
+            "from": "src/sample/modules/module_00151.py",
+            "to": "src/sample/modules/renamed_00151.py"
+          },
+          {
+            "from": "src/sample/modules/module_00152.py",
+            "to": "src/sample/modules/renamed_00152.py"
+          },
+          {
+            "from": "src/sample/modules/module_00153.py",
+            "to": "src/sample/modules/renamed_00153.py"
+          },
+          {
+            "from": "src/sample/modules/module_00154.py",
+            "to": "src/sample/modules/renamed_00154.py"
+          },
+          {
+            "from": "src/sample/modules/module_00155.py",
+            "to": "src/sample/modules/renamed_00155.py"
+          },
+          {
+            "from": "src/sample/modules/module_00156.py",
+            "to": "src/sample/modules/renamed_00156.py"
+          },
+          {
+            "from": "src/sample/modules/module_00157.py",
+            "to": "src/sample/modules/renamed_00157.py"
+          },
+          {
+            "from": "src/sample/modules/module_00158.py",
+            "to": "src/sample/modules/renamed_00158.py"
+          },
+          {
+            "from": "src/sample/modules/module_00159.py",
+            "to": "src/sample/modules/renamed_00159.py"
+          }
+        ]
+      },
+      {
+        "count": 30,
+        "kind": "delete",
+        "paths": [
+          "src/sample/modules/module_00180.py",
+          "src/sample/modules/module_00181.py",
+          "src/sample/modules/module_00182.py",
+          "src/sample/modules/module_00183.py",
+          "src/sample/modules/module_00184.py",
+          "src/sample/modules/module_00185.py",
+          "src/sample/modules/module_00186.py",
+          "src/sample/modules/module_00187.py",
+          "src/sample/modules/module_00188.py",
+          "src/sample/modules/module_00189.py"
+        ]
+      },
+      {
+        "count": 30,
+        "kind": "add",
+        "paths": [
+          "src/sample/modules/module_02992.py",
+          "src/sample/modules/module_02993.py",
+          "src/sample/modules/module_02994.py",
+          "src/sample/modules/module_02995.py",
+          "src/sample/modules/module_02996.py",
+          "src/sample/modules/module_02997.py",
+          "src/sample/modules/module_02998.py",
+          "src/sample/modules/module_02999.py",
+          "src/sample/modules/module_03000.py",
+          "src/sample/modules/module_03001.py"
+        ]
+      },
+      {
+        "added": [
+          "app/shared.py",
+          "src/sample/ambiguous_consumer.py",
+          "src/shared.py"
+        ],
+        "count": 3,
+        "deleted": [
+          "src/sample/modules/module_00210.py",
+          "src/sample/modules/module_00211.py",
+          "src/sample/modules/module_00212.py"
+        ],
+        "kind": "ambiguous_import"
+      },
+      {
+        "count": 3,
+        "kind": "interface_change",
+        "paths": [
+          "src/sample/analyzers/base.py",
+          "src/sample/analyzers/python.py",
+          "src/sample/languages.py"
+        ]
+      },
+      {
+        "count": 1,
+        "kind": "metadata_only",
+        "paths": [
+          "src/sample/service.py"
+        ]
+      }
+    ],
+    "requested_files": 3000,
+    "schema_version": 1,
+    "scope_expected_candidates": [
+      "src/sample/analyzers/__init__.py",
+      "src/sample/analyzers/base.py",
+      "src/sample/analyzers/javascript.py",
+      "src/sample/analyzers/python.py",
+      "src/sample/analyzers/text.py",
+      "src/sample/languages.py",
+      "src/sample/service.py",
+      "tests/test_analyzers.py"
+    ],
+    "scope_goal": "Add a new language analyzer for Go",
+    "seed": 20260820
+  },
+  "report_schema_version": 1,
+  "synthetic_history": {
+    "api": {
+      "cold_request_ms": 113.27,
+      "graph_edges": 5924,
+      "graph_nodes": 3000,
+      "graph_payload_bytes": 3266988,
+      "warm_request_median_ms": 83.89
+    },
+    "dashboard": {
+      "architecture_regions": 6,
+      "graph_ready_ms": 89,
+      "overview_ready_ms": 511,
+      "runner": "playwright-container",
+      "status": "measured",
+      "visible_nodes": 3000
+    },
+    "import": {
+      "analysis_run_totals": {
+        "analyzed": 3217,
+        "discovered": 26970,
+        "reused": 23753,
+        "runs": 9
+      },
+      "analyzer_invocations": 3217,
+      "analyzer_invocations_by_suffix": {
+        "py": 3217
+      },
+      "current_snapshot_id": 8,
+      "first_commit": "47159a3ffb34289e489b4b45aa06db08464e6173",
+      "imported_snapshots": 8,
+      "latest_commit": "97e49f40dd8f3c894b901ff603624a817a6939d6",
+      "milliseconds_per_selected_frame": 8695.75,
+      "peak_resident_bytes": 121995264,
+      "peak_resident_delta_bytes": 44888064,
+      "progress_events": 8,
+      "selected_commits": 8,
+      "source_blob_reads": {
+        "attempted": 23970,
+        "bytes": 4167430,
+        "returned": 23970
+      },
+      "store_before_vacuum": {
+        "distinct_file_versions": {
+          "artifact_raw": 3217,
+          "artifact_structural": 3216,
+          "raw_hashes": 3187,
+          "structural_hashes": 3186
+        },
+        "index_bytes": 50290744,
+        "latest_snapshot_files": 3000,
+        "relationship_bundle_note": "Schema 6 rematerializes edges and has no bundle table.",
+        "relationship_bundles": null,
+        "rows": {
+          "analysis_runs": 9,
+          "artifacts": 3063,
+          "file_versions": 23970,
+          "findings": 36,
+          "relationships": 47896,
+          "repositories": 1,
+          "snapshots": 8,
+          "symbols": 24000
+        },
+        "schema_version": 6
+      },
+      "total_commits": 8,
+      "wall_time_ms": 69566
+    },
+    "scope": {
+      "estimated_tokens": 1440,
+      "expected_candidate_hits": [
+        "src/sample/analyzers/__init__.py",
+        "src/sample/analyzers/base.py",
+        "src/sample/analyzers/javascript.py",
+        "src/sample/analyzers/python.py",
+        "src/sample/analyzers/text.py",
+        "src/sample/languages.py",
+        "src/sample/service.py",
+        "tests/test_analyzers.py"
+      ],
+      "goal": "Add a new language analyzer for Go",
+      "payload_bytes": 5757,
+      "primary_files": [
+        "src/sample/languages.py",
+        "src/sample/analyzers/base.py",
+        "src/sample/analyzers/text.py",
+        "tests/test_analyzers.py",
+        "src/sample/service.py",
+        "src/sample/analyzers/javascript.py",
+        "src/sample/analyzers/python.py",
+        "src/sample/analyzers/__init__.py"
+      ],
+      "unexpected_primary_files": []
+    },
+    "vacuum": {
+      "after_bytes": 49561600,
+      "before_bytes": 50286592
+    }
+  },
+  "tests": {
+    "path_coverage_percent": {
+      "cli": 51.07692307692308,
+      "history": 92.5925925925926,
+      "storage_and_migrations": 82.73809523809524
+    },
+    "tests_passed": 53,
+    "total_coverage_percent": 80.63607085346216
+  }
+}
