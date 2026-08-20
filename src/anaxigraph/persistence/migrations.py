@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Callable
 
 SUPPORTED_SCHEMA_VERSIONS = frozenset({2, 6})
 
@@ -50,6 +51,26 @@ def migrate_schema(
         "INSERT OR REPLACE INTO schema_meta(key, value) VALUES ('schema_version', ?)",
         (str(target_version),),
     )
+
+
+def transactional_schema_change(
+    connection: sqlite3.Connection,
+    operation: Callable[[sqlite3.Connection], None],
+) -> None:
+    """Apply one schema change atomically and reject damaged foreign-key state."""
+
+    if connection.in_transaction:
+        raise RuntimeError("Schema migration requires an idle SQLite connection")
+    connection.execute("BEGIN IMMEDIATE")
+    try:
+        operation(connection)
+        violations = connection.execute("PRAGMA foreign_key_check").fetchall()
+        if violations:
+            raise RuntimeError(f"Schema migration introduced {len(violations)} FK violations")
+        connection.commit()
+    except BaseException:
+        connection.rollback()
+        raise
 
 
 def _validate_version(current_version: int | None, target_version: int) -> None:
