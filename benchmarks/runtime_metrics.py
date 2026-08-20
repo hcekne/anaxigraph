@@ -116,9 +116,7 @@ def scope_metrics(
     }
 
 
-def dashboard_metrics(
-    database: AnaxiIndex, repository: Path, project_root: Path
-) -> dict[str, Any]:
+def dashboard_metrics(database: AnaxiIndex, repository: Path, project_root: Path) -> dict[str, Any]:
     node = shutil.which("node")
     script = project_root / "benchmarks" / "dashboard_render.mjs"
     if node is None or not script.exists():

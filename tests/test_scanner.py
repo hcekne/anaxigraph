@@ -64,9 +64,7 @@ def test_scan_persists_graph_metrics_coverage_and_findings(repository, database)
     )
 
 
-def test_scan_retains_ambiguous_unresolved_and_external_relationship_evidence(
-    repository, database
-):
+def test_scan_retains_ambiguous_unresolved_and_external_relationship_evidence(repository, database):
     (repository / "src").mkdir()
     (repository / "shared.py").write_text("VALUE = 1\n", encoding="utf-8")
     (repository / "src" / "shared.py").write_text("VALUE = 2\n", encoding="utf-8")
@@ -103,14 +101,10 @@ def test_scan_retains_ambiguous_unresolved_and_external_relationship_evidence(
     }
 
 
-def test_dead_code_advice_is_suppressed_when_relationship_resolution_is_weak(
-    repository, database
-):
+def test_dead_code_advice_is_suppressed_when_relationship_resolution_is_weak(repository, database):
     (repository / "pkg" / "orphan.py").write_text("VALUE = 1\n", encoding="utf-8")
     subprocess.run(["git", "-C", str(repository), "add", "pkg/orphan.py"], check=True)
-    subprocess.run(
-        ["git", "-C", str(repository), "commit", "-qm", "Add old orphan"], check=True
-    )
+    subprocess.run(["git", "-C", str(repository), "commit", "-qm", "Add old orphan"], check=True)
     stats = RepositoryScanner(database).scan(repository)
     rule = RuleConfig(
         rule_id="dead-test",
@@ -147,7 +141,7 @@ def test_dead_code_advice_is_suppressed_when_relationship_resolution_is_weak(
         fan_in = Counter(int(row["target_artifact_id"]) for row in internal)
         connection.execute(
             "UPDATE relationships SET metadata_json = "
-            "'{\"resolution_status\":\"unresolved_internal\"}' WHERE snapshot_id = ?",
+            '\'{"resolution_status":"unresolved_internal"}\' WHERE snapshot_id = ?',
             (stats.snapshot_id,),
         )
         suppressed = _dead_code_findings(
@@ -161,7 +155,7 @@ def test_dead_code_advice_is_suppressed_when_relationship_resolution_is_weak(
 
         connection.execute(
             "UPDATE relationships SET metadata_json = "
-            "'{\"resolution_status\":\"resolved_internal\"}' WHERE snapshot_id = ?",
+            '\'{"resolution_status":"resolved_internal"}\' WHERE snapshot_id = ?',
             (stats.snapshot_id,),
         )
         trusted = _dead_code_findings(

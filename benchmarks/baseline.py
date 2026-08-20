@@ -299,12 +299,12 @@ def main(argv: list[str] | None = None) -> int:
                 "vacuum": _vacuum_metrics(history_db),
             },
             "tests": (
-                {"status": "skipped"}
-                if args.skip_tests
-                else test_metrics(project_root, work)
+                {"status": "skipped"} if args.skip_tests else test_metrics(project_root, work)
             ),
         }
-        args.output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        args.output.write_text(
+            json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
     print(json.dumps({"status": "complete", "output": str(args.output)}, sort_keys=True))
     return 0
 

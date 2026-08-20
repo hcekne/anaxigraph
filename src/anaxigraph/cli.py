@@ -340,9 +340,7 @@ def _scan(args: argparse.Namespace) -> dict[str, Any]:
             stats.repository_id, args.repository, config
         )
     elif config.semantic.enabled:
-        result["semantic"] = SemanticEngine(database).status(
-            stats.repository_id, config.semantic
-        )
+        result["semantic"] = SemanticEngine(database).status(stats.repository_id, config.semantic)
     return result
 
 
@@ -431,9 +429,7 @@ def _semantic_worker(args: argparse.Namespace) -> dict[str, Any] | None:
                 config_path=target.config_path,
                 run_type="semantic_reconcile",
             )
-            semantic = SemanticEngine(database).bootstrap(
-                stats.repository_id, target.path, config
-            )
+            semantic = SemanticEngine(database).bootstrap(stats.repository_id, target.path, config)
             results.append(
                 {"repository": target.key, "scan": stats.as_dict(), "semantic": semantic}
             )
@@ -444,7 +440,9 @@ def _semantic_worker(args: argparse.Namespace) -> dict[str, Any] | None:
 
     if args.once:
         return cycle(respect_refresh_policy=False)
-    print(f"Semantic reconciliation for {len(targets)} repositories (Ctrl-C to stop)", file=sys.stderr)
+    print(
+        f"Semantic reconciliation for {len(targets)} repositories (Ctrl-C to stop)", file=sys.stderr
+    )
     next_due: dict[str, float] = {}
     while True:
         value = cycle(respect_refresh_policy=True, next_due=next_due)
@@ -529,9 +527,7 @@ def _watch(args: argparse.Namespace) -> None:
                 )
             config = load_config(target.path, target.config_path)
             if config.semantic.enabled and config.semantic.refresh in {"watch", "on_scan"}:
-                SemanticEngine(scanner.database).bootstrap(
-                    stats.repository_id, target.path, config
-                )
+                SemanticEngine(scanner.database).bootstrap(stats.repository_id, target.path, config)
         time.sleep(args.interval)
 
 

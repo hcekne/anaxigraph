@@ -67,11 +67,7 @@ def create_anaxi_mcp_server(
     def visible_repositories() -> list[dict[str, Any]]:
         rows = database.repositories()
         if targets_by_path:
-            rows = [
-                row
-                for row in rows
-                if str(Path(row["path"]).resolve()) in targets_by_path
-            ]
+            rows = [row for row in rows if str(Path(row["path"]).resolve()) in targets_by_path]
         return rows
 
     def context(selector: str = "") -> tuple[dict[str, Any], Path]:
@@ -127,9 +123,7 @@ def create_anaxi_mcp_server(
     )
     def semantic_status(repository: str = "") -> dict[str, Any]:
         row, root = context(repository)
-        return SemanticEngine(database).status(
-            int(row["id"]), config_for(row, root).semantic
-        )
+        return SemanticEngine(database).status(int(row["id"]), config_for(row, root).semantic)
 
     @server.tool(
         name="ANAXIGRAPH_SEMANTIC_SCHEMA",
@@ -295,9 +289,7 @@ def create_anaxi_mcp_server(
         lowered = query.strip().lower()
         if lowered:
             items = [
-                item
-                for item in items
-                if lowered in f"{item['path']} {item['summary']}".lower()
+                item for item in items if lowered in f"{item['path']} {item['summary']}".lower()
             ]
         if area:
             items = [item for item in items if item["architecture_area"] == area]

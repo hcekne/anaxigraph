@@ -1,0 +1,52 @@
+minimum_pre_commit_version: "4.0.0"
+default_install_hook_types: [pre-commit, pre-push]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: [--fix=no]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.3
+    hooks:
+      - id: ruff-check
+      - id: ruff-format
+        args: [--check]
+
+  - repo: local
+    hooks:
+      - id: javascript-syntax
+        name: JavaScript syntax
+        entry: uv run python scripts/check_javascript_syntax.py
+        language: system
+        files: '\.(c?js|mjs)$'
+      - id: forbidden-files
+        name: Forbidden generated, index, and credential paths
+        entry: uv run python scripts/check_forbidden_files.py
+        language: system
+      - id: module-size-ratchet
+        name: Module-size ratchet
+        entry: uv run python scripts/check_module_size.py --staged
+        language: system
+        pass_filenames: false
+      - id: architecture-cycles
+        name: Package cycles and forbidden dependencies
+        entry: uv run python scripts/check_architecture.py
+        language: system
+        pass_filenames: false
+      - id: python-tests
+        name: Complete Python test suite
+        entry: uv run pytest
+        language: system
+        pass_filenames: false
+        stages: [pre-push]

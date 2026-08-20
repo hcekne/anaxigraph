@@ -45,20 +45,14 @@ def relationship_quality(rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
     materialized = list(rows)
     counts = Counter(resolution_status(row) for row in materialized)
     internal_references = (
-        counts[RESOLVED_INTERNAL]
-        + counts[AMBIGUOUS_INTERNAL]
-        + counts[UNRESOLVED_INTERNAL]
+        counts[RESOLVED_INTERNAL] + counts[AMBIGUOUS_INTERNAL] + counts[UNRESOLVED_INTERNAL]
     )
     resolution_rate = (
         counts[RESOLVED_INTERNAL] / internal_references if internal_references else None
     )
     unresolved = counts[AMBIGUOUS_INTERNAL] + counts[UNRESOLVED_INTERNAL]
     status = (
-        "unavailable"
-        if not internal_references
-        else "complete"
-        if unresolved == 0
-        else "partial"
+        "unavailable" if not internal_references else "complete" if unresolved == 0 else "partial"
     )
     return {
         "status": status,

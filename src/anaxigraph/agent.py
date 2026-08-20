@@ -11,26 +11,9 @@ from pathlib import Path
 from typing import Any
 
 from anaxigraph import git
+from anaxigraph.agent_lexicon import GOAL_STOPWORDS, WORD_PATTERN, split_camel
 from anaxigraph.config import AnaxiGraphConfig, path_matches
 from anaxigraph.storage import AnaxiIndex
-
-_WORD = re.compile(r"[A-Za-z][A-Za-z0-9_-]+")
-_STOPWORDS = {
-    "add",
-    "and",
-    "change",
-    "create",
-    "for",
-    "from",
-    "implement",
-    "in",
-    "of",
-    "on",
-    "the",
-    "to",
-    "update",
-    "with",
-}
 
 
 def agent_scope(
@@ -448,8 +431,8 @@ def _rank_files(
 ) -> list[tuple[float, int]]:
     words = {
         word.lower().replace("-", "_")
-        for word in _WORD.findall(_split_camel(goal))
-        if word.lower() not in _STOPWORDS and len(word) > 1
+        for word in WORD_PATTERN.findall(split_camel(goal))
+        if word.lower() not in GOAL_STOPWORDS and len(word) > 1
     }
     words.update(word[:-1] for word in tuple(words) if word.endswith("s") and len(word) > 4)
     symbols: dict[int, str] = defaultdict(str)
@@ -469,17 +452,21 @@ def _rank_files(
         summary = (item["summary"] or "").lower().replace("-", "_")
         symbol_text = symbols[artifact_id].lower().replace("-", "_")
         semantic = item.get("semantic") or {}
-        semantic_text = " ".join(
-            str(value)
-            for value in (
-                semantic.get("detailed_summary"),
-                semantic.get("architecture_role"),
-                semantic.get("placement_guidance"),
-                *(semantic.get("responsibilities") or []),
-                *(semantic.get("domain_concepts") or []),
+        semantic_text = (
+            " ".join(
+                str(value)
+                for value in (
+                    semantic.get("detailed_summary"),
+                    semantic.get("architecture_role"),
+                    semantic.get("placement_guidance"),
+                    *(semantic.get("responsibilities") or []),
+                    *(semantic.get("domain_concepts") or []),
+                )
+                if value
             )
-            if value
-        ).lower().replace("-", "_")
+            .lower()
+            .replace("-", "_")
+        )
         documents[artifact_id] = (path, basename, summary, symbol_text, semantic_text)
     document_frequency = {
         word: sum(1 for values in documents.values() if word in " ".join(values)) for word in words
@@ -496,7 +483,7 @@ def _rank_files(
             score += symbol_text.count(word) * 4 * inverse_frequency
             score += semantic_text.count(word) * 2.5 * inverse_frequency
         normalized_goal = "_".join(
-            word.lower() for word in _WORD.findall(_split_camel(goal)) if len(word) > 2
+            word.lower() for word in WORD_PATTERN.findall(split_camel(goal)) if len(word) > 2
         )
         if normalized_goal and normalized_goal in path.replace("/", "_"):
             score += 30
@@ -630,7 +617,7 @@ def _related_tests(
         Path(files[item]["path"]).stem.lower().removeprefix("test_").removesuffix("_test")
         for item in primary_ids
     }
-    goal_words = {word.lower() for word in _WORD.findall(goal)}
+    goal_words = {word.lower() for word in WORD_PATTERN.findall(goal)}
     scored: list[tuple[float, str]] = []
     for artifact_id, item in files.items():
         if item["artifact_type"] != "test":
@@ -787,9 +774,7 @@ def _bound_scope_payload(payload: dict[str, Any], limit_bytes: int) -> dict[str,
     }
 
     def size() -> int:
-        return len(
-            json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-        )
+        return len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
 
     while size() > limit and payload["related_files"]:
         payload["related_files"].pop()
@@ -921,10 +906,6 @@ def _file_summary(item: dict[str, Any]) -> dict[str, Any]:
 
 def _sorted_ids(files: dict[int, dict[str, Any]], ids: set[int]) -> list[int]:
     return sorted(ids, key=lambda item: files[item]["path"])
-
-
-def _split_camel(value: str) -> str:
-    return re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", value)
 
 
 def _json(value: str) -> Any:

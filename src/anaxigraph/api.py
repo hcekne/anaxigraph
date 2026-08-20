@@ -259,7 +259,9 @@ def create_app(
                 {
                     "path": configured,
                     "exists": candidate.is_file(),
-                    "format": "lcov" if candidate.name == "lcov.info" else candidate.suffix.lstrip(".") or "unknown",
+                    "format": "lcov"
+                    if candidate.name == "lcov.info"
+                    else candidate.suffix.lstrip(".") or "unknown",
                 }
             )
         imported = coverage.get("line_coverage") is not None
@@ -281,9 +283,7 @@ def create_app(
             with database.connect() as connection:
                 connection.execute("SELECT 1").fetchone()
         except sqlite3.Error as exc:
-            raise HTTPException(
-                status_code=503, detail="AnaxiIndex unavailable"
-            ) from exc
+            raise HTTPException(status_code=503, detail="AnaxiIndex unavailable") from exc
         return {"status": "ok"}
 
     @app.get("/api/repositories")
@@ -373,9 +373,7 @@ def create_app(
                 status_code=400,
                 detail="Semantic analysis is disabled in this repository's .anaxigraph.yml",
             )
-        started = start_semantic_refresh(
-            target, force=force, retry_failed=retry_failed
-        )
+        started = start_semantic_refresh(target, force=force, retry_failed=retry_failed)
         return {
             "status": "started" if started else "already_running",
             "repository_id": row["id"],

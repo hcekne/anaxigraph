@@ -23,9 +23,7 @@ def test_agent_scope_is_bounded_and_includes_tests_protection_and_rules(reposito
     assert any(item["path"] == "pkg/core.py" for item in value["protected_files"])
     assert value["risk"] == "high"
     assert len(value["recommended_context"]) <= 12
-    encoded_size = len(
-        json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    )
+    encoded_size = len(json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
     assert encoded_size <= value["payload_budget"]["limit_bytes"]
     assert encoded_size == value["payload_budget"]["estimated_bytes"]
     assert len(value["known_findings"]) <= 12
@@ -50,9 +48,7 @@ def test_impact_follows_reverse_edges_and_relevant_tests(repository, database):
     assert value["risk"] == "high"
 
 
-def test_agent_scope_trims_optional_context_to_the_configured_wire_budget(
-    repository, database
-):
+def test_agent_scope_trims_optional_context_to_the_configured_wire_budget(repository, database):
     for index in range(18):
         (repository / "pkg" / f"calculator_helper_{index}.py").write_text(
             f'"""Calculator helper {index} ' + ("with detailed context " * 25) + '"""\n'
@@ -73,9 +69,7 @@ def test_agent_scope_trims_optional_context_to_the_configured_wire_budget(
         branch=None,
         config=config,
     )
-    encoded_size = len(
-        json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    )
+    encoded_size = len(json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
 
     assert encoded_size <= 4_000
     assert value["payload_budget"]["truncated"] is True

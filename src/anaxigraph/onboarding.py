@@ -108,12 +108,12 @@ def initialize_repository(
         raise ValueError("Container image must be a non-empty reference without whitespace")
     if not config_name or Path(config_name).name != config_name:
         raise ValueError("Config filename must be a filename inside the repository root")
-    if compose_name is not None and (
-        not compose_name or Path(compose_name).name != compose_name
-    ):
+    if compose_name is not None and (not compose_name or Path(compose_name).name != compose_name):
         raise ValueError("Compose filename must be a filename inside the repository root")
 
-    name = project_name.strip() if project_name and project_name.strip() else detect_project_name(root)
+    name = (
+        project_name.strip() if project_name and project_name.strip() else detect_project_name(root)
+    )
     slug = project_slug(name)
     groups = detect_repository_groups(root)
     policy = detect_architecture_policy(root)
@@ -180,8 +180,7 @@ def initialize_repository(
                 else None
             ),
             "local": (
-                f"anaxigraph serve --repository {shlex.quote(str(root))} "
-                "--scan-on-start --open"
+                f"anaxigraph serve --repository {shlex.quote(str(root))} --scan-on-start --open"
             ),
             "connect_codex": f"codex mcp add anaxigraph --url {mcp_url}",
         },
@@ -229,7 +228,9 @@ def detect_project_name(repository: Path) -> str:
 def display_name(value: str) -> str:
     unscoped = value.rsplit("/", 1)[-1]
     words = [word for word in re.split(r"[-_.\s]+", unscoped) if word]
-    return " ".join(word if any(character.isupper() for character in word) else word.title() for word in words)
+    return " ".join(
+        word if any(character.isupper() for character in word) else word.title() for word in words
+    )
 
 
 def project_slug(value: str) -> str:
@@ -273,9 +274,7 @@ def detect_repository_groups(repository: Path) -> list[tuple[str, str, str]]:
         used_names.add(name)
         candidates.append((name, f"{directory.name}/**", description))
 
-    candidates.sort(
-        key=lambda group: (_GROUP_PRIORITY.get(group[0], 60), group[0], group[1])
-    )
+    candidates.sort(key=lambda group: (_GROUP_PRIORITY.get(group[0], 60), group[0], group[1]))
     return candidates[:16]
 
 

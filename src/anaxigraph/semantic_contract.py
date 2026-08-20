@@ -262,9 +262,7 @@ def _validate_schema(value: Any, schema: dict[str, Any], path: str) -> None:
         raise SemanticAnalysisError(f"{path} must be a string")
     if expected == "integer" and (not isinstance(value, int) or isinstance(value, bool)):
         raise SemanticAnalysisError(f"{path} must be an integer")
-    if expected == "number" and (
-        not isinstance(value, (int, float)) or isinstance(value, bool)
-    ):
+    if expected == "number" and (not isinstance(value, (int, float)) or isinstance(value, bool)):
         raise SemanticAnalysisError(f"{path} must be a number")
     if "enum" in schema and value not in schema["enum"]:
         raise SemanticAnalysisError(f"{path} must be one of: {', '.join(schema['enum'])}")

@@ -264,9 +264,7 @@ class AnthropicSemanticProvider:
             "max_tokens": self.config.max_output_tokens,
             "system": _system_instruction(),
             "messages": [{"role": "user", "content": json.dumps(request)}],
-            "output_config": {
-                "format": {"type": "json_schema", "schema": DOSSIER_SCHEMA}
-            },
+            "output_config": {"format": {"type": "json_schema", "schema": DOSSIER_SCHEMA}},
         }
         response = _post_json(
             f"{base}/messages",

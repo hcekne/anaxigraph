@@ -95,8 +95,9 @@ def test_openai_provider_uses_strict_responses_schema(monkeypatch):
     assert captured["payload"]["text"]["format"]["strict"] is True
     assert captured["payload"]["text"]["format"]["schema"]["additionalProperties"] is False
     assert (
-        captured["payload"]["text"]["format"]["schema"]["properties"]
-        ["pattern_opportunities"]["items"]["additionalProperties"]
+        captured["payload"]["text"]["format"]["schema"]["properties"]["pattern_opportunities"][
+            "items"
+        ]["additionalProperties"]
         is False
     )
     assert result.value["placement_guidance"].startswith("Add model runtimes")

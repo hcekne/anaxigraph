@@ -29,7 +29,7 @@
     },
     {
       "path": "src/anaxigraph/storage.py",
-      "baseline_lines": 1809,
+      "baseline_lines": 1782,
       "rationale": "Legacy index facade combines schema, repositories, queries, findings, and read models.",
       "owner": "maintainers",
       "removal_phase": "Phase 1b",
@@ -37,7 +37,7 @@
     },
     {
       "path": "src/anaxigraph/scanner.py",
-      "baseline_lines": 1164,
+      "baseline_lines": 1152,
       "rationale": "Legacy scanner combines discovery, preparation, resolution, persistence, and orchestration.",
       "owner": "maintainers",
       "removal_phase": "Phase 1b",
@@ -45,7 +45,7 @@
     },
     {
       "path": "src/anaxigraph/agent.py",
-      "baseline_lines": 934,
+      "baseline_lines": 915,
       "rationale": "Legacy agent module combines scope, impact, ranking, payload, and collision concerns.",
       "owner": "maintainers",
       "removal_phase": "Phase 3b",
@@ -61,7 +61,7 @@
     },
     {
       "path": "src/anaxigraph/cli.py",
-      "baseline_lines": 653,
+      "baseline_lines": 649,
       "rationale": "Legacy CLI module combines parser construction and every command handler.",
       "owner": "maintainers",
       "removal_phase": "Phase 3",
@@ -69,7 +69,7 @@
     },
     {
       "path": "src/anaxigraph/api.py",
-      "baseline_lines": 616,
+      "baseline_lines": 614,
       "rationale": "Legacy API factory combines transport routes and background-job coordination.",
       "owner": "maintainers",
       "removal_phase": "Phase 5",
@@ -77,7 +77,7 @@
     },
     {
       "path": "src/anaxigraph/onboarding.py",
-      "baseline_lines": 504,
+      "baseline_lines": 503,
       "rationale": "Legacy onboarding module combines detection, policy generation, Compose generation, and startup.",
       "owner": "maintainers",
       "removal_phase": "Phase 3",

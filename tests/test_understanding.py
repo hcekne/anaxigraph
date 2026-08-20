@@ -177,7 +177,9 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
 
     core = repository / "pkg" / "core.py"
     core.write_text(
-        core.read_text(encoding="utf-8").replace("return double(value)", "return double(value) + 1"),
+        core.read_text(encoding="utf-8").replace(
+            "return double(value)", "return double(value) + 1"
+        ),
         encoding="utf-8",
     )
     changed = RepositoryScanner(database).scan(repository, run_type="update")
@@ -191,9 +193,7 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
     assert dossier["intrinsic"]["previous_document_id"] is not None
 
 
-def test_semantic_failure_and_exclusion_are_visible_terminal_states(
-    repository, database, tmp_path
-):
+def test_semantic_failure_and_exclusion_are_visible_terminal_states(repository, database, tmp_path):
     log = tmp_path / "semantic-failure.log"
     provider = _fake_provider(tmp_path, fail_path="pkg/core.py")
     _semantic_config(repository, provider, log, exclude=["docs/**"])
@@ -209,9 +209,7 @@ def test_semantic_failure_and_exclusion_are_visible_terminal_states(
     assert status["excluded"] == 1
     assert status["pending"] == 0
     core = SemanticEngine(database).dossier(stats.repository_id, "pkg/core.py")
-    documentation = SemanticEngine(database).dossier(
-        stats.repository_id, "docs/architecture.md"
-    )
+    documentation = SemanticEngine(database).dossier(stats.repository_id, "docs/architecture.md")
     assert core["status"] == "failed_intrinsic"
     assert "exited with 7" in core["reason"]
     assert documentation["status"] == "excluded"
@@ -252,9 +250,10 @@ def test_expired_worker_lease_is_requeued_and_resumed(repository, database, tmp_
     assert row["worker_id"] is None
     assert row["lease_expires_at"] is None
     assert "lease expired" in row["error"]
-    assert engine.bootstrap(stats.repository_id, repository, config)["semantic"][
-        "semantically_ready"
-    ] is True
+    assert (
+        engine.bootstrap(stats.repository_id, repository, config)["semantic"]["semantically_ready"]
+        is True
+    )
 
 
 def test_daily_budget_pauses_before_claiming_an_estimated_job(repository, database, tmp_path):
@@ -321,9 +320,10 @@ def test_forced_plan_survives_until_a_later_worker_run(repository, database, tmp
     config = load_config(repository)
     stats = RepositoryScanner(database).scan(repository)
     engine = SemanticEngine(database)
-    assert engine.bootstrap(stats.repository_id, repository, config)["semantic"][
-        "semantically_ready"
-    ] is True
+    assert (
+        engine.bootstrap(stats.repository_id, repository, config)["semantic"]["semantically_ready"]
+        is True
+    )
     initial_calls = len(_calls(log))
 
     planned = engine.bootstrap(
@@ -344,24 +344,21 @@ def test_forced_plan_survives_until_a_later_worker_run(repository, database, tmp
     assert {item["kind"] for item in _calls(log)[initial_calls:]} == {"intrinsic"}
 
 
-def test_age_expired_dossiers_are_rebuilt_instead_of_left_pending(
-    repository, database, tmp_path
-):
+def test_age_expired_dossiers_are_rebuilt_instead_of_left_pending(repository, database, tmp_path):
     log = tmp_path / "semantic-age.log"
     provider = _fake_provider(tmp_path)
     _semantic_config(repository, provider, log, max_age_days=1)
     config = load_config(repository)
     stats = RepositoryScanner(database).scan(repository)
     engine = SemanticEngine(database)
-    assert engine.bootstrap(stats.repository_id, repository, config)["semantic"][
-        "semantically_ready"
-    ] is True
+    assert (
+        engine.bootstrap(stats.repository_id, repository, config)["semantic"]["semantically_ready"]
+        is True
+    )
     initial_calls = len(_calls(log))
 
     with database.transaction() as connection:
-        connection.execute(
-            "UPDATE semantic_documents SET created_at = '2000-01-01T00:00:00+00:00'"
-        )
+        connection.execute("UPDATE semantic_documents SET created_at = '2000-01-01T00:00:00+00:00'")
     rebuilt = engine.bootstrap(stats.repository_id, repository, config)
 
     assert rebuilt["processed"] > 9
@@ -396,8 +393,7 @@ def test_large_scope_synthesis_is_chunked_and_reduced(database):
         "scope_type": "group",
         "scope_key": "large-group",
         "child_dossiers": [
-            {"scope": f"module-{index}", "value": {"summary": "x" * 1_000}}
-            for index in range(80)
+            {"scope": f"module-{index}", "value": {"summary": "x" * 1_000}} for index in range(80)
         ],
     }
     result = SemanticEngine(database)._analyze_request(
@@ -522,9 +518,7 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
     assert repeated["status"] == "already_completed"
 
 
-def test_agent_semantic_writeback_rejects_bad_tokens_and_invalid_dossiers(
-    repository, database
-):
+def test_agent_semantic_writeback_rejects_bad_tokens_and_invalid_dossiers(repository, database):
     policy = yaml.safe_load((repository / ".anaxigraph.yml").read_text(encoding="utf-8"))
     policy["semantic"] = {"enabled": True, "provider": "agent"}
     (repository / ".anaxigraph.yml").write_text(

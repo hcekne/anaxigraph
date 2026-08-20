@@ -311,9 +311,7 @@ class SemanticScopePlanningMixin:
             input_hash,
             semantic,
         )
-        expired = document is not None and _expired(
-            document["created_at"], semantic.max_age_days
-        )
+        expired = document is not None and _expired(document["created_at"], semantic.max_age_days)
         if document is not None and not expired:
             _upsert_state(
                 connection,

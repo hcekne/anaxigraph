@@ -12,9 +12,7 @@ from anaxigraph.scanner import RepositoryScanner
 
 
 @pytest.mark.anyio
-async def test_dashboard_rest_api_exposes_current_intelligence(
-    repository, database, tmp_path
-):
+async def test_dashboard_rest_api_exposes_current_intelligence(repository, database, tmp_path):
     RepositoryScanner(database).scan(repository)
     stale_repository = tmp_path / "stale-repository"
     stale_repository.mkdir()
@@ -69,16 +67,12 @@ async def test_dashboard_rest_api_exposes_current_intelligence(
         assert core["architecture_area"] == "domain"
         assert core["evaluation"]["monitored_by_default"] is True
         assert core["evaluation"]["suitability_score"] is None
-        documentation = next(
-            item for item in modules if item["path"] == "docs/architecture.md"
-        )
+        documentation = next(item for item in modules if item["path"] == "docs/architecture.md")
         assert documentation["evaluation"]["monitored_by_default"] is False
         assert documentation["evaluation"]["attention_score"] is None
         graph = (await client.get("/api/graph")).json()
         assert graph["nodes"]
-        scope = await client.post(
-            "/api/agent-scope", json={"goal": "Change Calculator behavior"}
-        )
+        scope = await client.post("/api/agent-scope", json={"goal": "Change Calculator behavior"})
         assert scope.status_code == 200
         assert scope.json()["primary_files"][0]["path"] == "pkg/core.py"
 
@@ -147,14 +141,10 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     overview = await session.call_tool("ANAXIGRAPH_OVERVIEW", arguments={})
                     assert overview.isError is False
                     assert overview.structuredContent["files"] == 9
-                    semantic = await session.call_tool(
-                        "ANAXIGRAPH_SEMANTIC_STATUS", arguments={}
-                    )
+                    semantic = await session.call_tool("ANAXIGRAPH_SEMANTIC_STATUS", arguments={})
                     assert semantic.isError is False
                     assert semantic.structuredContent["enabled"] is False
-                    schema = await session.call_tool(
-                        "ANAXIGRAPH_SEMANTIC_SCHEMA", arguments={}
-                    )
+                    schema = await session.call_tool("ANAXIGRAPH_SEMANTIC_SCHEMA", arguments={})
                     assert schema.isError is False
                     assert schema.structuredContent["schema_version"] == "module-dossier-v4"
                     modules = await session.call_tool(

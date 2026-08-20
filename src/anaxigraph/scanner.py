@@ -124,9 +124,7 @@ class RepositoryScanner:
                 if revision is None:
                     self.database.set_current_snapshot(repository_id, existing_id)
                     with self.database.transaction() as connection:
-                        self._ingest_git_history(
-                            connection, repository_id=repository_id, root=root
-                        )
+                        self._ingest_git_history(connection, repository_id=repository_id, root=root)
                         connection.execute(
                             "DELETE FROM metrics WHERE snapshot_id = ?", (existing_id,)
                         )
@@ -853,9 +851,7 @@ class _DependencyResolver:
             for symbol in item.analysis.symbols:
                 self.symbols.setdefault(symbol.name, set()).add(path)
                 self.symbols.setdefault(symbol.qualified_name, set()).add(path)
-        self.python_roots = {
-            module.split(".", 1)[0] for module in self.python_modules if module
-        }
+        self.python_roots = {module.split(".", 1)[0] for module in self.python_modules if module}
 
     def resolve(
         self, source_path: str, language: str, dependency: Dependency
@@ -864,11 +860,7 @@ class _DependencyResolver:
             name = dependency.target.removeprefix("symbol:")
             matches = sorted(self.symbols.get(name, set()))
             if len(matches) == 1:
-                return [
-                    ResolvedDependency(
-                        self.artifacts[matches[0]], None, RESOLVED_INTERNAL
-                    )
-                ]
+                return [ResolvedDependency(self.artifacts[matches[0]], None, RESOLVED_INTERNAL)]
             if matches:
                 return [
                     ResolvedDependency(
@@ -878,14 +870,11 @@ class _DependencyResolver:
                         tuple(matches),
                     )
                 ]
-            return [
-                ResolvedDependency(None, dependency.target, UNRESOLVED_INTERNAL)
-            ]
+            return [ResolvedDependency(None, dependency.target, UNRESOLVED_INTERNAL)]
         if language == "python":
             paths, ambiguous, normalized_target = self._resolve_python(source_path, dependency)
             result = [
-                ResolvedDependency(self.artifacts[path], None, RESOLVED_INTERNAL)
-                for path in paths
+                ResolvedDependency(self.artifacts[path], None, RESOLVED_INTERNAL) for path in paths
             ]
             if ambiguous:
                 result.append(
@@ -911,8 +900,7 @@ class _DependencyResolver:
         paths = self._resolve_path_import(source_path, dependency.target)
         if paths:
             return [
-                ResolvedDependency(self.artifacts[path], None, RESOLVED_INTERNAL)
-                for path in paths
+                ResolvedDependency(self.artifacts[path], None, RESOLVED_INTERNAL) for path in paths
             ]
         internal = self._is_internal_path_target(dependency.target)
         return [

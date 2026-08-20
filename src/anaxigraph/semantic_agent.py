@@ -136,9 +136,7 @@ class SemanticAgentMixin:
         page: int,
     ) -> dict[str, Any]:
         semantic = agent_semantic(config)
-        job = self._leased_agent_job(
-            job_id, lease_token, repository_id=repository_id
-        )
+        job = self._leased_agent_job(job_id, lease_token, repository_id=repository_id)
         self._validate_current_agent_job(job, repository_id, semantic)
         try:
             request = self._job_request(
@@ -223,9 +221,7 @@ class SemanticAgentMixin:
             "job_id": job_id,
             "completed_scope": job["scope_key"],
             "next_plan_stage": plan.stage,
-            "next_action": (
-                "Call ANAXIGRAPH_SEMANTIC_WORK again until it returns complete."
-            ),
+            "next_action": ("Call ANAXIGRAPH_SEMANTIC_WORK again until it returns complete."),
             "semantic": self.status(repository_id, semantic),
         }
 

@@ -399,22 +399,15 @@ class AnaxiIndex:
             if "worker_id" not in semantic_job_columns:
                 connection.execute("ALTER TABLE semantic_jobs ADD COLUMN worker_id TEXT")
             if "lease_expires_at" not in semantic_job_columns:
-                connection.execute(
-                    "ALTER TABLE semantic_jobs ADD COLUMN lease_expires_at TEXT"
-                )
+                connection.execute("ALTER TABLE semantic_jobs ADD COLUMN lease_expires_at TEXT")
             if "lease_token_hash" not in semantic_job_columns:
-                connection.execute(
-                    "ALTER TABLE semantic_jobs ADD COLUMN lease_token_hash TEXT"
-                )
+                connection.execute("ALTER TABLE semantic_jobs ADD COLUMN lease_token_hash TEXT")
             if "executor_id" not in semantic_job_columns:
                 connection.execute("ALTER TABLE semantic_jobs ADD COLUMN executor_id TEXT")
             if "executor_model" not in semantic_job_columns:
-                connection.execute(
-                    "ALTER TABLE semantic_jobs ADD COLUMN executor_model TEXT"
-                )
+                connection.execute("ALTER TABLE semantic_jobs ADD COLUMN executor_model TEXT")
             semantic_document_columns = {
-                item["name"]
-                for item in connection.execute("PRAGMA table_info(semantic_documents)")
+                item["name"] for item in connection.execute("PRAGMA table_info(semantic_documents)")
             }
             if "previous_document_id" not in semantic_document_columns:
                 connection.execute(
@@ -424,13 +417,9 @@ class AnaxiIndex:
                     """
                 )
             if "executor_id" not in semantic_document_columns:
-                connection.execute(
-                    "ALTER TABLE semantic_documents ADD COLUMN executor_id TEXT"
-                )
+                connection.execute("ALTER TABLE semantic_documents ADD COLUMN executor_id TEXT")
             if "executor_model" not in semantic_document_columns:
-                connection.execute(
-                    "ALTER TABLE semantic_documents ADD COLUMN executor_model TEXT"
-                )
+                connection.execute("ALTER TABLE semantic_documents ADD COLUMN executor_model TEXT")
             connection.execute(
                 "INSERT OR REPLACE INTO schema_meta(key, value) VALUES ('schema_version', ?)",
                 (str(SCHEMA_VERSION),),
@@ -972,9 +961,7 @@ class AnaxiIndex:
             key=lambda item: (-int(item["lines_of_code"]), item["name"]),
         )
 
-    def modules(
-        self, repository_id: int, snapshot_id: int | None = None
-    ) -> list[dict[str, Any]]:
+    def modules(self, repository_id: int, snapshot_id: int | None = None) -> list[dict[str, Any]]:
         """Return the file-level intelligence ledger for inventory views and agents."""
 
         snapshot = self._resolve_snapshot(repository_id, snapshot_id)
@@ -1096,9 +1083,7 @@ class AnaxiIndex:
                 "claim_type": row["claim_type"],
                 "confidence": row["confidence"],
             }
-        semantic_states = {
-            str(row["scope_key"]): dict(row) for row in semantic_state_rows
-        }
+        semantic_states = {str(row["scope_key"]): dict(row) for row in semantic_state_rows}
 
         findings_by_path: dict[str, list[dict[str, Any]]] = {}
         for row in finding_rows:
@@ -1155,8 +1140,7 @@ class AnaxiIndex:
                     "confidence": semantic_state["context_confidence"],
                     "architecture_role": context_value.get("architecture_role") or "",
                     "pattern_opportunities": context_value.get("pattern_opportunities") or [],
-                    "consolidation_assessment": context_value.get("consolidation_assessment")
-                    or "",
+                    "consolidation_assessment": context_value.get("consolidation_assessment") or "",
                     "dead_code_candidates": context_value.get("dead_code_candidates") or [],
                     "placement_guidance": context_value.get("placement_guidance") or "",
                     "change_summary": context_value.get("change_summary") or "",
@@ -1264,9 +1248,7 @@ class AnaxiIndex:
                     continue
                 label = edge["target_external"]
                 external_id = f"{edge['resolution_status']}:{label}"
-                external_nodes.setdefault(
-                    external_id, (str(label), edge["resolution_status"])
-                )
+                external_nodes.setdefault(external_id, (str(label), edge["resolution_status"]))
                 edge["target"] = external_id
             edges.append(edge)
         if include_external:
@@ -1598,9 +1580,7 @@ _PATTERN_REVIEWS = {
 }
 
 
-def _module_evaluation(
-    item: dict[str, Any], findings: list[dict[str, Any]]
-) -> dict[str, Any]:
+def _module_evaluation(item: dict[str, Any], findings: list[dict[str, Any]]) -> dict[str, Any]:
     """Build reproducible triage signals without pretending they are pattern suitability."""
 
     artifact_type = str(item.get("artifact_type") or "source")
@@ -1704,10 +1684,7 @@ def _finding_priority(
     affected = [module_stats[path] for path in paths if path in module_stats]
     changes = max((int(item.get("change_count") or 0) for item in affected), default=0)
     degree = max(
-        (
-            int(item.get("fan_in") or 0) + int(item.get("fan_out") or 0)
-            for item in affected
-        ),
+        (int(item.get("fan_in") or 0) + int(item.get("fan_out") or 0) for item in affected),
         default=0,
     )
     complexity = max((float(item.get("complexity") or 0) for item in affected), default=0)
@@ -1717,9 +1694,7 @@ def _finding_priority(
     if changes and complexity:
         score += round(min(changes / 10, 1) * min(complexity / 50, 1) * 10)
     measured_coverage = [
-        float(item["line_coverage"])
-        for item in affected
-        if item.get("line_coverage") is not None
+        float(item["line_coverage"]) for item in affected if item.get("line_coverage") is not None
     ]
     if measured_coverage:
         score += round((1 - min(measured_coverage)) * 5)
@@ -1770,9 +1745,7 @@ def _graph_quality(
         """,
         (snapshot_id,),
     ).fetchall()
-    analyzers = {
-        str(row["analyzer"]): int(row["files"] or 0) for row in analyzer_rows
-    }
+    analyzers = {str(row["analyzer"]): int(row["files"] or 0) for row in analyzer_rows}
     result.update(
         {
             "analyzers": analyzers,

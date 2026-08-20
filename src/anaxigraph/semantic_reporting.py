@@ -199,9 +199,7 @@ class SemanticReportingMixin:
                 "spent_today_usd": round(daily_spend, 6),
                 "reserved_running_usd": round(reserved_spend, 6),
                 "remaining_today_usd": (
-                    round(
-                        max(0.0, semantic.daily_budget_usd - daily_spend - reserved_spend), 6
-                    )
+                    round(max(0.0, semantic.daily_budget_usd - daily_spend - reserved_spend), 6)
                     if semantic and semantic.daily_budget_usd is not None
                     else None
                 ),

@@ -265,7 +265,5 @@ def _compact_consolidation(value: dict[str, Any]) -> Any:
         "recommendation": consolidation.get("recommendation"),
         "score": consolidation.get("score"),
         "rationale": str(consolidation.get("rationale") or "")[:1_000],
-        "candidates": [
-            str(item)[:500] for item in (consolidation.get("candidates") or [])[:12]
-        ],
+        "candidates": [str(item)[:500] for item in (consolidation.get("candidates") or [])[:12]],
     }

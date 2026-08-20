@@ -47,7 +47,7 @@ def test_initializer_generates_reviewable_policy_and_read_only_sidecar(repositor
     assert "target: /repo" in compose
     assert "read_only: true" in compose
     assert '"127.0.0.1:${ANAXIGRAPH_PORT:-9123}:8765"' in compose
-    assert "--history-snapshots\n      - \"37\"" in compose
+    assert '--history-snapshots\n      - "37"' in compose
     assert result["commands"]["connect_codex"] == (
         "codex mcp add anaxigraph --url http://127.0.0.1:9123/mcp"
     )

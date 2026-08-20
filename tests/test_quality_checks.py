@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 from datetime import date
 from pathlib import Path
 
+import pytest
+
+from scripts.check_architecture import check_architecture
+from scripts.check_forbidden_files import forbidden_paths
+from scripts.check_javascript_syntax import syntax_errors
 from scripts.check_module_size import check_repository
 
 
@@ -123,3 +129,74 @@ def test_expired_exception_fails_whole_repository_check(tmp_path):
     )
 
     assert any("expired on 2026-01-01" in item.message for item in issues)
+
+
+def _architecture_policy(root: Path, forbidden: list[dict] | None = None) -> Path:
+    path = root / "architecture.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "source_root": "src",
+                "package": "sample",
+                "forbidden_dependencies": forbidden or [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path.relative_to(root)
+
+
+def test_architecture_checker_detects_internal_cycle(tmp_path):
+    package = tmp_path / "src" / "sample"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (package / "alpha.py").write_text("from . import beta\n", encoding="utf-8")
+    (package / "beta.py").write_text("from . import alpha\n", encoding="utf-8")
+
+    issues = check_architecture(tmp_path, policy_path=_architecture_policy(tmp_path))
+
+    assert len(issues) == 1
+    assert issues[0].issue_type == "dependency_cycle"
+    assert set(issues[0].modules) == {"sample.alpha", "sample.beta"}
+
+
+def test_architecture_checker_enforces_declared_boundary(tmp_path):
+    package = tmp_path / "src" / "sample"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (package / "domain.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (package / "transport.py").write_text("from sample import domain\n", encoding="utf-8")
+    rule = {"from": "sample.transport", "to": "sample.domain", "reason": "test boundary"}
+
+    issues = check_architecture(
+        tmp_path,
+        policy_path=_architecture_policy(tmp_path, [rule]),
+    )
+
+    assert any(item.issue_type == "forbidden_dependency" for item in issues)
+
+
+def test_forbidden_file_checker_distinguishes_examples_from_secrets():
+    values = forbidden_paths(
+        [
+            ".env.example",
+            ".env",
+            "state/anaxi.db",
+            "keys/id_ed25519",
+            "src/module.py",
+        ]
+    )
+
+    assert values == [".env", "keys/id_ed25519", "state/anaxi.db"]
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="Node is not installed")
+def test_javascript_syntax_checker_reports_invalid_module(tmp_path):
+    valid = tmp_path / "valid.js"
+    invalid = tmp_path / "invalid.js"
+    valid.write_text("const value = 1;\n", encoding="utf-8")
+    invalid.write_text("const = ;\n", encoding="utf-8")
+
+    assert syntax_errors([valid]) == []
+    assert invalid.name in syntax_errors([invalid])[0]

@@ -148,9 +148,7 @@ def _check_asset(candidate: Path, path: str, policy: dict[str, Any]) -> list[Siz
     ]
 
 
-def _validate_legacy_entries(
-    root: Path, policy: dict[str, Any], today: date
-) -> list[SizeIssue]:
+def _validate_legacy_entries(root: Path, policy: dict[str, Any], today: date) -> list[SizeIssue]:
     issues: list[SizeIssue] = []
     for item in policy["legacy_exceptions"]:
         path = item["path"]
@@ -181,7 +179,9 @@ def _extraction_suggestions(path: Path) -> tuple[str, ...]:
         for node in tree.body:
             if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
                 span = max(1, int(getattr(node, "end_lineno", node.lineno)) - node.lineno + 1)
-                boundaries.append((span, type(node).__name__.removesuffix("Def").lower(), node.name))
+                boundaries.append(
+                    (span, type(node).__name__.removesuffix("Def").lower(), node.name)
+                )
         return tuple(
             f"extract cohesive {kind} `{name}` ({span} lines)"
             for span, kind, name in sorted(boundaries, reverse=True)[:3]

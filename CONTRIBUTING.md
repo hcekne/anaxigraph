@@ -7,9 +7,22 @@ architecture detectors, dashboard improvements, and documentation changes are we
 
 ```bash
 uv sync --extra dev
+uv run pre-commit install --install-hooks
 uv run pytest
 uv run ruff check .
 node --check src/anaxigraph/dashboard/app.js
+```
+
+The tracked hooks run whitespace/configuration checks, Ruff lint and formatting validation,
+JavaScript parsing, credential/generated-file protection, the 500-line module ratchet, and package
+cycle/boundary checks before a commit. The complete Python suite also runs before a push. Local
+hooks are fast feedback; the same whole-repository policies run in CI and remain authoritative if
+someone uses `--no-verify`.
+
+Run every commit-stage hook against the complete checkout at any time:
+
+```bash
+uv run pre-commit run --all-files
 ```
 
 Dashboard changes also have browser-level visual contracts. Start the Compose service, install

@@ -20,7 +20,7 @@ _SEED_FILES = {
         "from .javascript import JavaScriptAnalyzer\n"
         "from .python import PythonAnalyzer\n"
         "from .text import TextAnalyzer\n\n"
-        "__all__ = [\"LanguageAnalyzer\", \"JavaScriptAnalyzer\", \"PythonAnalyzer\", \"TextAnalyzer\"]\n"
+        '__all__ = ["LanguageAnalyzer", "JavaScriptAnalyzer", "PythonAnalyzer", "TextAnalyzer"]\n'
     ),
     "src/sample/analyzers/base.py": (
         '"""Contract shared by every language analyzer."""\n\n'
@@ -31,27 +31,27 @@ _SEED_FILES = {
     "src/sample/analyzers/javascript.py": (
         '"""JavaScript and TypeScript analyzer."""\n\n'
         "class JavaScriptAnalyzer:\n"
-        "    languages = frozenset({\"javascript\", \"typescript\"})\n\n"
+        '    languages = frozenset({"javascript", "typescript"})\n\n'
         "    def analyze(self, path: str, content: str) -> dict[str, object]:\n"
-        "        return {\"path\": path, \"lines\": len(content.splitlines())}\n"
+        '        return {"path": path, "lines": len(content.splitlines())}\n'
     ),
     "src/sample/analyzers/python.py": (
         '"""Python syntax analyzer."""\n\n'
         "class PythonAnalyzer:\n"
-        "    languages = frozenset({\"python\"})\n\n"
+        '    languages = frozenset({"python"})\n\n'
         "    def analyze(self, path: str, content: str) -> dict[str, object]:\n"
-        "        return {\"path\": path, \"symbols\": content.count(\"def \")}\n"
+        '        return {"path": path, "symbols": content.count("def ")}\n'
     ),
     "src/sample/analyzers/text.py": (
         '"""Fallback analyzer for languages without a parser."""\n\n'
         "class TextAnalyzer:\n"
-        "    languages = frozenset({\"go\", \"rust\", \"java\", \"text\"})\n\n"
+        '    languages = frozenset({"go", "rust", "java", "text"})\n\n'
         "    def analyze(self, path: str, content: str) -> dict[str, object]:\n"
-        "        return {\"path\": path, \"bytes\": len(content.encode())}\n"
+        '        return {"path": path, "bytes": len(content.encode())}\n'
     ),
     "src/sample/languages.py": (
         '"""Maps file suffixes to language analyzer names."""\n\n'
-        "LANGUAGES = {\".py\": \"python\", \".js\": \"javascript\", \".ts\": \"typescript\"}\n\n"
+        'LANGUAGES = {".py": "python", ".js": "javascript", ".ts": "typescript"}\n\n'
         "def detect_language(path: str) -> str | None:\n"
         "    return next((name for suffix, name in LANGUAGES.items() if path.endswith(suffix)), None)\n"
     ),
@@ -61,7 +61,7 @@ _SEED_FILES = {
         "from sample.analyzers import JavaScriptAnalyzer, PythonAnalyzer, TextAnalyzer\n\n"
         "def analyze_file(path: str, content: str) -> dict[str, object]:\n"
         "    language = detect_language(path)\n"
-        "    analyzer = PythonAnalyzer() if language == \"python\" else JavaScriptAnalyzer()\n"
+        '    analyzer = PythonAnalyzer() if language == "python" else JavaScriptAnalyzer()\n'
         "    if language is None:\n"
         "        analyzer = TextAnalyzer()\n"
         "    return analyzer.analyze(path, content)\n"
@@ -70,8 +70,8 @@ _SEED_FILES = {
         "from sample.analyzers.python import PythonAnalyzer\n"
         "from sample.languages import detect_language\n\n"
         "def test_python_analyzer():\n"
-        "    assert detect_language(\"module.py\") == \"python\"\n"
-        "    assert PythonAnalyzer().analyze(\"module.py\", \"value = 1\")[\"path\"] == \"module.py\"\n"
+        '    assert detect_language("module.py") == "python"\n'
+        '    assert PythonAnalyzer().analyze("module.py", "value = 1")["path"] == "module.py"\n'
     ),
 }
 
@@ -133,9 +133,7 @@ def create_history_repository(
         "interface_change",
     }
     expected_structural_versions = file_count + sum(
-        int(item.get("count", 0))
-        for item in operations
-        if item["kind"] in structural_change_kinds
+        int(item.get("count", 0)) for item in operations if item["kind"] in structural_change_kinds
     )
     expected_raw_versions = expected_structural_versions + sum(
         int(item.get("count", 0)) for item in operations if item["kind"] == "metadata_only"
@@ -243,7 +241,9 @@ def _rename_modules(root: Path, indexes: Iterable[int]) -> dict[str, Any]:
         source = root / _module_path(index)
         target = source.with_name(f"renamed_{index:05d}.py")
         source.rename(target)
-        paths.append({"from": source.relative_to(root).as_posix(), "to": target.relative_to(root).as_posix()})
+        paths.append(
+            {"from": source.relative_to(root).as_posix(), "to": target.relative_to(root).as_posix()}
+        )
     return {"count": len(paths), "paths": paths[:10]}
 
 
