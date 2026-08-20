@@ -418,4 +418,5 @@ def test_complete_quality_gate_includes_coverage_compose_benchmark_and_browser_c
     assert sum("docker compose" in command for command in flattened) == 2
     assert any("benchmarks.baseline" in command for command in flattened)
     assert "mcr.microsoft.com/playwright:v1.61.1-noble" in browser
-    assert "ANAXIGRAPH_VISUAL_URL=http://host.docker.internal:9123" in browser
+    assert browser[browser.index("--network") + 1] == "host"
+    assert "ANAXIGRAPH_VISUAL_URL=http://127.0.0.1:9123" in browser

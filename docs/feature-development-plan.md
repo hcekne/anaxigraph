@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 2.4
+**Roadmap version:** 2.5
 
 **Updated:** 20 August 2026
 
@@ -88,7 +88,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 49 tests passing, Ruff clean, approximately 80% reported coverage | A sound base, but critical CLI and migration paths still need stronger targeted coverage |
+| Test health | 79 tests passing, Ruff clean, 81.26% total coverage, and 100% coverage of the Phase 0 closure diff | The executable guardrails are green; critical CLI paths still need stronger targeted coverage as their phases begin |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | Risk, confidence, churn, complexity, coverage, blast radius, and regression contribute to a versioned score | Good ranking exists, but the complete ledger is still too noisy by default |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -248,7 +248,7 @@ The point is that the decision is written down, not that it happens on a schedul
 
 # Phase 0 — engineering guardrails and reproducible baselines
 
-**Status:** IN PROGRESS — 0.1–0.7 COMPLETE; EXIT GATE NEXT
+**Status:** COMPLETE on 20 August 2026
 
 **Goal:** prevent AnaxiGraph's implementation from becoming the spaghetti code it warns users
 about, while producing trustworthy performance and quality baselines for later phases.
@@ -530,28 +530,44 @@ fresh-machine release gate rather than anecdotal success.
 
 ## Phase 0 exit gate
 
-- The benchmark command reproduces the current history duplication and timing baseline.
-- A deliberately introduced 501-line source module fails locally and in CI.
-- Growth of each existing oversized module fails; reducing it succeeds.
-- The complete current test suite, Ruff, browser tests, Compose validation, and migration tests run
+- [x] The benchmark command reproduces the current history duplication and timing baseline.
+- [x] A deliberately introduced 501-line source module fails locally and in CI.
+- [x] Growth of each existing oversized module fails; reducing it succeeds.
+- [x] The complete current test suite, Ruff, browser tests, Compose validation, and migration tests run
   through one documented quality command.
-- New package cycles and forbidden layer imports fail with an understandable message.
-- The baseline exception list contains only the eight known modules and names their removal phases.
-- Phase 0 itself introduces no new module above 500 lines.
-- The existing analyzer intermediate representation is formalized as a versioned contract, its
+- [x] New package cycles and forbidden layer imports fail with an understandable message.
+- [x] The baseline exception list contains only the eight known modules and names their removal phases.
+- [x] Phase 0 itself introduces no new module above 500 lines.
+- [x] The existing analyzer intermediate representation is formalized as a versioned contract, its
   conformance tests pass, and the Python analyzer conforms without a wholesale rewrite.
-- The Phase 1a and Phase 1b performance targets have been ratified from the P0.1 report and written
+- [x] The Phase 1a and Phase 1b performance targets have been ratified from the P0.1 report and written
   into this document, replacing the provisional figures carried over from the external review.
-- `init --start` is documented; the tested, functional PyPI 0.1.0 release and next-release PEP 639
+- [x] `init --start` is documented; the tested, functional PyPI 0.1.0 release and next-release PEP 639
   metadata are recorded; and the README no longer presents an unauthenticated shared deployment as
   a team installation.
-- The supported platform matrix is published, including an explicit decision about Windows.
+- [x] The supported platform matrix is published, including an explicit decision about Windows.
+
+### Phase 0 closure evidence
+
+The documented command `uv run python scripts/run_quality_gate.py --base HEAD^` passed on the
+supported Linux x86-64 runner on 20 August 2026. It is intentionally the same orchestration used by
+CI rather than a hand-curated release checklist.
+
+| Gate | Closure result |
+|---|---|
+| Tracked hooks | Every pre-commit hook passed, including module size, maintainability, architecture, generated-file, formatting, and syntax checks |
+| Python suite | 79 tests passed on Python 3.11; migration and analyzer-contract tests are included |
+| Coverage | 81.26% total and 100% of the closure diff, above the 80% and 85% floors |
+| Deployment contracts | Base Compose and the macOS override both validated |
+| Performance smoke | The 120-file/eight-frame deterministic profile completed and wrote evidence to an isolated temporary path |
+| Browser contracts | 10/10 Playwright contracts passed in the pinned Linux browser container against a deterministic scanned fixture |
+| Release/platform record | PyPI 0.1.0, next-release PEP 639 metadata, one-command start docs, deployment caveats, and the platform matrix are recorded |
 
 ---
 
 # Phase 1a — delta-driven temporal discovery
 
-**Status:** BLOCKED BY PHASE 0
+**Status:** IN PROGRESS — 1a.1 CHARACTERIZATION NEXT
 
 **Goal:** stop re-analyzing unchanged files during historical reconstruction, on today's schema, so
 the algorithm can be proven correct before storage changes underneath it.
@@ -1697,8 +1713,8 @@ queue and the document cannot drift apart.
 | 8 | **COMPLETE** — Formalize and version the existing analyzer IR, add conformance tests, and certify the Python analyzer | §0.5 |
 | 9 | **COMPLETE** — Document `init --start`, correct the README's team-install claim, record PyPI 0.1.0, and prepare next-release PEP 639 metadata | §0.6 |
 | 10 | **COMPLETE** — Publish the supported platform matrix, including the Windows decision | §0.7 |
-| 11 | Close the Phase 0 exit gate and record the result in this document | §0 gate |
-| 12 | Only then open `P1a.1`, the temporal correctness characterization suite on today's schema | §1a.1 |
+| 11 | **COMPLETE** — Close the Phase 0 exit gate and record its reproducible evidence | §0 gate |
+| 12 | **IN PROGRESS** — Build `P1a.1`, the temporal correctness characterization suite on today's schema | §1a.1 |
 
 Items 9 and 10 are the user-visible Phase 0 changes. The completed 0.1.0 publication is the narrow,
 recorded exception described in §0.6; the work that remains in these queue items is restricted to

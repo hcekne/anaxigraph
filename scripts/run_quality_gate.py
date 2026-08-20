@@ -21,7 +21,13 @@ def run(command: list[str], *, root: Path, env: dict[str, str] | None = None) ->
     subprocess.run(command, cwd=root, env=env, check=True)
 
 
-def quality_commands(root: Path, *, base: str, skip_benchmark: bool) -> list[list[str]]:
+def quality_commands(
+    root: Path,
+    *,
+    base: str,
+    skip_benchmark: bool,
+    benchmark_output: Path | None = None,
+) -> list[list[str]]:
     commands = [
         ["uv", "run", "pre-commit", "run", "--all-files"],
         [
@@ -56,6 +62,9 @@ def quality_commands(root: Path, *, base: str, skip_benchmark: bool) -> list[lis
         ],
     ]
     if not skip_benchmark:
+        output = benchmark_output or Path(tempfile.gettempdir()) / (
+            f"anaxigraph-baseline-smoke-{os.getpid()}.json"
+        )
         commands.append(
             [
                 "uv",
@@ -69,6 +78,8 @@ def quality_commands(root: Path, *, base: str, skip_benchmark: bool) -> list[lis
                 "120",
                 "--history-frames",
                 "8",
+                "--output",
+                str(output),
                 "--skip-tests",
                 "--skip-dashboard",
             ]
@@ -159,10 +170,10 @@ def _container_browser_command(root: Path, port: int) -> list[str]:
         "docker",
         "run",
         "--rm",
-        "--add-host",
-        "host.docker.internal:host-gateway",
+        "--network",
+        "host",
         "-e",
-        f"ANAXIGRAPH_VISUAL_URL=http://host.docker.internal:{port}",
+        f"ANAXIGRAPH_VISUAL_URL=http://127.0.0.1:{port}",
         "-e",
         "PLAYWRIGHT_OUTPUT_DIR=/tmp/test-results",
         "-e",
@@ -201,8 +212,15 @@ def _parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     root = Path(__file__).resolve().parents[1]
-    for command in quality_commands(root, base=args.base, skip_benchmark=args.skip_benchmark):
-        run(command, root=root)
+    with tempfile.TemporaryDirectory(prefix="anaxigraph-quality-evidence-") as temporary:
+        commands = quality_commands(
+            root,
+            base=args.base,
+            skip_benchmark=args.skip_benchmark,
+            benchmark_output=Path(temporary) / "baseline-smoke.json",
+        )
+        for command in commands:
+            run(command, root=root)
     if not args.skip_browser:
         run_browser_contracts(root, runner=args.browser_runner)
     print("\nComplete AnaxiGraph quality gate passed.")
