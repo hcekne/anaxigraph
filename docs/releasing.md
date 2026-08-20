@@ -25,6 +25,11 @@ with these exact values:
 The publisher is deliberately bound to one workflow and one environment. Do not add a PyPI API
 token as a GitHub secret.
 
+**Current operational state (20 August 2026):** the protected GitHub `pypi` environment exists,
+requires maintainer approval, and permits only `v*` tags. The matching publisher is not yet present
+in PyPI. Add it through the existing project's **Publishing** page before preparing any release
+after 0.2.0.
+
 ### Protected GitHub environment
 
 Create a GitHub Actions environment named `pypi`. Require a maintainer review before deployment,
@@ -140,3 +145,21 @@ security and license policies.
 Manual `twine upload` remains an emergency-only recovery mechanism. Its use requires an incident
 record, a short-lived scoped token, and the same local artifact verifier; it must never read a
 maintainer token during routine releases.
+
+## Release incident: 0.2.0 publisher registration
+
+The `v0.2.0` workflow run built and attested every release artifact, then failed closed during the
+PyPI token exchange with `invalid-publisher`. The rendered OIDC claims were correct for repository
+`hcekne/anaxigraph`, workflow `release.yml`, tag `v0.2.0`, and environment `pypi`; the publisher-side
+record was missing.
+
+With explicit maintainer authorization to complete the already-announced release, the exact
+workflow artifact was downloaded and its `SHA256SUMS`, GitHub attestations, and Twine metadata were
+verified before the wheel and source distribution were uploaded through the configured project
+token. PyPI reported the same SHA-256 values as the workflow bundle. A cache-refreshed public
+installation and a fresh `uvx anaxigraph up` process both passed. The GitHub release records the
+recovery and exposes the verified artifacts, SBOM, dependency inventory, plugin ZIP, release
+contract, and container digest.
+
+This recovery does not waive the trusted-publisher requirement. Register the publisher above and
+require a successful OIDC publication plus public-install job before publishing the next version.
