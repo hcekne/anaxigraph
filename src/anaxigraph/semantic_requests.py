@@ -8,8 +8,9 @@ from pathlib import Path
 from typing import Any
 
 from anaxigraph.config import SemanticConfig
+from anaxigraph.persistence.semantic_evidence import module_facts, relationships_for_artifact
 from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION
-from anaxigraph.semantic_graph import SupersededSemanticJob, _relationships_for_artifact
+from anaxigraph.semantic_graph import SupersededSemanticJob
 from anaxigraph.semantic_records import _document_by_id
 
 
@@ -35,24 +36,16 @@ class SemanticRequestMixin:
         raw_hash = hashlib.sha256(raw_content).hexdigest()
         content = raw_content.decode("utf-8", errors="replace")
         with self.database.connect() as connection:
-            version = connection.execute(
-                "SELECT * FROM file_versions WHERE id = ?", (job["artifact_version_id"],)
-            ).fetchone()
+            version, symbols = module_facts(
+                connection,
+                int(job["snapshot_id"]),
+                int(job["artifact_id"]),
+            )
             if version is None or version["raw_hash"] != raw_hash:
                 raise SupersededSemanticJob(
                     "The module changed after this semantic job was planned"
                 )
-            symbols = [
-                dict(row)
-                for row in connection.execute(
-                    """
-                    SELECT symbol_type, name, signature, start_line, end_line, summary
-                    FROM symbols WHERE artifact_version_id = ? ORDER BY start_line
-                    """,
-                    (job["artifact_version_id"],),
-                ).fetchall()
-            ]
-            relations = _relationships_for_artifact(
+            relations = relationships_for_artifact(
                 connection, int(job["snapshot_id"]), int(job["artifact_id"])
             )
             history = [
@@ -100,7 +93,7 @@ class SemanticRequestMixin:
     def _context_request(self, job: dict[str, Any], semantic: SemanticConfig) -> dict[str, Any]:
         with self.database.connect() as connection:
             intrinsic = _document_by_id(connection, int(job["metadata"]["intrinsic_document_id"]))
-            relations = _relationships_for_artifact(
+            relations = relationships_for_artifact(
                 connection, int(job["snapshot_id"]), int(job["artifact_id"])
             )
             neighbors = []

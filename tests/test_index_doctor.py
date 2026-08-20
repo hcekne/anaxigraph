@@ -14,7 +14,7 @@ def test_doctor_proves_parity_and_refuses_early_compaction(repository, database)
     report = inspect_index(database.path, database.connect)
 
     assert report["status"] == "healthy"
-    assert report["schema_version"] == 7
+    assert report["schema_version"] == 8
     assert report["integrity"] == "ok"
     assert report["parity"] == {
         "status": "exact",
@@ -27,6 +27,8 @@ def test_doctor_proves_parity_and_refuses_early_compaction(repository, database)
     assert report["reconstruction"]["status"] == "bounded"
     assert report["reconstruction"]["maximum_traversed_deltas"] == 0
     assert report["reconstruction"]["checkpoint_count"] == 1
+    assert report["semantic_references"]["status"] == "exact"
+    assert report["semantic_references"]["missing_canonical_references"] == 0
     assert report["rows"]["file_facts"] == stats.discovered
     assert report["compaction"]["eligible"] is False
     assert "compatibility_read_paths_active" in report["compaction"]["blockers"]

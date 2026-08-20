@@ -65,10 +65,6 @@ def add_frame_work(work: dict[str, Any], database: Any, stats: Any) -> None:
             "SELECT metadata_json FROM analysis_runs WHERE id = ?",
             (stats.analysis_run_id,),
         ).fetchone()
-        files = connection.execute(
-            "SELECT metadata_json FROM file_versions WHERE snapshot_id = ?",
-            (stats.snapshot_id,),
-        ).fetchall()
     metadata = json.loads(run["metadata_json"] or "{}") if run else {}
     for key in (
         "source_reads",
@@ -80,7 +76,7 @@ def add_frame_work(work: dict[str, Any], database: Any, stats: Any) -> None:
         work[key] += int(metadata.get(key) or 0)
     work["analyzed_files"] += stats.analyzed
     work["reused_analysis"] += stats.reused
-    reasons = Counter(json.loads(row["metadata_json"])["invalidation_reason"] for row in files)
+    reasons = Counter(metadata.get("invalidation_reasons") or {})
     total_reasons = Counter(work["invalidation_reasons"])
     total_reasons.update(reasons)
     work["invalidation_reasons"] = dict(sorted(total_reasons.items()))

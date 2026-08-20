@@ -311,9 +311,10 @@ graphs, and agent scope remain available while the timeline is built.
 `anaxigraph doctor` is a read-only index safety check. It verifies SQLite integrity and foreign
 keys, snapshot lineage, every compatibility-frame/canonical-fact digest, and the recorded schema-6
 recovery backup. Its `compaction` section reports duplicate compatibility rows and explicit
-blockers. Schema 7 deliberately reports `compatibility_read_paths_active` until all REST, MCP,
-dashboard, finding, and semantic consumers have moved to bounded canonical reads; the command does
-not delete data. For the Docker sidecar, run the same check against its persisted volume:
+blockers. Schema 8 proves canonical semantic-fact provenance and deliberately reports
+`compatibility_read_paths_active` until the final compatibility-frame compaction gate passes; the
+command does not delete data. For the Docker sidecar, run the same check against its persisted
+volume:
 
 ```bash
 docker compose -f compose.anaxigraph.yml exec anaxigraph \

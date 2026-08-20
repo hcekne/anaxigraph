@@ -110,7 +110,7 @@ def _claims_by_artifact(
     rows = connection.execute(
         """
         SELECT sc.*, fv.artifact_id FROM semantic_claims sc
-        JOIN file_versions fv ON fv.id = sc.artifact_version_id
+        JOIN projected_file_versions fv ON fv.id = sc.file_fact_id
         WHERE fv.snapshot_id = ? AND sc.claim_type IN ('module_analysis', 'module_context')
         ORDER BY CASE sc.claim_type WHEN 'module_analysis' THEN 0 ELSE 1 END
         """,

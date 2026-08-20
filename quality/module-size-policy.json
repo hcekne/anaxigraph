@@ -29,7 +29,7 @@
     },
     {
       "path": "src/anaxigraph/scanner.py",
-      "baseline_lines": 822,
+      "baseline_lines": 801,
       "rationale": "Legacy scanner combines discovery, preparation, resolution, persistence, and orchestration.",
       "owner": "maintainers",
       "removal_phase": "Phase 1b",
@@ -45,7 +45,7 @@
     },
     {
       "path": "src/anaxigraph/architecture.py",
-      "baseline_lines": 780,
+      "baseline_lines": 746,
       "rationale": "Legacy detector module combines rule evaluation, graph algorithms, and finding lifecycle logic.",
       "owner": "maintainers",
       "removal_phase": "Phase 3b",

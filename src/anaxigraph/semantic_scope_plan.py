@@ -9,8 +9,9 @@ from pathlib import Path
 from typing import Any
 
 from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
+from anaxigraph.persistence.semantic_evidence import semantic_inventory
 from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION
-from anaxigraph.semantic_graph import _canonical_hash, _expired, _inventory
+from anaxigraph.semantic_graph import _canonical_hash, _expired
 from anaxigraph.semantic_records import (
     _ensure_job,
     _has_active_module_stage,
@@ -91,7 +92,7 @@ class SemanticScopePlanningMixin:
                 """,
                 (utc_now(), repository_id, snapshot_id),
             )
-            inventory, relationships = _inventory(connection, snapshot_id)
+            inventory, relationships = semantic_inventory(connection, snapshot_id)
             enqueued = self._plan_intrinsic(
                 connection,
                 repository_id=repository_id,

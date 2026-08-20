@@ -13,6 +13,7 @@ from anaxigraph.persistence.index_temporal_health import (
     lineage_report,
     reconstruction_report,
 )
+from anaxigraph.persistence.semantic_fact_references import semantic_reference_report
 
 COMPATIBILITY_TABLES = ("file_versions", "symbols", "relationships")
 TEMPORAL_TABLES = (
@@ -43,7 +44,7 @@ def inspect_index(
         lineage = lineage_report(connection)
         reconstruction = reconstruction_report(connection)
         rows = _row_counts(connection)
-        semantic_references = _semantic_reference_count(connection)
+        semantic_references = semantic_reference_report(connection)
     backup = _backup_report(migrations)
     health_blockers = _health_blockers(
         integrity,
@@ -52,6 +53,7 @@ def inspect_index(
         lineage,
         reconstruction,
         backup,
+        semantic_references,
     )
     return {
         "status": "healthy" if not health_blockers else "blocked",
@@ -64,6 +66,7 @@ def inspect_index(
         "lineage": lineage,
         "reconstruction": reconstruction,
         "parity": parity,
+        "semantic_references": semantic_references,
         "rows": rows,
         "compaction": _compaction_report(health_blockers, rows, semantic_references),
         "blockers": health_blockers,
@@ -87,18 +90,6 @@ def _row_counts(connection: sqlite3.Connection) -> dict[str, int]:
         table: int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
         for table in (*COMPATIBILITY_TABLES, *TEMPORAL_TABLES)
     }
-
-
-def _semantic_reference_count(connection: sqlite3.Connection) -> int:
-    tables = ("semantic_claims", "semantic_documents", "semantic_jobs", "semantic_scope_states")
-    return sum(
-        int(
-            connection.execute(
-                f"SELECT COUNT(*) FROM {table} WHERE artifact_version_id IS NOT NULL"
-            ).fetchone()[0]
-        )
-        for table in tables
-    )
 
 
 def _backup_report(migrations: list[dict[str, Any]]) -> dict[str, Any]:
@@ -130,6 +121,7 @@ def _health_blockers(
     lineage: dict[str, Any],
     reconstruction: dict[str, Any],
     backup: dict[str, Any],
+    semantic_references: dict[str, Any],
 ) -> list[str]:
     blockers = []
     if integrity != "ok":
@@ -144,24 +136,29 @@ def _health_blockers(
         blockers.append("invalid_or_unbounded_checkpoints")
     if backup["status"] not in {"valid", "not_required"}:
         blockers.append("recovery_backup_invalid")
+    if semantic_references["status"] != "exact":
+        blockers.append("semantic_fact_references_missing")
     return blockers
 
 
 def _compaction_report(
     health_blockers: list[str],
     rows: dict[str, int],
-    semantic_references: int,
+    semantic_references: dict[str, Any],
 ) -> dict[str, Any]:
     blockers = list(health_blockers)
     blockers.append("compatibility_read_paths_active")
-    if semantic_references:
+    compatibility_references = sum(
+        value["compatibility_references"] for value in semantic_references["tables"].values()
+    )
+    if compatibility_references:
         blockers.append("semantic_records_reference_compatibility_versions")
     return {
         "eligible": False,
         "performed": False,
         "blockers": blockers,
         "compatibility_rows": sum(rows[table] for table in COMPATIBILITY_TABLES),
-        "semantic_version_references": semantic_references,
+        "semantic_version_references": compatibility_references,
         "message": (
             "Compatibility rows are retained until bounded reads and semantic consumers use "
             "canonical facts. No data was deleted."

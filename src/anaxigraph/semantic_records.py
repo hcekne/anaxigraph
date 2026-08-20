@@ -7,9 +7,42 @@ import sqlite3
 from typing import Any
 
 from anaxigraph.config import SemanticConfig
+from anaxigraph.persistence.semantic_fact_references import semantic_fact_id
 from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION
 from anaxigraph.semantic_graph import SupersededSemanticJob, _cost
 from anaxigraph.storage import utc_now
+
+_INSERT_JOB_SQL = """
+INSERT INTO semantic_jobs(
+    repository_id, snapshot_id, scope_type, scope_key, artifact_id,
+    artifact_version_id, file_fact_id, job_kind, reason, status, priority, input_hash,
+    provider, model, prompt_version, schema_version, max_attempts,
+    estimated_input_tokens, estimated_cost_usd, available_at, metadata_json
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+"""
+
+_UPSERT_STATE_SQL = """
+INSERT INTO semantic_scope_states(
+    repository_id, snapshot_id, scope_type, scope_key, artifact_id,
+    artifact_version_id, file_fact_id, status, reason, intrinsic_input_hash,
+    context_input_hash, interface_hash, relationship_hash, context_fingerprint,
+    intrinsic_document_id, context_document_id, last_checked_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(snapshot_id, scope_type, scope_key) DO UPDATE SET
+    artifact_id = excluded.artifact_id,
+    artifact_version_id = excluded.artifact_version_id,
+    file_fact_id = excluded.file_fact_id,
+    status = excluded.status,
+    reason = excluded.reason,
+    intrinsic_input_hash = COALESCE(excluded.intrinsic_input_hash, intrinsic_input_hash),
+    context_input_hash = COALESCE(excluded.context_input_hash, context_input_hash),
+    interface_hash = COALESCE(excluded.interface_hash, interface_hash),
+    relationship_hash = COALESCE(excluded.relationship_hash, relationship_hash),
+    context_fingerprint = COALESCE(excluded.context_fingerprint, context_fingerprint),
+    intrinsic_document_id = COALESCE(excluded.intrinsic_document_id, intrinsic_document_id),
+    context_document_id = COALESCE(excluded.context_document_id, context_document_id),
+    last_checked_at = excluded.last_checked_at
+"""
 
 
 def _matching_document(
@@ -115,16 +148,44 @@ def _ensure_job(
                 )
                 return "pending", False, None
             return status, False, str(existing["error"] or "") or None
-    estimated_cost = _cost(estimated_input_tokens, semantic.max_output_tokens, semantic)
+    _insert_job(
+        connection,
+        repository_id=repository_id,
+        snapshot_id=snapshot_id,
+        scope_type=scope_type,
+        scope_key=scope_key,
+        artifact_id=artifact_id,
+        artifact_version_id=artifact_version_id,
+        job_kind=job_kind,
+        reason=reason,
+        priority=priority,
+        input_hash=input_hash,
+        semantic=semantic,
+        estimated_input_tokens=estimated_input_tokens,
+        metadata=metadata,
+    )
+    return "pending", True, None
+
+
+def _insert_job(
+    connection: sqlite3.Connection,
+    *,
+    repository_id: int,
+    snapshot_id: int,
+    scope_type: str,
+    scope_key: str,
+    artifact_id: int | None,
+    artifact_version_id: int | None,
+    job_kind: str,
+    reason: str,
+    priority: int,
+    input_hash: str,
+    semantic: SemanticConfig,
+    estimated_input_tokens: int,
+    metadata: dict[str, Any],
+) -> None:
     connection.execute(
-        """
-        INSERT INTO semantic_jobs(
-            repository_id, snapshot_id, scope_type, scope_key, artifact_id,
-            artifact_version_id, job_kind, reason, status, priority, input_hash,
-            provider, model, prompt_version, schema_version, max_attempts,
-            estimated_input_tokens, estimated_cost_usd, available_at, metadata_json
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
+        _INSERT_JOB_SQL,
         (
             repository_id,
             snapshot_id,
@@ -132,6 +193,7 @@ def _ensure_job(
             scope_key,
             artifact_id,
             artifact_version_id,
+            semantic_fact_id(connection, snapshot_id, artifact_id),
             job_kind,
             reason,
             priority,
@@ -142,12 +204,11 @@ def _ensure_job(
             SEMANTIC_SCHEMA_VERSION,
             semantic.max_attempts,
             estimated_input_tokens,
-            estimated_cost,
+            _cost(estimated_input_tokens, semantic.max_output_tokens, semantic),
             utc_now(),
             json.dumps(metadata, sort_keys=True),
         ),
     )
-    return "pending", True, None
 
 
 def _active_job(
@@ -191,28 +252,9 @@ def _upsert_state(
     intrinsic_document_id: int | None = None,
     context_document_id: int | None = None,
 ) -> None:
+    file_fact_id = semantic_fact_id(connection, snapshot_id, artifact_id)
     connection.execute(
-        """
-        INSERT INTO semantic_scope_states(
-            repository_id, snapshot_id, scope_type, scope_key, artifact_id,
-            artifact_version_id, status, reason, intrinsic_input_hash, context_input_hash,
-            interface_hash, relationship_hash, context_fingerprint, intrinsic_document_id,
-            context_document_id, last_checked_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(snapshot_id, scope_type, scope_key) DO UPDATE SET
-            artifact_id = excluded.artifact_id,
-            artifact_version_id = excluded.artifact_version_id,
-            status = excluded.status,
-            reason = excluded.reason,
-            intrinsic_input_hash = COALESCE(excluded.intrinsic_input_hash, intrinsic_input_hash),
-            context_input_hash = COALESCE(excluded.context_input_hash, context_input_hash),
-            interface_hash = COALESCE(excluded.interface_hash, interface_hash),
-            relationship_hash = COALESCE(excluded.relationship_hash, relationship_hash),
-            context_fingerprint = COALESCE(excluded.context_fingerprint, context_fingerprint),
-            intrinsic_document_id = COALESCE(excluded.intrinsic_document_id, intrinsic_document_id),
-            context_document_id = COALESCE(excluded.context_document_id, context_document_id),
-            last_checked_at = excluded.last_checked_at
-        """,
+        _UPSERT_STATE_SQL,
         (
             repository_id,
             snapshot_id,
@@ -220,6 +262,7 @@ def _upsert_state(
             scope_key,
             artifact_id,
             artifact_version_id,
+            file_fact_id,
             status,
             reason,
             intrinsic_input_hash,

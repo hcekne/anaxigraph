@@ -25,8 +25,9 @@ history accumulate over time.
 | `semantic_scope_states` | Current per-snapshot semantic coverage and document pointers for modules, groups, and repository |
 | `git_changes` | Bounded file-level commit/change history used for churn and age |
 
-Schema 7 dual-writes a compatibility frame and a canonical temporal representation while migration
-equivalence is being validated. `file_facts` stores each analyzed artifact/raw/analyzer identity
+Schema 7 introduced dual-written compatibility frames and a canonical temporal representation.
+Schema 8 adds direct `file_fact_id` provenance to every module-scoped semantic claim, document,
+job, and scope state. `file_facts` stores each analyzed artifact/raw/analyzer identity
 once, `fact_symbols` belongs to that immutable fact, and `snapshot_file_changes` records only
 add/change/delete placement transitions. Relationship edges are grouped into immutable
 `relationship_sets`; `snapshot_relationship_changes` selects or retracts a set for each source.
@@ -35,13 +36,14 @@ against the compatibility tables before those duplicate rows may be compacted.
 
 The compatibility `file_versions`, `symbols`, and `relationships` tables still contain complete
 frames during this validation window. They are not the final scaling model and must not be removed
-until `doctor` reports successful migration, semantic/finding compatibility is proven, and the
-schema-6 recovery backup has been retained. Raw hash equality skips extraction. Structural hash
+until `doctor` reports successful migration and the complete Phase 1b compaction gate passes. The
+doctor report now validates semantic-fact references in addition to temporal parity, and the
+schema-6 recovery backup is retained. Raw hash equality skips extraction. Structural hash
 equality after a raw change performs only deterministic metadata/documentation refresh and reuses
 semantic claims.
 
-Analyzer facts conform to `anaxigraph-ir-v1`. Until Phase 1b normalizes the temporal storage model,
-the additional contract fields live in `file_versions.metadata_json.ir`: IR/analyzer versions,
+Analyzer facts conform to `anaxigraph-ir-v1`. During the final compatibility window, additional
+contract fields are still mirrored in `file_versions.metadata_json.ir`: IR/analyzer versions,
 module identity and aliases, resolver inputs, parse status, exports, and symbol visibility/columns.
 The ordinary columns and `symbols` table remain the query-efficient v1 projection. A tested codec
 reconstructs the complete IR during incremental reuse; the metadata is not an unversioned dumping

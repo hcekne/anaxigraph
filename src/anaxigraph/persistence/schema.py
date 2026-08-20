@@ -1,6 +1,6 @@
 """Versioned AnaxiIndex compatibility schema installed before explicit migrations."""
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_meta (
@@ -210,6 +210,7 @@ CREATE TABLE IF NOT EXISTS architecture_rules (
 CREATE TABLE IF NOT EXISTS semantic_claims (
     id INTEGER PRIMARY KEY,
     artifact_version_id INTEGER NOT NULL REFERENCES file_versions(id) ON DELETE CASCADE,
+    file_fact_id INTEGER REFERENCES file_facts(id) ON DELETE CASCADE,
     claim_type TEXT NOT NULL,
     value_json TEXT NOT NULL,
     source TEXT NOT NULL,
@@ -231,6 +232,7 @@ CREATE TABLE IF NOT EXISTS semantic_documents (
     scope_key TEXT NOT NULL,
     artifact_id INTEGER REFERENCES artifacts(id) ON DELETE CASCADE,
     artifact_version_id INTEGER REFERENCES file_versions(id) ON DELETE CASCADE,
+    file_fact_id INTEGER REFERENCES file_facts(id) ON DELETE CASCADE,
     previous_document_id INTEGER REFERENCES semantic_documents(id) ON DELETE SET NULL,
     document_kind TEXT NOT NULL,
     input_hash TEXT NOT NULL,
@@ -258,6 +260,7 @@ CREATE TABLE IF NOT EXISTS semantic_jobs (
     scope_key TEXT NOT NULL,
     artifact_id INTEGER REFERENCES artifacts(id) ON DELETE CASCADE,
     artifact_version_id INTEGER REFERENCES file_versions(id) ON DELETE CASCADE,
+    file_fact_id INTEGER REFERENCES file_facts(id) ON DELETE CASCADE,
     job_kind TEXT NOT NULL,
     reason TEXT NOT NULL,
     status TEXT NOT NULL,
@@ -293,6 +296,7 @@ CREATE TABLE IF NOT EXISTS semantic_scope_states (
     scope_key TEXT NOT NULL,
     artifact_id INTEGER REFERENCES artifacts(id) ON DELETE CASCADE,
     artifact_version_id INTEGER REFERENCES file_versions(id) ON DELETE CASCADE,
+    file_fact_id INTEGER REFERENCES file_facts(id) ON DELETE CASCADE,
     status TEXT NOT NULL,
     reason TEXT NOT NULL DEFAULT '',
     intrinsic_input_hash TEXT,

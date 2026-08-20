@@ -232,9 +232,10 @@ async def test_mcp_coding_agent_can_claim_and_submit_semantic_work(repository, d
 
     with database.connect() as connection:
         row = connection.execute(
-            "SELECT source, provider, executor_id FROM semantic_documents"
+            "SELECT source, provider, executor_id, file_fact_id FROM semantic_documents"
         ).fetchone()
-    assert tuple(row) == ("coding_agent", "agent", "codex-integration")
+    assert tuple(row)[:3] == ("coding_agent", "agent", "codex-integration")
+    assert row["file_fact_id"] is not None
 
 
 @pytest.mark.anyio

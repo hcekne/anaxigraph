@@ -12,6 +12,16 @@ from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION, SemanticResult
 from anaxigraph.semantic_graph import _cost, _intent_fingerprint
 from anaxigraph.storage import utc_now
 
+_DOCUMENT_SQL = """
+INSERT INTO semantic_documents(
+    repository_id, snapshot_id, scope_type, scope_key, artifact_id,
+    artifact_version_id, file_fact_id, previous_document_id, document_kind, input_hash,
+    intent_fingerprint, value_json, source, provider, model, executor_id, executor_model,
+    prompt_version, schema_version, confidence, supporting_evidence_json, input_tokens,
+    output_tokens, estimated_cost_usd, actual_cost_usd, created_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+"""
+
 
 class SemanticResultMixin:
     def _complete_job(
@@ -39,47 +49,20 @@ class SemanticResultMixin:
         source = "coding_agent" if agent_funded else "llm"
         now = utc_now()
         with self.database.transaction() as connection:
-            cursor = connection.execute(
-                """
-                INSERT INTO semantic_documents(
-                    repository_id, snapshot_id, scope_type, scope_key, artifact_id,
-                    artifact_version_id, previous_document_id, document_kind, input_hash,
-                    intent_fingerprint,
-                    value_json, source, provider, model, executor_id, executor_model,
-                    prompt_version, schema_version,
-                    confidence, supporting_evidence_json, input_tokens, output_tokens,
-                    estimated_cost_usd, actual_cost_usd, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    job["repository_id"],
-                    job["snapshot_id"],
-                    job["scope_type"],
-                    job["scope_key"],
-                    job["artifact_id"],
-                    job["artifact_version_id"],
-                    job["metadata"].get("previous_document_id"),
-                    job["job_kind"],
-                    job["input_hash"],
-                    intent,
-                    json.dumps(result.value, sort_keys=True),
-                    source,
-                    provider,
-                    semantic.model,
-                    job.get("executor_id"),
-                    job.get("executor_model"),
-                    semantic.prompt_version,
-                    SEMANTIC_SCHEMA_VERSION,
-                    result.confidence,
-                    json.dumps(result.evidence),
-                    input_tokens,
-                    output_tokens,
-                    estimated_cost,
-                    actual_cost,
-                    now,
-                ),
+            document_id = _insert_document(
+                connection,
+                job=job,
+                result=result,
+                provider=provider,
+                semantic=semantic,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                estimated_cost=estimated_cost,
+                actual_cost=actual_cost,
+                intent=intent,
+                source=source,
+                now=now,
             )
-            document_id = int(cursor.lastrowid)
             connection.execute(
                 """
                 UPDATE semantic_jobs SET status = 'completed', completed_at = ?,
@@ -138,21 +121,22 @@ class SemanticResultMixin:
         provider: str,
         source: str,
     ) -> None:
-        if not job.get("artifact_version_id"):
+        if not job.get("artifact_version_id") or not job.get("file_fact_id"):
             return
         connection.execute(
-            "DELETE FROM semantic_claims WHERE artifact_version_id = ? AND claim_type = ?",
-            (job["artifact_version_id"], claim_type),
+            "DELETE FROM semantic_claims WHERE file_fact_id = ? AND claim_type = ?",
+            (job["file_fact_id"], claim_type),
         )
         connection.execute(
             """
             INSERT INTO semantic_claims(
-                artifact_version_id, claim_type, value_json, source, provider, model,
+                artifact_version_id, file_fact_id, claim_type, value_json, source, provider, model,
                 prompt_version, created_at, confidence, supporting_evidence_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 job["artifact_version_id"],
+                job["file_fact_id"],
                 claim_type,
                 json.dumps(result.value, sort_keys=True),
                 source,
@@ -208,3 +192,52 @@ class SemanticResultMixin:
                 """,
                 (utc_now(), reason[:4_000], job_id),
             )
+
+
+def _insert_document(
+    connection: sqlite3.Connection,
+    *,
+    job: dict[str, Any],
+    result: SemanticResult,
+    provider: str,
+    semantic: SemanticConfig,
+    input_tokens: int,
+    output_tokens: int,
+    estimated_cost: float,
+    actual_cost: float | None,
+    intent: str,
+    source: str,
+    now: str,
+) -> int:
+    cursor = connection.execute(
+        _DOCUMENT_SQL,
+        (
+            job["repository_id"],
+            job["snapshot_id"],
+            job["scope_type"],
+            job["scope_key"],
+            job["artifact_id"],
+            job["artifact_version_id"],
+            job["file_fact_id"],
+            job["metadata"].get("previous_document_id"),
+            job["job_kind"],
+            job["input_hash"],
+            intent,
+            json.dumps(result.value, sort_keys=True),
+            source,
+            provider,
+            semantic.model,
+            job.get("executor_id"),
+            job.get("executor_model"),
+            semantic.prompt_version,
+            SEMANTIC_SCHEMA_VERSION,
+            result.confidence,
+            json.dumps(result.evidence),
+            input_tokens,
+            output_tokens,
+            estimated_cost,
+            actual_cost,
+            now,
+        ),
+    )
+    return int(cursor.lastrowid)

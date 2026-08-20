@@ -85,37 +85,12 @@ def evaluate_architecture(
     repository_id: int,
     snapshot_id: int,
     config: AnaxiGraphConfig,
+    files: list[dict[str, Any]],
+    symbols: list[dict[str, Any]],
+    relationship_evidence: list[dict[str, Any]],
     manage_finding_lifecycle: bool = True,
 ) -> list[Finding]:
-    files = [
-        dict(row)
-        for row in connection.execute(
-            """
-            SELECT fv.*, a.id AS artifact_id, a.artifact_type
-            FROM file_versions fv JOIN artifacts a ON a.id = fv.artifact_id
-            WHERE fv.snapshot_id = ?
-            """,
-            (snapshot_id,),
-        )
-    ]
-    symbols = [
-        dict(row)
-        for row in connection.execute(
-            """
-            SELECT s.*, fv.path, fv.artifact_id FROM symbols s
-            JOIN file_versions fv ON fv.id = s.artifact_version_id
-            WHERE fv.snapshot_id = ?
-            """,
-            (snapshot_id,),
-        )
-    ]
-    relationships = [
-        dict(row)
-        for row in connection.execute(
-            "SELECT * FROM relationships WHERE snapshot_id = ? AND target_artifact_id IS NOT NULL",
-            (snapshot_id,),
-        )
-    ]
+    relationships = [row for row in relationship_evidence if row["target_artifact_id"] is not None]
     file_by_id = {int(row["artifact_id"]): row for row in files}
     fan_out = Counter(int(row["source_artifact_id"]) for row in relationships)
     fan_in = Counter(int(row["target_artifact_id"]) for row in relationships)
@@ -146,6 +121,7 @@ def evaluate_architecture(
                 files=files,
                 symbols=symbols,
                 relationships=relationships,
+                relationship_evidence=relationship_evidence,
                 file_by_id=file_by_id,
                 fan_in=fan_in,
                 fan_out=fan_out,
@@ -183,11 +159,21 @@ def _evaluate_rule(
     files: list[dict[str, Any]],
     symbols: list[dict[str, Any]],
     relationships: list[dict[str, Any]],
+    relationship_evidence: list[dict[str, Any]],
     file_by_id: dict[int, dict[str, Any]],
     fan_in: Counter[int],
     fan_out: Counter[int],
     cycles: list[set[int]],
 ) -> list[Finding]:
+    if rule.rule_type == "dead_code":
+        return _dead_code_findings(
+            connection,
+            rule=rule,
+            repository_id=repository_id,
+            files=files,
+            fan_in=fan_in,
+            relationship_evidence=relationship_evidence,
+        )
     result: list[Finding] = []
     maximum = float(rule.params.get("max", 0) or 0)
     if rule.rule_type == "max_module_loc":
@@ -396,16 +382,6 @@ def _evaluate_rule(
                         action="Add behavior-focused tests around the unexercised decisions and boundaries.",
                     )
                 )
-    elif rule.rule_type == "dead_code":
-        result.extend(
-            _dead_code_findings(
-                connection,
-                rule=rule,
-                repository_id=repository_id,
-                files=files,
-                fan_in=fan_in,
-            )
-        )
     return result
 
 
@@ -416,21 +392,11 @@ def _dead_code_findings(
     repository_id: int,
     files: list[dict[str, Any]],
     fan_in: Counter[int],
+    relationship_evidence: list[dict[str, Any]],
 ) -> list[Finding]:
     if not files:
         return []
-    snapshot_id = int(files[0]["snapshot_id"])
-    relationship_rows = [
-        dict(row)
-        for row in connection.execute(
-            """
-            SELECT target_artifact_id, metadata_json
-            FROM relationships WHERE snapshot_id = ?
-            """,
-            (snapshot_id,),
-        )
-    ]
-    quality = relationship_quality(relationship_rows)
+    quality = relationship_quality(relationship_evidence)
     resolution_rate = quality["resolution_rate"]
     minimum_resolution = float(rule.params.get("minimum_resolution_rate", 0.95))
     if resolution_rate is None or resolution_rate < minimum_resolution:
@@ -438,7 +404,7 @@ def _dead_code_findings(
         # could not be resolved. Suppression is deliberately safer than a false deletion hint.
         return []
     possible_incoming: set[str] = set()
-    for row in relationship_rows:
+    for row in relationship_evidence:
         if resolution_status(row) != AMBIGUOUS_INTERNAL:
             continue
         possible_incoming.update(relationship_metadata(row).get("candidate_paths") or ())

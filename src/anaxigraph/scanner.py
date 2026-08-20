@@ -7,13 +7,13 @@ import hashlib
 import json
 import sqlite3
 import time
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
 
 from anaxigraph import __version__
 from anaxigraph.analyzers import AnalyzerRegistry, builtin_registry
-from anaxigraph.architecture import evaluate_architecture
 from anaxigraph.config import AnaxiGraphConfig, load_config
 from anaxigraph.coverage import collect_coverage
 from anaxigraph.history_discovery import (
@@ -35,7 +35,11 @@ from anaxigraph.models import (
     GitMetadata,
     ScanStats,
 )
-from anaxigraph.relationship_builder import RelationshipBuildResult, build_relationships
+from anaxigraph.scan_snapshot import (
+    RelationshipBuildResult,
+    build_snapshot_graph,
+    evaluate_snapshot_architecture,
+)
 from anaxigraph.storage import AnaxiIndex, utc_now
 from anaxigraph.understanding import SemanticEngine
 
@@ -141,7 +145,7 @@ class RepositoryScanner:
                             snapshot_id=existing_id,
                             artifacts_by_path=artifacts,
                         )
-                        evaluate_architecture(
+                        evaluate_snapshot_architecture(
                             connection,
                             repository_id=repository_id,
                             snapshot_id=existing_id,
@@ -211,11 +215,12 @@ class RepositoryScanner:
                     artifacts=artifacts,
                     config=config,
                 )
-                relationship_build = build_relationships(
+                relationship_build = build_snapshot_graph(
                     connection,
                     snapshot_id=snapshot_id,
                     prepared=prepared,
                     artifacts=artifacts,
+                    version_ids=version_ids,
                     config=config,
                 )
                 relationship_count = relationship_build.total
@@ -227,11 +232,6 @@ class RepositoryScanner:
                     artifacts=artifacts,
                     config=config,
                 )
-                self._insert_semantic_claims(
-                    connection,
-                    prepared=prepared,
-                    version_ids=version_ids,
-                )
                 self._ingest_git_history(connection, repository_id=repository_id, root=root)
                 coverage_count = 0
                 if revision is None:
@@ -242,7 +242,7 @@ class RepositoryScanner:
                         snapshot_id=snapshot_id,
                         artifacts_by_path=artifacts,
                     )
-                findings = evaluate_architecture(
+                findings = evaluate_snapshot_architecture(
                     connection,
                     repository_id=repository_id,
                     snapshot_id=snapshot_id,
@@ -273,6 +273,7 @@ class RepositoryScanner:
                     **_relationship_metadata(relationship_build),
                     coverage_measurements=coverage_count,
                     findings=len(findings),
+                    invalidation_reasons=_invalidation_counts(prepared),
                 ),
             )
             stats = ScanStats(
@@ -641,32 +642,6 @@ class RepositoryScanner:
                     (snapshot_id, artifacts[path], group_ids[key], confidence, evidence),
                 )
 
-    def _insert_semantic_claims(
-        self,
-        connection: sqlite3.Connection,
-        *,
-        prepared: list[PreparedFile],
-        version_ids: dict[str, int],
-    ) -> None:
-        for item in prepared:
-            version_id = version_ids[item.discovered.path]
-            if item.previous_version_id is not None and item.analysis_status in {
-                "raw_unchanged",
-                "metadata_only",
-            }:
-                connection.execute(
-                    """
-                    INSERT INTO semantic_claims(
-                        artifact_version_id, claim_type, value_json, source, provider, model,
-                        prompt_version, created_at, confidence, supporting_evidence_json
-                    )
-                    SELECT ?, claim_type, value_json, source, provider, model, prompt_version,
-                           created_at, confidence, supporting_evidence_json
-                    FROM semantic_claims WHERE artifact_version_id = ?
-                    """,
-                    (version_id, item.previous_version_id),
-                )
-
     def _ingest_git_history(
         self, connection: sqlite3.Connection, *, repository_id: int, root: Path
     ) -> None:
@@ -730,6 +705,10 @@ def _analysis_counts(prepared: list[PreparedFile]) -> tuple[int, int, int]:
         len(prepared) - analyzed,
         sum(bool(item.analysis.parse_error) for item in prepared),
     )
+
+
+def _invalidation_counts(prepared: list[PreparedFile]) -> dict[str, int]:
+    return dict(sorted(Counter(item.discovered.invalidation_reason for item in prepared).items()))
 
 
 def _relationship_metadata(result: RelationshipBuildResult) -> dict[str, int]:

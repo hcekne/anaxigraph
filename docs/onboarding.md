@@ -354,9 +354,10 @@ docker compose -f compose.anaxigraph.yml exec anaxigraph \
 ```
 
 The report validates database integrity, foreign keys, snapshot ancestry, exact parity between the
-temporary compatibility frames and schema-7 immutable facts, plus the checksum of any schema-6
-recovery backup. Its compaction assessment is fail-closed: it lists every blocker and never removes
-compatibility rows while a product or semantic read path still depends on them.
+temporary compatibility frames and immutable facts, schema-8 semantic-fact provenance, plus the
+checksum of any schema-6 recovery backup. Its compaction assessment is fail-closed: it lists every
+blocker and never removes compatibility rows while a product or semantic read path still depends
+on them.
 
 ## Keep the index current
 

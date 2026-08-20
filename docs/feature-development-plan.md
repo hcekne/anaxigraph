@@ -762,7 +762,7 @@ unbounded process cache.
 
 # Phase 1b — immutable facts and snapshot deltas
 
-**Status:** ACTIVE — 1b.2 BOUNDED RECONSTRUCTION NEXT
+**Status:** ACTIVE — COMPLETE EXIT GATE NEXT
 
 **Goal:** make stored facts scale with distinct versions and relationship contexts rather than with
 selected frames multiplied by repository size.
@@ -882,6 +882,16 @@ seven and four deltas respectively, while the oldest used its checkpoint directl
 the 16-delta and published latency ceilings. The benchmark report now records these read targets,
 checkpoint identities, traversal depth, reconstruction duration, returned rows, and checkpoint
 storage counts.
+
+**Semantic, finding, and history compatibility is complete on 20 August 2026.** Schema 8 gives
+module-scoped claims, dossiers, jobs, and scope states a direct immutable `file_fact_id` while
+retaining the compatibility reference for the final compaction window. Migration backfills those
+references from exact reconstructed frames. Semantic work planning and evidence, module/detail
+claims, deterministic architecture findings, and history invalidation telemetry now consume
+canonical facts or durable run records rather than duplicated frame rows. Tests prove identical
+semantic evidence and work hashes across checkpoint deletion/rebuild, stable fact identity through
+lease retry, exact schema-7-to-8 provenance backfill, and unchanged finding behavior. `doctor`
+fails closed when any module-scoped semantic record lacks its canonical fact reference.
 
 ## 1b.3 Decompose the temporal implementation while changing it
 
@@ -1814,8 +1824,8 @@ queue and the document cannot drift apart.
 | 18 | **COMPLETE** — Introduce immutable file/symbol facts, relationship sets, and snapshot delta tables behind the index abstraction | §1b.1 |
 | 19 | **COMPLETE** — Migrate a copied schema-6 index transactionally, validate it, preserve backup recovery, and expose `doctor`/compaction reporting | §1b.1 |
 | 20 | **COMPLETE** — Route snapshot reads through bounded reconstruction with disposable checkpoints and measured read amplification | §1b.2 |
-| 21 | **IN PROGRESS** — Prove semantic/finding/history compatibility and unchanged canonical results across migration, retry, and checkpoint rebuild | §1b.1–1b.2 |
-| 22 | Run and record the complete Phase 1b storage, migration, read-latency, and quality exit gate before onboarding work begins | Phase 1b gate |
+| 21 | **COMPLETE** — Prove semantic/finding/history compatibility and unchanged canonical results across migration, retry, and checkpoint rebuild | §1b.1–1b.2 |
+| 22 | **IN PROGRESS** — Run and record the complete Phase 1b storage, migration, read-latency, and quality exit gate before onboarding work begins | Phase 1b gate |
 
 Items 9 and 10 are the user-visible Phase 0 changes. The completed 0.1.0 publication is the narrow,
 recorded exception described in §0.6; the work that remains in these queue items is restricted to

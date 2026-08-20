@@ -9,6 +9,7 @@ from anaxigraph.architecture import _dead_code_findings
 from anaxigraph.config import RuleConfig
 from anaxigraph.ir import analysis_from_stored
 from anaxigraph.ir_conformance import validate_analysis
+from anaxigraph.persistence.architecture_evidence import architecture_evidence
 from anaxigraph.scanner import RepositoryScanner
 
 
@@ -149,51 +150,34 @@ def test_dead_code_advice_is_suppressed_when_relationship_resolution_is_weak(rep
             "WHERE repository_id = ? AND path = 'pkg/orphan.py'",
             (stats.repository_id,),
         )
-        files = [
-            dict(row)
-            for row in connection.execute(
-                """
-                SELECT fv.*, a.id AS artifact_id, a.artifact_type
-                FROM file_versions fv JOIN artifacts a ON a.id = fv.artifact_id
-                WHERE fv.snapshot_id = ?
-                """,
-                (stats.snapshot_id,),
-            )
-        ]
-        internal = [
-            dict(row)
-            for row in connection.execute(
-                "SELECT * FROM relationships WHERE snapshot_id = ? "
-                "AND target_artifact_id IS NOT NULL",
-                (stats.snapshot_id,),
-            )
-        ]
+        files, _symbols, relationships = architecture_evidence(connection, stats.snapshot_id)
+        internal = [item for item in relationships if item["target_artifact_id"] is not None]
         fan_in = Counter(int(row["target_artifact_id"]) for row in internal)
-        connection.execute(
-            "UPDATE relationships SET metadata_json = "
-            '\'{"resolution_status":"unresolved_internal"}\' WHERE snapshot_id = ?',
-            (stats.snapshot_id,),
-        )
+        unresolved = [
+            item | {"metadata_json": '{"resolution_status":"unresolved_internal"}'}
+            for item in relationships
+        ]
         suppressed = _dead_code_findings(
             connection,
             rule=rule,
             repository_id=stats.repository_id,
             files=files,
             fan_in=fan_in,
+            relationship_evidence=unresolved,
         )
         assert not any(item.affected_artifacts == ("pkg/orphan.py",) for item in suppressed)
 
-        connection.execute(
-            "UPDATE relationships SET metadata_json = "
-            '\'{"resolution_status":"resolved_internal"}\' WHERE snapshot_id = ?',
-            (stats.snapshot_id,),
-        )
+        resolved = [
+            item | {"metadata_json": '{"resolution_status":"resolved_internal"}'}
+            for item in relationships
+        ]
         trusted = _dead_code_findings(
             connection,
             rule=rule,
             repository_id=stats.repository_id,
             files=files,
             fan_in=fan_in,
+            relationship_evidence=resolved,
         )
         assert any(item.affected_artifacts == ("pkg/orphan.py",) for item in trusted)
 

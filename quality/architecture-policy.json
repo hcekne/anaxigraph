@@ -46,6 +46,7 @@
         "anaxigraph.history_jobs",
         "anaxigraph.onboarding",
         "anaxigraph.relationship_builder",
+        "anaxigraph.scan_snapshot",
         "anaxigraph.scanner",
         "anaxigraph.semantic_agent",
         "anaxigraph.semantic_agent_protocol",

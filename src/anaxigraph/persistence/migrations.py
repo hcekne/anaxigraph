@@ -5,11 +5,14 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Callable
 
+from anaxigraph.persistence.semantic_fact_references import (
+    backfill_semantic_fact_references,
+)
 from anaxigraph.persistence.temporal_facts import migrate_legacy_temporal_facts
 from anaxigraph.persistence.temporal_reconstruction import ensure_checkpoint_policy
 from anaxigraph.persistence.temporal_schema import install_temporal_schema
 
-SUPPORTED_SCHEMA_VERSIONS = frozenset({2, 6, 7})
+SUPPORTED_SCHEMA_VERSIONS = frozenset({2, 6, 7, 8})
 
 
 def migrate_schema(
@@ -21,6 +24,20 @@ def migrate_schema(
     """Bring a fresh or explicitly supported schema to the current version."""
 
     validate_schema_version(current_version, target_version)
+    _ensure_legacy_columns(connection)
+    install_temporal_schema(connection)
+    _ensure_semantic_fact_schema(connection)
+    if current_version not in {7, 8}:
+        migrate_legacy_temporal_facts(connection)
+    ensure_checkpoint_policy(connection)
+    backfill_semantic_fact_references(connection)
+    connection.execute(
+        "INSERT OR REPLACE INTO schema_meta(key, value) VALUES ('schema_version', ?)",
+        (str(target_version),),
+    )
+
+
+def _ensure_legacy_columns(connection: sqlite3.Connection) -> None:
     _ensure_columns(
         connection,
         "repositories",
@@ -51,14 +68,21 @@ def migrate_schema(
         "semantic_claims",
         {"executor_id": "TEXT", "executor_model": "TEXT"},
     )
-    install_temporal_schema(connection)
-    if current_version != target_version:
-        migrate_legacy_temporal_facts(connection)
-    ensure_checkpoint_policy(connection)
-    connection.execute(
-        "INSERT OR REPLACE INTO schema_meta(key, value) VALUES ('schema_version', ?)",
-        (str(target_version),),
-    )
+
+
+def _ensure_semantic_fact_schema(connection: sqlite3.Connection) -> None:
+    for table in (
+        "semantic_claims",
+        "semantic_documents",
+        "semantic_jobs",
+        "semantic_scope_states",
+    ):
+        _ensure_columns(
+            connection,
+            table,
+            {"file_fact_id": "INTEGER REFERENCES file_facts(id) ON DELETE CASCADE"},
+        )
+    _ensure_semantic_fact_indexes(connection)
 
 
 def transactional_schema_change(
@@ -103,3 +127,16 @@ def _ensure_columns(
     for name, definition in definitions.items():
         if name not in existing:
             connection.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
+
+
+def _ensure_semantic_fact_indexes(connection: sqlite3.Connection) -> None:
+    for statement in (
+        "CREATE INDEX IF NOT EXISTS idx_semantic_claims_fact "
+        "ON semantic_claims(file_fact_id, claim_type)",
+        "CREATE INDEX IF NOT EXISTS idx_semantic_documents_fact "
+        "ON semantic_documents(file_fact_id)",
+        "CREATE INDEX IF NOT EXISTS idx_semantic_jobs_fact ON semantic_jobs(file_fact_id)",
+        "CREATE INDEX IF NOT EXISTS idx_semantic_states_fact "
+        "ON semantic_scope_states(file_fact_id)",
+    ):
+        connection.execute(statement)

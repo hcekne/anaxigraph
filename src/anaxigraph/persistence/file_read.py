@@ -22,8 +22,7 @@ def read_file_details(
     if version is None:
         return None
     rows = _module_rows(connection, repository_id, path, version)
-    artifact_id = int(version["artifact_id"])
-    claims = _legacy_claims(connection, snapshot_id, artifact_id)
+    claims = _claims(connection, int(version["id"]))
     semantic_state, semantic_documents = _semantic_details(connection, snapshot_id, path)
     return {
         "file": _decode_file(dict(version)),
@@ -95,20 +94,13 @@ def _module_rows(
     }
 
 
-def _legacy_claims(
+def _claims(
     connection: sqlite3.Connection,
-    snapshot_id: int,
-    artifact_id: int,
+    file_fact_id: int,
 ) -> list[sqlite3.Row]:
-    version = connection.execute(
-        "SELECT id FROM file_versions WHERE snapshot_id = ? AND artifact_id = ?",
-        (snapshot_id, artifact_id),
-    ).fetchone()
-    if version is None:
-        return []
     return connection.execute(
-        "SELECT * FROM semantic_claims WHERE artifact_version_id = ?",
-        (version["id"],),
+        "SELECT * FROM semantic_claims WHERE file_fact_id = ?",
+        (file_fact_id,),
     ).fetchall()
 
 

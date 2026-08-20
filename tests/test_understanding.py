@@ -10,9 +10,12 @@ import yaml
 
 from anaxigraph.agent import agent_scope
 from anaxigraph.config import SemanticConfig, load_config
+from anaxigraph.persistence import rebuild_checkpoints
+from anaxigraph.persistence.semantic_evidence import semantic_inventory
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic import SemanticResult
 from anaxigraph.semantic_graph import _intent_fingerprint
+from anaxigraph.storage import AnaxiIndex
 from anaxigraph.understanding import SemanticEngine
 
 
@@ -227,8 +230,9 @@ def test_expired_worker_lease_is_requeued_and_resumed(repository, database, tmp_
 
     with database.transaction() as connection:
         job = connection.execute(
-            "SELECT id FROM semantic_jobs ORDER BY priority DESC, id LIMIT 1"
+            "SELECT id, file_fact_id FROM semantic_jobs ORDER BY priority DESC, id LIMIT 1"
         ).fetchone()
+        assert job["file_fact_id"] is not None
         connection.execute(
             """
             UPDATE semantic_jobs SET status = 'running', attempts = 1,
@@ -243,13 +247,15 @@ def test_expired_worker_lease_is_requeued_and_resumed(repository, database, tmp_
     assert recovered.active_jobs == plan.active_jobs
     with database.connect() as connection:
         row = connection.execute(
-            "SELECT status, worker_id, lease_expires_at, error FROM semantic_jobs WHERE id = ?",
+            "SELECT status, worker_id, lease_expires_at, error, file_fact_id "
+            "FROM semantic_jobs WHERE id = ?",
             (job["id"],),
         ).fetchone()
     assert row["status"] == "retry"
     assert row["worker_id"] is None
     assert row["lease_expires_at"] is None
     assert "lease expired" in row["error"]
+    assert row["file_fact_id"] == job["file_fact_id"]
     assert (
         engine.bootstrap(stats.repository_id, repository, config)["semantic"]["semantically_ready"]
         is True
@@ -516,6 +522,109 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
         dossier=last_dossier,
     )
     assert repeated["status"] == "already_completed"
+
+
+def test_semantic_evidence_and_work_identity_survive_checkpoint_rebuild(repository, database):
+    policy = yaml.safe_load((repository / ".anaxigraph.yml").read_text(encoding="utf-8"))
+    policy["semantic"] = {"enabled": True, "provider": "agent"}
+    (repository / ".anaxigraph.yml").write_text(
+        yaml.safe_dump(policy, sort_keys=False), encoding="utf-8"
+    )
+    config = load_config(repository)
+    stats = RepositoryScanner(database).scan(repository)
+    engine = SemanticEngine(database)
+    with database.connect() as connection:
+        evidence_before = semantic_inventory(connection, stats.snapshot_id)
+        jobs_before = [
+            tuple(row)
+            for row in connection.execute(
+                "SELECT scope_key, input_hash, artifact_id, file_fact_id, status "
+                "FROM semantic_jobs ORDER BY id"
+            )
+        ]
+        assert jobs_before and all(row[3] is not None for row in jobs_before if row[2] is not None)
+
+    with database.transaction() as connection:
+        connection.execute("DELETE FROM snapshot_checkpoints")
+        rebuilt = rebuild_checkpoints(connection)
+    assert rebuilt["checkpoints"] >= 1
+
+    engine.plan(stats.repository_id, repository, config)
+    with database.connect() as connection:
+        evidence_after = semantic_inventory(connection, stats.snapshot_id)
+        jobs_after = [
+            tuple(row)
+            for row in connection.execute(
+                "SELECT scope_key, input_hash, artifact_id, file_fact_id, status "
+                "FROM semantic_jobs ORDER BY id"
+            )
+        ]
+    assert evidence_after == evidence_before
+    assert jobs_after == jobs_before
+
+
+def test_schema_eight_backfills_exact_semantic_fact_references(repository, database):
+    policy = yaml.safe_load((repository / ".anaxigraph.yml").read_text(encoding="utf-8"))
+    policy["semantic"] = {"enabled": True, "provider": "agent"}
+    (repository / ".anaxigraph.yml").write_text(
+        yaml.safe_dump(policy, sort_keys=False), encoding="utf-8"
+    )
+    config = load_config(repository)
+    stats = RepositoryScanner(database).scan(repository)
+    engine = SemanticEngine(database)
+    packet = engine.claim_agent_work(
+        stats.repository_id,
+        repository,
+        config,
+        agent_id="migration-test",
+    )
+    engine.submit_agent_work(
+        stats.repository_id,
+        repository,
+        config,
+        job_id=packet["job"]["id"],
+        lease_token=packet["lease"]["token"],
+        dossier=_agent_dossier(packet["analysis_request"]),
+    )
+
+    with database.transaction() as connection:
+        expected = _semantic_fact_references(connection)
+        assert all(value is not None for values in expected.values() for value in values)
+        for table in (
+            "semantic_claims",
+            "semantic_documents",
+            "semantic_jobs",
+            "semantic_scope_states",
+        ):
+            connection.execute(f"UPDATE {table} SET file_fact_id = NULL")
+        connection.execute("UPDATE schema_meta SET value = '7' WHERE key = 'schema_version'")
+
+    reopened = AnaxiIndex(database.path)
+    with reopened.connect() as connection:
+        assert _semantic_fact_references(connection) == expected
+
+
+def _semantic_fact_references(connection) -> dict[str, list[int | None]]:
+    return {
+        table: [
+            row["file_fact_id"]
+            for row in connection.execute(
+                f"SELECT file_fact_id FROM {table} "
+                + ("" if table == "semantic_claims" else "WHERE artifact_id IS NOT NULL ")
+                + (
+                    "ORDER BY id"
+                    if table != "semantic_scope_states"
+                    else "ORDER BY snapshot_id, scope_type, scope_key"
+                )
+            )
+        ]
+        for table in (
+            "semantic_claims",
+            "semantic_documents",
+            "semantic_jobs",
+            "semantic_scope_states",
+        )
+    }
 
 
 def test_agent_semantic_writeback_rejects_bad_tokens_and_invalid_dossiers(repository, database):
