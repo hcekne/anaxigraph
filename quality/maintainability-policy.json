@@ -72,17 +72,7 @@
     "src/anaxigraph/semantic_runner.py::SemanticRunnerMixin._claim_job": [99, 12],
     "src/anaxigraph/semantic_scope_plan.py::SemanticScopePlanningMixin.plan": [109, 7],
     "src/anaxigraph/semantic_scope_plan.py::SemanticScopePlanningMixin._plan_groups": [115, 19],
-    "src/anaxigraph/semantic_scope_plan.py::SemanticScopePlanningMixin._plan_repository": [101, 11],
-    "src/anaxigraph/storage.py::AnaxiIndex.timeline_snapshots": [70, 17],
-    "src/anaxigraph/storage.py::AnaxiIndex.overview": [107, 10],
-    "src/anaxigraph/storage.py::AnaxiIndex.group_hierarchy": [147, 32],
-    "src/anaxigraph/storage.py::AnaxiIndex.modules": [192, 30],
-    "src/anaxigraph/storage.py::AnaxiIndex.graph": [103, 13],
-    "src/anaxigraph/storage.py::AnaxiIndex.file_details": [94, 15],
-    "src/anaxigraph/storage.py::AnaxiIndex.search": [81, 19],
-    "src/anaxigraph/storage.py::AnaxiIndex.findings": [69, 6],
-    "src/anaxigraph/storage.py::_module_evaluation": [89, 20],
-    "src/anaxigraph/storage.py::_finding_priority": [58, 28]
+    "src/anaxigraph/semantic_scope_plan.py::SemanticScopePlanningMixin._plan_repository": [101, 11]
   },
   "legacy_coupling": {
     "anaxigraph.api": [1, 11],

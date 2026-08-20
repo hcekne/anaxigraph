@@ -174,6 +174,9 @@ def _store_metrics(database: AnaxiIndex) -> dict[str, Any]:
             "relationship_sets",
             "relationship_edges",
             "snapshot_relationship_changes",
+            "snapshot_checkpoints",
+            "checkpoint_files",
+            "checkpoint_relationships",
         )
         rows = {
             table: int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
@@ -200,6 +203,9 @@ def _store_metrics(database: AnaxiIndex) -> dict[str, Any]:
             "relationship_sets": rows["relationship_sets"],
             "relationship_edges": rows["relationship_edges"],
             "relationship_delta_rows": rows["snapshot_relationship_changes"],
+            "checkpoints": rows["snapshot_checkpoints"],
+            "checkpoint_file_references": rows["checkpoint_files"],
+            "checkpoint_relationship_references": rows["checkpoint_relationships"],
         }
     return {
         "schema_version": SCHEMA_VERSION,

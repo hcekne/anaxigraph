@@ -28,14 +28,6 @@
       "expires_on": "2027-03-31"
     },
     {
-      "path": "src/anaxigraph/storage.py",
-      "baseline_lines": 1742,
-      "rationale": "Legacy index facade combines schema, repositories, queries, findings, and read models.",
-      "owner": "maintainers",
-      "removal_phase": "Phase 1b",
-      "expires_on": "2026-12-31"
-    },
-    {
       "path": "src/anaxigraph/scanner.py",
       "baseline_lines": 822,
       "rationale": "Legacy scanner combines discovery, preparation, resolution, persistence, and orchestration.",

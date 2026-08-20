@@ -18,6 +18,7 @@ from benchmarks.repository_factory import (
     DEFAULT_SEED,
     create_history_repository,
 )
+from benchmarks.runtime_metrics import api_metrics
 
 
 def _revisions(root: Path) -> list[str]:
@@ -99,6 +100,7 @@ def test_history_fixture_has_exact_versions_and_agent_scope(tmp_path):
         config=load_config(repository),
     )
     primary = {item["path"] for item in scope["primary_files"]}
+    graph_metrics = api_metrics(database, repository)
 
     assert snapshots == 8
     assert latest_files == manifest["final_files"]
@@ -109,6 +111,10 @@ def test_history_fixture_has_exact_versions_and_agent_scope(tmp_path):
     assert 0 < relationship_sets < relationships
     assert ambiguous >= 1
     assert len(primary.intersection(manifest["scope_expected_candidates"])) >= 6
+    assert set(graph_metrics["temporal_reads"]) == {"current", "oldest", "middle"}
+    for measurement in graph_metrics["temporal_reads"].values():
+        assert measurement["reconstruction"]["files"]["traversed_deltas"] < 16
+        assert measurement["reconstruction"]["relationships"]["traversed_deltas"] < 16
 
 
 def test_mixed_language_fixture_records_analyzer_depth():

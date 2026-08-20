@@ -20,6 +20,9 @@ RESOLUTION_STATUSES = frozenset(
 def relationship_metadata(row: Mapping[str, Any]) -> dict[str, Any]:
     """Decode relationship metadata while remaining compatible with older indexes."""
 
+    cached = row.get("metadata")
+    if isinstance(cached, dict):
+        return dict(cached)
     raw = row.get("metadata_json", "{}")
     if isinstance(raw, dict):
         return dict(raw)
@@ -33,6 +36,9 @@ def relationship_metadata(row: Mapping[str, Any]) -> dict[str, Any]:
 def resolution_status(row: Mapping[str, Any]) -> str:
     """Return explicit provenance, inferring a safe legacy value when necessary."""
 
+    direct = row.get("resolution_status")
+    if direct in RESOLUTION_STATUSES:
+        return str(direct)
     status = relationship_metadata(row).get("resolution_status")
     if status in RESOLUTION_STATUSES:
         return str(status)

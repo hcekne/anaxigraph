@@ -72,20 +72,60 @@ def measure(function: Callable[[], Any]) -> tuple[Any, dict[str, int]]:
 
 def api_metrics(database: AnaxiIndex, repository: Path) -> dict[str, Any]:
     app = create_app(database=database, repository=repository, enable_mcp=False)
-    durations: list[float] = []
+    targets = _graph_targets(database)
     with TestClient(app) as client:
-        for _ in range(4):
-            started = time.perf_counter()
-            response = client.get("/api/graph")
-            response.raise_for_status()
-            durations.append((time.perf_counter() - started) * 1_000)
-        payload = response.json()
+        measurements = {
+            name: _graph_request_metrics(client, snapshot_id)
+            for name, snapshot_id in targets.items()
+        }
+    current = measurements["current"]
     return {
-        "graph_payload_bytes": len(response.content),
-        "graph_nodes": len(payload["nodes"]),
-        "graph_edges": len(payload["edges"]),
+        "graph_payload_bytes": current["payload_bytes"],
+        "graph_nodes": current["nodes"],
+        "graph_edges": current["edges"],
+        "cold_request_ms": current["cold_request_ms"],
+        "warm_request_median_ms": current["warm_request_median_ms"],
+        "reconstruction": current["reconstruction"],
+        "temporal_reads": measurements,
+    }
+
+
+def _graph_targets(database: AnaxiIndex) -> dict[str, int | None]:
+    with database.connect() as connection:
+        rows = connection.execute(
+            "SELECT id FROM snapshots ORDER BY repository_id, sequence, id"
+        ).fetchall()
+        current = connection.execute(
+            "SELECT current_snapshot_id FROM repositories ORDER BY id LIMIT 1"
+        ).fetchone()
+    snapshot_ids = [int(row["id"]) for row in rows]
+    current_id = int(current[0]) if current and current[0] is not None else None
+    if not snapshot_ids:
+        return {"current": None, "oldest": None, "middle": None}
+    return {
+        "current": current_id or snapshot_ids[-1],
+        "oldest": snapshot_ids[0],
+        "middle": snapshot_ids[len(snapshot_ids) // 2],
+    }
+
+
+def _graph_request_metrics(client: TestClient, snapshot_id: int | None) -> dict[str, Any]:
+    durations: list[float] = []
+    params = {"snapshot_id": snapshot_id} if snapshot_id is not None else None
+    for _ in range(4):
+        started = time.perf_counter()
+        response = client.get("/api/graph", params=params)
+        response.raise_for_status()
+        durations.append((time.perf_counter() - started) * 1_000)
+    payload = response.json()
+    return {
+        "snapshot_id": snapshot_id,
+        "payload_bytes": len(response.content),
+        "nodes": len(payload["nodes"]),
+        "edges": len(payload["edges"]),
         "cold_request_ms": round(durations[0], 2),
         "warm_request_median_ms": round(statistics.median(durations[1:]), 2),
+        "reconstruction": payload.get("reconstruction"),
     }
 
 

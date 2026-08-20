@@ -6,8 +6,11 @@ import sqlite3
 from typing import Any
 
 from anaxigraph.persistence.temporal_reconstruction import (
+    ReconstructionDiagnostics,
     reconstruct_files,
+    reconstruct_files_with_diagnostics,
     reconstruct_relationships,
+    reconstruct_relationships_with_diagnostics,
 )
 
 SQLITE_BATCH = 800
@@ -20,6 +23,24 @@ def snapshot_files(
     """Reconstruct complete file records for one snapshot."""
 
     placements = reconstruct_files(connection, snapshot_id)
+    return _files_for_placements(connection, snapshot_id, placements)
+
+
+def snapshot_files_with_diagnostics(
+    connection: sqlite3.Connection,
+    snapshot_id: int,
+) -> tuple[list[dict[str, Any]], ReconstructionDiagnostics]:
+    """Reconstruct files and expose the bounded-read evidence."""
+
+    placements, diagnostics = reconstruct_files_with_diagnostics(connection, snapshot_id)
+    return _files_for_placements(connection, snapshot_id, placements), diagnostics
+
+
+def _files_for_placements(
+    connection: sqlite3.Connection,
+    snapshot_id: int,
+    placements: dict[int, dict[str, Any]],
+) -> list[dict[str, Any]]:
     facts = {
         int(row["id"]): row
         for row in _rows_for_ids(
@@ -62,6 +83,15 @@ def snapshot_symbols(
     """Reconstruct symbols attached to the frame's immutable file facts."""
 
     files = snapshot_files(connection, snapshot_id)
+    return symbols_for_files(connection, files)
+
+
+def symbols_for_files(
+    connection: sqlite3.Connection,
+    files: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Load immutable symbols for already-reconstructed files."""
+
     by_fact = {int(file["file_fact_id"]): file for file in files}
     rows = _rows_for_ids(
         connection,
@@ -93,6 +123,23 @@ def snapshot_relationship_edges(
     """Reconstruct every relationship edge active in one snapshot."""
 
     relationships = reconstruct_relationships(connection, snapshot_id)
+    return _edges_for_relationships(connection, relationships)
+
+
+def snapshot_relationship_edges_with_diagnostics(
+    connection: sqlite3.Connection,
+    snapshot_id: int,
+) -> tuple[list[dict[str, Any]], ReconstructionDiagnostics]:
+    """Reconstruct edges and expose the bounded-read evidence."""
+
+    relationships, diagnostics = reconstruct_relationships_with_diagnostics(connection, snapshot_id)
+    return _edges_for_relationships(connection, relationships), diagnostics
+
+
+def _edges_for_relationships(
+    connection: sqlite3.Connection,
+    relationships: dict[int, int],
+) -> list[dict[str, Any]]:
     by_set = {
         relationship_set_id: source_id for source_id, relationship_set_id in relationships.items()
     }

@@ -98,7 +98,7 @@ regression thresholds.
 | Graph delivery | `/api/graph` can return the full graph in one response | Fine for small loopback use, unsafe for large/team deployments |
 | Authentication | No API or MCP authentication | Acceptable only for loopback sidecar mode |
 | Installation | A tested `anaxigraph` 0.1.0 wheel and source distribution are public on PyPI; generated Compose, MCP connection, semantic enablement, and agent bootstrap still require separate actions | The distribution-name and package-availability barriers are removed, but there are still too many steps between curiosity and full value |
-| Internal module size | Eight first-party implementation modules exceed 500 physical lines | AnaxiGraph is accumulating the same complexity it exists to expose |
+| Internal module size | Seven first-party implementation modules exceed 500 physical lines; `storage.py` is now a 398-line facade with no size exception | The Phase 1b storage boundary is clean; scanner decomposition remains part of the Phase 1b exit gate |
 
 The current oversized implementation modules are:
 
@@ -868,8 +868,20 @@ Every reconstruction reports traversed deltas, checkpoint identity, duration, an
 Fresh, migrated, and previously-created schema-7 indexes adopt the versioned checkpoint policy
 idempotently; `doctor` verifies cache counts and hashes against canonical reconstruction. A
 33-commit regression proves that user reads remain below the 16-delta cap and that deleting and
-rebuilding every checkpoint leaves files, edges, and state hashes unchanged. Item 20 remains active
-until all product read models use this path and the benchmark records their amplification.
+rebuilding every checkpoint leaves files, edges, and state hashes unchanged.
+
+**Bounded product reads are complete on 20 August 2026.** Snapshot catalog, timeline, overview,
+group hierarchy, module ledger, graph, module detail, search, and finding-priority reads now consume
+canonical reconstruction through cohesive persistence read models. The compatibility schema moved
+out of `storage.py`; its public `AnaxiIndex` facade is 398 lines and its Phase 1b size exception is
+removed. A four-entry process-local graph cache is invalidated after every index transaction and is
+only an acceleration of immutable snapshot results. On the binding 3,000-file/eight-frame fixture,
+current graph delivery measured 98.76 ms cold and 19.38 ms warm median, the middle frame measured
+13.70 ms warm, and the oldest frame measured 14.25 ms warm. The current and middle reads traversed
+seven and four deltas respectively, while the oldest used its checkpoint directly; all are beneath
+the 16-delta and published latency ceilings. The benchmark report now records these read targets,
+checkpoint identities, traversal depth, reconstruction duration, returned rows, and checkpoint
+storage counts.
 
 ## 1b.3 Decompose the temporal implementation while changing it
 
@@ -1801,8 +1813,8 @@ queue and the document cannot drift apart.
 | 17 | **COMPLETE** — Characterize schema-6 migration rollback/backup behavior and freeze canonical frame reconstruction fixtures | §1b.1 |
 | 18 | **COMPLETE** — Introduce immutable file/symbol facts, relationship sets, and snapshot delta tables behind the index abstraction | §1b.1 |
 | 19 | **COMPLETE** — Migrate a copied schema-6 index transactionally, validate it, preserve backup recovery, and expose `doctor`/compaction reporting | §1b.1 |
-| 20 | **IN PROGRESS** — Route snapshot reads through bounded reconstruction with disposable checkpoints and measured read amplification | §1b.2 |
-| 21 | Prove semantic/finding/history compatibility and unchanged canonical results across migration, retry, and checkpoint rebuild | §1b.1–1b.2 |
+| 20 | **COMPLETE** — Route snapshot reads through bounded reconstruction with disposable checkpoints and measured read amplification | §1b.2 |
+| 21 | **IN PROGRESS** — Prove semantic/finding/history compatibility and unchanged canonical results across migration, retry, and checkpoint rebuild | §1b.1–1b.2 |
 | 22 | Run and record the complete Phase 1b storage, migration, read-latency, and quality exit gate before onboarding work begins | Phase 1b gate |
 
 Items 9 and 10 are the user-visible Phase 0 changes. The completed 0.1.0 publication is the narrow,
