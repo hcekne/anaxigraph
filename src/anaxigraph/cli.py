@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import subprocess
 import sys
 import time
 import webbrowser
@@ -15,11 +14,10 @@ from typing import Any
 import uvicorn
 
 import anaxigraph.registry as repository_registry
+from anaxigraph import cli_workflows
 from anaxigraph.agent import agent_scope, branch_collisions, impact_analysis
 from anaxigraph.api import create_app
 from anaxigraph.config import load_config
-from anaxigraph.history import import_git_history
-from anaxigraph.onboarding import initialize_repository
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.storage import AnaxiIndex
 from anaxigraph.understanding import SemanticEngine
@@ -94,7 +92,7 @@ def _parser() -> argparse.ArgumentParser:
         help="Start the generated Docker Compose service after writing it",
     )
     initialize.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
-    initialize.set_defaults(handler=_initialize)
+    initialize.set_defaults(handler=cli_workflows.initialize)
 
     scan = commands.add_parser("scan", help="Build a complete current repository map")
     _repository_arguments(scan)
@@ -158,19 +156,7 @@ def _parser() -> argparse.ArgumentParser:
 
     history = commands.add_parser("history", help="Build temporal snapshots from Git commits")
     _repository_arguments(history)
-    history.add_argument(
-        "--limit",
-        type=repository_registry.parse_history_snapshots,
-        default="auto",
-        help="Representative first-parent frames: auto or 1 to 2000 (default: auto)",
-    )
-    history.add_argument(
-        "--all",
-        action="store_true",
-        help="Analyze every first-parent commit instead of lifetime sampling",
-    )
-    history.add_argument("--since", help="Git date expression, for example '3 months ago'")
-    history.set_defaults(handler=_history)
+    cli_workflows.configure_history(history)
 
     watch = commands.add_parser("watch", help="Poll for changes and update incrementally")
     _repository_arguments(watch)
@@ -268,62 +254,6 @@ def _serve_arguments(parser: argparse.ArgumentParser) -> None:
         help="Allowed MCP Host header (repeatable, supports :*)",
     )
     parser.add_argument("--open", action="store_true", help="Open the dashboard in a browser")
-
-
-def _initialize(args: argparse.Namespace) -> dict[str, Any] | None:
-    if args.start and args.dry_run:
-        raise ValueError("--start cannot be combined with --dry-run")
-    if args.start and args.no_compose:
-        raise ValueError("--start requires a generated Compose file")
-    result = initialize_repository(
-        args.repository,
-        project_name=args.project_name,
-        config_name=args.config_name,
-        compose_name=None if args.no_compose else args.compose_name,
-        image=args.image,
-        port=args.port,
-        history_snapshots=args.history_snapshots,
-        force=args.force,
-        dry_run=args.dry_run,
-    )
-    if args.start:
-        started = subprocess.run(
-            ["docker", "compose", "-f", args.compose_name, "up", "-d"],
-            cwd=result["repository"],
-            check=False,
-        )
-        if started.returncode:
-            raise RuntimeError(
-                f"Docker Compose exited with status {started.returncode}; generated files were kept"
-            )
-        result["status"] = "started"
-    if args.json:
-        return result
-
-    verb = "Plan for" if args.dry_run else "AnaxiGraph setup for"
-    print(f"{verb} {result['project_name']}")
-    print(f"Repository: {result['repository']}")
-    print()
-    for item in result["files"]:
-        label = item["action"].replace("_", " ")
-        print(f"  {label:15} {Path(item['path']).name} · {item['purpose']}")
-    detected = result["detected"]
-    groups = ", ".join(detected["groups"]) or "no obvious top-level areas"
-    print(f"\nDetected areas: {groups}")
-    if detected["architecture_policy"]:
-        print(f"Architecture policy: {detected['architecture_policy']}")
-    print("\nNext steps")
-    if result["commands"]["start"]:
-        print(f"  1. Start:   {result['commands']['start']}")
-        print(f"  2. Open:    {result['dashboard_url']}")
-        print(f"  3. Codex:   {result['commands']['connect_codex']}")
-        print("\nThe repository is mounted read-only; AnaxiIndex persists in a Docker volume.")
-    else:
-        print(f"  1. Start:   {result['commands']['local']}")
-        print(f"  2. Codex:   {result['commands']['connect_codex']}")
-    if args.start:
-        print(f"\nContainer started. Open {result['dashboard_url']}")
-    return None
 
 
 def _scan(args: argparse.Namespace) -> dict[str, Any]:
@@ -474,26 +404,6 @@ def _review(args: argparse.Namespace) -> dict[str, Any]:
         "scan": stats.as_dict(),
         "findings": database.findings(stats.repository_id, statuses=statuses),
     }
-
-
-def _history(args: argparse.Namespace) -> dict[str, Any]:
-    if args.limit < 1:
-        raise ValueError("History limit must be at least one")
-
-    def progress(index: int, total: int, commit_sha: str) -> None:
-        if not args.json:
-            print(f"[{index}/{total}] {commit_sha[:12]}", file=sys.stderr)
-
-    result = import_git_history(
-        AnaxiIndex(args.db),
-        args.repository,
-        config_path=args.config,
-        max_snapshots=args.limit,
-        every_commit=args.all,
-        since=args.since,
-        progress=progress,
-    )
-    return result.as_dict()
 
 
 def _watch(args: argparse.Namespace) -> None:

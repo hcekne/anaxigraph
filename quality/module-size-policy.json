@@ -61,7 +61,7 @@
     },
     {
       "path": "src/anaxigraph/cli.py",
-      "baseline_lines": 647,
+      "baseline_lines": 557,
       "rationale": "Legacy CLI module combines parser construction and every command handler.",
       "owner": "maintainers",
       "removal_phase": "Phase 3",
@@ -69,7 +69,7 @@
     },
     {
       "path": "src/anaxigraph/api.py",
-      "baseline_lines": 614,
+      "baseline_lines": 579,
       "rationale": "Legacy API factory combines transport routes and background-job coordination.",
       "owner": "maintainers",
       "removal_phase": "Phase 5",

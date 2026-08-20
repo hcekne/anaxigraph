@@ -5,6 +5,7 @@ from __future__ import annotations
 import fnmatch
 import os
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -153,25 +154,13 @@ class AnaxiGraphConfig:
         normalized = path.replace(os.sep, "/")
         if normalized.startswith("./"):
             normalized = normalized[2:]
-        candidate = f"{normalized}/" if is_dir else normalized
-        if (
-            self.include
-            and not is_dir
-            and not any(path_matches(normalized, pattern) for pattern in self.include)
-        ):
-            return True
-        return any(
-            path_matches(normalized, pattern) or (is_dir and path_matches(candidate, pattern))
-            for pattern in self.ignore
-        )
+        return _is_ignored(self.include, self.ignore, normalized, is_dir)
 
     def declared_group(self, path: str) -> str | None:
-        for group in self.groups:
-            if any(path_matches(path, pattern) for pattern in group.paths):
-                return group.name
-        return None
+        return _declared_group(self.groups, path)
 
 
+@lru_cache(maxsize=8_192)
 def path_matches(path: str, pattern: str) -> bool:
     """Match common gitignore-style globs without making config depend on Git."""
 
@@ -193,6 +182,27 @@ def path_matches(path: str, pattern: str) -> bool:
     if clean_pattern.startswith("**/"):
         return fnmatch.fnmatchcase(normalized, clean_pattern[3:])
     return False
+
+
+@lru_cache(maxsize=50_000)
+def _is_ignored(
+    include: tuple[str, ...], ignore: tuple[str, ...], normalized: str, is_dir: bool
+) -> bool:
+    candidate = f"{normalized}/" if is_dir else normalized
+    if include and not is_dir and not any(path_matches(normalized, pattern) for pattern in include):
+        return True
+    return any(
+        path_matches(normalized, pattern) or (is_dir and path_matches(candidate, pattern))
+        for pattern in ignore
+    )
+
+
+@lru_cache(maxsize=50_000)
+def _declared_group(groups: tuple[GroupConfig, ...], path: str) -> str | None:
+    for group in groups:
+        if any(path_matches(path, pattern) for pattern in group.paths):
+            return group.name
+    return None
 
 
 def _tuple_of_strings(value: Any) -> tuple[str, ...]:

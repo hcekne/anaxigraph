@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import time
+
+import anyio
 import httpx
 import pytest
 import yaml
@@ -119,6 +122,9 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     names = {tool.name for tool in tools.tools}
                     assert {
                         "ANAXIGRAPH_OVERVIEW",
+                        "ANAXIGRAPH_HISTORY_STATUS",
+                        "ANAXIGRAPH_HISTORY_IMPORT",
+                        "ANAXIGRAPH_HISTORY_CANCEL",
                         "ANAXIGRAPH_SEMANTIC_STATUS",
                         "ANAXIGRAPH_SEMANTIC_SCHEMA",
                         "ANAXIGRAPH_SEMANTIC_WORK",
@@ -141,6 +147,9 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     overview = await session.call_tool("ANAXIGRAPH_OVERVIEW", arguments={})
                     assert overview.isError is False
                     assert overview.structuredContent["files"] == 9
+                    history = await session.call_tool("ANAXIGRAPH_HISTORY_STATUS", arguments={})
+                    assert history.isError is False
+                    assert history.structuredContent["status"] == "not_started"
                     semantic = await session.call_tool("ANAXIGRAPH_SEMANTIC_STATUS", arguments={})
                     assert semantic.isError is False
                     assert semantic.structuredContent["enabled"] is False
@@ -226,6 +235,53 @@ async def test_mcp_coding_agent_can_claim_and_submit_semantic_work(repository, d
             "SELECT source, provider, executor_id FROM semantic_documents"
         ).fetchone()
     assert tuple(row) == ("coding_agent", "agent", "codex-integration")
+
+
+@pytest.mark.anyio
+async def test_history_job_does_not_block_current_intelligence_and_can_cancel(
+    repository, database, monkeypatch
+):
+    RepositoryScanner(database).scan(repository)
+
+    def held_import(*args, job_progress, should_cancel, **kwargs):
+        job_progress({"stage": "enumerated", "total_commits": 1, "total_frames": 1})
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline and not should_cancel():
+            time.sleep(0.01)
+        from anaxigraph.history import HistoryImportCancelled
+
+        raise HistoryImportCancelled("cancelled through REST")
+
+    monkeypatch.setattr("anaxigraph.history_jobs.import_git_history", held_import)
+    app = create_app(
+        database=database,
+        repository=repository,
+        enable_mcp=False,
+        repository_history_snapshots="auto",
+    )
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        started = (await client.post("/api/history/import")).json()
+        assert started["status"] == "started"
+        for _ in range(100):
+            active = (await client.get("/api/history")).json()["job"]
+            if active["status"] == "importing":
+                break
+            await anyio.sleep(0.01)
+        assert active["status"] == "importing"
+        assert (await client.get("/api/modules")).status_code == 200
+        assert (await client.get("/api/overview")).json()["files"] == 9
+
+        cancellation = (await client.post("/api/history/cancel")).json()
+        assert cancellation["cancelled"] is True
+        for _ in range(100):
+            final = (await client.get("/api/history")).json()["job"]
+            if final["status"] == "cancelled":
+                break
+            await anyio.sleep(0.01)
+        assert final["status"] == "cancelled"
+        assert final["last_complete_snapshot_id"] is not None
 
 
 def _mcp_dossier(scope: str) -> dict:

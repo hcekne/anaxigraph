@@ -320,6 +320,28 @@ optional coverage remains **No report**, which is distinct from measured 0%.
 To add coverage later, list the report paths under `coverage.files` in `.anaxigraph.yml`, generate
 them with the repository's normal test or CI command, then choose **Refresh scan**.
 
+## Build and control the Git biography
+
+The configured history import starts in the background with the sidecar. It is a durable job in
+AnaxiIndex rather than a browser task: closing the tab does not stop it, and restarting the service
+resumes from the last complete frame. The History view shows the selected and completed frames,
+current commit subject/date, changed and reused work, rows and bytes added, elapsed time, and a
+clearly labeled estimate of the remaining time. The rest of the dashboard remains usable.
+
+The same controls are available from a shell that can access the same index:
+
+```bash
+anaxigraph history /path/to/repository --status
+anaxigraph history /path/to/repository --cancel
+anaxigraph history /path/to/repository --limit auto
+```
+
+Cancellation takes effect between atomic frames, so it cannot leave a partial snapshot. Running
+the import again retries a failed/cancelled job and reuses every compatible completed frame. A
+connected coding agent can call `ANAXIGRAPH_HISTORY_STATUS`, `ANAXIGRAPH_HISTORY_IMPORT`, and
+`ANAXIGRAPH_HISTORY_CANCEL` for the same repository-scoped workflow. These tools only mutate the
+external AnaxiIndex; they never write the mounted repository.
+
 ## Keep the index current
 
 Refresh on demand from the dashboard, or start the optional polling service:

@@ -1,3 +1,5 @@
+import { activeHistoryStates, historyStartMessage, historyView } from "/assets/history-view.js";
+
 const state = {
   repositories: [],
   repositoryId: null,
@@ -1422,8 +1424,7 @@ async function inspectNode(node) {
 
 function renderHistory() {
   const snapshots = state.snapshots, info = state.historyInfo || {};
-  const job = info.job || {}, work = job.work || {};
-  const workCopy = Number.isFinite(work.source_reads) ? ` Last import work: ${format.format(work.source_reads)} source reads, ${format.format(work.carried_forward || 0)} files carried without rereading, ${format.format(work.relationship_sources_reused || 0)} relationship sources reused, and ${format.format(work.relationship_sources_resolved || 0)} re-resolved.` : "";
+  const model = historyView(info, snapshots);
   const range = byId("history-range");
   range.max = Math.max(0, snapshots.length - 1);
   range.value = Math.max(0, snapshots.length - 1);
@@ -1431,26 +1432,16 @@ function renderHistory() {
   byId("history-commits").innerHTML = snapshots.length
     ? `<span>${escapeHtml(String(snapshots[0].commit_sha).slice(0, 8))}</span><span>${escapeHtml(String(snapshots.at(-1).commit_sha).slice(0, 8))}</span>`
     : "";
-  if (["queued", "running"].includes(job.status)) {
-    const progress = job.total ? ` ${job.completed || 0}/${job.total}` : "";
-    byId("history-help").textContent = `Importing${progress} graph frames from the repository's first-parent Git history. The dashboard remains available while this runs.`;
-  } else if (info.total_commits > 0 && snapshots.length > 1) {
-    const sampling = info.total_commits > info.analyzed_commits
-      ? `${info.analyzed_commits} representative graph frames across all ${info.total_commits} first-parent commits`
-      : `${info.analyzed_commits} commit graph frames`;
-    byId("history-help").textContent = `${sampling}, spanning the initial commit through HEAD. Scrub the timeline or replay the architecture biography.${workCopy}`;
-  } else if (info.total_commits > 0) {
-    byId("history-help").textContent = `Git contains ${info.total_commits} first-parent commits. Import its architecture biography to replay from the initial commit.`;
-  } else {
-    byId("history-help").textContent = "This mounted directory has no Git commit history, so only its current working tree can be shown.";
-  }
+  byId("history-help").textContent = model.help;
+  byId("history-job-detail").innerHTML = model.details.map(([label, value]) => `<span><strong>${escapeHtml(label)}</strong>${escapeHtml(value)}</span>`).join("");
   byId("history-play-button").disabled = snapshots.length < 2;
   byId("graph-history-play-button").disabled = snapshots.length < 2;
   const importButton = byId("history-import-button");
-  importButton.disabled = info.total_commits < 1 || ["queued", "running"].includes(job.status);
-  importButton.textContent = ["queued", "running"].includes(job.status)
-    ? "Importing history…"
-    : "Rebuild Git timeline";
+  importButton.disabled = model.importDisabled;
+  importButton.textContent = model.importLabel;
+  const cancelButton = byId("history-cancel-button");
+  cancelButton.hidden = !model.active;
+  cancelButton.disabled = model.cancelRequested;
   showHistoryIndex(Number(range.value));
   updatePlaybackButtons();
   scheduleHistoryRefresh();
@@ -1458,7 +1449,7 @@ function renderHistory() {
 
 function scheduleHistoryRefresh() {
   window.clearTimeout(state.historyPollTimer);
-  if (!["queued", "running"].includes(state.historyInfo?.job?.status)) return;
+  if (!activeHistoryStates.has(state.historyInfo?.job?.status)) return;
   state.historyPollTimer = window.setTimeout(refreshHistoryData, 2500);
 }
 
@@ -1820,12 +1811,21 @@ function setupEvents() {
     event.target.disabled = true;
     try {
       const result = await request(api("/api/history/import"), { method: "POST" });
-      toast(result.status === "started" ? "Git history import started." : "Git history import is already running.");
+      toast(historyStartMessage(result.status));
       state.historyInfo = await request(api("/api/history"));
       renderHistory();
     } catch (error) {
       toast(error.message, true);
       event.target.disabled = false;
+    }
+  });
+  byId("history-cancel-button").addEventListener("click", async (event) => {
+    try {
+      await request(api("/api/history/cancel"), { method: "POST" });
+      toast("History import will stop after the current frame.");
+      await refreshHistoryData();
+    } catch (error) {
+      toast(error.message, true);
     }
   });
   byId("refresh-button").addEventListener("click", async (event) => {

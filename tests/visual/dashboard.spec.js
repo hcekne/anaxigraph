@@ -52,6 +52,62 @@ test("missing optional coverage is neutral rather than a failed scan", async ({ 
     .toHaveText("No report");
 });
 
+test("durable history progress is actionable without blocking current views", async ({ page }) => {
+  let cancelled = false;
+  await page.route("**/api/history**", async (route) => {
+    if (route.request().method() === "POST") {
+      cancelled = route.request().url().includes("/cancel");
+      await route.fulfill({ json: { cancelled, status: cancelled ? "cancelled" : "started" } });
+      return;
+    }
+    await route.fulfill({
+      json: {
+        total_commits: 80,
+        analyzed_commits: 5,
+        timeline_frames: 5,
+        job: cancelled ? {
+          id: 42,
+          status: "cancelled",
+          error: "Cancelled after the last complete frame",
+          elapsed_seconds: 13,
+          last_complete_snapshot_id: 17,
+        } : {
+          id: 42,
+          status: "importing",
+          completed_frames: 5,
+          total_frames: 16,
+          current_commit_sha: "1234567890abcdef",
+          current_commit_subject: "Split architecture service",
+          current_commit_date: "2026-08-20T12:00:00+00:00",
+          changed_files: 91,
+          analyzed_files: 87,
+          re_resolved_files: 12,
+          reused_files: 1400,
+          rows_added: 7300,
+          bytes_added: 2097152,
+          elapsed_seconds: 13,
+          eta_seconds: 29,
+          last_complete_snapshot_id: 17,
+        },
+      },
+    });
+  });
+  await openDashboard(page);
+  await page.locator('.tab[data-view="history"]').click();
+
+  await expect(page.locator("#history-help")).toContainText("Split architecture service");
+  await expect(page.locator("#history-help")).toContainText("remain available");
+  await expect(page.locator("#history-job-detail")).toContainText("Estimated remaining");
+  await expect(page.locator("#history-job-detail")).toContainText("2.0 MiB");
+  await expect(page.locator("#history-cancel-button")).toBeVisible();
+  await expect(page.locator("#history-import-button")).toBeDisabled();
+
+  await page.locator("#history-cancel-button").click();
+  await expect(page.locator("#history-help")).toContainText("Completed frames remain usable");
+  await expect(page.locator("#history-import-button")).toHaveText("Retry / resume history");
+  await expect(page.locator("#history-cancel-button")).toBeHidden();
+});
+
 test("semantic bootstrap progress and model-backed pattern advice are visible", async ({ page }) => {
   let semanticPath = "";
   await page.route("**/api/semantic*", async (route) => {

@@ -200,6 +200,7 @@ class RevisionDelta:
 class RevisionSummary:
     commit_sha: str
     committed_at: str
+    subject: str
     paths: tuple[str, ...]
 
 
@@ -254,7 +255,7 @@ def revision_summaries(root: Path) -> list[RevisionSummary]:
         "--first-parent",
         "--reverse",
         "--date=iso-strict",
-        "--format=%x1e%H%x1f%cI",
+        "--format=%x1e%H%x1f%cI%x1f%s",
         "--name-only",
         timeout=120,
     )
@@ -263,8 +264,11 @@ def revision_summaries(root: Path) -> list[RevisionSummary]:
         lines = [line for line in record.strip().splitlines() if line]
         if not lines:
             continue
-        commit_sha, _, committed_at = lines[0].partition("\x1f")
-        summaries.append(RevisionSummary(commit_sha, committed_at, tuple(lines[1:])))
+        header = lines[0].split("\x1f", 2)
+        if len(header) != 3:
+            continue
+        commit_sha, committed_at, subject = header
+        summaries.append(RevisionSummary(commit_sha, committed_at, subject, tuple(lines[1:])))
     return summaries
 
 

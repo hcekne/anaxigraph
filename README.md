@@ -287,6 +287,8 @@ anaxigraph update /path/to/repository
 anaxigraph understand /path/to/repository
 anaxigraph semantic-status /path/to/repository
 anaxigraph history /path/to/repository --limit auto
+anaxigraph history /path/to/repository --status
+anaxigraph history /path/to/repository --cancel
 anaxigraph review /path/to/repository
 anaxigraph scope /path/to/repository --goal "Add saved prompts to Workbench"
 anaxigraph impact /path/to/repository --target backend/app/services/chat.py
@@ -297,6 +299,13 @@ anaxigraph mcp --repository /path/to/repository --port 8765
 The `serve` and `mcp` commands both expose the dashboard and JSON API at
 `http://127.0.0.1:8765`, with Streamable HTTP MCP at `http://127.0.0.1:8765/mcp`. See
 [`docs/maxos-agent.md`](docs/maxos-agent.md) for the ready-to-run MaxOS integration.
+
+Git-history reconstruction runs as a durable AnaxiIndex job. The History view reports its current
+commit, frame counts, changed/analyzed/reused work, index growth, elapsed time, and estimated time
+remaining. It can be cancelled after the current atomic frame and resumed without repeating
+completed frames. Coding agents can use the equivalent `ANAXIGRAPH_HISTORY_STATUS`,
+`ANAXIGRAPH_HISTORY_IMPORT`, and `ANAXIGRAPH_HISTORY_CANCEL` tools. Current modules, findings,
+graphs, and agent scope remain available while the timeline is built.
 
 ## 🧠 What is persisted
 

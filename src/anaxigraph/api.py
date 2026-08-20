@@ -18,7 +18,7 @@ from anaxigraph import git
 from anaxigraph.agent import agent_scope, branch_collisions, finding_context, impact_analysis
 from anaxigraph.config import load_config
 from anaxigraph.guidance import product_glossary
-from anaxigraph.history import import_git_history
+from anaxigraph.history_jobs import HistoryJobService
 from anaxigraph.mcp_server import create_anaxi_mcp_server
 from anaxigraph.registry import RepositoryTarget
 from anaxigraph.scanner import RepositoryScanner
@@ -68,8 +68,7 @@ def create_app(
             ),
         )
     default_repository = targets[0].path if targets else repository
-    history_jobs: dict[str, dict[str, Any]] = {}
-    history_lock = threading.Lock()
+    history_service = HistoryJobService(database)
     semantic_jobs: dict[str, dict[str, Any]] = {}
     semantic_lock = threading.Lock()
 
@@ -82,53 +81,6 @@ def create_app(
         if targets:
             rows = [row for row in rows if target_for_path(Path(row["path"])) is not None]
         return rows
-
-    def history_worker(target: RepositoryTarget) -> None:
-        key = str(target.path.resolve())
-        with history_lock:
-            history_jobs[key] = {"status": "running", "completed": 0, "total": 0}
-
-        def progress(index: int, total: int, commit_sha: str) -> None:
-            with history_lock:
-                history_jobs[key] = {
-                    "status": "running",
-                    "completed": index - 1,
-                    "total": total,
-                    "commit_sha": commit_sha,
-                }
-
-        try:
-            result = import_git_history(
-                database,
-                target.path,
-                config_path=target.config_path,
-                max_snapshots=target.history_snapshots,
-                progress=progress,
-            )
-            with history_lock:
-                history_jobs[key] = {"status": "complete", **result.as_dict()}
-        except Exception as exc:  # Background state is surfaced by the API and dashboard.
-            with history_lock:
-                history_jobs[key] = {
-                    "status": "failed",
-                    "error": f"{type(exc).__name__}: {exc}"[:2_000],
-                }
-
-    def start_history_import(target: RepositoryTarget) -> bool:
-        if target.history_snapshots == 0 or not git.has_commits(target.path):
-            return False
-        key = str(target.path.resolve())
-        with history_lock:
-            if history_jobs.get(key, {}).get("status") in {"queued", "running"}:
-                return False
-            history_jobs[key] = {"status": "queued", "completed": 0, "total": 0}
-        threading.Thread(
-            target=history_worker,
-            args=(target,),
-            name=f"anaxigraph-history-{target.key}",
-            daemon=True,
-        ).start()
-        return True
 
     def semantic_worker(target: RepositoryTarget, force: bool, retry_failed: bool) -> None:
         key = str(target.path.resolve())
@@ -195,6 +147,7 @@ def create_app(
             allowed_hosts=allowed_hosts,
             allow_scan_tool=allow_scan_tool,
             repository_targets=tuple(targets),
+            history_service=history_service,
         )
         if enable_mcp
         else None
@@ -202,6 +155,7 @@ def create_app(
 
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI):
+        history_service.recover(targets)
         if scan_on_start:
             for target in targets:
                 await asyncio.to_thread(
@@ -210,7 +164,7 @@ def create_app(
                     config_path=target.config_path,
                 )
             for target in targets:
-                start_history_import(target)
+                history_service.start(target)
                 config = load_config(target.path, target.config_path)
                 if config.semantic.enabled and config.semantic.refresh in {"on_scan", "periodic"}:
                     start_semantic_refresh(target)
@@ -425,8 +379,7 @@ def create_app(
         commits = []
         if target and git.has_commits(target.path):
             commits = git.revisions(target.path, limit=None, oldest_first=True)
-        with history_lock:
-            job = dict(history_jobs.get(str(Path(row["path"]).resolve()), {}))
+        job = history_service.status(int(row["id"]))
         analyzed_commit_shas = {
             str(item["commit_sha"])
             for item in timeline
@@ -440,7 +393,7 @@ def create_app(
             "first_commit": commits[0] if commits else None,
             "latest_commit": commits[-1] if commits else None,
             "sample_limit": target.history_snapshots if target else 0,
-            "job": job or {"status": "not_configured"},
+            "job": job,
         }
 
     @app.post("/api/history/import")
@@ -454,11 +407,23 @@ def create_app(
             )
         if not git.has_commits(target.path):
             raise HTTPException(status_code=400, detail="Repository has no Git history")
-        started = start_history_import(target)
+        started = history_service.start(target)
         return {
-            "status": "started" if started else "already_running",
+            "status": (
+                "started"
+                if started.get("started")
+                else "resumed"
+                if started.get("resumed")
+                else started.get("reason", "already_running")
+            ),
             "repository_id": row["id"],
+            "job": started.get("job"),
         }
+
+    @app.post("/api/history/cancel")
+    def cancel_history(repository_id: int | None = None) -> dict[str, Any]:
+        row = selected_repository(repository_id)
+        return history_service.cancel(int(row["id"]))
 
     @app.get("/api/findings")
     def findings(
@@ -591,7 +556,7 @@ def create_app(
 
     @app.get("/assets/{name}")
     def dashboard_asset(name: str) -> FileResponse:
-        if name not in {"app.js", "styles.css", "favicon.svg", "mask-icon.svg"}:
+        if name not in {"app.js", "history-view.js", "styles.css", "favicon.svg", "mask-icon.svg"}:
             raise HTTPException(status_code=404, detail="Asset not found")
         return FileResponse(str(dashboard.joinpath(name)))
 

@@ -13,7 +13,10 @@ from anaxigraph import git
 from anaxigraph.config import load_config
 from anaxigraph.languages import detect_language
 from anaxigraph.scanner import RepositoryScanner, analysis_signature
-from anaxigraph.storage import AnaxiIndex
+
+
+class HistoryImportCancelled(RuntimeError):
+    """Raised between atomic frames when a durable history job requests cancellation."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +41,35 @@ class HistoryImportResult:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class _HistoryPlan:
+    complete: list[str]
+    selected: list[str]
+    repository_id: int
+    signature: str
+    summaries: dict[str, git.RevisionSummary]
+
+
+@dataclass(frozen=True, slots=True)
+class _ImportContext:
+    database: Any
+    scanner: RepositoryScanner
+    root: Path
+    plan: _HistoryPlan
+    config_path: str | Path | None
+    progress: Callable[[int, int, str], None] | None
+    job_progress: Callable[[dict[str, Any]], None] | None
+    should_cancel: Callable[[], bool] | None
+
+
+@dataclass(slots=True)
+class _FrameState:
+    baseline_snapshot_id: int | None = None
+    baseline_revision: str | None = None
+    imported: int = 0
+    work: dict[str, Any] = field(default_factory=dict)
+
+
 def sampled_revisions(values: list[str], limit: int) -> list[str]:
     """Evenly sample a timeline while always retaining its first and last commits."""
 
@@ -52,7 +84,7 @@ def sampled_revisions(values: list[str], limit: int) -> list[str]:
 
 
 def import_git_history(
-    database: AnaxiIndex,
+    database: Any,
     repository: str | Path,
     *,
     config_path: str | Path | None = None,
@@ -60,6 +92,8 @@ def import_git_history(
     every_commit: bool = False,
     since: str | None = None,
     progress: Callable[[int, int, str], None] | None = None,
+    job_progress: Callable[[dict[str, Any]], None] | None = None,
+    should_cancel: Callable[[], bool] | None = None,
     scanner: RepositoryScanner | None = None,
 ) -> HistoryImportResult:
     root = Path(repository).expanduser().resolve()
@@ -68,79 +102,183 @@ def import_git_history(
         current = scanner.scan(root, config_path=config_path, run_type="history_current")
         return HistoryImportResult(0, 0, 0, None, None, current.snapshot_id)
 
-    complete_history = git.revisions(root, limit=None, since=since, oldest_first=True)
+    plan = _history_plan(
+        database,
+        root,
+        config_path=config_path,
+        max_snapshots=max_snapshots,
+        every_commit=every_commit,
+        since=since,
+    )
+    _notify(
+        job_progress,
+        stage="enumerated",
+        total_commits=len(plan.complete),
+        total_frames=len(plan.selected),
+    )
+    state = _import_revisions(
+        _ImportContext(
+            database, scanner, root, plan, config_path, progress, job_progress, should_cancel
+        )
+    )
+    _raise_if_cancelled(should_cancel)
+    current_snapshot_id = _finalize_history(scanner, root, config_path, job_progress, state, plan)
+    return HistoryImportResult(
+        total_commits=len(plan.complete),
+        selected_commits=len(plan.selected),
+        imported_snapshots=state.imported,
+        first_commit=plan.complete[0] if plan.complete else None,
+        latest_commit=plan.complete[-1] if plan.complete else None,
+        current_snapshot_id=current_snapshot_id,
+        work=state.work,
+    )
+
+
+def _history_plan(
+    database: Any,
+    root: Path,
+    *,
+    config_path: str | Path | None,
+    max_snapshots: int | str,
+    every_commit: bool,
+    since: str | None,
+) -> _HistoryPlan:
+    complete = git.revisions(root, limit=None, since=since, oldest_first=True)
     config = load_config(root, Path(config_path) if config_path else None)
     repository_id = database.ensure_repository(
-        path=root,
-        name=config.project_name or root.name,
-        git=git.metadata(root),
+        path=root, name=config.project_name or root.name, git=git.metadata(root)
     )
-    signature = analysis_signature(config)
-    selected = _selected_revisions(root, complete_history, config, max_snapshots, every_commit)
-    baseline_snapshot_id, imported, work = _import_revisions(
-        database,
-        scanner,
-        root,
-        selected,
-        repository_id=repository_id,
-        signature=signature,
-        config_path=config_path,
-        progress=progress,
+    selected = _selected_revisions(root, complete, config, max_snapshots, every_commit)
+    summaries = {item.commit_sha: item for item in git.revision_summaries(root)}
+    return _HistoryPlan(complete, selected, repository_id, analysis_signature(config), summaries)
+
+
+def _import_revisions(context: _ImportContext) -> _FrameState:
+    state = _FrameState(work=_empty_work())
+    for index, commit_sha in enumerate(context.plan.selected, start=1):
+        _import_revision(context, state, index, commit_sha)
+    return state
+
+
+def _import_revision(
+    context: _ImportContext, state: _FrameState, index: int, commit_sha: str
+) -> None:
+    _raise_if_cancelled(context.should_cancel)
+    summary = context.plan.summaries.get(commit_sha)
+    _notify_frame_started(context, state, index, commit_sha, summary)
+    if context.progress:
+        context.progress(index, len(context.plan.selected), commit_sha)
+    existing = context.database.commit_snapshot(
+        context.plan.repository_id, commit_sha, context.plan.signature
+    )
+    reused = existing is not None
+    if existing is not None:
+        state.baseline_snapshot_id = int(existing["id"])
+    else:
+        stats = context.scanner.scan(
+            context.root,
+            config_path=context.config_path,
+            revision=commit_sha,
+            run_type="history",
+            baseline_snapshot_id=state.baseline_snapshot_id,
+            previous_revision=state.baseline_revision,
+        )
+        state.baseline_snapshot_id = stats.snapshot_id
+        _add_work(state.work, context.database, stats)
+    state.baseline_revision = commit_sha
+    state.imported += 1
+    _notify_frame_complete(
+        context.job_progress,
+        index,
+        context.plan.selected,
+        commit_sha,
+        summary,
+        state.baseline_snapshot_id,
+        state.work,
+        reused_frame=reused,
+    )
+
+
+def _notify_frame_started(
+    context: _ImportContext,
+    state: _FrameState,
+    index: int,
+    commit_sha: str,
+    summary: git.RevisionSummary | None,
+) -> None:
+    _notify(
+        context.job_progress,
+        stage="frame_started",
+        frame=index,
+        completed_frames=index - 1,
+        total_frames=len(context.plan.selected),
+        commit_sha=commit_sha,
+        commit_subject=summary.subject if summary else "",
+        commit_date=summary.committed_at if summary else None,
+        last_complete_snapshot_id=state.baseline_snapshot_id,
+        work=state.work,
+    )
+
+
+def _finalize_history(
+    scanner: RepositoryScanner,
+    root: Path,
+    config_path: str | Path | None,
+    job_progress: Callable[[dict[str, Any]], None] | None,
+    state: _FrameState,
+    plan: _HistoryPlan,
+) -> int:
+    _notify(
+        job_progress,
+        stage="finalizing",
+        completed_frames=state.imported,
+        total_frames=len(plan.selected),
+        last_complete_snapshot_id=state.baseline_snapshot_id,
+        work=state.work,
     )
     current = scanner.scan(
         root,
         config_path=config_path,
         run_type="history_current",
-        baseline_snapshot_id=baseline_snapshot_id,
+        baseline_snapshot_id=state.baseline_snapshot_id,
     )
-    return HistoryImportResult(
-        total_commits=len(complete_history),
-        selected_commits=len(selected),
-        imported_snapshots=imported,
-        first_commit=complete_history[0] if complete_history else None,
-        latest_commit=complete_history[-1] if complete_history else None,
-        current_snapshot_id=current.snapshot_id,
+    return current.snapshot_id
+
+
+def _notify_frame_complete(
+    callback: Callable[[dict[str, Any]], None] | None,
+    index: int,
+    selected: list[str],
+    commit_sha: str,
+    summary: git.RevisionSummary | None,
+    snapshot_id: int,
+    work: dict[str, Any],
+    *,
+    reused_frame: bool,
+) -> None:
+    _notify(
+        callback,
+        stage="frame_complete",
+        frame=index,
+        completed_frames=index,
+        total_frames=len(selected),
+        commit_sha=commit_sha,
+        commit_subject=summary.subject if summary else "",
+        commit_date=summary.committed_at if summary else None,
+        last_complete_snapshot_id=snapshot_id,
+        reused_frame=reused_frame,
         work=work,
     )
 
 
-def _import_revisions(
-    database: AnaxiIndex,
-    scanner: RepositoryScanner,
-    root: Path,
-    selected: list[str],
-    *,
-    repository_id: int,
-    signature: str,
-    config_path: str | Path | None,
-    progress: Callable[[int, int, str], None] | None,
-) -> tuple[int | None, int, dict[str, Any]]:
-    baseline_snapshot_id: int | None = None
-    baseline_revision: str | None = None
-    imported = 0
-    work = _empty_work()
-    for index, commit_sha in enumerate(selected, start=1):
-        if progress:
-            progress(index, len(selected), commit_sha)
-        existing = database.commit_snapshot(repository_id, commit_sha, signature)
-        if existing is not None:
-            baseline_snapshot_id = int(existing["id"])
-            baseline_revision = commit_sha
-            imported += 1
-            continue
-        stats = scanner.scan(
-            root,
-            config_path=config_path,
-            revision=commit_sha,
-            run_type="history",
-            baseline_snapshot_id=baseline_snapshot_id,
-            previous_revision=baseline_revision,
-        )
-        baseline_snapshot_id = stats.snapshot_id
-        baseline_revision = commit_sha
-        _add_work(work, database, stats)
-        imported += 1
-    return baseline_snapshot_id, imported, work
+def _notify(callback: Callable[[dict[str, Any]], None] | None, **event: Any) -> None:
+    if callback is not None:
+        callback(event)
+
+
+def _raise_if_cancelled(should_cancel: Callable[[], bool] | None) -> None:
+    if should_cancel is not None and should_cancel():
+        raise HistoryImportCancelled("History import cancelled after its last complete frame")
 
 
 def _empty_work() -> dict[str, Any]:
@@ -156,7 +294,7 @@ def _empty_work() -> dict[str, Any]:
     }
 
 
-def _add_work(work: dict[str, Any], database: AnaxiIndex, stats: Any) -> None:
+def _add_work(work: dict[str, Any], database: Any, stats: Any) -> None:
     with database.connect() as connection:
         run = connection.execute(
             "SELECT metadata_json FROM analysis_runs WHERE id = ?", (stats.analysis_run_id,)

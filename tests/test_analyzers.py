@@ -36,7 +36,21 @@ class Service:
         ("imports", ".models"),
         ("calls", "httpx"),
     }
+    assert {item.evidence for item in result.dependencies} >= {
+        "import httpx as client",
+        "from .models import User",
+        "client.get(user.url)",
+    }
     assert result.complexity > 1
+
+
+def test_python_evidence_preserves_multiline_and_unicode_ast_offsets():
+    result = PythonAnalyzer().analyze(
+        "service.py",
+        "LABEL = 'å'\nfrom package import (\n    first,\n    second,\n)\n",
+    )
+
+    assert result.dependencies[0].evidence == "from package import (     first,     second, )"
 
 
 def test_javascript_lexer_extracts_imports_components_and_ignores_comment_changes():

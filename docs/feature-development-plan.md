@@ -567,7 +567,7 @@ CI rather than a hand-curated release checklist.
 
 # Phase 1a — delta-driven temporal discovery
 
-**Status:** IN PROGRESS — 1a.1–1a.4 COMPLETE; 1a.5 ACTIVE
+**Status:** COMPLETE on 20 August 2026
 
 **Goal:** stop re-analyzing unchanged files during historical reconstruction, on today's schema, so
 the algorithm can be proven correct before storage changes underneath it.
@@ -668,7 +668,7 @@ the first safe adaptive policy, not a permanent magic constant.
 
 ## 1a.5 Provide progress, cancellation, and immediate usefulness
 
-**Status:** IN PROGRESS
+**Status:** COMPLETE on 20 August 2026
 
 History import becomes a durable job, using the existing `analysis_runs` record and its metadata
 where possible rather than introducing the Phase 1b temporal schema early. Its states are:
@@ -694,6 +694,15 @@ No history spinner may block repository selection, current modules, findings, or
 Only after changed-file avoidance is proven should changed blobs be read through `git cat-file
 --batch`; it is an optional follow-up inside this phase if profiling shows meaningful remaining
 subprocess cost.
+
+The completed implementation persists the outer job as `history_import` in `analysis_runs` and
+keeps each atomic frame as its own ordinary analysis run. CLI, REST, dashboard, and AnaxiMCP now
+share one `HistoryJobService`; none maintains transport-local history state. A process owner claim
+prevents a second local service from duplicating an active job. Restart recovery reuses compatible
+completed frames, cancellation is polled between atomic frames, and failed/cancelled jobs retain
+their last usable snapshot. The dashboard exposes the current commit subject/date, selected and
+completed frames, work counters, rows/bytes added, elapsed time, labeled ETA, cancel, and
+retry/resume while all current-tree views remain available.
 
 ## Phase 1a performance and exit gate
 
@@ -723,12 +732,37 @@ are machine-independent.
 
 Row counts and index size are explicitly **not** part of this gate. They belong to Phase 1b.
 
+### Phase 1a closure evidence
+
+The three-run 3,000-file/eight-frame profile and concurrent browser profile were repeated on the
+same Linux x86-64 runner on 20 August 2026. The report command remains
+`python -m benchmarks.baseline`; the concurrent contract is reproducible with
+`python -m benchmarks.history_concurrency`.
+
+| Gate | Closure result |
+|---|---|
+| Median history wall time | 19,030 ms across 18,925 / 19,030 / 19,160 ms; 27.4% of the 69,566 ms baseline and below the 31,305 ms ceiling |
+| Historical source reads | 3,217 in every run, below the 3,250 ceiling and down from 23,970 |
+| Analyzer invocations | Exactly 3,217 in every run, matching the fixture's distinct artifact/raw versions |
+| Peak resident memory | Maximum 137,170,944 bytes, below the 152,494,080-byte ceiling |
+| Materialized Phase 1a facts | Exact legacy-shape totals retained: 23,970 file-version rows and 47,896 relationship rows |
+| Concurrent dashboard | While the durable job reported `importing`, the pinned Playwright container measured 632 ms to overview and 94 ms to graph with 3,000 visible nodes, inside the 639/112 ms budgets |
+| Correctness and control plane | Add/modify/delete/rename/copy/type/resolver fixtures, durable cancellation, retry, process-restart recovery, cross-service owner claim, and CLI/REST/MCP contracts pass |
+| Browser contract | 11/11 pinned Playwright contracts pass, including progress, usable-current-view, cancel, and retry/resume behavior |
+| Size ratchet | `scanner.py` remains 822 lines and `storage.py` remains 1,746; API and CLI baselines decreased to 579 and 557 respectively |
+
+The final timing improvement also replaced repeated glob evaluation with bounded result caches and
+replaced Python evidence extraction's repeated whole-source splitting with one line index per
+analysis. Evidence equivalence, including multiline imports and UTF-8 AST offsets, is covered by
+analyzer tests. Cache bounds keep the memory gate explicit rather than trading wall time for an
+unbounded process cache.
+
 ---
 
 
 # Phase 1b — immutable facts and snapshot deltas
 
-**Status:** BLOCKED BY PHASE 1a
+**Status:** ACTIVE — 1b.1 MIGRATION CHARACTERIZATION NEXT
 
 **Goal:** make stored facts scale with distinct versions and relationship contexts rather than with
 selected frames multiplied by repository size.
@@ -1728,7 +1762,13 @@ queue and the document cannot drift apart.
 | 13 | **COMPLETE** — Discover selected-frame changes before reading source and carry unchanged analysis and safe relationship rows forward | §1a.2 |
 | 14 | **COMPLETE** — Expose conservative invalidation reasons and work counters in benchmark and product surfaces | §1a.3 |
 | 15 | **COMPLETE** — Replace baked-in 64-frame defaults with an explicit adaptive history policy | §1a.4 |
-| 16 | **IN PROGRESS** — Make history import a resumable, cancellable job without blocking current intelligence | §1a.5 |
+| 16 | **COMPLETE** — Make history import a resumable, cancellable job without blocking current intelligence | §1a.5 |
+| 17 | **IN PROGRESS** — Characterize schema-6 migration rollback/backup behavior and freeze canonical frame reconstruction fixtures | §1b.1 |
+| 18 | Introduce immutable file/symbol facts, relationship sets, and snapshot delta tables behind the index abstraction | §1b.1 |
+| 19 | Migrate a copied schema-6 index transactionally, validate it, preserve backup recovery, and expose `doctor`/compaction reporting | §1b.1 |
+| 20 | Route snapshot reads through bounded reconstruction with disposable checkpoints and measured read amplification | §1b.2 |
+| 21 | Prove semantic/finding/history compatibility and unchanged canonical results across migration, retry, and checkpoint rebuild | §1b.1–1b.2 |
+| 22 | Run and record the complete Phase 1b storage, migration, read-latency, and quality exit gate before onboarding work begins | Phase 1b gate |
 
 Items 9 and 10 are the user-visible Phase 0 changes. The completed 0.1.0 publication is the narrow,
 recorded exception described in §0.6; the work that remains in these queue items is restricted to

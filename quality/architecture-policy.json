@@ -42,6 +42,7 @@
         "anaxigraph.agent",
         "anaxigraph.history",
         "anaxigraph.history_discovery",
+        "anaxigraph.history_jobs",
         "anaxigraph.onboarding",
         "anaxigraph.relationship_builder",
         "anaxigraph.scanner",
@@ -63,6 +64,8 @@
         "anaxigraph.__main__",
         "anaxigraph.api",
         "anaxigraph.cli",
+        "anaxigraph.cli_workflows",
+        "anaxigraph.history_mcp",
         "anaxigraph.mcp_server"
       ],
       "may_import": ["foundation", "analysis", "persistence", "application", "transport"]

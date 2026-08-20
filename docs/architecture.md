@@ -71,6 +71,13 @@ invalidate context without blindly rereading source. SQLite jobs carry prioritie
 token/cost estimates, and renewable worker leases, making the pipeline resumable across process
 and coding-agent restarts.
 
+Historical reconstruction has a separate application-level job coordinator. Its outer
+`history_import` record uses `analysis_runs` metadata for queued, enumerating, importing,
+finalizing, complete, failed, and cancelled state; individual atomic frame scans remain ordinary
+analysis runs. Progress and cancellation therefore survive browser sessions and process restarts,
+while completed commit snapshots remain queryable throughout the import. CLI, REST, dashboard, and
+MCP controls all delegate to this coordinator instead of maintaining transport-local job state.
+
 The target-code boundary remains read-only. Most AnaxiMCP tools only retrieve current dossiers and
 use them in task-file ranking. A repository may explicitly select `semantic.provider: agent` to
 enable an index-only write path: AnaxiMCP leases a prepared job, the connected coding agent reasons

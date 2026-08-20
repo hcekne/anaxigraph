@@ -88,6 +88,7 @@ class _PythonVisitor(ast.NodeVisitor):
     def __init__(self, path: str, content: str) -> None:
         self.path = path
         self.content = content
+        self.source_lines = content.splitlines(keepends=True)
         self.module = _module_name(path)
         self.scope: list[str] = []
         self.symbols: list[Symbol] = []
@@ -103,7 +104,7 @@ class _PythonVisitor(ast.NodeVisitor):
                 Dependency(
                     target=item.name,
                     line=node.lineno,
-                    evidence=_source_segment(self.content, node),
+                    evidence=self._source_segment(node),
                     names=(item.name,),
                 )
             )
@@ -118,7 +119,7 @@ class _PythonVisitor(ast.NodeVisitor):
             Dependency(
                 target=target,
                 line=node.lineno,
-                evidence=_source_segment(self.content, node),
+                evidence=self._source_segment(node),
                 names=names,
             )
         )
@@ -170,11 +171,14 @@ class _PythonVisitor(ast.NodeVisitor):
                     target=target,
                     relationship_type="calls",
                     line=node.lineno,
-                    evidence=_source_segment(self.content, node),
+                    evidence=self._source_segment(node),
                     confidence=0.85,
                 )
             )
         self.generic_visit(node)
+
+    def _source_segment(self, node: ast.AST) -> str:
+        return _source_segment(self.source_lines, node)
 
     def _add_symbol(
         self,
@@ -253,8 +257,27 @@ def _module_name(path: str) -> str:
     return ".".join(parts)
 
 
-def _source_segment(content: str, node: ast.AST) -> str:
-    return (ast.get_source_segment(content, node) or "").strip().replace("\n", " ")[:500]
+def _source_segment(lines: list[str], node: ast.AST) -> str:
+    start_line = max(0, int(getattr(node, "lineno", 1)) - 1)
+    end_line = max(start_line, int(getattr(node, "end_lineno", start_line + 1)) - 1)
+    if start_line >= len(lines) or end_line >= len(lines):
+        return ""
+    start = int(getattr(node, "col_offset", 0))
+    end = int(getattr(node, "end_col_offset", 0))
+    if start_line == end_line:
+        return _normalized_segment(_byte_slice(lines[start_line], start, end if end else None))
+    selected = lines[start_line : end_line + 1]
+    selected[0] = _byte_slice(selected[0], start, None)
+    selected[-1] = _byte_slice(selected[-1], 0, end if end else None)
+    return _normalized_segment("".join(selected))
+
+
+def _byte_slice(value: str, start: int, end: int | None) -> str:
+    return value.encode("utf-8")[start:end].decode("utf-8", errors="replace")
+
+
+def _normalized_segment(value: str) -> str:
+    return value.strip().replace("\n", " ")[:500]
 
 
 def _name(node: ast.AST) -> str:
