@@ -44,6 +44,13 @@ module classification, and versioned analyzer contract are in
 [`ADR 0001`](adr/0001-internal-layers-and-analyzer-ir.md); the corresponding import policy runs in
 every commit and CI gate.
 
+The CLI has the same boundary discipline. `cli.py` is a stable facade, `cli_parser.py` assembles
+command families, and focused modules own repository, semantic, agent-context, and server
+handlers. `cli_services.py` is their dependency-composition root, so extracting handlers does not
+multiply imports into config, scanner, storage, or API internals. First-run policy detection,
+rendering, safe file application, client configuration, Docker start, local runtime, and doctor
+checks likewise live in separate onboarding/application services rather than one initializer.
+
 In multi-repository mode, an operator-owned YAML registry maps stable keys to read-only container
 paths, per-repository policy files, and Git history sample budgets. One service and one SQLite
 database hold all repositories, while every dashboard, REST, and MCP query remains repository

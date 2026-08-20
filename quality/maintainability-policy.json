@@ -34,8 +34,6 @@
     "src/anaxigraph/architecture.py::_evaluate_rule": [233, 56],
     "src/anaxigraph/architecture.py::_dead_code_findings": [78, 17],
     "src/anaxigraph/architecture.py::_update_finding_lifecycle": [93, 7],
-    "src/anaxigraph/cli.py::_parser": [113, 1],
-    "src/anaxigraph/cli.py::_semantic_worker": [75, 6],
     "src/anaxigraph/config.py::_semantic_config": [54, 11],
     "src/anaxigraph/config.py::load_config": [49, 17],
     "src/anaxigraph/git.py::metadata": [51, 12],
@@ -64,7 +62,6 @@
   },
   "legacy_coupling": {
     "anaxigraph.api": [1, 10],
-    "anaxigraph.cli": [1, 9],
     "anaxigraph.config": [20, 0],
     "anaxigraph.models": [10, 0],
     "anaxigraph.scanner": [4, 10],

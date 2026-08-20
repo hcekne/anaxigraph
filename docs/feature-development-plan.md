@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.1
+**Roadmap version:** 3.2
 
 **Updated:** 20 August 2026
 
@@ -1248,6 +1248,22 @@ Split `cli.py` into parser/facade plus command handlers and split `onboarding.py
 detection, policy generation, Compose generation, client connection, and start/doctor services.
 Command behavior remains covered at the process boundary, not only through helper unit tests.
 
+### Phase 3.6 closure evidence
+
+**Completed in source on 20 August 2026.** The CLI now exposes one stable entry point while each
+command family and first-run responsibility has a bounded owner.
+
+| Contract | Delivered evidence |
+|---|---|
+| Thin facade and parser | `cli.py` is 22 physical lines and owns only error/interrupt handling plus result emission; `cli_parser.py` assembles the versioned command surface from focused registrars |
+| Cohesive handlers | Repository/findings, semantic worker, agent scope/impact, and server/operational handlers live in separate modules; no new implementation module exceeds 208 lines |
+| Composition root | `cli_services.py` centralizes API/config/scanner/storage/semantic construction, so extraction restores rather than multiplies the existing dependency fan-in ratchets |
+| Onboarding responsibilities | Repository discovery, policy editing, policy/Compose templates, safe file application, client configuration, Docker start, local runtime, and doctor checks remain separate services; the coordinating `onboarding.py` is 319 physical lines |
+| Removed debt | The legacy `_parser` and `_semantic_worker` function exceptions and the CLI coupling exception are deleted; config, scanner, and storage retain their pre-extraction ratchets, and architecture classification has no gaps or cycles |
+| Process boundary | Subprocess contracts prove the installed module exposes every command family, scan/scope/export share one durable index, and validation errors retain exit code 2 and stable diagnostics |
+| Handler behavior | Five focused command tests cover repository scans, findings, exports, agent context, semantic planning/status/scheduling/resume, loop interruption, environment defaults, and server assembly through the stable `main` facade |
+| Verification | The complete gate passes 158 tests at 88.99% total coverage, all pre-commit/size/function/complexity/coupling/layer checks, both Compose validations, the bounded history benchmark, and all 12 Chromium contracts |
+
 ## Phase 3 exit gate
 
 - From a clean supported machine, one documented command produces a usable dashboard without a Git
@@ -1969,8 +1985,8 @@ queue and the document cannot drift apart.
 | 30 | **COMPLETE** — Add the loopback `anaxigraph up` path with external user-state storage and clean lifecycle behavior | §3.3 |
 | 31 | **COMPLETE** — Package and contract-test the AnaxiMCP bootstrap workflow as supported agent skills/plugins | §3.4 |
 | 32 | **COMPLETE** — Collapse onboarding around one start action, one connection action, and the agent-funded semantic loop | §3.5 |
-| 33 | **IN PROGRESS** — Decompose CLI/onboarding responsibilities and remove both size-ratchet exceptions | §3.6 |
-| 34 | Close the measurable Phase 3 first-user, idempotency, Docker/local, skill, and quality exit gate | Phase 3 gate |
+| 33 | **COMPLETE** — Decompose CLI/onboarding responsibilities and remove both size-ratchet exceptions | §3.6 |
+| 34 | **IN PROGRESS** — Close the measurable Phase 3 first-user, idempotency, Docker/local, skill, and quality exit gate | Phase 3 gate |
 
 Items 9 and 10 are the user-visible Phase 0 changes. The completed 0.1.0 publication is the narrow,
 recorded exception described in §0.6; the work that remains in these queue items is restricted to
