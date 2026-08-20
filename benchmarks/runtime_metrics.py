@@ -9,6 +9,7 @@ import re
 import shutil
 import socket
 import sqlite3
+import statistics
 import subprocess
 import sys
 import threading
@@ -71,14 +72,20 @@ def measure(function: Callable[[], Any]) -> tuple[Any, dict[str, int]]:
 
 def api_metrics(database: AnaxiIndex, repository: Path) -> dict[str, Any]:
     app = create_app(database=database, repository=repository, enable_mcp=False)
+    durations: list[float] = []
     with TestClient(app) as client:
-        response = client.get("/api/graph")
-        response.raise_for_status()
+        for _ in range(4):
+            started = time.perf_counter()
+            response = client.get("/api/graph")
+            response.raise_for_status()
+            durations.append((time.perf_counter() - started) * 1_000)
         payload = response.json()
     return {
         "graph_payload_bytes": len(response.content),
         "graph_nodes": len(payload["nodes"]),
         "graph_edges": len(payload["edges"]),
+        "cold_request_ms": round(durations[0], 2),
+        "warm_request_median_ms": round(statistics.median(durations[1:]), 2),
     }
 
 

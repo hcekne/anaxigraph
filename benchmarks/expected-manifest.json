@@ -3,17 +3,17 @@
   "seed": 20260820,
   "synthetic_history": {
     "change_counts": {
-      "added": 10,
+      "added": 30,
       "ambiguous_replacements": 3,
-      "deleted": 10,
+      "deleted": 30,
       "interface_changes": 3,
       "metadata_only_changes": 1,
-      "modified": 30,
-      "renamed": 10
+      "modified": 150,
+      "renamed": 30
     },
     "commits": 8,
-    "expected_distinct_artifact_raw_versions": 3057,
-    "expected_distinct_artifact_structural_versions": 3056,
+    "expected_distinct_artifact_raw_versions": 3217,
+    "expected_distinct_artifact_structural_versions": 3216,
     "final_files": 3000,
     "initial_files": 3000
   },

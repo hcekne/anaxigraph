@@ -36,8 +36,8 @@ def test_history_fixture_is_deterministic(tmp_path):
     assert _revisions(first) == _revisions(second)
     assert first_manifest["commits"] == 8
     assert first_manifest["final_files"] == 120
-    assert first_manifest["expected_distinct_artifact_raw_versions"] == 130
-    assert first_manifest["expected_distinct_artifact_structural_versions"] == 129
+    assert first_manifest["expected_distinct_artifact_raw_versions"] == 135
+    assert first_manifest["expected_distinct_artifact_structural_versions"] == 134
 
 
 def test_history_fixture_has_exact_versions_and_agent_scope(tmp_path):
@@ -125,5 +125,5 @@ def test_committed_benchmark_manifest_matches_generator_contract():
     assert history["commits"] == DEFAULT_COMMITS
     assert history["initial_files"] == DEFAULT_FILE_COUNT
     assert history["final_files"] == DEFAULT_FILE_COUNT
-    assert history["expected_distinct_artifact_raw_versions"] == 3_057
-    assert history["expected_distinct_artifact_structural_versions"] == 3_056
+    assert history["expected_distinct_artifact_raw_versions"] == 3_217
+    assert history["expected_distinct_artifact_structural_versions"] == 3_216

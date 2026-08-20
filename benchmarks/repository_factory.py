@@ -105,9 +105,9 @@ def create_history_repository(
     _commit(root, 0, "Initial deterministic repository")
     operations.append({"kind": "initial", "files": file_count})
 
-    modified = max(1, file_count // 100)
-    renamed = max(1, file_count // 300)
-    deleted = max(1, file_count // 300)
+    modified = max(1, file_count // 20)
+    renamed = max(1, file_count // 100)
+    deleted = max(1, file_count // 100)
     offsets = _operation_offsets(modified, renamed, deleted)
     changes = (
         ("modify", lambda: _modify_modules(root, range(0, modified), seed)),
