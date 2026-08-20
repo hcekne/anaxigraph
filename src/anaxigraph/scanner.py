@@ -24,7 +24,6 @@ from anaxigraph.models import (
     FileAnalysis,
     GitMetadata,
     ScanStats,
-    SemanticClaim,
     Symbol,
 )
 from anaxigraph.relationships import (
@@ -33,8 +32,8 @@ from anaxigraph.relationships import (
     RESOLVED_INTERNAL,
     UNRESOLVED_INTERNAL,
 )
-from anaxigraph.semantic import CommandSemanticProvider, SemanticAnalysisError
 from anaxigraph.storage import AnaxiIndex, utc_now
+from anaxigraph.understanding import SemanticEngine
 
 ANALYSIS_VERSION = 3
 
@@ -55,8 +54,6 @@ class PreparedFile:
     previous_version_id: int | None
     first_seen_at: str
     last_changed_at: str
-    semantic_claim: SemanticClaim | None = None
-    semantic_error: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,7 +180,7 @@ class RepositoryScanner:
                     reused=len(discovered),
                     metadata={"duration_ms": duration, "revision": revision},
                 )
-                return ScanStats(
+                stats = ScanStats(
                     repository_id=repository_id,
                     snapshot_id=existing_id,
                     analysis_run_id=run_id,
@@ -195,6 +192,9 @@ class RepositoryScanner:
                     findings=counts["findings"],
                     duration_ms=duration,
                 )
+                if revision is None and config.semantic.enabled:
+                    SemanticEngine(self.database).plan(repository_id, root, config)
+                return stats
 
             previous_snapshot_id = (
                 baseline_snapshot_id
@@ -271,9 +271,7 @@ class RepositoryScanner:
 
             analyzed = sum(item.analysis_status != "raw_unchanged" for item in prepared)
             reused = len(prepared) - analyzed
-            errors = sum(
-                bool(item.analysis.parse_error or item.semantic_error) for item in prepared
-            )
+            errors = sum(bool(item.analysis.parse_error) for item in prepared)
             duration = int((time.monotonic() - started) * 1_000)
             self.database.finish_run(
                 run_id,
@@ -292,7 +290,7 @@ class RepositoryScanner:
                     "findings": len(findings),
                 },
             )
-            return ScanStats(
+            stats = ScanStats(
                 repository_id=repository_id,
                 snapshot_id=snapshot_id,
                 analysis_run_id=run_id,
@@ -304,6 +302,9 @@ class RepositoryScanner:
                 findings=len(findings),
                 duration_ms=duration,
             )
+            if revision is None and config.semantic.enabled:
+                SemanticEngine(self.database).plan(repository_id, root, config)
+            return stats
         except Exception as exc:
             self.database.finish_run(
                 run_id,
@@ -391,11 +392,6 @@ class RepositoryScanner:
         config: AnaxiGraphConfig,
     ) -> list[PreparedFile]:
         now = utc_now()
-        semantic_provider = (
-            CommandSemanticProvider(config.semantic)
-            if config.semantic.enabled and config.semantic.command
-            else None
-        )
         prepared: list[PreparedFile] = []
         for item in discovered:
             prior = previous.get(item.path)
@@ -440,20 +436,6 @@ class RepositoryScanner:
                 first_seen_at=prior["first_seen_at"] if prior else now,
                 last_changed_at=now,
             )
-            semantic_change = not prior or prior["structural_hash"] != analysis.structural_hash
-            if (
-                semantic_provider
-                and status in {"new", "structural_changed", "analyzer_changed"}
-                and semantic_change
-            ):
-                try:
-                    current.semantic_claim = semantic_provider.analyze(
-                        path=item.path,
-                        content=content,
-                        facts=analysis,
-                    )
-                except SemanticAnalysisError as exc:
-                    current.semantic_error = str(exc)
             prepared.append(current)
         return prepared
 
@@ -571,8 +553,6 @@ class RepositoryScanner:
             metadata["dependencies"] = [
                 dataclasses.asdict(value) for value in analysis.dependencies
             ]
-            if item.semantic_error:
-                metadata["semantic_error"] = item.semantic_error
             cursor = connection.execute(
                 """
                 INSERT INTO file_versions(
@@ -793,36 +773,10 @@ class RepositoryScanner:
     ) -> None:
         for item in prepared:
             version_id = version_ids[item.discovered.path]
-            claim = item.semantic_claim
-            if claim is not None:
-                values = {
-                    "summary": claim.summary,
-                    "responsibilities": claim.responsibilities,
-                    "inputs": claim.inputs,
-                    "outputs": claim.outputs,
-                    "side_effects": claim.side_effects,
-                    "architectural_group": claim.architectural_group,
-                }
-                connection.execute(
-                    """
-                    INSERT INTO semantic_claims(
-                        artifact_version_id, claim_type, value_json, source, provider, model,
-                        prompt_version, created_at, confidence, supporting_evidence_json
-                    ) VALUES (?, 'module_analysis', ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        version_id,
-                        json.dumps(values, sort_keys=True),
-                        claim.source,
-                        claim.provider,
-                        claim.model,
-                        claim.prompt_version,
-                        utc_now(),
-                        claim.confidence,
-                        json.dumps(claim.supporting_evidence),
-                    ),
-                )
-            elif item.previous_version_id is not None:
+            if item.previous_version_id is not None and item.analysis_status in {
+                "raw_unchanged",
+                "metadata_only",
+            }:
                 connection.execute(
                     """
                     INSERT INTO semantic_claims(

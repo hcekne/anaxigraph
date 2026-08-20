@@ -19,13 +19,27 @@ history accumulate over time.
 | `findings` / `finding_occurrences` | Stable findings and lifecycle across snapshots |
 | `analysis_runs` | Operational audit of every scan/update/review/history run |
 | `architecture_rules` | Effective built-in and configured machine-readable policy |
-| `semantic_claims` | LLM claims and full provenance, separate from parser facts |
+| `semantic_claims` | Compact current module claims used by inventory queries |
+| `semantic_documents` | Immutable intrinsic, contextual, group, and repository dossiers with fingerprints, provider/executor provenance, evidence, tokens, and costs |
+| `semantic_jobs` | Durable prioritized work queue with invalidation reason, attempts, estimates, result/error state, executor identity, and expiring worker/agent lease |
+| `semantic_scope_states` | Current per-snapshot semantic coverage and document pointers for modules, groups, and repository |
 | `git_changes` | Bounded file-level commit/change history used for churn and age |
 
 Every current snapshot contains a complete set of `file_versions`, but unchanged versions are
 cloned from the prior analysis rather than reparsed. That keeps queries simple while preserving
 incremental behavior. Raw hash equality skips extraction. Structural hash equality after a raw
 change performs only deterministic metadata/documentation refresh and reuses semantic claims.
+
+Semantic documents are immutable interpretations. A scope-state row points at the intrinsic and
+contextual documents current for one snapshot. Matching input hashes reuse an older document;
+structural or policy changes enqueue new source understanding, while dependency/interface or
+neighbour-intent changes enqueue only contextual understanding. Group and repository documents
+are synthesized from child dossier fingerprints rather than from another full source pass.
+
+In agent-funded mode, only a SHA-256 digest of the opaque submission token is stored. The token is
+scoped to one job and lease; the completed document retains the reported executor label/model for
+audit. Unreported coding-agent token use remains zero rather than being estimated as an
+AnaxiGraph-hosted model cost.
 
 Findings use a rule-derived stable key. A recurring resolved finding becomes `regressed`; a finding
 not observed in the next complete architecture evaluation becomes `resolved`. Dismissed findings

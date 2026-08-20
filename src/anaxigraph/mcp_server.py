@@ -8,13 +8,16 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.server import Settings as FastMCPSettings
 from mcp.server.transport_security import TransportSecuritySettings
+from mcp.types import ToolAnnotations
 
 from anaxigraph.agent import agent_scope, branch_collisions, finding_context, impact_analysis
 from anaxigraph.config import load_config
 from anaxigraph.guidance import product_glossary
 from anaxigraph.registry import RepositoryTarget
 from anaxigraph.scanner import RepositoryScanner
+from anaxigraph.semantic_agent_protocol import semantic_agent_schema
 from anaxigraph.storage import AnaxiIndex
+from anaxigraph.understanding import SemanticEngine
 
 
 def create_anaxi_mcp_server(
@@ -44,9 +47,15 @@ def create_anaxi_mcp_server(
         "AnaxiMCP",
         instructions=(
             "AnaxiMCP exposes the AnaxiIndex knowledge held by AnaxiGraph. "
+            "For an agent-funded semantic baseline, call ANAXIGRAPH_SEMANTIC_SCHEMA once, then "
+            "repeat WORK → optional EVIDENCE pages → SUBMIT until WORK returns complete. The "
+            "coding agent supplies the reasoning and tokens; submission writes only validated "
+            "interpretations to AnaxiIndex, never source files. "
             "Use these tools to understand repository architecture before editing. "
-            "Prefer ANAXIGRAPH_SCOPE for a new goal and ANAXIGRAPH_IMPACT before changing a shared interface. "
-            "Parser facts and LLM inferences are labeled separately. Findings are recommendations, not permission to refactor."
+            "Prefer ANAXIGRAPH_SCOPE for a new goal, ANAXIGRAPH_IMPACT before changing a shared "
+            "interface, and ANAXIGRAPH_FILE for the complete semantic dossier behind a module. "
+            "Parser facts and LLM inferences are labeled separately. Findings and pattern advice "
+            "are recommendations, not permission to refactor."
         ),
         stateless_http=True,
         json_response=True,
@@ -102,8 +111,167 @@ def create_anaxi_mcp_server(
         description="Return current repository size, languages, groups, coverage, and architecture finding counts.",
     )
     def overview(repository: str = "") -> dict[str, Any]:
-        row, _ = context(repository)
-        return database.overview(int(row["id"]))
+        row, root = context(repository)
+        result = database.overview(int(row["id"]))
+        result["semantic"] = SemanticEngine(database).status(
+            int(row["id"]), config_for(row, root).semantic
+        )
+        return result
+
+    @server.tool(
+        name="ANAXIGRAPH_SEMANTIC_STATUS",
+        description=(
+            "Report semantic-bootstrap coverage, freshness, pending/failed modules, token/cost "
+            "usage, and the current repository-level dossier."
+        ),
+    )
+    def semantic_status(repository: str = "") -> dict[str, Any]:
+        row, root = context(repository)
+        return SemanticEngine(database).status(
+            int(row["id"]), config_for(row, root).semantic
+        )
+
+    @server.tool(
+        name="ANAXIGRAPH_SEMANTIC_SCHEMA",
+        title="Read semantic dossier contract",
+        description=(
+            "Read the strict dossier schema and reasoning rules once before executing "
+            "agent-funded semantic work."
+        ),
+        annotations=ToolAnnotations(
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
+    )
+    def semantic_schema() -> dict[str, Any]:
+        return semantic_agent_schema()
+
+    @server.tool(
+        name="ANAXIGRAPH_SEMANTIC_WORK",
+        title="Claim semantic mapping work",
+        description=(
+            "Prepare and lease the next bounded semantic mapping task to this coding agent. Use "
+            "only when the repository opts into semantic.provider: agent. This changes queue "
+            "state but never writes the target repository."
+        ),
+        annotations=ToolAnnotations(
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=False,
+            openWorldHint=False,
+        ),
+    )
+    def semantic_work(
+        agent_id: str,
+        agent_model: str = "",
+        retry_failed: bool = False,
+        repository: str = "",
+    ) -> dict[str, Any]:
+        row, root = context(repository)
+        return SemanticEngine(database).claim_agent_work(
+            int(row["id"]),
+            root,
+            config_for(row, root),
+            agent_id=agent_id,
+            agent_model=agent_model,
+            retry_failed=retry_failed,
+        )
+
+    @server.tool(
+        name="ANAXIGRAPH_SEMANTIC_EVIDENCE",
+        title="Read a semantic evidence page",
+        description=(
+            "Read one overflow evidence page for a leased semantic task. Fetch every page named "
+            "by the work packet before submitting its dossier."
+        ),
+        annotations=ToolAnnotations(
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
+    )
+    def semantic_evidence(
+        job_id: int,
+        lease_token: str,
+        page: int,
+        repository: str = "",
+    ) -> dict[str, Any]:
+        row, root = context(repository)
+        return SemanticEngine(database).agent_evidence_page(
+            int(row["id"]),
+            root,
+            config_for(row, root),
+            job_id=job_id,
+            lease_token=lease_token,
+            page=page,
+        )
+
+    @server.tool(
+        name="ANAXIGRAPH_SEMANTIC_SUBMIT",
+        title="Store a semantic dossier",
+        description=(
+            "Validate and store one completed coding-agent dossier in AnaxiIndex. This is an "
+            "opt-in index-only write; it never changes repository source. Repeating the same "
+            "completed submission is safe."
+        ),
+        annotations=ToolAnnotations(
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
+    )
+    def semantic_submit(
+        job_id: int,
+        lease_token: str,
+        dossier: dict[str, Any],
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+        repository: str = "",
+    ) -> dict[str, Any]:
+        row, root = context(repository)
+        return SemanticEngine(database).submit_agent_work(
+            int(row["id"]),
+            root,
+            config_for(row, root),
+            job_id=job_id,
+            lease_token=lease_token,
+            dossier=dossier,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+        )
+
+    @server.tool(
+        name="ANAXIGRAPH_SEMANTIC_RELEASE",
+        title="Release semantic mapping work",
+        description=(
+            "Return an unfinished leased semantic task to the queue without consuming an "
+            "attempt, for example when the coding agent lacks required local source access."
+        ),
+        annotations=ToolAnnotations(
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=False,
+            openWorldHint=False,
+        ),
+    )
+    def semantic_release(
+        job_id: int,
+        lease_token: str,
+        reason: str,
+        repository: str = "",
+    ) -> dict[str, Any]:
+        row, root = context(repository)
+        return SemanticEngine(database).release_agent_work(
+            int(row["id"]),
+            config_for(row, root),
+            job_id=job_id,
+            lease_token=lease_token,
+            reason=reason,
+        )
 
     @server.tool(
         name="ANAXIGRAPH_MODULES",

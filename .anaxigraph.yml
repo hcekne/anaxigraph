@@ -41,6 +41,8 @@ groups:
       - src/anaxigraph/coverage.py
       - src/anaxigraph/agent.py
       - src/anaxigraph/semantic.py
+      - src/anaxigraph/semantic_*.py
+      - src/anaxigraph/understanding.py
   persistence:
     paths: [src/anaxigraph/storage.py]
   interfaces:
@@ -66,3 +68,13 @@ agent:
 
 coverage:
   files: [coverage.xml]
+
+# Semantic understanding is opt-in because it sends eligible source and graph context to the
+# configured model. See docs/onboarding.md before enabling it.
+semantic:
+  enabled: false
+  provider: agent
+  refresh: manual
+  max_jobs_per_run: 100
+  max_parallel_jobs: 1
+  agent_lease_seconds: 1800

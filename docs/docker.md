@@ -137,6 +137,46 @@ docker compose logs -f anaxigraph-watch
 
 Set `ANAXIGRAPH_WATCH_INTERVAL` in `.env` to change the default ten-second interval.
 
+## Build and maintain semantic understanding
+
+The model-backed bootstrap is opt-in. The simplest sidecar setup lets the connected coding agent
+perform the reasoning with its own tokens and writes only the validated dossier to the shared
+AnaxiIndex:
+
+```yaml
+semantic:
+  enabled: true
+  provider: agent
+  refresh: manual
+  agent_lease_seconds: 1800
+```
+
+The normal `anaxigraph` service is sufficient; no model API key or extra profile is needed. In the
+coding-agent chat, ask it to call `ANAXIGRAPH_SEMANTIC_SCHEMA` once and then repeat
+`ANAXIGRAPH_SEMANTIC_WORK` → optional `ANAXIGRAPH_SEMANTIC_EVIDENCE` pages →
+`ANAXIGRAPH_SEMANTIC_SUBMIT` until complete. The queue survives container and agent-session
+restarts.
+
+For unattended reconciliation instead, use `provider: openai` or `provider: anthropic`, set a
+model and `refresh: periodic`, export the matching key before creating the containers, then run:
+
+```bash
+docker compose --profile ai up --build -d
+docker compose logs -f anaxigraph-semantic
+curl --fail http://127.0.0.1:8765/api/semantic
+```
+
+That worker reads all eligible modules on first enrollment, then reconciles at each repository's
+`semantic.reconcile_interval_minutes`. Hash and context comparisons happen before model calls, so
+an unchanged repository is not resent on each interval. The queue and completed dossiers live in
+the shared AnaxiIndex volume and survive container restarts.
+
+Hosted-provider credentials are passed as environment variables to the dashboard and optional worker; they
+are not written to `.anaxigraph.yml` or AnaxiIndex. The stock image does not bundle Codex or Claude
+CLI binaries. Those CLI adapters are intended for a local AnaxiGraph installation or a custom
+operator image. See [semantic onboarding](onboarding.md#build-the-ai-understanding-baseline) for
+the full provider, cost, egress, and refresh policy.
+
 To reconstruct history from the command line:
 
 ```bash
@@ -151,6 +191,10 @@ docker compose exec anaxigraph anaxigraph history /repo \
 For a local Codex or other MCP client, use AnaxiMCP at `http://127.0.0.1:8765/mcp`. The
 `ANAXIGRAPH_REPOSITORIES` tool lists selectors. All repository-aware tools accept an optional
 `repository` ID or name; omitting it uses the first configured target.
+
+Most tools are read-only. If a selected repository explicitly uses `semantic.provider: agent`,
+WORK, SUBMIT, and RELEASE mutate only its AnaxiIndex semantic queue and records. The repository
+mount remains read-only.
 
 When another container needs direct access, attach the MaxOS network overlay:
 

@@ -383,6 +383,44 @@ def _graph_maps(
             (snapshot_id,),
         )
     }
+    for row in connection.execute(
+        """
+        SELECT ss.artifact_id, ss.status, ss.reason, sd.value_json, sd.provider,
+               sd.model, sd.confidence, sd.document_kind
+        FROM semantic_scope_states ss
+        LEFT JOIN semantic_documents sd
+          ON sd.id = COALESCE(ss.context_document_id, ss.intrinsic_document_id)
+        WHERE ss.snapshot_id = ? AND ss.scope_type = 'module'
+        """,
+        (snapshot_id,),
+    ):
+        artifact_id = int(row["artifact_id"])
+        if artifact_id not in files:
+            continue
+        value = _json(row["value_json"] or "{}") or {}
+        item = files[artifact_id]
+        item["deterministic_summary"] = item["summary"]
+        if value.get("summary"):
+            item["summary"] = value["summary"]
+        item["semantic"] = {
+            "status": row["status"],
+            "reason": row["reason"],
+            "source": row["document_kind"],
+            "provider": row["provider"],
+            "model": row["model"],
+            "confidence": row["confidence"],
+            "architecture_role": value.get("architecture_role") or "",
+            "placement_guidance": value.get("placement_guidance") or "",
+            "detailed_summary": value.get("detailed_summary") or "",
+            "responsibilities": value.get("responsibilities") or [],
+            "domain_concepts": value.get("domain_concepts") or [],
+            "extension_points": value.get("extension_points") or [],
+            "similar_modules": value.get("similar_modules") or [],
+            "pattern_opportunities": (value.get("pattern_opportunities") or [])[:5],
+            "consolidation_assessment": value.get("consolidation_assessment"),
+            "dead_code_candidates": (value.get("dead_code_candidates") or [])[:5],
+            "risks": value.get("risks") or [],
+        }
     outgoing: dict[int, set[int]] = defaultdict(set)
     incoming: dict[int, set[int]] = defaultdict(set)
     for row in connection.execute(
@@ -424,19 +462,31 @@ def _rank_files(
         (snapshot_id,),
     ):
         symbols[int(row["artifact_id"])] = row["names"] or ""
-    documents: dict[int, tuple[str, str, str, str]] = {}
+    documents: dict[int, tuple[str, ...]] = {}
     for artifact_id, item in files.items():
         path = item["path"].lower().replace("-", "_")
         basename = Path(path).stem
         summary = (item["summary"] or "").lower().replace("-", "_")
         symbol_text = symbols[artifact_id].lower().replace("-", "_")
-        documents[artifact_id] = (path, basename, summary, symbol_text)
+        semantic = item.get("semantic") or {}
+        semantic_text = " ".join(
+            str(value)
+            for value in (
+                semantic.get("detailed_summary"),
+                semantic.get("architecture_role"),
+                semantic.get("placement_guidance"),
+                *(semantic.get("responsibilities") or []),
+                *(semantic.get("domain_concepts") or []),
+            )
+            if value
+        ).lower().replace("-", "_")
+        documents[artifact_id] = (path, basename, summary, symbol_text, semantic_text)
     document_frequency = {
         word: sum(1 for values in documents.values() if word in " ".join(values)) for word in words
     }
     ranked: list[tuple[float, int]] = []
     for artifact_id, item in files.items():
-        path, basename, summary, symbol_text = documents[artifact_id]
+        path, basename, summary, symbol_text, semantic_text = documents[artifact_id]
         score = 0.0
         for word in words:
             inverse_frequency = 1 + log((len(files) + 1) / (document_frequency[word] + 1))
@@ -444,6 +494,7 @@ def _rank_files(
             score += basename.count(word) * 8 * inverse_frequency
             score += summary.count(word) * 3 * inverse_frequency
             score += symbol_text.count(word) * 4 * inverse_frequency
+            score += semantic_text.count(word) * 2.5 * inverse_frequency
         normalized_goal = "_".join(
             word.lower() for word in _WORD.findall(_split_camel(goal)) if len(word) > 2
         )
@@ -838,7 +889,7 @@ def _is_protected(path: str, config: AnaxiGraphConfig) -> bool:
 
 
 def _file_summary(item: dict[str, Any]) -> dict[str, Any]:
-    return {
+    result = {
         "path": item["path"],
         "language": item["language"],
         "summary": item["summary"],
@@ -846,6 +897,26 @@ def _file_summary(item: dict[str, Any]) -> dict[str, Any]:
         "complexity": item["complexity"],
         "group": item["declared_group"] or item["inferred_group"],
     }
+    semantic = item.get("semantic") or {}
+    if semantic:
+        result["semantic"] = {
+            key: semantic.get(key)
+            for key in (
+                "status",
+                "source",
+                "provider",
+                "model",
+                "confidence",
+                "architecture_role",
+                "placement_guidance",
+                "pattern_opportunities",
+                "consolidation_assessment",
+                "dead_code_candidates",
+                "risks",
+            )
+            if semantic.get(key) not in (None, "")
+        }
+    return result
 
 
 def _sorted_ids(files: dict[int, dict[str, Any]], ids: set[int]) -> list[int]:

@@ -19,10 +19,12 @@ fallback. Graphify or Tree-sitter can be added as an analyzer or graph-extractor
 changing persistence consumers.
 
 Coverage adapters likewise return normalized file coverage before persistence. Semantic analysis
-uses a JSON-over-stdin command boundary so the operator can choose an LLM/provider without putting
-provider SDK behavior into the scanner. The command receives deterministic facts plus bounded
-source and must return the documented JSON contract. Semantic execution is disabled by default and
-only runs for new or structurally changed files.
+uses one provider-neutral dossier contract. Built-in executors cover a connected coding agent over
+AnaxiMCP, OpenAI and Anthropic APIs, non-interactive Codex and Claude CLIs, and a JSON-over-stdin
+custom command. The semantic planner, queue, fingerprints, and storage do not depend on provider
+SDK types. Executors receive deterministic facts plus bounded source or stored neighbouring
+dossiers and return the strict dossier contract. Execution is disabled by default and runs for
+missing, structurally changed, context-invalidated, policy-stale, or explicitly expired scopes.
 
 Future adapters should preserve three rules:
 

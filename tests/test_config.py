@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from anaxigraph.config import load_config, path_matches
 
 
@@ -49,3 +51,65 @@ def test_coverage_warning_can_be_explicitly_required(tmp_path: Path):
 
     assert config.coverage_required is True
     assert config.coverage_files == ("reports/coverage.xml",)
+
+
+def test_semantic_provider_refresh_budget_and_path_policy_load(tmp_path: Path):
+    (tmp_path / ".anaxigraph.yml").write_text(
+        """semantic:
+  enabled: true
+  provider: openai
+  model: example-model
+  refresh: periodic
+  reconcile_interval_minutes: 90
+  max_parallel_jobs: 3
+  max_jobs_per_run: 25
+  daily_budget_usd: 2.5
+  input_cost_per_million: 1.25
+  output_cost_per_million: 5
+  include: [src/**]
+  exclude: [src/generated/**]
+""",
+        encoding="utf-8",
+    )
+
+    semantic = load_config(tmp_path).semantic
+
+    assert semantic.enabled is True
+    assert semantic.provider == "openai"
+    assert semantic.model == "example-model"
+    assert semantic.refresh == "periodic"
+    assert semantic.reconcile_interval_minutes == 90
+    assert semantic.max_parallel_jobs == 3
+    assert semantic.daily_budget_usd == 2.5
+    assert semantic.includes_path("src/service.py")
+    assert not semantic.includes_path("src/generated/client.py")
+    assert not semantic.includes_path("tests/test_service.py")
+
+
+def test_invalid_semantic_policy_fails_loudly(tmp_path: Path):
+    (tmp_path / ".anaxigraph.yml").write_text(
+        "semantic: {enabled: true, provider: mystery, refresh: whenever}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="semantic.provider"):
+        load_config(tmp_path)
+
+
+def test_agent_funded_semantic_policy_needs_no_model_or_command(tmp_path: Path):
+    (tmp_path / ".anaxigraph.yml").write_text(
+        """semantic:
+  enabled: true
+  provider: agent
+  refresh: on_scan
+  agent_lease_seconds: 900
+""",
+        encoding="utf-8",
+    )
+
+    semantic = load_config(tmp_path).semantic
+
+    assert semantic.provider == "agent"
+    assert semantic.model == ""
+    assert semantic.command == ()
+    assert semantic.agent_lease_seconds == 900

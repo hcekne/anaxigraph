@@ -23,6 +23,7 @@ from anaxigraph.mcp_server import create_anaxi_mcp_server
 from anaxigraph.registry import RepositoryTarget
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.storage import AnaxiIndex
+from anaxigraph.understanding import SemanticEngine
 
 
 class ScopeRequest(BaseModel):
@@ -69,6 +70,8 @@ def create_app(
     default_repository = targets[0].path if targets else repository
     history_jobs: dict[str, dict[str, Any]] = {}
     history_lock = threading.Lock()
+    semantic_jobs: dict[str, dict[str, Any]] = {}
+    semantic_lock = threading.Lock()
 
     def target_for_path(path: Path) -> RepositoryTarget | None:
         resolved = path.resolve()
@@ -127,6 +130,63 @@ def create_app(
         ).start()
         return True
 
+    def semantic_worker(target: RepositoryTarget, force: bool, retry_failed: bool) -> None:
+        key = str(target.path.resolve())
+        with semantic_lock:
+            semantic_jobs[key] = {"status": "running"}
+        try:
+            config = load_config(target.path, target.config_path)
+            stats = RepositoryScanner(database).scan(
+                target.path,
+                config_path=target.config_path,
+                run_type="semantic_reconcile",
+            )
+            result = SemanticEngine(database).bootstrap(
+                stats.repository_id,
+                target.path,
+                config,
+                force=force,
+                retry_failed=retry_failed,
+            )
+            with semantic_lock:
+                semantic_jobs[key] = {
+                    "status": "complete",
+                    "scan": stats.as_dict(),
+                    **result,
+                }
+        except Exception as exc:  # Background failures are intentionally visible in the UI.
+            with semantic_lock:
+                semantic_jobs[key] = {
+                    "status": "failed",
+                    "error": f"{type(exc).__name__}: {exc}"[:2_000],
+                }
+
+    def start_semantic_refresh(
+        target: RepositoryTarget, *, force: bool = False, retry_failed: bool = False
+    ) -> bool:
+        key = str(target.path.resolve())
+        config = load_config(target.path, target.config_path)
+        if not config.semantic.enabled:
+            return False
+        repository_row = database.repository(target.path)
+        if repository_row is not None:
+            durable_status = SemanticEngine(database).status(
+                int(repository_row["id"]), config.semantic
+            )
+            if int(durable_status.get("jobs", {}).get("running", 0)) > 0:
+                return False
+        with semantic_lock:
+            if semantic_jobs.get(key, {}).get("status") in {"queued", "running"}:
+                return False
+            semantic_jobs[key] = {"status": "queued"}
+        threading.Thread(
+            target=semantic_worker,
+            args=(target, force, retry_failed),
+            name=f"anaxigraph-semantic-{target.key}",
+            daemon=True,
+        ).start()
+        return True
+
     mcp = (
         create_anaxi_mcp_server(
             database=database,
@@ -151,6 +211,9 @@ def create_app(
                 )
             for target in targets:
                 start_history_import(target)
+                config = load_config(target.path, target.config_path)
+                if config.semantic.enabled and config.semantic.refresh in {"on_scan", "periodic"}:
+                    start_semantic_refresh(target)
         if mcp is not None:
             async with mcp.session_manager.run():
                 yield
@@ -268,6 +331,10 @@ def create_app(
         row = selected_repository(repository_id)
         result = database.overview(int(row["id"]), snapshot_id)
         result["coverage"] = coverage_diagnostics(row, result.get("coverage") or {})
+        if snapshot_id is None:
+            result["semantic"] = SemanticEngine(database).status(
+                int(row["id"]), selected_config(row).semantic
+            )
         return result
 
     @app.get("/api/modules")
@@ -276,6 +343,43 @@ def create_app(
     ) -> list[dict[str, Any]]:
         row = selected_repository(repository_id)
         return database.modules(int(row["id"]), snapshot_id)
+
+    @app.get("/api/semantic")
+    def semantic_status(repository_id: int | None = None) -> dict[str, Any]:
+        row = selected_repository(repository_id)
+        result = SemanticEngine(database).status(int(row["id"]), selected_config(row).semantic)
+        with semantic_lock:
+            result["worker"] = dict(
+                semantic_jobs.get(str(Path(row["path"]).resolve()), {"status": "idle"})
+            )
+        return result
+
+    @app.post("/api/semantic/refresh")
+    def refresh_semantics(
+        repository_id: int | None = None,
+        force: bool = False,
+        retry_failed: bool = False,
+    ) -> dict[str, Any]:
+        row = selected_repository(repository_id)
+        target = target_for_path(Path(row["path"]))
+        if target is None:
+            raise HTTPException(
+                status_code=403,
+                detail="This indexed repository is not mounted as a semantic-analysis target",
+            )
+        config = selected_config(row)
+        if not config.semantic.enabled:
+            raise HTTPException(
+                status_code=400,
+                detail="Semantic analysis is disabled in this repository's .anaxigraph.yml",
+            )
+        started = start_semantic_refresh(
+            target, force=force, retry_failed=retry_failed
+        )
+        return {
+            "status": "started" if started else "already_running",
+            "repository_id": row["id"],
+        }
 
     @app.get("/api/graph")
     def graph(
@@ -447,6 +551,9 @@ def create_app(
             target.path,
             config_path=target.config_path,
         )
+        config = selected_config(row)
+        if config.semantic.enabled and config.semantic.refresh == "on_scan":
+            start_semantic_refresh(target)
         return stats.as_dict()
 
     @app.get("/api/trends")

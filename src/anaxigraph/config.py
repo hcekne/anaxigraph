@@ -79,11 +79,38 @@ class ArchitectureConfig:
 @dataclass(frozen=True, slots=True)
 class SemanticConfig:
     enabled: bool = False
+    provider: str = "command"
     command: tuple[str, ...] = ()
     model: str = ""
     prompt_version: str = "v1"
     timeout_seconds: int = 120
-    min_changed_lines: int = 1
+    refresh: str = "manual"
+    reconcile_interval_minutes: int = 1_440
+    max_age_days: int = 0
+    max_jobs_per_run: int = 100
+    max_parallel_jobs: int = 1
+    max_attempts: int = 3
+    max_source_chars: int = 100_000
+    max_context_modules: int = 24
+    max_output_tokens: int = 4_000
+    agent_lease_seconds: int = 1_800
+    daily_budget_usd: float | None = None
+    input_cost_per_million: float = 0.0
+    output_cost_per_million: float = 0.0
+    base_url: str = ""
+    api_key_env: str = ""
+    include: tuple[str, ...] = ()
+    exclude: tuple[str, ...] = (
+        "vendor/**",
+        "**/vendor/**",
+        "generated/**",
+        "**/generated/**",
+    )
+
+    def includes_path(self, path: str) -> bool:
+        if self.include and not any(path_matches(path, pattern) for pattern in self.include):
+            return False
+        return not any(path_matches(path, pattern) for pattern in self.exclude)
 
 
 @dataclass(frozen=True, slots=True)
@@ -228,6 +255,62 @@ def _rules(value: Any) -> tuple[RuleConfig, ...]:
     return tuple(result)
 
 
+def _semantic_config(value: Any) -> SemanticConfig:
+    if not value:
+        return SemanticConfig()
+    if not isinstance(value, dict):
+        raise ValueError("semantic must be a mapping")
+    provider = str(value.get("provider", "command")).strip().lower()
+    if provider not in {"agent", "command", "codex", "claude", "openai", "anthropic"}:
+        raise ValueError(
+            "semantic.provider must be agent, command, codex, claude, openai, or anthropic"
+        )
+    refresh = str(value.get("refresh", "manual")).strip().lower().replace("-", "_")
+    if refresh not in {"manual", "on_scan", "watch", "periodic"}:
+        raise ValueError("semantic.refresh must be manual, on_scan, watch, or periodic")
+
+    def integer(name: str, default: int, minimum: int) -> int:
+        result = int(value.get(name, default))
+        if result < minimum:
+            raise ValueError(f"semantic.{name} must be at least {minimum}")
+        return result
+
+    budget_value = value.get("daily_budget_usd")
+    budget = float(budget_value) if budget_value is not None else None
+    if budget is not None and budget < 0:
+        raise ValueError("semantic.daily_budget_usd cannot be negative")
+    input_cost = float(value.get("input_cost_per_million", 0.0))
+    output_cost = float(value.get("output_cost_per_million", 0.0))
+    if input_cost < 0 or output_cost < 0:
+        raise ValueError("semantic token costs cannot be negative")
+
+    return SemanticConfig(
+        enabled=bool(value.get("enabled", False)),
+        provider=provider,
+        command=_tuple_of_strings(value.get("command")),
+        model=str(value.get("model", "")),
+        prompt_version=str(value.get("prompt_version", "v1")),
+        timeout_seconds=integer("timeout_seconds", 120, 1),
+        refresh=refresh,
+        reconcile_interval_minutes=integer("reconcile_interval_minutes", 1_440, 1),
+        max_age_days=integer("max_age_days", 0, 0),
+        max_jobs_per_run=integer("max_jobs_per_run", 100, 1),
+        max_parallel_jobs=integer("max_parallel_jobs", 1, 1),
+        max_attempts=integer("max_attempts", 3, 1),
+        max_source_chars=integer("max_source_chars", 100_000, 4_000),
+        max_context_modules=integer("max_context_modules", 24, 1),
+        max_output_tokens=integer("max_output_tokens", 4_000, 256),
+        agent_lease_seconds=integer("agent_lease_seconds", 1_800, 60),
+        daily_budget_usd=budget,
+        input_cost_per_million=input_cost,
+        output_cost_per_million=output_cost,
+        base_url=str(value.get("base_url", "")),
+        api_key_env=str(value.get("api_key_env", "")),
+        include=_tuple_of_strings(value.get("include")),
+        exclude=_tuple_of_strings(value.get("exclude")) or SemanticConfig().exclude,
+    )
+
+
 def load_config(repository: Path, config_path: Path | None = None) -> AnaxiGraphConfig:
     repository = repository.resolve()
     if config_path:
@@ -261,14 +344,7 @@ def load_config(repository: Path, config_path: Path | None = None) -> AnaxiGraph
             protected_paths=_tuple_of_strings(architecture.get("protected_paths")),
             boundaries=boundaries,
         ),
-        semantic=SemanticConfig(
-            enabled=bool(semantic.get("enabled", False)),
-            command=_tuple_of_strings(semantic.get("command")),
-            model=str(semantic.get("model", "")),
-            prompt_version=str(semantic.get("prompt_version", "v1")),
-            timeout_seconds=int(semantic.get("timeout_seconds", 120)),
-            min_changed_lines=int(semantic.get("min_changed_lines", 1)),
-        ),
+        semantic=_semantic_config(semantic),
         agent=AgentConfig(
             context_limit=int(agent.get("context_limit", 25)),
             neighbor_depth=int(agent.get("neighbor_depth", 2)),

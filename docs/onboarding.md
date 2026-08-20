@@ -13,6 +13,11 @@ relationships, metrics, findings, and history outside the repository. The dashbo
 server are two views of that same evidence. AnaxiGraph does not execute the target project and
 does not edit its code.
 
+Model-backed understanding is optional and explicit. It can be executed by the coding agent
+already connected through AnaxiMCP, using that agent's own model and tokens, or by a separately
+configured model worker. Both paths write versioned interpretations to AnaxiIndex and never
+replace deterministic parser facts.
+
 ## Five-minute sidecar setup
 
 You need Git, Docker with Compose, and [`uv`](https://docs.astral.sh/uv/). From the repository you
@@ -119,7 +124,10 @@ If Codex runs on your local computer, it can use the forwarded URL while the SSH
 active. If Codex runs in another container on the same Docker network, use the service address
 `http://anaxigraph:8765/mcp`.
 
-AnaxiMCP is read-only by default. A useful coding workflow is:
+Most AnaxiMCP tools read AnaxiIndex only. When a repository explicitly selects
+`semantic.provider: agent`, the semantic work and submission tools may also change its durable
+queue and semantic records; they still cannot write the mounted repository. A useful coding
+workflow is:
 
 1. Ask the agent to call `ANAXIGRAPH_OVERVIEW` or `ANAXIGRAPH_SEARCH` to orient itself.
 2. Before a change, call `ANAXIGRAPH_SCOPE` for a small affected-file and test envelope, or
@@ -132,6 +140,166 @@ AnaxiMCP is read-only by default. A useful coding workflow is:
 Other MCP clients should connect to `http://127.0.0.1:8765/mcp`. When the client runs in another
 container on the same Docker network, use the Compose service address
 `http://anaxigraph:8765/mcp` instead.
+
+## Build the AI understanding baseline
+
+Connecting Codex to AnaxiMCP normally lets the coding agent read AnaxiIndex. A repository can also
+opt into a narrow write-back workflow in which that same agent digests bounded semantic work and
+writes only schema-validated interpretations into AnaxiIndex. This keeps the model credential and
+token bill in the coding agent instead of the AnaxiGraph container.
+
+The initial bootstrap runs in resumable stages:
+
+1. A normal read-only scan records every module, hash, symbol, interface, dependency, group, and
+   Git biography.
+2. The selected semantic executor reads every eligible first-party module and stores an intrinsic
+   dossier. Large evidence is delivered in bounded pages.
+3. It combines those dossiers with dependency evidence to describe each module in context, then
+   synthesizes group and repository dossiers. Large scopes use compact child records and a
+   hierarchical reduction, so a subsystem with thousands of modules is never sent as one
+   unbounded model request.
+
+A repository is semantically ready only when every eligible module has current intrinsic and
+contextual understanding and repository synthesis has completed. Explicit exclusions and failed
+modules remain visible instead of disappearing from the coverage number.
+
+### Recommended: let the connected coding agent pay for the reasoning
+
+Edit the generated `.anaxigraph.yml`:
+
+```yaml
+semantic:
+  enabled: true
+  provider: agent
+  refresh: manual
+  max_parallel_jobs: 1
+  agent_lease_seconds: 1800
+  include: [src/**]
+  exclude: [src/generated/**, vendor/**]
+```
+
+No API key or `ai` Compose profile is required. Refresh the deterministic scan or choose
+**Prepare semantic work** in the dashboard, make sure the coding agent is connected to
+AnaxiMCP, and give it this task inside the agent chat:
+
+> Use AnaxiGraph to build or resume the semantic baseline for this repository. Call
+> `ANAXIGRAPH_SEMANTIC_SCHEMA` once. Then repeat `ANAXIGRAPH_SEMANTIC_WORK`; if it returns an
+> evidence manifest, fetch every page with `ANAXIGRAPH_SEMANTIC_EVIDENCE`; analyze the supplied
+> module or scope; and submit one complete dossier with `ANAXIGRAPH_SEMANTIC_SUBMIT`. Continue
+> until WORK returns `complete`. Do not edit repository source during this mapping task.
+
+The loop is intentionally resumable. Each WORK call leases one job with an expiring opaque token.
+SUBMIT verifies the token, current repository snapshot, prompt/schema version, and full dossier
+shape before committing. A repeated completed submission is idempotent. If the agent cannot
+finish, `ANAXIGRAPH_SEMANTIC_RELEASE` returns the job to the queue without consuming an attempt.
+The executor label and model label supplied by the client are retained as provenance.
+
+For a very large repository, one Codex or Claude session may not finish every module. Start a new
+session with the same prompt; completed hashes and dossiers are reused, so it resumes at the next
+missing or stale job. After the initial full digest, later scans enqueue only changed source or
+context affected by changed interfaces, relationships, neighbouring intent, policy, prompt, or
+schema.
+
+The semantic MCP tools have explicit read/write annotations: SCHEMA and EVIDENCE are reads; WORK,
+SUBMIT, and RELEASE change only AnaxiIndex. Codex can apply per-server or per-tool approval policy
+through its MCP configuration; see the official
+[Codex MCP documentation](https://learn.chatgpt.com/docs/extend/mcp).
+
+### Alternative Docker worker: OpenAI or Anthropic API
+
+Edit the generated `.anaxigraph.yml`:
+
+```yaml
+semantic:
+  enabled: true
+  provider: openai             # or anthropic
+  model: gpt-5.6-terra         # replace with a model available to your account
+  refresh: periodic            # manual | on_scan | watch | periodic
+  reconcile_interval_minutes: 1440
+  max_jobs_per_run: 100
+  max_parallel_jobs: 2
+  max_attempts: 3
+  max_age_days: 0              # 0 means fingerprints, not age, control refresh
+  include: [src/**]
+  exclude: [src/generated/**, vendor/**]
+```
+
+Keep credentials outside repository configuration. Export the matching key before creating the
+containers, then start the optional worker:
+
+```bash
+export OPENAI_API_KEY="..."       # or ANTHROPIC_API_KEY
+docker compose -f compose.anaxigraph.yml --profile ai up -d
+docker compose -f compose.anaxigraph.yml logs -f anaxigraph-semantic
+```
+
+The dashboard's **Understand repository** button runs the same durable queue in the main service.
+The `ai` profile is the unattended scheduler and processes repositories whose
+`semantic.refresh` is `periodic`. The key must be present when the relevant container is created;
+restart it after changing the environment.
+
+### Local worker: Codex, Claude, hosted API, or a custom command
+
+When AnaxiGraph and AnaxiIndex run directly on the host, the semantic worker can reuse an already
+authenticated coding CLI without putting its credential in repository YAML:
+
+```yaml
+semantic:
+  enabled: true
+  provider: codex              # or claude
+  refresh: manual
+  max_jobs_per_run: 100
+  max_parallel_jobs: 1
+```
+
+```bash
+anaxigraph understand /path/to/repository
+anaxigraph semantic-status /path/to/repository
+```
+
+The Codex adapter invokes non-interactive `codex exec` in an ephemeral, read-only sandbox with a
+strict JSON output schema. The Claude adapter uses non-persistent, tool-free print mode with a
+JSON schema. Neither adapter gives the model a tool for editing the target. A `command` provider
+is also available: AnaxiGraph sends one JSON request on standard input and expects
+`{"dossier": {...}, "usage": {...}}` on standard output.
+
+The stock Docker image intentionally does not bundle the Codex or Claude CLIs. Prefer
+`provider: agent` when a coding agent is already connected to the Docker sidecar, use `openai` or
+`anthropic` for an in-container hosted worker, or build an operator-owned image containing your
+chosen CLI. A host CLI and a Docker sidecar use different AnaxiIndex files unless you deliberately
+give them the same database mount; do not expect a host `anaxigraph understand` command to update
+an unrelated named Docker volume.
+
+### What gets sent again—and what does not
+
+Every scan performs cheap deterministic comparisons. The model is called only for missing,
+failed/retried, age-expired, prompt/model-stale, structurally changed, or context-invalidated
+records:
+
+- raw byte changes trigger a scan comparison;
+- the structural hash controls whether source must be reread;
+- interface and relationship fingerprints can refresh context without rereading unchanged source;
+- normalized intent fingerprints invalidate only affected parent synthesis;
+- prompt, model, provider, or dossier-schema changes create new versioned understanding.
+
+Repeated reconciliation of an unchanged repository makes zero new source-reading calls. Jobs,
+attempts, leases, failures, token counts, and costs are durable, so interrupted containers resume
+after their worker lease expires.
+
+### Cost and privacy controls
+
+`include` and `exclude` are semantic egress rules in addition to the scanner's own ignore rules.
+Excluded modules are recorded explicitly. `max_jobs_per_run`, `max_parallel_jobs`, and
+`daily_budget_usd` bound work. To turn provider token usage into dollar estimates, configure
+`input_cost_per_million` and `output_cost_per_million` for the exact model/account pricing you
+use; leaving them at zero still records tokens but reports no inferred dollar cost. Hosted APIs
+provide usage counts directly. CLI and custom-command adapters use a conservative estimate when
+their output does not include usage, and AnaxiIndex keeps that value as estimated rather than
+claiming it is a provider-reported charge.
+
+Source and comments are treated as untrusted data in the provider prompt. The worker supplies only
+indexed facts, bounded source, and stored neighbouring dossiers; model output is labeled as an
+interpretation with provider, model, prompt/schema version, confidence, and evidence.
 
 ## Coverage is optional evidence
 

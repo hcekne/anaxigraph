@@ -9,6 +9,8 @@ const state = {
   snapshots: [],
   trends: [],
   historyInfo: null,
+  semanticStatus: null,
+  moduleDetails: new Map(),
   selectedNode: null,
   highlightedPaths: new Set(),
   protectedPaths: new Set(),
@@ -22,6 +24,7 @@ const state = {
   historyPlayToken: 0,
   historyPlaying: false,
   historyPollTimer: null,
+  semanticPollTimer: null,
   lastAgentPrompt: "",
   moduleSort: { key: "lines_of_code", direction: "desc" },
   modulePage: 1,
@@ -231,8 +234,9 @@ async function load() {
 async function loadRepository() {
   stopHistoryPlayback();
   window.clearTimeout(state.historyPollTimer);
+  window.clearTimeout(state.semanticPollTimer);
   try {
-    const [overview, modules, graph, findings, snapshots, trends, historyInfo] = await Promise.all([
+    const [overview, modules, graph, findings, snapshots, trends, historyInfo, semanticStatus] = await Promise.all([
       request(api("/api/overview")),
       request(api("/api/modules")),
       request(api("/api/graph")),
@@ -240,6 +244,7 @@ async function loadRepository() {
       request(api("/api/snapshots")),
       request(api("/api/trends")),
       request(api("/api/history")),
+      request(api("/api/semantic")),
     ]);
     state.overview = overview;
     state.modules = modules;
@@ -248,6 +253,8 @@ async function loadRepository() {
     state.snapshots = snapshots;
     state.trends = trends.snapshots || [];
     state.historyInfo = historyInfo;
+    state.semanticStatus = semanticStatus;
+    state.moduleDetails.clear();
     state.selectedNode = null;
     state.highlightedPaths.clear();
     state.protectedPaths.clear();
@@ -270,6 +277,7 @@ async function loadRepository() {
       : "This repository is indexed but is not mounted as this server's scan target";
 
     renderOverview();
+    scheduleSemanticPoll();
     renderOnboarding();
     renderModuleFilters();
     renderModules();
@@ -306,6 +314,24 @@ function renderSettings() {
   const mcpUrl = `${window.location.origin}/mcp`;
   byId("settings-mcp-url").textContent = mcpUrl;
   byId("settings-codex-command").textContent = `codex mcp add anaxigraph --url ${mcpUrl}`;
+  const semantic = state.semanticStatus || {};
+  const coverage = semantic.coverage == null
+    ? "not started"
+    : `${(semantic.coverage * 100).toFixed(1)}%`;
+  const provider = semantic.enabled
+    ? `${semantic.provider || "configured provider"}${semantic.model ? ` · ${semantic.model}` : ""}`
+    : "disabled";
+  const agentFunded = semantic.provider === "agent";
+  byId("settings-semantic-summary").textContent = semantic.enabled
+    ? agentFunded
+      ? `${coverage} of eligible modules are current. A connected coding agent executes ${format.format(semantic.pending || 0)} module job(s) and ${format.format(semantic.pending_scopes || 0)} synthesis scope(s) with its own model and tokens.`
+      : `${coverage} of eligible modules are current through ${provider}. Refresh policy: ${humanize(semantic.refresh || "manual")}. ${format.format(semantic.pending || 0)} module job(s) and ${format.format(semantic.pending_scopes || 0)} synthesis scope(s) remain.`
+    : "Disabled for this repository. Deterministic analysis still works; enable semantic.provider: agent to use the connected coding agent without adding a model key to AnaxiGraph, or configure a hosted worker.";
+  byId("settings-semantic-command").textContent = agentFunded
+    ? "Use AnaxiGraph to build or resume the semantic baseline. Call ANAXIGRAPH_SEMANTIC_SCHEMA once, then repeat WORK → optional EVIDENCE pages → SUBMIT until WORK returns complete. Do not edit source during mapping."
+    : semantic.enabled && semantic.refresh === "periodic"
+      ? "docker compose -f compose.anaxigraph.yml --profile ai up -d"
+      : "anaxigraph understand /path/to/repository";
 }
 
 function displaySnapshot(snapshot, historical = false) {
@@ -323,6 +349,7 @@ function renderOverview() {
   const value = state.overview || {};
   const graphQuality = value.graph_quality || {};
   const findingCount = Object.values(value.findings || {}).reduce((sum, item) => sum + item, 0);
+  const semantic = state.semanticStatus || value.semantic || {};
   const metrics = [
     ["Files", value.files],
     ["Lines of code", value.lines_of_code],
@@ -336,6 +363,14 @@ function renderOverview() {
     ],
     ["Avg complexity", Number(value.average_complexity || 0).toFixed(1)],
     ["Active findings", findingCount],
+    [
+      "AI understanding",
+      semantic.enabled === false
+        ? "Off"
+        : semantic.coverage == null
+          ? "Not started"
+          : `${(semantic.coverage * 100).toFixed(1)}%`,
+    ],
     [
       "Line coverage",
       value.coverage?.line_coverage == null
@@ -358,6 +393,9 @@ function renderOverview() {
     state.findings.filter((item) => !["resolved", "dismissed"].includes(item.status)).slice(0, 6),
     false,
   );
+
+  renderSemanticNotice(semantic);
+  renderRepositoryIntelligence(semantic);
 
   const qualityNotice = byId("graph-quality-notice");
   const unresolved = Number(graphQuality.unresolved_internal || 0);
@@ -389,6 +427,94 @@ function renderOverview() {
       : "The selected repository has not generated any of its configured coverage reports. Coverage is produced by the repository's test runner; AnaxiGraph deliberately does not execute target code during a scan.";
     notice.innerHTML = `<strong>Required line coverage is unavailable.</strong><p>${escapeHtml(reason)}</p><details><summary>Coverage inputs · ${found}/${inputs.length} found</summary><ul class="coverage-inputs">${inputRows || "<li>No coverage paths are configured.</li>"}</ul></details><p class="coverage-next">Run the repository's own test or CI command first. <strong>Refresh scan</strong> only imports a report that already exists; it does not execute target code. Static test-linked dependencies are still reported separately above.</p>`;
   }
+}
+
+function renderRepositoryIntelligence(semantic = {}) {
+  const panel = byId("repository-intelligence");
+  const document = semantic.repository_dossier;
+  const value = document?.value;
+  panel.hidden = !value;
+  if (!value) {
+    panel.innerHTML = "";
+    return;
+  }
+  panel.innerHTML = `<div class="panel-heading"><div><p class="eyebrow">Repository-level AI synthesis</p><h2>Architectural understanding</h2><p class="panel-copy">${escapeHtml(value.summary || "No repository summary recorded.")}</p><p class="inspector-provenance">${escapeHtml(semanticProviderLabel(document))} · ${(Number(document.confidence || 0) * 100).toFixed(0)}% confidence</p></div></div><div class="repository-intelligence-grid"><div><h3>Architecture role</h3><p>${escapeHtml(value.architecture_role || value.detailed_summary || "No architecture role recorded.")}</p><h3>Where new work belongs</h3><p>${escapeHtml(value.placement_guidance || "No repository-level placement guidance recorded.")}</p></div><div><h3>Pattern opportunities</h3>${patternOpportunityList(value.pattern_opportunities || [])}${consolidationMarkup(value.consolidation_assessment)}</div><div><h3>Possible dead code</h3>${deadCodeList(value.dead_code_candidates || [])}<h3>Risks and uncertainty</h3>${detailList(value.risks || [], "No repository-level semantic risk recorded")}</div></div>`;
+}
+
+function semanticProviderLabel(document = {}) {
+  const provider = document.provider || "semantic provider";
+  if (document.executor_id) {
+    return `${provider} via ${document.executor_id}${document.executor_model ? ` · ${document.executor_model}` : ""}`;
+  }
+  return `${provider}${document.model ? ` · ${document.model}` : ""}`;
+}
+
+function renderSemanticNotice(semantic = {}) {
+  const notice = byId("semantic-notice");
+  const repository = selectedRepository();
+  const worker = semantic.worker || {};
+  const running = ["queued", "running"].includes(worker.status)
+    || Number(semantic.jobs?.running || 0) > 0;
+  const total = Number(semantic.eligible_modules || 0);
+  const current = Number(semantic.current || 0);
+  const pending = Number(semantic.pending || 0);
+  const failed = Number(semantic.failed || 0);
+  const failedScopes = Number(semantic.failed_scopes || 0);
+  const excluded = Number(semantic.excluded || 0);
+  const agentFunded = semantic.provider === "agent";
+  if (semantic.semantically_ready && !running) {
+    notice.hidden = true;
+    return;
+  }
+  notice.hidden = false;
+  if (!semantic.enabled) {
+    notice.innerHTML = `<strong>AI module understanding is not enabled.</strong><p>The deterministic graph is available, but modules have not been semantically digested. Enable <code>semantic.provider: agent</code> in the selected repository policy to let your connected coding agent build the baseline with its own tokens, or configure a model worker.</p>`;
+    return;
+  }
+  const statusCopy = agentFunded
+    ? running
+      ? "A connected coding agent has leased semantic work and is mapping the repository."
+      : `${format.format(current)} of ${format.format(total)} eligible modules have current dossiers. The remaining queue is ready for a connected coding agent through AnaxiMCP.`
+    : running
+      ? "The semantic worker is reading stale modules and synthesizing their architectural context."
+      : worker.status === "failed"
+        ? `The semantic worker stopped: ${worker.error || "unknown error"}`
+        : `${format.format(current)} of ${format.format(total)} eligible modules have current intrinsic and contextual dossiers.`;
+  const action = repository?.scannable
+    ? `<button class="secondary-button" type="button" data-semantic-refresh ${running ? "disabled" : ""}>${agentFunded ? running ? "Agent is mapping…" : "Prepare semantic work" : running ? "Understanding repository…" : current ? "Resume understanding" : "Understand repository"}</button>`
+    : "";
+  const budget = semantic.budget || {};
+  const budgetCopy = !agentFunded && budget.paused
+    ? ` The daily model budget is paused with $${Number(budget.remaining_today_usd || 0).toFixed(4)} remaining; the next job is estimated at $${Number(budget.next_job_estimated_usd || 0).toFixed(4)}.`
+    : "";
+  const heading = agentFunded
+    ? running ? "Coding-agent semantic mapping is active." : "Coding-agent semantic mapping is incomplete."
+    : running ? "Semantic bootstrap is running." : "Repository understanding is incomplete.";
+  const incrementalCopy = agentFunded
+    ? "The coding agent uses its own model and tokens. Hashes ensure later sessions receive only missing or stale work."
+    : "Hashes keep later refreshes incremental; unchanged source is not sent to the model again unless the configured age policy expires it.";
+  notice.innerHTML = `<div class="semantic-notice-heading"><div><strong>${heading}</strong><p>${escapeHtml(statusCopy)} ${format.format(pending)} module job(s) and ${format.format(semantic.pending_scopes || 0)} synthesis scope(s) are pending; ${format.format(failed)} module(s) and ${format.format(failedScopes)} synthesis scope(s) failed; ${format.format(excluded)} module(s) are explicitly excluded.${escapeHtml(budgetCopy)}</p><p class="coverage-next">${escapeHtml(incrementalCopy)}</p></div>${action}</div>`;
+}
+
+function scheduleSemanticPoll() {
+  window.clearTimeout(state.semanticPollTimer);
+  const worker = state.semanticStatus?.worker || {};
+  if (!["queued", "running"].includes(worker.status) && !Number(state.semanticStatus?.jobs?.running || 0)) return;
+  state.semanticPollTimer = window.setTimeout(async () => {
+    try {
+      const previous = worker.status;
+      state.semanticStatus = await request(api("/api/semantic"));
+      renderOverview();
+      if (["queued", "running"].includes(state.semanticStatus?.worker?.status) || Number(state.semanticStatus?.jobs?.running || 0)) {
+        scheduleSemanticPoll();
+      } else {
+        if (previous === "running") toast("Repository understanding refresh finished.");
+        await loadRepository();
+      }
+    } catch (error) {
+      toast(error.message, true);
+    }
+  }, 1800);
 }
 
 function renderBars(id, items) {
@@ -554,9 +680,13 @@ function renderModules() {
       ? `<strong>${escapeHtml(humanize(item.architecture_area))}</strong><span>${escapeHtml(humanize(item.architecture_subsystem))}</span>`
       : `<strong>${escapeHtml(humanize(item.architecture_area))}</strong><span>${escapeHtml(item.architecture_source)}</span>`;
     const attention = String(evaluation.attention_label || "low").toLowerCase();
-    const candidates = evaluation.pattern_candidates || [];
+    const semanticCandidates = item.semantic?.pattern_opportunities || [];
+    const candidates = semanticCandidates.length
+      ? semanticCandidates
+      : evaluation.pattern_candidates || [];
+    const candidateLabels = candidates.map(patternOpportunityLabel);
     const pattern = candidates.length
-      ? `<span class="pattern-candidate" title="${escapeAttr(candidates.join(" · "))}">${escapeHtml(candidates[0])}${candidates.length > 1 ? ` +${candidates.length - 1}` : ""}</span>`
+      ? `<span class="pattern-candidate" title="${escapeAttr(candidates.map(patternOpportunityExplanation).join(" · "))}">${escapeHtml(candidateLabels[0])}${candidates.length > 1 ? ` +${candidates.length - 1}` : ""}${semanticCandidates.length ? " · AI" : ""}</span>`
       : `<span class="pattern-none">${evaluation.monitored_by_default === false ? "Not evaluated" : "No grounded proposal"}</span>`;
     const attentionValue = evaluation.attention_score == null
       ? `<span class="attention-pill reference" title="${escapeAttr(evaluation.monitoring_reason || "Reference artifact")}">—</span>`
@@ -569,8 +699,25 @@ function renderModules() {
 
 function moduleDetailRow(item) {
   const evaluation = item.evaluation || {};
-  const candidates = evaluation.pattern_candidates || [];
+  const candidates = item.semantic?.pattern_opportunities?.length
+    ? item.semantic.pattern_opportunities
+    : evaluation.pattern_candidates || [];
   const responsibilities = item.responsibilities || [];
+  const semanticState = item.semantic || {};
+  const detail = state.moduleDetails.get(item.path);
+  const intrinsic = detail?.semantic_dossiers?.intrinsic?.value || {};
+  const contextual = detail?.semantic_dossiers?.context?.value || {};
+  const semanticPurpose = contextual.summary || intrinsic.summary || item.summary;
+  const semanticRole = contextual.architecture_role || intrinsic.architecture_role;
+  const semanticInsights = [
+    ...(contextual.similar_modules || intrinsic.similar_modules || []),
+    ...(contextual.overlaps || intrinsic.overlaps || []),
+    ...(contextual.extension_points || intrinsic.extension_points || []),
+  ];
+  const semanticPatterns = contextual.pattern_opportunities || intrinsic.pattern_opportunities || [];
+  const semanticDeadCode = contextual.dead_code_candidates || intrinsic.dead_code_candidates || [];
+  const consolidation = contextual.consolidation_assessment || intrinsic.consolidation_assessment;
+  const semanticRisks = contextual.risks || intrinsic.risks || [];
   const history = [
     item.first_change_commit
       ? `First indexed change ${String(item.first_change_commit).slice(0, 8)} · ${formatDate(item.first_changed_at)}`
@@ -580,12 +727,50 @@ function moduleDetailRow(item) {
       : "No indexed last-change commit",
     item.last_change_subject || "No commit subject indexed",
   ];
-  return `<tr class="module-detail-row"><td colspan="12"><div class="module-detail"><div><h3>Purpose · ${escapeHtml(item.summary_source)}</h3><p>${escapeHtml(item.summary)}</p><p><code class="module-path">raw ${escapeHtml(String(item.raw_hash).slice(0, 12))} · structure ${escapeHtml(String(item.structural_hash).slice(0, 12))}</code></p><div class="module-detail-actions"><button class="secondary-button" data-module-graph="${escapeAttr(item.path)}" type="button">Open in graph</button></div></div><div><h3>Responsibilities</h3>${detailList(responsibilities, "No structured responsibilities detected")}<h3>Git biography</h3>${detailList(history)}</div><div><h3>Review scope · ${evaluation.monitored_by_default === false ? "Reference" : "Monitored"}</h3><p>${escapeHtml(evaluation.monitoring_reason || "Included in attention triage.")}</p><h3>Attention · ${escapeHtml(evaluation.attention_label || "Low")}</h3>${detailList(evaluation.attention_reasons)}<h3>Pattern review</h3>${detailList(candidates, "No detector-grounded pattern candidate yet")}<p>${escapeHtml(evaluation.note || "")}</p></div></div></td></tr>`;
+  const semanticPanel = !detail
+    ? `<div><h3>AI understanding · ${escapeHtml(humanize(semanticState.status || "not started"))}</h3><p>Loading the current semantic dossier…</p></div>`
+    : `<div><h3>AI understanding · ${escapeHtml(humanize(semanticState.status || "not started"))}</h3><p>${escapeHtml(semanticPurpose || "No model-backed dossier is current for this module.")}</p>${semanticRole ? `<h3>Architecture role</h3><p>${escapeHtml(semanticRole)}</p>` : ""}${contextual.change_summary ? `<h3>Meaning changed</h3><p>${escapeHtml(contextual.change_summary)}</p>` : ""}<h3>Related responsibilities and extension seams</h3>${detailList(semanticInsights, "No evidence-backed overlap or extension seam recorded")}<h3>Pattern opportunities</h3>${patternOpportunityList(semanticPatterns)}${consolidationMarkup(consolidation)}${contextual.placement_guidance ? `<h3>Where new work belongs</h3><p>${escapeHtml(contextual.placement_guidance)}</p>` : ""}<h3>Possible dead code</h3>${deadCodeList(semanticDeadCode)}<h3>Risks and uncertainty</h3>${detailList(semanticRisks, semanticState.reason || "No semantic risk recorded")}</div>`;
+  return `<tr class="module-detail-row"><td colspan="12"><div class="module-detail"><div><h3>Purpose · ${escapeHtml(item.summary_source)}</h3><p>${escapeHtml(item.summary)}</p><p><code class="module-path">raw ${escapeHtml(String(item.raw_hash).slice(0, 12))} · structure ${escapeHtml(String(item.structural_hash).slice(0, 12))}</code></p><div class="module-detail-actions"><button class="secondary-button" data-module-graph="${escapeAttr(item.path)}" type="button">Open in graph</button></div></div><div><h3>Responsibilities</h3>${detailList(responsibilities, "No structured responsibilities detected")}<h3>Git biography</h3>${detailList(history)}</div>${semanticPanel}<div><h3>Review scope · ${evaluation.monitored_by_default === false ? "Reference" : "Monitored"}</h3><p>${escapeHtml(evaluation.monitoring_reason || "Included in attention triage.")}</p><h3>Attention · ${escapeHtml(evaluation.attention_label || "Low")}</h3>${detailList(evaluation.attention_reasons)}<h3>Pattern review</h3>${patternOpportunityList(candidates, "No detector-grounded pattern candidate yet")}<p>${escapeHtml(evaluation.note || "")}</p></div></div></td></tr>`;
 }
 
 function detailList(values = [], empty = "No data") {
   const items = values || [];
   return `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("") || `<li>${escapeHtml(empty)}</li>`}</ul>`;
+}
+
+function patternOpportunityLabel(item) {
+  if (!item || typeof item !== "object") return String(item || "Unnamed pattern");
+  return `${item.name || "Unnamed pattern"} · ${format.format(Number(item.score || 0))}/100`;
+}
+
+function patternOpportunityExplanation(item) {
+  if (!item || typeof item !== "object") return String(item || "");
+  const confidence = `${(Number(item.confidence || 0) * 100).toFixed(0)}% confidence`;
+  return [patternOpportunityLabel(item), item.rationale, confidence, `${item.migration_cost || "unknown"} migration cost`]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function patternOpportunityList(values = [], empty = "No contextual pattern opportunity recorded") {
+  return detailList((values || []).map(patternOpportunityExplanation), empty);
+}
+
+function consolidationMarkup(value) {
+  if (!value || typeof value !== "object") {
+    return value ? `<h3>Merge or split assessment</h3><p>${escapeHtml(String(value))}</p>` : "";
+  }
+  if (value.recommendation === "insufficient_evidence" && !value.rationale) return "";
+  const candidates = value.candidates?.length ? ` Candidates: ${value.candidates.join(", ")}.` : "";
+  return `<h3>Merge or split assessment</h3><p><strong>${escapeHtml(humanize(value.recommendation || "review"))} · ${format.format(Number(value.score || 0))}/100.</strong> ${escapeHtml(value.rationale || "No rationale supplied.")}${escapeHtml(candidates)}</p>`;
+}
+
+function deadCodeList(values = []) {
+  const descriptions = (values || []).map((item) => {
+    if (!item || typeof item !== "object") return String(item || "");
+    const confidence = `${(Number(item.confidence || 0) * 100).toFixed(0)}% confidence`;
+    return [item.path_or_symbol, confidence, item.rationale, item.verification].filter(Boolean).join(" · ");
+  });
+  return detailList(descriptions, "No evidence-backed dead-code candidate recorded");
 }
 
 function formatDate(value) {
@@ -1202,10 +1387,15 @@ async function inspectNode(node) {
     )).join("");
     const responsibilities = (file.responsibilities || []).map((item) => `<span class="tag">${escapeHtml(item)}</span>`).join("");
     const inventory = state.modules.find((item) => item.path === file.path) || {};
-    const semantic = detail.semantic_claims.find((item) => item.claim_type === "module_analysis");
-    const purpose = semantic?.value?.summary || inventory.summary || file.summary;
+    const intrinsicDocument = detail.semantic_dossiers?.intrinsic;
+    const contextDocument = detail.semantic_dossiers?.context;
+    const intrinsic = intrinsicDocument?.value || {};
+    const contextual = contextDocument?.value || {};
+    const semantic = contextDocument || intrinsicDocument;
+    const semanticValue = contextual.summary ? contextual : intrinsic;
+    const purpose = semanticValue.summary || inventory.summary || file.summary;
     const purposeSource = semantic
-      ? `${semantic.provider || "semantic provider"} interpretation · ${(Number(semantic.confidence || 0) * 100).toFixed(0)}% confidence`
+      ? `${semanticProviderLabel(semantic)} ${contextDocument ? "contextual" : "intrinsic"} interpretation · ${(Number(semantic.confidence || 0) * 100).toFixed(0)}% confidence`
       : "Deterministic analyzer summary";
     const area = inventory.architecture_area || state.groupParents.get(effectiveGroup(file)) || effectiveGroup(file);
     const subsystem = inventory.architecture_subsystem || effectiveGroup(file);
@@ -1214,7 +1404,17 @@ async function inspectNode(node) {
       : `${(Number(node.line_coverage) * 100).toFixed(1)}%`;
     const evaluation = inventory.evaluation || {};
     const patternCandidates = evaluation.pattern_candidates || [];
-    panel.innerHTML = `<p class="eyebrow">${escapeHtml(humanize(area))} · ${escapeHtml(humanize(subsystem))}</p><h2>${escapeHtml(displayName)}</h2><code class="inspector-path">${escapeHtml(file.path)}</code><h3>Purpose</h3><p class="muted">${escapeHtml(purpose)}</p><p class="inspector-provenance">${escapeHtml(purposeSource)}</p><dl><dt>Language</dt><dd>${escapeHtml(file.language)}</dd><dt>Runtime</dt><dd>${escapeHtml(file.runtime || "—")}</dd><dt>LOC</dt><dd>${format.format(file.lines_of_code)}</dd><dt>Complexity</dt><dd>${file.complexity}</dd><dt>Incoming links</dt><dd>${format.format(node.fan_in || 0)}</dd><dt>Outgoing links</dt><dd>${format.format(node.fan_out || 0)}</dd><dt>Line coverage</dt><dd>${coverage}</dd><dt>Indexed changes</dt><dd>${format.format(node.change_count || 0)}</dd><dt>First indexed</dt><dd>${formatDate(inventory.first_changed_at)}</dd><dt>Last worked</dt><dd>${formatDate(inventory.last_commit_at)}</dd><dt title="Changes when any source byte changes">Raw hash</dt><dd><code>${escapeHtml(String(file.raw_hash || "").slice(0, 10))}</code></dd><dt title="Tracks normalized code structure and ignores some metadata-only edits">Structural hash</dt><dd><code>${escapeHtml(String(file.structural_hash || "").slice(0, 10))}</code></dd><dt>Analysis state</dt><dd>${escapeHtml(file.analysis_status)}</dd></dl><h3>Detected responsibilities</h3><div class="tag-list">${responsibilities || `<span class="muted">No structured responsibility detected</span>`}</div><h3>Pattern review</h3><div class="tag-list">${patternCandidates.map((item) => `<span class="tag">${escapeHtml(item)}</span>`).join("") || `<span class="muted">No detector-grounded pattern candidate yet</span>`}</div><h3>Public interfaces</h3><div class="tag-list">${(file.public_interfaces || []).slice(0, 18).map((item) => `<span class="tag">${escapeHtml(item)}</span>`).join("") || `<span class="muted">None detected</span>`}</div><h3>Uses</h3><div class="relation-list">${relationships || `<span class="muted">No outgoing relationship detected</span>`}</div><h3>Used by</h3><div class="relation-list">${dependants || `<span class="muted">No incoming relationship detected</span>`}</div><h3>Recent changes</h3><div class="relation-list">${detail.history.slice(0, 6).map((item) => `<span class="muted">${escapeHtml(item.commit_sha.slice(0, 8))} · ${escapeHtml(item.subject)}</span>`).join("") || `<span class="muted">No Git history loaded</span>`}</div>`;
+    const semanticResponsibilities = semanticValue.responsibilities || [];
+    const semanticRelations = semanticValue.overlaps || [];
+    const semanticExtensions = semanticValue.extension_points || [];
+    const semanticSimilar = semanticValue.similar_modules || [];
+    const semanticPatterns = semanticValue.pattern_opportunities || [];
+    const semanticDeadCode = semanticValue.dead_code_candidates || [];
+    const semanticRisks = semanticValue.risks || [];
+    const semanticSection = semantic
+      ? `<h3>AI architecture role</h3><p class="muted">${escapeHtml(semanticValue.architecture_role || "No architecture role recorded")}</p>${semanticValue.change_summary ? `<h3>Meaning changed</h3><p class="muted">${escapeHtml(semanticValue.change_summary)}</p>` : ""}<h3>AI-understood responsibilities</h3>${detailList(semanticResponsibilities, "No semantic responsibilities recorded")}<h3>Similar or overlapping modules</h3>${detailList([...semanticSimilar, ...semanticRelations], "No evidence-backed overlap recorded")}<h3>Pattern opportunities</h3>${patternOpportunityList(semanticPatterns)}${consolidationMarkup(semanticValue.consolidation_assessment)}${semanticValue.placement_guidance ? `<h3>Where new work belongs</h3><p class="muted">${escapeHtml(semanticValue.placement_guidance)}</p>` : ""}<h3>Possible dead code</h3>${deadCodeList(semanticDeadCode)}<h3>Extension seams</h3>${detailList(semanticExtensions, "No extension seam recorded")}<h3>Semantic risks</h3>${detailList(semanticRisks, "No semantic risk recorded")}`
+      : `<h3>AI understanding</h3><p class="muted">${escapeHtml(detail.semantic_state?.reason || "No current model-backed dossier. Run the repository semantic bootstrap to add one.")}</p>`;
+    panel.innerHTML = `<p class="eyebrow">${escapeHtml(humanize(area))} · ${escapeHtml(humanize(subsystem))}</p><h2>${escapeHtml(displayName)}</h2><code class="inspector-path">${escapeHtml(file.path)}</code><h3>Purpose</h3><p class="muted">${escapeHtml(purpose)}</p><p class="inspector-provenance">${escapeHtml(purposeSource)}</p><dl><dt>Language</dt><dd>${escapeHtml(file.language)}</dd><dt>Runtime</dt><dd>${escapeHtml(file.runtime || "—")}</dd><dt>LOC</dt><dd>${format.format(file.lines_of_code)}</dd><dt>Complexity</dt><dd>${file.complexity}</dd><dt>Incoming links</dt><dd>${format.format(node.fan_in || 0)}</dd><dt>Outgoing links</dt><dd>${format.format(node.fan_out || 0)}</dd><dt>Line coverage</dt><dd>${coverage}</dd><dt>Indexed changes</dt><dd>${format.format(node.change_count || 0)}</dd><dt>First indexed</dt><dd>${formatDate(inventory.first_changed_at)}</dd><dt>Last worked</dt><dd>${formatDate(inventory.last_commit_at)}</dd><dt title="Changes when any source byte changes">Raw hash</dt><dd><code>${escapeHtml(String(file.raw_hash || "").slice(0, 10))}</code></dd><dt title="Tracks normalized code structure and ignores some metadata-only edits">Structural hash</dt><dd><code>${escapeHtml(String(file.structural_hash || "").slice(0, 10))}</code></dd><dt>Analysis state</dt><dd>${escapeHtml(file.analysis_status)}</dd><dt>Semantic state</dt><dd>${escapeHtml(humanize(detail.semantic_state?.status || "not started"))}</dd></dl>${semanticSection}<h3>Detected responsibilities</h3><div class="tag-list">${responsibilities || `<span class="muted">No structured responsibility detected</span>`}</div><h3>Deterministic pattern review</h3><div class="tag-list">${patternCandidates.map((item) => `<span class="tag">${escapeHtml(item)}</span>`).join("") || `<span class="muted">No detector-grounded pattern candidate yet</span>`}</div><h3>Public interfaces</h3><div class="tag-list">${(file.public_interfaces || []).slice(0, 18).map((item) => `<span class="tag">${escapeHtml(item)}</span>`).join("") || `<span class="muted">None detected</span>`}</div><h3>Uses</h3><div class="relation-list">${relationships || `<span class="muted">No outgoing relationship detected</span>`}</div><h3>Used by</h3><div class="relation-list">${dependants || `<span class="muted">No incoming relationship detected</span>`}</div><h3>Recent changes</h3><div class="relation-list">${detail.history.slice(0, 6).map((item) => `<span class="muted">${escapeHtml(item.commit_sha.slice(0, 8))} · ${escapeHtml(item.subject)}</span>`).join("") || `<span class="muted">No Git history loaded</span>`}</div>`;
   } catch (error) {
     panel.innerHTML += `<p class="muted">${escapeHtml(error.message)}</p>`;
   }
@@ -1483,7 +1683,7 @@ function setupEvents() {
     state.modulePage += 1;
     renderModules();
   });
-  byId("module-table-body").addEventListener("click", (event) => {
+  byId("module-table-body").addEventListener("click", async (event) => {
     const graphButton = event.target.closest("[data-module-graph]");
     if (graphButton) {
       const node = state.graph.nodes.find((item) => item.path === graphButton.dataset.moduleGraph);
@@ -1498,6 +1698,21 @@ function setupEvents() {
     const id = Number(row.dataset.moduleId);
     state.expandedModuleId = Number(state.expandedModuleId) === id ? null : id;
     renderModules();
+    if (Number(state.expandedModuleId) === id) {
+      const item = state.modules.find((candidate) => Number(candidate.artifact_id) === id);
+      if (item && !state.moduleDetails.has(item.path)) {
+        try {
+          const detail = await request(api("/api/file", {
+            path: item.path,
+            snapshot_id: state.overview?.snapshot?.id,
+          }));
+          state.moduleDetails.set(item.path, detail);
+          if (Number(state.expandedModuleId) === id) renderModules();
+        } catch (error) {
+          toast(error.message, true);
+        }
+      }
+    }
   });
   byId("repository-select").addEventListener("change", async (event) => {
     state.repositoryId = Number(event.target.value);
@@ -1623,6 +1838,21 @@ function setupEvents() {
       toast(error.message, true);
     } finally {
       event.target.disabled = !selectedRepository()?.scannable;
+    }
+  });
+  byId("semantic-notice").addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-semantic-refresh]");
+    if (!button) return;
+    button.disabled = true;
+    try {
+      const result = await request(api("/api/semantic/refresh"), { method: "POST" });
+      toast(result.status === "started" ? "Repository understanding started." : "Repository understanding is already running.");
+      state.semanticStatus = await request(api("/api/semantic"));
+      renderOverview();
+      scheduleSemanticPoll();
+    } catch (error) {
+      toast(error.message, true);
+      button.disabled = false;
     }
   });
   byId("scope-form").addEventListener("submit", async (event) => {

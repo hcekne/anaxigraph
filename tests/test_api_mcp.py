@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import httpx
 import pytest
+import yaml
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
@@ -54,6 +55,11 @@ async def test_dashboard_rest_api_exposes_current_intelligence(
         assert overview["coverage"]["configured_inputs"] == [
             {"path": "coverage.xml", "exists": True, "format": "xml"}
         ]
+        assert overview["semantic"]["enabled"] is False
+        semantic = (await client.get("/api/semantic")).json()
+        assert semantic["state"] == "not_started"
+        disabled_refresh = await client.post("/api/semantic/refresh")
+        assert disabled_refresh.status_code == 400
         findings = (await client.get("/api/findings")).json()
         assert findings[0]["priority_score"] >= findings[-1]["priority_score"]
         assert findings[0]["priority_reasons"]
@@ -119,6 +125,12 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     names = {tool.name for tool in tools.tools}
                     assert {
                         "ANAXIGRAPH_OVERVIEW",
+                        "ANAXIGRAPH_SEMANTIC_STATUS",
+                        "ANAXIGRAPH_SEMANTIC_SCHEMA",
+                        "ANAXIGRAPH_SEMANTIC_WORK",
+                        "ANAXIGRAPH_SEMANTIC_EVIDENCE",
+                        "ANAXIGRAPH_SEMANTIC_SUBMIT",
+                        "ANAXIGRAPH_SEMANTIC_RELEASE",
                         "ANAXIGRAPH_MODULES",
                         "ANAXIGRAPH_SEARCH",
                         "ANAXIGRAPH_FILE",
@@ -128,9 +140,23 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                         "ANAXIGRAPH_FINDING_CONTEXT",
                         "ANAXIGRAPH_GUIDE",
                     } <= names
+                    submit_tool = next(
+                        tool for tool in tools.tools if tool.name == "ANAXIGRAPH_SEMANTIC_SUBMIT"
+                    )
+                    assert submit_tool.annotations.readOnlyHint is False
                     overview = await session.call_tool("ANAXIGRAPH_OVERVIEW", arguments={})
                     assert overview.isError is False
                     assert overview.structuredContent["files"] == 9
+                    semantic = await session.call_tool(
+                        "ANAXIGRAPH_SEMANTIC_STATUS", arguments={}
+                    )
+                    assert semantic.isError is False
+                    assert semantic.structuredContent["enabled"] is False
+                    schema = await session.call_tool(
+                        "ANAXIGRAPH_SEMANTIC_SCHEMA", arguments={}
+                    )
+                    assert schema.isError is False
+                    assert schema.structuredContent["schema_version"] == "module-dossier-v4"
                     modules = await session.call_tool(
                         "ANAXIGRAPH_MODULES", arguments={"language": "python", "limit": 3}
                     )
@@ -154,3 +180,94 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     )
                     assert finding_context.isError is False
                     assert finding_context.structuredContent["ready_for_agent"] is True
+
+
+@pytest.mark.anyio
+async def test_mcp_coding_agent_can_claim_and_submit_semantic_work(repository, database):
+    policy_path = repository / ".anaxigraph.yml"
+    policy = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
+    policy["semantic"] = {
+        "enabled": True,
+        "provider": "agent",
+        "agent_lease_seconds": 120,
+    }
+    policy_path.write_text(yaml.safe_dump(policy, sort_keys=False), encoding="utf-8")
+    RepositoryScanner(database).scan(repository)
+    server = create_anaxi_mcp_server(
+        database=database,
+        repository=repository,
+        config_path=None,
+        allowed_hosts=["testserver"],
+    )
+    app = server.streamable_http_app()
+    async with server.session_manager.run():
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+            timeout=5,
+        ) as http_client:
+            async with streamable_http_client(
+                "http://testserver/mcp",
+                http_client=http_client,
+                terminate_on_close=False,
+            ) as (read_stream, write_stream, _):
+                async with ClientSession(read_stream, write_stream) as session:
+                    await session.initialize()
+                    work = await session.call_tool(
+                        "ANAXIGRAPH_SEMANTIC_WORK",
+                        arguments={"agent_id": "codex-integration", "agent_model": "test"},
+                    )
+                    assert work.isError is False
+                    packet = work.structuredContent
+                    assert packet["status"] == "work"
+                    submit = await session.call_tool(
+                        "ANAXIGRAPH_SEMANTIC_SUBMIT",
+                        arguments={
+                            "job_id": packet["job"]["id"],
+                            "lease_token": packet["lease"]["token"],
+                            "dossier": _mcp_dossier(packet["job"]["scope_key"]),
+                        },
+                    )
+                    assert submit.isError is False
+                    assert submit.structuredContent["status"] == "completed"
+
+    with database.connect() as connection:
+        row = connection.execute(
+            "SELECT source, provider, executor_id FROM semantic_documents"
+        ).fetchone()
+    assert tuple(row) == ("coding_agent", "agent", "codex-integration")
+
+
+def _mcp_dossier(scope: str) -> dict:
+    return {
+        "summary": f"Agent understanding for {scope}",
+        "detailed_summary": f"Evidence-grounded dossier for {scope}.",
+        "responsibilities": [f"Own {scope}"],
+        "inputs": [],
+        "outputs": [],
+        "side_effects": [],
+        "public_contracts": [],
+        "invariants": [],
+        "architecture_role": "integration test role",
+        "domain_concepts": [],
+        "collaborators": [],
+        "overlaps": [],
+        "extension_points": [],
+        "similar_modules": [],
+        "pattern_opportunities": [],
+        "consolidation_assessment": {
+            "recommendation": "insufficient_evidence",
+            "score": 0,
+            "rationale": "",
+            "candidates": [],
+            "evidence": [],
+            "counter_evidence": [],
+        },
+        "dead_code_candidates": [],
+        "placement_guidance": "",
+        "testing_guidance": [],
+        "change_summary": "",
+        "risks": [],
+        "evidence": [scope],
+        "confidence": 0.9,
+    }

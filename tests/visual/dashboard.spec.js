@@ -52,6 +52,142 @@ test("missing optional coverage is neutral rather than a failed scan", async ({ 
     .toHaveText("No report");
 });
 
+test("semantic bootstrap progress and model-backed pattern advice are visible", async ({ page }) => {
+  let semanticPath = "";
+  await page.route("**/api/semantic*", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.fulfill({ json: { status: "started" } });
+      return;
+    }
+    await route.fulfill({
+      json: {
+        enabled: true,
+        state: "pending",
+        semantically_ready: false,
+        eligible_modules: 20,
+        current: 5,
+        pending: 15,
+        pending_scopes: 0,
+        failed: 0,
+        failed_scopes: 0,
+        excluded: 2,
+        coverage: 0.25,
+        jobs: { pending: 15 },
+        budget: { paused: false },
+        worker: { status: "idle" },
+        repository_dossier: {
+          provider: "codex",
+          model: "test-model",
+          confidence: 0.87,
+          value: {
+            summary: "A repository intelligence sidecar with a durable semantic index.",
+            architecture_role: "Read-only architecture observatory and agent context service.",
+            placement_guidance: "Add analyzers behind the existing analyzer protocol.",
+            pattern_opportunities: [{
+              name: "Analyzer strategy",
+              score: 93,
+              confidence: 0.9,
+              rationale: "Language analyzers already share one protocol.",
+              migration_cost: "low",
+            }],
+            consolidation_assessment: {
+              recommendation: "keep",
+              score: 88,
+              rationale: "Keep provider transport separate from orchestration.",
+              candidates: [],
+            },
+            dead_code_candidates: [],
+            risks: ["Static edges cannot prove runtime reachability."],
+          },
+        },
+      },
+    });
+  });
+  await page.route("**/api/modules*", async (route) => {
+    const response = await route.fetch();
+    const modules = await response.json();
+    const module = modules.find((item) => item.evaluation?.monitored_by_default !== false);
+    semanticPath = module.path;
+    module.semantic = {
+      ...(module.semantic || {}),
+      status: "current",
+      pattern_opportunities: [{
+        name: "Adapter pattern",
+        scope: "module",
+        score: 91,
+        confidence: 0.88,
+        rationale: "Fits the existing provider boundary",
+        evidence: ["Several provider implementations share one contract"],
+        counter_evidence: [],
+        migration_cost: "low",
+        preconditions: [],
+      }],
+    };
+    await route.fulfill({ response, json: modules });
+  });
+
+  await openDashboard(page);
+  await expect(page.locator(".metric", { hasText: "AI understanding" }).locator("strong"))
+    .toHaveText("25.0%");
+  await expect(page.locator("#semantic-notice")).toBeVisible();
+  await expect(page.locator("#semantic-notice")).toContainText("15 module job(s)");
+  await expect(page.locator("#semantic-notice [data-semantic-refresh]")).toBeVisible();
+  await expect(page.locator("#repository-intelligence")).toBeVisible();
+  await expect(page.locator("#repository-intelligence")).toContainText("Analyzer strategy · 93/100");
+
+  await page.getByRole("button", { name: "Modules", exact: true }).click();
+  await page.locator("#module-search").fill(semanticPath);
+  await expect(page.locator(".pattern-cell", { hasText: "Adapter pattern" })).toContainText("AI");
+  await expect(page.locator(".pattern-cell", { hasText: "Adapter pattern" })).toContainText("91/100");
+});
+
+test("agent-funded semantic mode explains the own-token MCP loop", async ({ page }) => {
+  await page.route("**/api/semantic*", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.fulfill({ json: { status: "started" } });
+      return;
+    }
+    await route.fulfill({
+      json: {
+        enabled: true,
+        provider: "agent",
+        execution_mode: "coding_agent",
+        state: "pending",
+        semantically_ready: false,
+        eligible_modules: 20,
+        current: 5,
+        pending: 15,
+        pending_scopes: 0,
+        failed: 0,
+        failed_scopes: 0,
+        excluded: 0,
+        coverage: 0.25,
+        jobs: { pending: 15 },
+        budget: { paused: false },
+        worker: { status: "idle" },
+      },
+    });
+  });
+  await openDashboard(page);
+
+  await expect(page.locator("#semantic-notice")).toContainText(
+    "ready for a connected coding agent through AnaxiMCP",
+  );
+  await expect(page.locator("#semantic-notice")).toContainText(
+    "uses its own model and tokens",
+  );
+  await expect(page.locator("#semantic-notice [data-semantic-refresh]")).toHaveText(
+    "Prepare semantic work",
+  );
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await expect(page.locator("#settings-semantic-command")).toContainText(
+    "ANAXIGRAPH_SEMANTIC_SCHEMA",
+  );
+  await expect(page.locator("#settings-semantic-summary")).toContainText(
+    "with its own model and tokens",
+  );
+});
+
 test("relationship completeness and analyzer limits are visible", async ({ page }) => {
   await openDashboard(page);
   await expect(
@@ -116,6 +252,12 @@ test("settings explains every connected repository and MCP handoff", async ({ pa
   );
   await expect(page.locator("#view-settings")).toContainText(
     "Run the command below in a normal terminal on the machine where Codex runs",
+  );
+  await expect(page.locator("#settings-semantic-summary")).toContainText(
+    "Disabled for this repository",
+  );
+  await expect(page.locator("#view-settings")).toContainText(
+    "the connected coding agent can claim bounded evidence",
   );
 });
 

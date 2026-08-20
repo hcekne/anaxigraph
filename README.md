@@ -59,6 +59,29 @@ regions scale with their module populations so dense areas receive proportionall
 The analysis engine is Python-first and supports mixed repositories containing Python,
 TypeScript, JavaScript, JSX, CSS, configuration, and documentation.
 
+### Deterministic facts + real module understanding
+
+AnaxiGraph has two separate AI-facing paths that reinforce one another:
+
+```text
+source + Git ── deterministic scan/hashes ──→ versioned graph
+                                                   │ changed modules only
+                                                   ▼
+                                  semantic work queue in AnaxiIndex
+                                      │                        │
+                            connected coding agent      optional model worker
+                                      └──────────┬─────────────┘
+                                                 ▼
+                                versioned semantic dossiers
+```
+
+The first opt-in semantic bootstrap reads every eligible first-party module and records its
+purpose, contracts, architecture role, related responsibilities, pattern opportunities,
+placement guidance, risks, and provenance. It then synthesizes subsystem and repository context.
+Later scans compare structural, interface, relationship, prompt, model, and intent fingerprints,
+so unchanged source is reused rather than paid for again. Parser facts and model interpretations
+remain separate throughout.
+
 ## 🚀 Get running in five minutes
 
 AnaxiGraph normally runs as a Docker sidecar beside the repository you are coding in. From that
@@ -136,6 +159,55 @@ for the human-to-agent workflow, optional coverage, history, custom ports, updat
 behavior, and the official [Codex MCP documentation](https://learn.chatgpt.com/docs/extend/mcp)
 for Codex configuration details.
 
+### Build the semantic baseline with your coding agent (optional)
+
+The recommended Docker path needs no LLM key inside AnaxiGraph. Enable agent-funded semantics in
+`.anaxigraph.yml`:
+
+```yaml
+semantic:
+  enabled: true
+  provider: agent
+  refresh: manual
+  max_parallel_jobs: 1
+  agent_lease_seconds: 1800
+```
+
+Refresh the scan or choose **Prepare semantic work** in the dashboard. Then ask the coding agent
+that is already connected to AnaxiMCP and running in the target repository:
+
+> Use AnaxiGraph to build or resume the semantic baseline for this repository. Call
+> `ANAXIGRAPH_SEMANTIC_SCHEMA` once, then repeat `ANAXIGRAPH_SEMANTIC_WORK`, fetch every requested
+> evidence page, analyze the module or scope using your own model context, and call
+> `ANAXIGRAPH_SEMANTIC_SUBMIT`. Continue until WORK returns `complete`. Do not edit source while
+> performing this mapping task.
+
+AnaxiGraph chooses only stale work, supplies source plus deterministic graph/Git evidence, leases
+each job, validates the returned dossier, and writes it to AnaxiIndex. The coding agent supplies
+the reasoning and uses its own token allowance. The repository mount remains read-only, and the
+queue can resume in another agent session if the first session stops.
+
+An in-container hosted worker remains available as an alternative for unattended schedules:
+
+```yaml
+semantic:
+  enabled: true
+  provider: openai       # or anthropic
+  model: your-model
+  refresh: periodic
+```
+
+```bash
+export OPENAI_API_KEY="..."       # use ANTHROPIC_API_KEY for provider: anthropic
+docker compose -f compose.anaxigraph.yml --profile ai up -d
+docker compose -f compose.anaxigraph.yml logs -f anaxigraph-semantic
+```
+
+For a local installation, `provider: codex` and `provider: claude` run those authenticated CLIs as
+workers. The [semantic onboarding guide](docs/onboarding.md#build-the-ai-understanding-baseline)
+explains the agent-funded loop, hosted workers, privacy controls, incremental invalidation, and
+scheduling.
+
 ## 🔄 Keep it current
 
 Follow startup or scanning with:
@@ -185,6 +257,8 @@ Useful commands:
 
 ```bash
 anaxigraph update /path/to/repository
+anaxigraph understand /path/to/repository
+anaxigraph semantic-status /path/to/repository
 anaxigraph history /path/to/repository --limit 64
 anaxigraph review /path/to/repository
 anaxigraph scope /path/to/repository --goal "Add saved prompts to Workbench"
@@ -205,7 +279,9 @@ The `serve` and `mcp` commands both expose the dashboard and JSON API at
 - declared and inferred architecture groups
 - metrics, coverage measurements, Git change history, and temporal trends
 - architecture findings with stable identity and lifecycle state
-- semantic claims with provider/model/prompt provenance kept separate from parser facts
+- durable intrinsic, contextual, subsystem, and repository dossiers with provider/model/prompt
+  plus coding-agent executor provenance, resumable work state, fingerprints, token usage, and
+  cost estimates
 
 The target repository only needs an optional `.anaxigraph.yml`; analysis state remains external.
 

@@ -17,7 +17,7 @@ from anaxigraph.relationships import (
     resolution_status,
 )
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 6
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_meta (
@@ -232,10 +232,95 @@ CREATE TABLE IF NOT EXISTS semantic_claims (
     source TEXT NOT NULL,
     provider TEXT NOT NULL,
     model TEXT NOT NULL,
+    executor_id TEXT,
+    executor_model TEXT,
     prompt_version TEXT NOT NULL,
     created_at TEXT NOT NULL,
     confidence REAL NOT NULL,
     supporting_evidence_json TEXT NOT NULL DEFAULT '[]'
+);
+
+CREATE TABLE IF NOT EXISTS semantic_documents (
+    id INTEGER PRIMARY KEY,
+    repository_id INTEGER NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+    scope_type TEXT NOT NULL,
+    scope_key TEXT NOT NULL,
+    artifact_id INTEGER REFERENCES artifacts(id) ON DELETE CASCADE,
+    artifact_version_id INTEGER REFERENCES file_versions(id) ON DELETE CASCADE,
+    previous_document_id INTEGER REFERENCES semantic_documents(id) ON DELETE SET NULL,
+    document_kind TEXT NOT NULL,
+    input_hash TEXT NOT NULL,
+    intent_fingerprint TEXT NOT NULL,
+    value_json TEXT NOT NULL,
+    source TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    model TEXT NOT NULL,
+    prompt_version TEXT NOT NULL,
+    schema_version TEXT NOT NULL,
+    confidence REAL NOT NULL,
+    supporting_evidence_json TEXT NOT NULL DEFAULT '[]',
+    input_tokens INTEGER NOT NULL DEFAULT 0,
+    output_tokens INTEGER NOT NULL DEFAULT 0,
+    estimated_cost_usd REAL,
+    actual_cost_usd REAL,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS semantic_jobs (
+    id INTEGER PRIMARY KEY,
+    repository_id INTEGER NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+    scope_type TEXT NOT NULL,
+    scope_key TEXT NOT NULL,
+    artifact_id INTEGER REFERENCES artifacts(id) ON DELETE CASCADE,
+    artifact_version_id INTEGER REFERENCES file_versions(id) ON DELETE CASCADE,
+    job_kind TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    status TEXT NOT NULL,
+    priority INTEGER NOT NULL DEFAULT 0,
+    input_hash TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    model TEXT NOT NULL,
+    prompt_version TEXT NOT NULL,
+    schema_version TEXT NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    max_attempts INTEGER NOT NULL DEFAULT 3,
+    estimated_input_tokens INTEGER NOT NULL DEFAULT 0,
+    input_tokens INTEGER NOT NULL DEFAULT 0,
+    output_tokens INTEGER NOT NULL DEFAULT 0,
+    estimated_cost_usd REAL,
+    actual_cost_usd REAL,
+    available_at TEXT NOT NULL,
+    started_at TEXT,
+    completed_at TEXT,
+    worker_id TEXT,
+    lease_expires_at TEXT,
+    lease_token_hash TEXT,
+    executor_id TEXT,
+    executor_model TEXT,
+    error TEXT,
+    metadata_json TEXT NOT NULL DEFAULT '{}'
+);
+
+CREATE TABLE IF NOT EXISTS semantic_scope_states (
+    repository_id INTEGER NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+    scope_type TEXT NOT NULL,
+    scope_key TEXT NOT NULL,
+    artifact_id INTEGER REFERENCES artifacts(id) ON DELETE CASCADE,
+    artifact_version_id INTEGER REFERENCES file_versions(id) ON DELETE CASCADE,
+    status TEXT NOT NULL,
+    reason TEXT NOT NULL DEFAULT '',
+    intrinsic_input_hash TEXT,
+    context_input_hash TEXT,
+    interface_hash TEXT,
+    relationship_hash TEXT,
+    context_fingerprint TEXT,
+    intrinsic_document_id INTEGER REFERENCES semantic_documents(id) ON DELETE SET NULL,
+    context_document_id INTEGER REFERENCES semantic_documents(id) ON DELETE SET NULL,
+    last_checked_at TEXT NOT NULL,
+    PRIMARY KEY(snapshot_id, scope_type, scope_key)
 );
 
 CREATE TABLE IF NOT EXISTS git_changes (
@@ -262,6 +347,12 @@ CREATE INDEX IF NOT EXISTS idx_relationships_snapshot_target ON relationships(sn
 CREATE INDEX IF NOT EXISTS idx_metrics_snapshot ON metrics(snapshot_id, name);
 CREATE INDEX IF NOT EXISTS idx_findings_repository_status ON findings(repository_id, status);
 CREATE INDEX IF NOT EXISTS idx_git_changes_repository_path ON git_changes(repository_id, path);
+CREATE INDEX IF NOT EXISTS idx_semantic_documents_scope
+    ON semantic_documents(repository_id, scope_type, scope_key, document_kind, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_semantic_jobs_queue
+    ON semantic_jobs(repository_id, status, available_at, priority DESC, id);
+CREATE INDEX IF NOT EXISTS idx_semantic_states_snapshot
+    ON semantic_scope_states(snapshot_id, scope_type, status);
 """
 
 
@@ -301,6 +392,44 @@ class AnaxiIndex:
             if "current_snapshot_id" not in repository_columns:
                 connection.execute(
                     "ALTER TABLE repositories ADD COLUMN current_snapshot_id INTEGER"
+                )
+            semantic_job_columns = {
+                item["name"] for item in connection.execute("PRAGMA table_info(semantic_jobs)")
+            }
+            if "worker_id" not in semantic_job_columns:
+                connection.execute("ALTER TABLE semantic_jobs ADD COLUMN worker_id TEXT")
+            if "lease_expires_at" not in semantic_job_columns:
+                connection.execute(
+                    "ALTER TABLE semantic_jobs ADD COLUMN lease_expires_at TEXT"
+                )
+            if "lease_token_hash" not in semantic_job_columns:
+                connection.execute(
+                    "ALTER TABLE semantic_jobs ADD COLUMN lease_token_hash TEXT"
+                )
+            if "executor_id" not in semantic_job_columns:
+                connection.execute("ALTER TABLE semantic_jobs ADD COLUMN executor_id TEXT")
+            if "executor_model" not in semantic_job_columns:
+                connection.execute(
+                    "ALTER TABLE semantic_jobs ADD COLUMN executor_model TEXT"
+                )
+            semantic_document_columns = {
+                item["name"]
+                for item in connection.execute("PRAGMA table_info(semantic_documents)")
+            }
+            if "previous_document_id" not in semantic_document_columns:
+                connection.execute(
+                    """
+                    ALTER TABLE semantic_documents
+                    ADD COLUMN previous_document_id INTEGER REFERENCES semantic_documents(id)
+                    """
+                )
+            if "executor_id" not in semantic_document_columns:
+                connection.execute(
+                    "ALTER TABLE semantic_documents ADD COLUMN executor_id TEXT"
+                )
+            if "executor_model" not in semantic_document_columns:
+                connection.execute(
+                    "ALTER TABLE semantic_documents ADD COLUMN executor_model TEXT"
                 )
             connection.execute(
                 "INSERT OR REPLACE INTO schema_meta(key, value) VALUES ('schema_version', ?)",
@@ -919,7 +1048,28 @@ class AnaxiIndex:
                 """
                 SELECT sc.* FROM semantic_claims sc
                 JOIN file_versions fv ON fv.id = sc.artifact_version_id
-                WHERE fv.snapshot_id = ? AND sc.claim_type = 'module_analysis'
+                WHERE fv.snapshot_id = ?
+                  AND sc.claim_type IN ('module_analysis', 'module_context')
+                ORDER BY CASE sc.claim_type WHEN 'module_analysis' THEN 0 ELSE 1 END
+                """,
+                (sid,),
+            ).fetchall()
+            semantic_state_rows = connection.execute(
+                """
+                SELECT ss.*, intrinsic.intent_fingerprint AS intrinsic_intent_fingerprint,
+                       intrinsic.created_at AS intrinsic_created_at,
+                       context.intent_fingerprint AS context_intent_fingerprint,
+                       context.created_at AS context_created_at,
+                       context.value_json AS context_value_json,
+                       context.confidence AS context_confidence,
+                       context.provider AS context_provider,
+                       context.model AS context_model,
+                       context.executor_id AS context_executor_id,
+                       context.executor_model AS context_executor_model
+                FROM semantic_scope_states ss
+                LEFT JOIN semantic_documents intrinsic ON intrinsic.id = ss.intrinsic_document_id
+                LEFT JOIN semantic_documents context ON context.id = ss.context_document_id
+                WHERE ss.snapshot_id = ? AND ss.scope_type = 'module'
                 """,
                 (sid,),
             ).fetchall()
@@ -941,8 +1091,14 @@ class AnaxiIndex:
             claims[int(row["artifact_version_id"])] = {
                 "value": json.loads(row["value_json"] or "{}"),
                 "source": row["source"],
+                "provider": row["provider"],
+                "model": row["model"],
+                "claim_type": row["claim_type"],
                 "confidence": row["confidence"],
             }
+        semantic_states = {
+            str(row["scope_key"]): dict(row) for row in semantic_state_rows
+        }
 
         findings_by_path: dict[str, list[dict[str, Any]]] = {}
         for row in finding_rows:
@@ -971,11 +1127,43 @@ class AnaxiIndex:
             if claim:
                 item["deterministic_summary"] = item["summary"]
                 item["summary"] = claim["value"].get("summary") or item["summary"]
-                item["summary_source"] = claim["source"]
+                phase = "contextual" if claim["claim_type"] == "module_context" else "intrinsic"
+                item["summary_source"] = f"{claim['provider']} {phase} interpretation"
                 item["summary_confidence"] = claim["confidence"]
             else:
                 item["summary_source"] = "deterministic"
                 item["summary_confidence"] = 1.0
+            semantic_state = semantic_states.get(item["path"])
+            context_value = (
+                json.loads(semantic_state.get("context_value_json") or "{}")
+                if semantic_state
+                else {}
+            )
+            item["semantic"] = (
+                {
+                    "status": semantic_state["status"],
+                    "reason": semantic_state["reason"],
+                    "intent_fingerprint": semantic_state["intrinsic_intent_fingerprint"],
+                    "context_intent_fingerprint": semantic_state["context_intent_fingerprint"],
+                    "context_fingerprint": semantic_state["context_fingerprint"],
+                    "intrinsic_created_at": semantic_state["intrinsic_created_at"],
+                    "context_created_at": semantic_state["context_created_at"],
+                    "provider": semantic_state["context_provider"],
+                    "model": semantic_state["context_model"],
+                    "executor_id": semantic_state["context_executor_id"],
+                    "executor_model": semantic_state["context_executor_model"],
+                    "confidence": semantic_state["context_confidence"],
+                    "architecture_role": context_value.get("architecture_role") or "",
+                    "pattern_opportunities": context_value.get("pattern_opportunities") or [],
+                    "consolidation_assessment": context_value.get("consolidation_assessment")
+                    or "",
+                    "dead_code_candidates": context_value.get("dead_code_candidates") or [],
+                    "placement_guidance": context_value.get("placement_guidance") or "",
+                    "change_summary": context_value.get("change_summary") or "",
+                }
+                if semantic_state
+                else {"status": "not_started", "reason": "Semantic bootstrap has not run"}
+            )
             active_findings = findings_by_path.get(item["path"], [])
             item["active_findings"] = active_findings
             item["evaluation"] = _module_evaluation(item, active_findings)
@@ -1164,6 +1352,26 @@ class AnaxiIndex:
                 "SELECT * FROM semantic_claims WHERE artifact_version_id = ?",
                 (version["id"],),
             ).fetchall()
+            semantic_state = connection.execute(
+                """
+                SELECT * FROM semantic_scope_states
+                WHERE snapshot_id = ? AND scope_type = 'module' AND scope_key = ?
+                """,
+                (sid, path),
+            ).fetchone()
+            semantic_documents: dict[str, dict[str, Any]] = {}
+            if semantic_state is not None:
+                for kind, document_id in (
+                    ("intrinsic", semantic_state["intrinsic_document_id"]),
+                    ("context", semantic_state["context_document_id"]),
+                ):
+                    if not document_id:
+                        continue
+                    document = connection.execute(
+                        "SELECT * FROM semantic_documents WHERE id = ?", (document_id,)
+                    ).fetchone()
+                    if document is not None:
+                        semantic_documents[kind] = _decode_json_columns(dict(document))
         result = dict(version)
         for key in (
             "responsibilities_json",
@@ -1181,6 +1389,8 @@ class AnaxiIndex:
             "dependants": [_decode_relationship(dict(row)) for row in dependants],
             "history": [dict(row) for row in history],
             "semantic_claims": [_decode_json_columns(dict(row)) for row in claims],
+            "semantic_state": dict(semantic_state) if semantic_state else None,
+            "semantic_dossiers": semantic_documents,
         }
 
     def search(self, repository_id: int, query: str, *, limit: int = 30) -> list[dict[str, Any]]:
@@ -1202,13 +1412,57 @@ class AnaxiIndex:
                 """,
                 (snapshot["id"],),
             ).fetchall()
+            semantic_rows = connection.execute(
+                """
+                SELECT ss.artifact_id, ss.status, sd.value_json, sd.provider,
+                       sd.model, sd.confidence, sd.document_kind
+                FROM semantic_scope_states ss
+                LEFT JOIN semantic_documents sd
+                  ON sd.id = COALESCE(ss.context_document_id, ss.intrinsic_document_id)
+                WHERE ss.snapshot_id = ? AND ss.scope_type = 'module'
+                """,
+                (snapshot["id"],),
+            ).fetchall()
+        semantic_by_artifact = {
+            int(row["artifact_id"]): {
+                **dict(row),
+                "value": json.loads(row["value_json"] or "{}"),
+            }
+            for row in semantic_rows
+            if row["artifact_id"] is not None
+        }
         scored: list[tuple[float, dict[str, Any]]] = []
         for row in rows:
             item = dict(row)
+            semantic = semantic_by_artifact.get(int(item["artifact_id"]))
+            semantic_value = semantic["value"] if semantic else {}
+            if semantic_value.get("summary"):
+                item["deterministic_summary"] = item["summary"]
+                item["summary"] = semantic_value["summary"]
+            if semantic:
+                item["semantic"] = {
+                    "status": semantic["status"],
+                    "source": semantic["document_kind"],
+                    "provider": semantic["provider"],
+                    "model": semantic["model"],
+                    "confidence": semantic["confidence"],
+                }
             haystack = " ".join(
                 str(item.get(key) or "")
                 for key in ("path", "summary", "declared_group", "inferred_group", "symbol_names")
-            ).lower()
+            )
+            haystack += " " + " ".join(
+                str(value)
+                for value in (
+                    semantic_value.get("detailed_summary"),
+                    semantic_value.get("architecture_role"),
+                    semantic_value.get("placement_guidance"),
+                    *(semantic_value.get("responsibilities") or []),
+                    *(semantic_value.get("domain_concepts") or []),
+                )
+                if value
+            )
+            haystack = haystack.lower()
             path = item["path"].lower()
             score = sum(
                 8 * path.count(term) + 3 * haystack.count(term) + (10 if path == term else 0)

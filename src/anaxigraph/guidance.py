@@ -91,6 +91,14 @@ AGENT_WORKFLOW = {
         "A human plans a finding in the dashboard. An agent calls ANAXIGRAPH_FINDINGS with "
         "status='planned', then ANAXIGRAPH_FINDING_CONTEXT for the selected finding before editing."
     ),
+    "semantic_memory": (
+        "Call ANAXIGRAPH_SEMANTIC_STATUS to see whether model-backed repository understanding is "
+        "current. ANAXIGRAPH_SCOPE includes compact pattern and placement advice for a coding "
+        "goal; ANAXIGRAPH_FILE exposes the complete versioned dossier and its provenance. When "
+        "the repository explicitly uses semantic.provider: agent, call "
+        "ANAXIGRAPH_SEMANTIC_SCHEMA once and repeat WORK, optional EVIDENCE pages, and SUBMIT to "
+        "build that memory with the connected coding agent's own model and tokens."
+    ),
 }
 
 

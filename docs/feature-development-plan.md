@@ -12,6 +12,13 @@ The product loop is:
 observe -> explain -> decide -> plan -> implement with an agent -> rescan -> verify -> remember
 ```
 
+Repository enrollment begins with a complete semantic bootstrap. AnaxiGraph first builds the
+deterministic graph, then configured AI workers read every eligible first-party module so the
+repository starts with a coherent semantic baseline rather than a patchwork of descriptions.
+After that baseline, deterministic scans and hashes make maintenance incremental: only new,
+meaningfully changed, context-stale, or explicitly expired understanding is sent back for AI
+analysis.
+
 ## Product thesis — a temporal architecture advisor
 
 AnaxiGraph's moat is not a prettier dependency diagram. It is the combination of repository
@@ -91,7 +98,7 @@ Acceptance criteria for this foundation:
   touch primary task files, and reports exactly what was omitted.
 - Backend and browser tests prove the evidence state and its user-visible explanation.
 
-## Implementation status — 19 August 2026
+## Implementation status — 20 August 2026
 
 The current shareable slice now includes:
 
@@ -110,6 +117,9 @@ The current shareable slice now includes:
 - weighted architecture regions sized by their module populations, with outlined, grid-spaced nodes
 - explicit coverage-input diagnostics that distinguish missing reports from unmatched reports and
   measured zero coverage
+- an agent-funded semantic executor: a connected coding agent claims bounded work over AnaxiMCP,
+  uses its own model/tokens, and writes a strictly validated dossier back to AnaxiIndex under an
+  expiring repository-scoped lease
 
 The immediate slice is the trust-and-signal foundation above. The next temporal slice is the commit
 bibliography: milestone-aware sampling, commit subjects and architecture deltas in the UI, stable
@@ -270,9 +280,40 @@ Each file version will expose:
 - local implementation precedents to follow when adding adjacent functionality
 
 **Baseline shipped:** the Modules dashboard and `ANAXIGRAPH_MODULES` expose the deterministic
-inventory, provenance-aware summaries when available, Git dates, and a reproducible 0–100
-attention score. This score is triage—not pattern suitability. Intent fingerprints, semantic
-deltas, and reviewed suitability scores remain future work below.
+inventory, current intrinsic/contextual summaries, semantic coverage state, Git dates, and a
+reproducible 0–100 attention score. The semantic executor records intent fingerprints, provenance,
+evidence, token/cost usage, related responsibilities, pattern opportunities,
+consolidation/dead-code assessments, and placement guidance. The attention score remains
+deterministic triage—not pattern suitability. Model-backed pattern opportunities now carry a
+separate 0–100 contextual suitability score, confidence, evidence, counter-evidence, migration
+cost, and preconditions. Calibrated component scoring, durable proposal review, and intent-delta
+UX remain future work below.
+
+### Repository semantic bootstrap
+
+**Shipped baseline:** the first semantic run is intentionally comprehensive. It is a resumable repository-enrollment
+job with three passes:
+
+1. Build the complete deterministic inventory, symbol index, dependency graph, architecture
+   placement, Git biography, and all invalidation fingerprints before invoking a model.
+2. Have the configured provider-neutral semantic executor read every eligible first-party module and produce
+   canonical intrinsic dossiers. Oversized modules are analyzed in symbol-aware chunks and then
+   synthesized; exclusions such as generated, vendored, binary, or explicitly private paths are
+   recorded rather than silently omitted.
+3. Once intrinsic coverage is complete, synthesize contextual module roles plus subsystem, area,
+   and repository understanding from the graph and stored dossiers. This second pass primarily
+   consumes compact dossiers and interfaces rather than rereading neighbouring source. Large
+   scopes are reduced through bounded synthesis batches before their final repository-level pass.
+
+The bootstrap may be processed in bounded batches, but it is not considered semantically ready
+until every eligible module is current, explicitly excluded, or visibly failed. It must survive
+restart, expose progress and estimated/actual token cost, and prioritize architectural cores and
+high-blast-radius modules without treating partial priority coverage as a completed baseline.
+
+Static facts decide what source the executor receives. AI output is a versioned interpretation and
+never overwrites parser facts. The operator chooses the provider: a hosted API, a non-interactive
+Codex/Claude command adapter, a connected coding agent using its own tokens through AnaxiMCP, an
+OpenAI-compatible endpoint, or a local model implementing the same structured contract.
 
 ### Incremental pipeline
 
@@ -282,6 +323,48 @@ raw changed, structure same -> update metadata/docs; reuse structural and semant
 structure changed        -> reparse and compare the canonical intent document
 intent fingerprint changed -> run semantic delta analysis and downstream pattern evaluation
 ```
+
+Source-bound and context-bound understanding are invalidated separately:
+
+- `raw_hash` detects any byte change.
+- `structural_hash` determines whether intrinsic source understanding may be reused.
+- `interface_hash` tracks public symbols, signatures, exports, endpoints, and contracts.
+- `relationship_hash` tracks resolved imports, calls, callers, and dependency evidence.
+- `semantic_input_hash` covers the structured source/facts input plus schema, prompt, and model.
+- `intent_fingerprint` hashes normalized canonical intent rather than generated prose.
+- `context_fingerprint` tracks the graph neighbourhood and relevant neighbour interfaces/intents.
+
+An interface or relationship change can therefore refresh the contextual role of dependants
+without paying to reread their unchanged source. An intent change invalidates affected subsystem
+summaries and pattern candidates rather than triggering a repository-wide semantic rerun.
+
+### Refresh policy and semantic work queue
+
+Every deterministic scan performs the inexpensive hash/fingerprint comparison. Repository policy
+then controls when stale semantic jobs run: manually, after a scan, continuously through the
+watcher, on a periodic schedule, or during a nightly/CI reconciliation. A periodic review checks
+the entire module ledger for missing, failed, low-confidence, model/prompt-stale, or age-expired
+records; it does not blindly resend unchanged source.
+
+**Shipped:** the durable semantic queue records repository/module/version, invalidation reason, input hash,
+priority, provider/model/prompt/schema version, attempts, timestamps, token/cost estimates and
+actuals, and result/error state. Priority order begins with missing dossiers, structural changes,
+public-interface changes, high-centrality affected modules, contextual invalidations, and finally
+routine age-based review. Per-repository budgets, concurrency, cadence, path/egress rules, and
+maximum semantic age remain operator controlled. Provider credentials stay outside repository
+configuration.
+
+**Shipped:** `semantic.provider: agent` splits planner/persistence from inference. WORK claims one
+job with an opaque expiring token; oversized source or dossier evidence is paged; SUBMIT rechecks
+the repository snapshot and semantic contract, validates the complete dossier, and writes only
+AnaxiIndex. SCHEMA/EVIDENCE are annotated MCP reads, while WORK/SUBMIT/RELEASE are explicit
+non-destructive index writes. Executor identity/model are retained as provenance, unreported agent
+token use is not fabricated, completed submission retries are idempotent, and interrupted work is
+reclaimable in a later coding-agent session.
+
+The dashboard reports semantic coverage as current, pending, context-stale, failed, and explicitly
+excluded modules, along with last reconciliation and estimated refresh cost. An initial full
+bootstrap and later incremental refreshes use the same queue and canonical dossier contract.
 
 The intent fingerprint is a hash of canonical structured intent, not a hash of prose or source
 bytes. LLM-derived intent remains optional and cached. Deterministic summaries provide a lower
@@ -293,6 +376,13 @@ confidence fallback, and no semantic claim is presented as parser fact.
 - A module dossier answers “what owns this responsibility elsewhere?”, “should these modules
   merge?”, “is any symbol or whole module plausibly unused?”, and “where should adjacent work go?”
   without asserting more than its evidence supports.
+- Initial repository enrollment reads every eligible first-party module and reaches an auditable
+  terminal state of current, explicitly excluded, or failed; interrupted enrollment resumes.
+- An unchanged repository can be reconciled repeatedly without new source-reading model calls.
+- A structural, interface, or relationship change invalidates only the appropriate intrinsic,
+  contextual, and ancestor records, and the dashboard explains why each refresh was scheduled.
+- Users can choose manual, on-scan, watcher, or periodic semantic refresh and enforce per-run or
+  per-period cost limits without losing the eventual full-baseline requirement.
 - Documentation-only edits do not create false intent changes.
 - Model or prompt upgrades do not silently masquerade as code changes.
 - Every semantic delta links back to source evidence and its prior version.
@@ -353,7 +443,9 @@ high-value but low-safety removal remains a review candidate rather than agent-r
 
 ## Phase 6 — continuous review and integrations
 
-- Scheduled incremental scans, CI checks, webhooks, and nightly semantic/pattern review.
+- Scheduled deterministic scans plus configurable manual, on-scan, watcher, CI/webhook, and
+  periodic semantic reconciliation. Schedules inspect the full ledger but enqueue AI work only
+  for missing, changed, context-stale, failed/retryable, or policy-expired records.
 - Budgets for LLM calls, concurrency, repository size, and historical depth.
 - MCP tools for repository overview, file intent, planned work, finding context, pattern proposals,
   impact, and post-change verification.
@@ -366,9 +458,12 @@ high-value but low-safety removal remains a review candidate rather than agent-r
 1. Ship Phase 1 as an explainability and workflow release.
 2. Add the repository registry before presenting the selector as an arbitrary filesystem browser.
 3. Build background jobs and graph deltas before full-history UI controls.
-4. Migrate the existing file-version data into canonical intent documents.
-5. Calibrate pattern scoring on real repositories with reviewed examples.
-6. Add scheduled automation only after review decisions and provenance are durable.
+4. Add the durable semantic queue and complete one resumable full-repository bootstrap into
+   canonical intent documents.
+5. Add hash-driven invalidation, contextual refresh, configurable reconciliation schedules, and
+   semantic coverage/cost reporting.
+6. Calibrate pattern scoring on real repositories with reviewed examples.
+7. Add broader CI/webhook automation only after review decisions and provenance are durable.
 
 This order keeps each release useful on its own and ensures the expensive semantic and pattern
 features rest on understandable, testable repository facts.

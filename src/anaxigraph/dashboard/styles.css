@@ -437,6 +437,13 @@ main { padding: 1.4rem clamp(1.25rem, 4vw, 4.5rem) 4rem; }
 .metric strong { display: block; margin: 0.15rem 0; font-size: 1.75rem; letter-spacing: -0.05em; }
 .metric span { color: var(--muted); font-size: 0.77rem; }
 
+.repository-intelligence-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+.repository-intelligence-grid h3 { margin-top: 0.9rem; }
+
 .notice {
   margin: 0 0 1rem;
   padding: 0.8rem 1rem;
@@ -450,6 +457,9 @@ main { padding: 1.4rem clamp(1.25rem, 4vw, 4.5rem) 4rem; }
 .notice strong { color: var(--notice-strong); }
 .evidence-notice { border-color: var(--line); color: var(--text); background: var(--panel-strong); }
 .evidence-notice strong { color: var(--text-strong); }
+.semantic-notice-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.semantic-notice-heading > div { min-width: 0; }
+.semantic-notice-heading button { flex: 0 0 auto; }
 .notice p { margin: .3rem 0 0; }
 .notice details { margin-top: .55rem; }
 .notice summary { cursor: pointer; color: var(--amber); font-weight: 700; }
@@ -535,7 +545,7 @@ main { padding: 1.4rem clamp(1.25rem, 4vw, 4.5rem) 4rem; }
 .pattern-candidate { color: var(--amber); }
 .pattern-none { color: var(--muted); }
 .module-detail-row td { padding: 0; background: var(--surface-detail); }
-.module-detail { display: grid; grid-template-columns: minmax(250px, 1.3fr) repeat(2, minmax(210px, 1fr)); gap: 1rem; padding: 1rem 1.2rem 1.2rem; }
+.module-detail { display: grid; grid-template-columns: repeat(2, minmax(260px, 1fr)); gap: 1rem; padding: 1rem 1.2rem 1.2rem; }
 .module-detail h3 { color: var(--accent); font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; }
 .module-detail p, .module-detail li { color: var(--muted); font-size: .72rem; line-height: 1.5; }
 .module-detail ul { margin: .35rem 0 0; padding-left: 1rem; }
@@ -684,9 +694,11 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
   .module-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .module-search { grid-column: 1 / -1; }
   .module-detail { grid-template-columns: 1fr; }
+  .repository-intelligence-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 700px) {
+  .semantic-notice-heading { align-items: flex-start; flex-direction: column; }
   .onboarding-heading { display: block; }
   .onboarding-progress { margin-top: .8rem; text-align: left; }
   .onboarding-steps { grid-template-columns: 1fr; }

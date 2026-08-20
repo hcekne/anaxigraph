@@ -86,19 +86,3 @@ class ScanStats:
             "findings": self.findings,
             "duration_ms": self.duration_ms,
         }
-
-
-@dataclass(frozen=True, slots=True)
-class SemanticClaim:
-    summary: str
-    responsibilities: tuple[str, ...] = ()
-    inputs: tuple[str, ...] = ()
-    outputs: tuple[str, ...] = ()
-    side_effects: tuple[str, ...] = ()
-    architectural_group: str | None = None
-    source: str = "llm"
-    provider: str = ""
-    model: str = ""
-    prompt_version: str = "v1"
-    confidence: float = 0.0
-    supporting_evidence: tuple[str, ...] = ()

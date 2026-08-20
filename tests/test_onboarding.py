@@ -39,6 +39,9 @@ def test_initializer_generates_reviewable_policy_and_read_only_sidecar(repositor
     assert policy["project"]["name"] == "Sample Observatory"
     assert policy["coverage"] == {"required": False, "files": ["coverage.xml"]}
     assert policy["groups"]["frontend"]["paths"] == ["web/**"]
+    assert policy["semantic"]["provider"] == "agent"
+    assert "model" not in policy["semantic"]
+    assert policy["semantic"]["agent_lease_seconds"] == 1_800
     assert load_config(repository).project_name == "Sample Observatory"
     assert "source: ." in compose
     assert "target: /repo" in compose

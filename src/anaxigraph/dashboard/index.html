@@ -92,6 +92,8 @@
             as resolved.</p>
         </article>
         <div id="metric-grid" class="metric-grid"></div>
+        <div id="semantic-notice" class="notice evidence-notice" hidden></div>
+        <article id="repository-intelligence" class="panel repository-intelligence" hidden></article>
         <div id="graph-quality-notice" class="notice evidence-notice" hidden></div>
         <div id="coverage-notice" class="notice" hidden></div>
         <div class="two-column">
@@ -443,6 +445,22 @@
           <div class="settings-agent-actions">
             <button class="secondary-button" type="button" data-copy-target="settings-codex-command">Copy Codex command</button>
             <button id="show-onboarding-button" class="text-button" type="button">Show guided tour</button>
+          </div>
+        </article>
+        <article class="panel integration-settings">
+          <div>
+            <p class="eyebrow">Model-backed repository memory</p>
+            <h2>Build and refresh AI understanding</h2>
+            <p id="settings-semantic-summary" class="muted"></p>
+            <pre id="settings-semantic-command" class="settings-agent-command"></pre>
+            <p class="settings-advanced">With <code>semantic.provider: agent</code>, the connected
+              coding agent can claim bounded evidence and write a validated interpretation to
+              AnaxiIndex using its own model and tokens. Other providers use a separate worker.
+              Every path is opt-in, and the mounted repository remains read-only.</p>
+          </div>
+          <div class="settings-agent-actions">
+            <button class="secondary-button" type="button" data-copy-target="settings-semantic-command">Copy semantic setup</button>
+            <a class="text-button" href="https://github.com/hcekne/anaxigraph/blob/main/docs/onboarding.md#build-the-ai-understanding-baseline" target="_blank" rel="noreferrer">Semantic setup →</a>
           </div>
         </article>
       </section>
