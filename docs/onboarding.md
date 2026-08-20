@@ -78,6 +78,34 @@ The first dashboard visit presents four steps:
 The guide is local to the browser and repository. Hide it when finished; **Settings → Show guided
 tour** restores it.
 
+### Attention is not the complete ledger
+
+The Architecture page opens on a bounded attention queue. It contains at most 20 qualifying new,
+reviewed, planned, or regressed signals; routine information-level long-function observations do
+not fill it. Switch to **All diagnostics** to recover every stored observation and filter by
+detector, module path, architecture area, lifecycle state, severity, and confidence. Repeated
+diagnostics are summarized by detector and area before their individual evidence cards.
+
+Each card expands into its ranking evidence, plausible false-positive conditions, affected areas,
+and verification rule. **Mark reviewed** keeps a condition active, **Plan agent work** records
+explicit approval, **Accept risk** keeps monitoring it without filling the attention queue, and
+**Not actionable** dismisses it. Resolution normally comes from the next complete scan: if the
+detector no longer sees the same stable condition it becomes resolved, and if it returns later it
+becomes regressed.
+
+Presentation thresholds are optional repository policy:
+
+```yaml
+findings:
+  attention:
+    minimum_priority: 35
+    minimum_severity: warning
+    page_size: 20
+    include_info_long_functions: false
+  diagnostics:
+    page_size: 50
+```
+
 ## Connect Codex
 
 With the sidecar healthy, add its Streamable HTTP MCP endpoint. Run this in a shell on the machine

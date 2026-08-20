@@ -1,4 +1,12 @@
 import { activeHistoryStates, historyStartMessage, historyView } from "/assets/history-view.js";
+import {
+  bindFindingFilters,
+  findingCards,
+  findingGroupSummary,
+  findingQueryParams,
+  findingResultNote,
+  renderFindingFilterOptions,
+} from "/assets/findings-view.js";
 
 const state = {
   repositories: [],
@@ -8,6 +16,7 @@ const state = {
   modules: [],
   graph: { nodes: [], edges: [], snapshot: null },
   findings: [],
+  findingPage: null,
   snapshots: [],
   trends: [],
   historyInfo: null,
@@ -31,7 +40,6 @@ const state = {
   moduleSort: { key: "lines_of_code", direction: "desc" },
   modulePage: 1,
   expandedModuleId: null,
-  findingsExpanded: false,
   themeColors: null,
 };
 
@@ -242,7 +250,7 @@ async function loadRepository() {
       request(api("/api/overview")),
       request(api("/api/modules")),
       request(api("/api/graph")),
-      request(api("/api/findings", { limit: 2000 })),
+      request(api("/api/findings", findingQueryParams())),
       request(api("/api/snapshots")),
       request(api("/api/trends")),
       request(api("/api/history")),
@@ -251,7 +259,8 @@ async function loadRepository() {
     state.overview = overview;
     state.modules = modules;
     state.graph = graph;
-    state.findings = findings;
+    state.findingPage = findings;
+    state.findings = findings.items || [];
     state.snapshots = snapshots;
     state.trends = trends.snapshots || [];
     state.historyInfo = historyInfo;
@@ -263,7 +272,6 @@ async function loadRepository() {
     state.conflictPaths.clear();
     state.modulePage = 1;
     state.expandedModuleId = null;
-    state.findingsExpanded = false;
     state.hiddenGroups.clear();
     buildGroupIndex(overview.group_hierarchy || []);
     renderGraphAreaOptions();
@@ -392,8 +400,8 @@ function renderOverview() {
   renderBars("language-bars", value.languages || []);
   renderGroupHierarchy(value.group_hierarchy || []);
   byId("finding-preview").innerHTML = findingCards(
-    state.findings.filter((item) => !["resolved", "dismissed"].includes(item.status)).slice(0, 6),
-    false,
+    state.findings.slice(0, 10),
+    { glossary: state.glossary, actions: false },
   );
 
   renderSemanticNotice(semantic);
@@ -782,73 +790,24 @@ function formatDate(value) {
   return parsed.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
-function findingCards(items, actions = true) {
-  if (!items.length) return `<p class="muted">No findings in this view.</p>`;
-  return items.map((item) => {
-    const guide = state.glossary?.findings?.statuses?.[item.status];
-    const status = guide?.label || humanize(item.status);
-    const confidence = `${(Number(item.confidence || 0) * 100).toFixed(0)}% detection confidence`;
-    const confidenceHelp = state.glossary?.findings?.confidence || "Confidence describes detector evidence, not severity.";
-    const priority = item.priority_score == null
-      ? ""
-      : `<span class="finding-priority" title="${escapeAttr((item.priority_reasons || []).join(" · "))}">${escapeHtml(item.priority_label || "Priority")} ${format.format(item.priority_score)}/100</span> · `;
-    const action = item.recommended_action
-      ? `<div class="finding-action-copy"><strong>Suggested next step</strong><p>${escapeHtml(item.recommended_action)}</p></div>`
-      : "";
-    const tags = item.affected_artifacts?.length
-      ? `<div class="tag-list">${item.affected_artifacts.slice(0, 8).map((path) => `<span class="tag">${escapeHtml(path)}</span>`).join("")}</div>`
-      : "";
-    return `<article class="finding-card"><span class="severity ${escapeHtml(item.severity)}"></span><div><div class="finding-meta">${priority}${escapeHtml(humanize(item.finding_type))} · ${escapeHtml(status)} · <span class="finding-provenance" title="${escapeAttr(confidenceHelp)}">${escapeHtml(confidence)}</span> · ${escapeHtml(item.source || "deterministic")}</div><h3>${escapeHtml(item.summary)}</h3><p>${escapeHtml(item.explanation)}</p>${action}${tags}</div>${actions ? findingActionButtons(item) : ""}</article>`;
-  }).join("");
-}
-
-function findingActionButtons(item) {
-  const buttons = [];
-  if (["new", "regressed"].includes(item.status)) {
-    buttons.push(`<button data-finding="${item.id}" data-action="review">Mark reviewed</button>`);
-  }
-  if (!["planned", "resolved", "dismissed"].includes(item.status)) {
-    buttons.push(`<button class="primary-action" data-finding="${item.id}" data-action="plan">Plan agent work</button>`);
-  }
-  if (item.status === "planned") {
-    buttons.push(`<button class="primary-action" data-finding="${item.id}" data-action="handoff">Open agent handoff</button>`);
-  }
-  if (!["resolved", "dismissed"].includes(item.status)) {
-    buttons.push(`<button data-finding="${item.id}" data-action="dismiss">Not actionable</button>`);
-  }
-  if (item.status === "dismissed") {
-    buttons.push(`<button data-finding="${item.id}" data-action="reopen">Reopen</button>`);
-  }
-  return `<div class="finding-actions">${buttons.join("")}</div>`;
-}
-
 function renderFindings() {
-  const filter = byId("finding-status-filter").value;
-  const items = filter === "all"
-    ? state.findings
-    : filter === "active"
-      ? state.findings.filter((item) => !["resolved", "dismissed"].includes(item.status))
-      : state.findings.filter((item) => item.status === filter);
-  const visible = state.findingsExpanded ? items : items.slice(0, 10);
-  const totalActive = Object.values(state.overview?.findings || {}).reduce(
-    (sum, value) => sum + Number(value || 0),
-    0,
+  const page = state.findingPage;
+  byId("finding-result-note").textContent = findingResultNote(page, state.findings.length);
+  byId("finding-groups").innerHTML = findingGroupSummary(
+    page?.view === "diagnostics" ? page.groups || [] : [],
   );
-  const total = filter === "active" ? Math.max(totalActive, items.length) : items.length;
-  byId("finding-result-note").textContent = !state.findingsExpanded && items.length > 10
-    ? `Showing the 10 highest-priority signals of ${format.format(total)} finding(s). Priority combines severity, confidence, churn, complexity, blast radius, breadth, and imported coverage.`
-    : `Showing ${format.format(visible.length)} of ${format.format(total)} finding(s), ordered by architectural priority.`;
   const more = byId("finding-show-all");
-  more.hidden = items.length <= 10;
-  more.textContent = state.findingsExpanded
-    ? "Show top 10"
-    : `Show all ${format.format(items.length)}`;
-  byId("findings-table").innerHTML = findingCards(visible);
+  more.hidden = !page?.next_cursor;
+  more.textContent = `Load next ${format.format(page?.page_size || 20)}`;
+  renderFindingFilterOptions(page);
+  byId("findings-table").innerHTML = findingCards(state.findings, {
+    glossary: state.glossary,
+  });
 }
 
 function renderWorkflowGuide() {
   const statuses = state.glossary?.findings?.statuses || {};
-  const ordered = ["new", "acknowledged", "planned", "resolved", "dismissed"];
+  const ordered = ["new", "acknowledged", "planned", "accepted", "resolved", "dismissed"];
   byId("finding-workflow").innerHTML = ordered.map((name) => {
     const item = statuses[name] || { label: humanize(name), meaning: "" };
     return `<div class="workflow-step"><strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(item.meaning)}</span></div>`;
@@ -1212,9 +1171,10 @@ function nodeColor(node) {
   if (overlay === "change") return heat(Number(node.change_count || 0), 30, theme.low, theme.warm);
   if (overlay === "drift") return node.declared_group && node.inferred_group && node.declared_group !== node.inferred_group ? theme.hot : theme.drift;
   if (overlay === "dead-code") {
-    const dead = state.findings.some((finding) => finding.finding_type === "possible_dead_code"
-      && finding.affected_artifacts?.includes(node.path)
-      && !["resolved", "dismissed"].includes(finding.status));
+    const module = state.modules.find((item) => item.path === node.path);
+    const dead = module?.active_findings?.some(
+      (finding) => finding.finding_type === "possible_dead_code",
+    );
     return dead ? theme.warm : theme.idle;
   }
   if (overlay === "agent") {
@@ -1617,6 +1577,9 @@ async function handleFindingAction(button) {
     } else if (action === "dismiss") {
       await updateFindingStatus(findingId, "dismissed");
       toast("Finding marked not actionable.");
+    } else if (action === "accept") {
+      await updateFindingStatus(findingId, "accepted");
+      toast("Risk accepted; later scans will continue to monitor the condition.");
     } else if (action === "reopen") {
       await updateFindingStatus(findingId, "acknowledged");
       toast("Finding reopened for review.");
@@ -1788,14 +1751,8 @@ function setupEvents() {
     layoutGraph(false);
     drawGraph();
   });
-  byId("finding-status-filter").addEventListener("change", () => {
-    state.findingsExpanded = false;
-    renderFindings();
-  });
-  byId("finding-show-all").addEventListener("click", () => {
-    state.findingsExpanded = !state.findingsExpanded;
-    renderFindings();
-  });
+  bindFindingFilters(() => reloadFindings());
+  byId("finding-show-all").addEventListener("click", () => reloadFindings({ append: true }));
   byId("findings-table").addEventListener("click", (event) => {
     const button = event.target.closest("[data-finding]");
     if (button) handleFindingAction(button);
@@ -2015,11 +1972,29 @@ function markOnboardingView(name) {
   }
 }
 
-async function reloadFindings() {
-  state.findings = await request(api("/api/findings", { limit: 2000 }));
-  renderFindings();
-  renderOverview();
-  drawGraph();
+async function reloadFindings({ append = false } = {}) {
+  const more = byId("finding-show-all");
+  const cursor = append ? state.findingPage?.next_cursor || "" : "";
+  if (append && !cursor) return;
+  more.disabled = true;
+  try {
+    const page = await request(api("/api/findings", findingQueryParams(cursor)));
+    const items = append ? [...state.findings, ...(page.items || [])] : page.items || [];
+    state.findings = items;
+    state.findingPage = {
+      ...page,
+      items,
+      shown: items.length,
+      omitted: { ...page.omitted, before_cursor: 0 },
+    };
+    renderFindings();
+    renderOverview();
+    drawGraph();
+  } catch (error) {
+    toast(error.message, true);
+  } finally {
+    more.disabled = false;
+  }
 }
 
 function switchView(name, preserveGraphCamera = false) {

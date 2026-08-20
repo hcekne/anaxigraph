@@ -41,6 +41,7 @@
     "application": {
       "modules": [
         "anaxigraph.agent",
+        "anaxigraph.finding_transport",
         "anaxigraph.history",
         "anaxigraph.history_discovery",
         "anaxigraph.history_frames",
@@ -60,6 +61,7 @@
         "anaxigraph.semantic_results",
         "anaxigraph.semantic_runner",
         "anaxigraph.semantic_scope_plan",
+        "anaxigraph.trend_service",
         "anaxigraph.understanding"
       ],
       "may_import": ["foundation", "analysis", "persistence", "application"]
@@ -68,8 +70,11 @@
       "modules": [
         "anaxigraph.__main__",
         "anaxigraph.api",
+        "anaxigraph.api_models",
+        "anaxigraph.api_support",
         "anaxigraph.cli",
         "anaxigraph.cli_workflows",
+        "anaxigraph.finding_mcp",
         "anaxigraph.history_mcp",
         "anaxigraph.mcp_server"
       ],

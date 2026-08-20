@@ -29,6 +29,23 @@ def read_findings(
     statuses: tuple[str, ...],
     limit: int,
 ) -> list[dict[str, Any]]:
+    return read_ranked_findings(
+        connection,
+        repository_id,
+        snapshot_id,
+        statuses=statuses,
+    )[:limit]
+
+
+def read_ranked_findings(
+    connection: sqlite3.Connection,
+    repository_id: int,
+    snapshot_id: int | None,
+    *,
+    statuses: tuple[str, ...] = (),
+) -> list[dict[str, Any]]:
+    """Return the complete ranked ledger; presentation layers own pagination."""
+
     params: list[Any] = [repository_id]
     condition = "repository_id = ?"
     if statuses:
@@ -45,16 +62,14 @@ def read_findings(
         item = decode_json_columns(dict(row))
         item.update(finding_priority(item, stats))
         ranked.append(item)
-    return sorted(
-        ranked,
-        key=lambda item: (-int(item["priority_score"]), -int(item["id"])),
-    )[:limit]
+    return sorted(ranked, key=finding_sort_key)
 
 
 def read_finding(
     connection: sqlite3.Connection,
     repository_id: int,
     finding_id: int,
+    snapshot_id: int | None = None,
 ) -> dict[str, Any] | None:
     row = connection.execute(
         """
@@ -65,7 +80,23 @@ def read_finding(
         """,
         (repository_id, finding_id),
     ).fetchone()
-    return decode_json_columns(dict(row)) if row else None
+    if row is None:
+        return None
+    item = decode_json_columns(dict(row))
+    stats = _module_stats(connection, repository_id, snapshot_id) if snapshot_id else {}
+    item.update(finding_priority(item, stats))
+    return item
+
+
+def finding_sort_key(item: dict[str, Any]) -> tuple[int, int, str, str]:
+    """Stable queue order shared by page generation and cursor continuation."""
+
+    return (
+        -int(item.get("priority_score") or 0),
+        -int(item.get("status") == "regressed"),
+        str(item.get("first_detected_at") or ""),
+        str(item.get("stable_key") or item.get("id") or ""),
+    )
 
 
 def _module_stats(
@@ -76,7 +107,8 @@ def _module_stats(
     install_snapshot_projection(connection, snapshot_id, include_symbols=False)
     rows = connection.execute(
         """
-        SELECT fv.path, fv.complexity,
+        SELECT fv.path, fv.complexity, fv.declared_group, fv.inferred_group,
+               fv.public_interfaces_json,
                COALESCE(incoming.count, 0) AS fan_in,
                COALESCE(outgoing.count, 0) AS fan_out,
                COALESCE(history.change_count, 0) AS change_count,
@@ -102,7 +134,37 @@ def _module_stats(
         """,
         (repository_id, snapshot_id),
     ).fetchall()
-    return {str(row["path"]): dict(row) for row in rows}
+    area_by_group = _group_areas(connection, repository_id)
+    result: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        item = decode_json_columns(dict(row))
+        group = str(item.get("declared_group") or item.get("inferred_group") or "ungrouped")
+        item["architecture_area"] = area_by_group.get(group, group)
+        result[str(row["path"])] = item
+    return result
+
+
+def _group_areas(connection: sqlite3.Connection, repository_id: int) -> dict[str, str]:
+    rows = connection.execute(
+        """
+        SELECT name, parent_name FROM groups WHERE repository_id = ?
+        ORDER BY CASE source WHEN 'declared' THEN 0 ELSE 1 END
+        """,
+        (repository_id,),
+    ).fetchall()
+    parents: dict[str, str | None] = {}
+    for row in rows:
+        parents.setdefault(str(row["name"]), row["parent_name"])
+
+    def root(name: str) -> str:
+        seen: set[str] = set()
+        current = name
+        while current not in seen and parents.get(current):
+            seen.add(current)
+            current = str(parents[current])
+        return current
+
+    return {name: root(name) for name in parents}
 
 
 def finding_priority(
@@ -111,21 +173,139 @@ def finding_priority(
 ) -> dict[str, Any]:
     risk = _risk_inputs(finding, module_stats)
     score = _risk_score(risk, regressed=finding.get("status") == "regressed")
+    reasons = _priority_reasons(
+        risk.severity,
+        risk.confidence,
+        risk.changes,
+        risk.degree,
+        risk.complexity,
+        risk.paths,
+        risk.coverage,
+        finding,
+    )
     return {
         "priority_score": score,
         "priority_label": _priority_label(score),
-        "priority_reasons": _priority_reasons(
-            risk.severity,
-            risk.confidence,
-            risk.changes,
-            risk.degree,
-            risk.complexity,
-            risk.paths,
-            risk.coverage,
-            finding,
-        ),
+        "priority_reasons": reasons,
         "priority_version": "risk-churn-blast-v1",
+        "actionability": _actionability(finding, module_stats, risk, reasons),
     }
+
+
+def _actionability(
+    finding: dict[str, Any],
+    module_stats: dict[str, dict[str, Any]],
+    risk: _FindingRisk,
+    reasons: list[str],
+) -> dict[str, Any]:
+    finding_type = str(finding.get("finding_type") or "observation")
+    action_type = _action_type(finding_type)
+    source = str(finding.get("source") or "deterministic")
+    evidence = finding.get("evidence") or []
+    semantic_source = source in {"semantic", "llm", "coding_agent"}
+    return {
+        "why_ranked": reasons,
+        "evidence": {
+            "deterministic": [] if semantic_source else evidence,
+            "semantic": {
+                "status": "attached" if semantic_source else "not_attached",
+                "items": evidence if semantic_source else [],
+            },
+        },
+        "false_positive_conditions": _false_positive_conditions(finding_type),
+        "affected": _affected_context(module_stats, risk),
+        "action_type": action_type,
+        "smallest_next_action": str(
+            finding.get("recommended_action") or _fallback_action(action_type)
+        ),
+        "verification": (
+            "Run a complete AnaxiGraph scan after the change. The same stable finding key is "
+            "resolved automatically when its detector no longer observes the condition, and is "
+            "marked regressed if it later returns."
+        ),
+    }
+
+
+def _affected_context(
+    module_stats: dict[str, dict[str, Any]],
+    risk: _FindingRisk,
+) -> dict[str, Any]:
+    affected = [module_stats[path] for path in risk.paths if path in module_stats]
+    contracts = [
+        {
+            "module": path,
+            "interfaces": list(module_stats[path].get("public_interfaces") or ())[:8],
+        }
+        for path in risk.paths
+        if module_stats.get(path, {}).get("public_interfaces")
+    ]
+    return {
+        "modules": risk.paths,
+        "architecture_areas": sorted(
+            {str(item.get("architecture_area") or "ungrouped") for item in affected}
+        ),
+        "contracts": contracts,
+        "tests": [path for path in risk.paths if _looks_like_test(path)],
+        "blast_radius": {
+            "maximum_dependency_degree": risk.degree,
+            "maximum_indexed_changes": risk.changes,
+        },
+    }
+
+
+def _action_type(finding_type: str) -> str:
+    if "dead" in finding_type or "unused" in finding_type:
+        return "remove"
+    if "coverage" in finding_type or "test" in finding_type:
+        return "test"
+    if any(token in finding_type for token in ("cycle", "boundary", "layer", "dependency")):
+        return "constrain"
+    if any(token in finding_type for token in ("long", "large", "complex", "duplicate")):
+        return "refactor"
+    return "investigate"
+
+
+def _fallback_action(action_type: str) -> str:
+    return {
+        "remove": "Verify runtime and reflective usage, then remove the smallest proven-dead unit.",
+        "test": "Add the smallest test that proves the affected behavior or boundary.",
+        "constrain": "Trace the dependency evidence and introduce the narrowest enforceable boundary.",
+        "refactor": "Extract one cohesive responsibility without changing observable behavior.",
+    }.get(action_type, "Inspect the supplied evidence and decide whether the signal is actionable.")
+
+
+def _false_positive_conditions(finding_type: str) -> list[str]:
+    if "dead" in finding_type or "unused" in finding_type:
+        return [
+            "The symbol is reached through reflection, framework registration, or generated wiring.",
+            "The indexed language analyzer could not resolve a dynamic reference.",
+        ]
+    if finding_type == "long_function":
+        return [
+            "The function is intentionally linear orchestration with one cohesive responsibility.",
+            "Splitting it would hide control flow or create artificial abstractions.",
+        ]
+    if "cycle" in finding_type:
+        return [
+            "The cycle is type-only, build-time-only, or otherwise absent from runtime coupling.",
+            "An unresolved or ambiguous edge points at the wrong internal module.",
+        ]
+    return [
+        "Repository policy intentionally permits this structure.",
+        "Incomplete or ambiguous dependency extraction changes the apparent impact.",
+    ]
+
+
+def _looks_like_test(path: str) -> bool:
+    lowered = path.lower()
+    return (
+        lowered.startswith(("test/", "tests/"))
+        or "/test/" in lowered
+        or "/tests/" in lowered
+        or ".test." in lowered
+        or ".spec." in lowered
+        or lowered.rsplit("/", 1)[-1].startswith("test_")
+    )
 
 
 def _risk_inputs(

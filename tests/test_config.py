@@ -113,3 +113,36 @@ def test_agent_funded_semantic_policy_needs_no_model_or_command(tmp_path: Path):
     assert semantic.model == ""
     assert semantic.command == ()
     assert semantic.agent_lease_seconds == 900
+
+
+def test_finding_attention_and_diagnostic_policy_loads(tmp_path: Path):
+    (tmp_path / ".anaxigraph.yml").write_text(
+        """findings:
+  attention:
+    minimum_priority: 55
+    minimum_severity: error
+    page_size: 12
+    include_info_long_functions: true
+  diagnostics:
+    page_size: 80
+""",
+        encoding="utf-8",
+    )
+
+    findings = load_config(tmp_path).findings
+
+    assert findings.attention_minimum_priority == 55
+    assert findings.attention_minimum_severity == "error"
+    assert findings.attention_page_size == 12
+    assert findings.diagnostics_page_size == 80
+    assert findings.include_info_long_functions is True
+
+
+def test_invalid_finding_policy_fails_loudly(tmp_path: Path):
+    (tmp_path / ".anaxigraph.yml").write_text(
+        "findings: {attention: {minimum_severity: noisy}}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="minimum_severity"):
+        load_config(tmp_path)

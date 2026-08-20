@@ -132,6 +132,17 @@ class AgentConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class FindingConfig:
+    """Separate urgent attention from the complete diagnostic ledger."""
+
+    attention_minimum_priority: int = 35
+    attention_minimum_severity: str = "warning"
+    attention_page_size: int = 20
+    diagnostics_page_size: int = 50
+    include_info_long_functions: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class AnaxiGraphConfig:
     project_name: str | None = None
     ignore: tuple[str, ...] = DEFAULT_IGNORE
@@ -140,6 +151,7 @@ class AnaxiGraphConfig:
     architecture: ArchitectureConfig = field(default_factory=ArchitectureConfig)
     semantic: SemanticConfig = field(default_factory=SemanticConfig)
     agent: AgentConfig = field(default_factory=AgentConfig)
+    findings: FindingConfig = field(default_factory=FindingConfig)
     aliases: dict[str, str] = field(default_factory=dict)
     coverage_files: tuple[str, ...] = (
         "coverage.xml",
@@ -321,6 +333,36 @@ def _semantic_config(value: Any) -> SemanticConfig:
     )
 
 
+def _finding_config(value: Any) -> FindingConfig:
+    if not value:
+        return FindingConfig()
+    if not isinstance(value, dict):
+        raise ValueError("findings must be a mapping")
+    attention = value.get("attention") or {}
+    diagnostics = value.get("diagnostics") or {}
+    if not isinstance(attention, dict) or not isinstance(diagnostics, dict):
+        raise ValueError("findings.attention and findings.diagnostics must be mappings")
+    severity = str(attention.get("minimum_severity", "warning")).strip().lower()
+    if severity not in {"info", "warning", "error", "critical"}:
+        raise ValueError(
+            "findings.attention.minimum_severity must be info, warning, error, or critical"
+        )
+    priority = int(attention.get("minimum_priority", 35))
+    attention_size = int(attention.get("page_size", 20))
+    diagnostics_size = int(diagnostics.get("page_size", 50))
+    if not 0 <= priority <= 100:
+        raise ValueError("findings.attention.minimum_priority must be between 0 and 100")
+    if not 1 <= attention_size <= 200 or not 1 <= diagnostics_size <= 200:
+        raise ValueError("finding page sizes must be between 1 and 200")
+    return FindingConfig(
+        attention_minimum_priority=priority,
+        attention_minimum_severity=severity,
+        attention_page_size=attention_size,
+        diagnostics_page_size=diagnostics_size,
+        include_info_long_functions=bool(attention.get("include_info_long_functions", False)),
+    )
+
+
 def load_config(repository: Path, config_path: Path | None = None) -> AnaxiGraphConfig:
     repository = repository.resolve()
     if config_path:
@@ -336,7 +378,6 @@ def load_config(repository: Path, config_path: Path | None = None) -> AnaxiGraph
 
     project = raw.get("project") or {}
     architecture = raw.get("architecture") or {}
-    semantic = raw.get("semantic") or {}
     agent = raw.get("agent") or {}
     boundaries = {
         str(name): _tuple_of_strings(paths)
@@ -354,7 +395,7 @@ def load_config(repository: Path, config_path: Path | None = None) -> AnaxiGraph
             protected_paths=_tuple_of_strings(architecture.get("protected_paths")),
             boundaries=boundaries,
         ),
-        semantic=_semantic_config(semantic),
+        semantic=_semantic_config(raw.get("semantic")),
         agent=AgentConfig(
             context_limit=int(agent.get("context_limit", 25)),
             neighbor_depth=int(agent.get("neighbor_depth", 2)),
@@ -363,6 +404,7 @@ def load_config(repository: Path, config_path: Path | None = None) -> AnaxiGraph
             test_patterns=_tuple_of_strings(agent.get("test_patterns"))
             or AgentConfig().test_patterns,
         ),
+        findings=_finding_config(raw.get("findings")),
         aliases={str(key): str(value) for key, value in (raw.get("aliases") or {}).items()},
         coverage_files=_tuple_of_strings(raw.get("coverage", {}).get("files"))
         or AnaxiGraphConfig().coverage_files,

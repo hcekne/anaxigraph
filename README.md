@@ -229,6 +229,39 @@ workers. The [semantic onboarding guide](docs/onboarding.md#build-the-ai-underst
 explains the agent-funded loop, hosted workers, privacy controls, incremental invalidation, and
 scheduling.
 
+## 🎯 Review findings without losing the evidence
+
+The dashboard separates two deliberately different views:
+
+- **Attention queue** shows at most 20 new, reviewed, planned, or regressed signals that cross the
+  configured severity or priority threshold. Planned and regressed work is always retained.
+- **Diagnostics** is the complete ledger, including routine information-level long-function
+  observations. Filter it by detector, module, architecture area, lifecycle state, severity, or
+  confidence, and follow its cursor without a hidden result cap.
+
+Every result explains why it is ranked, its deterministic and attached semantic evidence, likely
+false-positive conditions, affected contracts and blast radius, the smallest next action, and how
+a later scan verifies resolution. A human may review, plan, accept the risk, or dismiss a signal;
+only **Planned for agent** means an agent has approval to treat it as work.
+
+Repositories can tune presentation without deleting findings:
+
+```yaml
+findings:
+  attention:
+    minimum_priority: 35
+    minimum_severity: warning
+    page_size: 20
+    include_info_long_functions: false
+  diagnostics:
+    page_size: 50
+```
+
+Coding agents use the same bounded contract through `ANAXIGRAPH_FINDINGS`. Set
+`view="diagnostics"` to inspect the complete ledger, pass the returned cursor for the next page,
+and set `token_budget` when context size matters. Use `status="planned"` followed by
+`ANAXIGRAPH_FINDING_CONTEXT` for human-approved work.
+
 ## 🔄 Keep it current
 
 Follow startup or scanning with:

@@ -14,11 +14,13 @@ from anaxigraph.models import GitMetadata
 from anaxigraph.persistence.index_facade import (
     SCHEMA,
     SCHEMA_VERSION,
+    FindingPageQuery,
     GraphReadCache,
     initialize_index,
     install_snapshot_projection,
     read_file_details,
     read_finding,
+    read_finding_page,
     read_findings,
     read_graph,
     read_group_hierarchy,
@@ -368,9 +370,31 @@ class AnaxiIndex:
                 limit=limit,
             )
 
-    def finding(self, repository_id: int, finding_id: int) -> dict[str, Any] | None:
+    def finding_page(
+        self,
+        repository_id: int,
+        *,
+        query: FindingPageQuery,
+        policy: Any,
+    ) -> dict[str, Any]:
+        """Return a bounded attention or diagnostic page with exact ledger totals."""
+
+        snapshot = self._resolve_snapshot(repository_id, None)
+        snapshot_id = int(snapshot["id"]) if snapshot is not None else None
         with self.connect() as connection:
-            return read_finding(connection, repository_id, finding_id)
+            return read_finding_page(
+                connection,
+                repository_id,
+                snapshot_id,
+                query=query,
+                policy=policy,
+            )
+
+    def finding(self, repository_id: int, finding_id: int) -> dict[str, Any] | None:
+        snapshot = self._resolve_snapshot(repository_id, None)
+        snapshot_id = int(snapshot["id"]) if snapshot is not None else None
+        with self.connect() as connection:
+            return read_finding(connection, repository_id, finding_id, snapshot_id)
 
     def update_finding_status(self, repository_id: int, finding_id: int, status: str) -> bool:
         allowed = {

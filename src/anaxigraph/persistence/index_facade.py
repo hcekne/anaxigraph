@@ -1,7 +1,12 @@
 """Narrow imports used by the public AnaxiIndex facade."""
 
 from anaxigraph.persistence.file_read import read_file_details
-from anaxigraph.persistence.finding_read import read_finding, read_findings
+from anaxigraph.persistence.finding_facade import (
+    FindingPageQuery,
+    read_finding,
+    read_finding_page,
+    read_findings,
+)
 from anaxigraph.persistence.graph_cache import GraphReadCache
 from anaxigraph.persistence.graph_read import read_graph
 from anaxigraph.persistence.group_read import read_group_hierarchy
@@ -17,10 +22,12 @@ __all__ = [
     "SCHEMA",
     "SCHEMA_VERSION",
     "GraphReadCache",
+    "FindingPageQuery",
     "initialize_index",
     "install_snapshot_projection",
     "read_file_details",
     "read_finding",
+    "read_finding_page",
     "read_findings",
     "read_graph",
     "read_group_hierarchy",

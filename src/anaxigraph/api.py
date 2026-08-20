@@ -12,34 +12,20 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, HTMLResponse
-from pydantic import BaseModel, Field
 
-from anaxigraph import git
+from anaxigraph import api_support, git
 from anaxigraph.agent import agent_scope, branch_collisions, finding_context, impact_analysis
 from anaxigraph.config import load_config
-from anaxigraph.guidance import product_glossary
-from anaxigraph.history_jobs import HistoryJobService
 from anaxigraph.mcp_server import create_anaxi_mcp_server
 from anaxigraph.registry import RepositoryTarget
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.storage import AnaxiIndex
 from anaxigraph.understanding import SemanticEngine
 
-
-class ScopeRequest(BaseModel):
-    goal: str = Field(min_length=2, max_length=2_000)
-    branch: str | None = Field(default=None, max_length=250)
-    repository_id: int | None = None
-
-
-class ImpactRequest(BaseModel):
-    target: str = Field(min_length=1, max_length=1_000)
-    branch: str | None = Field(default=None, max_length=250)
-    repository_id: int | None = None
-
-
-class FindingStatusRequest(BaseModel):
-    status: str
+DASHBOARD_ASSETS = frozenset(
+    {"app.js", "findings-view.js", "history-view.js", "styles.css", "favicon.svg", "mask-icon.svg"}
+)
+DASHBOARD = package_files("anaxigraph.dashboard")
 
 
 def create_app(
@@ -68,7 +54,7 @@ def create_app(
             ),
         )
     default_repository = targets[0].path if targets else repository
-    history_service = HistoryJobService(database)
+    history_service = api_support.HistoryJobService(database)
     semantic_jobs: dict[str, dict[str, Any]] = {}
     semantic_lock = threading.Lock()
 
@@ -276,7 +262,7 @@ def create_app(
 
     @app.get("/api/glossary")
     def glossary() -> dict[str, Any]:
-        return product_glossary()
+        return api_support.product_glossary()
 
     @app.get("/api/overview")
     def overview(
@@ -428,16 +414,39 @@ def create_app(
     @app.get("/api/findings")
     def findings(
         repository_id: int | None = None,
+        view: str = Query(default="attention", pattern="^(attention|diagnostics)$"),
+        cursor: str = Query(default="", max_length=2_000),
+        page_size: int | None = Query(default=None, ge=1, le=200),
         status: list[str] = Query(default=[]),
-        limit: int = Query(default=500, ge=1, le=2_000),
-    ) -> list[dict[str, Any]]:
+        severity: list[str] = Query(default=[]),
+        finding_type: list[str] = Query(default=[]),
+        module: str = Query(default="", max_length=2_000),
+        architecture_area: str = Query(default="", max_length=250),
+        minimum_confidence: float = Query(default=0, ge=0, le=1),
+    ) -> dict[str, Any]:
         row = selected_repository(repository_id)
-        return database.findings(int(row["id"]), statuses=tuple(status), limit=limit)
+        try:
+            return api_support.query_findings(
+                database,
+                int(row["id"]),
+                selected_config(row),
+                view=view,
+                cursor=cursor,
+                page_size=page_size,
+                statuses=tuple(status),
+                severities=tuple(severity),
+                finding_types=tuple(finding_type),
+                module=module,
+                architecture_area=architecture_area,
+                minimum_confidence=minimum_confidence,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.post("/api/findings/{finding_id}/status")
     def finding_status(
         finding_id: int,
-        request: FindingStatusRequest,
+        request: api_support.FindingStatusRequest,
         repository_id: int | None = None,
     ) -> dict[str, Any]:
         row = selected_repository(repository_id)
@@ -468,7 +477,7 @@ def create_app(
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.post("/api/agent-scope")
-    def scope(request: ScopeRequest) -> dict[str, Any]:
+    def scope(request: api_support.ScopeRequest) -> dict[str, Any]:
         row = selected_repository(request.repository_id)
         try:
             return agent_scope(
@@ -482,7 +491,7 @@ def create_app(
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.post("/api/impact")
-    def impact(request: ImpactRequest) -> dict[str, Any]:
+    def impact(request: api_support.ImpactRequest) -> dict[str, Any]:
         row = selected_repository(request.repository_id)
         try:
             return impact_analysis(
@@ -522,47 +531,21 @@ def create_app(
     @app.get("/api/trends")
     def trends(repository_id: int | None = None, limit: int = 100) -> dict[str, Any]:
         row = selected_repository(repository_id)
-        with database.connect() as connection:
-            metric_rows = connection.execute(
-                """
-                SELECT s.id AS snapshot_id, s.commit_sha, s.analysis_timestamp,
-                       m.name, m.value
-                FROM snapshots s JOIN metrics m ON m.snapshot_id = s.id
-                WHERE s.repository_id = ? AND m.entity_type = 'repository'
-                ORDER BY COALESCE(datetime(s.commit_timestamp), s.analysis_timestamp) DESC,
-                         s.id DESC LIMIT ?
-                """,
-                (row["id"], max(1, min(limit, 1_000)) * 20),
-            ).fetchall()
-        grouped: dict[int, dict[str, Any]] = {}
-        for metric in metric_rows:
-            item = grouped.setdefault(
-                int(metric["snapshot_id"]),
-                {
-                    "snapshot_id": metric["snapshot_id"],
-                    "commit_sha": metric["commit_sha"],
-                    "analysis_timestamp": metric["analysis_timestamp"],
-                    "metrics": {},
-                },
-            )
-            item["metrics"][metric["name"]] = metric["value"]
-        return {"snapshots": list(reversed(list(grouped.values())[:limit]))}
-
-    dashboard = package_files("anaxigraph.dashboard")
+        return api_support.repository_trends(database, int(row["id"]), limit=limit)
 
     @app.get("/", response_class=HTMLResponse)
     def dashboard_index() -> FileResponse:
-        return FileResponse(str(dashboard.joinpath("index.html")))
+        return FileResponse(str(DASHBOARD.joinpath("index.html")))
 
     @app.get("/assets/{name}")
     def dashboard_asset(name: str) -> FileResponse:
-        if name not in {"app.js", "history-view.js", "styles.css", "favicon.svg", "mask-icon.svg"}:
+        if name not in DASHBOARD_ASSETS:
             raise HTTPException(status_code=404, detail="Asset not found")
-        return FileResponse(str(dashboard.joinpath(name)))
+        return FileResponse(str(DASHBOARD.joinpath(name)))
 
     @app.api_route("/favicon.ico", methods=["GET", "HEAD"], include_in_schema=False)
     def favicon() -> FileResponse:
-        return FileResponse(str(dashboard.joinpath("favicon.svg")), media_type="image/svg+xml")
+        return FileResponse(str(DASHBOARD.joinpath("favicon.svg")), media_type="image/svg+xml")
 
     @app.get("/api/export")
     def export(repository_id: int | None = None) -> dict[str, Any]:
@@ -570,7 +553,9 @@ def create_app(
         return {
             "overview": database.overview(int(row["id"])),
             "graph": database.graph(int(row["id"]), include_external=True),
-            "findings": database.findings(int(row["id"])),
+            "findings": api_support.collect_finding_ledger(
+                database, int(row["id"]), selected_config(row)
+            ),
             "snapshots": database.snapshots(int(row["id"])),
         }
 

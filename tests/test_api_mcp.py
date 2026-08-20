@@ -34,6 +34,7 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
     ) as client:
         assert (await client.get("/healthz")).json() == {"status": "ok"}
         assert (await client.get("/")).status_code == 200
+        assert (await client.get("/assets/findings-view.js")).status_code == 200
         repositories = (await client.get("/api/repositories")).json()
         assert repositories[0]["scannable"] is True
         assert repositories[0]["history_snapshots"] == "auto"
@@ -61,9 +62,15 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert semantic["state"] == "not_started"
         disabled_refresh = await client.post("/api/semantic/refresh")
         assert disabled_refresh.status_code == 400
-        findings = (await client.get("/api/findings")).json()
+        attention = (await client.get("/api/findings")).json()
+        assert attention["view"] == "attention"
+        assert attention["shown"] <= 20
+        assert attention["total_matching"] == 0
+        diagnostic_page = (await client.get("/api/findings", params={"view": "diagnostics"})).json()
+        findings = diagnostic_page["items"]
         assert findings[0]["priority_score"] >= findings[-1]["priority_score"]
         assert findings[0]["priority_reasons"]
+        assert findings[0]["actionability"]["verification"]
         modules = (await client.get("/api/modules")).json()
         assert len(modules) == 9
         core = next(item for item in modules if item["path"] == "pkg/core.py")
@@ -79,7 +86,7 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert scope.status_code == 200
         assert scope.json()["primary_files"][0]["path"] == "pkg/core.py"
 
-        finding = (await client.get("/api/findings")).json()[0]
+        finding = diagnostic_page["items"][0]
         planned = await client.post(
             f"/api/findings/{finding['id']}/status",
             json={"status": "planned"},
@@ -179,6 +186,18 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     )
                     assert finding_context.isError is False
                     assert finding_context.structuredContent["ready_for_agent"] is True
+                    findings = await session.call_tool(
+                        "ANAXIGRAPH_FINDINGS",
+                        arguments={
+                            "view": "diagnostics",
+                            "page_size": 1,
+                            "token_budget": 2_000,
+                        },
+                    )
+                    assert findings.isError is False
+                    assert findings.structuredContent["shown"] == 1
+                    assert findings.structuredContent["total_matching"] >= 1
+                    assert findings.structuredContent["items"][0]["actionability"]
 
 
 @pytest.mark.anyio

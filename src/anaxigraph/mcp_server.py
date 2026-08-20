@@ -10,8 +10,9 @@ from mcp.server.fastmcp.server import Settings as FastMCPSettings
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
 
-from anaxigraph.agent import agent_scope, branch_collisions, finding_context, impact_analysis
+from anaxigraph.agent import agent_scope, branch_collisions, impact_analysis
 from anaxigraph.config import load_config
+from anaxigraph.finding_mcp import register_finding_tools
 from anaxigraph.guidance import product_glossary
 from anaxigraph.history_mcp import register_history_tools
 from anaxigraph.registry import RepositoryTarget
@@ -348,42 +349,7 @@ def create_anaxi_mcp_server(
             config=config,
         )
 
-    @server.tool(
-        name="ANAXIGRAPH_FINDINGS",
-        description=(
-            "List persistent review signals. Use status='planned' for work a human has explicitly "
-            "approved for an agent; active signals are not automatic permission to refactor."
-        ),
-    )
-    def findings(status: str = "active", limit: int = 100, repository: str = "") -> dict[str, Any]:
-        row, _ = context(repository)
-        statuses = ()
-        if status == "active":
-            statuses = ("new", "acknowledged", "accepted", "planned", "regressed")
-        elif status != "all":
-            statuses = (status,)
-        return {
-            "findings": database.findings(
-                int(row["id"]), statuses=statuses, limit=max(1, min(limit, 500))
-            )
-        }
-
-    @server.tool(
-        name="ANAXIGRAPH_FINDING_CONTEXT",
-        description=(
-            "Turn one finding into an actionable handoff with affected files, impact, tests, "
-            "protected paths, risk, and verification steps. Planned status means human-approved."
-        ),
-    )
-    def finding_work(finding_id: int, branch: str = "", repository: str = "") -> dict[str, Any]:
-        row, root = context(repository)
-        return finding_context(
-            database,
-            repository_id=int(row["id"]),
-            finding_id=finding_id,
-            branch=branch or None,
-            config=config_for(row, root),
-        )
+    register_finding_tools(server, database, context, config_for)
 
     @server.tool(
         name="ANAXIGRAPH_GUIDE",

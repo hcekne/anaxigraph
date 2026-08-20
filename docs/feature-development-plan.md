@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 2.5
+**Roadmap version:** 2.6
 
 **Updated:** 20 August 2026
 
@@ -88,9 +88,9 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 79 tests passing, Ruff clean, 81.26% total coverage, and 100% coverage of the Phase 0 closure diff | The executable guardrails are green; critical CLI paths still need stronger targeted coverage as their phases begin |
+| Test health | 117 tests passing at 85.78% coverage plus 12 browser contracts; Ruff and the maintainability/size ratchets are clean | Phase 2 filtering, pagination, budgets, lifecycle, automatic resolution, and rendered output are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
-| Finding priority | Risk, confidence, churn, complexity, coverage, blast radius, and regression contribute to a versioned score | Good ranking exists, but the complete ledger is still too noisy by default |
+| Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
 | Semantic understanding | Durable `module-dossier-v4` records, fingerprint invalidation, leased agent work, provenance, and budget controls | Differentiating foundation; internal seven-mixin composition needs simplification before expansion |
 | Parser depth | Python AST plus a regex-oriented JavaScript/TypeScript analyzer; long-tail languages use text heuristics | The product cannot yet make equally strong graph claims for most repositories |
@@ -98,7 +98,7 @@ regression thresholds.
 | Graph delivery | `/api/graph` can return the full graph in one response | Fine for small loopback use, unsafe for large/team deployments |
 | Authentication | No API or MCP authentication | Acceptable only for loopback sidecar mode |
 | Installation | A tested `anaxigraph` 0.1.0 wheel and source distribution are public on PyPI; generated Compose, MCP connection, semantic enablement, and agent bootstrap still require separate actions | The distribution-name and package-availability barriers are removed, but there are still too many steps between curiosity and full value |
-| Internal module size | Seven first-party implementation modules exceed 500 physical lines; `storage.py` is now a 398-line facade with no size exception | The Phase 1b storage boundary is clean; scanner decomposition remains part of the Phase 1b exit gate |
+| Internal module size | Six legacy implementation modules exceed 500 physical lines; `storage.py` is a 422-line facade and `scanner.py` is 358 lines, both without exceptions | Phase 2 reduced the API, MCP factory, CLI, and dashboard ratchets while adding focused finding modules below the hard ceiling |
 
 The current oversized implementation modules are:
 
@@ -973,7 +973,7 @@ migration, and browser gate was run before the milestone commit.
 
 # Phase 2 — attention signal
 
-**Status:** ACTIVE
+**Status:** COMPLETE
 
 **Goal:** turn excellent ranking into an intentionally small action surface without discarding the
 complete diagnostic record.
@@ -1037,11 +1037,24 @@ Resolution normally comes from a later scan, not a “make green” button.
 - Backend and browser tests cover filtering, pagination, totals, lifecycle, and automatic
   verification without requiring unrelated dashboard decomposition.
 
+**Closure evidence (20 August 2026):**
+
+| Contract | Delivered evidence |
+|---|---|
+| Bounded attention | The configurable default is 20 results; planned and regressed work remains visible, while information-level `long_function` diagnostics are excluded unless policy explicitly opts in |
+| Lossless diagnostics | The dashboard and REST surface filter the complete ledger by detector, module, architecture area, status, severity, and confidence; explicit exports traverse every cursor rather than inheriting a hidden 500-row cap |
+| Stable pagination | Opaque query-bound cursors use priority, regression state, first detection, and stable key ordering; every page reports shown, total, per-dimension counts, next cursor, and exact omissions |
+| Agent budget | `ANAXIGRAPH_FINDINGS` accepts a token budget, returns a compact actionability record, proves the estimated payload stays inside it, and reports results displaced by that budget |
+| Actionability | Each finding now distinguishes deterministic from attached semantic evidence, lists false-positive conditions, affected modules/areas/contracts/tests and blast radius, classifies the action, proposes the smallest next step, and explains scan-based verification |
+| Lifecycle | The dashboard exposes review, plan, accept-risk, dismiss, reopen, and handoff actions; a characterization test proves a later scan resolves the same stable key and marks it regressed when the condition returns |
+| Browser contract | All 12 containerized Playwright scenarios pass, including attention/diagnostics switching, grouped long-function diagnostics, filters, cursor-driven loading, and persisted lifecycle actions |
+| Maintainability | The API is 564 lines (down from 579), MCP server 427 (down from 461), CLI 555 (down from 557), and dashboard application 2,066 (down from 2,091); extracted finding modules remain below 500 lines and all ratchets pass |
+
 ---
 
 # Phase 3 — one-command local adoption
 
-**Status:** BLOCKED BY PHASE 2
+**Status:** ACTIVE
 
 **Goal:** provide a working dashboard in one command and a connected coding agent in at most one
 additional explicit action.
@@ -1858,7 +1871,13 @@ queue and the document cannot drift apart.
 | 19 | **COMPLETE** — Migrate a copied schema-6 index transactionally, validate it, preserve backup recovery, and expose `doctor`/compaction reporting | §1b.1 |
 | 20 | **COMPLETE** — Route snapshot reads through bounded reconstruction with disposable checkpoints and measured read amplification | §1b.2 |
 | 21 | **COMPLETE** — Prove semantic/finding/history compatibility and unchanged canonical results across migration, retry, and checkpoint rebuild | §1b.1–1b.2 |
-| 22 | **IN PROGRESS** — Run and record the complete Phase 1b storage, migration, read-latency, and quality exit gate before onboarding work begins | Phase 1b gate |
+| 22 | **COMPLETE** — Run and record the complete Phase 1b storage, migration, read-latency, and quality exit gate before onboarding work begins | Phase 1b gate |
+| 23 | **COMPLETE** — Separate a configurable maximum-20 attention queue from the complete diagnostic ledger | §2.1 |
+| 24 | **COMPLETE** — Add stable cursor pagination, exact totals/omissions, diagnostic grouping, and MCP token budgets | §2.2 |
+| 25 | **COMPLETE** — Add evidence, caveats, affected contracts, action type, smallest action, and scan-verification guidance to every finding | §2.3 |
+| 26 | **COMPLETE** — Ship dashboard filters and lifecycle actions, then prove automatic resolve/regress behavior in backend and browser contracts | Phase 2 gate |
+| 27 | **COMPLETE** — Close the Phase 2 exit gate without growing a legacy size, function, or coupling ratchet | Phase 2 gate |
+| 28 | **IN PROGRESS** — Automate the published-package release contract and test the exact fresh-install artifact | §3.1 |
 
 Items 9 and 10 are the user-visible Phase 0 changes. The completed 0.1.0 publication is the narrow,
 recorded exception described in §0.6; the work that remains in these queue items is restricted to

@@ -8,12 +8,12 @@ FINDING_STATUSES = {
     "new": {
         "label": "New",
         "meaning": "Detected by the latest complete scan and not yet reviewed.",
-        "next": ["acknowledged", "planned", "dismissed"],
+        "next": ["acknowledged", "planned", "accepted", "dismissed"],
     },
     "acknowledged": {
         "label": "Reviewed",
         "meaning": "A person reviewed the signal; it remains active and monitored.",
-        "next": ["planned", "dismissed"],
+        "next": ["planned", "accepted", "dismissed"],
     },
     "accepted": {
         "label": "Accepted risk",
@@ -23,7 +23,7 @@ FINDING_STATUSES = {
     "planned": {
         "label": "Planned for agent",
         "meaning": "A person approved this as engineering work; agents can query the planned queue.",
-        "next": ["acknowledged", "dismissed"],
+        "next": ["acknowledged", "accepted", "dismissed"],
     },
     "dismissed": {
         "label": "Not actionable",
@@ -40,6 +40,18 @@ FINDING_STATUSES = {
         "meaning": "A condition that had resolved was detected again.",
         "next": ["acknowledged", "planned", "dismissed"],
     },
+}
+
+FINDING_VIEWS = {
+    "attention": (
+        "A bounded queue of qualifying new, reviewed, planned, and regressed signals. Planned "
+        "and regressed work remains visible; routine information-level long-function diagnostics "
+        "are excluded unless repository policy opts in."
+    ),
+    "diagnostics": (
+        "The complete finding ledger with filters, exact totals, and cursor pagination. Selecting "
+        "this view changes presentation only; it does not create or delete evidence."
+    ),
 }
 
 OVERLAYS = {
@@ -136,6 +148,7 @@ def product_glossary() -> dict[str, Any]:
                 "not measure severity or the chance that a refactor is worthwhile."
             ),
             "statuses": FINDING_STATUSES,
+            "views": FINDING_VIEWS,
         },
         "overlays": OVERLAYS,
         "agents": AGENT_WORKFLOW,

@@ -254,10 +254,45 @@ test("relationship completeness and analyzer limits are visible", async ({ page 
   await expect(notice).toContainText("Graph evidence is partial");
   await expect(notice).toContainText("Dead-code suggestions are suppressed");
   await page.getByRole("button", { name: "Architecture", exact: true }).click();
+  await expect(page.locator("#finding-result-note")).toContainText("attention signals");
+  expect(await page.locator("#findings-table .finding-card").count()).toBeLessThanOrEqual(20);
+  await expect(page.locator("#findings-table .finding-meta", { hasText: "Long Function" }))
+    .toHaveCount(0);
+
+  await page.locator("#finding-view-filter").selectOption("diagnostics");
+  await expect(page.locator("#finding-result-note")).toContainText("complete ledger");
   await expect(page.locator(".finding-priority").first()).toContainText("/100");
-  await expect(page.locator("#finding-result-note")).toContainText("highest-priority signals");
-  await expect(page.locator("#findings-table .finding-card")).toHaveCount(10);
-  await expect(page.locator("#finding-show-all")).toBeVisible();
+  await expect(page.locator("#finding-type-filter option", { hasText: "Long Function" }))
+    .toHaveCount(1);
+  await page.locator("#finding-type-filter").selectOption("long_function");
+  await expect(page.locator("#finding-result-note")).toContainText("diagnostics");
+  await expect(page.locator("#finding-groups")).toContainText("Long Function");
+  expect(await page.locator("#findings-table .finding-card").count()).toBeLessThanOrEqual(50);
+  await expect(page.locator("#findings-table .finding-meta").first()).toContainText("Long Function");
+  if (await page.locator("#finding-show-all").isVisible()) {
+    const before = await page.locator("#findings-table .finding-card").count();
+    await page.locator("#finding-show-all").click();
+    await expect.poll(() => page.locator("#findings-table .finding-card").count())
+      .toBeGreaterThan(before);
+  }
+});
+
+test("finding review and accepted-risk actions persist through the ledger", async ({ page }) => {
+  await openDashboard(page);
+  await page.getByRole("button", { name: "Architecture", exact: true }).click();
+  await page.locator("#finding-view-filter").selectOption("diagnostics");
+  const first = page.locator("#findings-table .finding-card", { has: page.getByRole("button", { name: "Mark reviewed" }) }).first();
+  const summary = (await first.locator("h3").textContent()).trim();
+
+  await first.getByRole("button", { name: "Mark reviewed" }).click();
+  const reviewed = page.locator("#findings-table .finding-card", { hasText: summary });
+  await expect(reviewed.locator(".finding-meta")).toContainText("Reviewed");
+  await reviewed.getByRole("button", { name: "Accept risk" }).click();
+  const accepted = page.locator("#findings-table .finding-card", { hasText: summary });
+  await expect(accepted.locator(".finding-meta")).toContainText("Accepted risk");
+  await accepted.getByRole("button", { name: "Reopen" }).click();
+  await expect(page.locator("#findings-table .finding-card", { hasText: summary }).locator(".finding-meta"))
+    .toContainText("Reviewed");
 });
 
 test("graph area labels fit and deselecting an area rebuilds the viewport", async ({ page }) => {

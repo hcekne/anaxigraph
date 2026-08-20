@@ -391,18 +391,16 @@ def _review(args: argparse.Namespace) -> dict[str, Any]:
         config_path=args.config,
         run_type="review",
     )
-    statuses = (
-        ()
-        if args.status == "all"
-        else (
-            ("new", "acknowledged", "accepted", "planned", "regressed")
-            if args.status == "active"
-            else (args.status,)
-        )
-    )
+    config = load_config(args.repository, args.config)
     return {
         "scan": stats.as_dict(),
-        "findings": database.findings(stats.repository_id, statuses=statuses),
+        "finding_page": cli_workflows.query_findings(
+            database,
+            stats.repository_id,
+            config,
+            view="diagnostics" if args.status in {"all", "resolved"} else "attention",
+            statuses=(args.status,),
+        ),
     }
 
 
@@ -494,11 +492,11 @@ def _collisions(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def _export(args: argparse.Namespace) -> dict[str, Any] | None:
-    database, repository_id, _ = _ensure_current(args)
+    database, repository_id, config = _ensure_current(args)
     value = {
         "overview": database.overview(repository_id),
         "graph": database.graph(repository_id, include_external=True),
-        "findings": database.findings(repository_id),
+        "findings": cli_workflows.collect_finding_ledger(database, repository_id, config),
         "snapshots": database.snapshots(repository_id, limit=1_000),
     }
     if args.output:

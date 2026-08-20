@@ -66,6 +66,15 @@ agent:
     - src/anaxigraph/storage.py
     - src/anaxigraph/mcp_server.py
 
+findings:
+  attention:
+    minimum_priority: 35
+    minimum_severity: warning
+    page_size: 20
+    include_info_long_functions: false
+  diagnostics:
+    page_size: 50
+
 coverage:
   files: [coverage.xml]
 

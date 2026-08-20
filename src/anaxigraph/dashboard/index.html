@@ -301,25 +301,72 @@
         <article class="panel">
           <div class="panel-heading finding-controls">
             <div>
-              <p class="eyebrow">Persistent review workflow</p>
+              <p class="eyebrow">Bounded attention · complete evidence</p>
               <h2>Architecture findings</h2>
+              <p class="panel-copy">Attention keeps the urgent queue short. Diagnostics preserves
+                every lower-severity observation for inspection and filtering.</p>
             </div>
+            <label>
+              View
+              <select id="finding-view-filter">
+                <option value="attention">Attention queue</option>
+                <option value="diagnostics">All diagnostics</option>
+              </select>
+            </label>
+          </div>
+          <form id="finding-filter-form" class="finding-filter-grid">
             <label>
               Status
               <select id="finding-status-filter">
-                <option value="active">Active</option>
+                <option value="">Any status</option>
                 <option value="new">New</option>
                 <option value="acknowledged">Reviewed</option>
                 <option value="planned">Planned for agent</option>
+                <option value="accepted">Accepted risk</option>
                 <option value="regressed">Regressed</option>
-                <option value="all">All</option>
                 <option value="resolved">Resolved</option>
                 <option value="dismissed">Dismissed</option>
               </select>
             </label>
-            <button id="finding-show-all" class="secondary-button" type="button" hidden>Show more</button>
+            <label>
+              Severity
+              <select id="finding-severity-filter">
+                <option value="">Any severity</option>
+                <option value="critical">Critical</option>
+                <option value="error">Error</option>
+                <option value="warning">Warning</option>
+                <option value="info">Info</option>
+              </select>
+            </label>
+            <label>
+              Detector
+              <select id="finding-type-filter"><option value="">Any detector</option></select>
+            </label>
+            <label>
+              Architecture area
+              <select id="finding-area-filter"><option value="">Any area</option></select>
+            </label>
+            <label>
+              Confidence
+              <select id="finding-confidence-filter">
+                <option value="0">Any confidence</option>
+                <option value="0.5">50%+</option>
+                <option value="0.8">80%+</option>
+                <option value="0.95">95%+</option>
+              </select>
+            </label>
+            <label class="finding-module-filter">
+              Module path contains
+              <input id="finding-module-filter" placeholder="src/service" />
+            </label>
+            <button id="finding-filter-submit" class="secondary-button" type="submit">Apply filters</button>
+            <button id="finding-filter-reset" class="secondary-button" type="button">Reset</button>
+          </form>
+          <div id="finding-groups"></div>
+          <div class="finding-page-actions">
+            <p id="finding-result-note" class="panel-copy finding-result-note"></p>
+            <button id="finding-show-all" class="secondary-button" type="button" hidden>Load next page</button>
           </div>
-          <p id="finding-result-note" class="panel-copy finding-result-note"></p>
           <div id="findings-table" class="finding-list full"></div>
         </article>
       </section>

@@ -481,6 +481,19 @@ main { padding: 1.4rem clamp(1.25rem, 4vw, 4.5rem) 4rem; }
 .panel-copy { max-width: 68ch; margin: 0.25rem 0 0; color: var(--muted); font-size: 0.78rem; line-height: 1.5; }
 .finding-result-note { max-width: none; margin: -.35rem 0 1rem; }
 .finding-priority { color: var(--accent-strong); font-weight: 800; }
+.finding-filter-grid { display: grid; grid-template-columns: repeat(5, minmax(130px, 1fr)); gap: .65rem; align-items: end; margin: .6rem 0 1rem; }
+.finding-module-filter { grid-column: span 2; }
+.finding-page-actions { display: flex; justify-content: space-between; align-items: start; gap: 1rem; }
+.finding-groups { margin: 0 0 1rem; padding: .7rem; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-subtle); }
+.finding-groups > p { margin: 0 0 .55rem; color: var(--muted); font-size: .72rem; }
+.finding-groups > div { display: flex; flex-wrap: wrap; gap: .45rem; }
+.finding-group { display: inline-flex; align-items: baseline; gap: .3rem; padding: .35rem .5rem; border-radius: 7px; background: var(--surface); color: var(--text); font-size: .72rem; }
+.finding-group small { color: var(--muted); }
+.finding-evidence { margin-top: .65rem; color: var(--muted); font-size: .74rem; }
+.finding-evidence summary { cursor: pointer; color: var(--accent-strong); font-weight: 700; }
+.finding-evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(180px, 1fr)); gap: .6rem; margin-top: .6rem; }
+.finding-evidence-grid strong { color: var(--text-strong); }
+.finding-evidence-grid ul { margin: .3rem 0 0; padding-left: 1rem; }
 .two-column { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1rem; }
 .two-column > .panel { margin-top: 0; }
 
@@ -713,6 +726,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
   .two-column { grid-template-columns: 1fr; }
   .finding-card { grid-template-columns: auto 1fr; }
   .finding-actions { grid-column: 2; }
+  .finding-filter-grid, .finding-evidence-grid { grid-template-columns: 1fr; }
+  .finding-module-filter { grid-column: auto; }
+  .finding-page-actions { align-items: stretch; flex-direction: column; }
   .zoom-help { display: none; }
   .workflow-steps { grid-template-columns: 1fr; }
   .module-intro, .module-table-heading { align-items: flex-start; flex-direction: column; }

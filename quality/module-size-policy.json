@@ -21,7 +21,7 @@
   "legacy_exceptions": [
     {
       "path": "src/anaxigraph/dashboard/app.js",
-      "baseline_lines": 2091,
+      "baseline_lines": 2066,
       "rationale": "Legacy single-file dashboard application awaiting responsibility-based client modules.",
       "owner": "maintainers",
       "removal_phase": "Phase 3b",
@@ -45,7 +45,7 @@
     },
     {
       "path": "src/anaxigraph/cli.py",
-      "baseline_lines": 557,
+      "baseline_lines": 555,
       "rationale": "Legacy CLI module combines parser construction and every command handler.",
       "owner": "maintainers",
       "removal_phase": "Phase 3",
@@ -53,7 +53,7 @@
     },
     {
       "path": "src/anaxigraph/api.py",
-      "baseline_lines": 579,
+      "baseline_lines": 564,
       "rationale": "Legacy API factory combines transport routes and background-job coordination.",
       "owner": "maintainers",
       "removal_phase": "Phase 5",

@@ -9,10 +9,13 @@ from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from typing import Any
 
+from anaxigraph.finding_transport import collect_finding_ledger, query_findings
 from anaxigraph.history_jobs import open_history_service
 from anaxigraph.onboarding import initialize_repository
 from anaxigraph.persistence import inspect_index
 from anaxigraph.registry import RepositoryTarget, parse_history_snapshots
+
+__all__ = ["collect_finding_ledger", "query_findings"]
 
 
 def configure_operational_commands(
