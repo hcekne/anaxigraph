@@ -22,6 +22,8 @@ from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.storage import AnaxiIndex
 from anaxigraph.understanding import SemanticEngine
 
+_UP_DEPENDENCIES = (AnaxiIndex, create_app, load_config)
+
 
 def main(argv: list[str] | None = None) -> None:
     parser = _parser()
@@ -110,7 +112,7 @@ def _parser() -> argparse.ArgumentParser:
 
     history = commands.add_parser("history", help="Build temporal snapshots from Git commits")
     _repository_arguments(history)
-    cli_workflows.configure_operational_commands(commands, history, AnaxiIndex)
+    cli_workflows.configure_operational_commands(commands, history, *_UP_DEPENDENCIES)
 
     watch = commands.add_parser("watch", help="Poll for changes and update incrementally")
     _repository_arguments(watch)

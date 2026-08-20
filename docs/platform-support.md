@@ -7,7 +7,7 @@ Engine; “local CLI” means a host Python 3.11/3.12 installation managed with 
 | Host / execution path | Status | What is covered |
 |---|---|---|
 | Linux x86-64 · Docker | **Supported** | Primary CI, Compose validation, hardened container, dashboard/MCP, Python 3.11/3.12, Chromium contracts |
-| Linux x86-64 · local CLI | **Supported** | Scan, history, serve, MCP, semantic workers, hooks and tests |
+| Linux x86-64 · local CLI | **Supported** | `up` process startup/health/clean SIGINT, external user state, scan, history, serve, MCP, semantic workers, hooks and tests |
 | Linux ARM64 · Docker | **Best effort** | A `linux/arm64` image is built with the same Dockerfile and published in the multi-architecture manifest; no native ARM runtime runner yet |
 | Linux ARM64 · local CLI | **Best effort** | No compiled runtime dependency is required today, but CI does not execute on native ARM |
 | macOS Apple silicon · Docker Desktop | **Best effort; recommended macOS path** | Uses the `linux/arm64` image and read-only bind mounts; no macOS end-to-end CI runner yet |

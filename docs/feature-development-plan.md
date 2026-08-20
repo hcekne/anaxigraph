@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 2.8
+**Roadmap version:** 2.9
 
 **Updated:** 20 August 2026
 
@@ -1165,6 +1165,23 @@ It should:
 Docker remains the recommended durable/isolated sidecar and multi-repository deployment. The local
 path optimizes evaluation, workshops, and individual use; it does not replace container hardening.
 
+### Phase 3.3 closure evidence
+
+**Completed in source on 20 August 2026.** The convenience runtime composes the existing scanner,
+API, AnaxiMCP, and durable history service rather than introducing a second analysis path.
+
+| Contract | Delivered evidence |
+|---|---|
+| One foreground command | `anaxigraph up . --open --semantic agent --connect codex` creates or loads policy, applies only explicit client changes, and runs the dashboard/MCP service; Claude and deterministic-only variants use the same command |
+| External state | The default is a stable path-derived per-checkout AnaxiIndex under Linux XDG state or macOS Application Support, with `ANAXIGRAPH_STATE_HOME`, `ANAXIGRAPH_DB`, and `--db` overrides; the private state directory is mode `0700` on POSIX |
+| Loopback safety | The convenience server always binds `127.0.0.1`, preflights port conflicts before writes, enables only index-writing agent refresh, and leaves shared/team exposure to the hardened Docker path and later security phase |
+| Startup ordering | FastAPI readiness waits for the current deterministic scan; adaptive history starts through the existing durable background job after that scan and can resume after interruption |
+| Browser and lifecycle | `--open` waits for a successful health response before launching a browser; the startup banner gives dashboard/MCP URLs, state location, Ctrl-C behavior, and an idempotent restart command |
+| Safe preview | `--dry-run --json` previews policy, state, semantic, connection, history, endpoint, and restart choices without creating repository/client/state files or starting a listener |
+| Process contract | A subprocess test starts the real CLI on an ephemeral port, waits for `/healthz`, confirms the external index, sends SIGINT, and requires a zero exit plus completed application shutdown |
+| Maintainability | Runtime assembly uses dependency injection so the new convenience layer does not grow the already-ratcheted API, config, or storage coupling; both new modules are below 200 lines and all size/function/cycle/layer ratchets pass |
+| Verification | Seven local-runtime tests pass; the complete gate passes 144 tests at 87.13% total coverage, both Compose validations, the bounded history benchmark, and all 12 Chromium dashboard contracts |
+
 ## 3.4 Ship agent skills/plugins
 
 Package a small AnaxiGraph skill for Claude Code and a standards-compatible agent skill for Codex
@@ -1918,8 +1935,8 @@ queue and the document cannot drift apart.
 | 27 | **COMPLETE** — Close the Phase 2 exit gate without growing a legacy size, function, or coupling ratchet | Phase 2 gate |
 | 28 | **COMPLETE** — Automate the published-package release contract and test the exact fresh-install artifact | §3.1 |
 | 29 | **COMPLETE** — Make initialization enable agent-funded semantics and connect the selected MCP client idempotently | §3.2 |
-| 30 | **IN PROGRESS** — Add the loopback `anaxigraph up` path with external user-state storage and clean lifecycle behavior | §3.3 |
-| 31 | Package and contract-test the AnaxiMCP bootstrap workflow as supported agent skills/plugins | §3.4 |
+| 30 | **COMPLETE** — Add the loopback `anaxigraph up` path with external user-state storage and clean lifecycle behavior | §3.3 |
+| 31 | **IN PROGRESS** — Package and contract-test the AnaxiMCP bootstrap workflow as supported agent skills/plugins | §3.4 |
 | 32 | Collapse onboarding around one start action, one connection action, and the agent-funded semantic loop | §3.5 |
 | 33 | Decompose CLI/onboarding responsibilities and remove both size-ratchet exceptions | §3.6 |
 | 34 | Close the measurable Phase 3 first-user, idempotency, Docker/local, skill, and quality exit gate | Phase 3 gate |

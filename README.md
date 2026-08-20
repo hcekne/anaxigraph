@@ -84,12 +84,29 @@ remain separate throughout.
 
 ## 🚀 Get running in five minutes
 
-AnaxiGraph normally runs as a Docker sidecar beside the repository you are coding in. From that
-repository, one command creates the local policy and Compose sidecar, then starts it:
+The fastest evaluation path needs only Python 3.11+ and
+[`uv`](https://docs.astral.sh/uv/). From the repository you want to understand, one foreground
+command can create the policy, enable agent-funded semantics, connect Codex, scan the current
+checkout, and start the loopback dashboard plus AnaxiMCP:
 
 ```bash
 cd /path/to/your/repository
-uvx anaxigraph init . --start
+uvx anaxigraph up . --open --semantic agent --connect codex
+```
+
+Use `--connect claude` instead, or omit the semantic/connection options for a deterministic-only
+map. The dashboard becomes healthy after the current scan; representative Git history continues
+in the background. Stop with Ctrl-C. The index is not placed in the target repository: it uses a
+stable per-checkout directory under `$XDG_STATE_HOME` (Linux),
+`~/Library/Application Support/AnaxiGraph` (macOS), or an explicit `ANAXIGRAPH_STATE_HOME`.
+Preview policy and client changes with the same command plus `--dry-run --json`.
+
+For a durable isolated installation, AnaxiGraph runs as a hardened Docker sidecar beside the
+repository. This command creates its policy and Compose definition, then starts it:
+
+```bash
+cd /path/to/your/repository
+uvx anaxigraph init . --start --semantic agent --connect codex
 ```
 
 The initializer writes `.anaxigraph.yml` and `compose.anaxigraph.yml` without replacing existing
@@ -98,8 +115,8 @@ scans the current tree, and imports representative graph frames from the initial
 through HEAD. If Docker startup fails, the generated files are kept so you can inspect the error
 and retry.
 
-To review the generated policy before starting, omit `--start`, inspect both files, and run the
-printed Compose command:
+To review the generated Docker policy before starting, omit `--start`, inspect both files, and run
+the printed Compose command:
 
 ```bash
 uvx anaxigraph init .

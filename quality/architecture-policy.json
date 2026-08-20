@@ -81,8 +81,10 @@
         "anaxigraph.cli_workflows",
         "anaxigraph.finding_mcp",
         "anaxigraph.history_mcp",
+        "anaxigraph.local_runtime",
         "anaxigraph.mcp_server",
-        "anaxigraph.onboarding_cli"
+        "anaxigraph.onboarding_cli",
+        "anaxigraph.up_cli"
       ],
       "may_import": ["foundation", "analysis", "persistence", "application", "transport"]
     },

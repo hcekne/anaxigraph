@@ -13,8 +13,14 @@ from anaxigraph.finding_transport import collect_finding_ledger, query_findings
 from anaxigraph.history_jobs import open_history_service
 from anaxigraph.onboarding_cli import configure_initialize_command
 from anaxigraph.registry import RepositoryTarget, parse_history_snapshots
+from anaxigraph.up_cli import configure_up_command
 
-__all__ = ["collect_finding_ledger", "configure_initialize_command", "query_findings"]
+__all__ = [
+    "collect_finding_ledger",
+    "configure_initialize_command",
+    "configure_up_command",
+    "query_findings",
+]
 
 
 def configure_finding_command(commands: Any, handler: Any, default_db: Path) -> None:
@@ -42,7 +48,15 @@ def configure_operational_commands(
     commands: Any,
     history_parser: ArgumentParser,
     index_factory: Any,
+    app_factory: Any,
+    config_loader: Any,
 ) -> None:
+    configure_up_command(
+        commands,
+        index_factory=index_factory,
+        app_factory=app_factory,
+        config_loader=config_loader,
+    )
     configure_history(history_parser)
     doctor_parser = commands.add_parser(
         "doctor",

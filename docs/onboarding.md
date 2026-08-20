@@ -26,7 +26,37 @@ macOS path. Native Windows and Windows containers are not supported yet—use a 
 distribution and keep repositories in its Linux filesystem. See the complete
 [platform-support matrix](platform-support.md) before reporting an install-specific issue.
 
-## Five-minute sidecar setup
+## Fastest path: local loopback runtime
+
+You need Git, Python 3.11+, and [`uv`](https://docs.astral.sh/uv/). Run this from the repository you
+want to understand:
+
+```bash
+uvx anaxigraph up . --open --semantic agent --connect codex
+```
+
+Use `--connect claude` for Claude Code. Omit `--semantic` and `--connect` when you want only the
+deterministic dashboard. The command:
+
+- creates or loads `.anaxigraph.yml` without replacing an existing policy;
+- keeps a stable per-checkout AnaxiIndex outside the repository in OS user state;
+- scans the current checkout before the service becomes healthy;
+- imports adaptive Git-history frames in the background;
+- serves the dashboard and AnaxiMCP on loopback only;
+- permits the connected local agent to request an index-only refresh; and
+- prints exact stop and idempotent restart instructions.
+
+The default state root is `$XDG_STATE_HOME/anaxigraph` or `~/.local/state/anaxigraph` on Linux and
+`~/Library/Application Support/AnaxiGraph` on macOS. Override the root with
+`ANAXIGRAPH_STATE_HOME` or one index with `--db`. Ctrl-C shuts down the HTTP/MCP service cleanly;
+history progress is durable and resumes on the next start. Preview every repository and client
+change without creating the policy, state directory, or connection:
+
+```bash
+uvx anaxigraph up . --semantic agent --connect codex --dry-run --json
+```
+
+## Durable path: Docker sidecar
 
 You need Git, Docker with Compose, and [`uv`](https://docs.astral.sh/uv/). From the repository you
 want to analyze, create and start the sidecar in one command:
@@ -36,7 +66,7 @@ uvx anaxigraph init . --start
 ```
 
 To enable the coding-agent-funded semantic queue and connect a client in the same explicit setup,
-use either of these current-source commands:
+use either of these commands:
 
 ```bash
 anaxigraph init . --start --semantic agent --connect codex
