@@ -238,6 +238,9 @@ test("reference artifacts are excluded by default and pattern review is visible"
   const feedback = page.locator(".module-row", { hasText: "feedback-log.md" });
   await expect(feedback.locator(".attention-pill.reference")).toHaveText("—");
   await expect(feedback.locator(".pattern-cell")).toHaveText("Not evaluated");
+  await feedback.click();
+  await page.locator('[data-module-graph="docs/feedback-log.md"]').click();
+  await expect(page.locator("#inspector")).toContainText("Frame reason");
 });
 
 test("settings explains every connected repository and MCP handoff", async ({ page }) => {

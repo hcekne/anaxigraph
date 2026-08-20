@@ -567,7 +567,7 @@ CI rather than a hand-curated release checklist.
 
 # Phase 1a — delta-driven temporal discovery
 
-**Status:** IN PROGRESS — 1a.1–1a.2 COMPLETE; 1a.3 ACTIVE
+**Status:** IN PROGRESS — 1a.1–1a.3 COMPLETE; 1a.4 ACTIVE
 
 **Goal:** stop re-analyzing unchanged files during historical reconstruction, on today's schema, so
 the algorithm can be proven correct before storage changes underneath it.
@@ -627,7 +627,7 @@ relationship sets do not exist until Phase 1b.
 
 ## 1a.3 Make invalidation conservative and visible
 
-**Status:** IN PROGRESS
+**Status:** COMPLETE on 20 August 2026
 
 Skipping unchanged source must never create a falsely stable graph. Persist why a source was
 reanalyzed or reused:
@@ -646,6 +646,8 @@ rereading unrelated source. Invalidation reasons use existing `metadata_json` fi
 changed, invalidated, reused, and conservatively re-resolved counts.
 
 ## 1a.4 Adopt adaptive history defaults
+
+**Status:** IN PROGRESS
 
 New configurations use `history_snapshots: auto`. Initial budgets are:
 
@@ -1722,7 +1724,8 @@ queue and the document cannot drift apart.
 | 11 | **COMPLETE** — Close the Phase 0 exit gate and record its reproducible evidence | §0 gate |
 | 12 | **COMPLETE** — Build `P1a.1`, the temporal correctness characterization suite on today's schema | §1a.1 |
 | 13 | **COMPLETE** — Discover selected-frame changes before reading source and carry unchanged analysis and safe relationship rows forward | §1a.2 |
-| 14 | **IN PROGRESS** — Expose conservative invalidation reasons and work counters in benchmark and product surfaces | §1a.3 |
+| 14 | **COMPLETE** — Expose conservative invalidation reasons and work counters in benchmark and product surfaces | §1a.3 |
+| 15 | **IN PROGRESS** — Replace baked-in 64-frame defaults with an explicit adaptive history policy | §1a.4 |
 
 Items 9 and 10 are the user-visible Phase 0 changes. The completed 0.1.0 publication is the narrow,
 recorded exception described in §0.6; the work that remains in these queue items is restricted to

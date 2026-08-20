@@ -382,6 +382,10 @@ def test_history_reads_only_distinct_changed_blobs_and_records_reuse(
     result = import_git_history(database, root, every_commit=True)
 
     assert len(reads) == manifest["expected_distinct_artifact_raw_versions"] == 135
+    assert result.work["source_reads"] == 135
+    assert result.work["analyzed_files"] == 135
+    assert result.work["carried_forward"] == 824
+    assert sum(result.work["invalidation_reasons"].values()) == 959
     with database.connect() as connection:
         history_runs = connection.execute(
             "SELECT metadata_json FROM analysis_runs WHERE run_type = 'history' ORDER BY id"
