@@ -9,9 +9,13 @@ from pathlib import Path
 import pytest
 
 from scripts.check_architecture import check_architecture
+from scripts.check_changed_coverage import check_changed_coverage
+from scripts.check_code_quality import check_quality
 from scripts.check_forbidden_files import forbidden_paths
 from scripts.check_javascript_syntax import syntax_errors
 from scripts.check_module_size import check_repository
+from scripts.check_semantic_cohesion import cohesion_issues
+from scripts.quality_metrics import scan_functions
 
 
 def _policy(root: Path, legacy: list[dict] | None = None) -> Path:
@@ -131,17 +135,21 @@ def test_expired_exception_fails_whole_repository_check(tmp_path):
     assert any("expired on 2026-01-01" in item.message for item in issues)
 
 
-def _architecture_policy(root: Path, forbidden: list[dict] | None = None) -> Path:
+def _architecture_policy(
+    root: Path,
+    forbidden: list[dict] | None = None,
+    **overrides,
+) -> Path:
     path = root / "architecture.json"
+    value = {
+        "schema_version": 1,
+        "source_root": "src",
+        "package": "sample",
+        "forbidden_dependencies": forbidden or [],
+    }
+    value.update(overrides)
     path.write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "source_root": "src",
-                "package": "sample",
-                "forbidden_dependencies": forbidden or [],
-            }
-        ),
+        json.dumps(value),
         encoding="utf-8",
     )
     return path.relative_to(root)
@@ -177,6 +185,36 @@ def test_architecture_checker_enforces_declared_boundary(tmp_path):
     assert any(item.issue_type == "forbidden_dependency" for item in issues)
 
 
+def test_architecture_checker_enforces_layer_direction_and_legacy_ratchet(tmp_path):
+    package = tmp_path / "src" / "sample"
+    package.mkdir(parents=True)
+    (package / "domain.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (package / "transport.py").write_text("from sample import domain\n", encoding="utf-8")
+    layers = {
+        "domain": {"modules": ["sample.domain"], "may_import": ["domain"]},
+        "transport": {"modules": ["sample.transport"], "may_import": ["transport"]},
+    }
+    policy = _architecture_policy(
+        tmp_path,
+        layers=layers,
+        require_layer_classification=True,
+        legacy_layer_violations=[],
+    )
+    issues = check_architecture(tmp_path, policy_path=policy)
+    assert any(item.issue_type == "layer_violation" for item in issues)
+
+    policy = _architecture_policy(
+        tmp_path,
+        layers=layers,
+        require_layer_classification=True,
+        legacy_layer_violations=["sample.transport->sample.domain"],
+    )
+    assert check_architecture(tmp_path, policy_path=policy) == []
+    (package / "transport.py").write_text("VALUE = 2\n", encoding="utf-8")
+    stale = check_architecture(tmp_path, policy_path=policy)
+    assert any(item.issue_type == "stale_layer_exception" for item in stale)
+
+
 def test_forbidden_file_checker_distinguishes_examples_from_secrets():
     values = forbidden_paths(
         [
@@ -200,3 +238,168 @@ def test_javascript_syntax_checker_reports_invalid_module(tmp_path):
 
     assert syntax_errors([valid]) == []
     assert invalid.name in syntax_errors([invalid])[0]
+
+
+def _maintainability_policy(root: Path, **overrides) -> Path:
+    value = {
+        "schema_version": 1,
+        "source_root": "src",
+        "package": "sample",
+        "exclude": [],
+        "function_limits": {
+            "warning_lines": 40,
+            "hard_lines": 50,
+            "warning_complexity": 12,
+            "hard_complexity": 15,
+        },
+        "coupling_limits": {"warning": 8, "hard": 12},
+        "legacy_functions": {},
+        "legacy_coupling": {},
+    }
+    value.update(overrides)
+    path = root / "maintainability.json"
+    path.write_text(json.dumps(value), encoding="utf-8")
+    return path.relative_to(root)
+
+
+def test_function_budget_rejects_new_growth_and_ratchets_legacy(tmp_path):
+    module = tmp_path / "src" / "sample" / "service.py"
+    module.parent.mkdir(parents=True)
+    module.write_text("def oversized():\n" + "    value = 1\n" * 50, encoding="utf-8")
+    policy = _maintainability_policy(tmp_path)
+
+    issues = check_quality(tmp_path, policy_path=policy)
+
+    assert any(item.issue_type == "function_budget" and item.level == "error" for item in issues)
+    metric = scan_functions(
+        tmp_path,
+        {
+            "source_root": "src",
+            "package": "sample",
+            "exclude": [],
+        },
+    )[0]
+    policy = _maintainability_policy(
+        tmp_path,
+        legacy_functions={"src/sample/service.py::oversized": [metric.lines, metric.complexity]},
+    )
+    assert check_quality(tmp_path, policy_path=policy) == []
+
+    module.write_text(module.read_text(encoding="utf-8") + "    value = 2\n", encoding="utf-8")
+    growth = check_quality(tmp_path, policy_path=policy)
+    assert any(item.issue_type == "function_growth" for item in growth)
+
+
+def test_coupling_budget_ratchets_high_fan_in(tmp_path):
+    package = tmp_path / "src" / "sample"
+    package.mkdir(parents=True)
+    (package / "core.py").write_text("VALUE = 1\n", encoding="utf-8")
+    for name in ("one", "two"):
+        (package / f"{name}.py").write_text("from sample import core\n", encoding="utf-8")
+    limits = {"warning": 1, "hard": 1}
+    policy = _maintainability_policy(tmp_path, coupling_limits=limits)
+    assert any(
+        item.issue_type == "coupling_budget" for item in check_quality(tmp_path, policy_path=policy)
+    )
+
+    policy = _maintainability_policy(
+        tmp_path,
+        coupling_limits=limits,
+        legacy_coupling={"sample.core": [2, 0]},
+    )
+    assert check_quality(tmp_path, policy_path=policy) == []
+    (package / "three.py").write_text("from sample import core\n", encoding="utf-8")
+    assert any(
+        item.issue_type == "coupling_growth" for item in check_quality(tmp_path, policy_path=policy)
+    )
+
+
+def _write_coverage(path: Path, *, second_line_hits: int) -> None:
+    path.write_text(
+        f"""<?xml version="1.0" ?>
+<coverage line-rate="0.9">
+  <packages><package name="sample"><classes>
+    <class name="module.py" filename="module.py"><lines>
+      <line number="1" hits="1"/>
+      <line number="2" hits="{second_line_hits}"/>
+      <line number="3" hits="1"/>
+    </lines></class>
+  </classes></package></packages>
+</coverage>
+""",
+        encoding="utf-8",
+    )
+
+
+def test_changed_coverage_uses_only_changed_executable_lines(tmp_path):
+    module = tmp_path / "src" / "sample" / "module.py"
+    module.parent.mkdir(parents=True)
+    module.write_text("def value():\n    return 1\n", encoding="utf-8")
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    subprocess.run(
+        ["git", "-C", str(tmp_path), "config", "user.email", "test@example.invalid"], check=True
+    )
+    subprocess.run(["git", "-C", str(tmp_path), "config", "user.name", "Test"], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "commit", "-qm", "base"], check=True)
+    base = subprocess.check_output(
+        ["git", "-C", str(tmp_path), "rev-parse", "HEAD"], text=True
+    ).strip()
+    module.write_text("def value():\n    current = 2\n    return current\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(tmp_path), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "commit", "-qm", "change"], check=True)
+    report = tmp_path / "coverage.xml"
+    _write_coverage(report, second_line_hits=0)
+
+    failed = check_changed_coverage(
+        tmp_path,
+        report=report,
+        base=base,
+        source_prefix="src/sample/",
+    )
+    _write_coverage(report, second_line_hits=1)
+    passed = check_changed_coverage(
+        tmp_path,
+        report=report,
+        base=base,
+        source_prefix="src/sample/",
+    )
+
+    assert failed.changed_percent == 50.0
+    assert failed.passed is False
+    assert passed.changed_percent == 100.0
+    assert passed.passed is True
+
+
+def test_semantic_cohesion_requires_confident_evidence():
+    policy = {
+        "minimum_confidence": 0.7,
+        "responsibility_warning": 2,
+        "split_score_warning": 80,
+    }
+    dossiers = [
+        {
+            "path": "weak.py",
+            "confidence": 0.4,
+            "value": {
+                "responsibilities": ["one", "two", "three"],
+                "consolidation_assessment": {"recommendation": "split", "score": 95},
+            },
+        },
+        {
+            "path": "grounded.py",
+            "confidence": 0.9,
+            "value": {
+                "responsibilities": ["one", "two", "three"],
+                "consolidation_assessment": {"recommendation": "split", "score": 88},
+            },
+        },
+    ]
+
+    issues = cohesion_issues(dossiers, policy)
+
+    assert {item.issue_type for item in issues} == {
+        "responsibility_breadth",
+        "semantic_split_candidate",
+    }
+    assert {item.path for item in issues} == {"grounded.py"}

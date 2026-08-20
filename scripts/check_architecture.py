@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import fnmatch
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -61,7 +62,65 @@ def check_architecture(
                             (source, target),
                         )
                     )
+    issues.extend(_layer_issues(graph, policy))
     return sorted(issues, key=lambda item: (item.issue_type, item.modules))
+
+
+def _layer_issues(graph: dict[str, set[str]], policy: dict[str, Any]) -> list[ArchitectureIssue]:
+    layers = policy.get("layers") or {}
+    if not layers:
+        return []
+    assignments: dict[str, str] = {}
+    issues: list[ArchitectureIssue] = []
+    for module in graph:
+        matches = [
+            name
+            for name, value in layers.items()
+            if any(fnmatch.fnmatchcase(module, pattern) for pattern in value.get("modules", []))
+        ]
+        if len(matches) == 1:
+            assignments[module] = matches[0]
+        elif policy.get("require_layer_classification", False):
+            detail = "unclassified" if not matches else f"classified more than once: {matches}"
+            issues.append(
+                ArchitectureIssue(
+                    "layer_classification",
+                    f"{module} is {detail}",
+                    (module,),
+                )
+            )
+
+    legacy = set(policy.get("legacy_layer_violations", []))
+    present_legacy: set[str] = set()
+    for source, targets in graph.items():
+        source_layer = assignments.get(source)
+        if source_layer is None:
+            continue
+        allowed = set(layers[source_layer].get("may_import", []))
+        for target in targets:
+            target_layer = assignments.get(target)
+            if target_layer is None or target_layer in allowed:
+                continue
+            identity = f"{source}->{target}"
+            if identity in legacy:
+                present_legacy.add(identity)
+                continue
+            issues.append(
+                ArchitectureIssue(
+                    "layer_violation",
+                    f"{source} ({source_layer}) may not import {target} ({target_layer})",
+                    (source, target),
+                )
+            )
+    for identity in sorted(legacy - present_legacy):
+        issues.append(
+            ArchitectureIssue(
+                "stale_layer_exception",
+                f"remove stale legacy layer exception: {identity}",
+                tuple(identity.split("->", 1)),
+            )
+        )
+    return issues
 
 
 def dependency_graph(root: Path, *, source_root: Path, package: str) -> dict[str, set[str]]:

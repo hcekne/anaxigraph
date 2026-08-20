@@ -2,5 +2,72 @@
   "schema_version": 1,
   "source_root": "src",
   "package": "anaxigraph",
-  "forbidden_dependencies": []
+  "forbidden_dependencies": [],
+  "require_layer_classification": true,
+  "layers": {
+    "foundation": {
+      "modules": [
+        "anaxigraph",
+        "anaxigraph.agent_lexicon",
+        "anaxigraph.config",
+        "anaxigraph.guidance",
+        "anaxigraph.languages",
+        "anaxigraph.models",
+        "anaxigraph.registry",
+        "anaxigraph.relationships",
+        "anaxigraph.semantic_contract",
+        "anaxigraph.semantic_graph"
+      ],
+      "may_import": ["foundation"]
+    },
+    "analysis": {
+      "modules": [
+        "anaxigraph.analyzers*",
+        "anaxigraph.architecture",
+        "anaxigraph.coverage",
+        "anaxigraph.git",
+        "anaxigraph.semantic"
+      ],
+      "may_import": ["foundation", "analysis"]
+    },
+    "persistence": {
+      "modules": ["anaxigraph.storage"],
+      "may_import": ["foundation", "persistence"]
+    },
+    "application": {
+      "modules": [
+        "anaxigraph.agent",
+        "anaxigraph.history",
+        "anaxigraph.onboarding",
+        "anaxigraph.scanner",
+        "anaxigraph.semantic_agent",
+        "anaxigraph.semantic_agent_protocol",
+        "anaxigraph.semantic_module_plan",
+        "anaxigraph.semantic_records",
+        "anaxigraph.semantic_reporting",
+        "anaxigraph.semantic_requests",
+        "anaxigraph.semantic_results",
+        "anaxigraph.semantic_runner",
+        "anaxigraph.semantic_scope_plan",
+        "anaxigraph.understanding"
+      ],
+      "may_import": ["foundation", "analysis", "persistence", "application"]
+    },
+    "transport": {
+      "modules": [
+        "anaxigraph.__main__",
+        "anaxigraph.api",
+        "anaxigraph.cli",
+        "anaxigraph.mcp_server"
+      ],
+      "may_import": ["foundation", "analysis", "persistence", "application", "transport"]
+    },
+    "dashboard": {
+      "modules": ["anaxigraph.dashboard"],
+      "may_import": ["foundation", "dashboard"]
+    }
+  },
+  "legacy_layer_violations": [
+    "anaxigraph.architecture->anaxigraph.storage"
+  ]
 }

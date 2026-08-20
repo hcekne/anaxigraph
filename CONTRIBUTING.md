@@ -14,15 +14,32 @@ node --check src/anaxigraph/dashboard/app.js
 ```
 
 The tracked hooks run whitespace/configuration checks, Ruff lint and formatting validation,
-JavaScript parsing, credential/generated-file protection, the 500-line module ratchet, and package
-cycle/boundary checks before a commit. The complete Python suite also runs before a push. Local
-hooks are fast feedback; the same whole-repository policies run in CI and remain authoritative if
-someone uses `--no-verify`.
+JavaScript parsing, credential/generated-file protection, the 500-line module ratchet, function
+complexity and coupling ratchets, public-interface change reports, and package layer/cycle checks
+before a commit. The complete Python suite, 80% total coverage floor, and 85% changed executable
+code target run before a push. Local hooks are fast feedback; the same whole-repository policies
+run in CI and remain authoritative if someone uses `--no-verify`.
 
 Run every commit-stage hook against the complete checkout at any time:
 
 ```bash
 uv run pre-commit run --all-files
+```
+
+Run the full Python pre-push gate, including coverage, at any time:
+
+```bash
+uv run pre-commit run --hook-stage pre-push --all-files
+```
+
+The baselines in `quality/module-size-policy.json` and
+`quality/maintainability-policy.json` are shrinking ratchets, not permanent allowances. When a
+legacy module, function, or coupling value decreases, lower its recorded baseline in the same
+change. Once it is within the normal limit, remove the exception. If an AnaxiIndex contains
+current semantic dossiers, maintainers can also produce a non-authorizing cohesion review with:
+
+```bash
+uv run python scripts/check_semantic_cohesion.py --database /path/to/anaxi-index.db
 ```
 
 Dashboard changes also have browser-level visual contracts. Start the Compose service, install

@@ -248,7 +248,7 @@ The point is that the decision is written down, not that it happens on a schedul
 
 # Phase 0 — engineering guardrails and reproducible baselines
 
-**Status:** IN PROGRESS — 0.1 COMPLETE; 0.2 NEXT
+**Status:** IN PROGRESS — 0.1–0.4 COMPLETE; 0.5 NEXT
 
 **Goal:** prevent AnaxiGraph's implementation from becoming the spaghetti code it warns users
 about, while producing trustworthy performance and quality baselines for later phases.
@@ -312,6 +312,8 @@ host.
 
 ## 0.2 Install tracked commit hooks
 
+**Status:** COMPLETE on 20 August 2026
+
 Add:
 
 - `pre-commit` to the development dependency set;
@@ -344,6 +346,8 @@ The tracked pre-commit configuration installs the local hook, while required CI 
 non-bypassable project policy.
 
 ## 0.3 Enforce the module-size ratchet
+
+**Status:** COMPLETE on 20 August 2026
 
 The first-party implementation ceiling is **500 physical lines per module** for `.py`, `.js`,
 `.jsx`, `.mjs`, `.ts`, and `.tsx` files. A warning begins at 400 lines. CSS and HTML receive
@@ -384,6 +388,8 @@ encourage deletion of comments, compressed formatting, or meaningless “part1/p
 
 ## 0.4 Add complementary complexity budgets
 
+**Status:** COMPLETE on 20 August 2026
+
 Line count alone does not prevent spaghetti code. Add ratcheted checks and reports for:
 
 - new functions above 50 physical lines or configured cyclomatic complexity 15;
@@ -396,6 +402,16 @@ Line count alone does not prevent spaghetti code. Add ratcheted checks and repor
 These thresholds begin as warnings where the repository already violates them, become no-growth
 ratchets, and become hard gates after the owning module is refactored. The 500-line ceiling for new
 modules is hard from the first Phase 0 commit.
+
+The delivered gate records exact legacy function and coupling baselines in
+`quality/maintainability-policy.json`. New functions fail above 50 physical lines or cyclomatic
+complexity 15; existing exceptions may only shrink. Package fan-in/fan-out above the warning
+threshold is ratcheted, while changed public Python surfaces are reported for compatibility
+review. `quality/architecture-policy.json` classifies every current package and permits one
+explicit legacy sibling-layer edge (`architecture → storage`) without allowing another. CI holds
+total line coverage at 80% and changed executable package lines at the 85% target. Semantic dossier
+cohesion remains a confidence-gated human-review report: responsibility breadth or a high-scoring
+split recommendation is evidence for inspection, never permission to refactor automatically.
 
 ## 0.5 Record the intended internal architecture
 
@@ -1655,10 +1671,10 @@ queue and the document cannot drift apart.
 |---:|---|---|
 | 1 | **COMPLETE** — Add the reproducible history/storage/performance benchmark and capture baseline output | §0.1 |
 | 2 | **COMPLETE** — Ratify the Phase 1a and 1b numeric targets from that report and write them into this document | §0.1 |
-| 3 | Add the module-size checker, the current eight-file ratchet baseline, and checker tests | §0.3 |
-| 4 | Add tracked pre-commit configuration and installation documentation | §0.2 |
-| 5 | Run the same size/lint/test checks in CI and make them eligible as required checks | §0.2 |
-| 6 | Add the complexity, cycle, coverage, and layer budgets as warnings and no-growth ratchets | §0.4 |
+| 3 | **COMPLETE** — Add the module-size checker, the current eight-file ratchet baseline, and checker tests | §0.3 |
+| 4 | **COMPLETE** — Add tracked pre-commit configuration and installation documentation | §0.2 |
+| 5 | **COMPLETE** — Run the same size/lint/test checks in CI and make them eligible as required checks | §0.2 |
+| 6 | **COMPLETE** — Add the complexity, cycle, coverage, and layer budgets as warnings and no-growth ratchets | §0.4 |
 | 7 | Publish the internal architecture ADR, the package-layer policy, and its characterization tests | §0.5 |
 | 8 | Formalize and version the existing analyzer IR, add conformance tests, and certify the Python analyzer | §0.5 |
 | 9 | Finish the remaining §0.6 documentation work: document `init --start` and correct the README's team-install claim. PyPI 0.1.0 publication and next-release PEP 639 metadata are complete | §0.6 |

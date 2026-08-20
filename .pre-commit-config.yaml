@@ -39,14 +39,25 @@ repos:
         entry: uv run python scripts/check_module_size.py --staged
         language: system
         pass_filenames: false
+      - id: maintainability-ratchets
+        name: Function complexity, coupling, and interface ratchets
+        entry: uv run python scripts/check_code_quality.py --staged
+        language: system
+        pass_filenames: false
       - id: architecture-cycles
         name: Package cycles and forbidden dependencies
         entry: uv run python scripts/check_architecture.py
         language: system
         pass_filenames: false
       - id: python-tests
-        name: Complete Python test suite
-        entry: uv run pytest
+        name: Complete Python test suite and coverage floor
+        entry: uv run pytest --cov=anaxigraph --cov-report=term --cov-report=xml --cov-fail-under=80
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+      - id: changed-code-coverage
+        name: Changed-code coverage target
+        entry: uv run python scripts/check_changed_coverage.py --base HEAD^
         language: system
         pass_filenames: false
         stages: [pre-push]

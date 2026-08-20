@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "minimum_confidence": 0.7,
+  "responsibility_warning": 5,
+  "split_score_warning": 80,
+  "policy": "These are human-review signals from current semantic dossiers. They never authorize an automatic split or refactor."
+}
