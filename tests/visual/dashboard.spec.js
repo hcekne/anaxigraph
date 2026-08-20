@@ -248,6 +248,7 @@ test("settings explains every connected repository and MCP handoff", async ({ pa
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   expect(await page.locator(".settings-repository").count()).toBeGreaterThanOrEqual(1);
   await expect(page.locator(".settings-repository.current")).toHaveCount(1);
+  await expect(page.locator(".settings-repository.current")).toContainText("Auto");
   await expect(page.locator("#settings-mcp-url")).toHaveText(`${new URL(page.url()).origin}/mcp`);
   await expect(page.locator("#settings-init-command")).toContainText("anaxigraph init .");
   await expect(page.locator("#settings-codex-command")).toHaveText(

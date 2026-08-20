@@ -61,7 +61,7 @@
     },
     {
       "path": "src/anaxigraph/cli.py",
-      "baseline_lines": 649,
+      "baseline_lines": 647,
       "rationale": "Legacy CLI module combines parser construction and every command handler.",
       "owner": "maintainers",
       "removal_phase": "Phase 3",

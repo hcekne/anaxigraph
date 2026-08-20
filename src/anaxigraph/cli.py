@@ -14,12 +14,12 @@ from typing import Any
 
 import uvicorn
 
+import anaxigraph.registry as repository_registry
 from anaxigraph.agent import agent_scope, branch_collisions, impact_analysis
 from anaxigraph.api import create_app
 from anaxigraph.config import load_config
 from anaxigraph.history import import_git_history
 from anaxigraph.onboarding import initialize_repository
-from anaxigraph.registry import RepositoryTarget, load_repository_registry
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.storage import AnaxiIndex
 from anaxigraph.understanding import SemanticEngine
@@ -74,9 +74,9 @@ def _parser() -> argparse.ArgumentParser:
     initialize.add_argument("--port", type=int, default=8765, help="Local dashboard port")
     initialize.add_argument(
         "--history-snapshots",
-        type=int,
-        default=64,
-        help="Representative Git history frames to import (default: 64)",
+        type=repository_registry.parse_history_snapshots,
+        default="auto",
+        help="Git history frame policy: auto or an integer from 0 to 2000 (default: auto)",
     )
     initialize.add_argument(
         "--force",
@@ -160,9 +160,9 @@ def _parser() -> argparse.ArgumentParser:
     _repository_arguments(history)
     history.add_argument(
         "--limit",
-        type=int,
-        default=64,
-        help="Evenly sampled first-parent frames from initial commit to HEAD (default: 64)",
+        type=repository_registry.parse_history_snapshots,
+        default="auto",
+        help="Representative first-parent frames: auto or 1 to 2000 (default: auto)",
     )
     history.add_argument(
         "--all",
@@ -256,9 +256,9 @@ def _serve_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--scan-on-start", action="store_true")
     parser.add_argument(
         "--history-snapshots",
-        type=int,
-        default=64,
-        help="Representative Git frames for a single --repository target (default: 64)",
+        type=repository_registry.parse_history_snapshots,
+        default="auto",
+        help="Git history frame policy for a single target (default: auto)",
     )
     parser.add_argument("--allow-agent-scan", action="store_true")
     parser.add_argument(
@@ -381,10 +381,10 @@ def _semantic_worker(args: argparse.Namespace) -> dict[str, Any] | None:
     if args.interval is not None and args.interval < 1:
         raise ValueError("Semantic worker interval must be at least one second")
     targets = (
-        load_repository_registry(args.registry)
+        repository_registry.load_repository_registry(args.registry)
         if args.registry
         else (
-            RepositoryTarget(
+            repository_registry.RepositoryTarget(
                 key="default",
                 path=args.repository.expanduser().resolve(),
                 config_path=args.config,
@@ -501,10 +501,10 @@ def _watch(args: argparse.Namespace) -> None:
         raise ValueError("Watch interval must be at least 0.2 seconds")
     scanner = RepositoryScanner(AnaxiIndex(args.db))
     targets = (
-        load_repository_registry(args.registry)
+        repository_registry.load_repository_registry(args.registry)
         if args.registry
         else (
-            RepositoryTarget(
+            repository_registry.RepositoryTarget(
                 key="default",
                 path=args.repository.expanduser().resolve(),
                 config_path=args.config,
@@ -532,10 +532,8 @@ def _watch(args: argparse.Namespace) -> None:
 
 
 def _serve(args: argparse.Namespace) -> None:
-    if not 0 <= args.history_snapshots <= 2_000:
-        raise ValueError("History snapshots must be between 0 and 2000")
     repository = args.repository.expanduser().resolve() if args.repository else None
-    targets = load_repository_registry(args.registry) if args.registry else ()
+    targets = repository_registry.load_repository_registry(args.registry) if args.registry else ()
     database = AnaxiIndex(args.db)
     app = create_app(
         database=database,

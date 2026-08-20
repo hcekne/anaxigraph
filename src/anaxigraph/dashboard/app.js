@@ -309,7 +309,7 @@ function renderSettings() {
   byId("settings-repositories").innerHTML = state.repositories.map((item) => {
     const current = Number(item.id) === selectedId;
     const scanState = item.scannable ? "Mounted read-only · refresh enabled" : "Indexed only";
-    return `<article class="settings-repository ${current ? "current" : ""}"><div><strong>${escapeHtml(item.name)}</strong>${current ? "<span>current</span>" : ""}</div><dl><dt>Registry key</dt><dd><code>${escapeHtml(item.registry_key || "not registered")}</code></dd><dt>Container path</dt><dd><code>${escapeHtml(item.path)}</code></dd><dt>Policy</dt><dd><code>${escapeHtml(item.config_path || "automatic discovery")}</code></dd><dt>Git frames</dt><dd>${item.history_snapshots == null ? "—" : format.format(item.history_snapshots)}</dd><dt>Access</dt><dd>${escapeHtml(scanState)}</dd></dl></article>`;
+    return `<article class="settings-repository ${current ? "current" : ""}"><div><strong>${escapeHtml(item.name)}</strong>${current ? "<span>current</span>" : ""}</div><dl><dt>Registry key</dt><dd><code>${escapeHtml(item.registry_key || "not registered")}</code></dd><dt>Container path</dt><dd><code>${escapeHtml(item.path)}</code></dd><dt>Policy</dt><dd><code>${escapeHtml(item.config_path || "automatic discovery")}</code></dd><dt>Git frames</dt><dd>${item.history_snapshots === "auto" ? "Auto" : item.history_snapshots == null ? "—" : format.format(item.history_snapshots)}</dd><dt>Access</dt><dd>${escapeHtml(scanState)}</dd></dl></article>`;
   }).join("");
   const mcpUrl = `${window.location.origin}/mcp`;
   byId("settings-mcp-url").textContent = mcpUrl;

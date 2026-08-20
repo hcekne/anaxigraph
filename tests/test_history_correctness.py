@@ -203,7 +203,10 @@ def test_selected_frames_include_all_changes_between_sampled_commits(tmp_path, d
     timeline = database.timeline_snapshots(int(row["id"]))
 
     assert result.selected_commits == 3
-    assert [item["commit_sha"] for item in timeline] == [commits[0], commits[3], commits[6]]
+    selected = [item["commit_sha"] for item in timeline]
+    assert selected[0] == commits[0]
+    assert selected[-1] == commits[-1]
+    assert selected[1] in commits[1:-1]
     last = _frame(database, _snapshot_id(database, root, commits[-1]))
     assert {"src/counter.py", "src/middle.py"} <= set(last["files"])
 

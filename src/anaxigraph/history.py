@@ -11,6 +11,7 @@ from typing import Any
 
 from anaxigraph import git
 from anaxigraph.config import load_config
+from anaxigraph.languages import detect_language
 from anaxigraph.scanner import RepositoryScanner, analysis_signature
 from anaxigraph.storage import AnaxiIndex
 
@@ -55,7 +56,7 @@ def import_git_history(
     repository: str | Path,
     *,
     config_path: str | Path | None = None,
-    max_snapshots: int = 64,
+    max_snapshots: int | str = "auto",
     every_commit: bool = False,
     since: str | None = None,
     progress: Callable[[int, int, str], None] | None = None,
@@ -75,11 +76,7 @@ def import_git_history(
         git=git.metadata(root),
     )
     signature = analysis_signature(config)
-    selected = (
-        complete_history
-        if every_commit
-        else sampled_revisions(complete_history, max(1, max_snapshots))
-    )
+    selected = _selected_revisions(root, complete_history, config, max_snapshots, every_commit)
     baseline_snapshot_id, imported, work = _import_revisions(
         database,
         scanner,
@@ -182,3 +179,76 @@ def _add_work(work: dict[str, Any], database: AnaxiIndex, stats: Any) -> None:
     total_reasons = Counter(work["invalidation_reasons"])
     total_reasons.update(reasons)
     work["invalidation_reasons"] = dict(sorted(total_reasons.items()))
+
+
+def adaptive_history_limit(file_count: int) -> int:
+    if file_count <= 500:
+        return 32
+    if file_count <= 2_000:
+        return 24
+    if file_count <= 5_000:
+        return 16
+    return 12
+
+
+def _selected_revisions(
+    root: Path, values: list[str], config: Any, limit: int | str, every_commit: bool
+) -> list[str]:
+    if every_commit:
+        return values
+    resolved = resolve_history_limit(root, config, limit)
+    return representative_revisions(root, values, max(1, resolved))
+
+
+def resolve_history_limit(root: Path, config: Any, value: int | str) -> int:
+    if isinstance(value, int):
+        if not 0 <= value <= 2_000:
+            raise ValueError("History frame limit must be between 0 and 2000")
+        return value
+    if value != "auto":
+        raise ValueError("History frame limit must be 'auto' or an integer between 0 and 2000")
+    paths = git.files_at_revision(root, "HEAD") if git.has_commits(root) else git.listed_files(root)
+    eligible = sum(
+        not config.is_ignored(path) and detect_language(path) is not None for path in paths
+    )
+    return adaptive_history_limit(eligible)
+
+
+def representative_revisions(root: Path, values: list[str], limit: int) -> list[str]:
+    if len(values) <= limit or limit < 2:
+        return sampled_revisions(values, limit)
+    eligible = set(values)
+    summaries = [item for item in git.revision_summaries(root) if item.commit_sha in eligible]
+    selected = {values[0], values[-1]}
+    tagged = [value for value in values if value in git.tagged_revisions(root)]
+    _add_sampled(selected, tagged, limit - len(selected))
+    architecture = [item.commit_sha for item in summaries if _architecture_change(item.paths)]
+    _add_sampled(selected, architecture, (limit - len(selected) + 1) // 2)
+    calendar = list({item.committed_at[:7]: item.commit_sha for item in summaries}.values())
+    _add_sampled(selected, calendar, (limit - len(selected) + 1) // 2)
+    for value in reversed(values):
+        if len(selected) >= limit:
+            break
+        selected.add(value)
+    return [value for value in values if value in selected]
+
+
+def _add_sampled(selected: set[str], candidates: list[str], count: int) -> None:
+    available = [value for value in candidates if value not in selected]
+    selected.update(sampled_revisions(available, min(max(0, count), len(available))))
+
+
+def _architecture_change(paths: tuple[str, ...]) -> bool:
+    markers = (
+        ".anaxigraph",
+        "architecture",
+        "dockerfile",
+        "compose",
+        "package.json",
+        "pyproject.toml",
+        "requirements",
+        "migration",
+        "schema",
+        ".github/workflows",
+    )
+    return any(any(marker in path.lower() for marker in markers) for path in paths)

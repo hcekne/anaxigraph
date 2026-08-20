@@ -567,7 +567,7 @@ CI rather than a hand-curated release checklist.
 
 # Phase 1a — delta-driven temporal discovery
 
-**Status:** IN PROGRESS — 1a.1–1a.3 COMPLETE; 1a.4 ACTIVE
+**Status:** IN PROGRESS — 1a.1–1a.4 COMPLETE; 1a.5 ACTIVE
 
 **Goal:** stop re-analyzing unchanged files during historical reconstruction, on today's schema, so
 the algorithm can be proven correct before storage changes underneath it.
@@ -647,7 +647,7 @@ changed, invalidated, reused, and conservatively re-resolved counts.
 
 ## 1a.4 Adopt adaptive history defaults
 
-**Status:** IN PROGRESS
+**Status:** COMPLETE on 20 August 2026
 
 New configurations use `history_snapshots: auto`. Initial budgets are:
 
@@ -667,6 +667,8 @@ Later calibration should use estimated changed-file work, not file count alone. 
 the first safe adaptive policy, not a permanent magic constant.
 
 ## 1a.5 Provide progress, cancellation, and immediate usefulness
+
+**Status:** IN PROGRESS
 
 History import becomes a durable job, using the existing `analysis_runs` record and its metadata
 where possible rather than introducing the Phase 1b temporal schema early. Its states are:
@@ -1725,7 +1727,8 @@ queue and the document cannot drift apart.
 | 12 | **COMPLETE** — Build `P1a.1`, the temporal correctness characterization suite on today's schema | §1a.1 |
 | 13 | **COMPLETE** — Discover selected-frame changes before reading source and carry unchanged analysis and safe relationship rows forward | §1a.2 |
 | 14 | **COMPLETE** — Expose conservative invalidation reasons and work counters in benchmark and product surfaces | §1a.3 |
-| 15 | **IN PROGRESS** — Replace baked-in 64-frame defaults with an explicit adaptive history policy | §1a.4 |
+| 15 | **COMPLETE** — Replace baked-in 64-frame defaults with an explicit adaptive history policy | §1a.4 |
+| 16 | **IN PROGRESS** — Make history import a resumable, cancellable job without blocking current intelligence | §1a.5 |
 
 Items 9 and 10 are the user-visible Phase 0 changes. The completed 0.1.0 publication is the narrow,
 recorded exception described in §0.6; the work that remains in these queue items is restricted to

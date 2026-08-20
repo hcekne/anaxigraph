@@ -84,19 +84,19 @@ repositories:
   project-a:
     path: /repo
     config: /repo/.anaxigraph.yml
-    history_snapshots: 64
+    history_snapshots: auto
 
   project-b:
     path: /repositories/project-b
     config: /repositories/project-b/.anaxigraph.yml
-    history_snapshots: 48
+    history_snapshots: auto
 ```
 
-`history_snapshots` is the maximum number of representative graph frames. AnaxiGraph reads the
-complete first-parent commit list, always keeps the initial commit and HEAD, and evenly samples the
-intervening lifetime. Set it to `0` to disable automatic history for a target. To analyze every
-first-parent commit explicitly, use the CLI `history --all` command; large repositories can take a
-long time in that mode.
+`history_snapshots: auto` is the default. It chooses at most 32 frames for up to 500 eligible files,
+24 for 501–2,000, 16 for 2,001–5,000, and 12 above 5,000. Sampling always keeps the initial commit
+and HEAD, then prioritizes release tags, architecture/configuration changes, calendar checkpoints,
+and dense recent history. Use an integer for an explicit cap, `0` to disable automatic history for
+a target, or the CLI `history --all` command to analyze every first-parent commit intentionally.
 
 Apply changes with:
 
@@ -190,7 +190,7 @@ To reconstruct history from the command line:
 docker compose exec anaxigraph anaxigraph history /repo \
   --config /repo/.anaxigraph.yml \
   --db /state/anaxi-index.db \
-  --limit 64
+  --limit auto
 ```
 
 ## Use AnaxiMCP from coding agents

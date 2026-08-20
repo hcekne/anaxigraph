@@ -196,6 +196,13 @@ class RevisionDelta:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class RevisionSummary:
+    commit_sha: str
+    committed_at: str
+    paths: tuple[str, ...]
+
+
 def revision_delta(root: Path, base_revision: str, revision: str) -> RevisionDelta:
     """Return add/modify/delete/rename/copy/type transitions between selected frames."""
 
@@ -236,6 +243,47 @@ def revision_delta(root: Path, base_revision: str, revision: str) -> RevisionDel
 
 def _decode_path(value: bytes) -> str:
     return value.decode("utf-8", errors="surrogateescape").replace("\\", "/")
+
+
+def revision_summaries(root: Path) -> list[RevisionSummary]:
+    """Return first-parent commits with dates and changed paths in chronological order."""
+
+    result = _run(
+        root,
+        "log",
+        "--first-parent",
+        "--reverse",
+        "--date=iso-strict",
+        "--format=%x1e%H%x1f%cI",
+        "--name-only",
+        timeout=120,
+    )
+    summaries: list[RevisionSummary] = []
+    for record in result.stdout.split("\x1e"):
+        lines = [line for line in record.strip().splitlines() if line]
+        if not lines:
+            continue
+        commit_sha, _, committed_at = lines[0].partition("\x1f")
+        summaries.append(RevisionSummary(commit_sha, committed_at, tuple(lines[1:])))
+    return summaries
+
+
+def tagged_revisions(root: Path) -> set[str]:
+    """Return commits referenced by tags that are reachable from HEAD."""
+
+    result = _run(
+        root,
+        "for-each-ref",
+        "--merged=HEAD",
+        "--format=%(*objectname)%09%(objectname)",
+        "refs/tags",
+        check=False,
+    )
+    revisions = set()
+    for line in result.stdout.splitlines():
+        peeled, _, direct = line.partition("\t")
+        revisions.add(peeled or direct)
+    return {value for value in revisions if value}
 
 
 def recent_changes(root: Path, *, limit: int = 5_000) -> list[GitChange]:

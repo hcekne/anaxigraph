@@ -52,7 +52,7 @@ def create_app(
     allowed_hosts: list[str] | None = None,
     allow_scan_tool: bool = False,
     repository_targets: tuple[RepositoryTarget, ...] = (),
-    repository_history_snapshots: int = 0,
+    repository_history_snapshots: int | str = 0,
 ) -> FastAPI:
     targets = list(repository_targets)
     if repository is not None and all(
@@ -115,7 +115,7 @@ def create_app(
                 }
 
     def start_history_import(target: RepositoryTarget) -> bool:
-        if target.history_snapshots < 1 or not git.has_commits(target.path):
+        if target.history_snapshots == 0 or not git.has_commits(target.path):
             return False
         key = str(target.path.resolve())
         with history_lock:

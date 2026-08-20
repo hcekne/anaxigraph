@@ -5,10 +5,10 @@ repositories:
   maxos-agent:
     path: /repo
     config: /config/policies/maxos-agent.anaxigraph.yml
-    # Evenly sample the complete first-parent history, always including init and HEAD.
-    history_snapshots: 64
+    # Size-aware sampling always includes init and HEAD and prioritizes architecture milestones.
+    history_snapshots: auto
 
   anaxigraph:
     path: /anaxigraph
     config: /anaxigraph/.anaxigraph.yml
-    history_snapshots: 48
+    history_snapshots: auto

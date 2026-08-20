@@ -22,7 +22,7 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         database=database,
         repository=repository,
         enable_mcp=False,
-        repository_history_snapshots=23,
+        repository_history_snapshots="auto",
     )
 
     async with httpx.AsyncClient(
@@ -33,7 +33,7 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert (await client.get("/")).status_code == 200
         repositories = (await client.get("/api/repositories")).json()
         assert repositories[0]["scannable"] is True
-        assert repositories[0]["history_snapshots"] == 23
+        assert repositories[0]["history_snapshots"] == "auto"
         assert [row["path"] for row in repositories] == [str(repository.resolve())]
         stale_row = database.repository(stale_repository)
         assert stale_row is not None

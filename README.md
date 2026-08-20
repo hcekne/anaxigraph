@@ -286,7 +286,7 @@ Useful commands:
 anaxigraph update /path/to/repository
 anaxigraph understand /path/to/repository
 anaxigraph semantic-status /path/to/repository
-anaxigraph history /path/to/repository --limit 64
+anaxigraph history /path/to/repository --limit auto
 anaxigraph review /path/to/repository
 anaxigraph scope /path/to/repository --goal "Add saved prompts to Workbench"
 anaxigraph impact /path/to/repository --target backend/app/services/chat.py

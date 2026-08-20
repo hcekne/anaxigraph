@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
+
+HistorySnapshots = int | Literal["auto"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,7 +18,7 @@ class RepositoryTarget:
     key: str
     path: Path
     config_path: Path | None = None
-    history_snapshots: int = 64
+    history_snapshots: HistorySnapshots = "auto"
 
 
 def load_repository_registry(path: str | Path) -> tuple[RepositoryTarget, ...]:
@@ -58,9 +60,7 @@ def load_repository_registry(path: str | Path) -> tuple[RepositoryTarget, ...]:
         config_value = value.get("config")
         if config_value is not None and not isinstance(config_value, str):
             raise ValueError(f"Repository '{key}' config must be a path string")
-        history_snapshots = value.get("history_snapshots", 64)
-        if not isinstance(history_snapshots, int) or not 0 <= history_snapshots <= 2_000:
-            raise ValueError(f"Repository '{key}' history_snapshots must be between 0 and 2000")
+        history_snapshots = parse_history_snapshots(value.get("history_snapshots", "auto"))
         targets.append(
             RepositoryTarget(
                 key=key,
@@ -83,3 +83,18 @@ def _resolve_path(value: str, relative_to: Path) -> Path:
     if not candidate.is_absolute():
         candidate = relative_to / candidate
     return candidate.resolve()
+
+
+def parse_history_snapshots(value: Any) -> HistorySnapshots:
+    if value == "auto":
+        return "auto"
+    if isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 2_000:
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = int(value)
+        except ValueError:
+            parsed = -1
+        if 0 <= parsed <= 2_000:
+            return parsed
+    raise ValueError("history_snapshots must be 'auto' or an integer between 0 and 2000")
