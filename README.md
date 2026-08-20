@@ -309,12 +309,11 @@ completed frames. Coding agents can use the equivalent `ANAXIGRAPH_HISTORY_STATU
 graphs, and agent scope remain available while the timeline is built.
 
 `anaxigraph doctor` is a read-only index safety check. It verifies SQLite integrity and foreign
-keys, snapshot lineage, every compatibility-frame/canonical-fact digest, and the recorded schema-6
-recovery backup. Its `compaction` section reports duplicate compatibility rows and explicit
-blockers. Schema 8 proves canonical semantic-fact provenance and deliberately reports
-`compatibility_read_paths_active` until the final compatibility-frame compaction gate passes; the
-command does not delete data. For the Docker sidecar, run the same check against its persisted
-volume:
+keys, snapshot lineage, bounded reconstruction, semantic-fact provenance, the canonical
+facts/deltas/edges digest, and the recorded schema-6 recovery backup. Schema 9 compacts duplicated
+materialized frames after migration parity succeeds; its `compaction` section confirms that the
+four compatibility staging tables and their references are empty. The command itself never deletes
+data. For the Docker sidecar, run the same check against its persisted volume:
 
 ```bash
 docker compose -f compose.anaxigraph.yml exec anaxigraph \

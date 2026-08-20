@@ -16,6 +16,7 @@ from anaxigraph import git
 from anaxigraph.analyzers import builtin_registry
 from anaxigraph.analyzers.base import AnalyzerRegistry, LanguageAnalyzer
 from anaxigraph.history import import_git_history
+from anaxigraph.persistence import snapshot_files
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.storage import SCHEMA_VERSION, AnaxiIndex
 from benchmarks.repository_factory import (
@@ -166,6 +167,7 @@ def _store_metrics(database: AnaxiIndex) -> dict[str, Any]:
             "file_versions",
             "symbols",
             "relationships",
+            "group_memberships",
             "findings",
             "analysis_runs",
             "file_facts",
@@ -183,19 +185,15 @@ def _store_metrics(database: AnaxiIndex) -> dict[str, Any]:
             for table in tables
         }
         distinct = {
-            "artifact_raw": _group_count(connection, "artifact_id, raw_hash"),
-            "artifact_structural": _group_count(connection, "artifact_id, structural_hash"),
-            "raw_hashes": _group_count(connection, "raw_hash"),
-            "structural_hashes": _group_count(connection, "structural_hash"),
+            "artifact_raw": _group_count(connection, "file_facts", "artifact_id, raw_hash"),
+            "artifact_structural": _group_count(
+                connection, "file_facts", "artifact_id, structural_hash"
+            ),
+            "raw_hashes": _group_count(connection, "file_facts", "raw_hash"),
+            "structural_hashes": _group_count(connection, "file_facts", "structural_hash"),
         }
-        latest_files = int(
-            connection.execute(
-                """
-                SELECT COUNT(*) FROM file_versions
-                WHERE snapshot_id = (SELECT MAX(id) FROM snapshots)
-                """
-            ).fetchone()[0]
-        )
+        latest_snapshot = connection.execute("SELECT MAX(id) FROM snapshots").fetchone()[0]
+        latest_files = len(snapshot_files(connection, int(latest_snapshot)))
         temporal = {
             "immutable_file_facts": rows["file_facts"],
             "immutable_symbols": rows["fact_symbols"],
@@ -206,6 +204,12 @@ def _store_metrics(database: AnaxiIndex) -> dict[str, Any]:
             "checkpoints": rows["snapshot_checkpoints"],
             "checkpoint_file_references": rows["checkpoint_files"],
             "checkpoint_relationship_references": rows["checkpoint_relationships"],
+            "compatibility_rows": {
+                "file_versions": rows["file_versions"],
+                "symbols": rows["symbols"],
+                "relationships": rows["relationships"],
+                "group_memberships": rows["group_memberships"],
+            },
         }
     return {
         "schema_version": SCHEMA_VERSION,
@@ -215,15 +219,15 @@ def _store_metrics(database: AnaxiIndex) -> dict[str, Any]:
         "temporal": temporal,
         "relationship_bundles": rows["relationship_sets"],
         "relationship_bundle_note": (
-            "Schema 7 stores immutable relationship sets and sparse source deltas; "
-            "legacy rows remain during dual-write validation."
+            "Schema 9 stores immutable relationship sets and sparse source deltas; "
+            "compatibility tables are empty transaction-local staging surfaces."
         ),
         "index_bytes": _database_bytes(database.path),
     }
 
 
-def _group_count(connection: sqlite3.Connection, columns: str) -> int:
-    query = f"SELECT COUNT(*) FROM (SELECT {columns} FROM file_versions GROUP BY {columns})"
+def _group_count(connection: sqlite3.Connection, table: str, columns: str) -> int:
+    query = f"SELECT COUNT(*) FROM (SELECT {columns} FROM {table} GROUP BY {columns})"
     return int(connection.execute(query).fetchone()[0])
 
 

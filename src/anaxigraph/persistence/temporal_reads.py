@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from typing import Any
 
+from anaxigraph.ir_serialization import expand_stored_metadata
 from anaxigraph.persistence.temporal_reconstruction import (
     ReconstructionDiagnostics,
     reconstruct_files,
@@ -19,27 +21,46 @@ SQLITE_BATCH = 800
 def snapshot_files(
     connection: sqlite3.Connection,
     snapshot_id: int,
+    *,
+    expand_metadata: bool = True,
 ) -> list[dict[str, Any]]:
     """Reconstruct complete file records for one snapshot."""
 
     placements = reconstruct_files(connection, snapshot_id)
-    return _files_for_placements(connection, snapshot_id, placements)
+    return _files_for_placements(
+        connection,
+        snapshot_id,
+        placements,
+        expand_metadata=expand_metadata,
+    )
 
 
 def snapshot_files_with_diagnostics(
     connection: sqlite3.Connection,
     snapshot_id: int,
+    *,
+    expand_metadata: bool = True,
 ) -> tuple[list[dict[str, Any]], ReconstructionDiagnostics]:
     """Reconstruct files and expose the bounded-read evidence."""
 
     placements, diagnostics = reconstruct_files_with_diagnostics(connection, snapshot_id)
-    return _files_for_placements(connection, snapshot_id, placements), diagnostics
+    return (
+        _files_for_placements(
+            connection,
+            snapshot_id,
+            placements,
+            expand_metadata=expand_metadata,
+        ),
+        diagnostics,
+    )
 
 
 def _files_for_placements(
     connection: sqlite3.Connection,
     snapshot_id: int,
     placements: dict[int, dict[str, Any]],
+    *,
+    expand_metadata: bool,
 ) -> list[dict[str, Any]]:
     facts = {
         int(row["id"]): row
@@ -72,8 +93,25 @@ def _files_for_placements(
                 )
             }
         )
+        if expand_metadata:
+            value["metadata_json"] = _expanded_metadata_json(value, placement)
         result.append(value)
     return sorted(result, key=lambda item: (item["path"], item["artifact_id"]))
+
+
+def _expanded_metadata_json(
+    value: dict[str, Any],
+    placement: dict[str, Any],
+) -> str:
+    metadata = json.loads(value["metadata_json"] or "{}")
+    metadata.update(json.loads(placement.get("metadata_json") or "{}"))
+    expanded = expand_stored_metadata(
+        metadata,
+        path=str(value["path"]),
+        language=str(value["language"]),
+        public_interfaces=json.loads(value["public_interfaces_json"] or "[]"),
+    )
+    return json.dumps(expanded, sort_keys=True, separators=(",", ":"))
 
 
 def snapshot_symbols(

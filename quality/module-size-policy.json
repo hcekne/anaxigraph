@@ -28,16 +28,8 @@
       "expires_on": "2027-03-31"
     },
     {
-      "path": "src/anaxigraph/scanner.py",
-      "baseline_lines": 801,
-      "rationale": "Legacy scanner combines discovery, preparation, resolution, persistence, and orchestration.",
-      "owner": "maintainers",
-      "removal_phase": "Phase 1b",
-      "expires_on": "2026-12-31"
-    },
-    {
       "path": "src/anaxigraph/agent.py",
-      "baseline_lines": 915,
+      "baseline_lines": 898,
       "rationale": "Legacy agent module combines scope, impact, ranking, payload, and collision concerns.",
       "owner": "maintainers",
       "removal_phase": "Phase 3b",
@@ -45,7 +37,7 @@
     },
     {
       "path": "src/anaxigraph/architecture.py",
-      "baseline_lines": 746,
+      "baseline_lines": 731,
       "rationale": "Legacy detector module combines rule evaluation, graph algorithms, and finding lifecycle logic.",
       "owner": "maintainers",
       "removal_phase": "Phase 3b",

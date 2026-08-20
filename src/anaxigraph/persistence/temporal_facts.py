@@ -90,6 +90,34 @@ def record_snapshot_facts(
     return temporal_counts(connection)
 
 
+def rebase_snapshot_facts(
+    connection: sqlite3.Connection,
+    *,
+    snapshot_id: int,
+    base_snapshot_id: int | None,
+) -> dict[str, int]:
+    """Rebase an existing canonical frame without compatibility staging rows."""
+
+    row = connection.execute(
+        "SELECT repository_id FROM snapshots WHERE id = ?",
+        (snapshot_id,),
+    ).fetchone()
+    if row is None:
+        raise ValueError(f"Unknown snapshot: {snapshot_id}")
+    current_files = reconstruct_files(connection, snapshot_id)
+    current_sets = reconstruct_relationships(connection, snapshot_id)
+    previous_files = reconstruct_files(connection, base_snapshot_id)
+    previous_sets = reconstruct_relationships(connection, base_snapshot_id)
+    connection.execute(
+        "UPDATE snapshots SET base_snapshot_id = ?, sequence = ? WHERE id = ?",
+        (base_snapshot_id, _next_sequence(connection, base_snapshot_id), snapshot_id),
+    )
+    persist_file_changes(connection, snapshot_id, previous_files, current_files)
+    persist_relationship_changes(connection, snapshot_id, previous_sets, current_sets)
+    refresh_checkpoint_if_due(connection, snapshot_id)
+    return temporal_counts(connection)
+
+
 def temporal_counts(connection: sqlite3.Connection) -> dict[str, int]:
     tables = (
         "file_facts",

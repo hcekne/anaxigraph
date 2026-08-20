@@ -6,11 +6,11 @@ import json
 import sqlite3
 from typing import Any
 
+from anaxigraph.clock import utc_now
 from anaxigraph.config import SemanticConfig
 from anaxigraph.persistence.semantic_fact_references import semantic_fact_id
 from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION
 from anaxigraph.semantic_graph import SupersededSemanticJob, _cost
-from anaxigraph.storage import utc_now
 
 _INSERT_JOB_SQL = """
 INSERT INTO semantic_jobs(

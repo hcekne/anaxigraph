@@ -10,6 +10,7 @@ from anaxigraph.config import RuleConfig
 from anaxigraph.ir import analysis_from_stored
 from anaxigraph.ir_conformance import validate_analysis
 from anaxigraph.persistence.architecture_evidence import architecture_evidence
+from anaxigraph.persistence.temporal_reads import snapshot_files, symbols_for_files
 from anaxigraph.scanner import RepositoryScanner
 
 
@@ -67,21 +68,13 @@ def test_scan_persists_graph_metrics_coverage_and_findings(repository, database)
         for item in findings
     )
     with database.connect() as connection:
-        stored = dict(
-            connection.execute(
-                """
-            SELECT fv.* FROM file_versions fv
-            WHERE fv.snapshot_id = ? AND fv.path = 'pkg/core.py'
-            """,
-                (stats.snapshot_id,),
-            ).fetchone()
-        )
+        files = snapshot_files(connection, stats.snapshot_id)
+        stored = dict(next(file for file in files if file["path"] == "pkg/core.py"))
+        stored["id"] = stored["file_fact_id"]
         stored["symbols"] = [
-            dict(item)
-            for item in connection.execute(
-                "SELECT * FROM symbols WHERE artifact_version_id = ? ORDER BY start_line",
-                (stored["id"],),
-            )
+            item
+            for item in symbols_for_files(connection, [stored])
+            if item["artifact_id"] == stored["artifact_id"]
         ]
     metadata = json.loads(stored["metadata_json"])
     assert metadata["analysis_version"] == 4
@@ -89,7 +82,7 @@ def test_scan_persists_graph_metrics_coverage_and_findings(repository, database)
     assert metadata["ir"]["analyzer_version"] == "1"
     assert metadata["ir"]["module_identity"]["canonical_name"] == "pkg.core"
     assert metadata["ir"]["resolver_context"]["configured_aliases"] == [["@/", "web/"]]
-    assert metadata["ir"]["symbols"][0]["visibility"] == "public"
+    assert stored["symbols"][0]["visibility"] == "public"
     restored = analysis_from_stored(stored)
     assert validate_analysis(PythonAnalyzer(), "pkg/core.py", restored) == ()
     assert restored.resolver_context.configured_aliases == (("@/", "web/"),)

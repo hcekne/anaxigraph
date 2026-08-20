@@ -12,6 +12,11 @@ import anaxigraph.scanner as scanner_module
 from anaxigraph import git
 from anaxigraph.config import load_config
 from anaxigraph.history import import_git_history
+from anaxigraph.persistence.temporal_reads import (
+    snapshot_files,
+    snapshot_relationship_edges,
+    snapshot_symbols,
+)
 from anaxigraph.scanner import RepositoryScanner, analysis_signature
 from benchmarks.repository_factory import create_history_repository
 
@@ -69,45 +74,10 @@ def _snapshot_id(database, repository: Path, commit_sha: str) -> int:
 
 def _frame(database, snapshot_id: int) -> dict[str, Any]:
     with database.connect() as connection:
-        files = connection.execute(
-            """
-            SELECT path, language, raw_hash, structural_hash, analysis_status,
-                   declared_group, inferred_group, metadata_json
-            FROM file_versions WHERE snapshot_id = ? ORDER BY path
-            """,
-            (snapshot_id,),
-        ).fetchall()
-        symbols = connection.execute(
-            """
-            SELECT fv.path, s.qualified_name, s.symbol_type
-            FROM symbols s JOIN file_versions fv ON fv.id = s.artifact_version_id
-            WHERE fv.snapshot_id = ? ORDER BY fv.path, s.qualified_name
-            """,
-            (snapshot_id,),
-        ).fetchall()
-        edges = connection.execute(
-            """
-            SELECT source.canonical_path AS source_path,
-                   target.canonical_path AS target_path,
-                   rel.target_external, rel.relationship_type, rel.metadata_json
-            FROM relationships rel
-            JOIN artifacts source ON source.id = rel.source_artifact_id
-            LEFT JOIN artifacts target ON target.id = rel.target_artifact_id
-            WHERE rel.snapshot_id = ?
-            ORDER BY source_path, target_path, rel.target_external
-            """,
-            (snapshot_id,),
-        ).fetchall()
-        memberships = connection.execute(
-            """
-            SELECT a.canonical_path, g.name, g.source
-            FROM group_memberships gm
-            JOIN artifacts a ON a.id = gm.artifact_id
-            JOIN groups g ON g.id = gm.group_id
-            WHERE gm.snapshot_id = ? ORDER BY a.canonical_path, g.name, g.source
-            """,
-            (snapshot_id,),
-        ).fetchall()
+        files = snapshot_files(connection, snapshot_id)
+        symbols = snapshot_symbols(connection, snapshot_id)
+        edge_rows = snapshot_relationship_edges(connection, snapshot_id)
+        paths = {int(row["artifact_id"]): str(row["path"]) for row in files}
         metrics = connection.execute(
             "SELECT name, value FROM metrics WHERE snapshot_id = ? ORDER BY name, entity_id",
             (snapshot_id,),
@@ -121,16 +91,29 @@ def _frame(database, snapshot_id: int) -> dict[str, Any]:
             (snapshot_id,),
         ).fetchall()
     return {
-        "files": {row["path"]: dict(row) for row in files},
+        "files": {row["path"]: row for row in files},
         "symbols": {(row["path"], row["qualified_name"], row["symbol_type"]) for row in symbols},
         "edges": [
             {
-                **dict(row),
+                "source_path": paths[int(row["source_artifact_id"])],
+                "target_path": paths.get(int(row["target_artifact_id"]))
+                if row["target_artifact_id"] is not None
+                else None,
+                "target_external": row["target_external"],
+                "relationship_type": row["relationship_type"],
+                "metadata_json": row["metadata_json"],
                 "resolution": json.loads(row["metadata_json"])["resolution_status"],
             }
-            for row in edges
+            for row in edge_rows
         ],
-        "memberships": {(row["canonical_path"], row["name"], row["source"]) for row in memberships},
+        "memberships": {
+            (
+                row["path"],
+                row["declared_group"] or row["inferred_group"],
+                "declared" if row["declared_group"] else "inferred",
+            )
+            for row in files
+        },
         "metrics": [tuple(row) for row in metrics],
         "findings": [row["stable_key"] for row in findings],
     }
@@ -221,7 +204,7 @@ def test_namespace_changes_recompute_unique_ambiguous_and_unique_edges(tmp_path,
     (root / "src" / "pkg" / "shared.py").unlink()
     restored = _commit(root, "unique module restored")
 
-    import_git_history(database, root, every_commit=True)
+    result = import_git_history(database, root, every_commit=True)
 
     def resolutions(commit: str) -> list[str]:
         frame = _frame(database, _snapshot_id(database, root, commit))
@@ -235,10 +218,8 @@ def test_namespace_changes_recompute_unique_ambiguous_and_unique_edges(tmp_path,
     assert resolutions(ambiguous) == ["ambiguous_internal"]
     assert resolutions(restored) == ["resolved_internal"]
     ambiguous_frame = _frame(database, _snapshot_id(database, root, ambiguous))
-    consumer_metadata = json.loads(ambiguous_frame["files"]["src/consumer.py"]["metadata_json"])
     added_metadata = json.loads(ambiguous_frame["files"]["lib/pkg/shared.py"]["metadata_json"])
-    assert consumer_metadata["invalidation_reason"] == "resolver_context_changed"
-    assert consumer_metadata["source_read"] is False
+    assert result.work["invalidation_reasons"]["resolver_context_changed"] >= 1
     assert added_metadata["invalidation_reason"] == "namespace_changed"
 
 
@@ -393,10 +374,7 @@ def test_history_reads_only_distinct_changed_blobs_and_records_reuse(
         history_runs = connection.execute(
             "SELECT metadata_json FROM analysis_runs WHERE run_type = 'history' ORDER BY id"
         ).fetchall()
-        metadata_rows = connection.execute(
-            "SELECT metadata_json FROM file_versions WHERE snapshot_id = ?",
-            (result.current_snapshot_id,),
-        ).fetchall()
+        metadata_rows = snapshot_files(connection, result.current_snapshot_id)
     counters = [json.loads(row["metadata_json"]) for row in history_runs]
     file_metadata = [json.loads(row["metadata_json"]) for row in metadata_rows]
 
@@ -407,6 +385,9 @@ def test_history_reads_only_distinct_changed_blobs_and_records_reuse(
     assert {item["invalidation_reason"] for item in file_metadata} <= {
         "carried_forward",
         "content_changed",
+        "interface_changed",
+        "namespace_changed",
+        "resolver_context_changed",
     }
     assert all("history_change_kind" in item and "source_read" in item for item in file_metadata)
 

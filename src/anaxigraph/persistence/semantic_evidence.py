@@ -22,8 +22,7 @@ def semantic_inventory(
     symbols = symbols_for_files(connection, files)
     edges = snapshot_relationship_edges(connection, snapshot_id)
     artifact_types = _artifact_types(connection, files)
-    legacy_versions = _legacy_versions(connection, snapshot_id)
-    inventory = _inventory(files, symbols, artifact_types, legacy_versions)
+    inventory = _inventory(files, symbols, artifact_types)
     return inventory, _relationship_map(files, edges)
 
 
@@ -87,7 +86,6 @@ def _inventory(
     files: list[dict[str, Any]],
     symbols: list[dict[str, Any]],
     artifact_types: dict[int, str],
-    legacy_versions: dict[int, int],
 ) -> dict[str, dict[str, Any]]:
     symbols_by_fact: dict[int, list[dict[str, Any]]] = {}
     for symbol in symbols:
@@ -103,7 +101,7 @@ def _inventory(
         artifact_id = int(module["artifact_id"])
         fact_id = int(module["file_fact_id"])
         module["artifact_type"] = artifact_types.get(artifact_id, "source")
-        module["artifact_version_id"] = legacy_versions.get(artifact_id)
+        module["artifact_version_id"] = None
         module["public_interfaces"] = _json_list(module["public_interfaces_json"])
         module["symbols"] = symbols_by_fact.get(fact_id, [])
         result[str(module["path"])] = module
@@ -159,17 +157,6 @@ def _artifact_types(
         f"SELECT id, artifact_type FROM artifacts WHERE id IN ({placeholders})", ids
     ).fetchall()
     return {int(row["id"]): str(row["artifact_type"]) for row in rows}
-
-
-def _legacy_versions(
-    connection: sqlite3.Connection,
-    snapshot_id: int,
-) -> dict[int, int]:
-    rows = connection.execute(
-        "SELECT id, artifact_id FROM file_versions WHERE snapshot_id = ?",
-        (snapshot_id,),
-    ).fetchall()
-    return {int(row["artifact_id"]): int(row["id"]) for row in rows}
 
 
 def _json_list(value: str) -> list[Any]:

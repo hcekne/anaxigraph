@@ -11,6 +11,7 @@ from typing import Any, Protocol
 
 from anaxigraph.ir import canonical_python_module, python_module_aliases
 from anaxigraph.persistence.temporal_facts import record_snapshot_facts
+from anaxigraph.persistence.temporal_reads import snapshot_relationship_edges
 from anaxigraph.relationships import (
     AMBIGUOUS_INTERNAL,
     EXTERNAL,
@@ -43,14 +44,15 @@ def build_relationships(
     connection: sqlite3.Connection,
     *,
     snapshot_id: int,
+    base_snapshot_id: int | None,
     prepared: list[Any],
     artifacts: dict[str, int],
     config: ResolverConfig,
 ) -> RelationshipBuildResult:
-    base_snapshot_id = _previous_snapshot_id(connection, prepared)
     to_resolve, copied = _copy_reusable(
         connection,
         snapshot_id=snapshot_id,
+        base_snapshot_id=base_snapshot_id,
         prepared=prepared,
         artifacts=artifacts,
     )
@@ -74,47 +76,51 @@ def _copy_reusable(
     connection: sqlite3.Connection,
     *,
     snapshot_id: int,
+    base_snapshot_id: int | None,
     prepared: list[Any],
     artifacts: dict[str, int],
 ) -> tuple[list[Any], int]:
-    previous_snapshot_id = _previous_snapshot_id(connection, prepared)
-    if previous_snapshot_id is None:
+    if base_snapshot_id is None:
         return prepared, 0
+    previous_by_source: dict[int, list[dict[str, Any]]] = {}
+    for edge in snapshot_relationship_edges(connection, base_snapshot_id):
+        previous_by_source.setdefault(int(edge["source_artifact_id"]), []).append(edge)
     to_resolve: list[Any] = []
     copied = 0
     for item in prepared:
         if item.discovered.invalidation_reason != "carried_forward":
             to_resolve.append(item)
             continue
-        cursor = connection.execute(
+        source_id = artifacts[item.discovered.path]
+        edges = previous_by_source.get(source_id, [])
+        connection.executemany(
             """
             INSERT INTO relationships(
                 snapshot_id, source_artifact_id, target_artifact_id, target_external,
                 relationship_type, source, confidence, evidence, source_line, weight,
                 metadata_json
             )
-            SELECT ?, source_artifact_id, target_artifact_id, target_external,
-                   relationship_type, source, confidence, evidence, source_line, weight,
-                   metadata_json
-            FROM relationships WHERE snapshot_id = ? AND source_artifact_id = ?
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (snapshot_id, previous_snapshot_id, artifacts[item.discovered.path]),
+            [
+                (
+                    snapshot_id,
+                    source_id,
+                    edge["target_artifact_id"],
+                    edge["target_external"],
+                    edge["relationship_type"],
+                    edge["source"],
+                    edge["confidence"],
+                    edge["evidence"],
+                    edge["source_line"],
+                    edge["weight"],
+                    edge["metadata_json"],
+                )
+                for edge in edges
+            ],
         )
-        copied += max(0, cursor.rowcount)
+        copied += len(edges)
     return to_resolve, copied
-
-
-def _previous_snapshot_id(connection: sqlite3.Connection, prepared: list[Any]) -> int | None:
-    previous_id = next(
-        (item.previous_version_id for item in prepared if item.previous_version_id is not None),
-        None,
-    )
-    if previous_id is None:
-        return None
-    row = connection.execute(
-        "SELECT snapshot_id FROM file_versions WHERE id = ?", (previous_id,)
-    ).fetchone()
-    return int(row["snapshot_id"]) if row else None
 
 
 def _aggregate(

@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from anaxigraph.clock import utc_now
 from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
 from anaxigraph.semantic_agent_protocol import (
     agent_no_work_message,
@@ -26,7 +27,6 @@ from anaxigraph.semantic_contract import (
     validated_agent_result,
 )
 from anaxigraph.semantic_graph import SupersededSemanticJob
-from anaxigraph.storage import utc_now
 
 _MAX_SUBMISSION_BYTES = 1_000_000
 

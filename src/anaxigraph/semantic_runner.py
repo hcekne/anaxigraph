@@ -11,11 +11,11 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from anaxigraph.clock import utc_now
 from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
 from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION, SemanticResult, create_semantic_provider
 from anaxigraph.semantic_graph import SupersededSemanticJob, _source_chunks
 from anaxigraph.semantic_requests import _compact_dossier
-from anaxigraph.storage import utc_now
 
 
 class SemanticRunnerMixin:

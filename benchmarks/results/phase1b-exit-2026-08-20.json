@@ -1,0 +1,556 @@
+{
+  "current_repository": {
+    "api": {
+      "cold_request_ms": 19.6,
+      "graph_edges": 641,
+      "graph_nodes": 169,
+      "graph_payload_bytes": 345729,
+      "reconstruction": {
+        "files": {
+          "checkpoint_snapshot_id": null,
+          "duration_ms": 0.495,
+          "returned_rows": 169,
+          "snapshot_id": 1,
+          "traversed_deltas": 1
+        },
+        "relationships": {
+          "checkpoint_snapshot_id": null,
+          "duration_ms": 0.15,
+          "returned_rows": 130,
+          "snapshot_id": 1,
+          "traversed_deltas": 1
+        },
+        "snapshot_id": 1,
+        "symbol_count": 0
+      },
+      "temporal_reads": {
+        "current": {
+          "cold_request_ms": 19.6,
+          "edges": 641,
+          "nodes": 169,
+          "payload_bytes": 345729,
+          "reconstruction": {
+            "files": {
+              "checkpoint_snapshot_id": null,
+              "duration_ms": 0.495,
+              "returned_rows": 169,
+              "snapshot_id": 1,
+              "traversed_deltas": 1
+            },
+            "relationships": {
+              "checkpoint_snapshot_id": null,
+              "duration_ms": 0.15,
+              "returned_rows": 130,
+              "snapshot_id": 1,
+              "traversed_deltas": 1
+            },
+            "snapshot_id": 1,
+            "symbol_count": 0
+          },
+          "snapshot_id": 1,
+          "warm_request_median_ms": 3.67
+        },
+        "middle": {
+          "cold_request_ms": 4.18,
+          "edges": 641,
+          "nodes": 169,
+          "payload_bytes": 345729,
+          "reconstruction": {
+            "files": {
+              "checkpoint_snapshot_id": null,
+              "duration_ms": 0.495,
+              "returned_rows": 169,
+              "snapshot_id": 1,
+              "traversed_deltas": 1
+            },
+            "relationships": {
+              "checkpoint_snapshot_id": null,
+              "duration_ms": 0.15,
+              "returned_rows": 130,
+              "snapshot_id": 1,
+              "traversed_deltas": 1
+            },
+            "snapshot_id": 1,
+            "symbol_count": 0
+          },
+          "snapshot_id": 1,
+          "warm_request_median_ms": 2.95
+        },
+        "oldest": {
+          "cold_request_ms": 2.86,
+          "edges": 641,
+          "nodes": 169,
+          "payload_bytes": 345729,
+          "reconstruction": {
+            "files": {
+              "checkpoint_snapshot_id": null,
+              "duration_ms": 0.495,
+              "returned_rows": 169,
+              "snapshot_id": 1,
+              "traversed_deltas": 1
+            },
+            "relationships": {
+              "checkpoint_snapshot_id": null,
+              "duration_ms": 0.15,
+              "returned_rows": 130,
+              "snapshot_id": 1,
+              "traversed_deltas": 1
+            },
+            "snapshot_id": 1,
+            "symbol_count": 0
+          },
+          "snapshot_id": 1,
+          "warm_request_median_ms": 3.07
+        }
+      },
+      "warm_request_median_ms": 3.67
+    },
+    "scan": {
+      "analysis_run_id": 1,
+      "analyzed": 169,
+      "analyzer_invocations": 169,
+      "analyzer_invocations_by_suffix": {
+        "css": 1,
+        "go": 1,
+        "html": 1,
+        "java": 1,
+        "js": 5,
+        "json": 10,
+        "md": 14,
+        "mjs": 1,
+        "none": 1,
+        "py": 121,
+        "rs": 1,
+        "sql": 1,
+        "toml": 1,
+        "ts": 1,
+        "txt": 1,
+        "yaml": 1,
+        "yml": 7
+      },
+      "deleted": 0,
+      "discovered": 169,
+      "duration_ms": 2000,
+      "findings": 137,
+      "peak_resident_bytes": 87605248,
+      "peak_resident_delta_bytes": 18321408,
+      "relationships": 1571,
+      "repository_id": 1,
+      "reused": 0,
+      "snapshot_id": 1,
+      "wall_time_ms": 2005
+    },
+    "vacuum": {
+      "after_bytes": 2093056,
+      "before_bytes": 3878912
+    }
+  },
+  "environment": {
+    "anaxigraph_revision": "1fa35ded7072caa32d68b8f2aefd10638d3ead48",
+    "anaxigraph_version": "0.1.0",
+    "cpu_count": 16,
+    "generated_at": "2026-08-20T15:50:23.574524+00:00",
+    "machine": "x86_64",
+    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+    "python": "3.11.15",
+    "sqlite": "3.53.1",
+    "working_tree_dirty": true
+  },
+  "fixture": {
+    "change_counts": {
+      "added": 30,
+      "ambiguous_replacements": 3,
+      "deleted": 30,
+      "interface_changes": 3,
+      "metadata_only_changes": 1,
+      "modified": 150,
+      "renamed": 30
+    },
+    "commits": 8,
+    "expected_distinct_artifact_raw_versions": 3217,
+    "expected_distinct_artifact_structural_versions": 3216,
+    "final_files": 3000,
+    "operations": [
+      {
+        "files": 3000,
+        "kind": "initial"
+      },
+      {
+        "count": 150,
+        "kind": "modify",
+        "paths": [
+          "src/sample/modules/module_00000.py",
+          "src/sample/modules/module_00001.py",
+          "src/sample/modules/module_00002.py",
+          "src/sample/modules/module_00003.py",
+          "src/sample/modules/module_00004.py",
+          "src/sample/modules/module_00005.py",
+          "src/sample/modules/module_00006.py",
+          "src/sample/modules/module_00007.py",
+          "src/sample/modules/module_00008.py",
+          "src/sample/modules/module_00009.py"
+        ]
+      },
+      {
+        "count": 30,
+        "kind": "rename",
+        "paths": [
+          {
+            "from": "src/sample/modules/module_00150.py",
+            "to": "src/sample/modules/renamed_00150.py"
+          },
+          {
+            "from": "src/sample/modules/module_00151.py",
+            "to": "src/sample/modules/renamed_00151.py"
+          },
+          {
+            "from": "src/sample/modules/module_00152.py",
+            "to": "src/sample/modules/renamed_00152.py"
+          },
+          {
+            "from": "src/sample/modules/module_00153.py",
+            "to": "src/sample/modules/renamed_00153.py"
+          },
+          {
+            "from": "src/sample/modules/module_00154.py",
+            "to": "src/sample/modules/renamed_00154.py"
+          },
+          {
+            "from": "src/sample/modules/module_00155.py",
+            "to": "src/sample/modules/renamed_00155.py"
+          },
+          {
+            "from": "src/sample/modules/module_00156.py",
+            "to": "src/sample/modules/renamed_00156.py"
+          },
+          {
+            "from": "src/sample/modules/module_00157.py",
+            "to": "src/sample/modules/renamed_00157.py"
+          },
+          {
+            "from": "src/sample/modules/module_00158.py",
+            "to": "src/sample/modules/renamed_00158.py"
+          },
+          {
+            "from": "src/sample/modules/module_00159.py",
+            "to": "src/sample/modules/renamed_00159.py"
+          }
+        ]
+      },
+      {
+        "count": 30,
+        "kind": "delete",
+        "paths": [
+          "src/sample/modules/module_00180.py",
+          "src/sample/modules/module_00181.py",
+          "src/sample/modules/module_00182.py",
+          "src/sample/modules/module_00183.py",
+          "src/sample/modules/module_00184.py",
+          "src/sample/modules/module_00185.py",
+          "src/sample/modules/module_00186.py",
+          "src/sample/modules/module_00187.py",
+          "src/sample/modules/module_00188.py",
+          "src/sample/modules/module_00189.py"
+        ]
+      },
+      {
+        "count": 30,
+        "kind": "add",
+        "paths": [
+          "src/sample/modules/module_02992.py",
+          "src/sample/modules/module_02993.py",
+          "src/sample/modules/module_02994.py",
+          "src/sample/modules/module_02995.py",
+          "src/sample/modules/module_02996.py",
+          "src/sample/modules/module_02997.py",
+          "src/sample/modules/module_02998.py",
+          "src/sample/modules/module_02999.py",
+          "src/sample/modules/module_03000.py",
+          "src/sample/modules/module_03001.py"
+        ]
+      },
+      {
+        "added": [
+          "app/shared.py",
+          "src/sample/ambiguous_consumer.py",
+          "src/shared.py"
+        ],
+        "count": 3,
+        "deleted": [
+          "src/sample/modules/module_00210.py",
+          "src/sample/modules/module_00211.py",
+          "src/sample/modules/module_00212.py"
+        ],
+        "kind": "ambiguous_import"
+      },
+      {
+        "count": 3,
+        "kind": "interface_change",
+        "paths": [
+          "src/sample/analyzers/base.py",
+          "src/sample/analyzers/python.py",
+          "src/sample/languages.py"
+        ]
+      },
+      {
+        "count": 1,
+        "kind": "metadata_only",
+        "paths": [
+          "src/sample/service.py"
+        ]
+      }
+    ],
+    "requested_files": 3000,
+    "schema_version": 1,
+    "scope_expected_candidates": [
+      "src/sample/analyzers/__init__.py",
+      "src/sample/analyzers/base.py",
+      "src/sample/analyzers/javascript.py",
+      "src/sample/analyzers/python.py",
+      "src/sample/analyzers/text.py",
+      "src/sample/languages.py",
+      "src/sample/service.py",
+      "tests/test_analyzers.py"
+    ],
+    "scope_goal": "Add a new language analyzer for Go",
+    "seed": 20260820
+  },
+  "report_schema_version": 1,
+  "synthetic_history": {
+    "api": {
+      "cold_request_ms": 132.09,
+      "graph_edges": 5924,
+      "graph_nodes": 3000,
+      "graph_payload_bytes": 3232738,
+      "reconstruction": {
+        "files": {
+          "checkpoint_snapshot_id": null,
+          "duration_ms": 10.184,
+          "returned_rows": 3000,
+          "snapshot_id": 8,
+          "traversed_deltas": 8
+        },
+        "relationships": {
+          "checkpoint_snapshot_id": null,
+          "duration_ms": 2.62,
+          "returned_rows": 2993,
+          "snapshot_id": 8,
+          "traversed_deltas": 8
+        },
+        "snapshot_id": 8,
+        "symbol_count": 0
+      },
+      "temporal_reads": {
+        "current": {
+          "cold_request_ms": 132.09,
+          "edges": 5924,
+          "nodes": 3000,
+          "payload_bytes": 3232738,
+          "reconstruction": {
+            "files": {
+              "checkpoint_snapshot_id": null,
+              "duration_ms": 10.184,
+              "returned_rows": 3000,
+              "snapshot_id": 8,
+              "traversed_deltas": 8
+            },
+            "relationships": {
+              "checkpoint_snapshot_id": null,
+              "duration_ms": 2.62,
+              "returned_rows": 2993,
+              "snapshot_id": 8,
+              "traversed_deltas": 8
+            },
+            "snapshot_id": 8,
+            "symbol_count": 0
+          },
+          "snapshot_id": 8,
+          "warm_request_median_ms": 14.16
+        },
+        "middle": {
+          "cold_request_ms": 137.58,
+          "edges": 5930,
+          "nodes": 3000,
+          "payload_bytes": 3234934,
+          "reconstruction": {
+            "files": {
+              "checkpoint_snapshot_id": null,
+              "duration_ms": 7.811,
+              "returned_rows": 3000,
+              "snapshot_id": 5,
+              "traversed_deltas": 5
+            },
+            "relationships": {
+              "checkpoint_snapshot_id": null,
+              "duration_ms": 2.209,
+              "returned_rows": 2995,
+              "snapshot_id": 5,
+              "traversed_deltas": 5
+            },
+            "snapshot_id": 5,
+            "symbol_count": 0
+          },
+          "snapshot_id": 5,
+          "warm_request_median_ms": 13.68
+        },
+        "oldest": {
+          "cold_request_ms": 128.35,
+          "edges": 5990,
+          "nodes": 3000,
+          "payload_bytes": 3254154,
+          "reconstruction": {
+            "files": {
+              "checkpoint_snapshot_id": null,
+              "duration_ms": 7.071,
+              "returned_rows": 3000,
+              "snapshot_id": 1,
+              "traversed_deltas": 1
+            },
+            "relationships": {
+              "checkpoint_snapshot_id": null,
+              "duration_ms": 2.087,
+              "returned_rows": 2995,
+              "snapshot_id": 1,
+              "traversed_deltas": 1
+            },
+            "snapshot_id": 1,
+            "symbol_count": 0
+          },
+          "snapshot_id": 1,
+          "warm_request_median_ms": 15.22
+        }
+      },
+      "warm_request_median_ms": 14.16
+    },
+    "dashboard": {
+      "status": "skipped"
+    },
+    "import": {
+      "analysis_run_totals": {
+        "analyzed": 3217,
+        "discovered": 26970,
+        "reused": 23753,
+        "runs": 9
+      },
+      "analyzer_invocations": 3217,
+      "analyzer_invocations_by_suffix": {
+        "py": 3217
+      },
+      "current_snapshot_id": 8,
+      "first_commit": "47159a3ffb34289e489b4b45aa06db08464e6173",
+      "imported_snapshots": 8,
+      "latest_commit": "97e49f40dd8f3c894b901ff603624a817a6939d6",
+      "milliseconds_per_selected_frame": 3647.62,
+      "peak_resident_bytes": 148254720,
+      "peak_resident_delta_bytes": 60489728,
+      "progress_events": 8,
+      "selected_commits": 8,
+      "source_blob_reads": {
+        "attempted": 3217,
+        "bytes": 559559,
+        "returned": 3217
+      },
+      "store_before_vacuum": {
+        "distinct_file_versions": {
+          "artifact_raw": 3217,
+          "artifact_structural": 3216,
+          "raw_hashes": 3187,
+          "structural_hashes": 3186
+        },
+        "index_bytes": 17731736,
+        "latest_snapshot_files": 3000,
+        "relationship_bundle_note": "Schema 9 stores immutable relationship sets and sparse source deltas; compatibility tables are empty transaction-local staging surfaces.",
+        "relationship_bundles": 3059,
+        "rows": {
+          "analysis_runs": 9,
+          "artifacts": 3063,
+          "checkpoint_files": 0,
+          "checkpoint_relationships": 0,
+          "fact_symbols": 3225,
+          "file_facts": 3217,
+          "file_versions": 0,
+          "findings": 36,
+          "group_memberships": 0,
+          "relationship_edges": 6124,
+          "relationship_sets": 3059,
+          "relationships": 0,
+          "repositories": 1,
+          "snapshot_checkpoints": 0,
+          "snapshot_file_changes": 3280,
+          "snapshot_relationship_changes": 3122,
+          "snapshots": 8,
+          "symbols": 0
+        },
+        "schema_version": 9,
+        "temporal": {
+          "checkpoint_file_references": 0,
+          "checkpoint_relationship_references": 0,
+          "checkpoints": 0,
+          "compatibility_rows": {
+            "file_versions": 0,
+            "group_memberships": 0,
+            "relationships": 0,
+            "symbols": 0
+          },
+          "file_delta_rows": 3280,
+          "immutable_file_facts": 3217,
+          "immutable_symbols": 3225,
+          "relationship_delta_rows": 3122,
+          "relationship_edges": 6124,
+          "relationship_sets": 3059
+        }
+      },
+      "total_commits": 8,
+      "wall_time_ms": 29181,
+      "work": {
+        "analyzed_files": 3217,
+        "carried_forward": 20753,
+        "invalidation_reasons": {
+          "carried_forward": 8879,
+          "content_changed": 151,
+          "interface_changed": 3,
+          "namespace_changed": 3063,
+          "resolver_context_changed": 11874
+        },
+        "relationship_sources_resolved": 15091,
+        "relationship_sources_reused": 8879,
+        "relationships_copied": 17720,
+        "reused_analysis": 20753,
+        "source_reads": 3217
+      }
+    },
+    "scope": {
+      "estimated_tokens": 1440,
+      "expected_candidate_hits": [
+        "src/sample/analyzers/__init__.py",
+        "src/sample/analyzers/base.py",
+        "src/sample/analyzers/javascript.py",
+        "src/sample/analyzers/python.py",
+        "src/sample/analyzers/text.py",
+        "src/sample/languages.py",
+        "src/sample/service.py",
+        "tests/test_analyzers.py"
+      ],
+      "goal": "Add a new language analyzer for Go",
+      "payload_bytes": 5757,
+      "primary_files": [
+        "src/sample/languages.py",
+        "src/sample/analyzers/base.py",
+        "src/sample/analyzers/text.py",
+        "tests/test_analyzers.py",
+        "src/sample/service.py",
+        "src/sample/analyzers/javascript.py",
+        "src/sample/analyzers/python.py",
+        "src/sample/analyzers/__init__.py"
+      ],
+      "unexpected_primary_files": []
+    },
+    "vacuum": {
+      "after_bytes": 9596928,
+      "before_bytes": 17731736
+    }
+  },
+  "tests": {
+    "status": "skipped"
+  }
+}

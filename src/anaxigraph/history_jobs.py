@@ -12,9 +12,10 @@ from pathlib import Path
 from typing import Any
 
 from anaxigraph import git
+from anaxigraph.clock import utc_now
 from anaxigraph.history import HistoryImportCancelled, import_git_history
 from anaxigraph.registry import RepositoryTarget
-from anaxigraph.storage import AnaxiIndex, utc_now
+from anaxigraph.storage import AnaxiIndex
 
 ACTIVE_STATES = frozenset({"queued", "enumerating", "importing", "finalizing"})
 JOB_TYPE = "history_import"
@@ -394,9 +395,9 @@ class HistoryJobService:
                 """
                 SELECT
                   (SELECT COUNT(*) FROM snapshots) +
-                  (SELECT COUNT(*) FROM file_versions) +
-                  (SELECT COUNT(*) FROM symbols) +
-                  (SELECT COUNT(*) FROM relationships) +
+                  (SELECT COUNT(*) FROM file_facts) +
+                  (SELECT COUNT(*) FROM fact_symbols) +
+                  (SELECT COUNT(*) FROM relationship_edges) +
                   (SELECT COUNT(*) FROM metrics) AS rows
                 """
             ).fetchone()

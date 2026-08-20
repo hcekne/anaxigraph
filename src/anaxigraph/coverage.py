@@ -6,6 +6,7 @@ import sqlite3
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from anaxigraph.config import AnaxiGraphConfig
 
@@ -28,24 +29,12 @@ def collect_coverage(
     config: AnaxiGraphConfig,
     snapshot_id: int,
     artifacts_by_path: dict[str, int],
+    artifact_types: dict[int, str],
+    relationship_evidence: list[dict[str, Any]],
 ) -> int:
-    records: list[CoverageRecord] = []
-    for configured in config.coverage_files:
-        path = Path(configured)
-        candidate = path if path.is_absolute() else root / path
-        if not candidate.is_file():
-            continue
-        try:
-            if candidate.suffix.lower() == ".xml":
-                records.extend(_coverage_xml(candidate))
-            elif candidate.name == "lcov.info" or candidate.suffix.lower() == ".info":
-                records.extend(_lcov(candidate, root))
-        except (OSError, ValueError, ET.ParseError):
-            continue
-
     inserted = 0
     seen: set[tuple[int, str]] = set()
-    for record in records:
+    for record in _load_records(root, config.coverage_files):
         resolved = _resolve_path(record.path, artifacts_by_path, root)
         if resolved is None:
             continue
@@ -73,8 +62,30 @@ def collect_coverage(
             ),
         )
         inserted += 1
-    inserted += _relationship_coverage(connection, snapshot_id)
+    inserted += _relationship_coverage(
+        connection,
+        snapshot_id,
+        artifact_types=artifact_types,
+        relationships=relationship_evidence,
+    )
     return inserted
+
+
+def _load_records(root: Path, configured_files: tuple[str, ...]) -> list[CoverageRecord]:
+    records: list[CoverageRecord] = []
+    for configured in configured_files:
+        path = Path(configured)
+        candidate = path if path.is_absolute() else root / path
+        if not candidate.is_file():
+            continue
+        try:
+            if candidate.suffix.lower() == ".xml":
+                records.extend(_coverage_xml(candidate))
+            elif candidate.name == "lcov.info" or candidate.suffix.lower() == ".info":
+                records.extend(_lcov(candidate, root))
+        except (OSError, ValueError, ET.ParseError):
+            continue
+    return records
 
 
 def _coverage_xml(path: Path) -> list[CoverageRecord]:
@@ -162,26 +173,15 @@ def _resolve_path(path: str, artifacts: dict[str, int], root: Path) -> str | Non
     return matches[0] if len(matches) == 1 else None
 
 
-def _relationship_coverage(connection: sqlite3.Connection, snapshot_id: int) -> int:
-    artifact_types = {
-        int(row["id"]): row["artifact_type"]
-        for row in connection.execute(
-            """
-            SELECT a.id, a.artifact_type FROM artifacts a
-            JOIN file_versions fv ON fv.artifact_id = a.id
-            WHERE fv.snapshot_id = ?
-            """,
-            (snapshot_id,),
-        )
-    }
+def _relationship_coverage(
+    connection: sqlite3.Connection,
+    snapshot_id: int,
+    *,
+    artifact_types: dict[int, str],
+    relationships: list[dict[str, Any]],
+) -> int:
     test_targets: dict[int, set[int]] = {}
-    relationships = connection.execute(
-        """
-        SELECT id, source_artifact_id, target_artifact_id FROM relationships
-        WHERE snapshot_id = ? AND target_artifact_id IS NOT NULL
-        """,
-        (snapshot_id,),
-    ).fetchall()
+    relationships = [row for row in relationships if row["target_artifact_id"] is not None]
     for row in relationships:
         source = int(row["source_artifact_id"])
         target = int(row["target_artifact_id"])
@@ -201,7 +201,7 @@ def _relationship_coverage(connection: sqlite3.Connection, snapshot_id: int) -> 
         connection.execute(
             """
             INSERT INTO coverage_measurements(
-                snapshot_id, relationship_id, provider, line_coverage, evidence
+                snapshot_id, relationship_edge_id, provider, line_coverage, evidence
             ) VALUES (?, ?, 'static-test-graph', 1.0, ?)
             """,
             (

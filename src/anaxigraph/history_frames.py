@@ -6,7 +6,7 @@ import json
 from collections import Counter
 from typing import Any
 
-from anaxigraph.persistence.temporal_facts import record_snapshot_facts
+from anaxigraph.persistence.temporal_facts import rebase_snapshot_facts
 
 
 def rebase_existing_snapshot(
@@ -14,16 +14,14 @@ def rebase_existing_snapshot(
     *,
     snapshot_id: int,
     base_snapshot_id: int | None,
-    signature: str,
 ) -> None:
     """Attach a reused frame to the selected first-parent lineage atomically."""
 
     with database.transaction() as connection:
-        record_snapshot_facts(
+        rebase_snapshot_facts(
             connection,
             snapshot_id=snapshot_id,
             base_snapshot_id=base_snapshot_id,
-            signature=signature,
         )
 
 
@@ -40,7 +38,6 @@ def materialize_revision(context: Any, state: Any, commit_sha: str) -> bool:
             context.database,
             snapshot_id=int(existing["id"]),
             base_snapshot_id=state.baseline_snapshot_id,
-            signature=context.plan.signature,
         )
         state.baseline_snapshot_id = int(existing["id"])
         return True

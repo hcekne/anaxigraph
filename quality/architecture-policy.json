@@ -9,6 +9,7 @@
       "modules": [
         "anaxigraph",
         "anaxigraph.agent_lexicon",
+        "anaxigraph.clock",
         "anaxigraph.config",
         "anaxigraph.guidance",
         "anaxigraph.ir",
@@ -46,6 +47,8 @@
         "anaxigraph.history_jobs",
         "anaxigraph.onboarding",
         "anaxigraph.relationship_builder",
+        "anaxigraph.scan_persistence",
+        "anaxigraph.scan_preparation",
         "anaxigraph.scan_snapshot",
         "anaxigraph.scanner",
         "anaxigraph.semantic_agent",
@@ -77,7 +80,5 @@
       "may_import": ["foundation", "dashboard"]
     }
   },
-  "legacy_layer_violations": [
-    "anaxigraph.architecture->anaxigraph.storage"
-  ]
+  "legacy_layer_violations": []
 }

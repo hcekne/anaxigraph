@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
 
 from anaxigraph.persistence.temporal_reads import (
@@ -53,6 +54,35 @@ def install_snapshot_projection(
         relationships=relationship_diagnostics,
         symbol_count=len(symbols),
     )
+
+
+def resolve_projected_target(
+    connection: sqlite3.Connection,
+    snapshot_id: int,
+    files: dict[int, dict[str, Any]],
+    target: str,
+) -> int | None:
+    """Resolve a path, basename, or symbol against an installed snapshot projection."""
+
+    normalized = target.replace("\\", "/").removeprefix("./")
+    exact = [artifact_id for artifact_id, item in files.items() if item["path"] == normalized]
+    if len(exact) == 1:
+        return exact[0]
+    basename = [
+        artifact_id for artifact_id, item in files.items() if Path(item["path"]).name == normalized
+    ]
+    if len(basename) == 1:
+        return basename[0]
+    rows = connection.execute(
+        """
+        SELECT DISTINCT fv.artifact_id FROM projected_symbols s
+        JOIN projected_file_versions fv ON fv.id = s.artifact_version_id
+        WHERE fv.snapshot_id = ? AND (s.name = ? OR s.qualified_name = ?)
+        """,
+        (snapshot_id, target, target),
+    ).fetchall()
+    symbol_ids = {int(row["artifact_id"]) for row in rows}
+    return next(iter(symbol_ids)) if len(symbol_ids) == 1 else None
 
 
 def _install_tables(connection: sqlite3.Connection) -> None:
@@ -115,8 +145,9 @@ def _replace_symbols(connection: sqlite3.Connection, symbols: list[dict[str, Any
         """
         INSERT INTO projected_symbols(
             id, artifact_version_id, symbol_type, name, qualified_name, start_line,
-            end_line, signature, summary, complexity, logical_lines
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            end_line, signature, summary, complexity, logical_lines, visibility,
+            start_column, end_column
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         [
             (
@@ -131,6 +162,9 @@ def _replace_symbols(connection: sqlite3.Connection, symbols: list[dict[str, Any
                 symbol["summary"],
                 symbol["complexity"],
                 symbol["logical_lines"],
+                symbol["visibility"],
+                symbol["start_column"],
+                symbol["end_column"],
             )
             for symbol in symbols
         ],
@@ -190,6 +224,7 @@ _PROJECTION_SCHEMA = (
         name TEXT NOT NULL, qualified_name TEXT NOT NULL, start_line INTEGER NOT NULL,
         end_line INTEGER NOT NULL, signature TEXT NOT NULL, summary TEXT NOT NULL,
         complexity REAL NOT NULL, logical_lines INTEGER NOT NULL
+        , visibility TEXT NOT NULL, start_column INTEGER NOT NULL, end_column INTEGER NOT NULL
     )
     """,
     """

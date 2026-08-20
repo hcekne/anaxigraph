@@ -13,6 +13,10 @@ from typing import Any
 from anaxigraph import git
 from anaxigraph.agent_lexicon import GOAL_STOPWORDS, WORD_PATTERN, split_camel
 from anaxigraph.config import AnaxiGraphConfig, path_matches
+from anaxigraph.persistence.snapshot_projection import (
+    install_snapshot_projection,
+    resolve_projected_target,
+)
 from anaxigraph.storage import AnaxiIndex
 
 
@@ -32,7 +36,7 @@ def agent_scope(
         raise ValueError("Repository has not been scanned")
     snapshot_id = int(snapshot["id"])
     with database.connect() as connection:
-        files, outgoing, incoming = _graph_maps(connection, snapshot_id)
+        files, outgoing, incoming = _projected_graph_maps(connection, snapshot_id)
         ranked = _rank_files(connection, snapshot_id, files, goal)
         primary_ids = _select_primary(
             ranked,
@@ -260,8 +264,8 @@ def impact_analysis(
         raise ValueError("Repository has not been scanned")
     snapshot_id = int(snapshot["id"])
     with database.connect() as connection:
-        files, outgoing, incoming = _graph_maps(connection, snapshot_id)
-        target_id = _resolve_target(connection, snapshot_id, files, target)
+        files, outgoing, incoming = _projected_graph_maps(connection, snapshot_id)
+        target_id = resolve_projected_target(connection, snapshot_id, files, target)
         if target_id is None:
             raise ValueError(f"Target not found: {target}")
         direct_ids = set(incoming[target_id])
@@ -360,7 +364,7 @@ def _graph_maps(
         int(row["artifact_id"]): dict(row)
         for row in connection.execute(
             """
-            SELECT fv.*, a.artifact_type FROM file_versions fv
+            SELECT fv.*, a.artifact_type FROM projected_file_versions fv
             JOIN artifacts a ON a.id = fv.artifact_id WHERE fv.snapshot_id = ?
             """,
             (snapshot_id,),
@@ -408,7 +412,7 @@ def _graph_maps(
     incoming: dict[int, set[int]] = defaultdict(set)
     for row in connection.execute(
         """
-        SELECT source_artifact_id, target_artifact_id FROM relationships
+        SELECT source_artifact_id, target_artifact_id FROM projected_relationships
         WHERE snapshot_id = ? AND target_artifact_id IS NOT NULL
         """,
         (snapshot_id,),
@@ -421,6 +425,13 @@ def _graph_maps(
         outgoing.setdefault(artifact_id, set())
         incoming.setdefault(artifact_id, set())
     return files, outgoing, incoming
+
+
+def _projected_graph_maps(
+    connection: sqlite3.Connection, snapshot_id: int
+) -> tuple[dict[int, dict[str, Any]], dict[int, set[int]], dict[int, set[int]]]:
+    install_snapshot_projection(connection, snapshot_id)
+    return _graph_maps(connection, snapshot_id)
 
 
 def _rank_files(
@@ -439,7 +450,7 @@ def _rank_files(
     for row in connection.execute(
         """
         SELECT fv.artifact_id, GROUP_CONCAT(s.name, ' ') AS names
-        FROM symbols s JOIN file_versions fv ON fv.id = s.artifact_version_id
+        FROM projected_symbols s JOIN projected_file_versions fv ON fv.id = s.artifact_version_id
         WHERE fv.snapshot_id = ? GROUP BY fv.artifact_id
         """,
         (snapshot_id,),
@@ -643,7 +654,8 @@ def _interfaces(
     rows = connection.execute(
         f"""
         SELECT fv.path, s.symbol_type, s.name, s.signature, s.summary
-        FROM symbols s JOIN file_versions fv ON fv.id = s.artifact_version_id
+        FROM projected_symbols s
+        JOIN projected_file_versions fv ON fv.id = s.artifact_version_id
         WHERE fv.snapshot_id = ? AND fv.artifact_id IN ({placeholders})
           AND s.symbol_type IN ('class', 'api_endpoint', 'database_model')
         ORDER BY fv.path, s.start_line LIMIT 100
@@ -823,35 +835,6 @@ def _bound_scope_payload(payload: dict[str, Any], limit_bytes: int) -> dict[str,
     # Updating the byte count can change its own digit width. A second pass makes the estimate exact.
     payload["payload_budget"]["estimated_bytes"] = size()
     return payload
-
-
-def _resolve_target(
-    connection: sqlite3.Connection,
-    snapshot_id: int,
-    files: dict[int, dict[str, Any]],
-    target: str,
-) -> int | None:
-    normalized = target.replace("\\", "/")
-    if normalized.startswith("./"):
-        normalized = normalized[2:]
-    exact = [artifact_id for artifact_id, item in files.items() if item["path"] == normalized]
-    if len(exact) == 1:
-        return exact[0]
-    basename = [
-        artifact_id for artifact_id, item in files.items() if Path(item["path"]).name == normalized
-    ]
-    if len(basename) == 1:
-        return basename[0]
-    symbol_rows = connection.execute(
-        """
-        SELECT DISTINCT fv.artifact_id FROM symbols s
-        JOIN file_versions fv ON fv.id = s.artifact_version_id
-        WHERE fv.snapshot_id = ? AND (s.name = ? OR s.qualified_name = ?)
-        """,
-        (snapshot_id, target, target),
-    ).fetchall()
-    symbol_ids = {int(row["artifact_id"]) for row in symbol_rows}
-    return next(iter(symbol_ids)) if len(symbol_ids) == 1 else None
 
 
 def _branch_conflicts(root: Path, paths: set[str], branch: str | None) -> list[dict[str, str]]:

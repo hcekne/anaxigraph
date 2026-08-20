@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from anaxigraph.clock import utc_now
 from anaxigraph.config import AnaxiGraphConfig, RuleConfig, path_matches
 from anaxigraph.relationships import (
     AMBIGUOUS_INTERNAL,
@@ -17,7 +18,6 @@ from anaxigraph.relationships import (
     relationship_quality,
     resolution_status,
 )
-from anaxigraph.storage import utc_now
 
 
 @dataclass(frozen=True, slots=True)
@@ -634,21 +634,6 @@ def _record_metrics(
             """,
             (snapshot_id, name, float(value)),
         )
-    for item in files:
-        artifact_id = int(item["artifact_id"])
-        for name, value in (
-            ("fan_in", fan_in[artifact_id]),
-            ("fan_out", fan_out[artifact_id]),
-            ("complexity", item["complexity"]),
-            ("lines_of_code", item["lines_of_code"]),
-        ):
-            connection.execute(
-                """
-                INSERT INTO metrics(snapshot_id, entity_type, entity_id, name, value)
-                VALUES (?, 'artifact', ?, ?, ?)
-                """,
-                (snapshot_id, artifact_id, name, float(value)),
-            )
 
 
 def _update_finding_lifecycle(

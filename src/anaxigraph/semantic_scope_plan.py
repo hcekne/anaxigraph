@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from anaxigraph.clock import utc_now
 from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
 from anaxigraph.persistence.semantic_evidence import semantic_inventory
 from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION
@@ -22,7 +23,6 @@ from anaxigraph.semantic_records import (
     _states,
     _upsert_state,
 )
-from anaxigraph.storage import utc_now
 
 
 @dataclass(frozen=True, slots=True)

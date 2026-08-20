@@ -7,10 +7,10 @@ import sqlite3
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from anaxigraph.clock import utc_now
 from anaxigraph.config import SemanticConfig
 from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION, SemanticResult
 from anaxigraph.semantic_graph import _cost, _intent_fingerprint
-from anaxigraph.storage import utc_now
 
 _DOCUMENT_SQL = """
 INSERT INTO semantic_documents(
@@ -121,7 +121,7 @@ class SemanticResultMixin:
         provider: str,
         source: str,
     ) -> None:
-        if not job.get("artifact_version_id") or not job.get("file_fact_id"):
+        if not job.get("file_fact_id"):
             return
         connection.execute(
             "DELETE FROM semantic_claims WHERE file_fact_id = ? AND claim_type = ?",
@@ -135,7 +135,7 @@ class SemanticResultMixin:
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                job["artifact_version_id"],
+                None,
                 job["file_fact_id"],
                 claim_type,
                 json.dumps(result.value, sort_keys=True),
@@ -217,7 +217,7 @@ def _insert_document(
             job["scope_type"],
             job["scope_key"],
             job["artifact_id"],
-            job["artifact_version_id"],
+            None,
             job["file_fact_id"],
             job["metadata"].get("previous_document_id"),
             job["job_kind"],

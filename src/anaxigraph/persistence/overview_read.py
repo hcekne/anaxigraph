@@ -101,11 +101,11 @@ def _coverage(connection: sqlite3.Connection, snapshot_id: int) -> dict[str, Any
     ).fetchone()
     relationship = connection.execute(
         """
-        SELECT CAST(COUNT(DISTINCT cm.relationship_id) AS REAL) /
+        SELECT CAST(COUNT(DISTINCT cm.relationship_edge_id) AS REAL) /
                NULLIF((SELECT COUNT(*) FROM projected_relationships
                        WHERE target_artifact_id IS NOT NULL), 0) AS value
         FROM coverage_measurements cm
-        WHERE cm.snapshot_id = ? AND cm.relationship_id IS NOT NULL
+        WHERE cm.snapshot_id = ? AND cm.relationship_edge_id IS NOT NULL
         """,
         (snapshot_id,),
     ).fetchone()

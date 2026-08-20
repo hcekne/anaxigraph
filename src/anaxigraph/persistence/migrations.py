@@ -5,14 +5,26 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Callable
 
+from anaxigraph.persistence.compatibility_compaction import (
+    backfill_relationship_coverage,
+    compact_compatibility_rows,
+    prepare_semantic_claims_for_compaction,
+)
+from anaxigraph.persistence.index_parity import parity_report
 from anaxigraph.persistence.semantic_fact_references import (
     backfill_semantic_fact_references,
 )
 from anaxigraph.persistence.temporal_facts import migrate_legacy_temporal_facts
+from anaxigraph.persistence.temporal_files import (
+    backfill_fact_symbol_details,
+    compact_file_fact_metadata,
+    compact_file_placement_metadata,
+)
 from anaxigraph.persistence.temporal_reconstruction import ensure_checkpoint_policy
+from anaxigraph.persistence.temporal_relationships import compact_duplicate_relationship_sets
 from anaxigraph.persistence.temporal_schema import install_temporal_schema
 
-SUPPORTED_SCHEMA_VERSIONS = frozenset({2, 6, 7, 8})
+SUPPORTED_SCHEMA_VERSIONS = frozenset({2, 6, 7, 8, 9})
 
 
 def migrate_schema(
@@ -27,10 +39,27 @@ def migrate_schema(
     _ensure_legacy_columns(connection)
     install_temporal_schema(connection)
     _ensure_semantic_fact_schema(connection)
-    if current_version not in {7, 8}:
+    _ensure_columns(
+        connection,
+        "coverage_measurements",
+        {"relationship_edge_id": "INTEGER REFERENCES relationship_edges(id) ON DELETE CASCADE"},
+    )
+    if current_version not in {7, 8, 9}:
         migrate_legacy_temporal_facts(connection)
+    canonical_metadata_changed = bool(backfill_fact_symbol_details(connection))
+    canonical_metadata_changed = (
+        bool(compact_file_placement_metadata(connection)) or canonical_metadata_changed
+    )
+    canonical_metadata_changed = (
+        bool(compact_file_fact_metadata(connection)) or canonical_metadata_changed
+    )
     ensure_checkpoint_policy(connection)
     backfill_semantic_fact_references(connection)
+    _compact_validated_compatibility(
+        connection,
+        canonical_changed=canonical_metadata_changed,
+    )
+    _ensure_semantic_fact_indexes(connection)
     connection.execute(
         "INSERT OR REPLACE INTO schema_meta(key, value) VALUES ('schema_version', ?)",
         (str(target_version),),
@@ -82,7 +111,23 @@ def _ensure_semantic_fact_schema(connection: sqlite3.Connection) -> None:
             table,
             {"file_fact_id": "INTEGER REFERENCES file_facts(id) ON DELETE CASCADE"},
         )
-    _ensure_semantic_fact_indexes(connection)
+
+
+def _compact_validated_compatibility(
+    connection: sqlite3.Connection,
+    *,
+    canonical_changed: bool,
+) -> None:
+    report = parity_report(connection)
+    if report["status"] not in {"exact", "canonical_only"}:
+        raise RuntimeError("Canonical facts do not match compatibility frames; compaction refused")
+    prepare_semantic_claims_for_compaction(connection)
+    backfill_relationship_coverage(connection)
+    relationship_sets_removed = compact_duplicate_relationship_sets(connection)
+    compact_compatibility_rows(
+        connection,
+        canonical_changed=canonical_changed or relationship_sets_removed > 0,
+    )
 
 
 def transactional_schema_change(

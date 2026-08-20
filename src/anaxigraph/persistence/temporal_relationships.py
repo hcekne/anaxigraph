@@ -68,6 +68,57 @@ def persist_relationship_changes(
         )
 
 
+def compact_duplicate_relationship_sets(connection: sqlite3.Connection) -> int:
+    """Reuse identical resolved edge sets across source-only fact changes."""
+
+    for row in connection.execute("SELECT id FROM relationship_sets ORDER BY id").fetchall():
+        set_id = int(row["id"])
+        edges = [
+            dict(edge)
+            for edge in connection.execute(
+                "SELECT * FROM relationship_edges WHERE relationship_set_id = ?",
+                (set_id,),
+            ).fetchall()
+        ]
+        connection.execute(
+            "UPDATE relationship_sets SET content_hash = ? WHERE id = ?",
+            (_relationship_content_hash(edges), set_id),
+        )
+    rows = connection.execute(
+        """
+        SELECT repository_id, source_artifact_id, resolver_context_hash,
+               analysis_signature, content_hash, MIN(id) AS canonical_id,
+               GROUP_CONCAT(id) AS ids
+        FROM relationship_sets
+        GROUP BY repository_id, source_artifact_id, resolver_context_hash,
+                 analysis_signature, content_hash
+        HAVING COUNT(*) > 1
+        """
+    ).fetchall()
+    removed = 0
+    for row in rows:
+        canonical_id = int(row["canonical_id"])
+        duplicate_ids = [
+            int(value) for value in str(row["ids"]).split(",") if int(value) != canonical_id
+        ]
+        canonical_edges = _edges_by_value(connection, canonical_id)
+        for duplicate_id in duplicate_ids:
+            _move_relationship_references(
+                connection,
+                duplicate_id=duplicate_id,
+                canonical_id=canonical_id,
+                canonical_edges=canonical_edges,
+            )
+            connection.execute("DELETE FROM relationship_sets WHERE id = ?", (duplicate_id,))
+            removed += 1
+    for row in connection.execute("SELECT * FROM relationship_sets ORDER BY id").fetchall():
+        connection.execute(
+            "UPDATE relationship_sets SET set_key = ? WHERE id = ?",
+            (_relationship_set_key(row), int(row["id"])),
+        )
+    return removed
+
+
 def _upsert_relationship_set(
     connection: sqlite3.Connection,
     repository_id: int,
@@ -76,14 +127,13 @@ def _upsert_relationship_set(
     edges: list[dict[str, Any]],
     analysis_signature: str,
 ) -> int:
-    content = [_edge_value(row) for row in edges]
-    content_hash = digest(content)
+    content_hash = _relationship_content_hash(edges)
     fact = connection.execute(
         "SELECT metadata_json, created_at FROM file_facts WHERE id = ?",
         (source_fact_id,),
     ).fetchone()
     resolver_hash = resolver_context_hash(fact["metadata_json"] if fact else "{}")
-    set_key = digest([source_fact_id, resolver_hash, analysis_signature, content_hash])
+    set_key = digest([source_artifact_id, resolver_hash, analysis_signature, content_hash])
     connection.execute(
         """
         INSERT OR IGNORE INTO relationship_sets(
@@ -115,6 +165,56 @@ def _upsert_relationship_set(
     if not exists:
         _insert_edges(connection, set_id, edges)
     return set_id
+
+
+def _move_relationship_references(
+    connection: sqlite3.Connection,
+    *,
+    duplicate_id: int,
+    canonical_id: int,
+    canonical_edges: dict[tuple[Any, ...], int],
+) -> None:
+    for edge in connection.execute(
+        "SELECT * FROM relationship_edges WHERE relationship_set_id = ?",
+        (duplicate_id,),
+    ).fetchall():
+        canonical_edge_id = canonical_edges.get(_edge_value(dict(edge)))
+        if canonical_edge_id is None:
+            raise RuntimeError("Duplicate relationship sets contain different edges")
+        connection.execute(
+            "UPDATE coverage_measurements SET relationship_edge_id = ? WHERE relationship_edge_id = ?",
+            (canonical_edge_id, int(edge["id"])),
+        )
+    for table in ("snapshot_relationship_changes", "checkpoint_relationships"):
+        connection.execute(
+            f"UPDATE {table} SET relationship_set_id = ? WHERE relationship_set_id = ?",
+            (canonical_id, duplicate_id),
+        )
+
+
+def _edges_by_value(connection: sqlite3.Connection, set_id: int) -> dict[tuple[Any, ...], int]:
+    return {
+        _edge_value(dict(row)): int(row["id"])
+        for row in connection.execute(
+            "SELECT * FROM relationship_edges WHERE relationship_set_id = ?",
+            (set_id,),
+        ).fetchall()
+    }
+
+
+def _relationship_set_key(row: sqlite3.Row) -> str:
+    return digest(
+        [
+            row["source_artifact_id"],
+            row["resolver_context_hash"],
+            row["analysis_signature"],
+            row["content_hash"],
+        ]
+    )
+
+
+def _relationship_content_hash(edges: list[dict[str, Any]]) -> str:
+    return digest(sorted((_edge_value(row) for row in edges), key=repr))
 
 
 def _insert_edges(

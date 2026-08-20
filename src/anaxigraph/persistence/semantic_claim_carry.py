@@ -13,7 +13,6 @@ def carry_semantic_claims(
     *,
     snapshot_id: int,
     prepared: list[Any],
-    version_ids: dict[str, int],
     artifacts: dict[str, int],
 ) -> None:
     """Reuse claims only when the module's analyzed meaning is unchanged."""
@@ -29,6 +28,9 @@ def carry_semantic_claims(
         }:
             continue
         path = item.discovered.path
+        current_fact_id = fact_ids[artifacts[path]]
+        if current_fact_id == item.previous_version_id:
+            continue
         connection.execute(
             """
             INSERT INTO semantic_claims(
@@ -37,7 +39,7 @@ def carry_semantic_claims(
             )
             SELECT ?, ?, claim_type, value_json, source, provider, model, prompt_version,
                    created_at, confidence, supporting_evidence_json
-            FROM semantic_claims WHERE artifact_version_id = ?
+            FROM semantic_claims WHERE file_fact_id = ?
             """,
-            (version_ids[path], fact_ids[artifacts[path]], item.previous_version_id),
+            (None, current_fact_id, item.previous_version_id),
         )

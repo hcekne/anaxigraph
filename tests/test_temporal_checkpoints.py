@@ -102,12 +102,12 @@ def test_checkpoints_bound_reads_and_rebuild_without_changing_facts(tmp_path, da
         ]
 
     assert len(snapshots) == 33
-    assert [row["sequence"] for row in checkpoint_rows] == [0, 16, 32]
-    assert [row["source_delta_depth"] for row in checkpoint_rows] == [1, 16, 16]
+    assert [row["sequence"] for row in checkpoint_rows] == [15, 31]
+    assert [row["source_delta_depth"] for row in checkpoint_rows] == [16, 16]
     assert maximum_file_depth < CHECKPOINT_INTERVAL
     assert maximum_relationship_depth < CHECKPOINT_INTERVAL
     assert unbounded.traversed_deltas == 33
-    assert rebuilt == {"snapshots": 33, "checkpoints": 3}
+    assert rebuilt == {"snapshots": 33, "checkpoints": 2}
     assert after == before
     assert hashes_after == hashes_before
 
@@ -125,5 +125,5 @@ def test_checkpoints_bound_reads_and_rebuild_without_changing_facts(tmp_path, da
             "SELECT value FROM schema_meta WHERE key = 'checkpoint_policy_version'"
         ).fetchone()
 
-    assert [row["sequence"] for row in restored] == [0, 16, 32]
-    assert policy[0] == "bounded-delta-v1"
+    assert [row["sequence"] for row in restored] == [15, 31]
+    assert policy[0] == "bounded-delta-v3"

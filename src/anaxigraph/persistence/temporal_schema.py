@@ -60,6 +60,9 @@ TEMPORAL_SCHEMA = (
         summary TEXT NOT NULL DEFAULT '',
         complexity REAL NOT NULL DEFAULT 1,
         logical_lines INTEGER NOT NULL DEFAULT 0,
+        visibility TEXT NOT NULL DEFAULT 'unknown',
+        start_column INTEGER NOT NULL DEFAULT 0,
+        end_column INTEGER NOT NULL DEFAULT 0,
         UNIQUE(file_fact_id, symbol_type, qualified_name, start_line, end_line)
     )
     """,
@@ -137,6 +140,7 @@ TEMPORAL_SCHEMA = (
         declared_group TEXT,
         inferred_group TEXT,
         analysis_status TEXT,
+        metadata_json TEXT NOT NULL DEFAULT '{}',
         first_seen_at TEXT,
         last_changed_at TEXT,
         PRIMARY KEY(checkpoint_snapshot_id, artifact_id)
@@ -164,6 +168,8 @@ def install_temporal_schema(connection: sqlite3.Connection) -> None:
     _ensure_snapshot_columns(connection)
     for statement in TEMPORAL_SCHEMA:
         connection.execute(statement)
+    _ensure_fact_symbol_columns(connection)
+    _ensure_checkpoint_columns(connection)
 
 
 def clear_temporal_facts(connection: sqlite3.Connection) -> None:
@@ -187,3 +193,22 @@ def _ensure_snapshot_columns(connection: sqlite3.Connection) -> None:
         connection.execute("ALTER TABLE snapshots ADD COLUMN base_snapshot_id INTEGER")
     if "sequence" not in columns:
         connection.execute("ALTER TABLE snapshots ADD COLUMN sequence INTEGER NOT NULL DEFAULT 0")
+
+
+def _ensure_checkpoint_columns(connection: sqlite3.Connection) -> None:
+    columns = {row["name"] for row in connection.execute("PRAGMA table_info(checkpoint_files)")}
+    if "metadata_json" not in columns:
+        connection.execute(
+            "ALTER TABLE checkpoint_files ADD COLUMN metadata_json TEXT NOT NULL DEFAULT '{}'"
+        )
+
+
+def _ensure_fact_symbol_columns(connection: sqlite3.Connection) -> None:
+    columns = {row["name"] for row in connection.execute("PRAGMA table_info(fact_symbols)")}
+    for name, definition in (
+        ("visibility", "TEXT NOT NULL DEFAULT 'unknown'"),
+        ("start_column", "INTEGER NOT NULL DEFAULT 0"),
+        ("end_column", "INTEGER NOT NULL DEFAULT 0"),
+    ):
+        if name not in columns:
+            connection.execute(f"ALTER TABLE fact_symbols ADD COLUMN {name} {definition}")

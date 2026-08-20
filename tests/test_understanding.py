@@ -547,7 +547,7 @@ def test_semantic_evidence_and_work_identity_survive_checkpoint_rebuild(reposito
     with database.transaction() as connection:
         connection.execute("DELETE FROM snapshot_checkpoints")
         rebuilt = rebuild_checkpoints(connection)
-    assert rebuilt["checkpoints"] >= 1
+    assert rebuilt == {"snapshots": 1, "checkpoints": 0}
 
     engine.plan(stats.repository_id, repository, config)
     with database.connect() as connection:
@@ -563,7 +563,7 @@ def test_semantic_evidence_and_work_identity_survive_checkpoint_rebuild(reposito
     assert jobs_after == jobs_before
 
 
-def test_schema_eight_backfills_exact_semantic_fact_references(repository, database):
+def test_schema_nine_preserves_and_backfills_semantic_fact_references(repository, database):
     policy = yaml.safe_load((repository / ".anaxigraph.yml").read_text(encoding="utf-8"))
     policy["semantic"] = {"enabled": True, "provider": "agent"}
     (repository / ".anaxigraph.yml").write_text(
@@ -596,8 +596,10 @@ def test_schema_eight_backfills_exact_semantic_fact_references(repository, datab
             "semantic_jobs",
             "semantic_scope_states",
         ):
+            if table == "semantic_claims":
+                continue
             connection.execute(f"UPDATE {table} SET file_fact_id = NULL")
-        connection.execute("UPDATE schema_meta SET value = '7' WHERE key = 'schema_version'")
+        connection.execute("UPDATE schema_meta SET value = '8' WHERE key = 'schema_version'")
 
     reopened = AnaxiIndex(database.path)
     with reopened.connect() as connection:

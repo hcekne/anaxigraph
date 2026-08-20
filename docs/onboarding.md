@@ -353,11 +353,11 @@ docker compose -f compose.anaxigraph.yml exec anaxigraph \
   anaxigraph doctor --db /state/anaxi-index.db --json
 ```
 
-The report validates database integrity, foreign keys, snapshot ancestry, exact parity between the
-temporary compatibility frames and immutable facts, schema-8 semantic-fact provenance, plus the
-checksum of any schema-6 recovery backup. Its compaction assessment is fail-closed: it lists every
-blocker and never removes compatibility rows while a product or semantic read path still depends
-on them.
+The report validates database integrity, foreign keys, snapshot ancestry, bounded reconstruction,
+schema-9 semantic-fact provenance, the canonical facts/deltas/edges digest, and the checksum of any
+schema-6 recovery backup. Its compaction assessment is fail-closed and confirms that the temporary
+compatibility staging rows and their semantic references were cleared after validated migration.
+The read-only command never performs the compaction itself.
 
 ## Keep the index current
 

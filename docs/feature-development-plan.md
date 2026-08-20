@@ -762,7 +762,7 @@ unbounded process cache.
 
 # Phase 1b — immutable facts and snapshot deltas
 
-**Status:** ACTIVE — COMPLETE EXIT GATE NEXT
+**Status:** COMPLETE on 20 August 2026
 
 **Goal:** make stored facts scale with distinct versions and relationship contexts rather than with
 selected frames multiplied by repository size.
@@ -861,9 +861,10 @@ The Phase 0 baseline sets the latency ceilings below; the Phase 1b prototype val
 checkpoint representation against them. Current-snapshot queries remain constant-depth, while
 historical queries may traverse at most 16 deltas before using a derived checkpoint.
 
-**Checkpoint foundation is complete on 20 August 2026.** Schema 7 now materializes disposable
-reference checkpoints at sequence 0 and every 16 frames, invalidates descendant caches when a base
-frame changes, and reconstructs canonical file and relationship state from the nearest checkpoint.
+**Checkpoint foundation is complete on 20 August 2026.** Schema 7 introduced disposable reference
+checkpoints; the final bounded policy materializes one before traversal would exceed 16 frames,
+invalidates descendant caches when a base frame changes, and reconstructs canonical file and
+relationship state from the nearest checkpoint.
 Every reconstruction reports traversed deltas, checkpoint identity, duration, and returned rows.
 Fresh, migrated, and previously-created schema-7 indexes adopt the versioned checkpoint policy
 idempotently; `doctor` verifies cache counts and hashes against canonical reconstruction. A
@@ -883,7 +884,7 @@ the 16-delta and published latency ceilings. The benchmark report now records th
 checkpoint identities, traversal depth, reconstruction duration, returned rows, and checkpoint
 storage counts.
 
-**Semantic, finding, and history compatibility is complete on 20 August 2026.** Schema 8 gives
+**Semantic, finding, and history compatibility is complete on 20 August 2026.** Schema 8 gave
 module-scoped claims, dossiers, jobs, and scope states a direct immutable `file_fact_id` while
 retaining the compatibility reference for the final compaction window. Migration backfills those
 references from exact reconstructed frames. Semantic work planning and evidence, module/detail
@@ -892,6 +893,18 @@ canonical facts or durable run records rather than duplicated frame rows. Tests 
 semantic evidence and work hashes across checkpoint deletion/rebuild, stable fact identity through
 lease retry, exact schema-7-to-8 provenance backfill, and unchanged finding behavior. `doctor`
 fails closed when any module-scoped semantic record lacks its canonical fact reference.
+
+**Canonical compaction is complete on 20 August 2026.** Schema 9 makes immutable file facts the
+required semantic identity, moves complete symbol detail onto `fact_symbols`, migrates relationship
+coverage to canonical edge IDs, and clears the old materialized `file_versions`, `symbols`,
+`relationships`, and `group_memberships` rows after exact parity validation. Those empty tables
+remain transaction-local scan staging surfaces so the analyzer and detector pipeline can be
+decomposed independently; no REST, MCP, dashboard, semantic, finding, or history read consumes
+them. File-placement metadata stores only snapshot-specific state, file-fact metadata omits
+derivable IR fields and is expanded at the persistence boundary when a consumer needs the full
+contract, and equivalent relationship sets are content-deduplicated. A canonical content digest
+covering facts, deltas, sets, and edges lets `doctor` detect post-compaction damage without relying
+on rows that were intentionally removed.
 
 ## 1b.3 Decompose the temporal implementation while changing it
 
@@ -935,12 +948,32 @@ Targets below are binding against the committed P0.1 schema-6 report:
 
 No temporal visualization features begin until this gate passes.
 
+### Phase 1b closure evidence
+
+The binding 3,000-file/eight-frame profile was regenerated on the same Linux x86-64 runner on
+20 August 2026 and is committed as
+[`benchmarks/results/phase1b-exit-2026-08-20.json`](../benchmarks/results/phase1b-exit-2026-08-20.json).
+The report was generated from the dirty implementation tree intentionally, then the complete code,
+migration, and browser gate was run before the milestone commit.
+
+| Gate | Closure result |
+|---|---|
+| Immutable file facts | 3,217 facts for 3,217 distinct artifact/raw versions, below the 3,539 ceiling; 3,225 symbols belong to those facts rather than snapshots |
+| Sparse relationships | 3,059 reusable sets plus 6,124 immutable edges (9,183 combined), below 11,974; 3,122 source deltas select/retract them across eight frames |
+| Index size | 9,596,928 bytes after vacuum, below 9,912,320 and 5.16× smaller than the 49,561,600-byte schema-6 baseline |
+| Read amplification | Current/middle/oldest file reconstruction traversed 8/5/1 deltas; all remain below 16 and no checkpoint is needed for an eight-frame history |
+| API latency | Current graph measured 132.09 ms cold and 14.16 ms warm median; middle and oldest measured 13.68/15.22 ms warm, all below their binding ceilings |
+| Historical work | 29,181 ms total; exactly 3,217 source reads and analyzer invocations; peak resident memory was 148,254,720 bytes |
+| Compaction | Zero rows remain in all four compatibility staging tables; canonical integrity, semantic-fact references, lineage, foreign keys, and reconstruction are doctor-checked |
+| Decomposition | `storage.py` is 398 lines and `scanner.py` is 358; both exceptions are removed and no extracted implementation module exceeds 500 lines |
+| Agent contract | The Go-analyzer scope retained all eight expected primary files, no unexpected primary files, and a 5,757-byte payload |
+
 ---
 
 
 # Phase 2 — attention signal
 
-**Status:** BLOCKED BY PHASE 1b
+**Status:** ACTIVE
 
 **Goal:** turn excellent ranking into an intentionally small action surface without discarding the
 complete diagnostic record.

@@ -1,6 +1,6 @@
 """Versioned AnaxiIndex compatibility schema installed before explicit migrations."""
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_meta (
@@ -139,6 +139,7 @@ CREATE TABLE IF NOT EXISTS coverage_measurements (
     snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
     artifact_id INTEGER REFERENCES artifacts(id) ON DELETE CASCADE,
     relationship_id INTEGER REFERENCES relationships(id) ON DELETE CASCADE,
+    relationship_edge_id INTEGER REFERENCES relationship_edges(id) ON DELETE CASCADE,
     provider TEXT NOT NULL,
     line_coverage REAL,
     branch_coverage REAL,
@@ -209,8 +210,8 @@ CREATE TABLE IF NOT EXISTS architecture_rules (
 
 CREATE TABLE IF NOT EXISTS semantic_claims (
     id INTEGER PRIMARY KEY,
-    artifact_version_id INTEGER NOT NULL REFERENCES file_versions(id) ON DELETE CASCADE,
-    file_fact_id INTEGER REFERENCES file_facts(id) ON DELETE CASCADE,
+    artifact_version_id INTEGER,
+    file_fact_id INTEGER NOT NULL REFERENCES file_facts(id) ON DELETE CASCADE,
     claim_type TEXT NOT NULL,
     value_json TEXT NOT NULL,
     source TEXT NOT NULL,

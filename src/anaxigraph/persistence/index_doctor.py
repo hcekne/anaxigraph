@@ -7,6 +7,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from anaxigraph.persistence.compatibility_compaction import canonical_integrity_report
 from anaxigraph.persistence.index_backup import validate_schema_backup
 from anaxigraph.persistence.index_parity import parity_report
 from anaxigraph.persistence.index_temporal_health import (
@@ -15,7 +16,7 @@ from anaxigraph.persistence.index_temporal_health import (
 )
 from anaxigraph.persistence.semantic_fact_references import semantic_reference_report
 
-COMPATIBILITY_TABLES = ("file_versions", "symbols", "relationships")
+COMPATIBILITY_TABLES = ("file_versions", "symbols", "relationships", "group_memberships")
 TEMPORAL_TABLES = (
     "file_facts",
     "fact_symbols",
@@ -45,6 +46,7 @@ def inspect_index(
         reconstruction = reconstruction_report(connection)
         rows = _row_counts(connection)
         semantic_references = semantic_reference_report(connection)
+        canonical_integrity = canonical_integrity_report(connection)
     backup = _backup_report(migrations)
     health_blockers = _health_blockers(
         integrity,
@@ -54,6 +56,7 @@ def inspect_index(
         reconstruction,
         backup,
         semantic_references,
+        canonical_integrity,
     )
     return {
         "status": "healthy" if not health_blockers else "blocked",
@@ -67,6 +70,7 @@ def inspect_index(
         "reconstruction": reconstruction,
         "parity": parity,
         "semantic_references": semantic_references,
+        "canonical_integrity": canonical_integrity,
         "rows": rows,
         "compaction": _compaction_report(health_blockers, rows, semantic_references),
         "blockers": health_blockers,
@@ -122,13 +126,14 @@ def _health_blockers(
     reconstruction: dict[str, Any],
     backup: dict[str, Any],
     semantic_references: dict[str, Any],
+    canonical_integrity: dict[str, Any],
 ) -> list[str]:
     blockers = []
     if integrity != "ok":
         blockers.append("integrity_check_failed")
     if foreign_keys:
         blockers.append("foreign_key_violations")
-    if parity["status"] != "exact":
+    if parity["status"] not in {"exact", "canonical_only"}:
         blockers.append("temporal_parity_mismatch")
     if lineage["status"] != "valid":
         blockers.append("invalid_snapshot_lineage")
@@ -138,6 +143,8 @@ def _health_blockers(
         blockers.append("recovery_backup_invalid")
     if semantic_references["status"] != "exact":
         blockers.append("semantic_fact_references_missing")
+    if canonical_integrity["status"] != "exact":
+        blockers.append("canonical_content_digest_mismatch")
     return blockers
 
 
@@ -147,20 +154,24 @@ def _compaction_report(
     semantic_references: dict[str, Any],
 ) -> dict[str, Any]:
     blockers = list(health_blockers)
-    blockers.append("compatibility_read_paths_active")
+    compatibility_rows = sum(rows[table] for table in COMPATIBILITY_TABLES)
+    if compatibility_rows:
+        blockers.append("compatibility_rows_remain")
     compatibility_references = sum(
         value["compatibility_references"] for value in semantic_references["tables"].values()
     )
     if compatibility_references:
         blockers.append("semantic_records_reference_compatibility_versions")
+    eligible = not blockers and compatibility_rows == 0 and compatibility_references == 0
     return {
-        "eligible": False,
-        "performed": False,
+        "eligible": eligible,
+        "performed": eligible,
         "blockers": blockers,
-        "compatibility_rows": sum(rows[table] for table in COMPATIBILITY_TABLES),
+        "compatibility_rows": compatibility_rows,
         "semantic_version_references": compatibility_references,
         "message": (
-            "Compatibility rows are retained until bounded reads and semantic consumers use "
-            "canonical facts. No data was deleted."
+            "Compatibility rows have been compacted; canonical facts are authoritative."
+            if eligible
+            else "Compatibility compaction is blocked; no additional data was deleted."
         ),
     }

@@ -1,68 +1,17 @@
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
-from typing import Any
 
 from anaxigraph.history import import_git_history
 from anaxigraph.persistence import (
     inspect_index,
     snapshot_files,
     snapshot_relationship_edges,
-    snapshot_symbols,
     temporal_counts,
 )
 from anaxigraph.scanner import RepositoryScanner
-from anaxigraph.storage import AnaxiIndex
-
-FILE_FIELDS = (
-    "artifact_id",
-    "path",
-    "language",
-    "runtime",
-    "declared_group",
-    "inferred_group",
-    "raw_hash",
-    "structural_hash",
-    "lines_of_code",
-    "comment_lines",
-    "complexity",
-    "summary",
-    "responsibilities_json",
-    "inputs_json",
-    "outputs_json",
-    "side_effects_json",
-    "public_interfaces_json",
-    "analyzer",
-    "parse_error",
-    "first_seen_at",
-    "last_changed_at",
-)
-SYMBOL_FIELDS = (
-    "artifact_id",
-    "path",
-    "symbol_type",
-    "name",
-    "qualified_name",
-    "start_line",
-    "end_line",
-    "signature",
-    "summary",
-    "complexity",
-    "logical_lines",
-)
-EDGE_FIELDS = (
-    "source_artifact_id",
-    "target_artifact_id",
-    "target_external",
-    "relationship_type",
-    "source",
-    "confidence",
-    "evidence",
-    "source_line",
-    "weight",
-    "metadata_json",
-)
 
 
 def _commit_change(repository: Path) -> None:
@@ -79,84 +28,7 @@ def _commit_change(repository: Path) -> None:
     )
 
 
-def _values(rows: list[dict[str, Any]], fields: tuple[str, ...]) -> list[tuple[Any, ...]]:
-    return sorted(
-        [tuple(row[field] for field in fields) for row in rows],
-        key=repr,
-    )
-
-
-def _legacy_files(connection, snapshot_id: int) -> list[dict[str, Any]]:
-    return [
-        dict(row)
-        for row in connection.execute(
-            "SELECT * FROM file_versions WHERE snapshot_id = ?",
-            (snapshot_id,),
-        ).fetchall()
-    ]
-
-
-def _legacy_symbols(connection, snapshot_id: int) -> list[dict[str, Any]]:
-    return [
-        dict(row)
-        for row in connection.execute(
-            """
-            SELECT fv.artifact_id, fv.path, s.*
-            FROM symbols s
-            JOIN file_versions fv ON fv.id = s.artifact_version_id
-            WHERE fv.snapshot_id = ?
-            """,
-            (snapshot_id,),
-        ).fetchall()
-    ]
-
-
-def _legacy_edges(connection, snapshot_id: int) -> list[dict[str, Any]]:
-    return [
-        dict(row)
-        for row in connection.execute(
-            "SELECT * FROM relationships WHERE snapshot_id = ?",
-            (snapshot_id,),
-        ).fetchall()
-    ]
-
-
-def _assert_frame_equivalence(connection, snapshot_id: int) -> None:
-    assert _values(_legacy_files(connection, snapshot_id), FILE_FIELDS) == _values(
-        snapshot_files(connection, snapshot_id),
-        FILE_FIELDS,
-    )
-    assert _values(_legacy_symbols(connection, snapshot_id), SYMBOL_FIELDS) == _values(
-        snapshot_symbols(connection, snapshot_id),
-        SYMBOL_FIELDS,
-    )
-    assert _values(_legacy_edges(connection, snapshot_id), EDGE_FIELDS) == _values(
-        snapshot_relationship_edges(connection, snapshot_id),
-        EDGE_FIELDS,
-    )
-
-
-def _drop_v7_state(database: AnaxiIndex) -> None:
-    with database.transaction() as connection:
-        for table in (
-            "schema_migrations",
-            "checkpoint_relationships",
-            "checkpoint_files",
-            "snapshot_checkpoints",
-            "snapshot_relationship_changes",
-            "relationship_edges",
-            "relationship_sets",
-            "snapshot_file_changes",
-            "fact_symbols",
-            "file_facts",
-        ):
-            connection.execute(f"DROP TABLE {table}")
-        connection.execute("ALTER TABLE snapshots DROP COLUMN sequence")
-        connection.execute("ALTER TABLE snapshots DROP COLUMN base_snapshot_id")
-        connection.execute("UPDATE schema_meta SET value = '6' WHERE key = 'schema_version'")
-
-
-def test_dual_write_reconstructs_every_frame_and_deduplicates_facts(repository, database):
+def test_canonical_frames_reconstruct_and_deduplicate_facts(repository, database):
     _commit_change(repository)
     import_git_history(database, repository, every_commit=True)
 
@@ -164,30 +36,46 @@ def test_dual_write_reconstructs_every_frame_and_deduplicates_facts(repository, 
         snapshots = connection.execute(
             "SELECT id, sequence FROM snapshots ORDER BY sequence"
         ).fetchall()
-        for snapshot in snapshots:
-            _assert_frame_equivalence(connection, int(snapshot["id"]))
+        frame_sizes = [
+            len(snapshot_files(connection, int(snapshot["id"]))) for snapshot in snapshots
+        ]
         counts = temporal_counts(connection)
-        legacy_files = connection.execute("SELECT COUNT(*) FROM file_versions").fetchone()[0]
-        legacy_symbols = connection.execute("SELECT COUNT(*) FROM symbols").fetchone()[0]
+        compatibility_rows = sum(
+            int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
+            for table in ("file_versions", "symbols", "relationships", "group_memberships")
+        )
 
     assert len(snapshots) == 2
     assert [int(snapshot["sequence"]) for snapshot in snapshots] == [0, 1]
-    assert counts["file_facts"] < legacy_files
-    assert counts["fact_symbols"] < legacy_symbols
-    assert counts["snapshot_file_changes"] < legacy_files
+    assert frame_sizes == [9, 9]
+    assert counts["file_facts"] < sum(frame_sizes)
+    assert counts["snapshot_file_changes"] < sum(frame_sizes)
+    assert compatibility_rows == 0
 
 
-def test_schema_six_backfill_reconstructs_identical_frames(repository, database):
-    _commit_change(repository)
-    import_git_history(database, repository, every_commit=True)
-    _drop_v7_state(database)
+def test_compact_fact_metadata_expands_at_the_snapshot_boundary(repository, database):
+    stats = RepositoryScanner(database).scan(repository)
 
-    migrated = AnaxiIndex(database.path)
+    with database.connect() as connection:
+        stored = connection.execute(
+            """
+            SELECT ff.metadata_json
+            FROM file_facts ff JOIN artifacts a ON a.id = ff.artifact_id
+            WHERE a.canonical_path = 'pkg/util.py'
+            """
+        ).fetchone()
+        projected = next(
+            item
+            for item in snapshot_files(connection, stats.snapshot_id)
+            if item["path"] == "pkg/util.py"
+        )
 
-    with migrated.connect() as connection:
-        snapshots = connection.execute("SELECT id FROM snapshots ORDER BY sequence").fetchall()
-        for snapshot in snapshots:
-            _assert_frame_equivalence(connection, int(snapshot["id"]))
+    stored_ir = json.loads(stored["metadata_json"])["ir"]
+    projected_ir = json.loads(projected["metadata_json"])["ir"]
+    assert "module_identity" not in stored_ir
+    assert "symbols" not in stored_ir
+    assert projected_ir["module_identity"]["path"] == "pkg/util.py"
+    assert projected_ir["exports"] == json.loads(projected["public_interfaces_json"])
 
 
 def test_history_import_rebases_an_existing_current_snapshot(repository, database):
@@ -208,4 +96,28 @@ def test_history_import_rebases_an_existing_current_snapshot(repository, databas
     assert snapshots[0]["base_snapshot_id"] is None
     assert snapshots[1]["base_snapshot_id"] == snapshots[0]["id"]
     assert snapshots[1]["id"] == current.snapshot_id
-    assert inspect_index(database.path, database.connect)["parity"]["status"] == "exact"
+    with database.connect() as connection:
+        assert len(snapshot_files(connection, current.snapshot_id)) == current.discovered
+    assert inspect_index(database.path, database.connect)["parity"]["status"] == "canonical_only"
+
+
+def test_single_commit_history_reuses_current_frame_without_erasing_it(repository, database):
+    current = RepositoryScanner(database).scan(repository)
+    with database.connect() as connection:
+        files_before = snapshot_files(connection, current.snapshot_id)
+        edges_before = snapshot_relationship_edges(connection, current.snapshot_id)
+
+    result = import_git_history(database, repository, max_snapshots="auto")
+
+    with database.connect() as connection:
+        files_after = snapshot_files(connection, current.snapshot_id)
+        edges_after = snapshot_relationship_edges(connection, current.snapshot_id)
+        file_deltas = connection.execute(
+            "SELECT COUNT(*) FROM snapshot_file_changes WHERE snapshot_id = ?",
+            (current.snapshot_id,),
+        ).fetchone()[0]
+    assert result.current_snapshot_id == current.snapshot_id
+    assert files_after == files_before
+    assert edges_after == edges_before
+    assert file_deltas == current.discovered
+    assert len(database.modules(current.repository_id)) == current.discovered

@@ -28,7 +28,11 @@ def read_graph(
     include_external: bool,
 ) -> dict[str, Any]:
     snapshot_id = int(snapshot["id"])
-    files, file_diagnostics = snapshot_files_with_diagnostics(connection, snapshot_id)
+    files, file_diagnostics = snapshot_files_with_diagnostics(
+        connection,
+        snapshot_id,
+        expand_metadata=False,
+    )
     relationships, relationship_diagnostics = snapshot_relationship_edges_with_diagnostics(
         connection, snapshot_id
     )
