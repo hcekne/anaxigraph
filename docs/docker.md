@@ -178,11 +178,12 @@ That worker reads all eligible modules on first enrollment, then reconciles at e
 an unchanged repository is not resent on each interval. The queue and completed dossiers live in
 the shared AnaxiIndex volume and survive container restarts.
 
-Hosted-provider credentials are passed as environment variables to the dashboard and optional worker; they
-are not written to `.anaxigraph.yml` or AnaxiIndex. The stock image does not bundle Codex or Claude
-CLI binaries. Those CLI adapters are intended for a local AnaxiGraph installation or a custom
-operator image. See [semantic onboarding](onboarding.md#build-the-ai-understanding-baseline) for
-the full provider, cost, egress, and refresh policy.
+Hosted-provider credentials are passed as environment variables to the dashboard and optional
+worker; they are not written to `.anaxigraph.yml` or AnaxiIndex. The stock image does not bundle
+Codex or Claude CLI binaries. Those CLI adapters are intended for a local AnaxiGraph installation
+or a custom operator image. See
+[advanced semantic operation](advanced-operations.md#hosted-semantic-worker) for the full provider,
+cost, egress, and refresh policy.
 
 To reconstruct history from the command line:
 

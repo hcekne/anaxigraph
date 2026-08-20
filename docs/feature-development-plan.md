@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.0
+**Roadmap version:** 3.1
 
 **Updated:** 20 August 2026
 
@@ -1227,6 +1227,21 @@ Hosted-key workers, local model workers, multi-repository registries, SSH tunnel
 and manual Compose operations move under **Advanced** sections. The main path explains that the
 coding agent uses its own tokens and that AnaxiGraph itself needs no model key in agent mode.
 
+### Phase 3.5 closure evidence
+
+**Completed in source on 20 August 2026.** The public first-run story is now one linear workflow
+instead of an operations manual presented before the product can be tried.
+
+| Contract | Delivered evidence |
+|---|---|
+| Four visible steps | README and onboarding lead with one `uvx anaxigraph up` command, the loopback dashboard URL, the explicit Codex/Claude connection choice, and one sentence asking the agent to build or resume semantic understanding |
+| Honest cost model | Both primary documents state before advanced configuration that the connected coding agent uses its own model context and tokens and that agent mode needs no AnaxiGraph model key |
+| Local and Docker choices | The local foreground path remains first; one generated, hardened Docker sidecar command follows as the durable alternative without interleaving its manual operations |
+| Progressive disclosure | Hosted/local/custom workers, budgets and egress, SSH, coverage, history control, custom state/endpoints, manual Compose, multi-repository operation, integrity, upgrades, and reset behavior moved to `advanced-operations.md` |
+| Reduced first-run surface | README is 225 lines and onboarding is 190 lines, down from 437 and 540 respectively; the 264-line advanced guide preserves operational detail without blocking the first success path |
+| Agent workflow | The supported Codex/Claude plugin is a clearly labeled optional one-time workflow install; users can still use the one-command `--connect` path without learning plugin packaging first |
+| Regression contract | Two documentation tests require the ordered four-step path, dashboard URL, own-token/no-key explanation, resume prompt, and routing of representative advanced topics; all tracked pre-commit checks pass |
+
 ## 3.6 Decompose onboarding code
 
 Split `cli.py` into parser/facade plus command handlers and split `onboarding.py` into repository
@@ -1953,8 +1968,8 @@ queue and the document cannot drift apart.
 | 29 | **COMPLETE** — Make initialization enable agent-funded semantics and connect the selected MCP client idempotently | §3.2 |
 | 30 | **COMPLETE** — Add the loopback `anaxigraph up` path with external user-state storage and clean lifecycle behavior | §3.3 |
 | 31 | **COMPLETE** — Package and contract-test the AnaxiMCP bootstrap workflow as supported agent skills/plugins | §3.4 |
-| 32 | **IN PROGRESS** — Collapse onboarding around one start action, one connection action, and the agent-funded semantic loop | §3.5 |
-| 33 | Decompose CLI/onboarding responsibilities and remove both size-ratchet exceptions | §3.6 |
+| 32 | **COMPLETE** — Collapse onboarding around one start action, one connection action, and the agent-funded semantic loop | §3.5 |
+| 33 | **IN PROGRESS** — Decompose CLI/onboarding responsibilities and remove both size-ratchet exceptions | §3.6 |
 | 34 | Close the measurable Phase 3 first-user, idempotency, Docker/local, skill, and quality exit gate | Phase 3 gate |
 
 Items 9 and 10 are the user-visible Phase 0 changes. The completed 0.1.0 publication is the narrow,
