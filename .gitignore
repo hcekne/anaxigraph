@@ -9,6 +9,7 @@ htmlcov/
 build/
 dist/
 .venv/
+.venv-release/
 .anaxigraph/
 .env
 node_modules/

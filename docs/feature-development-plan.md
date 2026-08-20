@@ -1,469 +1,1641 @@
-# Product development plan
+# AnaxiGraph consecutive development plan
 
-## Outcome
+**Roadmap version:** 2.3
 
-AnaxiGraph should be a persistent engineering memory for a repository, not only a graph viewer. It
-must help a person understand the codebase, decide what deserves attention, hand an approved task
-to a coding agent, and verify whether the resulting change improved the architecture.
+**Updated:** 20 August 2026
 
-The product loop is:
+**Execution rule:** one phase is active at a time; the next phase does not begin until the current
+phase's exit gate is met.
 
-```text
-observe -> explain -> decide -> plan -> implement with an agent -> rescan -> verify -> remember
-```
+## Executive decision
 
-Repository enrollment begins with a complete semantic bootstrap. AnaxiGraph first builds the
-deterministic graph, then configured AI workers read every eligible first-party module so the
-repository starts with a coherent semantic baseline rather than a patchwork of descriptions.
-After that baseline, deterministic scans and hashes make maintenance incremental: only new,
-meaningfully changed, context-stale, or explicitly expired understanding is sent back for AI
-analysis.
+The external review is directionally correct, and its priority order is a useful correction to the
+previous roadmap. AnaxiGraph now has three credible differentiators:
 
-## Product thesis — a temporal architecture advisor
+1. a temporal architecture record rather than only a current-state graph;
+2. explicit provenance for resolved, ambiguous, unresolved, and external relationships; and
+3. agent-funded semantic understanding, where a connected coding agent uses its own context and
+   tokens and writes a validated dossier back to AnaxiIndex.
 
-AnaxiGraph's moat is not a prettier dependency diagram. It is the combination of repository
-memory, evidence-aware architectural judgment, and a safe handoff to coding agents. The product
-should continuously answer four questions:
+Those strengths will not matter if a first history import takes an hour, a repository's primary
+language falls through to a lexical fallback, or installation feels like a small deployment
+project. The near-term roadmap therefore prioritizes first-run performance, signal quality,
+distribution, and language depth before adding more visible intelligence features.
 
-1. **What does this code mean?** Every module and important symbol has a durable dossier: purpose,
-   responsibilities, contracts, side effects, architecture role, history, and provenance.
-2. **What deserves attention now?** Findings are ranked by risk, churn, blast radius, confidence,
-   and coverage—not dumped as an unprioritized linter feed.
-3. **How could the design improve?** The advisor finds repeated responsibilities, duplication,
-   misplaced boundaries, dead-code candidates, and pattern opportunities at symbol, module,
-   subsystem, area, and repository levels.
-4. **How should new work fit?** Before an agent edits code, AnaxiGraph supplies local precedents,
-   affected contracts, likely files, protected boundaries, relevant tests, risks, and a verification
-   plan. After the edit, the next scan checks the intended outcome.
+The recommendations are adopted with seven important refinements:
 
-The core promise is: **keep AI-accelerated codebases understandable and architecturally sound as
-they evolve, without pretending uncertain static or model-derived evidence is fact.**
+- **Delta-driven history comes before batched Git reads.** Profiling says analysis of unchanged
+  files is currently the dominant cost. `git cat-file --batch` remains a later optimization for
+  reading the changed blobs, not the first intervention.
+- **Findings are not deleted to make the UI quiet.** AnaxiIndex should retain the complete evidence
+  ledger while the product presents a small ranked attention queue and places low-severity
+  diagnostics behind an explicit view.
+- **The 500-line rule is a ratchet, not an excuse to freeze the repository or create arbitrary
+  499-line fragments.** New oversized modules and growth of existing oversized modules are blocked
+  immediately. Existing exceptions are then removed in the phases that touch their responsibilities.
+- **Tracked hook configuration and CI are the enforcement mechanism.** Files under `.git/hooks/`
+  are local and cannot be versioned. The repository will ship a `.pre-commit-config.yaml`, a
+  deterministic size/architecture checker, and the same required CI checks.
+- **Tree-sitter support is claimed language by language.** Installing a grammar is not equivalent
+  to supporting a language. A language is “parser-backed” only after symbols, imports, exports,
+  calls, inheritance, source locations, error behavior, and fixtures meet the support contract.
+- **A gate must be failable by one change.** The temporal work is therefore split into Phase 1a
+  (delta discovery on the existing schema) and Phase 1b (immutable facts plus snapshot deltas).
+  Landing a new algorithm, a new schema, a migration, and a large refactor behind a single gate
+  would make a wrong frame impossible to attribute. Two smaller gates are more consecutive, not
+  less.
+- **Numeric targets are provisional until P0.1 ratifies them.** Every duration, ratio, and row
+  count in this document originated from a review of the 76-file AnaxiGraph repository or from
+  extrapolation. They are recorded as intent and become binding thresholds only after the Phase 0
+  benchmark reproduces them on committed fixtures.
 
-## Product mechanics worth adopting
+This document supersedes the previous phase order. Already shipped capabilities are retained, but
+unfinished work is now arranged around explicit dependencies and measurable exit gates.
 
-We should borrow proven mechanics, not product identities:
+## Product outcome
 
-- From [CodeScene's hotspot model](https://codescene.com/product/hotspots): combine complexity with
-  change frequency and blast radius so the first ten recommendations matter more than the next
-  hundred threshold breaches.
-- From [Graphify's evidence model](https://github.com/ChrisRoyse/Graphify): make extracted,
-  inferred, ambiguous, and unresolved relationships inspectable. AnaxiGraph extends this with
-  lifecycle state and temporal provenance.
-- From [Knip's reachability approach](https://knip.dev/explanations/entry-files): begin unused-code
-  analysis at configured entry points and model dynamic/framework conventions before suggesting
-  deletion.
-- From [PMD CPD](https://pmd.github.io/pmd/pmd_userdocs_cpd.html): use token/structure similarity as
-  deterministic evidence for repeated implementation before asking semantic analysis whether the
-  responsibilities are actually the same.
-- From [ArchUnit](https://www.archunit.org/) and
-  [OpenRewrite](https://docs.openrewrite.org/): express architecture expectations as testable
-  policy and represent approved refactors as reviewable recipes with explicit preconditions.
-- From Git's [`cat-file --batch`](https://git-scm.com/docs/git-cat-file): batch historical object
-  reads so temporal reconstruction remains practical on large repositories.
+AnaxiGraph should be the persistent engineering memory and architecture advisor for a repository.
+It should help a person or coding agent answer:
 
-We do not adopt recommendations merely because another tool emits them. Every AnaxiGraph verdict
-must expose evidence, counter-evidence, confidence, expected benefit, migration cost, and the
-conditions that would invalidate it.
+1. **What is this system?** See its areas, modules, contracts, relationships, history, and module
+   meanings from a repository view down to a symbol.
+2. **What deserves attention?** Rank architecture risks by severity, confidence, churn, complexity,
+   coverage, and blast radius instead of presenting a wall of threshold violations.
+3. **How could the design improve?** Identify repeated responsibilities, misplaced boundaries,
+   consolidation opportunities, dead-code candidates, and suitable patterns with evidence and
+   counter-evidence.
+4. **Where should new functionality go?** Give an agent local precedents, extension points,
+   contracts, protected boundaries, affected tests, and a verification plan before it edits code.
+5. **Did the change help?** Rescan, compare the relevant architecture facts, resolve or regress
+   findings, and retain the decision in repository history.
 
-## Immediate trust-and-signal foundation
-
-This slice precedes richer pattern advice because architectural recommendations are only as honest
-as their dependency evidence and only as useful as their ranking.
-
-- **Shipped:** persist each extracted reference as `resolved_internal`, `ambiguous_internal`,
-  `unresolved_internal`, or `external`, including candidate paths instead of silently losing them.
-- **Shipped:** publish relationship-resolution and analyzer-mix metrics through AnaxiIndex,
-  REST, AnaxiMCP, and the dashboard.
-- **Shipped:** suppress file-deletion advice when graph resolution is below a configured trust
-  threshold, and treat ambiguous candidates as possible incoming use.
-- **Shipped:** rank task-context findings and enforce a byte budget on MCP scope payloads while
-  preserving primary files and policy references.
-- **Shipped:** rank the global finding ledger using severity, confidence, churn, complexity,
-  fan-in/blast radius, affected breadth, regression state, and imported coverage. The dashboard
-  opens on a top-ten queue with the full ranked ledger available on demand, and reference-file
-  size is excluded from source refactor triage unless policy explicitly opts in.
-- **Next:** batch Git history extraction and deduplicate unchanged temporal facts before increasing
-  default history depth.
-- **Next:** replace the JavaScript lexer and long-tail fallback with parser-backed analyzers,
-  beginning with tree-sitter JavaScript/TypeScript, Go, Rust, Java, and C/C++.
-
-Acceptance criteria for this foundation:
-
-- An unresolved import is visible as unresolved evidence and never mislabeled as a known external.
-- The overview explains what fraction of likely internal references resolved uniquely and which
-  analyzer class covered each file.
-- “Possible dead code” never appears solely because the resolver discarded a plausible inbound
-  edge, and no deletion recommendation is emitted when the graph is below the trust threshold.
-- A normal agent scope response stays under its configured wire budget, prioritizes findings that
-  touch primary task files, and reports exactly what was omitted.
-- Backend and browser tests prove the evidence state and its user-visible explanation.
-
-## Implementation status — 20 August 2026
-
-The current shareable slice now includes:
-
-- the AnaxiGraph browser identity, repository-neutral header, and current-repository selector
-- the AnaxiIndex name for persistent module, relationship, finding, and history records
-- the AnaxiMCP name for the agent-facing protocol surface
-- an operator-owned multi-repository YAML registry backed by one durable SQLite database
-- per-repository scan/config selection across dashboard, REST, watcher, and MCP tools
-- background Git history reconstruction from the initial first-parent commit through HEAD
-- evenly sampled lifetime frames for large repositories, with every-commit CLI mode when needed
-- a viewport-height graph by default, normal/tall alternatives, and a squarer maximum layout
-- color-coded architecture regions behind modules
-- history playback that preserves the user's pan, zoom, and selected module across frames
-- a sortable, filterable module inventory exposing file purpose, architecture placement, LOC,
-  complexity, coupling, imported coverage, Git biography, findings, and deterministic attention
-- weighted architecture regions sized by their module populations, with outlined, grid-spaced nodes
-- explicit coverage-input diagnostics that distinguish missing reports from unmatched reports and
-  measured zero coverage
-- an agent-funded semantic executor: a connected coding agent claims bounded work over AnaxiMCP,
-  uses its own model/tokens, and writes a strictly validated dossier back to AnaxiIndex under an
-  expiring repository-scoped lease
-
-The immediate slice is the trust-and-signal foundation above. The next temporal slice is the commit
-bibliography: milestone-aware sampling, commit subjects and architecture deltas in the UI, stable
-graph-delta animation, speed controls, compare mode, and client-ready exports. Module dossiers,
-intent history, and pattern scoring then become the primary intelligence layer rather than a
-distant visualization add-on.
-
-Three kinds of information must remain visibly separate:
-
-1. **Facts** are deterministic observations such as hashes, imports, symbols, complexity, Git
-   changes, and imported coverage.
-2. **Interpretations** are inferred intent, responsibilities, architecture roles, and pattern
-   classifications. They always carry provenance and confidence.
-3. **Recommendations** are scored proposals. They are never automatic permission to refactor.
-
-## Product vocabulary
-
-The architecture hierarchy is:
+The product loop remains:
 
 ```text
-repository -> area -> subsystem/capability -> module (file) -> symbol
+observe -> explain -> decide -> plan -> implement -> rescan -> verify -> remember
 ```
 
-For MaxOS, `backend` and `frontend` are areas. `backend-api`, `backend-services`,
-`backend-models`, and `backend-migrations` are children of the backend area. They are separate
-because they have different responsibilities and dependency rules, but the overview should roll
-them up under one backend family. A configured group is matched from repository policy; an
-inferred group is a lower-confidence fallback derived from path and runtime conventions.
+The promise is not “draw a pretty code graph.” It is:
 
-A finding is an observable condition, not a task by itself. Its lifecycle is:
+> Keep AI-accelerated codebases understandable, auditable, and architecturally sound as they
+> evolve—without presenting uncertain static or model-derived evidence as fact.
+
+## Current baseline
+
+The values below are the starting point for this roadmap. Performance figures from the external
+review must be reproduced by Phase 0 on a committed benchmark fixture before they become release
+regression thresholds.
+
+| Area | Current state | Consequence |
+|---|---|---|
+| Test health | 49 tests passing, Ruff clean, approximately 80% reported coverage | A sound base, but critical CLI and migration paths still need stronger targeted coverage |
+| Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
+| Finding priority | Risk, confidence, churn, complexity, coverage, blast radius, and regression contribute to a versioned score | Good ranking exists, but the complete ledger is still too noisy by default |
+| Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
+| Semantic understanding | Durable `module-dossier-v4` records, fingerprint invalidation, leased agent work, provenance, and budget controls | Differentiating foundation; internal seven-mixin composition needs simplification before expansion |
+| Parser depth | Python AST plus a regex-oriented JavaScript/TypeScript analyzer; long-tail languages use text heuristics | The product cannot yet make equally strong graph claims for most repositories |
+| History benchmark | Reviewed eight-frame import: 24.7 seconds, 481 `file_versions` for 218 distinct artifact/structure pairs, and 3,426 relationship rows | Unchanged files and edges are repeatedly analyzed and materialized |
+| Graph delivery | `/api/graph` can return the full graph in one response | Fine for small loopback use, unsafe for large/team deployments |
+| Authentication | No API or MCP authentication | Acceptable only for loopback sidecar mode |
+| Installation | A tested `anaxigraph` 0.1.0 wheel and source distribution are public on PyPI; generated Compose, MCP connection, semantic enablement, and agent bootstrap still require separate actions | The distribution-name and package-availability barriers are removed, but there are still too many steps between curiosity and full value |
+| Internal module size | Eight first-party implementation modules exceed 500 physical lines | AnaxiGraph is accumulating the same complexity it exists to expose |
+
+The current oversized implementation modules are:
+
+| Module | Physical lines at roadmap creation | Planned decomposition phase |
+|---|---:|---|
+| `src/anaxigraph/dashboard/app.js` | 2,091 | Phase 3b |
+| `src/anaxigraph/storage.py` | 1,809 | Phase 1b |
+| `src/anaxigraph/scanner.py` | 1,164 | Phase 1b |
+| `src/anaxigraph/agent.py` | 934 | Phase 3b |
+| `src/anaxigraph/architecture.py` | 780 | Phase 3b |
+| `src/anaxigraph/cli.py` | 653 | Phase 3 |
+| `src/anaxigraph/api.py` | 616 | Phase 5 |
+| `src/anaxigraph/onboarding.py` | 504 | Phase 3 |
+
+Line counts are baselines, not targets. Every listed module must become smaller through cohesive
+responsibility extraction; it must not merely be split at line 500.
+
+## Strategic references
+
+We borrow mechanics with evidence, not product identity:
+
+- [Graphify](https://github.com/Graphify-Labs/graphify) demonstrates the adoption value of a
+  skill-first install, broad parser-backed extraction, and inspectable edge origins. AnaxiGraph's
+  answer is a similarly easy entry path combined with temporal state, finding lifecycle, and
+  agent-funded write-back.
+- [CodeScene hotspots](https://codescene.com/product/hotspots) reinforce the value of combining
+  change frequency with code health. AnaxiGraph already uses that principle in finding priority
+  and should extend it into temporal trends and change coupling.
+- [Tree-sitter](https://tree-sitter.github.io/tree-sitter/) provides a fast, error-tolerant parser
+  foundation across languages. We will place it behind AnaxiGraph's analyzer contract rather than
+  leak grammar-specific nodes throughout the product.
+- [pre-commit](https://pre-commit.com/) provides a tracked, cross-platform way to install local Git
+  hooks. The same checks will run in CI because local hooks are intentionally bypassable.
+- Git's [`diff`](https://git-scm.com/docs/git-diff) and later
+  [`cat-file --batch`](https://git-scm.com/docs/git-cat-file) provide the primitives for historical
+  change discovery and efficient changed-blob reads.
+- [GitHub required status checks](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks)
+  provide the remote enforcement layer for contributors who do not install or deliberately skip
+  local hooks.
+
+Competitive counts and feature claims change. They are directional context, not acceptance
+criteria. AnaxiGraph releases are judged against the measurable product and engineering gates in
+this document.
+
+## Non-negotiable engineering principles
+
+### Facts, interpretations, and recommendations remain separate
+
+1. **Facts** are deterministic observations: hashes, syntax, symbols, references, Git changes,
+   complexity, imported coverage, and analyzer provenance.
+2. **Interpretations** are inferred intent, responsibilities, architecture roles, semantic
+   similarity, and pattern classification. They carry model/provider/prompt provenance,
+   confidence, and evidence.
+3. **Recommendations** are reviewable proposals. They carry suitability, benefit, urgency, safety,
+   cost, counter-evidence, and lifecycle state. They are never automatic permission to refactor or
+   delete code.
+
+### The target repository remains safe
+
+- Scanning is read-only and never executes target code.
+- Container mounts remain read-only by default.
+- AnaxiIndex lives outside the target repository unless an operator explicitly chooses otherwise.
+- Dynamic behavior that static analysis cannot observe is disclosed, not guessed into certainty.
+- Semantic source egress is opt-in, scoped, and auditable.
+
+### Temporal work scales with change
+
+The desired complexity is:
 
 ```text
-new -> acknowledged -> planned -> automatically verified as resolved
-  \                         \
-   -> dismissed             -> regressed if the detector sees it again
+initial frame: O(all eligible files)
+later frame:   O(changed files + conservatively invalidated dependants)
+stored facts:  O(distinct versions and distinct relationship contexts)
 ```
 
-- **Acknowledge** means “I reviewed this; keep monitoring it.”
-- **Plan** means “This is approved engineering work and should appear in the agent queue.”
-- **Dismiss** means “This is not actionable or is an accepted exception.”
-- **Resolved** should normally be assigned by a later scan after the condition disappears.
-- **Regressed** means a previously resolved condition has returned.
+Snapshot selection, display, and lightweight references may scale with selected frames. Expensive
+source reads, parsing, semantic analysis, symbol rows, and edge bundles must not be multiplied by
+every unchanged file in every selected frame.
 
-## Phase 1 — explainable observatory and agent handoff
+### AnaxiGraph must pass its own architectural standards
 
-This is the first implementation slice.
+- A 500-line maximum is a safety ceiling, not the design target.
+- New modules should normally land between 100 and 350 physical lines and own one explainable
+  responsibility.
+- Interfaces should be explicit; mixin order and hidden shared state are not acceptable extension
+  mechanisms for core workflows.
+- Storage, analysis, transport, and presentation must communicate through narrow models rather
+  than reach through each other's internals.
+- Performance and correctness changes begin with a reproducible characterization test.
 
-### Dashboard
+## Consecutive execution protocol
 
-- Roll subsystem groups into color-coded parent areas while retaining their individual metrics.
-- Explain configured versus inferred grouping and give every configured MaxOS group a purpose.
-- Add an indexed-repository selector and keep every dashboard query scoped to its repository ID.
-- Explain every graph overlay, including what missing coverage means and when “agent safety” has
-  enough context to be useful.
-- Make the graph viewport tall/focused/fullscreen and provide a reliable “fit graph” action.
-- Replace internal terms such as “work envelope” and “reverse traversal” with task-oriented copy.
-- Show the recommended action and detector provenance on every finding.
-- Replace ambiguous finding buttons with the lifecycle above.
-- Let “Plan agent work” build a concrete handoff containing affected files, dependencies,
-  relevant tests, protected paths, existing rules, risk, and verification steps.
-- Make historical snapshots playable when more than one snapshot has been imported.
+Only one numbered phase may be `IN PROGRESS`. Within a phase, work items are completed in the
+listed order unless an earlier item explicitly says it may be combined with the next migration.
 
-### REST and MCP
+Each phase follows the same delivery loop:
 
-- Expose the shared product glossary to the dashboard and agents.
-- Add a single-finding context endpoint/tool so an agent can retrieve the same handoff shown in
-  the dashboard.
-- Keep `ANAXIGRAPH_FINDINGS(status="planned")` as the explicit human-approved queue.
-- Continue to include active findings and architecture rules inside task scope results.
+1. reproduce and record its baseline;
+2. write characterization and failure tests;
+3. document the relevant schema/API/architecture decision;
+4. implement the smallest end-to-end slice;
+5. migrate existing data/configuration safely;
+6. exercise the dashboard, CLI, REST, and MCP surfaces affected by the change;
+7. run performance, quality, and security gates;
+8. update onboarding and operator documentation;
+9. release or tag the coherent slice;
+10. mark the phase complete before opening the next phase.
 
-### Acceptance criteria
+Emergency security or data-loss fixes may interrupt a phase. Unrelated feature work may not.
 
-- A new user can explain why backend API and backend services are different without reading YAML.
-- A user can tell exactly what acknowledge, plan, dismiss, resolved, and regressed mean.
-- Planning a finding produces a prompt and structured context usable by Codex through MCP.
-- Switching between two already indexed repositories changes all views without data leakage.
-- Missing coverage is shown as missing input, not as zero coverage.
-- The graph can use the available viewport and can replay imported snapshots.
+### When a phase is not converging
 
-## Phase 2 — multi-repository runtime and safe container operation (foundation shipped)
+An exit gate says when to move on. It does not say when to stop and reconsider. Because execution is
+strictly serial, a phase that is not converging blocks the entire remaining roadmap.
 
-Compose now mounts a primary target at `/repo`, a read-only collection root at `/repositories`,
-and an explicit registry at `/config/repositories.yml`. The dashboard can refresh only paths in
-that registry; selecting a repository never becomes a general host-filesystem browser.
+There is no calendar budget here; pace is the owner's call. But a gate that is not being met is not
+silently extended either. When the evidence says a phase is not converging — the benchmark is not
+moving, the fixtures keep contradicting the design, or the scope keeps growing to keep the gate
+reachable — record in this document which of these applies:
 
-### Design
+1. the gate is correct and the work is simply not finished — continue;
+2. the gate is too broad — split it, as Phase 1 was split into 1a and 1b;
+3. the approach is wrong — replace it and restate the gate;
+4. the phase is not worth its cost now — defer it, re-evaluate every downstream dependency, and
+   promote only the nearest phase whose entry assumptions still hold.
 
-- **Shipped:** registry keys, read-only container paths, config paths, and history frame budgets.
-- **Shipped:** one dashboard/MCP endpoint for multiple repositories, with optional repository
-  selectors on MCP tools and `ANAXIGRAPH_REPOSITORIES` discovery.
-- **Shipped:** registry-wide scan-on-start and watcher operation.
-- **Next:** persist the registry key separately from the checkout path so moving a mount never
-  creates a second logical repository.
-- **Next:** general scan job progress, cancellation, scheduling, and last-success/error state (Git
-  history import already reports background progress).
+The point is that the decision is written down, not that it happens on a schedule.
 
-### Acceptance criteria
+## Master delivery order
 
-- Two repositories remain independently selectable across container rebuilds.
-- A dashboard request cannot scan an unregistered path or cross repository IDs.
-- Each repository can use its own `.anaxigraph.yml` and schedule.
-- The one-repository Compose path remains the simple default.
+| Order | Phase | Primary outcome | Must be complete before |
+|---:|---|---|---|
+| 0 | Engineering guardrails and reproducible baselines | New work cannot increase internal architectural debt | Any feature phase |
+| 1a | Delta-driven temporal discovery | History import stops re-analyzing unchanged files, on today's schema | Any storage change |
+| 1b | Immutable facts and snapshot deltas | Stored facts scale with distinct versions rather than selected frames | More history features or broader parsers |
+| 2 | Attention signal | Users see a small, actionable, fully accounted queue | Onboarding promotion |
+| 3 | One-command local adoption | One command opens a dashboard; a second or option connects an agent | Ecosystem/language marketing |
+| 3b | Dashboard/evaluator decomposition and self-analysis | Frontend and core evaluators become maintainable; AnaxiGraph checks itself in CI | Parser expansion |
+| 4 | Core parser-backed language platform | JavaScript/TypeScript, Go, Rust, and Java produce honest structural graphs | Broad core-language claims |
+| 5 | Team security and graph-scale APIs | Shared deployment is authenticated, bounded, and repository-scoped | Team-install promotion |
+| 6 | Architect-grade semantic and pattern advice | Module understanding becomes evidence-backed consolidation, dead-code, pattern, and build guidance | Autonomous workflow expansion |
+| 7 | Temporal architecture intelligence | History becomes an explanatory biography, not just replay | Client-facing temporal positioning |
+| 8 | Long-tail languages, non-code context, and extensions | Additional languages and operational context join code without weakening evidence semantics | 1.0 scope freeze |
+| 9 | 1.0 hardening and community launch | Stable migrations, public contribution paths, website, and support matrix | 1.0 release |
 
-## Phase 3 — temporal reconstruction and graph playback (baseline shipped)
+---
 
-History must describe the evolution of the repository rather than merely list scan times.
+# Phase 0 — engineering guardrails and reproducible baselines
 
-### History import
+**Status:** NEXT
 
-- **Shipped:** background first-parent history reconstruction, evenly distributed lifetime
-  sampling, every-commit CLI mode, and a Git date range.
-- Adaptive sampling always includes the first commit, releases/tags, architecture-changing
-  commits, regular calendar checkpoints, and dense recent history.
-- **Shipped:** the initial and HEAD commits are always retained; historical scans reuse their prior
-  sampled frame as the incremental baseline.
-- Persist commit subject, author/time, changed files, architecture deltas, and analysis provenance.
+**Goal:** prevent AnaxiGraph's implementation from becoming the spaghetti code it warns users
+about, while producing trustworthy performance and quality baselines for later phases.
 
-### Bibliography and playback
+## 0.1 Reproduce the baseline
 
-- Render a commit bibliography with milestones, additions/removals, dominant areas, findings
-  introduced/resolved, and pattern changes.
-- Store graph deltas (node/edge add, remove, move, change) between snapshots.
-- **Partly shipped:** module positions derive from stable path hashes, the camera and selection stay
-  fixed during replay, and parent architecture regions remain visible. Explicit node/edge delta
-  animation remains.
-- Provide play/pause, speed, scrub, compare, date range, and exportable client presentation.
+Create committed benchmark fixtures and a machine-readable report for:
 
-### Acceptance criteria
+- the AnaxiGraph repository itself;
+- a deterministic synthetic-repository generator with a committed seed and expected manifest that
+  produces approximately 3,000 files in a temporary directory, with controlled change rates,
+  renames, deletions, and ambiguous imports;
+- a mixed-language fixture with Python, JavaScript, TypeScript, Go, Rust, Java, and fallback text;
+- a history fixture with at least eight selected frames and known distinct file versions;
+- an agent-scope fixture with a stable goal and expected primary files.
 
-- Playback begins at the first selected revision and ends at the current working tree.
-- A user can select any frame and explain the major change represented by it.
-- A 1,000-commit repository can use adaptive history without 1,000 full analyses.
-- Historical analysis never checks out or executes target code.
+Record:
 
-## Phase 4 — AnaxiIndex file intelligence and intent ledger
+- current scan wall time and peak memory;
+- history time per selected frame;
+- files discovered, source blobs read, analyzers invoked, and analyses reused;
+- distinct artifact/content/structural versions;
+- symbol, relationship, relationship-bundle, snapshot, and finding row counts;
+- index size before and after `VACUUM`;
+- `/api/graph` payload bytes and dashboard render time;
+- scope payload bytes and estimated tokens;
+- test count, total coverage, and coverage of CLI, migration, and history paths.
 
-AnaxiIndex's existing `file_versions` table already stores raw/structural hashes, summaries,
-responsibilities, inputs, outputs, side effects, interfaces, groups, and change times. This phase
-turns that foundation into an explicit semantic ledger.
+The repository commits the generator, seed, expected manifest, and compact correctness fixtures—not
+3,000 generated files. Benchmarks must print environment metadata and may not fail solely because
+one developer's laptop is slower. CI regression gates use ratios or a dedicated stable runner;
+correctness counters are exact everywhere.
 
-### Per-file record
+## 0.2 Install tracked commit hooks
 
-Each file version will expose:
+Add:
 
-- raw content hash and normalized structural hash
-- canonical semantic intent document and `intent_fingerprint`
-- short purpose and detailed summary
-- responsibilities, inputs, outputs, side effects, and public contracts
-- declared and inferred architecture role
-- dependencies, dependants, coupling, complexity, coverage, and churn
-- first seen, last content change, last structural change, and last intent change
-- concise “what changed and why it matters” delta from the prior intent version
-- provider/model/prompt version, evidence, confidence, and review state
-- semantically related modules and an explanation of whether they collaborate, duplicate, or
-  contradict one another
-- symbol- and module-level reachability, configured/runtime entry-point evidence, and explicit
-  reasons a removal candidate may be a false positive
-- local implementation precedents to follow when adding adjacent functionality
+- `pre-commit` to the development dependency set;
+- `.pre-commit-config.yaml` with pinned hook revisions;
+- `scripts/check_module_size.py` for staged-file and whole-repository modes;
+- `scripts/check_architecture.py` for package dependency and cycle rules;
+- a single documented `uv run pre-commit install --install-hooks` setup command;
+- an equivalent CI job that runs the checks against the complete checkout.
 
-**Baseline shipped:** the Modules dashboard and `ANAXIGRAPH_MODULES` expose the deterministic
-inventory, current intrinsic/contextual summaries, semantic coverage state, Git dates, and a
-reproducible 0–100 attention score. The semantic executor records intent fingerprints, provenance,
-evidence, token/cost usage, related responsibilities, pattern opportunities,
-consolidation/dead-code assessments, and placement guidance. The attention score remains
-deterministic triage—not pattern suitability. Model-backed pattern opportunities now carry a
-separate 0–100 contextual suitability score, confidence, evidence, counter-evidence, migration
-cost, and preconditions. Calibrated component scoring, durable proposal review, and intent-delta
-UX remain future work below.
+Fast pre-commit checks:
 
-### Repository semantic bootstrap
+- trailing whitespace, final newline, YAML/TOML syntax, and merge-marker checks;
+- Ruff lint and formatting validation for changed Python files;
+- JavaScript syntax checks for changed dashboard modules;
+- staged module-size ratchet;
+- forbidden generated/index/credential files;
+- architecture dependency/cycle check.
 
-**Shipped baseline:** the first semantic run is intentionally comprehensive. It is a resumable repository-enrollment
-job with three passes:
+Pre-push or CI checks:
 
-1. Build the complete deterministic inventory, symbol index, dependency graph, architecture
-   placement, Git biography, and all invalidation fingerprints before invoking a model.
-2. Have the configured provider-neutral semantic executor read every eligible first-party module and produce
-   canonical intrinsic dossiers. Oversized modules are analyzed in symbol-aware chunks and then
-   synthesized; exclusions such as generated, vendored, binary, or explicitly private paths are
-   recorded rather than silently omitted.
-3. Once intrinsic coverage is complete, synthesize contextual module roles plus subsystem, area,
-   and repository understanding from the graph and stored dossiers. This second pass primarily
-   consumes compact dossiers and interfaces rather than rereading neighbouring source. Large
-   scopes are reduced through bounded synthesis batches before their final repository-level pass.
+- complete Python tests and coverage;
+- Playwright dashboard tests;
+- Compose configuration validation;
+- schema migration tests from every supported schema version;
+- the whole-repository size and architecture checks;
+- bounded performance smoke benchmarks.
 
-The bootstrap may be processed in bounded batches, but it is not considered semantically ready
-until every eligible module is current, explicitly excluded, or visibly failed. It must survive
-restart, expose progress and estimated/actual token cost, and prioritize architectural cores and
-high-blast-radius modules without treating partial priority coverage as a completed baseline.
+We do **not** commit a script directly under `.git/hooks/`; Git does not version that directory.
+The tracked pre-commit configuration installs the local hook, while required CI checks are the
+non-bypassable project policy.
 
-Static facts decide what source the executor receives. AI output is a versioned interpretation and
-never overwrites parser facts. The operator chooses the provider: a hosted API, a non-interactive
-Codex/Claude command adapter, a connected coding agent using its own tokens through AnaxiMCP, an
-OpenAI-compatible endpoint, or a local model implementing the same structured contract.
+## 0.3 Enforce the module-size ratchet
 
-### Incremental pipeline
+The first-party implementation ceiling is **500 physical lines per module** for `.py`, `.js`,
+`.jsx`, `.mjs`, `.ts`, and `.tsx` files. A warning begins at 400 lines. CSS and HTML receive
+separate asset-bundle warnings, and tests receive a higher temporary split threshold, but neither
+category is invisible to the quality report.
+
+Rules:
+
+1. A new implementation module above 500 lines fails the commit and CI.
+2. A module at or below 500 lines may not cross the ceiling.
+3. A legacy oversized module may shrink, but any net growth fails.
+4. A feature change to a legacy oversized module should extract a cohesive responsibility in the
+   same change. A narrowly scoped security/data-loss correction may use a reviewed, expiring
+   waiver, but still may not grow the module.
+5. Baseline exceptions live in a reviewed data file containing path, baseline count, rationale,
+   owner, removal phase, and expiry. Adding a new exception is a separate architecture decision,
+   not an inline skip.
+6. Generated, vendored, and machine-produced files are excluded only by explicit path policy with
+   evidence that they are generated. Migrations and fixtures are not silently exempted.
+7. `--no-verify` may bypass a local hook but cannot bypass the required CI check.
+
+**Pre-authorized strategy for the temporal rewrite.** Rule 3 forbids net growth in a legacy
+oversized module, and rule 4's waiver covers only a narrowly scoped security or data-loss
+correction. A transactional, restartable schema migration must support the old and new read paths
+at the same time, so a naive implementation would grow `storage.py` before shrinking it and would
+fail this gate on its first commit. That collision is resolved here rather than mid-migration:
+
+> Phases 1a and 1b add no lines to `storage.py` or `scanner.py`. All new temporal code lands in new
+> modules from the first commit, dual-path compatibility shims live in the new modules rather than
+> the legacy ones, and the legacy modules only shrink as call sites migrate.
+
+This is the intended design anyway. Writing it down converts a foreseeable blocker into a stated
+constraint and removes any argument for a waiver during the temporal phases.
+
+The checker should report likely extraction boundaries—classes, top-level functions, route groups,
+or query families—so the failure teaches the contributor how to improve the design. It must not
+encourage deletion of comments, compressed formatting, or meaningless “part1/part2” files.
+
+## 0.4 Add complementary complexity budgets
+
+Line count alone does not prevent spaghetti code. Add ratcheted checks and reports for:
+
+- new functions above 50 physical lines or configured cyclomatic complexity 15;
+- new package dependency cycles;
+- modules with more than one unrelated responsibility in their architecture dossier;
+- growing fan-in/fan-out and unstable public interfaces;
+- test coverage regressions, with a target of at least 85% changed-code coverage;
+- import-layer violations between storage, analysis, application, transport, and dashboard code.
+
+These thresholds begin as warnings where the repository already violates them, become no-growth
+ratchets, and become hard gates after the owning module is refactored. The 500-line ceiling for new
+modules is hard from the first Phase 0 commit.
+
+## 0.5 Record the intended internal architecture
+
+Add a concise ADR and enforce this dependency direction:
 
 ```text
-raw hash unchanged       -> reuse the complete prior record
-raw changed, structure same -> update metadata/docs; reuse structural and semantic claims
-structure changed        -> reparse and compare the canonical intent document
-intent fingerprint changed -> run semantic delta analysis and downstream pattern evaluation
+domain models and contracts
+        ↑
+analysis adapters    index repositories
+        ↑                 ↑
+application services / use cases
+        ↑
+CLI · REST · MCP · background jobs
+        ↑
+dashboard client
 ```
 
-Source-bound and context-bound understanding are invalidated separately:
+Transport layers may call application services; they may not embed SQL, parser logic, or semantic
+state transitions. Index repositories may depend on domain records, but domain records do not
+depend on SQLite, FastAPI, MCP, or the dashboard. Analyzer adapters produce one shared intermediate
+representation.
 
-- `raw_hash` detects any byte change.
-- `structural_hash` determines whether intrinsic source understanding may be reused.
-- `interface_hash` tracks public symbols, signatures, exports, endpoints, and contracts.
-- `relationship_hash` tracks resolved imports, calls, callers, and dependency evidence.
-- `semantic_input_hash` covers the structured source/facts input plus schema, prompt, and model.
-- `intent_fingerprint` hashes normalized canonical intent rather than generated prose.
-- `context_fingerprint` tracks the graph neighbourhood and relevant neighbour interfaces/intents.
+### Formalize the existing analyzer intermediate representation here
 
-An interface or relationship change can therefore refresh the contextual role of dependants
-without paying to reread their unchanged source. An intent change invalidates affected subsystem
-summaries and pattern candidates rather than triggering a repository-wide semantic rerun.
+The current `FileAnalysis`, `Symbol`, `Dependency`, and `LanguageAnalyzer` records already form a
+useful proto-IR. Phase 0 must formalize and version that existing contract rather than invent a
+parallel abstraction or rewrite working analyzers. Phase 1b designs a relationship-set schema and
+Phase 3b reorganizes detector families; if the contract is not explicit before them, both can
+accidentally encode Python AST or JavaScript regex implementation details and force a second
+migration during Phase 4.
 
-### Refresh policy and semantic work queue
+Phase 0 therefore delivers conformance tests and a versioned revision of the existing records,
+adding only the concepts needed by later storage and parser work:
 
-Every deterministic scan performs the inexpensive hash/fingerprint comparison. Repository policy
-then controls when stale semantic jobs run: manually, after a scan, continuously through the
-watcher, on a periodic schedule, or during a nightly/CI reconciliation. A periodic review checks
-the entire module ledger for missing, failed, low-confidence, model/prompt-stale, or age-expired
-records; it does not blindly resend unchanged source.
+- module/package identity and aliases;
+- symbols with kind, qualified name, signature, source span, and visibility;
+- imports, exports, calls, and inheritance as reference records with evidence and confidence;
+- parse status, analyzer identity, and analyzer version;
+- the resolver-context inputs that determine unique, ambiguous, or unresolved resolution.
 
-**Shipped:** the durable semantic queue records repository/module/version, invalidation reason, input hash,
-priority, provider/model/prompt/schema version, attempts, timestamps, token/cost estimates and
-actuals, and result/error state. Priority order begins with missing dossiers, structural changes,
-public-interface changes, high-centrality affected modules, contextual invalidations, and finally
-routine age-based review. Per-repository budgets, concurrency, cadence, path/egress rules, and
-maximum semantic age remain operator controlled. Provider credentials stay outside repository
-configuration.
+The existing Python analyzer is certified against the contract as the reference implementation,
+using compatibility adapters where a staged transition is necessary. This is contract
+formalization, not parser work: no grammars, packaging changes, or new languages, and no wholesale
+Python analyzer rewrite. Phase 4.1 becomes conformance and extension rather than first definition.
 
-**Shipped:** `semantic.provider: agent` splits planner/persistence from inference. WORK claims one
-job with an opaque expiring token; oversized source or dossier evidence is paged; SUBMIT rechecks
-the repository snapshot and semantic contract, validates the complete dossier, and writes only
-AnaxiIndex. SCHEMA/EVIDENCE are annotated MCP reads, while WORK/SUBMIT/RELEASE are explicit
-non-destructive index writes. Executor identity/model are retained as provenance, unreported agent
-token use is not fabricated, completed submission retries are idempotent, and interrupted work is
-reclaimable in a later coding-agent session.
+## 0.6 Correct today's public claims
 
-The dashboard reports semantic coverage as current, pending, context-stale, failed, and explicitly
-excluded modules, along with last reconciliation and estimated refresh cost. An initial full
-bootstrap and later incremental refreshes use the same queue and canonical dossier contract.
+This subsection began as documentation and release preparation. On 20 August 2026, the narrow
+distribution prerequisite was completed early by publishing the first tested package. This is a
+recorded exception to the original wording, not the start of Phase 3: it does not authorize work on
+the Phase 3 CLI, onboarding, agent connection, or release-automation scope while Phase 0 remains
+open.
 
-The intent fingerprint is a hash of canonical structured intent, not a hash of prose or source
-bytes. LLM-derived intent remains optional and cached. Deterministic summaries provide a lower
-confidence fallback, and no semantic claim is presented as parser fact.
+1. **OPEN — Document `init --start` immediately.** The option is already implemented and tested,
+   but the README still shows two commands where one works. This is a README edit against shipped
+   code and should not wait for Phase 3.
+2. **COMPLETE — Publish the first functional PyPI distribution.** The `anaxigraph` name was
+   rechecked at execution time and version 0.1.0 was published as a tested wheel and source
+   distribution. This was a functional release, not an empty name-retention placeholder. PyPI's
+   [name-retention policy](https://docs.pypi.org/project-management/name-retention/) treats empty or
+   non-functional projects as name squatting. Do not publish the near-miss `anaxi-graph`; under the
+   [normalization specification](https://packaging.python.org/en/latest/specifications/name-normalization/)
+   it is a distinct name, not an alias for `anaxigraph`.
+3. **COMPLETE IN SOURCE — Modernize license metadata for the next release.** Package metadata now
+   uses the SPDX expression `license = "Apache-2.0"`, declares `license-files = ["LICENSE"]`, and
+   requires `setuptools>=77` for PEP 639 support. A clean wheel/source build emits
+   `License-Expression: Apache-2.0` and `License-File: LICENSE`, with no prior license-table
+   deprecation warning. PyPI artifacts are immutable, so this correction begins with the next
+   version rather than altering 0.1.0.
+4. **OPEN — Soften the shared multi-repository section in the README.** It currently presents an
+   unauthenticated shared service as suitable for a team installation. Authentication does not
+   arrive until Phase 5. Until then the section must be labeled experimental and loopback-first,
+   with the missing authentication stated plainly rather than implied by omission.
 
-### Acceptance criteria
+### PyPI 0.1.0 release evidence
 
-- The inventory answers what a file does, who uses it, what it uses, and when its meaning changed.
-- A module dossier answers “what owns this responsibility elsewhere?”, “should these modules
-  merge?”, “is any symbol or whole module plausibly unused?”, and “where should adjacent work go?”
-  without asserting more than its evidence supports.
-- Initial repository enrollment reads every eligible first-party module and reaches an auditable
-  terminal state of current, explicitly excluded, or failed; interrupted enrollment resumes.
-- An unchanged repository can be reconciled repeatedly without new source-reading model calls.
-- A structural, interface, or relationship change invalidates only the appropriate intrinsic,
-  contextual, and ancestor records, and the dashboard explains why each refresh was scheduled.
-- Users can choose manual, on-scan, watcher, or periodic semantic refresh and enforce per-run or
-  per-period cost limits without losing the eventual full-baseline requirement.
-- Documentation-only edits do not create false intent changes.
-- Model or prompt upgrades do not silently masquerade as code changes.
-- Every semantic delta links back to source evidence and its prior version.
+| Check | Recorded result |
+|---|---|
+| Public distribution | [`anaxigraph` 0.1.0 on PyPI](https://pypi.org/project/anaxigraph/0.1.0/) |
+| Source revision | Committed `main` revision `107a306`; unrelated working-tree changes and virtual environments were excluded |
+| Repository gates | 49 tests passed and Ruff passed before packaging |
+| Package gates | Wheel and source distribution passed `twine check`; archive contents were checked for private environment/configuration and database files |
+| Install gates | The wheel installed and executed in a clean local virtual environment; `anaxigraph==0.1.0` then installed and executed from the production PyPI index |
+| Publication integrity | The wheel and source-distribution SHA-256 values returned by PyPI matched the locally validated artifacts |
+| Remaining release work | Protected trusted publishing, automated release CI, cross-platform clean-machine tests, signed/checksummed containers, SBOM generation, and coordinated version/tag policy remain in Phase 3.1 |
 
-## Phase 5 — coding-pattern intelligence and scored proposals
+Rule: the repository's public claims may not exceed what the current release actually enforces.
 
-Pattern analysis operates at symbol, module, subsystem, area, and repository levels.
+## 0.7 Record the supported platform matrix
 
-### Pattern catalogue
+Windows appears nowhere in this roadmap, yet `uvx` users will try it and the Docker-versus-local
+story differs materially there. Phase 0 makes an explicit decision — supported, best-effort, or out
+of scope — for Windows, WSL, macOS on Apple silicon and Intel, and Linux, and records it in the
+README and onboarding docs.
 
-- Detect existing implementations of patterns such as provider adapters, strategy/registry,
-  repository, service boundary, event handling, dependency injection, orchestration, and shared
-  contracts.
-- Detect repeated change shapes and duplicated responsibilities even when names differ.
-- Evaluate new proposals against local precedent, coupling, change frequency, test seams,
-  ownership boundaries, migration cost, and expected future variants.
-- Link each proposal to supporting and contradicting examples in the repository.
-- Distinguish consolidation, extraction, relocation, interface stabilization, pattern adoption,
-  and removal proposals; do not force every issue into a named Gang-of-Four pattern.
-- Compare proposed new functionality with the current architecture and return a build guide:
-  preferred extension point, existing abstraction to reuse, files/contracts likely to change,
-  anti-patterns to avoid, tests to extend, and post-change invariants to verify.
+An explicit "not supported yet" is an acceptable answer. An undecided platform discovered through a
+bug report is not.
 
-### Scoring
+## Phase 0 exit gate
 
-Every proposal receives a 1–100 suitability score with visible components:
+- The benchmark command reproduces the current history duplication and timing baseline.
+- A deliberately introduced 501-line source module fails locally and in CI.
+- Growth of each existing oversized module fails; reducing it succeeds.
+- The complete current test suite, Ruff, browser tests, Compose validation, and migration tests run
+  through one documented quality command.
+- New package cycles and forbidden layer imports fail with an understandable message.
+- The baseline exception list contains only the eight known modules and names their removal phases.
+- Phase 0 itself introduces no new module above 500 lines.
+- The existing analyzer intermediate representation is formalized as a versioned contract, its
+  conformance tests pass, and the Python analyzer conforms without a wholesale rewrite.
+- The Phase 1a and Phase 1b performance targets have been ratified from the P0.1 report and written
+  into this document, replacing the provisional figures carried over from the external review.
+- `init --start` is documented; the tested, functional PyPI 0.1.0 release and next-release PEP 639
+  metadata are recorded; and the README no longer presents an unauthenticated shared deployment as
+  a team installation.
+- The supported platform matrix is published, including an explicit decision about Windows.
+
+---
+
+# Phase 1a — delta-driven temporal discovery
+
+**Status:** BLOCKED BY PHASE 0
+
+**Goal:** stop re-analyzing unchanged files during historical reconstruction, on today's schema, so
+the algorithm can be proven correct before storage changes underneath it.
+
+Phase 1a is expected to capture the majority of the wall-time win without changing the temporal
+fact schema. That expectation is binding only if Phase 0 confirms that analysis of unchanged files,
+rather than Git subprocess overhead, is the dominant cost. If the benchmark contradicts it, the
+non-convergence rule applies before implementation begins. Rows continue to be written in the
+current shape; only the work required to produce them changes.
+
+## 1a.1 Characterize temporal correctness before changing anything
+
+Add tests covering:
+
+- add, modify, delete, rename, copy, and file-type changes between selected revisions;
+- a sampled interval containing many unselected commits;
+- changed exports that alter another file's import resolution;
+- a new same-named module that turns a unique import into an ambiguous import;
+- removal of a module that turns an ambiguous import into a unique import;
+- documentation-only, metadata-only, interface, relationship, and structural changes;
+- branch/working-tree scans after an imported first-parent timeline;
+- interruption, retry, and resumption from the last complete frame;
+
+Every fixture records the expected active files, symbols, edges, resolution provenance, groups,
+metrics, and finding lifecycle at each selected frame.
+
+These fixtures are written against **today's schema** and must pass before Phase 1a changes any
+behavior. They then become the regression net that Phase 1b's migration is measured against, which
+is the whole reason the temporal work is split: a wrong frame in Phase 1b can only be caused by the
+storage change, because the algorithm was already proven under the same fixtures.
+
+## 1a.2 Discover change before reading source
+
+For each selected revision after the initial frame:
+
+1. run `git diff --name-status --find-renames <previous-selected> <revision>`;
+2. classify additions, modifications, deletions, renames, copies, and type changes;
+3. materialize the unchanged artifact facts required by today's snapshot schema by copying their
+   prior rows, without reading or hashing the source blob;
+4. read and analyze only changed/added candidate source files;
+5. compare their exported module names, symbols, interfaces, and architecture placement;
+6. re-resolve relationships only for changed sources and sources whose previous unresolved or
+   resolved references intersect an affected namespace/symbol;
+7. copy all other unaffected relationship rows into the new snapshot as today's schema requires;
+8. recompute snapshot-level aggregates/findings from active indexed facts without reparsing source;
+9. commit the complete frame atomically.
+
+The diff spans selected commits, not only adjacent commits, so changes inside skipped history are
+still represented in the later selected frame. The first selected revision remains a complete
+scan. Working-tree state adds tracked and untracked changes without modifying the repository.
+Phase 1a deliberately continues to duplicate required snapshot rows; parent references and reusable
+relationship sets do not exist until Phase 1b.
+
+## 1a.3 Make invalidation conservative and visible
+
+Skipping unchanged source must never create a falsely stable graph. Persist why a source was
+reanalyzed or reused:
+
+- `content_changed`;
+- `interface_changed`;
+- `namespace_changed`;
+- `resolver_context_changed`;
+- `analyzer_upgraded`;
+- `policy_changed`;
+- `carried_forward`.
+
+If the engine cannot prove relationship reuse is safe, it re-resolves the affected source without
+rereading unrelated source. Invalidation reasons use existing `metadata_json` fields during Phase
+1a rather than introducing the Phase 1b fact schema early. Dashboard and benchmark counters expose
+changed, invalidated, reused, and conservatively re-resolved counts.
+
+## 1a.4 Adopt adaptive history defaults
+
+New configurations use `history_snapshots: auto`. Initial budgets are:
+
+| Eligible first-party files | Maximum representative frames |
+|---:|---:|
+| 1–500 | 32 |
+| 501–2,000 | 24 |
+| 2,001–5,000 | 16 |
+| Above 5,000 | 12 |
+
+The selector always preserves the first and latest commit, then prioritizes release tags,
+architecture-changing commits, calendar checkpoints, and dense recent history within the budget.
+An explicit integer, date range, or `--every-commit` remains available. Existing explicit values
+remain explicit during migration; newly generated Compose files stop baking in 64 frames.
+
+Later calibration should use estimated changed-file work, not file count alone. The frame table is
+the first safe adaptive policy, not a permanent magic constant.
+
+## 1a.5 Provide progress, cancellation, and immediate usefulness
+
+History import becomes a durable job, using the existing `analysis_runs` record and its metadata
+where possible rather than introducing the Phase 1b temporal schema early. Its states are:
 
 ```text
-fit to repeated problem       0-25
-coupling/cohesion improvement 0-20
-consistency with local design 0-15
-testability/safety benefit    0-15
-expected reuse/change value   0-15
-implementation/migration cost 0-10 deduction
+queued -> enumerating -> importing -> finalizing -> complete
+                             |             |
+                             +-> failed    +-> cancelled
 ```
 
-Confidence is reported separately from suitability. “82 suitability, 54 confidence” means the
-pattern looks valuable if the inferred facts are correct, but more evidence or human review is
-needed. The score must never hide its evidence or trade-offs.
+Expose through REST, MCP, CLI, and dashboard:
 
-Every proposal also reports separate 1–100 dimensions for expected benefit, implementation
-urgency, and execution safety. A high-fit abstraction can therefore remain low urgency, while a
-high-value but low-safety removal remains a review candidate rather than agent-ready work.
+- selected/total frames and current commit subject/date;
+- changed, analyzed, re-resolved, and reused files;
+- rows/bytes added;
+- elapsed time and a clearly labeled estimated remaining time;
+- cancel, retry, and resume controls;
+- last complete usable snapshot.
 
-### Review workflow
+The dashboard server and current-tree scan must become usable independently of background history.
+No history spinner may block repository selection, current modules, findings, or agent scope.
 
-- Proposal states: candidate, reviewed, approved, rejected, planned, implemented, verified.
-- Human decisions and rationale become durable repository memory.
-- Approved proposals produce the same bounded agent handoff as findings.
-- A rescan verifies whether the intended pattern was introduced without creating new violations.
+Only after changed-file avoidance is proven should changed blobs be read through `git cat-file
+--batch`; it is an optional follow-up inside this phase if profiling shows meaningful remaining
+subprocess cost.
 
-### Acceptance criteria
+## Phase 1a performance and exit gate
 
-- A provider-abstraction proposal identifies the repeated OpenAI/Anthropic/Gemini behavior that
-  supports it and counterexamples that weaken it.
-- Scores are reproducible from stored components and change when the evidence changes.
-- Rejecting a proposal records a rationale and reduces repeated low-value suggestions.
+Targets below are provisional until ratified by the P0.1 report on committed fixtures and the
+documented benchmark runner.
 
-## Phase 6 — continuous review and integrations
+- history wall time on the reproduced eight-frame benchmark falls from approximately 24.7 seconds
+  to at most 8 seconds;
+- unchanged, non-invalidated files invoke no source analyzer and have no blob read;
+- every add, modify, delete, rename, copy, type-change, and resolver-context correctness fixture
+  from 1a.1 passes;
+- an interrupted import resumes without repeating completed frames;
+- invalidation reasons are persisted and exposed for every analyzed and carried-forward file;
+- newly generated Compose files no longer bake in 64 frames, and `history_snapshots: auto` resolves
+  through the adaptive table;
+- the dashboard, current-tree scan, modules, findings, and agent scope remain usable while a
+  history import runs;
+- the synthetic 3,000-file adaptive import completes within the target ratified in Phase 0 — the
+  provisional intent is 10 minutes, but no 3,000-file measurement exists at roadmap creation, so
+  P0.1 sets the binding number;
+- `storage.py` and `scanner.py` have not grown.
 
-- Scheduled deterministic scans plus configurable manual, on-scan, watcher, CI/webhook, and
-  periodic semantic reconciliation. Schedules inspect the full ledger but enqueue AI work only
-  for missing, changed, context-stale, failed/retryable, or policy-expired records.
-- Budgets for LLM calls, concurrency, repository size, and historical depth.
-- MCP tools for repository overview, file intent, planned work, finding context, pattern proposals,
-  impact, and post-change verification.
-- Notifications only for newly actionable or regressed signals, not every metric fluctuation.
-- Exportable architecture/history reports suitable for client review while preserving repository
-  privacy and provenance.
+Row counts and index size are explicitly **not** part of this gate. They belong to Phase 1b.
 
-## Delivery sequence
+---
 
-1. Ship Phase 1 as an explainability and workflow release.
-2. Add the repository registry before presenting the selector as an arbitrary filesystem browser.
-3. Build background jobs and graph deltas before full-history UI controls.
-4. Add the durable semantic queue and complete one resumable full-repository bootstrap into
-   canonical intent documents.
-5. Add hash-driven invalidation, contextual refresh, configurable reconciliation schedules, and
-   semantic coverage/cost reporting.
-6. Calibrate pattern scoring on real repositories with reviewed examples.
-7. Add broader CI/webhook automation only after review decisions and provenance are durable.
 
-This order keeps each release useful on its own and ensures the expensive semantic and pattern
-features rest on understandable, testable repository facts.
+# Phase 1b — immutable facts and snapshot deltas
+
+**Status:** BLOCKED BY PHASE 1a
+
+**Goal:** make stored facts scale with distinct versions and relationship contexts rather than with
+selected frames multiplied by repository size.
+
+## 1b.1 Introduce immutable facts plus snapshot deltas
+
+Phase 1a has already removed the wasted analysis. This phase removes the wasted *storage*, with the
+Phase 1a correctness fixtures green throughout, plus the migration failure-recovery fixtures
+deferred from 1a.1:
+
+- transactional failure rollback and backup restoration on a copy of a real version-6 index.
+
+Replace full snapshot materialization with a versioned schema conceptually shaped as:
+
+```text
+snapshots
+  id · repository · commit · base_snapshot_id · sequence · analysis signature
+
+file_versions
+  immutable analyzed facts keyed by artifact + content/analyzer identity
+
+snapshot_file_changes
+  snapshot · artifact · add/change/delete/rename · file_version
+
+relationship_sets
+  source file version · resolver-context hash · analysis signature
+
+relationship_edges
+  relationship set · target/evidence/provenance
+
+snapshot_relationship_changes
+  snapshot · source artifact · relationship set/retract
+```
+
+Important invariants:
+
+- A file version is stored once for the same artifact, relevant hashes, analyzer version, and
+  analysis signature.
+- Symbols belong to the immutable analyzed file version and are not copied into every snapshot.
+- Snapshot state is reconstructed from its parent plus deltas. Periodic derived checkpoints may
+  accelerate reads, but checkpoints are disposable caches rather than duplicated source facts.
+- A relationship set is reusable only when both the source version and resolver context match.
+  The resolver-context hash includes the namespace/symbol information that could change unique,
+  ambiguous, or unresolved resolution.
+- Semantic claims continue to reference the appropriate immutable version and retain their own
+  prompt/model/context fingerprints.
+- Queries use an index abstraction; REST, MCP, and dashboard code do not learn SQL reconstruction
+  details.
+
+The migration must be transactional, idempotent, and restartable. It preserves an untouched backup
+until validation succeeds and exposes a `doctor`/compaction report before old duplicate rows are
+removed. “Rollback” means aborting a failed transaction or restoring that backup; Phase 1b does not
+promise an automatic downgrade after a successful migration.
+
+## 1b.2 Bound snapshot reconstruction and read amplification
+
+Delta storage must not exchange write amplification for an ever-slower dashboard. Define a
+reconstruction budget before choosing the final schema:
+
+- benchmark cold and warm reads for the current snapshot, the oldest selected snapshot, and a
+  middle snapshot;
+- cap the number of parent deltas any user-facing query may traverse;
+- create periodic, disposable materialized checkpoints when that cap would be exceeded;
+- index change tables for artifact, source relationship, snapshot sequence, and repository lookup;
+- verify that rebuilding or deleting a checkpoint cannot change canonical facts;
+- keep checkpoint creation resumable and outside the target repository;
+- expose reconstruction depth, checkpoint use, query duration, and returned row count in benchmark
+  diagnostics.
+
+The checkpoint interval and latency thresholds are ratified from the Phase 0 baseline and the
+Phase 1b prototype. Current-snapshot queries should remain constant-depth, while historical queries
+must have a documented maximum depth rather than recursively walking an unbounded timeline.
+
+## 1b.3 Decompose the temporal implementation while changing it
+
+Refactor `storage.py` behind a small `AnaxiIndex` facade into cohesive modules such as schema and
+migrations, snapshot/file repositories, relationship repositories, finding repositories, semantic
+repositories, and read models. Refactor `scanner.py` into discovery, preparation, resolver,
+persistence, invalidation, and orchestration components.
+
+The exact package names follow the ADR, but by the end of this phase:
+
+- `storage.py` and `scanner.py` are each below 500 lines;
+- no extracted module exceeds 500 lines;
+- transactions remain owned by explicit application operations rather than helper modules opening
+  unrelated connections;
+- no dashboard, API, or MCP behavior depends on the old table layout.
+
+## Phase 1b performance and exit gate
+
+Targets below are provisional until ratified by the P0.1 report.
+
+- immutable heavy file-version rows are within 10% of distinct analyzed versions rather than the
+  baseline 481 copies for 218 distinct structures;
+- relationship edges are not fully re-materialized for every frame;
+- symbols are stored against the immutable analyzed file version and are not copied per snapshot;
+- index size scales with changed versions and relationship contexts, and the benchmark report
+  demonstrates at least a 5× reduction versus the prior schema on the low-churn profile — defined
+  as the synthetic fixture's 5%-changed-files-per-frame history, not an informal description;
+- every Phase 1a correctness fixture still passes unchanged against the new schema;
+- cold and warm current/historical graph reads meet the ratified latency budget, no user-facing
+  query traverses more than the ratified checkpoint interval, and current-snapshot latency does not
+  regress by more than the allowed Phase 0 ratio;
+- deleting and rebuilding derived checkpoints produces identical canonical graph results;
+- version-6 indexes migrate without data loss, retain a restorable backup before compaction, and
+  abort cleanly on injected migration failure;
+- the migration is transactional, idempotent, and restartable, and `doctor` reports the result
+  before duplicate rows are removed;
+- `storage.py` and `scanner.py` are below 500 lines and removed from the size-exception baseline;
+- no extracted module exceeds 500 lines, and no dashboard, API, or MCP behavior depends on the old
+  table layout.
+
+No temporal visualization features begin until this gate passes.
+
+---
+
+
+# Phase 2 — attention signal
+
+**Status:** BLOCKED BY PHASE 1b
+
+**Goal:** turn excellent ranking into an intentionally small action surface without discarding the
+complete diagnostic record.
+
+## 2.1 Separate the attention queue from diagnostics
+
+Create two product views:
+
+- **Attention queue:** new, regressed, acknowledged, or planned findings that exceed the configured
+  priority/severity threshold. Default page size: 20. The overview continues to show only the top
+  10.
+- **Diagnostics:** complete low-severity observations, including routine long-function signals,
+  with filters by detector, module, architecture area, status, and confidence.
+
+`long_function` remains available as deterministic evidence but information-level instances do not
+fill the attention queue by default. Repository policy may disable it, change its threshold, or
+promote it for selected production paths. Module-size and complexity gates for AnaxiGraph itself
+remain enforced by development tooling whether or not those diagnostics are visible in the
+product queue.
+
+## 2.2 Make result limits explicit
+
+- Add cursor pagination and summary counts to the findings REST and MCP surfaces.
+- Return `shown`, `total_matching`, `total_by_severity`, `total_by_type`, active filters, and the
+  priority version.
+- Preserve stable sort order by priority, regression state, first seen, and stable key.
+- Let agents request a bounded token budget; return exactly what was omitted.
+- Do not silently cap at 500 or imply that a page is the entire ledger.
+- Group repeated diagnostics by detector and architecture area before presenting individual rows.
+
+## 2.3 Improve actionability
+
+Every queued finding must answer:
+
+- why it is ranked here;
+- what deterministic and semantic evidence supports it;
+- what could make it a false positive;
+- affected modules, contracts, tests, and blast radius;
+- the smallest sensible next action;
+- whether the recommended action is investigate, constrain, refactor, test, or remove;
+- how a later scan will verify resolution.
+
+Lifecycle remains:
+
+```text
+new -> acknowledged -> planned -> resolved by evidence
+  \          \              \
+   dismissed  accepted risk  regressed if it returns
+```
+
+Bulk acknowledgement/dismissal is allowed only after the UI shows the matching filter and count.
+Resolution normally comes from a later scan, not a “make green” button.
+
+## Phase 2 exit gate
+
+- A default attention view contains at most 20 findings and accurately reports the complete total.
+- Information-level `long_function` results do not dominate the default queue.
+- A user can recover and filter every stored diagnostic; no evidence is thrown away for UX reasons.
+- MCP finding responses honor their payload budget and pagination contract.
+- Finding actions and automatic verification are covered by backend and browser tests.
+- Backend and browser tests cover filtering, pagination, totals, lifecycle, and automatic
+  verification without requiring unrelated dashboard decomposition.
+
+---
+
+# Phase 3 — one-command local adoption
+
+**Status:** BLOCKED BY PHASE 2
+
+**Goal:** provide a working dashboard in one command and a connected coding agent in at most one
+additional explicit action.
+
+## 3.1 Automate and harden the published Python distribution
+
+The tested 0.1.0 wheel and source distribution were published manually during Phase 0.6. Phase 3.1
+does not repeat that completed name/publication task. It converts the verified manual path into a
+reproducible, protected release system for every subsequent version.
+
+- Publish the next version only after a deliberate version bump and all release gates pass; never
+  attempt to replace immutable 0.1.0 artifacts or reuse an already published filename.
+- Add build, wheel-install, source-distribution, Python-version, and package-data tests.
+- Use PyPI trusted publishing from a protected GitHub release workflow instead of making a
+  maintainer's long-lived local upload token the normal release path.
+- Verify SPDX license expressions and declared license files in built metadata, so the PEP 639
+  correction remains a permanent release gate.
+- Publish signed/checksummed container images and align Python and container version tags.
+- Generate an SBOM and dependency/license report for releases.
+- Test the exact fresh-machine commands in disposable Linux and macOS environments.
+
+Target entry command:
+
+```bash
+uvx anaxigraph init . --start
+```
+
+Phase 0 documents the already implemented `--start` behavior. This phase makes that path robust
+enough to lead onboarding and validates the exact command from a clean supported machine.
+
+## 3.2 Make initialization express the intended workflow
+
+Add idempotent options:
+
+```bash
+uvx anaxigraph init . --start --semantic agent --connect codex
+uvx anaxigraph init . --start --semantic agent --connect claude
+```
+
+- `--semantic agent` writes the enabled agent-funded policy directly.
+- `--connect` writes or invokes the selected client's MCP configuration only after the user chose
+  that explicit option.
+- Client changes are previewable with `--dry-run`, create a backup where appropriate, preserve
+  unrelated settings/comments where the format permits, and are safe to repeat.
+- Support user-global and project-local connection scopes.
+- Print the exact dashboard and MCP URLs and explain Docker-network/remote-host variants.
+- Provide `anaxigraph doctor` to test repository mount, database writeability, container/service
+  health, MCP reachability, and client configuration.
+
+Do not silently mutate agent configuration during a plain `init`.
+
+## 3.3 Add a no-Docker first-five-minutes path
+
+Provide a convenience command built on the existing scan and serve capabilities:
+
+```bash
+uvx anaxigraph up . --open --semantic agent --connect codex
+```
+
+It should:
+
+- infer or load policy;
+- place AnaxiIndex in an OS-appropriate user state directory rather than pollute the target repo;
+- start the dashboard/API/MCP on loopback;
+- perform the current scan and queue background adaptive history;
+- open the browser when possible;
+- show clean shutdown and restart instructions.
+
+Docker remains the recommended durable/isolated sidecar and multi-repository deployment. The local
+path optimizes evaluation, workshops, and individual use; it does not replace container hardening.
+
+## 3.4 Ship agent skills/plugins
+
+Package a small AnaxiGraph skill for Claude Code and a standards-compatible agent skill for Codex
+and other supported clients. The skill contains:
+
+- connection/health discovery;
+- the semantic bootstrap loop (`SCHEMA -> WORK -> EVIDENCE -> SUBMIT/RELEASE`);
+- repository selection rules;
+- bounded scope/impact/finding workflows;
+- instructions never to claim a submitted dossier without a successful MCP response;
+- resume and lease-expiry behavior;
+- concise commands such as `/anaxigraph` or `$anaxigraph`, following each client's conventions.
+
+The skill is packaging around AnaxiMCP, not a second analysis implementation. Server contracts
+remain the source of truth and are versioned.
+
+## 3.5 Collapse onboarding documentation
+
+The first screen and README lead with:
+
+1. one local or Docker start command;
+2. the dashboard URL;
+3. one agent connection command/option;
+4. one sentence asking the agent to bootstrap or resume semantics.
+
+Hosted-key workers, local model workers, multi-repository registries, SSH tunnels, custom coverage,
+and manual Compose operations move under **Advanced** sections. The main path explains that the
+coding agent uses its own tokens and that AnaxiGraph itself needs no model key in agent mode.
+
+## 3.6 Decompose onboarding code
+
+Split `cli.py` into parser/facade plus command handlers and split `onboarding.py` into repository
+detection, policy generation, Compose generation, client connection, and start/doctor services.
+Command behavior remains covered at the process boundary, not only through helper unit tests.
+
+## Phase 3 exit gate
+
+- From a clean supported machine, one documented command produces a usable dashboard without a Git
+  source URL and without manually writing configuration.
+- Full agent-funded value requires no more than a second command or the explicit `--connect` option.
+- Re-running initialization is idempotent and does not overwrite unrelated user/client settings.
+- Both Docker and no-Docker paths pass end-to-end tests.
+- The agent skill completes, resumes, and safely releases a semantic job against a fixture repo.
+- Median internal first-user test time is under five minutes to dashboard and under ten minutes to
+  the first submitted semantic dossier.
+- `cli.py` and `onboarding.py` are removed from the size-exception baseline.
+- Shared/team installation is still documented as experimental and loopback/local-first until
+  Phase 5 security ships.
+
+---
+
+# Phase 3b — dashboard/evaluator decomposition and self-analysis
+
+**Status:** BLOCKED BY PHASE 3
+
+**Goal:** remove the remaining dashboard and evaluator size exceptions, then prove that
+AnaxiGraph's deterministic attention model can act as a stable regression check on its own code.
+
+## 3b.1 Decompose evaluators and the dashboard
+
+Refactor:
+
+- `architecture.py` into rule parsing, detector families, evaluation orchestration, and aggregate
+  metrics;
+- `agent.py` into scope ranking, graph expansion, impact analysis, collision analysis, and payload
+  serialization;
+- `dashboard/app.js` into ES modules for API access, application state/navigation, graph layout and
+  rendering, module inventory, findings, history, settings, and semantic work.
+
+Preserve the zero-runtime-JavaScript-dependency goal unless a separate ADR demonstrates a clear
+maintenance and supply-chain benefit. Update package-data rules and browser tests so nested
+dashboard modules ship in wheels and containers.
+
+## 3b.2 Make self-analysis a regression gate, not a zero-backlog gate
+
+Run AnaxiGraph against its own pull-request revision in CI and retain the report as a build
+artifact. The required check fails only when a deterministic, policy-enabled condition is newly
+introduced or regresses across an explicit threshold relative to the committed baseline.
+
+The gate must:
+
+- pin analyzer, detector, rule, and priority versions;
+- compare stable finding keys and evidence rather than queue position alone;
+- fail on configured new/regressed severity, architecture boundary, cycle, size, or complexity
+  conditions;
+- keep information-level diagnostics and model-derived semantic recommendations non-blocking;
+- allow accepted existing debt only through a reviewed baseline entry with rationale and removal
+  phase, never by dismissing a finding merely to make CI green;
+- report when a rule or score-version change requires an explicit baseline review;
+- upload the full scan summary even when the required regression check passes.
+
+The human attention queue may remain non-empty. CI proves that a change did not make the governed
+architecture worse; it does not pretend all acknowledged or planned work has already been completed.
+
+## Phase 3b exit gate
+
+- `architecture.py`, `agent.py`, and every dashboard JavaScript module are below 500 lines and are
+  removed from the size-exception baseline.
+- The graph, modules, findings, history, settings, and semantic workflows retain browser and visual
+  regression coverage after decomposition.
+- Wheels and containers include every nested dashboard module.
+- CI self-analysis is deterministic and fails on a fixture that introduces a governed regression.
+- An unchanged accepted backlog does not fail CI, and a changed rule/priority version requests a
+  reviewed rebaseline rather than silently changing the gate.
+- The self-analysis gate needs no LLM call, network model access, or mutable semantic dossier.
+
+---
+
+# Phase 4 — core parser-backed language platform
+
+**Status:** BLOCKED BY PHASE 3b
+
+**Goal:** replace the two-language cliff with a maintainable parser platform and honest per-language
+support levels.
+
+## 4.1 Extend and conform to the analyzer intermediate representation
+
+The IR contract was formalized in Phase 0 (§0.5) so that Phase 1b's relationship schema and Phase
+3b's detector families could be designed against it rather than against whatever the Python and
+JavaScript analyzers happened to emit. This item is therefore conformance and extension, not first
+definition: any change to the contract here is a versioned revision with a migration note.
+
+Every parser adapter emits the same versioned records:
+
+- module/package identity and aliases;
+- classes, interfaces, functions, methods, constants, and source spans;
+- imports, exports, re-exports, includes, calls, constructors, and inheritance/implementation;
+- public interfaces/signatures;
+- entry-point and framework evidence;
+- parse errors and recovered regions;
+- complexity inputs;
+- extracted doc/comments without allowing prose to become structural fact;
+- analyzer name/version, grammar version, confidence, and unsupported constructs.
+
+Resolvers consume this representation rather than grammar-specific tree node names. Grammar query
+definitions live in small declarative language adapters; shared traversal and evidence logic is
+tested once.
+
+## 4.2 Introduce tree-sitter behind the analyzer contract
+
+- Pin the runtime and grammar packages within compatible version ranges.
+- Decide whether grammars are a default dependency, a `languages` extra, or bundled only in the
+  container after measuring wheel size and install reliability.
+- Cache parser/language objects safely.
+- Bound parse time and source size; report timeout/recovery instead of falling through silently.
+- Retain Python's standard-library AST where it provides equal or better semantics, while emitting
+  the same intermediate representation.
+- Keep the lexical fallback as an explicitly labeled `text-heuristic` analyzer, never as “full
+  support.”
+
+## 4.3 Wave 1: JavaScript and TypeScript parity
+
+Replace the regex analyzer for `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, and `.tsx`. Fixtures include:
+
+- default/named/dynamic imports and re-exports;
+- CommonJS require/exports;
+- JSX/TSX calls and components;
+- decorators, generics, optional chaining, template literals, and arrow functions;
+- classes, interfaces, enums, type aliases, inheritance, and method calls;
+- malformed but recoverable source.
+
+The new analyzer must match all valid old fixtures, fix documented regex failure cases, and expose
+any remaining unsupported dynamic patterns.
+
+## 4.4 Wave 2: Go, Rust, and Java
+
+Implement one language at a time in this order:
+
+1. Go packages, imports, functions, methods, interfaces, receiver relationships, and calls;
+2. Rust modules/crates, `use`, structs/enums/traits, implementations, macros as bounded evidence,
+   and calls;
+3. Java packages/imports, classes/interfaces/records/enums, inheritance/implementation,
+   annotations, methods, and calls.
+
+Each language ships only after its fixtures, real-repository sample, resolver metrics, dashboard
+support badge, and documentation pass. Work on the next language does not start while the previous
+one is still labeled experimental.
+
+## 4.5 Publish an honest support matrix
+
+Support levels:
+
+- **Deep:** parser, symbols, dependency/call relationships, public interfaces, resolution tests,
+  and maintained real-repo fixtures;
+- **Structural:** parser-backed modules/symbols/imports, but incomplete calls/framework behavior;
+- **Heuristic:** text/regex facts only;
+- **Inventory:** file metadata and Git history only.
+
+Dashboard, API, MCP, and docs show the level and analyzer version. Repository-level graph trust is
+weighted by the actual mix rather than the number of recognized file extensions.
+
+## Phase 4 exit gate
+
+- JavaScript/TypeScript are parser-backed and the regex implementation is removed from normal use.
+- Go, Rust, and Java meet the Deep support contract.
+- Parser and grammar versions participate in analysis fingerprints and targeted invalidation.
+- Malformed syntax produces bounded partial results plus visible parse evidence.
+- Mixed-language fixtures verify cross-language import and API boundary behavior where it is
+  deterministic.
+- No language adapter exceeds 500 lines; shared logic is reused through composition, not a giant
+  switch or inheritance lattice.
+- Scan performance and memory remain within the Phase 1a and 1b benchmark budgets.
+
+---
+
+# Phase 5 — team security and graph-scale APIs
+
+**Status:** BLOCKED BY PHASE 4
+
+**Goal:** make multi-repository/team deployment safe and keep large graphs bounded from database to
+browser.
+
+## 5.1 Define deployment modes
+
+- **Local sidecar:** loopback binding, one operator, optional authentication with clear warning.
+- **Trusted LAN/team:** authentication required, explicit repository scopes, TLS terminated by a
+  documented reverse proxy or native configuration.
+- **Hosted/public:** out of scope until a separate threat model, tenant isolation, rate limiting,
+  backup, and operational ownership exist.
+
+AnaxiGraph must fail closed when configured on a non-loopback bind without authentication. README
+language may not promote a team installation before this behavior ships.
+
+## 5.2 Authenticate REST, dashboard, and MCP
+
+Implement tokens with:
+
+- hashed-at-rest credentials or injected secrets, never tokens stored in repository YAML;
+- scopes for `index:read`, `semantic:write`, `scan:run`, `finding:write`, and `admin`;
+- per-token repository allowlists;
+- creation, rotation, revocation, expiry, and last-used metadata;
+- Docker secret/environment and reverse-proxy examples;
+- audit events for scans, semantic leases/submissions, finding lifecycle changes, and admin actions;
+- consistent enforcement across REST and MCP.
+
+Browser authentication should use an appropriate short-lived session mechanism and avoid putting
+bearer tokens in URLs or durable browser logs. Protect state-changing routes from cross-site
+requests and configure CORS narrowly.
+
+## 5.3 Replace unbounded graph responses
+
+Introduce versioned, cursor-based graph queries with:
+
+- repository and snapshot required in the resolved request context;
+- node/edge limits with safe server maxima;
+- architecture area/subsystem, path, language, finding, and relationship filters;
+- overview aggregates first, then region/subgraph expansion;
+- “neighbors of selected node” and bounded depth endpoints;
+- counts and continuation cursors;
+- optional graph deltas between two snapshots;
+- payload byte reporting and server timing.
+
+The dashboard should load architecture aggregates and visible regions first rather than download
+every node and edge before drawing anything. MCP remains biased toward smallest useful subgraphs.
+
+## 5.4 Bound operational work
+
+- Rate-limit expensive scans/history imports per repository.
+- Add job concurrency and cancellation controls.
+- Bound request body sizes, evidence pages, graph depth, and export size.
+- Add database backup/restore and health/size diagnostics.
+- Test repository isolation so an allowed token cannot infer names, counts, or job state from an
+  unlisted repository.
+
+## 5.5 Decompose API code
+
+Split `api.py` into thin routers for repositories, graph, findings, history/jobs, semantics, and
+authentication backed by application services. The app factory owns dependency wiring; routers do
+not execute SQL or semantic state transitions.
+
+## Phase 5 exit gate
+
+- Non-loopback startup without configured auth fails with a direct remediation message.
+- REST and MCP authorization tests cover every tool/route and repository scope.
+- No graph endpoint can serialize an unbounded repository graph.
+- A 50,000-node synthetic graph can open an overview and inspect a region without exhausting the
+  browser or returning one monolithic payload.
+- Token rotation/revocation and audit events work without restarting the service.
+- Backup/restore and schema upgrade are documented and tested.
+- `api.py` is removed from the size-exception baseline.
+- The legacy exception file is now empty: every first-party implementation module is at or below
+  500 physical lines.
+
+---
+
+# Phase 6 — architect-grade semantic and pattern advice
+
+**Status:** BLOCKED BY PHASE 5
+
+**Goal:** turn the existing dossier and agent-funded execution foundation into a dependable
+architect and coding partner.
+
+## 6.1 Replace the semantic mixin lattice with explicit services
+
+The current `SemanticEngine` composes seven mixins that share an implicit `database` attribute.
+Replace that inheritance with a small facade over injected services, for example:
+
+- `SemanticPlanner` — determines intrinsic/contextual work and priority;
+- `LeaseService` — owns claim, heartbeat, release, expiry, and idempotency;
+- `EvidenceAssembler` — pages bounded source and graph evidence;
+- `DossierContract` — schema validation and canonicalization;
+- `DossierRepository` — transactional persistence and provenance;
+- `SemanticRunner` — optional hosted/local worker execution;
+- `SemanticReporting` — coverage, cost, failure, and stale-state read models.
+
+State transitions become an explicit tested state machine. Services receive narrow protocols
+rather than a global engine or SQLite connection. The public CLI/REST/MCP contract remains stable
+through a compatibility facade during the refactor.
+
+## 6.2 Make every module meaningfully understood
+
+For every eligible first-party module, the durable dossier should contain:
+
+- concise purpose and detailed summary;
+- responsibilities and non-responsibilities;
+- inputs, outputs, side effects, public contracts, and runtime role;
+- architecture area/subsystem and why it belongs there;
+- dependencies/dependants with important relationship evidence;
+- local precedents and related responsibilities elsewhere;
+- test strategy and observed coverage state;
+- lifecycle/Git biography and meaningful intent changes;
+- risks, uncertainty, and missing context;
+- pattern opportunities, consolidation candidates, dead-code candidates, and placement guidance;
+- provider/model/prompt/schema, source/context fingerprints, evidence, confidence, token/cost data,
+  and human review state.
+
+Bootstrap remains complete-but-resumable: every eligible module must be current, explicitly
+excluded, or visibly failed. Incremental refresh rereads source only when structural, interface,
+relationship, analyzer, prompt/model, policy, or age fingerprints require it.
+
+## 6.3 Detect repeated responsibilities and consolidation candidates
+
+Combine independent signals:
+
+- token/AST similarity for repeated implementation;
+- similar public interfaces and side effects;
+- semantic responsibility similarity from current dossiers;
+- common dependants/dependencies;
+- historical change coupling;
+- shared architecture placement and ownership;
+- differences that argue the modules should remain separate.
+
+Produce cluster-level proposals such as merge, extract shared service, introduce adapter, relocate,
+or retain separate implementations. A proposal must identify the exact repeated behavior and the
+meaningful differences; filename similarity alone is insufficient.
+
+## 6.4 Add conservative symbol and module dead-code analysis
+
+Start deterministic reachability from configured and detected entry points:
+
+- CLI entry points, web routes, workers, scheduled tasks, plugins, framework registrations, public
+  packages, tests, and operator-configured roots;
+- imports, calls, inheritance, registration, serialization, templates/configuration, and ambiguous
+  candidates;
+- dynamic/reflection conventions modeled as explicit lower-confidence evidence.
+
+Candidate levels:
+
+1. unreferenced private symbol;
+2. unreachable module from known entry points;
+3. apparently obsolete feature cluster;
+4. removal proposal with impact and verification plan.
+
+Coverage absence, low churn, or no resolved inbound edge is never enough by itself. Deletion advice
+is suppressed below a configurable graph-resolution/trust threshold. Every candidate reports
+counter-evidence, dynamic blind spots, affected contracts, and tests to run. AnaxiGraph never
+deletes target code automatically.
+
+## 6.5 Score pattern and refactor proposals
+
+Evaluate patterns at symbol, module, subsystem, area, and repository levels. Do not force every
+design issue into a named Gang-of-Four pattern; consolidation, extraction, relocation, interface
+stabilization, and removal are first-class proposal types.
+
+Base suitability components:
+
+```text
+fit to repeated problem        0–25
+coupling/cohesion improvement  0–20
+consistency with local design  0–15
+testability/safety benefit     0–15
+expected reuse/change value    0–15
+migration cost deduction       0–10
+```
+
+Also report independent 1–100 scores for expected benefit, urgency, execution safety, and
+confidence. “85 suitability, 48 confidence” explicitly means the idea may fit if the inferred
+responsibility is correct, but more evidence is required.
+
+Every proposal includes:
+
+- evidence and counter-evidence;
+- affected symbols/modules and blast radius;
+- local examples to follow or avoid;
+- prerequisites and migration steps;
+- estimated effort and risk;
+- tests and post-change invariants;
+- conditions that invalidate the proposal;
+- score version and component values.
+
+Lifecycle:
+
+```text
+candidate -> reviewed -> approved/rejected -> planned -> implemented -> verified/regressed
+```
+
+Human rationale is durable memory. Rejected proposals should not be repeatedly regenerated unless
+material evidence changes.
+
+## 6.6 Guide new functionality
+
+Given a coding goal, return:
+
+- the preferred extension point and architecture area;
+- existing abstractions and patterns to reuse;
+- smallest primary file set and bounded related context;
+- contracts, callers, persistence, events, and tests likely to change;
+- active findings and known risky boundaries;
+- proposed sequence of edits;
+- explicit anti-patterns and duplicated paths to avoid;
+- verification commands and architecture facts to compare after the change.
+
+After implementation, compare the intended invariants with the new snapshot and explain what
+improved, stayed uncertain, or regressed. This closes the loop between dashboard review and the
+coding agent operating in the repository.
+
+## 6.7 Calibrate rather than merely generate advice
+
+Build a reviewed corpus of real examples:
+
+- correct and incorrect provider abstractions;
+- justified large reference modules versus low-cohesion modules;
+- true and false dead-code cases involving dynamic registration;
+- merge candidates that share implementation but not responsibility;
+- pattern opportunities with different migration costs;
+- goals placed correctly and incorrectly in an existing architecture.
+
+Track precision, reviewer acceptance, false-positive reason, score calibration, and repeated
+rejection rate by detector/prompt/model version. Default product views favor high precision over
+proposal volume.
+
+## Phase 6 exit gate
+
+- The semantic system uses explicit composition; no seven-mixin facade or hidden shared mutable
+  service state remains.
+- Repeated unchanged reconciliation creates no new source-reading semantic jobs.
+- Every eligible fixture module reaches current, excluded, or failed with visible provenance.
+- Consolidation and dead-code evaluation expose both supporting and contradicting evidence.
+- No deletion proposal appears when relationship trust is below policy or a plausible dynamic root
+  remains unexplained.
+- Pattern scores are reproducible from stored components and calibrated on the reviewed corpus.
+- A coding goal produces placement guidance, a bounded work scope, precedents, risks, tests, and
+  post-change verification.
+- Semantic and pattern modules comply with the 500-line ceiling and dependency-layer rules.
+
+---
+
+# Phase 7 — temporal architecture intelligence
+
+**Status:** BLOCKED BY PHASE 6
+
+**Goal:** make time an explanatory product advantage rather than only a graph animation.
+
+## 7.1 Persist meaningful graph deltas
+
+For each selected frame, derive:
+
+- modules/symbols/relationships added, removed, renamed, or materially changed;
+- architecture area moves and boundary changes;
+- cycles introduced/resolved;
+- interface, complexity, coverage, and coupling deltas;
+- findings introduced, acknowledged, planned, resolved, or regressed;
+- semantic intent and pattern proposal changes with provenance.
+
+Store or cache these deltas independently from the renderer so REST, MCP, exports, and dashboard use
+the same explanation.
+
+## 7.2 Add behavioral architecture analytics
+
+- File/module change frequency over configurable windows;
+- change coupling: files that repeatedly change together even without a static edge;
+- churn × complexity hotspots and their trend;
+- ownership/knowledge concentration when Git identity data is explicitly enabled;
+- unstable interfaces and architecture regions absorbing disproportionate change;
+- findings/patterns whose risk is increasing rather than merely present.
+
+Behavioral evidence complements static structure. Co-change is not mislabeled as a runtime
+dependency.
+
+## 7.3 Build the visual repository bibliography
+
+The history view includes:
+
+- initial commit, tags/releases, calendar milestones, and architecture-changing commits;
+- commit subject/date/author where allowed;
+- dominant areas and changed-file counts;
+- concise architecture delta and newly actionable findings;
+- play/pause, speed, scrub, compare, date range, and milestone filters;
+- stable node positions and preserved camera/selection;
+- visible add/remove/change animation rather than a complete graph jump;
+- exportable, client-safe presentation with optional identity redaction.
+
+## 7.4 Explain “when and why” to agents
+
+MCP queries should answer:
+
+- when a module/responsibility/interface first appeared;
+- which change introduced a cycle, hotspot, or proposal;
+- whether two modules are statically connected, behaviorally coupled, or both;
+- how an architecture area changed over a release/date range;
+- whether a current recommendation is new, persistent, improving, or regressed.
+
+## Phase 7 exit gate
+
+- Playback begins at the first selected revision and ends at the current tree without rerunning full
+  history analysis.
+- Every visual delta matches the shared REST/MCP delta record.
+- A user can identify the commit/frame that introduced and resolved a fixture cycle.
+- Change coupling and static dependencies remain separately labeled.
+- Camera, selected module, and architecture regions remain stable during playback.
+- A client-safe export tells a coherent architecture story without leaking excluded paths or
+  identities.
+
+---
+
+# Phase 8 — long-tail languages, non-code context, and extension ecosystem
+
+**Status:** BLOCKED BY PHASE 7
+
+**Goal:** expand beyond the core language set and understand the system around source code without
+delaying team security or turning AnaxiGraph into an unbounded document-ingestion product.
+
+## 8.1 Add long-tail parser-backed languages
+
+Implement C, C++, C#, Ruby, and PHP one at a time through the Phase 4 analyzer contract. Prioritize
+constructs that affect module boundaries and impact analysis before advanced symbol completeness.
+C/C++ header/include resolution and build-system ambiguity require explicit provenance;
+dynamic Ruby/PHP framework conventions require configurable entry points and lower-confidence
+evidence where static certainty is impossible.
+
+Each language must meet at least the Structural support contract and ship its fixtures,
+real-repository sample, resolution metrics, dashboard support badge, and documentation before the
+next language begins. Moving this wave here keeps it committed in the roadmap without forcing team
+authentication to wait for five unrelated language implementations.
+
+## 8.2 Prioritize deterministic operational context
+
+Add adapters in this order:
+
+1. SQL schemas and migrations: tables, views, foreign keys, and code-to-table evidence;
+2. OpenAPI/JSON Schema/GraphQL contracts and code endpoints/clients;
+3. Docker Compose, Kubernetes, and service/runtime topology;
+4. Terraform and selected infrastructure relationships;
+5. Markdown architecture/ADR links and explicitly declared module references.
+
+Each adapter uses the same evidence/provenance vocabulary and declares whether a relationship is
+extracted, resolved, ambiguous, or inferred.
+
+## 8.3 Keep rich media optional
+
+PDF, image, audio, and video understanding is not on the critical path. If added later, it must be
+an optional plugin with explicit egress/privacy policy, bounded cost, separate semantic provenance,
+and no effect on deterministic code-graph trust scores.
+
+## 8.4 Stabilize the plugin contract
+
+Publish versioned interfaces for:
+
+- file/language analyzers;
+- resolvers;
+- architecture detectors and rules;
+- semantic providers/agent adapters;
+- importers such as coverage or runtime traces;
+- exporters and dashboard panels.
+
+Plugins run with declared capabilities and resource bounds. The core can disable a failing plugin,
+record its failure, and continue scanning without corrupting a snapshot. First-party plugins follow
+the same line, test, provenance, and migration rules as core modules.
+
+## Phase 8 exit gate
+
+- C, C++, C#, Ruby, and PHP each meet at least the Structural support contract and remain honestly
+  labeled where calls, framework behavior, macros, or build resolution are incomplete.
+- SQL, API schema, and deployment configuration connect to code with inspectable evidence.
+- Missing or invalid non-code inputs degrade visibly and do not corrupt code facts.
+- A third-party analyzer can be developed from a documented fixture/template without changing core
+  scanner or storage code.
+- Plugin compatibility and permissions are versioned and tested.
+- Optional semantic media processing cannot run without explicit operator policy.
+
+---
+
+# Phase 9 — 1.0 hardening and community launch
+
+**Status:** BLOCKED BY PHASE 8
+
+**Goal:** turn the proven product into a stable, understandable open-source project people can
+install, evaluate, operate, and contribute to confidently.
+
+## 9.1 Freeze and document supported contracts
+
+- Stable CLI commands and exit codes;
+- versioned REST and MCP contracts;
+- documented AnaxiIndex migration/support window;
+- configuration schema and upgrade tool;
+- language and deployment support matrices;
+- backup/restore and disaster-recovery guide;
+- security policy, threat model, vulnerability reporting, and release signing.
+
+## 9.2 Build the public project surface
+
+- Product website with the entropy-control, temporal, provenance, and agent-funded semantic story;
+- five-minute interactive demo and sanitized example repositories;
+- architecture/history screenshots and short replay video;
+- contributor guide organized by analyzers, index, dashboard, MCP, and docs;
+- issue templates with analyzer evidence and benchmark reproduction fields;
+- public roadmap generated from this plan's current phase, not a list of simultaneous promises;
+- governance, code of conduct, release cadence, and maintainer expectations.
+
+## 9.3 Run release candidates on real repositories
+
+Use small, medium, and large repositories across supported languages. Record:
+
+- setup completion and abandonment points;
+- current scan/history performance and index size;
+- relationship resolution and analyzer mix;
+- finding/proposal acceptance and false-positive reasons;
+- semantic bootstrap coverage, cost, interruption, and reuse;
+- dashboard performance and accessibility;
+- upgrade/backup/restore success.
+
+Do not call the product 1.0 until published support claims match these results.
+
+## Phase 9 exit gate
+
+- Fresh-install, upgrade, backup/restore, auth, and uninstall paths pass release-candidate tests.
+- No first-party implementation module exceeds 500 lines and no time-limited waiver remains.
+- Required CI checks protect the release branch.
+- Public documentation makes facts, interpretations, recommendations, privacy, and language support
+  unambiguous.
+- At least one external contributor can follow the documented setup, add a fixture-backed analyzer
+  or detector, and pass all gates without maintainer-only knowledge.
+- The website and demo accurately represent shipped behavior.
+
+---
+
+# Cross-phase quality gates
+
+Every phase must satisfy all applicable gates below, not only its own feature tests.
+
+## Correctness
+
+- Unit, integration, CLI-process, REST, MCP, migration, and browser tests for affected behavior;
+- deterministic fixture outputs where claims should be stable;
+- explicit tests for ambiguity, partial parsing, missing inputs, interrupted jobs, and legacy data;
+- no target code execution during scans/history import.
+
+## Maintainability
+
+- 500 physical lines maximum for new/cleared first-party implementation modules;
+- no growth in temporary legacy exceptions;
+- no new package dependency cycles or layer violations;
+- 85% or better changed-code coverage and no unexplained total coverage decline;
+- an ADR for schema, public API, dependency, or deployment decisions;
+- public types/contracts at service boundaries rather than unstructured dictionaries where a
+  stable domain record exists.
+
+## Performance
+
+- Updated benchmark report for scanner, history, index size, API payload, scope payload, and browser
+  render paths affected by the phase;
+- counters that distinguish discovery, reads, analysis, resolution, reuse, persistence, and render;
+- explicit memory and payload ceilings for large fixtures;
+- no performance claim without fixture, hardware/environment metadata, and before/after result.
+
+## Trust and security
+
+- extracted/inferred/ambiguous/unresolved provenance preserved;
+- semantic provider/model/prompt/schema and evidence retained;
+- no credential in repository configuration, logs, fixtures, or index exports;
+- repository authorization enforced wherever team mode exists;
+- state-changing behavior audited and idempotent where retries are expected.
+
+## User experience
+
+- loading, empty, partial, failure, cancellation, retry, and success states;
+- clear totals whenever results are filtered, paginated, ranked, or omitted;
+- keyboard/accessibility and visual regression checks for changed dashboard flows;
+- onboarding and operator docs updated in the same phase, not deferred.
+
+# Metrics that decide whether the roadmap is working
+
+| Product question | Metric |
+|---|---|
+| Can a new user reach value? | Commands and median minutes to dashboard, MCP connection, and first semantic dossier |
+| Can a real repo finish history? | Wall time, source reads, analyzer invocations, reused versions, index bytes per selected frame/change |
+| Can users trust the graph? | Analyzer mix, unique/ambiguous/unresolved relationship rate, parse errors, dynamic-wiring caveats |
+| Is the attention queue useful? | Queue size, top-20 action rate, dismissal reason, recurrence, time to resolution |
+| Is architecture advice useful? | Proposal review/approval rate, false-positive category, score calibration, verified improvement/regression |
+| Is semantic cost controlled? | Current/stale/failed/excluded coverage, input/output tokens, cost, reuse rate, jobs per changed module |
+| Is AnaxiGraph staying clean? | Modules over 400/500 lines, cycles, layer violations, complexity, changed-code coverage, hotspot trend |
+| Can the dashboard scale? | Initial overview bytes/time, expanded-region bytes/time, peak browser memory, dropped frames |
+| Is team mode safe? | Unauthorized access tests, scoped-token isolation, audit completeness, rotation/revocation tests |
+
+# Explicitly deferred ideas
+
+These are not started while a numbered phase above is open:
+
+- a Rust scanner rewrite before profiling proves Python/parser libraries are the remaining limit;
+- a vector database as a substitute for the versioned graph and canonical dossier contracts;
+- automatic code deletion or unreviewed autonomous refactors;
+- a hosted multi-tenant service before local/team auth and isolation are proven;
+- PDF/media ingestion before deterministic code, schema, and deployment context;
+- all-language marketing based only on file-extension recognition;
+- batching every Git blob before delta-driven avoidance is implemented;
+- new dashboard visualizations that do not answer a decision or workflow question.
+
+# Immediate implementation queue
+
+Development begins with this exact order. Each item cites the section that specifies it, so the
+queue and the document cannot drift apart.
+
+| # | Item | Specified in |
+|---:|---|---|
+| 1 | Add the reproducible history/storage/performance benchmark and capture baseline output | §0.1 |
+| 2 | Ratify the Phase 1a and 1b numeric targets from that report and write them into this document | §0.1 |
+| 3 | Add the module-size checker, the current eight-file ratchet baseline, and checker tests | §0.3 |
+| 4 | Add tracked pre-commit configuration and installation documentation | §0.2 |
+| 5 | Run the same size/lint/test checks in CI and make them eligible as required checks | §0.2 |
+| 6 | Add the complexity, cycle, coverage, and layer budgets as warnings and no-growth ratchets | §0.4 |
+| 7 | Publish the internal architecture ADR, the package-layer policy, and its characterization tests | §0.5 |
+| 8 | Formalize and version the existing analyzer IR, add conformance tests, and certify the Python analyzer | §0.5 |
+| 9 | Finish the remaining §0.6 documentation work: document `init --start` and correct the README's team-install claim. PyPI 0.1.0 publication and next-release PEP 639 metadata are complete | §0.6 |
+| 10 | Publish the supported platform matrix, including the Windows decision | §0.7 |
+| 11 | Close the Phase 0 exit gate and record the result in this document | §0 gate |
+| 12 | Only then open `P1a.1`, the temporal correctness characterization suite on today's schema | §1a.1 |
+
+Items 9 and 10 are the user-visible Phase 0 changes. The completed 0.1.0 publication is the narrow,
+recorded exception described in §0.6; the work that remains in these queue items is restricted to
+documentation and release metadata, so it cannot interact with the temporal rewrite that follows.
+
+This order deliberately starts with evidence and guardrails. It ensures the history rewrite does
+not expand `storage.py` and `scanner.py` further, and it makes every later feature pay the same
+architectural discipline AnaxiGraph asks of the repositories it analyzes.
