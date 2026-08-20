@@ -30,6 +30,13 @@ cloned from the prior analysis rather than reparsed. That keeps queries simple w
 incremental behavior. Raw hash equality skips extraction. Structural hash equality after a raw
 change performs only deterministic metadata/documentation refresh and reuses semantic claims.
 
+Analyzer facts conform to `anaxigraph-ir-v1`. Until Phase 1b normalizes the temporal storage model,
+the additional contract fields live in `file_versions.metadata_json.ir`: IR/analyzer versions,
+module identity and aliases, resolver inputs, parse status, exports, and symbol visibility/columns.
+The ordinary columns and `symbols` table remain the query-efficient v1 projection. A tested codec
+reconstructs the complete IR during incremental reuse; the metadata is not an unversioned dumping
+ground. See [`ADR 0001`](adr/0001-internal-layers-and-analyzer-ir.md).
+
 Semantic documents are immutable interpretations. A scope-state row points at the intrinsic and
 contextual documents current for one snapshot. Matching input hashes reuse an older document;
 structural or policy changes enqueue new source understanding, while dependency/interface or

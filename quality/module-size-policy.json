@@ -37,7 +37,7 @@
     },
     {
       "path": "src/anaxigraph/scanner.py",
-      "baseline_lines": 1152,
+      "baseline_lines": 1090,
       "rationale": "Legacy scanner combines discovery, preparation, resolution, persistence, and orchestration.",
       "owner": "maintainers",
       "removal_phase": "Phase 1b",

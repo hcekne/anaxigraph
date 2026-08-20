@@ -41,6 +41,7 @@ class _CountingAnalyzer:
         self._delegate = delegate
         self._counts = counts
         self.name = delegate.name
+        self.version = delegate.version
         self.languages = delegate.languages
 
     def analyze(self, path: str, content: str):

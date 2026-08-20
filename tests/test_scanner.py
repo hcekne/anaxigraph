@@ -4,8 +4,11 @@ import json
 import subprocess
 from collections import Counter
 
+from anaxigraph.analyzers.python import PythonAnalyzer
 from anaxigraph.architecture import _dead_code_findings
 from anaxigraph.config import RuleConfig
+from anaxigraph.ir import analysis_from_stored
+from anaxigraph.ir_conformance import validate_analysis
 from anaxigraph.scanner import RepositoryScanner
 
 
@@ -62,6 +65,33 @@ def test_scan_persists_graph_metrics_coverage_and_findings(repository, database)
         and "docs/architecture.md" in item["affected_artifacts"]
         for item in findings
     )
+    with database.connect() as connection:
+        stored = dict(
+            connection.execute(
+                """
+            SELECT fv.* FROM file_versions fv
+            WHERE fv.snapshot_id = ? AND fv.path = 'pkg/core.py'
+            """,
+                (stats.snapshot_id,),
+            ).fetchone()
+        )
+        stored["symbols"] = [
+            dict(item)
+            for item in connection.execute(
+                "SELECT * FROM symbols WHERE artifact_version_id = ? ORDER BY start_line",
+                (stored["id"],),
+            )
+        ]
+    metadata = json.loads(stored["metadata_json"])
+    assert metadata["analysis_version"] == 4
+    assert metadata["ir"]["schema_version"] == "anaxigraph-ir-v1"
+    assert metadata["ir"]["analyzer_version"] == "1"
+    assert metadata["ir"]["module_identity"]["canonical_name"] == "pkg.core"
+    assert metadata["ir"]["resolver_context"]["configured_aliases"] == [["@/", "web/"]]
+    assert metadata["ir"]["symbols"][0]["visibility"] == "public"
+    restored = analysis_from_stored(stored)
+    assert validate_analysis(PythonAnalyzer(), "pkg/core.py", restored) == ()
+    assert restored.resolver_context.configured_aliases == (("@/", "web/"),)
 
 
 def test_scan_retains_ambiguous_unresolved_and_external_relationship_evidence(repository, database):

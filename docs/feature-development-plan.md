@@ -248,7 +248,7 @@ The point is that the decision is written down, not that it happens on a schedul
 
 # Phase 0 — engineering guardrails and reproducible baselines
 
-**Status:** IN PROGRESS — 0.1–0.4 COMPLETE; 0.5 NEXT
+**Status:** IN PROGRESS — 0.1–0.5 COMPLETE; 0.6 NEXT
 
 **Goal:** prevent AnaxiGraph's implementation from becoming the spaghetti code it warns users
 about, while producing trustworthy performance and quality baselines for later phases.
@@ -415,6 +415,8 @@ split recommendation is evidence for inspection, never permission to refactor au
 
 ## 0.5 Record the intended internal architecture
 
+**Status:** COMPLETE on 20 August 2026
+
 Add a concise ADR and enforce this dependency direction:
 
 ```text
@@ -456,6 +458,12 @@ The existing Python analyzer is certified against the contract as the reference 
 using compatibility adapters where a staged transition is necessary. This is contract
 formalization, not parser work: no grammars, packaging changes, or new languages, and no wholesale
 Python analyzer rewrite. Phase 4.1 becomes conformance and extension rather than first definition.
+
+Delivered as [`ADR 0001`](adr/0001-internal-layers-and-analyzer-ir.md), the enforced layer policy,
+and the executable `anaxigraph-ir-v1` contract. Analysis version 4 persists the added facts through
+a compatibility codec, all built-in analyzers pass the neutral conformance suite, and the Python
+AST adapter is the characterized reference. JavaScript/TypeScript remain honestly labeled
+lexical; this phase did not claim new parser depth.
 
 ## 0.6 Correct today's public claims
 
@@ -1675,8 +1683,8 @@ queue and the document cannot drift apart.
 | 4 | **COMPLETE** — Add tracked pre-commit configuration and installation documentation | §0.2 |
 | 5 | **COMPLETE** — Run the same size/lint/test checks in CI and make them eligible as required checks | §0.2 |
 | 6 | **COMPLETE** — Add the complexity, cycle, coverage, and layer budgets as warnings and no-growth ratchets | §0.4 |
-| 7 | Publish the internal architecture ADR, the package-layer policy, and its characterization tests | §0.5 |
-| 8 | Formalize and version the existing analyzer IR, add conformance tests, and certify the Python analyzer | §0.5 |
+| 7 | **COMPLETE** — Publish the internal architecture ADR, the package-layer policy, and its characterization tests | §0.5 |
+| 8 | **COMPLETE** — Formalize and version the existing analyzer IR, add conformance tests, and certify the Python analyzer | §0.5 |
 | 9 | Finish the remaining §0.6 documentation work: document `init --start` and correct the README's team-install claim. PyPI 0.1.0 publication and next-release PEP 639 metadata are complete | §0.6 |
 | 10 | Publish the supported platform matrix, including the Windows decision | §0.7 |
 | 11 | Close the Phase 0 exit gate and record the result in this document | §0 gate |

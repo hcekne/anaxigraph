@@ -27,7 +27,6 @@
     "src/anaxigraph/agent.py::_rank_files": [69, 22],
     "src/anaxigraph/agent.py::_applicable_findings": [55, 9],
     "src/anaxigraph/agent.py::_bound_scope_payload": [71, 21],
-    "src/anaxigraph/analyzers/javascript.py::JavaScriptAnalyzer.analyze": [52, 14],
     "src/anaxigraph/analyzers/javascript.py::_strip_comments": [52, 21],
     "src/anaxigraph/analyzers/text.py::_jsonc_to_json": [37, 18],
     "src/anaxigraph/api.py::create_app": [570, 8],
@@ -53,7 +52,7 @@
     "src/anaxigraph/scanner.py::RepositoryScanner.scan": [237, 21],
     "src/anaxigraph/scanner.py::RepositoryScanner._prepare": [53, 13],
     "src/anaxigraph/scanner.py::RepositoryScanner._upsert_artifacts": [53, 9],
-    "src/anaxigraph/scanner.py::RepositoryScanner._insert_versions": [81, 4],
+    "src/anaxigraph/scanner.py::RepositoryScanner._insert_versions": [81, 3],
     "src/anaxigraph/scanner.py::RepositoryScanner._insert_relationships": [92, 14],
     "src/anaxigraph/scanner.py::RepositoryScanner._insert_groups": [55, 7],
     "src/anaxigraph/scanner.py::_DependencyResolver.resolve": [57, 13],
@@ -93,6 +92,7 @@
     "anaxigraph.api": [1, 11],
     "anaxigraph.cli": [1, 9],
     "anaxigraph.config": [20, 0],
+    "anaxigraph.models": [10, 0],
     "anaxigraph.scanner": [4, 11],
     "anaxigraph.storage": [13, 2]
   }

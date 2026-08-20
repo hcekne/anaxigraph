@@ -33,8 +33,16 @@ target Git repository (read-only)
 Dependency direction inside the package is:
 
 ```text
-cli / api / mcp_server → scanner / agent → analyzers / architecture / storage
+dashboard → CLI / REST / MCP → application services
+                                  ├→ analysis adapters → foundation contracts
+                                  └→ index persistence → foundation contracts
 ```
+
+Analysis and persistence are sibling layers and may not import each other. One shrinking legacy
+edge from architecture evaluation to storage is recorded explicitly. The complete rationale,
+module classification, and versioned analyzer contract are in
+[`ADR 0001`](adr/0001-internal-layers-and-analyzer-ir.md); the corresponding import policy runs in
+every commit and CI gate.
 
 In multi-repository mode, an operator-owned YAML registry maps stable keys to read-only container
 paths, per-repository policy files, and Git history sample budgets. One service and one SQLite
@@ -48,6 +56,13 @@ SQLite database is external by default under the user's state directory.
 Deterministic parser facts and probabilistic semantic claims never share a provenance record.
 Relationship rows name their evidence source and confidence. Semantic rows name provider, model,
 prompt version, time, confidence, and supporting evidence.
+
+All built-in analyzers emit `anaxigraph-ir-v1`. That contract records module identity and aliases,
+symbol kind/signature/span/visibility, extracted references with evidence and confidence, explicit
+exports, parse depth, analyzer version, and resolver inputs. Python is AST-backed, JavaScript and
+TypeScript are lexical, and other recognized languages are explicitly fallback analysis today.
+Resolution outcomes remain separate relationship facts: resolved, ambiguous, unresolved, or
+external.
 
 Semantic enrollment has three barriers: all intrinsic module dossiers, all contextual module
 dossiers, then group/repository synthesis. Structural hashes invalidate source-bound

@@ -18,13 +18,20 @@ from anaxigraph.analyzers import AnalyzerRegistry, builtin_registry
 from anaxigraph.architecture import evaluate_architecture
 from anaxigraph.config import AnaxiGraphConfig, load_config
 from anaxigraph.coverage import collect_coverage
-from anaxigraph.languages import artifact_type, detect_language
+from anaxigraph.ir import (
+    analysis_from_stored,
+    analysis_metadata,
+    analyze_with_contract,
+    artifact_type,
+    canonical_python_module,
+    detect_language,
+    python_module_aliases,
+)
 from anaxigraph.models import (
     Dependency,
     FileAnalysis,
     GitMetadata,
     ScanStats,
-    Symbol,
 )
 from anaxigraph.relationships import (
     AMBIGUOUS_INTERNAL,
@@ -35,7 +42,7 @@ from anaxigraph.relationships import (
 from anaxigraph.storage import AnaxiIndex, utc_now
 from anaxigraph.understanding import SemanticEngine
 
-ANALYSIS_VERSION = 3
+ANALYSIS_VERSION = 4
 
 
 @dataclass(frozen=True, slots=True)
@@ -403,7 +410,7 @@ class RepositoryScanner:
                 prepared.append(
                     PreparedFile(
                         discovered=item,
-                        analysis=_analysis_from_previous(prior),
+                        analysis=analysis_from_stored(prior),
                         analysis_status="raw_unchanged",
                         previous_version_id=int(prior["id"]),
                         first_seen_at=prior["first_seen_at"],
@@ -415,7 +422,7 @@ class RepositoryScanner:
             analyzer = self.registry.for_language(item.language)
             if analyzer is None:
                 raise RuntimeError(f"No analyzer registered for {item.language}")
-            analysis = analyzer.analyze(item.path, content)
+            analysis = analyze_with_contract(analyzer, item.path, content)
             status = "new"
             if prior:
                 if prior["raw_hash"] == item.raw_hash:
@@ -546,11 +553,11 @@ class RepositoryScanner:
             analysis = item.analysis
             declared = config.declared_group(path)
             inferred = _inferred_group(path, item.discovered.language)
-            metadata = dict(analysis.metadata)
-            metadata["analysis_version"] = ANALYSIS_VERSION
-            metadata["dependencies"] = [
-                dataclasses.asdict(value) for value in analysis.dependencies
-            ]
+            metadata = analysis_metadata(
+                analysis,
+                analysis_version=ANALYSIS_VERSION,
+                configured_aliases=config.aliases,
+            )
             cursor = connection.execute(
                 """
                 INSERT INTO file_versions(
@@ -846,7 +853,7 @@ class _DependencyResolver:
         for item in prepared:
             path = item.discovered.path
             if item.discovered.language == "python":
-                for alias in _python_module_aliases(path):
+                for alias in python_module_aliases(path):
                     self.python_modules.setdefault(alias, set()).add(path)
             for symbol in item.analysis.symbols:
                 self.symbols.setdefault(symbol.name, set()).add(path)
@@ -919,7 +926,7 @@ class _DependencyResolver:
         if target.startswith("."):
             level = len(target) - len(target.lstrip("."))
             remainder = target[level:]
-            full_module = _canonical_python_module(source_path)
+            full_module = canonical_python_module(source_path)
             base = full_module.split(".")[:-1]
             if level > 1:
                 base = base[: max(0, len(base) - (level - 1))]
@@ -1009,53 +1016,6 @@ def _walk_files(root: Path, config: AnaxiGraphConfig) -> list[str]:
     return result
 
 
-def _analysis_from_previous(value: dict[str, Any]) -> FileAnalysis:
-    metadata = json.loads(value["metadata_json"] or "{}")
-    dependencies = [
-        Dependency(
-            target=item["target"],
-            relationship_type=item.get("relationship_type", "imports"),
-            line=int(item.get("line", 0)),
-            evidence=item.get("evidence", ""),
-            confidence=float(item.get("confidence", 1.0)),
-            names=tuple(item.get("names") or ()),
-        )
-        for item in metadata.pop("dependencies", [])
-    ]
-    symbols = [
-        Symbol(
-            symbol_type=item["symbol_type"],
-            name=item["name"],
-            qualified_name=item["qualified_name"],
-            start_line=int(item["start_line"]),
-            end_line=int(item["end_line"]),
-            signature=item["signature"],
-            summary=item["summary"],
-            complexity=int(item["complexity"]),
-            logical_lines=int(item["logical_lines"]),
-        )
-        for item in value["symbols"]
-    ]
-    return FileAnalysis(
-        language=value["language"],
-        structural_hash=value["structural_hash"],
-        lines_of_code=int(value["lines_of_code"]),
-        comment_lines=int(value["comment_lines"]),
-        complexity=int(value["complexity"]),
-        summary=value["summary"],
-        responsibilities=json.loads(value["responsibilities_json"]),
-        inputs=json.loads(value["inputs_json"]),
-        outputs=json.loads(value["outputs_json"]),
-        side_effects=json.loads(value["side_effects_json"]),
-        public_interfaces=json.loads(value["public_interfaces_json"]),
-        symbols=symbols,
-        dependencies=dependencies,
-        parse_error=value["parse_error"],
-        analyzer=value["analyzer"],
-        metadata=metadata,
-    )
-
-
 def _content_fingerprint(
     files: list[DiscoveredFile], config: AnaxiGraphConfig, git_metadata: GitMetadata
 ) -> str:
@@ -1082,28 +1042,6 @@ def _config_json(config: AnaxiGraphConfig) -> str:
     # Mount points differ between local and container runs; only policy content affects analysis.
     config_value.pop("config_path", None)
     return json.dumps(config_value, sort_keys=True, default=str)
-
-
-def _canonical_python_module(path: str) -> str:
-    pure = PurePosixPath(path)
-    parts = list(pure.with_suffix("").parts)
-    if parts and parts[-1] == "__init__":
-        parts.pop()
-    return ".".join(parts)
-
-
-def _python_module_aliases(path: str) -> set[str]:
-    canonical = _canonical_python_module(path)
-    parts = canonical.split(".")
-    aliases = {canonical}
-    if len(parts) > 1:
-        aliases.add(".".join(parts[1:]))
-    if "src" in parts:
-        aliases.add(".".join(parts[parts.index("src") + 1 :]))
-    for marker in ("app", "lib", "server"):
-        if marker in parts:
-            aliases.add(".".join(parts[parts.index(marker) :]))
-    return {alias for alias in aliases if alias}
 
 
 def _inferred_group(path: str, language: str) -> str:

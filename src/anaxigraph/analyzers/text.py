@@ -9,6 +9,7 @@ from pathlib import PurePosixPath
 
 import yaml
 
+from anaxigraph.ir import module_identity, resolver_context
 from anaxigraph.models import Dependency, FileAnalysis
 
 _CSS_IMPORT = re.compile(r"@(?:import|use|forward)\s+(?:url\()?['\"]([^'\"]+)['\"]")
@@ -17,6 +18,7 @@ _MARKDOWN_LINK = re.compile(r"\[[^]]+\]\((?!https?://|mailto:|#)([^)#?]+)")
 
 class TextAnalyzer:
     name = "builtin-text"
+    version = "1"
     languages = frozenset(
         {
             "css",
@@ -57,6 +59,7 @@ class TextAnalyzer:
 
     def analyze(self, path: str, content: str) -> FileAnalysis:
         language = _language_for_path(path)
+        identity = module_identity(path, language)
         lines = content.splitlines()
         comment_prefixes = _comment_prefixes(language)
         comment_lines = sum(1 for line in lines if line.strip().startswith(comment_prefixes))
@@ -81,6 +84,10 @@ class TextAnalyzer:
             dependencies=dependencies,
             parse_error=parse_error,
             analyzer=self.name,
+            module_identity=identity,
+            parse_status="parse_error" if parse_error else "fallback",
+            analyzer_version=self.version,
+            resolver_context=resolver_context(identity),
         )
 
 

@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 from anaxigraph.analyzers.javascript import JavaScriptAnalyzer
 from anaxigraph.analyzers.python import PythonAnalyzer
 from anaxigraph.analyzers.text import TextAnalyzer
+from anaxigraph.ir import IR_SCHEMA_VERSION
+from anaxigraph.ir_conformance import validate_analysis
 
 
 def test_python_ast_extracts_symbols_imports_calls_and_stable_structural_hash():
@@ -71,3 +75,48 @@ def test_text_analyzer_accepts_jsonc_and_github_actions_yaml():
 
     assert jsonc.parse_error is None
     assert workflow.parse_error is None
+
+
+def test_python_analyzer_is_the_reference_ir_implementation():
+    analyzer = PythonAnalyzer()
+    result = analyzer.analyze(
+        "src/example/service.py",
+        "import httpx as client\n\ndef fetch():\n    return client.get('/ready')\n",
+    )
+
+    assert validate_analysis(analyzer, "src/example/service.py", result) == ()
+    assert result.ir_version == IR_SCHEMA_VERSION
+    assert result.module_identity is not None
+    assert result.module_identity.canonical_name == "src.example.service"
+    assert "example.service" in result.module_identity.aliases
+    assert result.resolver_context is not None
+    assert ("client", "httpx") in result.resolver_context.import_aliases
+    assert result.parse_status == "parsed"
+    assert result.exports == ["fetch"]
+    assert result.symbols[0].visibility == "public"
+
+
+def test_every_builtin_analyzer_emits_conforming_ir():
+    cases = (
+        (PythonAnalyzer(), "module.py", "def value():\n    return 1\n"),
+        (JavaScriptAnalyzer(), "module.ts", "export function value() { return 1; }\n"),
+        (TextAnalyzer(), "module.go", "package module\n\nfunc Value() int { return 1 }\n"),
+    )
+
+    for analyzer, path, source in cases:
+        result = analyzer.analyze(path, source)
+        assert validate_analysis(analyzer, path, result) == ()
+
+
+def test_conformance_reports_contract_drift_without_language_guessing():
+    analyzer = PythonAnalyzer()
+    result = analyzer.analyze("module.py", "import dependency\n")
+    result.ir_version = "future-ir"
+    result.dependencies[0] = replace(result.dependencies[0], confidence=2.0)
+
+    issues = validate_analysis(analyzer, "module.py", result)
+
+    assert {item.field for item in issues} >= {
+        "ir_version",
+        "dependencies[0].confidence",
+    }

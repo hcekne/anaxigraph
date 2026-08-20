@@ -9,6 +9,7 @@ from anaxigraph.models import FileAnalysis
 
 class LanguageAnalyzer(Protocol):
     name: str
+    version: str
     languages: frozenset[str]
 
     def analyze(self, path: str, content: str) -> FileAnalysis: ...

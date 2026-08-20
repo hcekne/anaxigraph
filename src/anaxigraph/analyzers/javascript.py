@@ -6,6 +6,7 @@ import hashlib
 import re
 from pathlib import PurePosixPath
 
+from anaxigraph.ir import module_identity, resolver_context, symbol_visibility
 from anaxigraph.languages import detect_language
 from anaxigraph.models import Dependency, FileAnalysis, Symbol
 
@@ -38,10 +39,12 @@ _BRANCH = re.compile(r"\b(?:if|else\s+if|for|while|case|catch)\b|&&|\|\||\?\?")
 
 class JavaScriptAnalyzer:
     name = "builtin-js-lexer"
+    version = "1"
     languages = frozenset({"javascript", "javascriptreact", "typescript", "typescriptreact"})
 
     def analyze(self, path: str, content: str) -> FileAnalysis:
         language = detect_language(path) or "javascript"
+        identity = module_identity(path, language)
         code, comment_lines, leading_comment = _strip_comments(content)
         structural = " ".join(_TOKEN.findall(code))
         dependencies, aliases = _imports(content)
@@ -61,23 +64,9 @@ class JavaScriptAnalyzer:
         symbols = _symbols(path, code)
         loc = sum(1 for line in code.splitlines() if line.strip())
         complexity = 1 + len(_BRANCH.findall(code))
-        name = PurePosixPath(path).stem
-        public = [symbol.name for symbol in symbols if not symbol.name.startswith("_")]
-        summary = leading_comment or (
-            f"{language.title()} module {name} defining {', '.join(public[:5])}"
-            if public
-            else f"{language.title()} module {name}"
+        public, summary, responsibilities, side_effects = _module_semantics(
+            path, language, leading_comment, symbols, dependencies
         )
-        responsibilities = [
-            f"Provide {symbol.symbol_type.replace('_', ' ')} {symbol.name}"
-            for symbol in symbols[:12]
-        ]
-        side_effects = []
-        targets = {item.target for item in dependencies}
-        if any(target in targets for target in ("axios", "node-fetch", "http", "https")):
-            side_effects.append("network access")
-        if any(target in targets for target in ("fs", "node:fs")):
-            side_effects.append("filesystem access")
         return FileAnalysis(
             language=language,
             structural_hash=hashlib.sha256(structural.encode()).hexdigest(),
@@ -91,7 +80,32 @@ class JavaScriptAnalyzer:
             symbols=symbols,
             dependencies=_deduplicate_dependencies(dependencies),
             analyzer=self.name,
+            module_identity=identity,
+            exports=public,
+            parse_status="lexical",
+            analyzer_version=self.version,
+            resolver_context=resolver_context(identity, import_aliases=aliases),
         )
+
+
+def _module_semantics(path, language, leading_comment, symbols, dependencies):
+    name = PurePosixPath(path).stem
+    public = [symbol.name for symbol in symbols if not symbol.name.startswith("_")]
+    summary = leading_comment or (
+        f"{language.title()} module {name} defining {', '.join(public[:5])}"
+        if public
+        else f"{language.title()} module {name}"
+    )
+    responsibilities = [
+        f"Provide {symbol.symbol_type.replace('_', ' ')} {symbol.name}" for symbol in symbols[:12]
+    ]
+    side_effects = []
+    targets = {item.target for item in dependencies}
+    if any(target in targets for target in ("axios", "node-fetch", "http", "https")):
+        side_effects.append("network access")
+    if any(target in targets for target in ("fs", "node:fs")):
+        side_effects.append("filesystem access")
+    return public, summary, responsibilities, side_effects
 
 
 def _strip_comments(content: str) -> tuple[str, set[int], str]:
@@ -220,6 +234,8 @@ def _symbols(path: str, code: str) -> list[Symbol]:
                 signature=signature[:1_000],
                 complexity=1 + len(_BRANCH.findall(segment)),
                 logical_lines=max(1, sum(1 for line in segment.splitlines() if line.strip())),
+                visibility=symbol_visibility(name),
+                start_column=position - code.rfind("\n", 0, position) - 1,
             )
         )
     return result

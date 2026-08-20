@@ -5,6 +5,34 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+IR_SCHEMA_VERSION = "anaxigraph-ir-v1"
+PARSE_STATUSES = frozenset({"parsed", "lexical", "fallback", "parse_error"})
+REFERENCE_KINDS = frozenset({"imports", "exports", "calls", "extends", "references"})
+VISIBILITIES = frozenset({"public", "protected", "private", "unknown"})
+
+
+@dataclass(frozen=True, slots=True)
+class ModuleIdentity:
+    """Stable analyzer view of a module before repository-wide resolution."""
+
+    path: str
+    language: str
+    canonical_name: str
+    package_name: str
+    aliases: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class ResolverContext:
+    """Inputs that make a reference-resolution result reproducible."""
+
+    importer_path: str
+    module_name: str
+    package_name: str
+    import_aliases: tuple[tuple[str, str], ...] = ()
+    configured_aliases: tuple[tuple[str, str], ...] = ()
+    candidate_roots: tuple[str, ...] = ()
+
 
 @dataclass(frozen=True, slots=True)
 class Symbol:
@@ -17,6 +45,9 @@ class Symbol:
     summary: str = ""
     complexity: int = 1
     logical_lines: int = 0
+    visibility: str = "unknown"
+    start_column: int = 0
+    end_column: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,6 +58,9 @@ class Dependency:
     evidence: str = ""
     confidence: float = 1.0
     names: tuple[str, ...] = ()
+    column: int = 0
+    end_line: int = 0
+    end_column: int = 0
 
 
 @dataclass(slots=True)
@@ -47,6 +81,12 @@ class FileAnalysis:
     parse_error: str | None = None
     analyzer: str = "text"
     metadata: dict[str, Any] = field(default_factory=dict)
+    module_identity: ModuleIdentity | None = None
+    exports: list[str] = field(default_factory=list)
+    parse_status: str = "fallback"
+    analyzer_version: str = "1"
+    ir_version: str = IR_SCHEMA_VERSION
+    resolver_context: ResolverContext | None = None
 
 
 @dataclass(frozen=True, slots=True)

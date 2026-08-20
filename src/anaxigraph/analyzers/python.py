@@ -10,14 +10,17 @@ import tokenize
 from pathlib import PurePosixPath
 from typing import Iterable
 
+from anaxigraph.ir import module_identity, resolver_context, symbol_visibility
 from anaxigraph.models import Dependency, FileAnalysis, Symbol
 
 
 class PythonAnalyzer:
     name = "builtin-python-ast"
+    version = "1"
     languages = frozenset({"python"})
 
     def analyze(self, path: str, content: str) -> FileAnalysis:
+        identity = module_identity(path, "python")
         lines = content.splitlines()
         comments = _comment_lines(content)
         loc = sum(
@@ -26,17 +29,7 @@ class PythonAnalyzer:
         try:
             tree = ast.parse(content, filename=path, type_comments=True)
         except (SyntaxError, ValueError) as exc:
-            normalized = content.replace("\r\n", "\n")
-            return FileAnalysis(
-                language="python",
-                structural_hash=hashlib.sha256(normalized.encode()).hexdigest(),
-                lines_of_code=loc,
-                comment_lines=len(comments),
-                complexity=1,
-                summary=f"Python module {PurePosixPath(path).stem}",
-                parse_error=f"{type(exc).__name__}: {exc}",
-                analyzer=self.name,
-            )
+            return _parse_failure(path, content, loc, len(comments), identity, exc, self)
 
         visitor = _PythonVisitor(path, content)
         visitor.visit(tree)
@@ -65,7 +58,30 @@ class PythonAnalyzer:
             dependencies=visitor.dependencies,
             analyzer=self.name,
             metadata={"module_docstring": module_doc[:2_000]},
+            module_identity=identity,
+            exports=public,
+            parse_status="parsed",
+            analyzer_version=self.version,
+            resolver_context=resolver_context(identity, import_aliases=visitor.import_aliases),
         )
+
+
+def _parse_failure(path, content, loc, comment_lines, identity, exc, analyzer) -> FileAnalysis:
+    normalized = content.replace("\r\n", "\n")
+    return FileAnalysis(
+        language="python",
+        structural_hash=hashlib.sha256(normalized.encode()).hexdigest(),
+        lines_of_code=loc,
+        comment_lines=comment_lines,
+        complexity=1,
+        summary=f"Python module {PurePosixPath(path).stem}",
+        parse_error=f"{type(exc).__name__}: {exc}",
+        analyzer=analyzer.name,
+        module_identity=identity,
+        parse_status="parse_error",
+        analyzer_version=analyzer.version,
+        resolver_context=resolver_context(identity),
+    )
 
 
 class _PythonVisitor(ast.NodeVisitor):
@@ -183,6 +199,9 @@ class _PythonVisitor(ast.NodeVisitor):
                 summary=summary.split("\n\n", 1)[0][:1_000],
                 complexity=complexity,
                 logical_lines=max(1, end - start + 1),
+                visibility=symbol_visibility(name),
+                start_column=int(getattr(node, "col_offset", 0)),
+                end_column=int(getattr(node, "end_col_offset", 0) or 0),
             )
         )
 
