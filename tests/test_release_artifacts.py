@@ -61,3 +61,16 @@ def test_release_archives_are_byte_reproducible(built_distributions: tuple[Path,
     first_hashes = {path.name: path.read_bytes() for path in first.iterdir()}
     second_hashes = {path.name: path.read_bytes() for path in second.iterdir()}
     assert first_hashes == second_hashes
+
+
+def test_release_workflow_can_probe_trusted_publishing_without_uploading():
+    workflow = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
+    probe, release = workflow.split("  build:\n", maxsplit=1)
+
+    assert "workflow_dispatch:" in probe
+    assert "if: github.event_name == 'workflow_dispatch'" in probe
+    assert "https://pypi.org/_/oidc/mint-token" in probe
+    assert "unset api_token" in probe
+    assert "gh-action-pypi-publish" not in probe
+    assert "twine upload" not in probe
+    assert "if: github.event_name == 'release'" in release

@@ -3,13 +3,46 @@ name: Release
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  verify-trusted-publisher:
+    name: Verify PyPI trusted publisher without uploading
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/anaxigraph/
+    permissions:
+      id-token: write
+    steps:
+      - name: Mint and discard a short-lived PyPI token
+        run: |
+          set -euo pipefail
+          oidc_response="$(curl --fail --silent --show-error \
+            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=pypi")"
+          oidc_token="$(jq -er '.value | select(length > 0)' <<< "${oidc_response}")"
+          echo "::add-mask::${oidc_token}"
+
+          mint_payload="$(jq -cn --arg token "${oidc_token}" '{token: $token}')"
+          mint_response="$(curl --fail --silent --show-error \
+            -X POST \
+            -H "Content-Type: application/json" \
+            --data "${mint_payload}" \
+            https://pypi.org/_/oidc/mint-token)"
+          api_token="$(jq -er '.token | select(length > 0)' <<< "${mint_response}")"
+          echo "::add-mask::${api_token}"
+
+          unset api_token mint_response mint_payload oidc_token oidc_response
+          echo "PyPI accepted the configured GitHub OIDC publisher; no artifact was uploaded."
+
   build:
     name: Build and attest immutable artifacts
+    if: github.event_name == 'release'
     runs-on: ubuntu-latest
     permissions:
       contents: read
