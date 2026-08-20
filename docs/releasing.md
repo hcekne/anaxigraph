@@ -26,9 +26,15 @@ The publisher is deliberately bound to one workflow and one environment. Do not 
 token as a GitHub secret.
 
 **Current operational state (20 August 2026):** the protected GitHub `pypi` environment exists,
-requires maintainer approval, and permits only `v*` tags. The matching publisher is not yet present
-in PyPI. Add it through the existing project's **Publishing** page before preparing any release
-after 0.2.0.
+requires maintainer approval, and permits only `v*` tags. The matching publisher has been added in
+PyPI and awaits the non-publishing identity probe below before it is treated as release-ready.
+
+After adding or changing the publisher, test the identity without uploading an artifact by manually
+dispatching `.github/workflows/release.yml`. The diagnostic job obtains the ambient GitHub OIDC
+identity, asks PyPI to mint a short-lived project token, masks it, and immediately discards it. It
+does not build or upload a distribution. Because the protected environment normally permits only
+release tags, temporarily allow the exact branch used for the probe, approve that one deployment,
+then remove the temporary branch policy after the run succeeds.
 
 ### Protected GitHub environment
 
