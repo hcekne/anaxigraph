@@ -81,25 +81,16 @@ def import_git_history(
         if every_commit
         else sampled_revisions(complete_history, max(1, max_snapshots))
     )
-    baseline_snapshot_id: int | None = None
-    imported = 0
-    for index, commit_sha in enumerate(selected, start=1):
-        if progress:
-            progress(index, len(selected), commit_sha)
-        existing = database.commit_snapshot(repository_id, commit_sha, signature)
-        if existing is not None:
-            baseline_snapshot_id = int(existing["id"])
-            imported += 1
-            continue
-        stats = scanner.scan(
-            root,
-            config_path=config_path,
-            revision=commit_sha,
-            run_type="history",
-            baseline_snapshot_id=baseline_snapshot_id,
-        )
-        baseline_snapshot_id = stats.snapshot_id
-        imported += 1
+    baseline_snapshot_id, imported = _import_revisions(
+        database,
+        scanner,
+        root,
+        selected,
+        repository_id=repository_id,
+        signature=signature,
+        config_path=config_path,
+        progress=progress,
+    )
     current = scanner.scan(
         root,
         config_path=config_path,
@@ -114,3 +105,40 @@ def import_git_history(
         latest_commit=complete_history[-1] if complete_history else None,
         current_snapshot_id=current.snapshot_id,
     )
+
+
+def _import_revisions(
+    database: AnaxiIndex,
+    scanner: RepositoryScanner,
+    root: Path,
+    selected: list[str],
+    *,
+    repository_id: int,
+    signature: str,
+    config_path: str | Path | None,
+    progress: Callable[[int, int, str], None] | None,
+) -> tuple[int | None, int]:
+    baseline_snapshot_id: int | None = None
+    baseline_revision: str | None = None
+    imported = 0
+    for index, commit_sha in enumerate(selected, start=1):
+        if progress:
+            progress(index, len(selected), commit_sha)
+        existing = database.commit_snapshot(repository_id, commit_sha, signature)
+        if existing is not None:
+            baseline_snapshot_id = int(existing["id"])
+            baseline_revision = commit_sha
+            imported += 1
+            continue
+        stats = scanner.scan(
+            root,
+            config_path=config_path,
+            revision=commit_sha,
+            run_type="history",
+            baseline_snapshot_id=baseline_snapshot_id,
+            previous_revision=baseline_revision,
+        )
+        baseline_snapshot_id = stats.snapshot_id
+        baseline_revision = commit_sha
+        imported += 1
+    return baseline_snapshot_id, imported

@@ -8,9 +8,11 @@ from typing import Any
 
 import pytest
 
+from anaxigraph import git
 from anaxigraph.config import load_config
 from anaxigraph.history import import_git_history
 from anaxigraph.scanner import RepositoryScanner, analysis_signature
+from benchmarks.repository_factory import create_history_repository
 
 
 def _git(root: Path, *args: str) -> str:
@@ -322,3 +324,72 @@ def test_interrupted_history_resumes_from_completed_frames(tmp_path, database):
     assert {commit: after[commit] for commit in before} == before
     assert resumed.revisions == [commits[2], commits[3], None]
     assert result.current_snapshot_id == database.latest_snapshot(int(row["id"]))["id"]
+
+
+def test_revision_delta_classifies_every_tree_transition(tmp_path):
+    root = _repository(tmp_path)
+    files = {
+        "modify.py": "VALUE = 1\n",
+        "delete.py": "VALUE = 2\n",
+        "rename.py": "VALUE = 3\n",
+        "copy.py": "VALUE = 4\n",
+        "typed.py": "VALUE = 5\n",
+    }
+    for name, content in files.items():
+        (root / "src" / name).write_text(content, encoding="utf-8")
+    first = _commit(root, "initial transitions")
+
+    (root / "src" / "modify.py").write_text("VALUE = 10\n", encoding="utf-8")
+    (root / "src" / "delete.py").unlink()
+    (root / "src" / "rename.py").rename(root / "src" / "renamed.py")
+    (root / "src" / "copied.py").write_text(
+        (root / "src" / "copy.py").read_text(encoding="utf-8"), encoding="utf-8"
+    )
+    (root / "src" / "typed.py").unlink()
+    os.symlink("copy.py", root / "src" / "typed.py")
+    (root / "src" / "added.py").write_text("VALUE = 6\n", encoding="utf-8")
+    second = _commit(root, "all transitions")
+
+    delta = git.revision_delta(root, first, second)
+    by_current_path = {item.new_path: item.status for item in delta.changes if item.new_path}
+
+    assert {item.status for item in delta.changes} == {"A", "C", "D", "M", "R", "T"}
+    assert by_current_path["src/renamed.py"] == "R"
+    assert by_current_path["src/copied.py"] == "C"
+    assert delta.removed_paths == frozenset({"src/delete.py", "src/rename.py"})
+
+
+def test_history_reads_only_distinct_changed_blobs_and_records_reuse(
+    tmp_path, database, monkeypatch
+):
+    root = tmp_path / "delta-history"
+    manifest = create_history_repository(root, file_count=120)
+    original = git.read_at_revision
+    reads: list[tuple[str, str]] = []
+
+    def counted(root, revision, path, *, max_bytes):
+        reads.append((revision, path))
+        return original(root, revision, path, max_bytes=max_bytes)
+
+    monkeypatch.setattr(git, "read_at_revision", counted)
+    result = import_git_history(database, root, every_commit=True)
+
+    assert len(reads) == manifest["expected_distinct_artifact_raw_versions"] == 135
+    with database.connect() as connection:
+        history_runs = connection.execute(
+            "SELECT metadata_json FROM analysis_runs WHERE run_type = 'history' ORDER BY id"
+        ).fetchall()
+        metadata_rows = connection.execute(
+            "SELECT metadata_json FROM file_versions WHERE snapshot_id = ?",
+            (result.current_snapshot_id,),
+        ).fetchall()
+    counters = [json.loads(row["metadata_json"]) for row in history_runs]
+    file_metadata = [json.loads(row["metadata_json"]) for row in metadata_rows]
+
+    assert sum(item["source_reads"] for item in counters) == 135
+    assert sum(item["carried_forward"] for item in counters) > 700
+    assert {item["invalidation_reason"] for item in file_metadata} <= {
+        "carried_forward",
+        "content_changed",
+    }
+    assert all("history_change_kind" in item and "source_read" in item for item in file_metadata)

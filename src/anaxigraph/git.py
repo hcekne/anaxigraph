@@ -165,6 +165,79 @@ class GitChange:
     deletions: int | None
 
 
+@dataclass(frozen=True, slots=True)
+class RevisionPathChange:
+    """One path transition between two repository trees."""
+
+    status: str
+    old_path: str | None
+    new_path: str | None
+    similarity: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class RevisionDelta:
+    """Typed tree delta used to decide which historical blobs must be read."""
+
+    base_revision: str
+    revision: str
+    changes: tuple[RevisionPathChange, ...]
+
+    @property
+    def changed_current_paths(self) -> frozenset[str]:
+        return frozenset(item.new_path for item in self.changes if item.new_path is not None)
+
+    @property
+    def removed_paths(self) -> frozenset[str]:
+        return frozenset(
+            item.old_path
+            for item in self.changes
+            if item.old_path is not None and item.status in {"D", "R"}
+        )
+
+
+def revision_delta(root: Path, base_revision: str, revision: str) -> RevisionDelta:
+    """Return add/modify/delete/rename/copy/type transitions between selected frames."""
+
+    result = _run(
+        root,
+        "diff",
+        "--name-status",
+        "-z",
+        "--find-renames",
+        "--find-copies",
+        "--find-copies-harder",
+        base_revision,
+        revision,
+        text=False,
+        timeout=120,
+    )
+    fields = [value for value in result.stdout.split(b"\0") if value]
+    changes: list[RevisionPathChange] = []
+    index = 0
+    while index < len(fields):
+        raw_status = fields[index].decode("ascii", errors="replace")
+        index += 1
+        status = raw_status[:1]
+        similarity = int(raw_status[1:]) if raw_status[1:].isdigit() else None
+        old_path = _decode_path(fields[index])
+        index += 1
+        if status in {"R", "C"}:
+            new_path = _decode_path(fields[index])
+            index += 1
+        elif status == "D":
+            new_path = None
+        else:
+            new_path = old_path
+            old_path = None
+        changes.append(RevisionPathChange(status, old_path, new_path, similarity))
+    return RevisionDelta(base_revision, revision, tuple(changes))
+
+
+def _decode_path(value: bytes) -> str:
+    return value.decode("utf-8", errors="surrogateescape").replace("\\", "/")
+
+
 def recent_changes(root: Path, *, limit: int = 5_000) -> list[GitChange]:
     if not is_repository(root):
         return []

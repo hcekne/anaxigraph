@@ -5,7 +5,6 @@ from __future__ import annotations
 import dataclasses
 import hashlib
 import json
-import os
 import posixpath
 import sqlite3
 import time
@@ -13,18 +12,24 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from anaxigraph import __version__, git
+from anaxigraph import __version__
 from anaxigraph.analyzers import AnalyzerRegistry, builtin_registry
 from anaxigraph.architecture import evaluate_architecture
 from anaxigraph.config import AnaxiGraphConfig, load_config
 from anaxigraph.coverage import collect_coverage
+from anaxigraph.history_discovery import (
+    DiscoveredFile,
+    DiscoveryResult,
+    available_changes,
+    discover_files,
+    repository_metadata,
+)
 from anaxigraph.ir import (
     analysis_from_stored,
     analysis_metadata,
     analyze_with_contract,
     artifact_type,
     canonical_python_module,
-    detect_language,
     python_module_aliases,
 )
 from anaxigraph.models import (
@@ -43,14 +48,6 @@ from anaxigraph.storage import AnaxiIndex, utc_now
 from anaxigraph.understanding import SemanticEngine
 
 ANALYSIS_VERSION = 4
-
-
-@dataclass(frozen=True, slots=True)
-class DiscoveredFile:
-    path: str
-    language: str
-    raw_hash: str
-    content: bytes
 
 
 @dataclass(slots=True)
@@ -89,13 +86,14 @@ class RepositoryScanner:
         revision: str | None = None,
         run_type: str = "scan",
         baseline_snapshot_id: int | None = None,
+        previous_revision: str | None = None,
     ) -> ScanStats:
         started = time.monotonic()
         root = Path(repository).expanduser().resolve()
         if not root.is_dir():
             raise ValueError(f"Repository does not exist or is not a directory: {root}")
         config = load_config(root, Path(config_path) if config_path else None)
-        git_metadata = git.metadata(root, revision=revision)
+        git_metadata = repository_metadata(root, revision)
         name = config.project_name or root.name
         repository_id = self.database.ensure_repository(
             path=root,
@@ -104,13 +102,17 @@ class RepositoryScanner:
         )
         run_id = self.database.start_run(repository_id, run_type)
         try:
-            discovered = self._discover(
+            signature = analysis_signature(config)
+            discovered, previous, discovery = self._discover_frame(
+                repository_id,
                 root,
                 config,
                 revision=revision,
+                baseline_snapshot_id=baseline_snapshot_id,
+                previous_revision=previous_revision,
+                signature=signature,
             )
             fingerprint = _content_fingerprint(discovered, config, git_metadata)
-            latest = self.database.latest_snapshot(repository_id)
             existing_snapshot = self.database.snapshot_by_fingerprint(repository_id, fingerprint)
             if existing_snapshot:
                 existing_id = int(existing_snapshot["id"])
@@ -119,7 +121,7 @@ class RepositoryScanner:
                     {
                         "anaxigraph_version": __version__,
                         "analysis_version": ANALYSIS_VERSION,
-                        "analysis_signature": analysis_signature(config),
+                        "analysis_signature": signature,
                         "config_path": str(config.config_path) if config.config_path else None,
                     }
                 )
@@ -183,7 +185,7 @@ class RepositoryScanner:
                     status="unchanged",
                     discovered=len(discovered),
                     reused=len(discovered),
-                    metadata={"duration_ms": duration, "revision": revision},
+                    metadata=_run_metadata(discovery, duration, revision),
                 )
                 stats = ScanStats(
                     repository_id=repository_id,
@@ -201,12 +203,6 @@ class RepositoryScanner:
                     SemanticEngine(self.database).plan(repository_id, root, config)
                 return stats
 
-            previous_snapshot_id = (
-                baseline_snapshot_id
-                if baseline_snapshot_id is not None
-                else (int(latest["id"]) if latest else None)
-            )
-            previous = self._previous_versions(previous_snapshot_id)
             prepared = self._prepare(discovered, previous, config)
             with self.database.transaction() as connection:
                 snapshot_id = self._insert_snapshot(
@@ -286,14 +282,15 @@ class RepositoryScanner:
                 analyzed=analyzed,
                 reused=reused,
                 error_count=errors,
-                metadata={
-                    "duration_ms": duration,
-                    "revision": revision,
-                    "deleted": deleted,
-                    "relationships": relationship_count,
-                    "coverage_measurements": coverage_count,
-                    "findings": len(findings),
-                },
+                metadata=_run_metadata(
+                    discovery,
+                    duration,
+                    revision,
+                    deleted=deleted,
+                    relationships=relationship_count,
+                    coverage_measurements=coverage_count,
+                    findings=len(findings),
+                ),
             )
             stats = ScanStats(
                 repository_id=repository_id,
@@ -319,55 +316,34 @@ class RepositoryScanner:
             )
             raise
 
-    def _discover(
+    def _discover_frame(
         self,
+        repository_id: int,
         root: Path,
         config: AnaxiGraphConfig,
         *,
         revision: str | None,
-    ) -> list[DiscoveredFile]:
-        if revision is not None:
-            paths = git.files_at_revision(root, revision)
-        else:
-            paths = git.listed_files(root) if git.is_repository(root) else _walk_files(root, config)
-        result: list[DiscoveredFile] = []
-        for raw_path in paths:
-            path = raw_path.replace("\\", "/")
-            if path.startswith("./"):
-                path = path[2:]
-            if not path or config.is_ignored(path):
-                continue
-            language = detect_language(path)
-            if language is None:
-                continue
-            if revision is not None:
-                content = git.read_at_revision(
-                    root,
-                    revision,
-                    path,
-                    max_bytes=config.max_file_bytes,
-                )
-            else:
-                candidate = root / path
-                if not candidate.is_file() or candidate.is_symlink():
-                    continue
-                try:
-                    if candidate.stat().st_size > config.max_file_bytes:
-                        continue
-                    content = candidate.read_bytes()
-                except OSError:
-                    continue
-            if content is None or b"\0" in content[:8_192]:
-                continue
-            result.append(
-                DiscoveredFile(
-                    path=path,
-                    language=language,
-                    raw_hash=hashlib.sha256(content).hexdigest(),
-                    content=content,
-                )
-            )
-        return sorted(result, key=lambda item: item.path)
+        baseline_snapshot_id: int | None,
+        previous_revision: str | None,
+        signature: str,
+    ) -> tuple[list[DiscoveredFile], dict[str, dict[str, Any]], DiscoveryResult]:
+        latest = self.database.latest_snapshot(repository_id)
+        previous_snapshot_id = (
+            baseline_snapshot_id
+            if baseline_snapshot_id is not None
+            else (int(latest["id"]) if latest else None)
+        )
+        previous = self._previous_versions(previous_snapshot_id)
+        discovery = discover_files(
+            root,
+            config,
+            revision=revision,
+            previous_revision=previous_revision,
+            previous=previous,
+            analysis_version=ANALYSIS_VERSION,
+            allow_carry=self._snapshot_signature(previous_snapshot_id) == signature,
+        )
+        return list(discovery.files), previous, discovery
 
     def _previous_versions(self, snapshot_id: int | None) -> dict[str, dict[str, Any]]:
         if snapshot_id is None:
@@ -389,6 +365,16 @@ class RepositoryScanner:
                     ).fetchall()
                 ]
             return result
+
+    def _snapshot_signature(self, snapshot_id: int | None) -> str | None:
+        if snapshot_id is None:
+            return None
+        with self.database.connect() as connection:
+            row = connection.execute(
+                "SELECT metadata_json FROM snapshots WHERE id = ?", (snapshot_id,)
+            ).fetchone()
+        metadata = json.loads(row["metadata_json"] or "{}") if row else {}
+        return metadata.get("analysis_signature")
 
     def _prepare(
         self,
@@ -553,11 +539,7 @@ class RepositoryScanner:
             analysis = item.analysis
             declared = config.declared_group(path)
             inferred = _inferred_group(path, item.discovered.language)
-            metadata = analysis_metadata(
-                analysis,
-                analysis_version=ANALYSIS_VERSION,
-                configured_aliases=config.aliases,
-            )
+            metadata = _version_metadata(item, config)
             cursor = connection.execute(
                 """
                 INSERT INTO file_versions(
@@ -798,10 +780,7 @@ class RepositoryScanner:
     def _ingest_git_history(
         self, connection: sqlite3.Connection, *, repository_id: int, root: Path
     ) -> None:
-        try:
-            changes = git.recent_changes(root)
-        except git.GitError:
-            return
+        changes = available_changes(root)
         connection.executemany(
             """
             INSERT OR IGNORE INTO git_changes(
@@ -1000,20 +979,35 @@ def defaultdict_set() -> dict[str, set[str]]:
     return {}
 
 
-def _walk_files(root: Path, config: AnaxiGraphConfig) -> list[str]:
-    result: list[str] = []
-    for current, directories, files in os.walk(root, followlinks=False):
-        current_path = Path(current)
-        relative_dir = current_path.relative_to(root)
-        directories[:] = [
-            name
-            for name in directories
-            if not (current_path / name).is_symlink()
-            and not config.is_ignored(str((relative_dir / name)).replace("\\", "/"), is_dir=True)
-        ]
-        for name in files:
-            result.append(str((relative_dir / name)).replace("\\", "/"))
-    return result
+def _version_metadata(item: PreparedFile, config: AnaxiGraphConfig) -> dict[str, Any]:
+    metadata = analysis_metadata(
+        item.analysis,
+        analysis_version=ANALYSIS_VERSION,
+        configured_aliases=config.aliases,
+    )
+    metadata.update(
+        {
+            "invalidation_reason": item.discovered.invalidation_reason,
+            "history_change_kind": item.discovered.change_kind,
+            "source_read": item.discovered.source_read,
+        }
+    )
+    return metadata
+
+
+def _run_metadata(
+    discovery: DiscoveryResult,
+    duration: int,
+    revision: str | None,
+    **values: Any,
+) -> dict[str, Any]:
+    return {
+        "duration_ms": duration,
+        "revision": revision,
+        "source_reads": discovery.source_reads,
+        "carried_forward": discovery.carried_forward,
+        **values,
+    }
 
 
 def _content_fingerprint(

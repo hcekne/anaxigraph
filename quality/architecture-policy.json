@@ -41,6 +41,7 @@
       "modules": [
         "anaxigraph.agent",
         "anaxigraph.history",
+        "anaxigraph.history_discovery",
         "anaxigraph.onboarding",
         "anaxigraph.scanner",
         "anaxigraph.semantic_agent",
