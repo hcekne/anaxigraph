@@ -313,7 +313,7 @@ class RepositoryScanner:
         latest = self.database.latest_snapshot(repository_id)
         previous_snapshot_id = (
             baseline_snapshot_id
-            if baseline_snapshot_id is not None
+            if baseline_snapshot_id is not None or revision is not None
             else (int(latest["id"]) if latest else None)
         )
         previous = self._previous_versions(previous_snapshot_id)

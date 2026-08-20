@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -11,6 +9,7 @@ from typing import Any
 
 from anaxigraph import git
 from anaxigraph.config import load_config
+from anaxigraph.history_frames import materialize_revision
 from anaxigraph.languages import detect_language
 from anaxigraph.scanner import RepositoryScanner, analysis_signature
 
@@ -168,23 +167,7 @@ def _import_revision(
     _notify_frame_started(context, state, index, commit_sha, summary)
     if context.progress:
         context.progress(index, len(context.plan.selected), commit_sha)
-    existing = context.database.commit_snapshot(
-        context.plan.repository_id, commit_sha, context.plan.signature
-    )
-    reused = existing is not None
-    if existing is not None:
-        state.baseline_snapshot_id = int(existing["id"])
-    else:
-        stats = context.scanner.scan(
-            context.root,
-            config_path=context.config_path,
-            revision=commit_sha,
-            run_type="history",
-            baseline_snapshot_id=state.baseline_snapshot_id,
-            previous_revision=state.baseline_revision,
-        )
-        state.baseline_snapshot_id = stats.snapshot_id
-        _add_work(state.work, context.database, stats)
+    reused = materialize_revision(context, state, commit_sha)
     state.baseline_revision = commit_sha
     state.imported += 1
     _notify_frame_complete(
@@ -292,31 +275,6 @@ def _empty_work() -> dict[str, Any]:
         "relationships_copied": 0,
         "invalidation_reasons": {},
     }
-
-
-def _add_work(work: dict[str, Any], database: Any, stats: Any) -> None:
-    with database.connect() as connection:
-        run = connection.execute(
-            "SELECT metadata_json FROM analysis_runs WHERE id = ?", (stats.analysis_run_id,)
-        ).fetchone()
-        files = connection.execute(
-            "SELECT metadata_json FROM file_versions WHERE snapshot_id = ?", (stats.snapshot_id,)
-        ).fetchall()
-    metadata = json.loads(run["metadata_json"] or "{}") if run else {}
-    for key in (
-        "source_reads",
-        "carried_forward",
-        "relationship_sources_resolved",
-        "relationship_sources_reused",
-        "relationships_copied",
-    ):
-        work[key] += int(metadata.get(key) or 0)
-    work["analyzed_files"] += stats.analyzed
-    work["reused_analysis"] += stats.reused
-    reasons = Counter(json.loads(row["metadata_json"])["invalidation_reason"] for row in files)
-    total_reasons = Counter(work["invalidation_reasons"])
-    total_reasons.update(reasons)
-    work["invalidation_reasons"] = dict(sorted(total_reasons.items()))
 
 
 def adaptive_history_limit(file_count: int) -> int:

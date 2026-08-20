@@ -102,6 +102,18 @@ TEMPORAL_SCHEMA = (
         CHECK(change_kind IN ('set', 'retract'))
     )
     """,
+    """
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+        id INTEGER PRIMARY KEY,
+        from_version INTEGER NOT NULL,
+        to_version INTEGER NOT NULL,
+        backup_path TEXT NOT NULL,
+        backup_sha256 TEXT NOT NULL,
+        backup_bytes INTEGER NOT NULL,
+        completed_at TEXT NOT NULL,
+        UNIQUE(from_version, to_version, backup_sha256)
+    )
+    """,
     "CREATE INDEX IF NOT EXISTS idx_file_facts_artifact ON file_facts(artifact_id, id)",
     "CREATE INDEX IF NOT EXISTS idx_file_changes_snapshot ON snapshot_file_changes(snapshot_id)",
     "CREATE INDEX IF NOT EXISTS idx_file_changes_artifact ON snapshot_file_changes(artifact_id, snapshot_id)",

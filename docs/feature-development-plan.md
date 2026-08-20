@@ -762,7 +762,7 @@ unbounded process cache.
 
 # Phase 1b — immutable facts and snapshot deltas
 
-**Status:** ACTIVE — 1b.1 MIGRATION VALIDATION AND DOCTOR NEXT
+**Status:** ACTIVE — 1b.2 BOUNDED RECONSTRUCTION NEXT
 
 **Goal:** make stored facts scale with distinct versions and relationship contexts rather than with
 selected frames multiplied by repository size.
@@ -832,6 +832,15 @@ is backed up before an atomic upgrade, and frame-by-frame tests prove identical 
 edge evidence, confidence, and resolution provenance after both direct dual-write and migration
 backfill. The compatibility tables intentionally remain until items 19–21 validate semantic and
 finding consumers and `doctor` authorizes compaction.
+
+**Migration validation and doctor are complete on 20 August 2026.** Index initialization now
+creates the validated schema-6 backup before opening the migration transaction, records its path,
+checksum, size, source/target versions, and completion time only when that transaction commits, and
+can restart cleanly after an injected post-backfill failure. Reused current snapshots are rebased
+onto the selected first-parent history without cycles, including the common scan-before-history
+workflow. `anaxigraph doctor` checks integrity, foreign keys, lineage, every frame's file/symbol/edge
+digest, and backup recovery metadata. It emits a fail-closed compaction report and explicitly retains
+all compatibility rows while legacy product or semantic consumers remain.
 
 ## 1b.2 Bound snapshot reconstruction and read amplification
 
@@ -1781,8 +1790,8 @@ queue and the document cannot drift apart.
 | 16 | **COMPLETE** — Make history import a resumable, cancellable job without blocking current intelligence | §1a.5 |
 | 17 | **COMPLETE** — Characterize schema-6 migration rollback/backup behavior and freeze canonical frame reconstruction fixtures | §1b.1 |
 | 18 | **COMPLETE** — Introduce immutable file/symbol facts, relationship sets, and snapshot delta tables behind the index abstraction | §1b.1 |
-| 19 | **IN PROGRESS** — Migrate a copied schema-6 index transactionally, validate it, preserve backup recovery, and expose `doctor`/compaction reporting | §1b.1 |
-| 20 | Route snapshot reads through bounded reconstruction with disposable checkpoints and measured read amplification | §1b.2 |
+| 19 | **COMPLETE** — Migrate a copied schema-6 index transactionally, validate it, preserve backup recovery, and expose `doctor`/compaction reporting | §1b.1 |
+| 20 | **IN PROGRESS** — Route snapshot reads through bounded reconstruction with disposable checkpoints and measured read amplification | §1b.2 |
 | 21 | Prove semantic/finding/history compatibility and unchanged canonical results across migration, retry, and checkpoint rebuild | §1b.1–1b.2 |
 | 22 | Run and record the complete Phase 1b storage, migration, read-latency, and quality exit gate before onboarding work begins | Phase 1b gate |
 

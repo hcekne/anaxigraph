@@ -7,6 +7,7 @@ from anaxigraph.persistence.index_backup import (
     restore_schema_backup,
     validate_schema_backup,
 )
+from anaxigraph.persistence.index_doctor import inspect_index
 from anaxigraph.persistence.index_initialization import initialize_index
 from anaxigraph.persistence.migrations import (
     SUPPORTED_SCHEMA_VERSIONS,
@@ -32,6 +33,7 @@ __all__ = [
     "backup_path",
     "create_schema_backup",
     "initialize_index",
+    "inspect_index",
     "migrate_schema",
     "relationship_metadata",
     "relationship_quality",

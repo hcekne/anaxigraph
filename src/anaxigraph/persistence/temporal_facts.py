@@ -29,7 +29,10 @@ def migrate_legacy_temporal_facts(connection: sqlite3.Connection) -> dict[str, i
     snapshots = connection.execute(
         """
         SELECT id, repository_id, metadata_json, analysis_timestamp
-        FROM snapshots ORDER BY repository_id, analysis_timestamp, id
+        FROM snapshots
+        ORDER BY repository_id,
+                 CASE snapshot_kind WHEN 'commit' THEN 0 ELSE 1 END,
+                 COALESCE(commit_timestamp, analysis_timestamp), id
         """
     ).fetchall()
     prior_by_repository: dict[int, int | None] = {}
@@ -74,7 +77,10 @@ def record_snapshot_facts(
         snapshot_id=snapshot_id,
         repository_id=repository_id,
         base_snapshot_id=base_snapshot_id,
-        sequence=_next_sequence(connection, repository_id, base_snapshot_id),
+        sequence=_next_sequence(
+            connection,
+            base_snapshot_id,
+        ),
         signature=effective_signature,
     )
     return temporal_counts(connection)
@@ -182,7 +188,6 @@ def _record_snapshot(
 
 def _next_sequence(
     connection: sqlite3.Connection,
-    repository_id: int,
     base_snapshot_id: int | None,
 ) -> int:
     if base_snapshot_id is not None:
@@ -192,11 +197,4 @@ def _next_sequence(
         ).fetchone()
         if row is not None:
             return int(row[0]) + 1
-    row = connection.execute(
-        """
-        SELECT COALESCE(MAX(sequence), -1) + 1
-        FROM snapshots WHERE repository_id = ?
-        """,
-        (repository_id,),
-    ).fetchone()
-    return int(row[0])
+    return 0

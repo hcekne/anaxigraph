@@ -156,7 +156,7 @@ def _parser() -> argparse.ArgumentParser:
 
     history = commands.add_parser("history", help="Build temporal snapshots from Git commits")
     _repository_arguments(history)
-    cli_workflows.configure_history(history)
+    cli_workflows.configure_operational_commands(commands, history, AnaxiIndex)
 
     watch = commands.add_parser("watch", help="Poll for changes and update incrementally")
     _repository_arguments(watch)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Callable, Iterator
+from datetime import UTC, datetime
 from pathlib import Path
 
 from anaxigraph.persistence.index_backup import create_schema_backup
@@ -25,8 +26,9 @@ def initialize_index(
 
     current_version = existing_schema_version(database_path)
     validate_schema_version(current_version, target_version)
+    backup = None
     if current_version is not None and current_version < target_version:
-        create_schema_backup(database_path, schema_version=current_version)
+        backup = create_schema_backup(database_path, schema_version=current_version)
 
     with connection_factory() as connection:
 
@@ -38,8 +40,29 @@ def initialize_index(
                 current_version=current_version,
                 target_version=target_version,
             )
+            if backup is not None:
+                _record_migration(current, backup, target_version)
 
         transactional_schema_change(connection, apply)
+
+
+def _record_migration(connection, backup, target_version: int) -> None:
+    connection.execute(
+        """
+        INSERT OR IGNORE INTO schema_migrations(
+            from_version, to_version, backup_path, backup_sha256,
+            backup_bytes, completed_at
+        ) VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (
+            backup.schema_version,
+            target_version,
+            str(backup.path),
+            backup.sha256,
+            backup.bytes,
+            datetime.now(UTC).isoformat(),
+        ),
+    )
 
 
 def existing_schema_version(database_path: Path) -> int | None:

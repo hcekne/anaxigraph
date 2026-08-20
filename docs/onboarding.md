@@ -342,6 +342,22 @@ connected coding agent can call `ANAXIGRAPH_HISTORY_STATUS`, `ANAXIGRAPH_HISTORY
 `ANAXIGRAPH_HISTORY_CANCEL` for the same repository-scoped workflow. These tools only mutate the
 external AnaxiIndex; they never write the mounted repository.
 
+Before an upgrade or when diagnosing an index, run the read-only safety report:
+
+```bash
+# Host installation
+anaxigraph doctor --db "${XDG_STATE_HOME:-$HOME/.local/state}/anaxigraph/anaxi-index.db" --json
+
+# Generated Docker sidecar
+docker compose -f compose.anaxigraph.yml exec anaxigraph \
+  anaxigraph doctor --db /state/anaxi-index.db --json
+```
+
+The report validates database integrity, foreign keys, snapshot ancestry, exact parity between the
+temporary compatibility frames and schema-7 immutable facts, plus the checksum of any schema-6
+recovery backup. Its compaction assessment is fail-closed: it lists every blocker and never removes
+compatibility rows while a product or semantic read path still depends on them.
+
 ## Keep the index current
 
 Refresh on demand from the dashboard, or start the optional polling service:

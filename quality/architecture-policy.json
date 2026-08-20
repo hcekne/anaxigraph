@@ -42,6 +42,7 @@
         "anaxigraph.agent",
         "anaxigraph.history",
         "anaxigraph.history_discovery",
+        "anaxigraph.history_frames",
         "anaxigraph.history_jobs",
         "anaxigraph.onboarding",
         "anaxigraph.relationship_builder",

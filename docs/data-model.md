@@ -65,6 +65,9 @@ remain dismissed unless a human changes their state.
 Schema migrations fail closed. The current schema is 7; released schemas 2 and 6 plus current schema
 7 are the explicitly tested inputs. Versions 3–5 were never released as migration contracts and are
 not guessed at, while a future schema is never opened by an older binary. Before a schema-6 index is
-upgraded, SQLite's online-backup API creates and validates an untouched recovery copy. The v2
-fixture verifies repository preservation, and the schema-6 fixture verifies exact files, symbols,
-relationship evidence, and temporal reconstruction across the upgrade and restore path.
+upgraded, SQLite's online-backup API creates and validates an untouched recovery copy. A committed
+`schema_migrations` audit row retains the source/target versions, backup path/checksum/size, and
+completion time. `anaxigraph doctor` validates that record and exact legacy/canonical frame parity
+without modifying the index. The v2 fixture verifies repository preservation, and the schema-6
+fixture verifies exact files, symbols, relationship evidence, and temporal reconstruction across
+the upgrade and restore path.

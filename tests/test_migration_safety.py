@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import sqlite3
 import subprocess
 from pathlib import Path
 
 import pytest
 
+import anaxigraph.persistence.index_initialization as initialization_module
 from anaxigraph.history import import_git_history
 from anaxigraph.persistence import (
     backup_path,
     create_schema_backup,
+    inspect_index,
     restore_schema_backup,
     transactional_schema_change,
     validate_schema_backup,
@@ -76,6 +79,7 @@ def _downgrade_to_schema_six(database: AnaxiIndex) -> None:
 
     with database.transaction() as connection:
         for table in (
+            "schema_migrations",
             "snapshot_relationship_changes",
             "relationship_edges",
             "relationship_sets",
@@ -122,6 +126,11 @@ def test_real_schema_six_index_has_idempotent_backup_and_exact_restore(repositor
     reopened = AnaxiIndex(database.path)
     created_path = backup_path(database.path, 6)
     created = validate_schema_backup(created_path, expected_version=6)
+    report = inspect_index(reopened.path, reopened.connect)
+    assert report["status"] == "healthy"
+    assert report["migration"]["from_version"] == 6
+    assert report["migration"]["to_version"] == 7
+    assert report["backup"]["status"] == "valid"
     reused = create_schema_backup(database.path, schema_version=6)
     assert reused.reused is True
     assert reused.path == created.path
@@ -149,3 +158,41 @@ def test_backup_validation_fails_closed_for_wrong_schema(database):
 
     with pytest.raises(RuntimeError, match="expected 6"):
         validate_schema_backup(backup.path, expected_version=6)
+
+
+def test_schema_six_upgrade_is_restartable_after_injected_failure(
+    repository,
+    database,
+    monkeypatch,
+):
+    _commit_change(repository)
+    import_git_history(database, repository, every_commit=True)
+    before = _canonical_frames(database)
+    _downgrade_to_schema_six(database)
+    real_migrate = initialization_module.migrate_schema
+
+    def migrate_then_fail(connection, **kwargs):
+        real_migrate(connection, **kwargs)
+        raise RuntimeError("injected post-backfill failure")
+
+    monkeypatch.setattr(initialization_module, "migrate_schema", migrate_then_fail)
+    with pytest.raises(RuntimeError, match="post-backfill"):
+        AnaxiIndex(database.path)
+
+    with sqlite3.connect(database.path) as connection:
+        version = int(
+            connection.execute(
+                "SELECT value FROM schema_meta WHERE key = 'schema_version'"
+            ).fetchone()[0]
+        )
+        temporal_table = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'file_facts'"
+        ).fetchone()
+    assert version == 6
+    assert temporal_table is None
+    validate_schema_backup(backup_path(database.path, 6), expected_version=6)
+
+    monkeypatch.setattr(initialization_module, "migrate_schema", real_migrate)
+    reopened = AnaxiIndex(database.path)
+    assert _version(reopened) == 7
+    assert _canonical_frames(reopened) == before

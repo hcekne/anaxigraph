@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from argparse import ArgumentParser, Namespace
@@ -10,7 +11,23 @@ from typing import Any
 
 from anaxigraph.history_jobs import open_history_service
 from anaxigraph.onboarding import initialize_repository
+from anaxigraph.persistence import inspect_index
 from anaxigraph.registry import RepositoryTarget, parse_history_snapshots
+
+
+def configure_operational_commands(
+    commands: Any,
+    history_parser: ArgumentParser,
+    index_factory: Any,
+) -> None:
+    configure_history(history_parser)
+    doctor_parser = commands.add_parser(
+        "doctor",
+        help="Verify index integrity, migration parity, recovery, and compaction readiness",
+    )
+    doctor_parser.add_argument("--db", type=Path, default=_default_db())
+    doctor_parser.add_argument("--json", action="store_true")
+    doctor_parser.set_defaults(handler=doctor, index_factory=index_factory)
 
 
 def configure_history(parser: ArgumentParser) -> None:
@@ -61,6 +78,11 @@ def history(args: Namespace) -> dict[str, Any]:
         history_snapshots=args.limit,
     )
     return service.run_inline(target, every_commit=args.all, since=args.since, progress=progress)
+
+
+def doctor(args: Namespace) -> dict[str, Any]:
+    database = args.index_factory(args.db)
+    return inspect_index(database.path, database.connect)
 
 
 def initialize(args: Namespace) -> dict[str, Any] | None:
@@ -123,3 +145,11 @@ def _print_initialization(args: Namespace, result: dict[str, Any]) -> None:
         print(f"  2. Codex:   {result['commands']['connect_codex']}")
     if args.start:
         print(f"\nContainer started. Open {result['dashboard_url']}")
+
+
+def _default_db() -> Path:
+    configured = os.environ.get("ANAXIGRAPH_DB")
+    if configured:
+        return Path(configured).expanduser()
+    state_root = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state"))
+    return state_root / "anaxigraph" / "anaxi-index.db"

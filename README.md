@@ -289,6 +289,7 @@ anaxigraph semantic-status /path/to/repository
 anaxigraph history /path/to/repository --limit auto
 anaxigraph history /path/to/repository --status
 anaxigraph history /path/to/repository --cancel
+anaxigraph doctor
 anaxigraph review /path/to/repository
 anaxigraph scope /path/to/repository --goal "Add saved prompts to Workbench"
 anaxigraph impact /path/to/repository --target backend/app/services/chat.py
@@ -306,6 +307,18 @@ remaining. It can be cancelled after the current atomic frame and resumed withou
 completed frames. Coding agents can use the equivalent `ANAXIGRAPH_HISTORY_STATUS`,
 `ANAXIGRAPH_HISTORY_IMPORT`, and `ANAXIGRAPH_HISTORY_CANCEL` tools. Current modules, findings,
 graphs, and agent scope remain available while the timeline is built.
+
+`anaxigraph doctor` is a read-only index safety check. It verifies SQLite integrity and foreign
+keys, snapshot lineage, every compatibility-frame/canonical-fact digest, and the recorded schema-6
+recovery backup. Its `compaction` section reports duplicate compatibility rows and explicit
+blockers. Schema 7 deliberately reports `compatibility_read_paths_active` until all REST, MCP,
+dashboard, finding, and semantic consumers have moved to bounded canonical reads; the command does
+not delete data. For the Docker sidecar, run the same check against its persisted volume:
+
+```bash
+docker compose -f compose.anaxigraph.yml exec anaxigraph \
+  anaxigraph doctor --db /state/anaxi-index.db --json
+```
 
 ## 🧠 What is persisted
 

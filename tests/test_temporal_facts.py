@@ -6,11 +6,13 @@ from typing import Any
 
 from anaxigraph.history import import_git_history
 from anaxigraph.persistence import (
+    inspect_index,
     snapshot_files,
     snapshot_relationship_edges,
     snapshot_symbols,
     temporal_counts,
 )
+from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.storage import AnaxiIndex
 
 FILE_FIELDS = (
@@ -137,6 +139,7 @@ def _assert_frame_equivalence(connection, snapshot_id: int) -> None:
 def _drop_v7_state(database: AnaxiIndex) -> None:
     with database.transaction() as connection:
         for table in (
+            "schema_migrations",
             "snapshot_relationship_changes",
             "relationship_edges",
             "relationship_sets",
@@ -155,7 +158,9 @@ def test_dual_write_reconstructs_every_frame_and_deduplicates_facts(repository, 
     import_git_history(database, repository, every_commit=True)
 
     with database.connect() as connection:
-        snapshots = connection.execute("SELECT id FROM snapshots ORDER BY sequence").fetchall()
+        snapshots = connection.execute(
+            "SELECT id, sequence FROM snapshots ORDER BY sequence"
+        ).fetchall()
         for snapshot in snapshots:
             _assert_frame_equivalence(connection, int(snapshot["id"]))
         counts = temporal_counts(connection)
@@ -163,6 +168,7 @@ def test_dual_write_reconstructs_every_frame_and_deduplicates_facts(repository, 
         legacy_symbols = connection.execute("SELECT COUNT(*) FROM symbols").fetchone()[0]
 
     assert len(snapshots) == 2
+    assert [int(snapshot["sequence"]) for snapshot in snapshots] == [0, 1]
     assert counts["file_facts"] < legacy_files
     assert counts["fact_symbols"] < legacy_symbols
     assert counts["snapshot_file_changes"] < legacy_files
@@ -179,3 +185,24 @@ def test_schema_six_backfill_reconstructs_identical_frames(repository, database)
         snapshots = connection.execute("SELECT id FROM snapshots ORDER BY sequence").fetchall()
         for snapshot in snapshots:
             _assert_frame_equivalence(connection, int(snapshot["id"]))
+
+
+def test_history_import_rebases_an_existing_current_snapshot(repository, database):
+    _commit_change(repository)
+    current = RepositoryScanner(database).scan(repository)
+
+    import_git_history(database, repository, every_commit=True)
+
+    with database.connect() as connection:
+        snapshots = connection.execute(
+            """
+            SELECT id, commit_sha, base_snapshot_id, sequence
+            FROM snapshots ORDER BY sequence, id
+            """
+        ).fetchall()
+    assert len(snapshots) == 2
+    assert [row["sequence"] for row in snapshots] == [0, 1]
+    assert snapshots[0]["base_snapshot_id"] is None
+    assert snapshots[1]["base_snapshot_id"] == snapshots[0]["id"]
+    assert snapshots[1]["id"] == current.snapshot_id
+    assert inspect_index(database.path, database.connect)["parity"]["status"] == "exact"
