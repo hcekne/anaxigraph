@@ -5,8 +5,8 @@ published to PyPI with GitHub's short-lived OpenID Connect identity. A maintaine
 token is not part of the normal release path. PyPI files and version numbers are immutable: never
 try to repair a published release by replacing its artifacts.
 
-The current source version is the candidate for the next release. It is not a claim that the
-version is already public.
+The authored source version can equal the latest public release between version bumps. Only an
+immutable `v<project.version>` GitHub release starts a new publication.
 
 ## One-time repository configuration
 
@@ -27,7 +27,10 @@ token as a GitHub secret.
 
 **Current operational state (20 August 2026):** the protected GitHub `pypi` environment exists,
 requires maintainer approval, and permits only `v*` tags. The matching publisher has been added in
-PyPI and awaits the non-publishing identity probe below before it is treated as release-ready.
+PyPI. Manual workflow run
+[`32412357679`](https://github.com/hcekne/anaxigraph/actions/runs/32412357679) proved PyPI accepts the
+exact repository, workflow, and environment identity by minting and immediately discarding a
+short-lived token without uploading.
 
 After adding or changing the publisher, test the identity without uploading an artifact by manually
 dispatching `.github/workflows/release.yml`. The diagnostic job obtains the ambient GitHub OIDC
@@ -167,5 +170,6 @@ installation and a fresh `uvx anaxigraph up` process both passed. The GitHub rel
 recovery and exposes the verified artifacts, SBOM, dependency inventory, plugin ZIP, release
 contract, and container digest.
 
-This recovery does not waive the trusted-publisher requirement. Register the publisher above and
-require a successful OIDC publication plus public-install job before publishing the next version.
+This recovery did not waive the trusted-publisher requirement. The publisher was subsequently
+registered and the non-publishing identity probe succeeded. Require the next release to complete
+the OIDC publication and public-install jobs before announcing it.

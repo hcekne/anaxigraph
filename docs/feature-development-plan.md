@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.4
+**Roadmap version:** 3.5
 
 **Updated:** 20 August 2026
 
@@ -88,7 +88,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 159 tests passing at 89.02% coverage plus 12 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, and rendered first-user paths are regression-tested |
+| Test health | 160 tests passing at 89.02% coverage plus 12 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, and release-identity paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -97,7 +97,7 @@ regression thresholds.
 | History benchmark | Measured 3,000-file/eight-frame import: 69.566 seconds, 23,970 blob reads, 23,970 `file_versions` for 3,217 distinct artifact/raw versions, 47,896 relationship rows, and a 49.56 MB vacuumed index | Unchanged source is repeatedly read and snapshot-heavy facts/edges are repeatedly materialized |
 | Graph delivery | `/api/graph` can return the full graph in one response | Fine for small loopback use, unsafe for large/team deployments |
 | Authentication | No API or MCP authentication | Acceptable only for loopback sidecar mode |
-| Installation | PyPI 0.2.0 provides one-command local startup, explicit agent connection, the dual-client plugin, generated hardened Compose, and a protected release workflow; a clean public `uvx anaxigraph up` journey is verified | The first-run distribution barrier is closed; PyPI's matching trusted-publisher registration remains mandatory before the next version can use the routine OIDC path |
+| Installation | PyPI 0.2.0 provides one-command local startup, explicit agent connection, the dual-client plugin, generated hardened Compose, and a protected release workflow; a clean public `uvx anaxigraph up` journey and the registered OIDC publisher identity are verified | The first-run distribution barrier is closed and the next version can use the routine short-lived-identity release path |
 | Internal module size | Four legacy implementation modules exceed 500 physical lines; `storage.py` is a 422-line facade, `scanner.py` is 358 lines, `cli.py` is 22 lines, and `onboarding.py` is 319 lines, all without exceptions | Phase 3 removed both first-run exceptions; Phase 3b next decomposes the dashboard, agent, and architecture owners before Phase 5 extracts the API |
 
 The current oversized implementation modules are:
@@ -1095,15 +1095,17 @@ recorded below and in `docs/releasing.md`.
 | Artifact contents | The verifier requires exactly one pure-Python wheel and one sdist, checks the console entry point, every shipped dashboard asset, archive-safe paths, package name/version, Python floor, and absence of retired product paths |
 | License contract | Built Metadata 2.4 must contain `License-Expression: Apache-2.0`, exactly one `License-File: LICENSE`, and the actual license under the wheel's `.dist-info/licenses` directory |
 | Clean installs | A Linux/macOS × Python 3.11/3.12 CI matrix installs wheel and sdist separately, runs their CLI, resolves packaged dashboard resources, initializes a new Git repository, scans it, and exercises the local `uvx --from <wheel>` path |
-| Protected publication | A dedicated GitHub-release workflow rejects mismatched or already-published versions, builds once, and requests the protected `pypi` environment without a stored API token; its first OIDC exchange correctly failed closed because the matching publisher had not yet been registered in PyPI |
+| Protected publication | A dedicated GitHub-release workflow rejects mismatched or already-published versions, builds once, and requests the protected `pypi` environment without a stored API token; after the first exchange failed closed, the publisher was registered and a non-publishing probe proved PyPI now accepts the exact workflow identity |
 | Supply-chain evidence | Each release produces distribution SHA-256 values, release-contract JSON, SPDX JSON SBOM, installed dependency/license inventory, and GitHub attestations; container tags must match the Python version and their BuildKit SBOM/provenance digest receives a registry attestation |
 | Maintainer procedure | `docs/releasing.md` records the trusted-publisher/environment setup, protected tag flow, preflight, artifact verification, digest pinning, and immutable-version recovery policy |
 | Local rehearsal | The exact normalized wheel and sdist passed Twine, installed in independent virtual environments, reported `AnaxiGraph 0.2.0`, and the wheel initialized/scanned a fresh fixture; PyPI returned the candidate version as unused |
 | Repository gate | All 120 Python tests pass at 85.79% coverage, changed executable coverage is 86.4%, all pre-commit/size/complexity/coupling/layer checks pass, both Compose definitions validate, the bounded benchmark completes, and all 12 Chromium contracts pass |
 
-The `pypi` GitHub environment now requires maintainer approval and accepts only `v*` tags. The
-matching publisher must still be added in PyPI's project UI before the next release; that
-operational control is intentionally not represented by a repository secret.
+The `pypi` GitHub environment requires maintainer approval and accepts only `v*` tags. The matching
+PyPI publisher is registered and was verified by workflow run
+[`32412357679`](https://github.com/hcekne/anaxigraph/actions/runs/32412357679), which minted, masked,
+and discarded a short-lived token without building or uploading an artifact. No repository secret
+or long-lived release token is required for the routine path.
 
 ## 3.2 Make initialization express the intended workflow
 
@@ -1302,7 +1304,7 @@ five- and ten-minute ceilings detect hangs or catastrophic regressions; future r
 them from accumulated runner data instead of treating this development server's sub-second values
 as universal promises.
 
-#### Release outcome and remaining hardening
+#### Release outcome and publisher verification
 
 The immutable `v0.2.0` release was built from commit `bf7fc17`. Main CI, the container workflow,
 and local preflight passed before tagging. The protected release job then built and attested the
@@ -1320,8 +1322,8 @@ The versioned multi-architecture image is public at `ghcr.io/hcekne/anaxigraph:0
 digest is `sha256:597fddedb5c1d4cdd3f469ee7dfc30d7d0333dd4c103e26bf2c31524d7ce4230`
 and its registry attestation verifies against this repository.
 
-Before any version after 0.2.0 is published, a PyPI project owner must add this exact trusted
-publisher in the `anaxigraph` Publishing settings:
+The PyPI project owner subsequently added this exact trusted publisher in the `anaxigraph`
+Publishing settings:
 
 | Field | Required value |
 |---|---|
@@ -1330,8 +1332,12 @@ publisher in the `anaxigraph` Publishing settings:
 | Workflow | `release.yml` |
 | Environment | `pypi` |
 
-That one-time UI registration blocks the **next publication**, not Phase 3b source development. Do
-not use Twine again for a routine release; the next release must prove the OIDC publish and public-
+Manual workflow run
+[`32412357679`](https://github.com/hcekne/anaxigraph/actions/runs/32412357679) then exercised the
+exact `release.yml` / `pypi` identity. PyPI minted a short-lived project token, the job masked and
+discarded it, and all build and upload jobs were skipped. The temporary `main` deployment allowance
+used for that probe was removed, restoring the environment to its `v*` tag-only policy. Do not use
+Twine again for a routine release; the next release must complete the OIDC publish and public-
 install jobs end to end.
 
 ---
