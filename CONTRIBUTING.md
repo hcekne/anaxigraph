@@ -32,6 +32,20 @@ Run the full Python pre-push gate, including coverage, at any time:
 uv run pre-commit run --hook-stage pre-push --all-files
 ```
 
+Before a pull request or release, run the single complete gate. It adds Compose validation, the
+bounded performance smoke fixture, and ten Chromium dashboard contracts against a deterministic
+repository. Docker must be running; use the branch point with `main` when the change spans several
+commits:
+
+```bash
+uv run python scripts/run_quality_gate.py --base origin/main
+```
+
+The browser runner uses the pinned Playwright container by default, so contributors do not need to
+install system browser libraries. `--browser-runner host` is available when Chromium and its
+Playwright dependencies are already installed locally. Skip flags are diagnostic conveniences and
+do not satisfy the complete pull-request/release gate.
+
 The baselines in `quality/module-size-policy.json` and
 `quality/maintainability-policy.json` are shrinking ratchets, not permanent allowances. When a
 legacy module, function, or coupling value decreases, lower its recorded baseline in the same

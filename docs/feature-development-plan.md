@@ -248,7 +248,7 @@ The point is that the decision is written down, not that it happens on a schedul
 
 # Phase 0 — engineering guardrails and reproducible baselines
 
-**Status:** IN PROGRESS — 0.1–0.5 COMPLETE; 0.6 NEXT
+**Status:** IN PROGRESS — 0.1–0.7 COMPLETE; EXIT GATE NEXT
 
 **Goal:** prevent AnaxiGraph's implementation from becoming the spaghetti code it warns users
 about, while producing trustworthy performance and quality baselines for later phases.
@@ -467,15 +467,17 @@ lexical; this phase did not claim new parser depth.
 
 ## 0.6 Correct today's public claims
 
+**Status:** COMPLETE on 20 August 2026
+
 This subsection began as documentation and release preparation. On 20 August 2026, the narrow
 distribution prerequisite was completed early by publishing the first tested package. This is a
 recorded exception to the original wording, not the start of Phase 3: it does not authorize work on
 the Phase 3 CLI, onboarding, agent connection, or release-automation scope while Phase 0 remains
 open.
 
-1. **OPEN — Document `init --start` immediately.** The option is already implemented and tested,
-   but the README still shows two commands where one works. This is a README edit against shipped
-   code and should not wait for Phase 3.
+1. **COMPLETE — Document `init --start` immediately.** The README, onboarding guide, and Docker
+   guide now lead with `uvx anaxigraph init . --start` as the one-command sidecar path and retain an
+   inspect-before-start alternative.
 2. **COMPLETE — Publish the first functional PyPI distribution.** The `anaxigraph` name was
    rechecked at execution time and version 0.1.0 was published as a tested wheel and source
    distribution. This was a functional release, not an empty name-retention placeholder. PyPI's
@@ -489,10 +491,10 @@ open.
    `License-Expression: Apache-2.0` and `License-File: LICENSE`, with no prior license-table
    deprecation warning. PyPI artifacts are immutable, so this correction begins with the next
    version rather than altering 0.1.0.
-4. **OPEN — Soften the shared multi-repository section in the README.** It currently presents an
-   unauthenticated shared service as suitable for a team installation. Authentication does not
-   arrive until Phase 5. Until then the section must be labeled experimental and loopback-first,
-   with the missing authentication stated plainly rather than implied by omission.
+4. **COMPLETE — Soften the shared multi-repository section in the README.** Every public setup
+   guide labels it experimental and trusted-operator only, states that REST/MCP have no
+   authentication or per-user authorization, and requires loopback/SSH rather than untrusted or
+   team exposure until Phase 5.
 
 ### PyPI 0.1.0 release evidence
 
@@ -510,6 +512,8 @@ Rule: the repository's public claims may not exceed what the current release act
 
 ## 0.7 Record the supported platform matrix
 
+**Status:** COMPLETE on 20 August 2026
+
 Windows appears nowhere in this roadmap, yet `uvx` users will try it and the Docker-versus-local
 story differs materially there. Phase 0 makes an explicit decision — supported, best-effort, or out
 of scope — for Windows, WSL, macOS on Apple silicon and Intel, and Linux, and records it in the
@@ -517,6 +521,12 @@ README and onboarding docs.
 
 An explicit "not supported yet" is an acceptable answer. An undecided platform discovered through a
 bug report is not.
+
+The published matrix makes Linux x86-64 Docker/local the supported release-gated path. Linux ARM64,
+macOS Apple silicon/Intel, and WSL2 are best effort with their untested boundaries stated; Docker
+Desktop is the recommended macOS path. Native Windows is not supported yet and Windows containers
+are out of scope. Browser and filesystem caveats are explicit, and promotion now requires a
+fresh-machine release gate rather than anecdotal success.
 
 ## Phase 0 exit gate
 
@@ -1685,8 +1695,8 @@ queue and the document cannot drift apart.
 | 6 | **COMPLETE** — Add the complexity, cycle, coverage, and layer budgets as warnings and no-growth ratchets | §0.4 |
 | 7 | **COMPLETE** — Publish the internal architecture ADR, the package-layer policy, and its characterization tests | §0.5 |
 | 8 | **COMPLETE** — Formalize and version the existing analyzer IR, add conformance tests, and certify the Python analyzer | §0.5 |
-| 9 | Finish the remaining §0.6 documentation work: document `init --start` and correct the README's team-install claim. PyPI 0.1.0 publication and next-release PEP 639 metadata are complete | §0.6 |
-| 10 | Publish the supported platform matrix, including the Windows decision | §0.7 |
+| 9 | **COMPLETE** — Document `init --start`, correct the README's team-install claim, record PyPI 0.1.0, and prepare next-release PEP 639 metadata | §0.6 |
+| 10 | **COMPLETE** — Publish the supported platform matrix, including the Windows decision | §0.7 |
 | 11 | Close the Phase 0 exit gate and record the result in this document | §0 gate |
 | 12 | Only then open `P1a.1`, the temporal correctness characterization suite on today's schema | §1a.1 |
 

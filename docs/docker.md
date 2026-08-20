@@ -9,8 +9,7 @@ default. One service can index and switch between multiple repositories.
 From any target repository, generate a dedicated Compose file and editable policy:
 
 ```bash
-uvx --from git+https://github.com/hcekne/anaxigraph anaxigraph init .
-docker compose -f compose.anaxigraph.yml up -d
+uvx anaxigraph init . --start
 ```
 
 This pulls `ghcr.io/hcekne/anaxigraph:latest`, binds only the current repository at `/repo` in
@@ -18,8 +17,9 @@ read-only mode, and persists its AnaxiIndex in a project-scoped named volume. Ex
 filenames are not overwritten unless `--force` is explicit. See the [onboarding guide](onboarding.md)
 for the guided dashboard and MCP workflow.
 
-The remaining sections describe the checked-in operator Compose stack, which is intended for
-AnaxiGraph development and a shared multi-repository service.
+Omit `--start` when you want to inspect the generated files before running their printed Compose
+command. The remaining sections describe the checked-in operator Compose stack, which is intended
+for AnaxiGraph development and an experimental trusted-operator multi-repository service.
 
 ## Start the included two-repository setup
 
@@ -50,7 +50,14 @@ Git biographies then import in the background and report progress on the History
 | REST API | `http://127.0.0.1:8765/api/overview` |
 | MCP | `http://127.0.0.1:8765/mcp` |
 
-## Shared multi-repository service
+## Experimental multi-repository service
+
+> **Not an authenticated team deployment:** REST, dashboard, and MCP endpoints currently have no
+> login, bearer-token check, or per-user authorization. Keep the published port on
+> `127.0.0.1`, access it through a trusted local session or SSH tunnel, and never expose it to an
+> untrusted network. Every client that can reach the service can inspect all allowlisted
+> repositories and invoke enabled index workflows. Use isolated per-repository sidecars for team
+> members until authenticated team mode lands.
 
 Copy the templates:
 

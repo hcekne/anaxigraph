@@ -16,6 +16,7 @@ from scripts.check_javascript_syntax import syntax_errors
 from scripts.check_module_size import check_repository
 from scripts.check_semantic_cohesion import cohesion_issues
 from scripts.quality_metrics import scan_functions
+from scripts.run_quality_gate import _container_browser_command, quality_commands
 
 
 def _policy(root: Path, legacy: list[dict] | None = None) -> Path:
@@ -403,3 +404,18 @@ def test_semantic_cohesion_requires_confident_evidence():
         "semantic_split_candidate",
     }
     assert {item.path for item in issues} == {"grounded.py"}
+
+
+def test_complete_quality_gate_includes_coverage_compose_benchmark_and_browser_contract():
+    commands = quality_commands(Path("/workspace"), base="origin/main", skip_benchmark=False)
+    flattened = [" ".join(command) for command in commands]
+    browser = _container_browser_command(Path("/workspace"), 9123)
+
+    assert any("pytest --cov=anaxigraph" in command for command in flattened)
+    assert any(
+        "check_changed_coverage.py" in command and "origin/main" in command for command in flattened
+    )
+    assert sum("docker compose" in command for command in flattened) == 2
+    assert any("benchmarks.baseline" in command for command in flattened)
+    assert "mcr.microsoft.com/playwright:v1.61.1-noble" in browser
+    assert "ANAXIGRAPH_VISUAL_URL=http://host.docker.internal:9123" in browser

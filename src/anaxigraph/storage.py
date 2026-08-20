@@ -11,7 +11,8 @@ from pathlib import Path
 from typing import Any
 
 from anaxigraph.models import GitMetadata
-from anaxigraph.relationships import (
+from anaxigraph.persistence import (
+    migrate_schema,
     relationship_metadata,
     relationship_quality,
     resolution_status,
@@ -382,47 +383,10 @@ class AnaxiIndex:
             row = connection.execute(
                 "SELECT value FROM schema_meta WHERE key = 'schema_version'"
             ).fetchone()
-            if row is not None and int(row["value"]) > SCHEMA_VERSION:
-                raise RuntimeError(
-                    f"Database schema {row['value']} is newer than supported {SCHEMA_VERSION}"
-                )
-            repository_columns = {
-                item["name"] for item in connection.execute("PRAGMA table_info(repositories)")
-            }
-            if "current_snapshot_id" not in repository_columns:
-                connection.execute(
-                    "ALTER TABLE repositories ADD COLUMN current_snapshot_id INTEGER"
-                )
-            semantic_job_columns = {
-                item["name"] for item in connection.execute("PRAGMA table_info(semantic_jobs)")
-            }
-            if "worker_id" not in semantic_job_columns:
-                connection.execute("ALTER TABLE semantic_jobs ADD COLUMN worker_id TEXT")
-            if "lease_expires_at" not in semantic_job_columns:
-                connection.execute("ALTER TABLE semantic_jobs ADD COLUMN lease_expires_at TEXT")
-            if "lease_token_hash" not in semantic_job_columns:
-                connection.execute("ALTER TABLE semantic_jobs ADD COLUMN lease_token_hash TEXT")
-            if "executor_id" not in semantic_job_columns:
-                connection.execute("ALTER TABLE semantic_jobs ADD COLUMN executor_id TEXT")
-            if "executor_model" not in semantic_job_columns:
-                connection.execute("ALTER TABLE semantic_jobs ADD COLUMN executor_model TEXT")
-            semantic_document_columns = {
-                item["name"] for item in connection.execute("PRAGMA table_info(semantic_documents)")
-            }
-            if "previous_document_id" not in semantic_document_columns:
-                connection.execute(
-                    """
-                    ALTER TABLE semantic_documents
-                    ADD COLUMN previous_document_id INTEGER REFERENCES semantic_documents(id)
-                    """
-                )
-            if "executor_id" not in semantic_document_columns:
-                connection.execute("ALTER TABLE semantic_documents ADD COLUMN executor_id TEXT")
-            if "executor_model" not in semantic_document_columns:
-                connection.execute("ALTER TABLE semantic_documents ADD COLUMN executor_model TEXT")
-            connection.execute(
-                "INSERT OR REPLACE INTO schema_meta(key, value) VALUES ('schema_version', ?)",
-                (str(SCHEMA_VERSION),),
+            migrate_schema(
+                connection,
+                current_version=int(row["value"]) if row is not None else None,
+                target_version=SCHEMA_VERSION,
             )
 
     @contextlib.contextmanager

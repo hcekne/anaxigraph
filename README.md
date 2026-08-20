@@ -85,20 +85,41 @@ remain separate throughout.
 ## 🚀 Get running in five minutes
 
 AnaxiGraph normally runs as a Docker sidecar beside the repository you are coding in. From that
-repository, run these commands in a **normal terminal**:
+repository, one command creates the local policy and Compose sidecar, then starts it:
 
 ```bash
 cd /path/to/your/repository
-uvx --from git+https://github.com/hcekne/anaxigraph anaxigraph init .
-docker compose -f compose.anaxigraph.yml up -d
+uvx anaxigraph init . --start
 ```
 
 The initializer writes `.anaxigraph.yml` and `compose.anaxigraph.yml` without replacing existing
 files. The Compose service mounts the repository read-only, persists AnaxiIndex in a named volume,
 scans the current tree, and imports representative graph frames from the initial Git commit
-through HEAD.
+through HEAD. If Docker startup fails, the generated files are kept so you can inspect the error
+and retry.
+
+To review the generated policy before starting, omit `--start`, inspect both files, and run the
+printed Compose command:
+
+```bash
+uvx anaxigraph init .
+docker compose -f compose.anaxigraph.yml up -d
+```
 
 Open <http://127.0.0.1:8765> and follow the four-step dashboard tour.
+
+### Platform support
+
+| Path | Current status |
+|---|---|
+| Linux x86-64, Docker or local CLI | **Supported** |
+| Linux ARM64 | **Best effort**; multi-architecture container is built, native runtime CI is pending |
+| macOS Apple silicon / Intel | **Best effort**; Docker Desktop is the recommended path |
+| WSL2 | **Best effort**; keep repositories in the Linux filesystem |
+| Native Windows / Windows containers | **Not supported yet**; use WSL2 |
+
+See the [platform matrix](docs/platform-support.md) for the exact execution paths, browser status,
+filesystem guidance, and what “best effort” means.
 
 ## 🤖 Connect Codex
 
@@ -222,11 +243,11 @@ To refresh automatically while you code, enable the optional watcher:
 docker compose -f compose.anaxigraph.yml --profile watch up -d
 ```
 
-## 🗺️ Shared multi-repository service
+## 🗺️ Experimental multi-repository service
 
 The repository also contains an operator setup for one dashboard across several allowlisted
-read-only mounts. This is useful for a team installation or for switching projects without
-running several ports:
+read-only mounts. It is useful for one trusted operator switching projects without running several
+ports:
 
 ```bash
 git clone https://github.com/hcekne/anaxigraph.git
@@ -239,6 +260,12 @@ docker compose up --build -d
 
 The browser cannot ask the server to browse arbitrary host paths. See
 [Docker operation](docs/docker.md) and [MaxOS integration](docs/maxos-agent.md).
+
+> **Security boundary:** the current REST and MCP service has no authentication or per-user
+> authorization. Keep it bound to loopback or behind an SSH tunnel, and do not expose it as a team
+> service or to an untrusted network. Anyone who can reach it can inspect every registered
+> repository and invoke enabled index workflows. Authenticated team mode is roadmap work; use one
+> isolated sidecar per developer/repository until it lands.
 
 ## 💻 Local CLI
 
@@ -289,8 +316,8 @@ The target repository only needs an optional `.anaxigraph.yml`; analysis state r
 
 ```bash
 uv sync --extra dev
-uv run pytest
-uv run ruff check .
+uv run pre-commit install --install-hooks
+uv run python scripts/run_quality_gate.py --base origin/main
 ```
 
 The product brief and requirement source is [`repo_instructions.md`](repo_instructions.md).

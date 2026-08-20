@@ -34,7 +34,7 @@
       "may_import": ["foundation", "analysis"]
     },
     "persistence": {
-      "modules": ["anaxigraph.storage"],
+      "modules": ["anaxigraph.persistence*", "anaxigraph.storage"],
       "may_import": ["foundation", "persistence"]
     },
     "application": {

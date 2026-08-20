@@ -18,13 +18,21 @@ already connected through AnaxiMCP, using that agent's own model and tokens, or 
 configured model worker. Both paths write versioned interpretations to AnaxiIndex and never
 replace deterministic parser facts.
 
+## Check your platform
+
+Linux x86-64 with Docker or the local CLI is supported and release-gated. Linux ARM64, macOS on
+Apple silicon or Intel, and WSL2 are currently best effort; Docker Desktop is the recommended
+macOS path. Native Windows and Windows containers are not supported yet—use a WSL2 Linux
+distribution and keep repositories in its Linux filesystem. See the complete
+[platform-support matrix](platform-support.md) before reporting an install-specific issue.
+
 ## Five-minute sidecar setup
 
 You need Git, Docker with Compose, and [`uv`](https://docs.astral.sh/uv/). From the repository you
-want to analyze, run:
+want to analyze, create and start the sidecar in one command:
 
 ```bash
-uvx --from git+https://github.com/hcekne/anaxigraph anaxigraph init .
+uvx anaxigraph init . --start
 ```
 
 The initializer detects obvious top-level areas and creates two files:
@@ -35,11 +43,13 @@ The initializer detects obvious top-level areas and creates two files:
   persistent AnaxiIndex volume.
 
 It never replaces either file unless you explicitly add `--force`. Preview its result without
-writing anything with `anaxigraph init . --dry-run`.
+writing anything with `uvx anaxigraph init . --dry-run`. If Docker Compose cannot start, the
+generated files remain available for inspection and retry.
 
-Review the two generated files, then start the service:
+If you prefer to approve the files before starting, omit `--start`, review them, then run:
 
 ```bash
+uvx anaxigraph init .
 docker compose -f compose.anaxigraph.yml up -d
 docker compose -f compose.anaxigraph.yml ps
 ```
@@ -330,9 +340,13 @@ running several simultaneously:
 ANAXIGRAPH_PORT=8766 docker compose -f compose.anaxigraph.yml up -d
 ```
 
-For a long-running team dashboard, clone AnaxiGraph once and use its allowlisted repository
+An experimental operator deployment can clone AnaxiGraph once and use its allowlisted repository
 registry to mount several projects into one service. The browser selector, REST API, and MCP tools
-remain repository-scoped. See [Docker operation](docker.md#shared-multi-repository-service).
+remain repository-scoped, but the service currently has **no authentication or per-user
+authorization**. Bind it to loopback or use an SSH tunnel; do not expose it as a shared team service
+or to an untrusted network. Anyone who can reach it can inspect every registered repository and
+invoke enabled index workflows. See
+[Docker operation](docker.md#experimental-multi-repository-service).
 
 ## Stop or upgrade
 

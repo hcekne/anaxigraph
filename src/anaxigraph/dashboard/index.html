@@ -418,16 +418,16 @@
               read-only Compose sidecar. Existing files are kept unless you explicitly use
               <code>--force</code>.</p>
             <ol class="settings-steps">
-              <li><strong>From the target repository</strong><pre id="settings-init-command">uvx --from git+https://github.com/hcekne/anaxigraph anaxigraph init .</pre></li>
-              <li><strong>Start its sidecar</strong><pre id="settings-compose-example">docker compose -f compose.anaxigraph.yml up -d</pre></li>
+              <li><strong>Create and start from the target repository</strong><pre id="settings-init-command">uvx anaxigraph init . --start</pre></li>
               <li><strong>Open its dashboard</strong><pre id="settings-open-example">http://127.0.0.1:8765</pre></li>
             </ol>
             <div class="settings-copy-actions">
               <button class="secondary-button" type="button" data-copy-target="settings-init-command">Copy init command</button>
               <a class="text-button" href="https://github.com/hcekne/anaxigraph/blob/main/docs/docker.md" target="_blank" rel="noreferrer">Docker guide →</a>
             </div>
-            <p class="settings-advanced">Operating one dashboard across several allowlisted mounts?
-              The Docker guide also covers the shared multi-repository registry mode.</p>
+            <p class="settings-advanced">The Docker guide also covers an experimental
+              multi-repository registry for one trusted operator. It has no authentication today;
+              keep it on loopback or behind SSH, never on an untrusted or shared team network.</p>
           </article>
         </div>
         <article class="panel integration-settings">
