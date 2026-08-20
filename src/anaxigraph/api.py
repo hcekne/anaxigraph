@@ -13,7 +13,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, HTMLResponse
 
-from anaxigraph import api_support, git
+from anaxigraph import __version__, api_support, git
 from anaxigraph.agent import agent_scope, branch_collisions, finding_context, impact_analysis
 from anaxigraph.config import load_config
 from anaxigraph.mcp_server import create_anaxi_mcp_server
@@ -162,7 +162,7 @@ def create_app(
 
     app = FastAPI(
         title="AnaxiGraph API",
-        version="0.1.0",
+        version=__version__,
         description="Temporal architecture, graph, findings, and bounded agent task context.",
         lifespan=lifespan,
     )

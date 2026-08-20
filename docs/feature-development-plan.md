@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 2.6
+**Roadmap version:** 2.7
 
 **Updated:** 20 August 2026
 
@@ -1085,6 +1085,28 @@ uvx anaxigraph init . --start
 Phase 0 documents the already implemented `--start` behavior. This phase makes that path robust
 enough to lead onboarding and validates the exact command from a clean supported machine.
 
+### Phase 3.1 closure evidence
+
+**Completed in source on 20 August 2026.** The 0.2.0 source version is the deliberate next release
+candidate; it has not been tagged or published by this milestone.
+
+| Contract | Delivered evidence |
+|---|---|
+| One authored version | `project.version` is the authored value; package, CLI, and FastAPI versions derive from installed distribution metadata, and tag validation requires exact `v<version>` parity |
+| Reproducible archives | A fixed commit epoch and normalized source archive produce byte-identical wheel and sdist files across two independent builds; the characterization test rebuilds both on every complete suite run |
+| Artifact contents | The verifier requires exactly one pure-Python wheel and one sdist, checks the console entry point, every shipped dashboard asset, archive-safe paths, package name/version, Python floor, and absence of retired product paths |
+| License contract | Built Metadata 2.4 must contain `License-Expression: Apache-2.0`, exactly one `License-File: LICENSE`, and the actual license under the wheel's `.dist-info/licenses` directory |
+| Clean installs | A Linux/macOS × Python 3.11/3.12 CI matrix installs wheel and sdist separately, runs their CLI, resolves packaged dashboard resources, initializes a new Git repository, scans it, and exercises the local `uvx --from <wheel>` path |
+| Protected publication | A dedicated GitHub-release workflow rejects mismatched or already-published versions, builds once, requests the protected `pypi` environment, and publishes through PyPI trusted OIDC without a stored API token |
+| Supply-chain evidence | Each release produces distribution SHA-256 values, release-contract JSON, SPDX JSON SBOM, installed dependency/license inventory, and GitHub attestations; container tags must match the Python version and their BuildKit SBOM/provenance digest receives a registry attestation |
+| Maintainer procedure | `docs/releasing.md` records the trusted-publisher/environment setup, protected tag flow, preflight, artifact verification, digest pinning, and immutable-version recovery policy |
+| Local rehearsal | The exact normalized wheel and sdist passed Twine, installed in independent virtual environments, reported `AnaxiGraph 0.2.0`, and the wheel initialized/scanned a fresh fixture; PyPI returned the candidate version as unused |
+| Repository gate | All 120 Python tests pass at 85.79% coverage, changed executable coverage is 86.4%, all pre-commit/size/complexity/coupling/layer checks pass, both Compose definitions validate, the bounded benchmark completes, and all 12 Chromium contracts pass |
+
+The repository owner must still configure the `pypi` GitHub environment and its matching PyPI
+trusted-publisher record before approving the first automated release. That operational control is
+intentionally not represented by a repository secret and does not block the next source phase.
+
 ## 3.2 Make initialization express the intended workflow
 
 Add idempotent options:
@@ -1877,7 +1899,13 @@ queue and the document cannot drift apart.
 | 25 | **COMPLETE** — Add evidence, caveats, affected contracts, action type, smallest action, and scan-verification guidance to every finding | §2.3 |
 | 26 | **COMPLETE** — Ship dashboard filters and lifecycle actions, then prove automatic resolve/regress behavior in backend and browser contracts | Phase 2 gate |
 | 27 | **COMPLETE** — Close the Phase 2 exit gate without growing a legacy size, function, or coupling ratchet | Phase 2 gate |
-| 28 | **IN PROGRESS** — Automate the published-package release contract and test the exact fresh-install artifact | §3.1 |
+| 28 | **COMPLETE** — Automate the published-package release contract and test the exact fresh-install artifact | §3.1 |
+| 29 | **IN PROGRESS** — Make initialization enable agent-funded semantics and connect the selected MCP client idempotently | §3.2 |
+| 30 | Add the loopback `anaxigraph up` path with external user-state storage and clean lifecycle behavior | §3.3 |
+| 31 | Package and contract-test the AnaxiMCP bootstrap workflow as supported agent skills/plugins | §3.4 |
+| 32 | Collapse onboarding around one start action, one connection action, and the agent-funded semantic loop | §3.5 |
+| 33 | Decompose CLI/onboarding responsibilities and remove both size-ratchet exceptions | §3.6 |
+| 34 | Close the measurable Phase 3 first-user, idempotency, Docker/local, skill, and quality exit gate | Phase 3 gate |
 
 Items 9 and 10 are the user-visible Phase 0 changes. The completed 0.1.0 publication is the narrow,
 recorded exception described in §0.6; the work that remains in these queue items is restricted to

@@ -1,0 +1,120 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and attest immutable artifacts
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    outputs:
+      version: ${{ steps.contract.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install locked release tooling
+        run: |
+          python -m pip install uv
+          uv sync --extra dev --locked
+      - name: Validate tag and unused PyPI version
+        id: contract
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version="$(uv run python scripts/verify_release_artifacts.py \
+            --tag "${RELEASE_TAG}" \
+            --check-pypi \
+            --version-only)"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+      - name: Build and validate wheel and source distribution
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          uv run python scripts/build_release_artifacts.py --outdir dist
+          uv run twine check dist/*
+          mkdir -p release
+          uv run python scripts/verify_release_artifacts.py \
+            --dist dist \
+            --tag "${RELEASE_TAG}" \
+            --checksums release/SHA256SUMS \
+            --report release/release-contract.json
+          cp dist/*.whl dist/*.tar.gz release/
+      - name: Install the exact wheel for dependency inventory
+        run: |
+          python -m venv "${RUNNER_TEMP}/release-audit"
+          "${RUNNER_TEMP}/release-audit/bin/python" -m pip install --disable-pip-version-check dist/*.whl
+          "${RUNNER_TEMP}/release-audit/bin/python" scripts/report_installed_distributions.py \
+            --output release/dependency-licenses.json
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: src
+          format: spdx-json
+          output-file: release/anaxigraph-${{ steps.contract.outputs.version }}.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Attest release bundle
+        uses: actions/attest@v4
+        with:
+          subject-path: release/*
+      - name: Preserve release evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: anaxigraph-${{ steps.contract.outputs.version }}-release
+          path: release/
+          if-no-files-found: error
+          retention-days: 90
+
+  publish-pypi:
+    name: Publish to PyPI with trusted identity
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/anaxigraph/${{ needs.build.outputs.version }}/
+    permissions:
+      id-token: write
+    steps:
+      - name: Download attested release bundle
+        uses: actions/download-artifact@v7
+        with:
+          name: anaxigraph-${{ needs.build.outputs.version }}-release
+          path: release
+      - name: Select only Python distribution files
+        run: |
+          mkdir -p dist
+          cp release/*.whl release/*.tar.gz dist/
+      - name: Publish immutable Python artifacts
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          print-hash: true
+
+  verify-pypi:
+    name: Verify public installation
+    needs: [build, publish-pypi]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install and run the published version
+        run: |
+          python -m venv "${RUNNER_TEMP}/public-install"
+          "${RUNNER_TEMP}/public-install/bin/python" -m pip install \
+            --disable-pip-version-check \
+            --retries 10 \
+            "anaxigraph==${{ needs.build.outputs.version }}"
+          "${RUNNER_TEMP}/public-install/bin/anaxigraph" --version

@@ -85,3 +85,6 @@ are authorized to inspect. Run `docker compose up --build -d` and open
 
 Please avoid including private source, database files, credentials, or analysis exports in issues
 and pull requests. Explain the behavior with a minimal synthetic repository when possible.
+
+Maintainers should follow the [protected release procedure](docs/releasing.md). Routine releases
+use PyPI trusted publishing and attested artifacts; local `twine upload` is not the normal path.

@@ -12,7 +12,7 @@ Engine; “local CLI” means a host Python 3.11/3.12 installation managed with 
 | Linux ARM64 · local CLI | **Best effort** | No compiled runtime dependency is required today, but CI does not execute on native ARM |
 | macOS Apple silicon · Docker Desktop | **Best effort; recommended macOS path** | Uses the `linux/arm64` image and read-only bind mounts; no macOS end-to-end CI runner yet |
 | macOS Intel · Docker Desktop | **Best effort; recommended macOS path** | Uses the `linux/amd64` image; no macOS end-to-end CI runner yet |
-| macOS · local CLI | **Best effort** | Expected to work with Git, `uv`, and Python 3.11/3.12; host CLI, filesystem watching, and browser opening are not release-gated on macOS yet |
+| macOS · local CLI | **Best effort** | Wheel/sdist install, packaged dashboard assets, initialization, and CLI startup are release-gated on Python 3.11/3.12; host serving, watching, and browser behavior are not yet end-to-end gated |
 | WSL2 · Docker or local CLI | **Best effort** | Use a WSL2 Linux distribution and Linux containers. Keep repositories in the WSL filesystem for usable Git/scan performance |
 | Native Windows PowerShell/CMD | **Not supported yet** | Native path, process/signal, watcher, hook, and Windows-container behavior is not tested. Use WSL2 instead |
 | Windows containers | **Out of scope** | The shipped image and Compose definitions target Linux containers |

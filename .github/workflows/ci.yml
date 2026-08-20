@@ -87,6 +87,57 @@ jobs:
       - name: Run tests
         run: uv run pytest
 
+  package-contract:
+    name: Package · ${{ matrix.os }} · Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Build validated release artifacts
+        run: |
+          python -m pip install uv
+          uv sync --extra dev --locked
+          uv run python scripts/build_release_artifacts.py --outdir dist
+          uv run twine check dist/*
+          uv run python scripts/verify_release_artifacts.py --dist dist
+      - name: Install and run the wheel in isolation
+        run: |
+          python -m venv "${RUNNER_TEMP}/wheel-install"
+          "${RUNNER_TEMP}/wheel-install/bin/python" -m pip install \
+            --disable-pip-version-check dist/*.whl
+          "${RUNNER_TEMP}/wheel-install/bin/anaxigraph" --version
+          "${RUNNER_TEMP}/wheel-install/bin/python" -c \
+            "from importlib.resources import files; assert (files('anaxigraph') / 'dashboard' / 'findings-view.js').is_file()"
+          mkdir -p "${RUNNER_TEMP}/fixture-repository"
+          echo "def architecture_fixture(): return 'anaxigraph'" \
+            > "${RUNNER_TEMP}/fixture-repository/app.py"
+          git -C "${RUNNER_TEMP}/fixture-repository" init --initial-branch=main
+          git -C "${RUNNER_TEMP}/fixture-repository" config user.name "AnaxiGraph CI"
+          git -C "${RUNNER_TEMP}/fixture-repository" config user.email "ci@anaxigraph.invalid"
+          git -C "${RUNNER_TEMP}/fixture-repository" add app.py
+          git -C "${RUNNER_TEMP}/fixture-repository" commit -m "Initial fixture"
+          "${RUNNER_TEMP}/wheel-install/bin/anaxigraph" init \
+            "${RUNNER_TEMP}/fixture-repository" \
+            --no-compose
+          "${RUNNER_TEMP}/wheel-install/bin/anaxigraph" scan \
+            "${RUNNER_TEMP}/fixture-repository" \
+            --db "${RUNNER_TEMP}/fresh-install.db"
+      - name: Install and run the source distribution in isolation
+        run: |
+          python -m venv "${RUNNER_TEMP}/sdist-install"
+          "${RUNNER_TEMP}/sdist-install/bin/python" -m pip install \
+            --disable-pip-version-check dist/*.tar.gz
+          "${RUNNER_TEMP}/sdist-install/bin/anaxigraph" --version
+      - name: Exercise the local uvx artifact path
+        run: uvx --from dist/*.whl anaxigraph --version
+
   dashboard-browser:
     name: Dashboard browser contracts
     runs-on: ubuntu-latest

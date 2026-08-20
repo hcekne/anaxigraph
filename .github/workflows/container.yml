@@ -9,7 +9,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 env:
   REGISTRY: ghcr.io
@@ -42,8 +41,20 @@ jobs:
   build:
     needs: verify
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          python-version: "3.12"
+      - name: Require the container tag to match the Python package
+        if: startsWith(github.ref, 'refs/tags/')
+        run: python scripts/verify_release_artifacts.py --tag "${GITHUB_REF_NAME}" --version-only
       - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
       - name: Log in to GitHub Container Registry
@@ -65,6 +76,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable={{is_default_branch}}
       - name: Build and publish
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -76,3 +88,23 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: mode=max
           sbom: true
+      - name: Attest the published image digest
+        if: github.event_name != 'pull_request'
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+      - name: Record immutable image digest
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          mkdir -p release
+          echo "${{ steps.build.outputs.digest }}  ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${GITHUB_REF_NAME}" \
+            > "release/anaxigraph-container-${GITHUB_REF_NAME}.sha256"
+      - name: Preserve container digest
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v6
+        with:
+          name: anaxigraph-container-${{ github.ref_name }}
+          path: release/
+          if-no-files-found: error

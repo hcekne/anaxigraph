@@ -14,7 +14,7 @@ from typing import Any
 import uvicorn
 
 import anaxigraph.registry as repository_registry
-from anaxigraph import cli_workflows
+from anaxigraph import __version__, cli_workflows
 from anaxigraph.agent import agent_scope, branch_collisions, impact_analysis
 from anaxigraph.api import create_app
 from anaxigraph.config import load_config
@@ -43,7 +43,7 @@ def _parser() -> argparse.ArgumentParser:
         prog="anaxigraph",
         description="AnaxiGraph: temporal architecture intelligence for software repositories.",
     )
-    parser.add_argument("--version", action="version", version="AnaxiGraph 0.1.0")
+    parser.add_argument("--version", action="version", version=f"AnaxiGraph {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
 
     initialize = commands.add_parser(
