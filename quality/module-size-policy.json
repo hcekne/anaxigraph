@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "limits": {
+    "implementation_warning": 400,
+    "implementation_hard": 500,
+    "test_warning": 550,
+    "test_hard": 800,
+    "asset_warning": 600
+  },
+  "implementation_extensions": [".py", ".js", ".jsx", ".mjs", ".ts", ".tsx"],
+  "test_patterns": [
+    "tests/**",
+    "test/**",
+    "**/tests/**",
+    "**/*.test.*",
+    "**/*.spec.*",
+    "**/test_*.py",
+    "**/*_test.py"
+  ],
+  "exclusions": [],
+  "legacy_exceptions": [
+    {
+      "path": "src/anaxigraph/dashboard/app.js",
+      "baseline_lines": 2091,
+      "rationale": "Legacy single-file dashboard application awaiting responsibility-based client modules.",
+      "owner": "maintainers",
+      "removal_phase": "Phase 3b",
+      "expires_on": "2027-03-31"
+    },
+    {
+      "path": "src/anaxigraph/storage.py",
+      "baseline_lines": 1809,
+      "rationale": "Legacy index facade combines schema, repositories, queries, findings, and read models.",
+      "owner": "maintainers",
+      "removal_phase": "Phase 1b",
+      "expires_on": "2026-12-31"
+    },
+    {
+      "path": "src/anaxigraph/scanner.py",
+      "baseline_lines": 1164,
+      "rationale": "Legacy scanner combines discovery, preparation, resolution, persistence, and orchestration.",
+      "owner": "maintainers",
+      "removal_phase": "Phase 1b",
+      "expires_on": "2026-12-31"
+    },
+    {
+      "path": "src/anaxigraph/agent.py",
+      "baseline_lines": 934,
+      "rationale": "Legacy agent module combines scope, impact, ranking, payload, and collision concerns.",
+      "owner": "maintainers",
+      "removal_phase": "Phase 3b",
+      "expires_on": "2027-03-31"
+    },
+    {
+      "path": "src/anaxigraph/architecture.py",
+      "baseline_lines": 780,
+      "rationale": "Legacy detector module combines rule evaluation, graph algorithms, and finding lifecycle logic.",
+      "owner": "maintainers",
+      "removal_phase": "Phase 3b",
+      "expires_on": "2027-03-31"
+    },
+    {
+      "path": "src/anaxigraph/cli.py",
+      "baseline_lines": 653,
+      "rationale": "Legacy CLI module combines parser construction and every command handler.",
+      "owner": "maintainers",
+      "removal_phase": "Phase 3",
+      "expires_on": "2027-02-28"
+    },
+    {
+      "path": "src/anaxigraph/api.py",
+      "baseline_lines": 616,
+      "rationale": "Legacy API factory combines transport routes and background-job coordination.",
+      "owner": "maintainers",
+      "removal_phase": "Phase 5",
+      "expires_on": "2027-06-30"
+    },
+    {
+      "path": "src/anaxigraph/onboarding.py",
+      "baseline_lines": 504,
+      "rationale": "Legacy onboarding module combines detection, policy generation, Compose generation, and startup.",
+      "owner": "maintainers",
+      "removal_phase": "Phase 3",
+      "expires_on": "2027-02-28"
+    }
+  ]
+}
