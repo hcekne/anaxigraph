@@ -24,6 +24,9 @@ def test_doctor_proves_parity_and_refuses_early_compaction(repository, database)
         "truncated": False,
     }
     assert report["lineage"]["status"] == "valid"
+    assert report["reconstruction"]["status"] == "bounded"
+    assert report["reconstruction"]["maximum_traversed_deltas"] == 0
+    assert report["reconstruction"]["checkpoint_count"] == 1
     assert report["rows"]["file_facts"] == stats.discovered
     assert report["compaction"]["eligible"] is False
     assert "compatibility_read_paths_active" in report["compaction"]["blockers"]

@@ -114,11 +114,49 @@ TEMPORAL_SCHEMA = (
         UNIQUE(from_version, to_version, backup_sha256)
     )
     """,
+    """
+    CREATE TABLE IF NOT EXISTS snapshot_checkpoints (
+        snapshot_id INTEGER PRIMARY KEY REFERENCES snapshots(id) ON DELETE CASCADE,
+        repository_id INTEGER NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+        sequence INTEGER NOT NULL,
+        source_delta_depth INTEGER NOT NULL,
+        file_count INTEGER NOT NULL,
+        relationship_source_count INTEGER NOT NULL,
+        file_state_hash TEXT NOT NULL,
+        relationship_state_hash TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS checkpoint_files (
+        checkpoint_snapshot_id INTEGER NOT NULL
+            REFERENCES snapshot_checkpoints(snapshot_id) ON DELETE CASCADE,
+        artifact_id INTEGER NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
+        file_fact_id INTEGER NOT NULL REFERENCES file_facts(id) ON DELETE CASCADE,
+        path TEXT NOT NULL,
+        declared_group TEXT,
+        inferred_group TEXT,
+        analysis_status TEXT,
+        first_seen_at TEXT,
+        last_changed_at TEXT,
+        PRIMARY KEY(checkpoint_snapshot_id, artifact_id)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS checkpoint_relationships (
+        checkpoint_snapshot_id INTEGER NOT NULL
+            REFERENCES snapshot_checkpoints(snapshot_id) ON DELETE CASCADE,
+        source_artifact_id INTEGER NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
+        relationship_set_id INTEGER NOT NULL REFERENCES relationship_sets(id) ON DELETE CASCADE,
+        PRIMARY KEY(checkpoint_snapshot_id, source_artifact_id)
+    )
+    """,
     "CREATE INDEX IF NOT EXISTS idx_file_facts_artifact ON file_facts(artifact_id, id)",
     "CREATE INDEX IF NOT EXISTS idx_file_changes_snapshot ON snapshot_file_changes(snapshot_id)",
     "CREATE INDEX IF NOT EXISTS idx_file_changes_artifact ON snapshot_file_changes(artifact_id, snapshot_id)",
     "CREATE INDEX IF NOT EXISTS idx_relationship_sets_source ON relationship_sets(source_artifact_id, id)",
     "CREATE INDEX IF NOT EXISTS idx_relationship_changes_snapshot ON snapshot_relationship_changes(snapshot_id)",
+    "CREATE INDEX IF NOT EXISTS idx_checkpoints_repository ON snapshot_checkpoints(repository_id, sequence)",
 )
 
 
@@ -130,6 +168,9 @@ def install_temporal_schema(connection: sqlite3.Connection) -> None:
 
 def clear_temporal_facts(connection: sqlite3.Connection) -> None:
     for table in (
+        "checkpoint_relationships",
+        "checkpoint_files",
+        "snapshot_checkpoints",
         "snapshot_relationship_changes",
         "relationship_edges",
         "relationship_sets",

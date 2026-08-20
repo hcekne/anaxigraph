@@ -861,6 +861,16 @@ The Phase 0 baseline sets the latency ceilings below; the Phase 1b prototype val
 checkpoint representation against them. Current-snapshot queries remain constant-depth, while
 historical queries may traverse at most 16 deltas before using a derived checkpoint.
 
+**Checkpoint foundation is complete on 20 August 2026.** Schema 7 now materializes disposable
+reference checkpoints at sequence 0 and every 16 frames, invalidates descendant caches when a base
+frame changes, and reconstructs canonical file and relationship state from the nearest checkpoint.
+Every reconstruction reports traversed deltas, checkpoint identity, duration, and returned rows.
+Fresh, migrated, and previously-created schema-7 indexes adopt the versioned checkpoint policy
+idempotently; `doctor` verifies cache counts and hashes against canonical reconstruction. A
+33-commit regression proves that user reads remain below the 16-delta cap and that deleting and
+rebuilding every checkpoint leaves files, edges, and state hashes unchanged. Item 20 remains active
+until all product read models use this path and the benchmark records their amplification.
+
 ## 1b.3 Decompose the temporal implementation while changing it
 
 Refactor `storage.py` behind a small `AnaxiIndex` facade into cohesive modules such as schema and

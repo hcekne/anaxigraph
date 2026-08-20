@@ -80,6 +80,9 @@ def _downgrade_to_schema_six(database: AnaxiIndex) -> None:
     with database.transaction() as connection:
         for table in (
             "schema_migrations",
+            "checkpoint_relationships",
+            "checkpoint_files",
+            "snapshot_checkpoints",
             "snapshot_relationship_changes",
             "relationship_edges",
             "relationship_sets",

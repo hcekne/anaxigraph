@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import sqlite3
 from collections import defaultdict
-from typing import Any
 
 from anaxigraph.persistence.temporal_files import (
     legacy_file_facts,
     persist_file_changes,
 )
 from anaxigraph.persistence.temporal_hashing import analysis_signature
+from anaxigraph.persistence.temporal_reconstruction import (
+    reconstruct_files,
+    reconstruct_relationships,
+    refresh_checkpoint_if_due,
+)
 from anaxigraph.persistence.temporal_relationships import (
     legacy_relationship_sets,
     persist_relationship_changes,
@@ -94,69 +98,14 @@ def temporal_counts(connection: sqlite3.Connection) -> dict[str, int]:
         "relationship_sets",
         "relationship_edges",
         "snapshot_relationship_changes",
+        "snapshot_checkpoints",
+        "checkpoint_files",
+        "checkpoint_relationships",
     )
     return {
         table: int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
         for table in tables
     }
-
-
-def reconstruct_files(
-    connection: sqlite3.Connection,
-    snapshot_id: int | None,
-) -> dict[int, dict[str, Any]]:
-    result: dict[int, dict[str, Any]] = {}
-    for frame in snapshot_lineage(connection, snapshot_id):
-        rows = connection.execute(
-            "SELECT * FROM snapshot_file_changes WHERE snapshot_id = ?",
-            (frame,),
-        ).fetchall()
-        for row in rows:
-            artifact_id = int(row["artifact_id"])
-            if artifact_id not in result:
-                result[artifact_id] = dict(row)
-    return {key: value for key, value in result.items() if value["change_kind"] != "delete"}
-
-
-def reconstruct_relationships(
-    connection: sqlite3.Connection,
-    snapshot_id: int | None,
-) -> dict[int, int]:
-    result: dict[int, int | None] = {}
-    for frame in snapshot_lineage(connection, snapshot_id):
-        rows = connection.execute(
-            "SELECT * FROM snapshot_relationship_changes WHERE snapshot_id = ?",
-            (frame,),
-        ).fetchall()
-        for row in rows:
-            source_id = int(row["source_artifact_id"])
-            if source_id not in result:
-                result[source_id] = (
-                    int(row["relationship_set_id"])
-                    if row["relationship_set_id"] is not None
-                    else None
-                )
-    return {key: value for key, value in result.items() if value is not None}
-
-
-def snapshot_lineage(
-    connection: sqlite3.Connection,
-    snapshot_id: int | None,
-) -> list[int]:
-    result: list[int] = []
-    seen: set[int] = set()
-    current = snapshot_id
-    while current is not None:
-        if current in seen:
-            raise RuntimeError(f"Snapshot base cycle detected at {current}")
-        seen.add(current)
-        result.append(current)
-        row = connection.execute(
-            "SELECT base_snapshot_id FROM snapshots WHERE id = ?",
-            (current,),
-        ).fetchone()
-        current = int(row[0]) if row and row[0] is not None else None
-    return result
 
 
 def _record_snapshot(
@@ -184,6 +133,7 @@ def _record_snapshot(
         signature,
     )
     persist_relationship_changes(connection, snapshot_id, previous_sets, current_sets)
+    refresh_checkpoint_if_due(connection, snapshot_id)
 
 
 def _next_sequence(

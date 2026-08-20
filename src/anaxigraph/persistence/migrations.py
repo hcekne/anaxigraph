@@ -6,6 +6,7 @@ import sqlite3
 from collections.abc import Callable
 
 from anaxigraph.persistence.temporal_facts import migrate_legacy_temporal_facts
+from anaxigraph.persistence.temporal_reconstruction import ensure_checkpoint_policy
 from anaxigraph.persistence.temporal_schema import install_temporal_schema
 
 SUPPORTED_SCHEMA_VERSIONS = frozenset({2, 6, 7})
@@ -53,6 +54,7 @@ def migrate_schema(
     install_temporal_schema(connection)
     if current_version != target_version:
         migrate_legacy_temporal_facts(connection)
+    ensure_checkpoint_policy(connection)
     connection.execute(
         "INSERT OR REPLACE INTO schema_meta(key, value) VALUES ('schema_version', ?)",
         (str(target_version),),

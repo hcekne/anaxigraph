@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
-from anaxigraph.persistence.temporal_facts import (
+from anaxigraph.persistence.temporal_reconstruction import (
     reconstruct_files,
     reconstruct_relationships,
 )

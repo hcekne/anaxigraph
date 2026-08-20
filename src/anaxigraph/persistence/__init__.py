@@ -21,6 +21,16 @@ from anaxigraph.persistence.temporal_reads import (
     snapshot_relationship_edges,
     snapshot_symbols,
 )
+from anaxigraph.persistence.temporal_reconstruction import (
+    CHECKPOINT_INTERVAL,
+    CHECKPOINT_POLICY_VERSION,
+    ReconstructionDiagnostics,
+    canonical_state_hashes,
+    ensure_checkpoint_policy,
+    rebuild_checkpoints,
+    reconstruct_files_with_diagnostics,
+    reconstruct_relationships_with_diagnostics,
+)
 from anaxigraph.relationships import (
     relationship_metadata,
     relationship_quality,
@@ -29,14 +39,22 @@ from anaxigraph.relationships import (
 
 __all__ = [
     "SUPPORTED_SCHEMA_VERSIONS",
+    "CHECKPOINT_INTERVAL",
+    "CHECKPOINT_POLICY_VERSION",
     "IndexBackup",
+    "ReconstructionDiagnostics",
+    "ensure_checkpoint_policy",
     "backup_path",
+    "canonical_state_hashes",
     "create_schema_backup",
     "initialize_index",
     "inspect_index",
     "migrate_schema",
     "relationship_metadata",
     "relationship_quality",
+    "rebuild_checkpoints",
+    "reconstruct_files_with_diagnostics",
+    "reconstruct_relationships_with_diagnostics",
     "resolution_status",
     "restore_schema_backup",
     "snapshot_files",
