@@ -1,0 +1,9 @@
+{
+  "architecture.txt": {"analyzer": "builtin-text", "language": "text"},
+  "client.js": {"analyzer": "builtin-js-lexer", "language": "javascript"},
+  "format.ts": {"analyzer": "builtin-js-lexer", "language": "typescript"},
+  "python_service.py": {"analyzer": "builtin-python-ast", "language": "python"},
+  "worker.go": {"analyzer": "builtin-text", "language": "go"},
+  "worker.rs": {"analyzer": "builtin-text", "language": "rust"},
+  "Worker.java": {"analyzer": "builtin-text", "language": "java"}
+}

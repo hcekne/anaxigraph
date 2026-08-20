@@ -1,0 +1,42 @@
+{
+  "generator_schema_version": 1,
+  "seed": 20260820,
+  "synthetic_history": {
+    "change_counts": {
+      "added": 10,
+      "ambiguous_replacements": 3,
+      "deleted": 10,
+      "interface_changes": 3,
+      "metadata_only_changes": 1,
+      "modified": 30,
+      "renamed": 10
+    },
+    "commits": 8,
+    "expected_distinct_artifact_raw_versions": 3057,
+    "expected_distinct_artifact_structural_versions": 3056,
+    "final_files": 3000,
+    "initial_files": 3000
+  },
+  "scope": {
+    "expected_candidate_paths": [
+      "src/sample/analyzers/__init__.py",
+      "src/sample/analyzers/base.py",
+      "src/sample/analyzers/javascript.py",
+      "src/sample/analyzers/python.py",
+      "src/sample/analyzers/text.py",
+      "src/sample/languages.py",
+      "src/sample/service.py",
+      "tests/test_analyzers.py"
+    ],
+    "goal": "Add a new language analyzer for Go"
+  },
+  "supported_fixture_languages": [
+    "go",
+    "java",
+    "javascript",
+    "python",
+    "rust",
+    "text",
+    "typescript"
+  ]
+}

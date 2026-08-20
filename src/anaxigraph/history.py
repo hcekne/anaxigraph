@@ -55,12 +55,12 @@ def import_git_history(
     every_commit: bool = False,
     since: str | None = None,
     progress: Callable[[int, int, str], None] | None = None,
+    scanner: RepositoryScanner | None = None,
 ) -> HistoryImportResult:
     root = Path(repository).expanduser().resolve()
+    scanner = scanner or RepositoryScanner(database)
     if not git.has_commits(root):
-        current = RepositoryScanner(database).scan(
-            root, config_path=config_path, run_type="history_current"
-        )
+        current = scanner.scan(root, config_path=config_path, run_type="history_current")
         return HistoryImportResult(0, 0, 0, None, None, current.snapshot_id)
 
     complete_history = git.revisions(
@@ -81,7 +81,6 @@ def import_git_history(
         if every_commit
         else sampled_revisions(complete_history, max(1, max_snapshots))
     )
-    scanner = RepositoryScanner(database)
     baseline_snapshot_id: int | None = None
     imported = 0
     for index, commit_sha in enumerate(selected, start=1):
