@@ -152,9 +152,23 @@ def dashboard_metrics(
             text=True,
             timeout=180,
         )
-        if result.returncode != 0:
-            return {"status": "unavailable", "reason": result.stderr.strip()[-2_000:]}
-        return {"status": "measured", **json.loads(result.stdout.strip().splitlines()[-1])}
+        if result.returncode == 0:
+            return {
+                "status": "measured",
+                "runner": "local-playwright",
+                **json.loads(result.stdout.strip().splitlines()[-1]),
+            }
+        container_result = _container_dashboard_render(project_root, url)
+        if container_result is not None and container_result.returncode == 0:
+            return {
+                "status": "measured",
+                "runner": "playwright-container",
+                **json.loads(container_result.stdout.strip().splitlines()[-1]),
+            }
+        reasons = [result.stderr.strip()[-750:]]
+        if container_result is not None:
+            reasons.append(container_result.stderr.strip()[-750:])
+        return {"status": "unavailable", "reason": "\n---\n".join(reasons)}
     finally:
         server.should_exit = True
         thread.join(timeout=10)
@@ -229,6 +243,34 @@ def _wait_for_server(url: str) -> None:
         except OSError:
             time.sleep(0.05)
     raise RuntimeError("dashboard benchmark server did not start")
+
+
+def _container_dashboard_render(
+    project_root: Path, url: str
+) -> subprocess.CompletedProcess[str] | None:
+    docker = shutil.which("docker")
+    if docker is None:
+        return None
+    return subprocess.run(
+        [
+            docker,
+            "run",
+            "--rm",
+            "--network",
+            "host",
+            "--volume",
+            f"{project_root}:/work:ro",
+            "--workdir",
+            "/work",
+            "mcr.microsoft.com/playwright:v1.61.1-noble",
+            "node",
+            "benchmarks/dashboard_render.mjs",
+            url,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=180,
+    )
 
 
 def _file_coverage(coverage: dict[str, Any], path: str) -> float | None:
