@@ -27,6 +27,8 @@ def quality_commands(
     base: str,
     skip_benchmark: bool,
     benchmark_output: Path | None = None,
+    first_user_output: Path | None = None,
+    container_output: Path | None = None,
 ) -> list[list[str]]:
     commands = [
         ["uv", "run", "pre-commit", "run", "--all-files"],
@@ -61,6 +63,37 @@ def quality_commands(
             "--quiet",
         ],
     ]
+    first_user_report = first_user_output or Path(tempfile.gettempdir()) / (
+        f"anaxigraph-first-user-{os.getpid()}.json"
+    )
+    container_report = container_output or Path(tempfile.gettempdir()) / (
+        f"anaxigraph-container-smoke-{os.getpid()}.json"
+    )
+    commands.append(
+        [
+            "uv",
+            "run",
+            "python",
+            "scripts/smoke_container_sidecar.py",
+            "--image",
+            "anaxigraph:quality-gate",
+            "--output",
+            str(container_report),
+        ]
+    )
+    commands.append(
+        [
+            "uv",
+            "run",
+            "python",
+            "-m",
+            "benchmarks.first_user",
+            "--runs",
+            "3",
+            "--output",
+            str(first_user_report),
+        ]
+    )
     if not skip_benchmark:
         output = benchmark_output or Path(tempfile.gettempdir()) / (
             f"anaxigraph-baseline-smoke-{os.getpid()}.json"
@@ -218,6 +251,8 @@ def main(argv: list[str] | None = None) -> int:
             base=args.base,
             skip_benchmark=args.skip_benchmark,
             benchmark_output=Path(temporary) / "baseline-smoke.json",
+            first_user_output=Path(temporary) / "first-user.json",
+            container_output=Path(temporary) / "container-smoke.json",
         )
         for command in commands:
             run(command, root=root)

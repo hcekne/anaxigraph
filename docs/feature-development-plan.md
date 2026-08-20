@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.2
+**Roadmap version:** 3.3
 
 **Updated:** 20 August 2026
 
@@ -88,7 +88,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 117 tests passing at 85.78% coverage plus 12 browser contracts; Ruff and the maintainability/size ratchets are clean | Phase 2 filtering, pagination, budgets, lifecycle, automatic resolution, and rendered output are regression-tested |
+| Test health | 159 tests passing at 89.02% coverage plus 12 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, and rendered first-user paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -97,24 +97,21 @@ regression thresholds.
 | History benchmark | Measured 3,000-file/eight-frame import: 69.566 seconds, 23,970 blob reads, 23,970 `file_versions` for 3,217 distinct artifact/raw versions, 47,896 relationship rows, and a 49.56 MB vacuumed index | Unchanged source is repeatedly read and snapshot-heavy facts/edges are repeatedly materialized |
 | Graph delivery | `/api/graph` can return the full graph in one response | Fine for small loopback use, unsafe for large/team deployments |
 | Authentication | No API or MCP authentication | Acceptable only for loopback sidecar mode |
-| Installation | A tested `anaxigraph` 0.1.0 wheel and source distribution are public on PyPI; generated Compose, MCP connection, semantic enablement, and agent bootstrap still require separate actions | The distribution-name and package-availability barriers are removed, but there are still too many steps between curiosity and full value |
-| Internal module size | Six legacy implementation modules exceed 500 physical lines; `storage.py` is a 422-line facade and `scanner.py` is 358 lines, both without exceptions | Phase 2 reduced the API, MCP factory, CLI, and dashboard ratchets while adding focused finding modules below the hard ceiling |
+| Installation | PyPI still serves the functional but superseded 0.1.0 release; source 0.2.0 provides one-command local startup, explicit agent connection, the dual-client plugin, generated hardened Compose, and a protected release workflow | Source onboarding is complete, but the exact public `uvx anaxigraph up` promise remains blocked until 0.2.0 is released through the configured trusted-publisher environment |
+| Internal module size | Four legacy implementation modules exceed 500 physical lines; `storage.py` is a 422-line facade, `scanner.py` is 358 lines, `cli.py` is 22 lines, and `onboarding.py` is 319 lines, all without exceptions | Phase 3 removed both first-run exceptions; Phase 3b next decomposes the dashboard, agent, and architecture owners before Phase 5 extracts the API |
 
 The current oversized implementation modules are:
 
 | Module | Physical lines at roadmap creation | Planned decomposition phase |
 |---|---:|---|
-| `src/anaxigraph/dashboard/app.js` | 2,091 | Phase 3b |
-| `src/anaxigraph/storage.py` | 1,809 | Phase 1b |
-| `src/anaxigraph/scanner.py` | 1,164 | Phase 1b |
-| `src/anaxigraph/agent.py` | 934 | Phase 3b |
-| `src/anaxigraph/architecture.py` | 780 | Phase 3b |
-| `src/anaxigraph/cli.py` | 653 | Phase 3 |
-| `src/anaxigraph/api.py` | 616 | Phase 5 |
-| `src/anaxigraph/onboarding.py` | 504 | Phase 3 |
+| `src/anaxigraph/dashboard/app.js` | 2,066 | Phase 3b |
+| `src/anaxigraph/agent.py` | 898 | Phase 3b |
+| `src/anaxigraph/architecture.py` | 731 | Phase 3b |
+| `src/anaxigraph/api.py` | 564 | Phase 5 |
 
-Line counts are baselines, not targets. Every listed module must become smaller through cohesive
-responsibility extraction; it must not merely be split at line 500.
+Line counts are current ratchet baselines, not targets. Every listed module must become smaller
+through cohesive responsibility extraction; it must not merely be split at line 500. The completed
+storage, scanner, CLI, and onboarding extractions stay protected by the ordinary 500-line ceiling.
 
 ## Strategic references
 
@@ -1054,7 +1051,7 @@ Resolution normally comes from a later scan, not a “make green” button.
 
 # Phase 3 — one-command local adoption
 
-**Status:** ACTIVE
+**Status:** SOURCE COMPLETE — BLOCKED BY THE 0.2.0 PUBLIC RELEASE
 
 **Goal:** provide a working dashboard in one command and a connected coding agent in at most one
 additional explicit action.
@@ -1278,11 +1275,57 @@ command family and first-run responsibility has a bounded owner.
 - Shared/team installation is still documented as experimental and loopback/local-first until
   Phase 5 security ships.
 
+### Phase 3 exit evidence and release blocker
+
+**Completed in source on 20 August 2026.** Seven of the eight product criteria are closed. The
+remaining criterion is deliberately external and immutable: PyPI currently exposes only 0.1.0,
+which predates `anaxigraph up`. Therefore the exact documented `uvx anaxigraph up` command cannot
+be declared generally available until the tested 0.2.0 artifacts are published and installed back
+from the public index.
+
+| Contract | Evidence and disposition |
+|---|---|
+| Clean artifact startup | The Linux/macOS × Python 3.11/3.12 package matrix installs both wheel and sdist; its wheel path now starts the real `anaxigraph up` process in a new Git repository, waits for `/healthz`, verifies policy and external AnaxiIndex creation, and requires a clean SIGINT shutdown |
+| One-command local value | Three independent fresh repositories reached a healthy dashboard in a **0.708-second median** with `up --semantic agent --connect codex`; each created only the requested project-scoped connection and external index |
+| First semantic dossier | Each timing trial opened a real Streamable HTTP MCP session, validated `module-dossier-v4`, claimed work, traversed every requested evidence page, and stored a validated dossier in a **0.760-second median**, far below the ten-minute ceiling |
+| Safe repetition | Focused initialization contracts retain unrelated TOML, JSON, and YAML, create a backup only for a real client change, and prove repeated policy/client setup is unchanged and creates no second backup |
+| Local end to end | The process contract and timing gate execute the assembled scanner, API, MCP, semantic queue, storage, and shutdown path rather than mocking the runtime |
+| Docker end to end | A fresh generated Compose sidecar builds from the current Dockerfile, scans a three-file repository, becomes healthy in **2.279 seconds**, returns repository and overview data over AnaxiMCP, and tears down its isolated project and volume |
+| Container hardening | Inspection of the live generated container proves a read-only root, read-only repository mount, `cap_drop: ALL`, `no-new-privileges`, and a `127.0.0.1`-only published port |
+| Skill lifecycle | The dual Codex/Claude plugin contract completes `SCHEMA -> WORK -> EVIDENCE -> RELEASE -> WORK -> SUBMIT`, validates durable completion, and ships one canonical, reproducible workflow package |
+| Maintainability | `cli.py` is 22 lines and `onboarding.py` is 319 lines; both legacy exceptions and the CLI coupling exception are removed |
+| Exposure boundary | README and onboarding state that unauthenticated REST/MCP must remain on loopback or behind an SSH tunnel and that shared authenticated deployment waits for Phase 5 |
+| Complete quality gate | 159 Python tests pass at **89.02%** line coverage; pre-commit, release, size, function-size, complexity, coupling, cycles, coverage, and architecture-layer checks pass; both Compose definitions validate; the bounded temporal benchmark completes; and all 12 Chromium contracts pass |
+
+The source gate now runs the first-user timing journey and hardened-container inspection in CI and
+in `scripts/run_quality_gate.py`, retaining their JSON reports as evidence. The deliberately broad
+five- and ten-minute ceilings detect hangs or catastrophic regressions; future releases can tighten
+them from accumulated runner data instead of treating this development server's sub-second values
+as universal promises.
+
+#### Blocking release operation
+
+The trusted workflow is present, but the repository currently has no GitHub environment named
+`pypi`, and the public index currently contains only 0.1.0. Closing Phase 3 requires repository-owner
+control and an immutable public action:
+
+1. add the `pypi` environment in GitHub, with the intended approval/protection rules;
+2. add the matching trusted publisher to the existing PyPI `anaxigraph` project for
+   `hcekne/anaxigraph`, workflow `release.yml`, environment `pypi`;
+3. push the completed source and let required CI pass on `main`;
+4. create and publish the immutable GitHub release `v0.2.0` rather than moving or reusing a tag;
+5. require the release workflow to publish through OIDC and then install `anaxigraph==0.2.0` from
+   public PyPI before this phase changes to **COMPLETE**.
+
+Do not bypass this gate with a routine local Twine upload. The manual-token path is reserved for an
+explicitly approved emergency and would not prove the protected release contract this phase exists
+to establish.
+
 ---
 
 # Phase 3b — dashboard/evaluator decomposition and self-analysis
 
-**Status:** BLOCKED BY PHASE 3
+**Status:** BLOCKED BY THE PHASE 3 PUBLIC RELEASE
 
 **Goal:** remove the remaining dashboard and evaluator size exceptions, then prove that
 AnaxiGraph's deterministic attention model can act as a stable regression check on its own code.
@@ -1986,7 +2029,7 @@ queue and the document cannot drift apart.
 | 31 | **COMPLETE** — Package and contract-test the AnaxiMCP bootstrap workflow as supported agent skills/plugins | §3.4 |
 | 32 | **COMPLETE** — Collapse onboarding around one start action, one connection action, and the agent-funded semantic loop | §3.5 |
 | 33 | **COMPLETE** — Decompose CLI/onboarding responsibilities and remove both size-ratchet exceptions | §3.6 |
-| 34 | **IN PROGRESS** — Close the measurable Phase 3 first-user, idempotency, Docker/local, skill, and quality exit gate | Phase 3 gate |
+| 34 | **BLOCKED — SOURCE COMPLETE** — First-user, idempotency, Docker/local, skill, and quality evidence passes; configure trusted publishing and publish/verify immutable 0.2.0 to close the final public-install criterion | Phase 3 gate |
 
 Items 9 and 10 are the user-visible Phase 0 changes. The completed 0.1.0 publication is the narrow,
 recorded exception described in §0.6; the work that remains in these queue items is restricted to

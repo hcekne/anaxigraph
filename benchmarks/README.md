@@ -35,3 +35,28 @@ uses the 120-file smoke profile; release/performance work uses the complete 3,00
 The committed report is a baseline, not a performance promise. Phase 0 ratifies future regression
 targets from ratios and measured work avoided; it does not encode this server's absolute duration
 as a universal laptop threshold.
+
+## First-user time to value
+
+The Phase 3 gate exercises the assembled local product rather than timing helper functions. Each
+trial creates a fresh Git repository, runs `anaxigraph up` with project-scoped Codex connection and
+agent-funded semantics, waits for dashboard health, connects over real Streamable HTTP MCP, claims
+semantic work, fetches every requested evidence page, and submits the first validated dossier.
+
+```bash
+uv run python -m benchmarks.first_user \
+  --runs 3 \
+  --output /tmp/anaxigraph-first-user.json
+```
+
+The gate requires a median below five minutes to a usable dashboard and below ten minutes to the
+first stored dossier. The deliberately generous product budgets catch hangs and catastrophic
+first-run regressions; the report retains actual sub-step durations for tighter future ratchets.
+
+The companion container contract builds the current Dockerfile, generates a real sidecar, reaches
+health and AnaxiMCP, and inspects the running container's read-only mount, read-only root,
+capability drop, no-new-privileges, and loopback binding:
+
+```bash
+uv run python scripts/smoke_container_sidecar.py
+```

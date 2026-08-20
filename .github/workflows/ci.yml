@@ -53,6 +53,11 @@ jobs:
         run: |
           docker compose -f compose.yml config --quiet
           docker compose -f compose.yml -f compose.maxos.yml config --quiet
+      - name: Exercise the generated hardened container sidecar
+        run: |
+          uv run python scripts/smoke_container_sidecar.py \
+            --image anaxigraph:quality-gate \
+            --output "${RUNNER_TEMP}/anaxigraph-container-smoke.json"
       - name: Run bounded performance smoke benchmark
         run: |
           uv run python -m benchmarks.baseline \
@@ -62,6 +67,11 @@ jobs:
             --skip-tests \
             --skip-dashboard \
             --output "${RUNNER_TEMP}/anaxigraph-baseline-smoke.json"
+      - name: Enforce the first-user time-to-value journey
+        run: |
+          uv run python -m benchmarks.first_user \
+            --runs 3 \
+            --output "${RUNNER_TEMP}/anaxigraph-first-user.json"
       - name: Upload coverage and benchmark evidence
         if: always()
         uses: actions/upload-artifact@v6
@@ -70,6 +80,8 @@ jobs:
           path: |
             coverage.xml
             ${{ runner.temp }}/anaxigraph-baseline-smoke.json
+            ${{ runner.temp }}/anaxigraph-first-user.json
+            ${{ runner.temp }}/anaxigraph-container-smoke.json
           if-no-files-found: warn
 
   python-compatibility:
@@ -136,7 +148,41 @@ jobs:
             --disable-pip-version-check dist/*.tar.gz
           "${RUNNER_TEMP}/sdist-install/bin/anaxigraph" --version
       - name: Exercise the local uvx artifact path
-        run: uvx --from dist/*.whl anaxigraph --version
+        run: |
+          uvx --from dist/*.whl anaxigraph --version
+          mkdir -p "${RUNNER_TEMP}/uvx-repository"
+          echo "def first_run(): return 'ready'" > "${RUNNER_TEMP}/uvx-repository/app.py"
+          git -C "${RUNNER_TEMP}/uvx-repository" init --initial-branch=main
+          git -C "${RUNNER_TEMP}/uvx-repository" config user.name "AnaxiGraph CI"
+          git -C "${RUNNER_TEMP}/uvx-repository" config user.email "ci@anaxigraph.invalid"
+          git -C "${RUNNER_TEMP}/uvx-repository" add app.py
+          git -C "${RUNNER_TEMP}/uvx-repository" commit -m "Initial uvx fixture"
+          uvx --from dist/*.whl anaxigraph up \
+            "${RUNNER_TEMP}/uvx-repository" \
+            --db "${RUNNER_TEMP}/uvx-first-run.db" \
+            --port 9876 \
+            --history-snapshots 0 \
+            >"${RUNNER_TEMP}/uvx-first-run.log" 2>&1 &
+          up_pid=$!
+          ready=0
+          for _attempt in {1..120}; do
+            if curl --fail --silent http://127.0.0.1:9876/healthz >/dev/null; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "${up_pid}" 2>/dev/null; then
+              break
+            fi
+            sleep 0.25
+          done
+          if test "${ready}" != 1; then
+            cat "${RUNNER_TEMP}/uvx-first-run.log"
+            exit 1
+          fi
+          kill -INT "${up_pid}"
+          wait "${up_pid}"
+          test -f "${RUNNER_TEMP}/uvx-repository/.anaxigraph.yml"
+          test -f "${RUNNER_TEMP}/uvx-first-run.db"
 
   dashboard-browser:
     name: Dashboard browser contracts

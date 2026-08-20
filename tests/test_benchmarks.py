@@ -13,6 +13,7 @@ from anaxigraph.persistence import snapshot_files
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.storage import AnaxiIndex
 from benchmarks.dashboard_fixture import create_dashboard_repository
+from benchmarks.first_user import measure_first_user_path
 from benchmarks.repository_factory import (
     DEFAULT_COMMITS,
     DEFAULT_FILE_COUNT,
@@ -175,3 +176,12 @@ def test_dashboard_fixture_covers_stable_browser_contracts(tmp_path):
     assert len(findings) > 10
     feedback = next(item for item in modules if item["path"] == "docs/feedback-log.md")
     assert feedback["evaluation"]["monitored_by_default"] is False
+
+
+def test_first_user_path_reaches_dashboard_and_submits_a_dossier():
+    report = measure_first_user_path(Path(__file__).resolve().parents[1], runs=1)
+
+    assert report["median_dashboard_seconds"] < report["budgets"]["dashboard_seconds"]
+    assert report["median_first_dossier_seconds"] < report["budgets"]["first_dossier_seconds"]
+    assert report["runs"][0]["submission_status"] == "completed"
+    assert report["runs"][0]["project_connection_created"] is True

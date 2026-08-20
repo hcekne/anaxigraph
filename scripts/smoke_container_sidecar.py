@@ -1,0 +1,184 @@
+#!/usr/bin/env python3
+"""Build and exercise the generated hardened Docker sidecar end to end."""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import json
+import os
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.request
+from pathlib import Path
+from typing import Any
+
+from mcp import ClientSession
+from mcp.client.streamable_http import streamable_http_client
+
+
+def smoke_container_sidecar(root: Path, *, image: str, build: bool = True) -> dict[str, Any]:
+    started = time.monotonic()
+    if build:
+        _run(["docker", "build", "--tag", image, "."], cwd=root)
+    build_seconds = time.monotonic() - started
+    with tempfile.TemporaryDirectory(prefix="anaxigraph-container-gate-") as temporary:
+        work = Path(temporary)
+        repository = _create_repository(work / "repository")
+        port = _available_port()
+        project_name = f"Container gate {os.getpid()} {port}"
+        _run(
+            [
+                sys.executable,
+                "-m",
+                "anaxigraph",
+                "init",
+                str(repository),
+                "--project-name",
+                project_name,
+                "--image",
+                image,
+                "--port",
+                str(port),
+                "--history-snapshots",
+                "0",
+                "--semantic",
+                "agent",
+                "--json",
+            ],
+            cwd=root,
+        )
+        compose = repository / "compose.anaxigraph.yml"
+        command = ["docker", "compose", "-f", str(compose)]
+        service_started = time.monotonic()
+        try:
+            _run([*command, "up", "-d"], cwd=repository)
+            health = _wait_for_health(port, command, repository)
+            mcp = asyncio.run(_mcp_evidence(f"http://127.0.0.1:{port}/mcp"))
+            container_id = _run([*command, "ps", "-q", "anaxigraph"], cwd=repository).stdout.strip()
+            hardening = _inspect_hardening(container_id)
+        finally:
+            _run([*command, "down", "--volumes", "--remove-orphans"], cwd=repository)
+        return {
+            "status": "complete",
+            "image": image,
+            "build_seconds": round(build_seconds, 3),
+            "healthy_seconds": round(time.monotonic() - service_started, 3),
+            "health": health,
+            "mcp_repositories": len(mcp["repositories"]),
+            "repository_files": mcp["overview"]["files"],
+            "hardening": hardening,
+        }
+
+
+def _create_repository(repository: Path) -> Path:
+    repository.mkdir(parents=True)
+    (repository / "app.py").write_text(
+        '"""Container smoke fixture."""\n\ndef ready() -> bool:\n    return True\n',
+        encoding="utf-8",
+    )
+    for command in (
+        ("init", "--initial-branch=main"),
+        ("config", "user.name", "AnaxiGraph container gate"),
+        ("config", "user.email", "container@anaxigraph.invalid"),
+        ("add", "."),
+        ("commit", "-qm", "Initial fixture"),
+    ):
+        _run(["git", "-C", str(repository), *command], cwd=repository)
+    return repository
+
+
+def _wait_for_health(port: int, compose: list[str], cwd: Path) -> dict[str, Any]:
+    deadline = time.monotonic() + 120
+    url = f"http://127.0.0.1:{port}/healthz"
+    while time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen(url, timeout=1) as response:
+                if response.status == 200:
+                    return json.loads(response.read())
+        except OSError:
+            time.sleep(0.25)
+    logs = _run([*compose, "logs", "--no-color"], cwd=cwd, check=False).stdout
+    raise RuntimeError(f"container did not become healthy:\n{logs}")
+
+
+async def _mcp_evidence(url: str) -> dict[str, Any]:
+    async with streamable_http_client(url, terminate_on_close=False) as streams:
+        async with ClientSession(streams[0], streams[1]) as session:
+            result = await session.call_tool("ANAXIGRAPH_REPOSITORIES", arguments={})
+            if result.isError:
+                raise RuntimeError("container MCP repository query failed")
+            repositories = result.structuredContent["repositories"]
+            overview = await session.call_tool(
+                "ANAXIGRAPH_OVERVIEW",
+                arguments={"repository": str(repositories[0]["id"])},
+            )
+            if overview.isError:
+                raise RuntimeError("container MCP overview query failed")
+            return {"repositories": repositories, "overview": overview.structuredContent}
+
+
+def _inspect_hardening(container_id: str) -> dict[str, Any]:
+    if not container_id:
+        raise RuntimeError("Compose did not return an AnaxiGraph container id")
+    inspected = json.loads(_run(["docker", "inspect", container_id]).stdout)[0]
+    host = inspected["HostConfig"]
+    repository_mount = next(item for item in inspected["Mounts"] if item["Destination"] == "/repo")
+    bindings = inspected["NetworkSettings"]["Ports"]["8765/tcp"]
+    result = {
+        "read_only_root": bool(host["ReadonlyRootfs"]),
+        "cap_drop_all": "ALL" in (host.get("CapDrop") or []),
+        "no_new_privileges": "no-new-privileges:true" in (host.get("SecurityOpt") or []),
+        "repository_read_only": not repository_mount["RW"],
+        "loopback_bind": all(item["HostIp"] == "127.0.0.1" for item in bindings),
+    }
+    if not all(result.values()):
+        raise RuntimeError(f"container hardening contract failed: {result}")
+    return result
+
+
+def _available_port() -> int:
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        return int(listener.getsockname()[1])
+
+
+def _run(
+    command: list[str],
+    *,
+    cwd: Path | None = None,
+    check: bool = True,
+) -> subprocess.CompletedProcess[str]:
+    result = subprocess.run(command, cwd=cwd, capture_output=True, text=True, check=False)
+    if check and result.returncode:
+        raise RuntimeError(
+            f"command failed ({result.returncode}): {' '.join(command)}\n{result.stdout}{result.stderr}"
+        )
+    return result
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--image", default="anaxigraph:phase3-gate")
+    parser.add_argument("--no-build", action="store_true")
+    parser.add_argument("--output", type=Path)
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
+    root = Path(__file__).resolve().parents[1]
+    report = smoke_container_sidecar(root, image=args.image, build=not args.no_build)
+    content = json.dumps(report, indent=2, sort_keys=True)
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(content + "\n", encoding="utf-8")
+    print(content)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
