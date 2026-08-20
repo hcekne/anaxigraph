@@ -567,7 +567,7 @@ CI rather than a hand-curated release checklist.
 
 # Phase 1a — delta-driven temporal discovery
 
-**Status:** IN PROGRESS — 1a.1 CHARACTERIZATION NEXT
+**Status:** IN PROGRESS — 1a.1 COMPLETE; 1a.2 ACTIVE
 
 **Goal:** stop re-analyzing unchanged files during historical reconstruction, on today's schema, so
 the algorithm can be proven correct before storage changes underneath it.
@@ -579,6 +579,8 @@ non-convergence rule applies before implementation begins. Rows continue to be w
 current shape; only the work required to produce them changes.
 
 ## 1a.1 Characterize temporal correctness before changing anything
+
+**Status:** COMPLETE on 20 August 2026
 
 Add tests covering:
 
@@ -600,6 +602,8 @@ is the whole reason the temporal work is split: a wrong frame in Phase 1b can on
 storage change, because the algorithm was already proven under the same fixtures.
 
 ## 1a.2 Discover change before reading source
+
+**Status:** IN PROGRESS
 
 For each selected revision after the initial frame:
 
@@ -1714,7 +1718,8 @@ queue and the document cannot drift apart.
 | 9 | **COMPLETE** — Document `init --start`, correct the README's team-install claim, record PyPI 0.1.0, and prepare next-release PEP 639 metadata | §0.6 |
 | 10 | **COMPLETE** — Publish the supported platform matrix, including the Windows decision | §0.7 |
 | 11 | **COMPLETE** — Close the Phase 0 exit gate and record its reproducible evidence | §0 gate |
-| 12 | **IN PROGRESS** — Build `P1a.1`, the temporal correctness characterization suite on today's schema | §1a.1 |
+| 12 | **COMPLETE** — Build `P1a.1`, the temporal correctness characterization suite on today's schema | §1a.1 |
+| 13 | **IN PROGRESS** — Discover selected-frame changes before reading source and carry unchanged analysis forward | §1a.2 |
 
 Items 9 and 10 are the user-visible Phase 0 changes. The completed 0.1.0 publication is the narrow,
 recorded exception described in §0.6; the work that remains in these queue items is restricted to
