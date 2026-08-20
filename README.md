@@ -18,6 +18,7 @@
 
 <p align="center">
   <a href="docs/onboarding.md">Get started</a> ·
+  <a href="docs/agent-plugin.md">Agent plugin</a> ·
   <a href="docs/docker.md">Docker guide</a> ·
   <a href="CONTRIBUTING.md">Contribute</a>
 </p>
@@ -140,8 +141,22 @@ filesystem guidance, and what “best effort” means.
 
 ## 🤖 Connect Codex
 
-Run the following in a shell on the machine where Codex itself runs. It can be run from any
-directory:
+The supported agent plugin packages the AnaxiGraph workflow and its local AnaxiMCP connection.
+Install it once from the repository marketplace:
+
+```bash
+codex plugin marketplace add hcekne/anaxigraph
+codex plugin add anaxigraph@anaxigraph
+```
+
+With AnaxiGraph running, start Codex in the target repository and invoke `$anaxigraph`. The skill
+selects the matching indexed repository, uses bounded graph evidence for coding work, and can build
+or resume semantic understanding with the coding agent's own model context and tokens. See the
+[agent plugin guide](docs/agent-plugin.md) for Codex and Claude Code installation, safe resume, and
+custom endpoint behavior.
+
+To configure the MCP endpoint without installing the workflow skill, run the following in a shell
+on the machine where Codex itself runs. It can be run from any directory:
 
 ```bash
 codex mcp add anaxigraph --url http://127.0.0.1:8765/mcp

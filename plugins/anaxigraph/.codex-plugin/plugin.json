@@ -1,0 +1,32 @@
+{
+  "name": "anaxigraph",
+  "version": "0.2.0",
+  "description": "Ground coding agents in AnaxiGraph architecture, history, findings, and semantic dossiers.",
+  "author": {
+    "name": "AnaxiGraph contributors",
+    "url": "https://github.com/hcekne/anaxigraph"
+  },
+  "homepage": "https://github.com/hcekne/anaxigraph#readme",
+  "repository": "https://github.com/hcekne/anaxigraph",
+  "license": "Apache-2.0",
+  "keywords": ["architecture", "code-intelligence", "mcp", "repository", "semantic-analysis"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "AnaxiGraph Architect",
+    "shortDescription": "Architecture context for coding agents",
+    "longDescription": "Use the local AnaxiMCP index to map repositories, resume semantic understanding, plan changes, inspect impact, and verify architecture outcomes.",
+    "developerName": "AnaxiGraph contributors",
+    "category": "Developer Tools",
+    "capabilities": ["Architecture analysis", "Semantic index write-back"],
+    "websiteURL": "https://github.com/hcekne/anaxigraph",
+    "defaultPrompt": [
+      "Map this repository and explain its architecture.",
+      "Ground my next change in AnaxiGraph evidence.",
+      "Resume the semantic baseline with my agent tokens."
+    ],
+    "brandColor": "#8D5CFF",
+    "composerIcon": "./skills/anaxigraph/assets/anaxigraph.svg",
+    "logo": "./skills/anaxigraph/assets/anaxigraph.svg"
+  }
+}

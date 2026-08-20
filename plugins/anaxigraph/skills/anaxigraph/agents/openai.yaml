@@ -1,0 +1,18 @@
+interface:
+  display_name: "AnaxiGraph Architect"
+  short_description: "Ground coding work in repository architecture"
+  icon_small: "./assets/anaxigraph.svg"
+  icon_large: "./assets/anaxigraph.svg"
+  brand_color: "#8D5CFF"
+  default_prompt: "Use $anaxigraph to map this repository and ground my next change in its architecture."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "anaxigraph"
+      description: "Local AnaxiMCP repository architecture and semantic index"
+      transport: "streamable_http"
+      url: "http://127.0.0.1:8765/mcp"
+
+policy:
+  allow_implicit_invocation: true

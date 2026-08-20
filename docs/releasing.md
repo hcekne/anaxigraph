@@ -55,6 +55,8 @@ Every Python release must satisfy all of these invariants:
   and GitHub artifact attestations.
 - The same tag builds the multi-architecture container, whose immutable registry digest receives
   BuildKit provenance, an SBOM, and a GitHub registry attestation.
+- The Codex and Claude plugin manifests and Claude marketplace entry match `project.version`, and
+  one deterministic `anaxigraph-agent-plugin-<version>.zip` is included in the release checksums.
 
 CI enforces the archive and fresh-install checks on every pull request. The release workflow runs
 the same contract again against the immutable tag before requesting permission to publish.
@@ -78,6 +80,11 @@ the same contract again against the immutable tag before requesting permission t
      --tag v0.2.0 \
      --check-pypi \
      --checksums /tmp/anaxigraph-SHA256SUMS
+   uv run python scripts/check_agent_package.py
+   mkdir -p release
+   uv run python scripts/build_agent_plugin.py \
+     --output release/anaxigraph-agent-plugin-0.2.0.zip \
+     >> /tmp/anaxigraph-SHA256SUMS
    ```
 
    Replace `v0.2.0` with the version being prepared. The last command intentionally fails when the

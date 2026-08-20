@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="AnaxiGraph A">
+  <defs>
+    <linearGradient id="background" x1="8" y1="4" x2="58" y2="62" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ff4d8d"/>
+      <stop offset="0.48" stop-color="#8d5cff"/>
+      <stop offset="1" stop-color="#24d6c4"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="1.8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="#080b12"/>
+  <rect x="3.5" y="3.5" width="57" height="57" rx="13.5" fill="none" stroke="url(#background)" stroke-width="3"/>
+  <path d="M14.5 49.5 31.8 13.5 49.5 49.5M22.5 36.5H42" fill="none" stroke="url(#background)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+  <circle cx="31.8" cy="13.5" r="4.1" fill="#ff76a8"/>
+  <circle cx="14.5" cy="49.5" r="4.1" fill="#8d5cff"/>
+  <circle cx="49.5" cy="49.5" r="4.1" fill="#36e1ce"/>
+  <circle cx="32" cy="36.5" r="3" fill="#fff"/>
+</svg>

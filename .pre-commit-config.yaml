@@ -49,6 +49,11 @@ repos:
         entry: uv run python scripts/check_architecture.py
         language: system
         pass_filenames: false
+      - id: agent-package
+        name: Codex and Claude agent package contract
+        entry: uv run python scripts/check_agent_package.py
+        language: system
+        pass_filenames: false
       - id: python-tests
         name: Complete Python test suite and coverage floor
         entry: uv run pytest --cov=anaxigraph --cov-report=term --cov-report=xml --cov-fail-under=80

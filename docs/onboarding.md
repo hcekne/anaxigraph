@@ -153,6 +153,24 @@ findings:
 
 ## Connect Codex
 
+### Install the guided agent workflow
+
+The shared agent plugin is the easiest way to teach Codex the safe semantic bootstrap, scope,
+impact, finding, and verification workflows:
+
+```bash
+codex plugin marketplace add hcekne/anaxigraph
+codex plugin add anaxigraph@anaxigraph
+```
+
+Restart Codex in the target repository and invoke `$anaxigraph`. Claude Code users can install the
+same package with `claude plugin marketplace add hcekne/anaxigraph` followed by
+`claude plugin install anaxigraph@anaxigraph --scope user`, then invoke
+`/anaxigraph:anaxigraph`. See the [agent plugin guide](agent-plugin.md) for the complete behavior
+and custom endpoint options.
+
+### Configure only the MCP connection
+
 With the sidecar healthy, add its Streamable HTTP MCP endpoint. Run this in a shell on the machine
 where Codex itself runs. It can be run from any directory:
 

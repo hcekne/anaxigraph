@@ -1,0 +1,22 @@
+{
+  "name": "anaxigraph",
+  "owner": {
+    "name": "AnaxiGraph contributors"
+  },
+  "description": "Agent skills and MCP grounding for the AnaxiGraph architecture index.",
+  "plugins": [
+    {
+      "name": "anaxigraph",
+      "source": "./plugins/anaxigraph",
+      "description": "Architecture and semantic grounding for Claude Code",
+      "version": "0.2.0",
+      "author": {
+        "name": "AnaxiGraph contributors"
+      },
+      "repository": "https://github.com/hcekne/anaxigraph",
+      "license": "Apache-2.0",
+      "category": "Developer Tools",
+      "keywords": ["architecture", "mcp", "repository", "semantic-analysis"]
+    }
+  ]
+}

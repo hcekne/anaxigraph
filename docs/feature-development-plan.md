@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 2.9
+**Roadmap version:** 3.0
 
 **Updated:** 20 August 2026
 
@@ -1198,6 +1198,22 @@ and other supported clients. The skill contains:
 The skill is packaging around AnaxiMCP, not a second analysis implementation. Server contracts
 remain the source of truth and are versioned.
 
+### Phase 3.4 closure evidence
+
+**Completed in source on 20 August 2026.** Codex and Claude Code now consume one canonical skill
+and one local AnaxiMCP connection from a dual-client plugin package.
+
+| Contract | Delivered evidence |
+|---|---|
+| One workflow | Both client manifests point to `plugins/anaxigraph/skills/anaxigraph`; the skill routes repository selection, overview, scope, impact, findings, verification, and semantic work through the live AnaxiMCP tools rather than reimplementing analysis |
+| Semantic safety | The documented loop follows `SCHEMA -> WORK -> every EVIDENCE page -> SUBMIT`, accepts only `completed`/`already_completed` as stored, releases interrupted work with a reason, discards stale leases, and resumes through a fresh claim |
+| Evidence discipline | The skill distinguishes deterministic facts from interpretations, requires dynamic-wiring caveats, and explicitly rejects missing static edges as proof of dead code or findings as automatic edit permission |
+| Dual-client packaging | Version-matched Codex and Claude manifests, marketplace catalogs, OpenAI display metadata, the shared SVG, Apache license, and loopback MCP definition are validated together against `project.version` |
+| Real client installs | The repository marketplace and plugin installed successfully in isolated Codex and Claude homes without mutating either real user configuration; Claude strict validation and both skill/plugin validators pass |
+| Contract test | A real Streamable HTTP MCP session claims work, fetches every evidence page, releases it, reclaims the same job, submits a schema-valid dossier, and verifies durable completion status |
+| Reproducible release | `build_agent_plugin.py` creates a byte-identical, normalized seven-file ZIP; release CI includes its SHA-256 value in the attested release checksum bundle |
+| Verification | Four focused package/contract tests pass; the complete gate passes 148 tests at 87.46% total coverage, all pre-commit/size/complexity/coupling/layer checks, both Compose validations, the bounded benchmark, and all 12 Chromium contracts |
+
 ## 3.5 Collapse onboarding documentation
 
 The first screen and README lead with:
@@ -1936,8 +1952,8 @@ queue and the document cannot drift apart.
 | 28 | **COMPLETE** — Automate the published-package release contract and test the exact fresh-install artifact | §3.1 |
 | 29 | **COMPLETE** — Make initialization enable agent-funded semantics and connect the selected MCP client idempotently | §3.2 |
 | 30 | **COMPLETE** — Add the loopback `anaxigraph up` path with external user-state storage and clean lifecycle behavior | §3.3 |
-| 31 | **IN PROGRESS** — Package and contract-test the AnaxiMCP bootstrap workflow as supported agent skills/plugins | §3.4 |
-| 32 | Collapse onboarding around one start action, one connection action, and the agent-funded semantic loop | §3.5 |
+| 31 | **COMPLETE** — Package and contract-test the AnaxiMCP bootstrap workflow as supported agent skills/plugins | §3.4 |
+| 32 | **IN PROGRESS** — Collapse onboarding around one start action, one connection action, and the agent-funded semantic loop | §3.5 |
 | 33 | Decompose CLI/onboarding responsibilities and remove both size-ratchet exceptions | §3.6 |
 | 34 | Close the measurable Phase 3 first-user, idempotency, Docker/local, skill, and quality exit gate | Phase 3 gate |
 

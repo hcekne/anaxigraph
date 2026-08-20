@@ -1,0 +1,20 @@
+{
+  "name": "anaxigraph",
+  "interface": {
+    "displayName": "Anaxigraph"
+  },
+  "plugins": [
+    {
+      "name": "anaxigraph",
+      "source": {
+        "source": "local",
+        "path": "./plugins/anaxigraph"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

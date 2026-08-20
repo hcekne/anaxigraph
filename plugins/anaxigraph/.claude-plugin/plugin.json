@@ -1,0 +1,14 @@
+{
+  "name": "anaxigraph",
+  "version": "0.2.0",
+  "description": "Ground Claude Code work in AnaxiGraph architecture, history, findings, and semantic dossiers.",
+  "author": {
+    "name": "AnaxiGraph contributors"
+  },
+  "homepage": "https://github.com/hcekne/anaxigraph#readme",
+  "repository": "https://github.com/hcekne/anaxigraph",
+  "license": "Apache-2.0",
+  "keywords": ["architecture", "code-intelligence", "mcp", "repository", "semantic-analysis"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
+}
