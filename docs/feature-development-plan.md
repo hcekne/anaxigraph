@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 2.7
+**Roadmap version:** 2.8
 
 **Updated:** 20 August 2026
 
@@ -1128,6 +1128,23 @@ uvx anaxigraph init . --start --semantic agent --connect claude
 
 Do not silently mutate agent configuration during a plain `init`.
 
+### Phase 3.2 closure evidence
+
+**Completed in source on 20 August 2026.** Initialization now makes the agent-funded path explicit
+without turning a plain repository setup into implicit client mutation.
+
+| Contract | Delivered evidence |
+|---|---|
+| Explicit semantic mode | `--semantic agent` creates or surgically updates the semantic policy block, preserves unrelated YAML and comments, and is a no-op when the requested state already exists |
+| Explicit client selection | Repeatable `--connect codex` and `--connect claude` options configure only clients the user named; plain `init` never reads or writes a client configuration |
+| Safe scopes | `--connect-scope user` writes the documented private user configuration with mode `0600`; project scope writes `.codex/config.toml` or `.mcp.json` and reports the client trust/approval requirement |
+| Loss-minimizing updates | Existing client files receive timestamped backups only when a real change is needed; unrelated TOML/JSON settings are retained, TOML comments are preserved, writes are atomic, credentials/fragments are rejected, and symlinked target files fail closed |
+| Preview and repetition | `--dry-run --json` reports every repository and client action without writing; repeated semantic/client setup produces `unchanged` and no additional backup |
+| Network clarity | Initialization prints separate loopback dashboard/MCP, Compose-network, and remote-host forms; `--mcp-url` selects the exact endpoint stored for the coding client |
+| End-to-end diagnostics | `anaxigraph doctor` retains index integrity/migration evidence and adds repository readability, index-directory writeability, `/healthz`, a real MCP `initialize` exchange, and selected Codex/Claude URL validation |
+| Maintainability | Repository discovery, YAML policy editing, template generation, client configuration, initialization CLI, and environment diagnostics are separate modules; `cli.py` and `onboarding.py` are already below 500 lines and their size exceptions have been removed |
+| Verification | 21 focused onboarding/doctor tests pass with 90% coverage across the new modules; the complete gate passes 137 tests at 86.82% total coverage, all lint/format/size/complexity/coupling/layer checks, both Compose validations, the bounded benchmark, and all 12 Chromium contracts |
+
 ## 3.3 Add a no-Docker first-five-minutes path
 
 Provide a convenience command built on the existing scan and serve capabilities:
@@ -1900,8 +1917,8 @@ queue and the document cannot drift apart.
 | 26 | **COMPLETE** — Ship dashboard filters and lifecycle actions, then prove automatic resolve/regress behavior in backend and browser contracts | Phase 2 gate |
 | 27 | **COMPLETE** — Close the Phase 2 exit gate without growing a legacy size, function, or coupling ratchet | Phase 2 gate |
 | 28 | **COMPLETE** — Automate the published-package release contract and test the exact fresh-install artifact | §3.1 |
-| 29 | **IN PROGRESS** — Make initialization enable agent-funded semantics and connect the selected MCP client idempotently | §3.2 |
-| 30 | Add the loopback `anaxigraph up` path with external user-state storage and clean lifecycle behavior | §3.3 |
+| 29 | **COMPLETE** — Make initialization enable agent-funded semantics and connect the selected MCP client idempotently | §3.2 |
+| 30 | **IN PROGRESS** — Add the loopback `anaxigraph up` path with external user-state storage and clean lifecycle behavior | §3.3 |
 | 31 | Package and contract-test the AnaxiMCP bootstrap workflow as supported agent skills/plugins | §3.4 |
 | 32 | Collapse onboarding around one start action, one connection action, and the agent-funded semantic loop | §3.5 |
 | 33 | Decompose CLI/onboarding responsibilities and remove both size-ratchet exceptions | §3.6 |

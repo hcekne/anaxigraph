@@ -3,19 +3,39 @@
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from typing import Any
 
+from anaxigraph.environment_doctor import inspect_environment
 from anaxigraph.finding_transport import collect_finding_ledger, query_findings
 from anaxigraph.history_jobs import open_history_service
-from anaxigraph.onboarding import initialize_repository
-from anaxigraph.persistence import inspect_index
+from anaxigraph.onboarding_cli import configure_initialize_command
 from anaxigraph.registry import RepositoryTarget, parse_history_snapshots
 
-__all__ = ["collect_finding_ledger", "query_findings"]
+__all__ = ["collect_finding_ledger", "configure_initialize_command", "query_findings"]
+
+
+def configure_finding_command(commands: Any, handler: Any, default_db: Path) -> None:
+    finding = commands.add_parser("finding", help="Change a finding lifecycle status")
+    finding.add_argument("finding_id", type=int)
+    finding.add_argument(
+        "status",
+        choices=[
+            "new",
+            "acknowledged",
+            "accepted",
+            "dismissed",
+            "planned",
+            "resolved",
+            "regressed",
+        ],
+    )
+    finding.add_argument("--repository", type=Path, default=Path.cwd())
+    finding.add_argument("--db", type=Path, default=default_db)
+    finding.add_argument("--json", action="store_true")
+    finding.set_defaults(handler=handler)
 
 
 def configure_operational_commands(
@@ -26,9 +46,15 @@ def configure_operational_commands(
     configure_history(history_parser)
     doctor_parser = commands.add_parser(
         "doctor",
-        help="Verify index integrity, migration parity, recovery, and compaction readiness",
+        help="Verify repository, index, service, MCP, and coding-client readiness",
     )
+    doctor_parser.add_argument("repository", nargs="?", type=Path, default=Path.cwd())
+    doctor_parser.add_argument("--config", type=Path)
     doctor_parser.add_argument("--db", type=Path, default=_default_db())
+    doctor_parser.add_argument("--service-url", help="Dashboard/API root to probe")
+    doctor_parser.add_argument("--client", choices=["codex", "claude"])
+    doctor_parser.add_argument("--connect-scope", choices=["user", "project"], default="user")
+    doctor_parser.add_argument("--mcp-url", help="Expected client and MCP endpoint URL")
     doctor_parser.add_argument("--json", action="store_true")
     doctor_parser.set_defaults(handler=doctor, index_factory=index_factory)
 
@@ -85,69 +111,16 @@ def history(args: Namespace) -> dict[str, Any]:
 
 def doctor(args: Namespace) -> dict[str, Any]:
     database = args.index_factory(args.db)
-    return inspect_index(database.path, database.connect)
-
-
-def initialize(args: Namespace) -> dict[str, Any] | None:
-    if args.start and args.dry_run:
-        raise ValueError("--start cannot be combined with --dry-run")
-    if args.start and args.no_compose:
-        raise ValueError("--start requires a generated Compose file")
-    result = initialize_repository(
-        args.repository,
-        project_name=args.project_name,
-        config_name=args.config_name,
-        compose_name=None if args.no_compose else args.compose_name,
-        image=args.image,
-        port=args.port,
-        history_snapshots=args.history_snapshots,
-        force=args.force,
-        dry_run=args.dry_run,
+    return inspect_environment(
+        database.path,
+        database.connect,
+        repository=args.repository,
+        config_path=args.config,
+        service_url=args.service_url,
+        client=args.client,
+        connection_scope=args.connect_scope,
+        expected_mcp_url=args.mcp_url,
     )
-    if args.start:
-        _start_generated_compose(args, result)
-    if args.json:
-        return result
-    _print_initialization(args, result)
-    return None
-
-
-def _start_generated_compose(args: Namespace, result: dict[str, Any]) -> None:
-    started = subprocess.run(
-        ["docker", "compose", "-f", args.compose_name, "up", "-d"],
-        cwd=result["repository"],
-        check=False,
-    )
-    if started.returncode:
-        raise RuntimeError(
-            f"Docker Compose exited with status {started.returncode}; generated files were kept"
-        )
-    result["status"] = "started"
-
-
-def _print_initialization(args: Namespace, result: dict[str, Any]) -> None:
-    verb = "Plan for" if args.dry_run else "AnaxiGraph setup for"
-    print(f"{verb} {result['project_name']}")
-    print(f"Repository: {result['repository']}\n")
-    for item in result["files"]:
-        label = item["action"].replace("_", " ")
-        print(f"  {label:15} {Path(item['path']).name} · {item['purpose']}")
-    detected = result["detected"]
-    groups = ", ".join(detected["groups"]) or "no obvious top-level areas"
-    print(f"\nDetected areas: {groups}")
-    if detected["architecture_policy"]:
-        print(f"Architecture policy: {detected['architecture_policy']}")
-    print("\nNext steps")
-    if result["commands"]["start"]:
-        print(f"  1. Start:   {result['commands']['start']}")
-        print(f"  2. Open:    {result['dashboard_url']}")
-        print(f"  3. Codex:   {result['commands']['connect_codex']}")
-        print("\nThe repository is mounted read-only; AnaxiIndex persists in a Docker volume.")
-    else:
-        print(f"  1. Start:   {result['commands']['local']}")
-        print(f"  2. Codex:   {result['commands']['connect_codex']}")
-    if args.start:
-        print(f"\nContainer started. Open {result['dashboard_url']}")
 
 
 def _default_db() -> Path:

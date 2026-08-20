@@ -35,6 +35,21 @@ want to analyze, create and start the sidecar in one command:
 uvx anaxigraph init . --start
 ```
 
+To enable the coding-agent-funded semantic queue and connect a client in the same explicit setup,
+use either of these current-source commands:
+
+```bash
+anaxigraph init . --start --semantic agent --connect codex
+anaxigraph init . --start --semantic agent --connect claude
+```
+
+The default `user` connection scope is private and available across repositories on that machine.
+Choose `--connect-scope project` to write a trusted-repository Codex `.codex/config.toml` or a
+team-shared Claude `.mcp.json` instead. A plain `init` never changes a coding-client configuration.
+Preview every repository and client action with `--dry-run --json`; existing client files receive
+a timestamped backup only when their AnaxiGraph entry actually changes, and repeating the command
+is a no-op.
+
 The initializer detects obvious top-level areas and creates two files:
 
 - `.anaxigraph.yml` — editable repository names, groups, optional coverage inputs, and
@@ -116,6 +131,12 @@ codex mcp add anaxigraph --url http://127.0.0.1:8765/mcp
 codex mcp list
 ```
 
+The equivalent explicit initializer option is:
+
+```bash
+anaxigraph init . --semantic agent --connect codex --connect-scope user
+```
+
 By default it saves the server in `~/.codex/config.toml`, so later Codex sessions on that host can
 use AnaxiGraph while you work in any repository. Start or restart Codex in the repository you
 actually intend to edit:
@@ -136,6 +157,27 @@ url = "http://127.0.0.1:8765/mcp"
 
 See the official [Codex MCP documentation](https://learn.chatgpt.com/docs/extend/mcp) for client
 configuration details.
+
+## Connect Claude Code
+
+AnaxiGraph can also write Claude Code's documented HTTP MCP entry:
+
+```bash
+anaxigraph init . --semantic agent --connect claude --connect-scope user
+```
+
+Use `--connect-scope project` when the repository should contain a reviewable `.mcp.json` shared
+with the team. Claude asks each user to approve a project-scoped MCP server before using it. The
+equivalent native command is:
+
+```bash
+claude mcp add --transport http --scope user anaxigraph http://127.0.0.1:8765/mcp
+```
+
+For either client, pass `--mcp-url` when the agent cannot use the generated loopback URL. An agent
+in the generated Compose network uses `http://anaxigraph:8765/mcp`; an agent on a remote host must
+use an explicitly reachable or forwarded server URL. Credentials and URL fragments are rejected
+rather than written into client configuration.
 
 ### Remote Linux server + local browser
 
@@ -203,7 +245,13 @@ modules remain visible instead of disappearing from the coverage number.
 
 ### Recommended: let the connected coding agent pay for the reasoning
 
-Edit the generated `.anaxigraph.yml`:
+Enable the generated policy without reserializing its unrelated fields or comments:
+
+```bash
+anaxigraph init . --semantic agent --no-compose
+```
+
+This produces the equivalent policy block:
 
 ```yaml
 semantic:
@@ -370,7 +418,8 @@ connected coding agent can call `ANAXIGRAPH_HISTORY_STATUS`, `ANAXIGRAPH_HISTORY
 `ANAXIGRAPH_HISTORY_CANCEL` for the same repository-scoped workflow. These tools only mutate the
 external AnaxiIndex; they never write the mounted repository.
 
-Before an upgrade or when diagnosing an index, run the read-only safety report:
+Before an upgrade or when diagnosing an index, run the safety report. Opening an old index may
+perform its normal backed-up schema migration; the command never edits repository source:
 
 ```bash
 # Host installation
@@ -378,14 +427,30 @@ anaxigraph doctor --db "${XDG_STATE_HOME:-$HOME/.local/state}/anaxigraph/anaxi-i
 
 # Generated Docker sidecar
 docker compose -f compose.anaxigraph.yml exec anaxigraph \
-  anaxigraph doctor --db /state/anaxi-index.db --json
+  anaxigraph doctor /repo \
+    --db /state/anaxi-index.db \
+    --service-url http://127.0.0.1:8765 \
+    --json
+```
+
+From the agent host, verify the same HTTP service plus the selected client entry:
+
+```bash
+anaxigraph doctor /path/to/repository \
+  --service-url http://127.0.0.1:8765 \
+  --client codex \
+  --connect-scope user \
+  --mcp-url http://127.0.0.1:8765/mcp \
+  --json
 ```
 
 The report validates database integrity, foreign keys, snapshot ancestry, bounded reconstruction,
 schema-9 semantic-fact provenance, the canonical facts/deltas/edges digest, and the checksum of any
 schema-6 recovery backup. Its compaction assessment is fail-closed and confirms that the temporary
 compatibility staging rows and their semantic references were cleared after validated migration.
-The read-only command never performs the compaction itself.
+The environment report keeps the detailed index integrity result and adds explicit repository,
+index-directory, health endpoint, MCP initialization, and client-configuration checks. Omit
+`--service-url` or `--client` when that layer is intentionally out of scope.
 
 ## Keep the index current
 

@@ -131,6 +131,17 @@ codex mcp add anaxigraph --url http://127.0.0.1:8765/mcp
 codex mcp list
 ```
 
+Current source can make the same explicit, idempotent change while enabling agent-funded semantic
+understanding:
+
+```bash
+anaxigraph init . --semantic agent --connect codex --connect-scope user
+```
+
+Use `--dry-run --json` to preview it or `--connect-scope project` to write the MCP entry to the
+trusted repository's `.codex/config.toml`. Existing user configuration is backed up before a real
+change; unrelated TOML and comments are preserved.
+
 By default, `codex mcp add` stores the connection in `~/.codex/config.toml`. Future Codex CLI and
 IDE sessions on that same host can then use AnaxiMCP from any coding repository. Start a new Codex
 session in the project you want to edit:
@@ -330,6 +341,16 @@ anaxigraph watch /path/to/repository
 anaxigraph mcp --repository /path/to/repository --port 8765
 ```
 
+Claude Code uses the same initializer contract:
+
+```bash
+anaxigraph init . --semantic agent --connect claude --connect-scope user
+```
+
+Project scope writes Claude's reviewable `.mcp.json`. Pass `--mcp-url` for an agent in another
+container or on another host; the initializer prints loopback, Compose-network, and remote URL
+forms so the browser route is not confused with the agent route.
+
 The `serve` and `mcp` commands both expose the dashboard and JSON API at
 `http://127.0.0.1:8765`, with Streamable HTTP MCP at `http://127.0.0.1:8765/mcp`. See
 [`docs/maxos-agent.md`](docs/maxos-agent.md) for the ready-to-run MaxOS integration.
@@ -341,17 +362,22 @@ completed frames. Coding agents can use the equivalent `ANAXIGRAPH_HISTORY_STATU
 `ANAXIGRAPH_HISTORY_IMPORT`, and `ANAXIGRAPH_HISTORY_CANCEL` tools. Current modules, findings,
 graphs, and agent scope remain available while the timeline is built.
 
-`anaxigraph doctor` is a read-only index safety check. It verifies SQLite integrity and foreign
-keys, snapshot lineage, bounded reconstruction, semantic-fact provenance, the canonical
-facts/deltas/edges digest, and the recorded schema-6 recovery backup. Schema 9 compacts duplicated
-materialized frames after migration parity succeeds; its `compaction` section confirms that the
-four compatibility staging tables and their references are empty. The command itself never deletes
-data. For the Docker sidecar, run the same check against its persisted volume:
+`anaxigraph doctor` keeps the full SQLite integrity, lineage, reconstruction, semantic provenance,
+canonical digest, migration-backup, and compaction report. It can now also verify the readable
+repository mount, writable index directory, dashboard health, a real AnaxiMCP initialization
+handshake, and the selected Codex/Claude configuration. Opening an old index follows the normal
+backed-up migration contract; it never edits repository source. For the Docker sidecar, run:
 
 ```bash
 docker compose -f compose.anaxigraph.yml exec anaxigraph \
-  anaxigraph doctor --db /state/anaxi-index.db --json
+  anaxigraph doctor /repo \
+    --db /state/anaxi-index.db \
+    --service-url http://127.0.0.1:8765 \
+    --json
 ```
+
+On the host where the coding client runs, add `--client codex` or `--client claude`, the matching
+`--connect-scope`, and `--mcp-url http://127.0.0.1:8765/mcp` to verify that final layer.
 
 ## 🧠 What is persisted
 

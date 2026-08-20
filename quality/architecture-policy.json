@@ -46,7 +46,12 @@
         "anaxigraph.history_discovery",
         "anaxigraph.history_frames",
         "anaxigraph.history_jobs",
+        "anaxigraph.environment_doctor",
         "anaxigraph.onboarding",
+        "anaxigraph.onboarding_clients",
+        "anaxigraph.onboarding_detection",
+        "anaxigraph.onboarding_policy",
+        "anaxigraph.onboarding_templates",
         "anaxigraph.relationship_builder",
         "anaxigraph.scan_persistence",
         "anaxigraph.scan_preparation",
@@ -76,7 +81,8 @@
         "anaxigraph.cli_workflows",
         "anaxigraph.finding_mcp",
         "anaxigraph.history_mcp",
-        "anaxigraph.mcp_server"
+        "anaxigraph.mcp_server",
+        "anaxigraph.onboarding_cli"
       ],
       "may_import": ["foundation", "analysis", "persistence", "application", "transport"]
     },

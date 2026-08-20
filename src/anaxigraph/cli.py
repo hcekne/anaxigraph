@@ -46,53 +46,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"AnaxiGraph {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
 
-    initialize = commands.add_parser(
-        "init",
-        help="Create a safe repository policy and Docker sidecar setup",
-        description=(
-            "Detect obvious repository areas and generate a reviewable AnaxiGraph policy plus "
-            "a read-only Docker Compose sidecar. Existing files are never replaced unless "
-            "--force is given."
-        ),
-    )
-    initialize.add_argument("repository", nargs="?", type=Path, default=Path.cwd())
-    initialize.add_argument("--project-name", help="Human-readable project name")
-    initialize.add_argument("--config-name", default=".anaxigraph.yml")
-    initialize.add_argument("--compose-name", default="compose.anaxigraph.yml")
-    initialize.add_argument(
-        "--no-compose",
-        action="store_true",
-        help="Generate only the repository policy for a local CLI installation",
-    )
-    initialize.add_argument(
-        "--image",
-        default="ghcr.io/hcekne/anaxigraph:latest",
-        help="Container image written to Compose",
-    )
-    initialize.add_argument("--port", type=int, default=8765, help="Local dashboard port")
-    initialize.add_argument(
-        "--history-snapshots",
-        type=repository_registry.parse_history_snapshots,
-        default="auto",
-        help="Git history frame policy: auto or an integer from 0 to 2000 (default: auto)",
-    )
-    initialize.add_argument(
-        "--force",
-        action="store_true",
-        help="Replace existing generated filenames after explicit review",
-    )
-    initialize.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Show detected setup without writing files",
-    )
-    initialize.add_argument(
-        "--start",
-        action="store_true",
-        help="Start the generated Docker Compose service after writing it",
-    )
-    initialize.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
-    initialize.set_defaults(handler=cli_workflows.initialize)
+    cli_workflows.configure_initialize_command(commands)
 
     scan = commands.add_parser("scan", help="Build a complete current repository map")
     _repository_arguments(scan)
@@ -195,24 +149,7 @@ def _parser() -> argparse.ArgumentParser:
     export.add_argument("--output", type=Path, help="Write JSON to this path instead of stdout")
     export.set_defaults(handler=_export)
 
-    finding = commands.add_parser("finding", help="Change a finding lifecycle status")
-    finding.add_argument("finding_id", type=int)
-    finding.add_argument(
-        "status",
-        choices=[
-            "new",
-            "acknowledged",
-            "accepted",
-            "dismissed",
-            "planned",
-            "resolved",
-            "regressed",
-        ],
-    )
-    finding.add_argument("--repository", type=Path, default=Path.cwd())
-    finding.add_argument("--db", type=Path, default=_default_db())
-    finding.add_argument("--json", action="store_true")
-    finding.set_defaults(handler=_finding)
+    cli_workflows.configure_finding_command(commands, _finding, _default_db())
     return parser
 
 
