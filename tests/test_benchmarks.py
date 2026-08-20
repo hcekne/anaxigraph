@@ -9,7 +9,9 @@ from anaxigraph.analyzers import builtin_registry
 from anaxigraph.config import load_config
 from anaxigraph.history import import_git_history
 from anaxigraph.languages import detect_language
+from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.storage import AnaxiIndex
+from benchmarks.dashboard_fixture import create_dashboard_repository
 from benchmarks.repository_factory import (
     DEFAULT_COMMITS,
     DEFAULT_FILE_COUNT,
@@ -127,3 +129,28 @@ def test_committed_benchmark_manifest_matches_generator_contract():
     assert history["final_files"] == DEFAULT_FILE_COUNT
     assert history["expected_distinct_artifact_raw_versions"] == 3_217
     assert history["expected_distinct_artifact_structural_versions"] == 3_216
+
+
+def test_dashboard_fixture_covers_stable_browser_contracts(tmp_path):
+    repository = create_dashboard_repository(tmp_path / "dashboard")
+    database = AnaxiIndex(tmp_path / "dashboard.db")
+
+    stats = RepositoryScanner(database).scan(repository)
+    overview = database.overview(stats.repository_id)
+    modules = database.modules(stats.repository_id)
+    findings = database.findings(stats.repository_id)
+
+    groups = {item["name"]: item for item in overview["group_hierarchy"]}
+    assert len(groups) > 5
+    assert {item["name"] for item in groups["frontend"]["children"]} == {
+        "frontend-features",
+        "frontend-lib",
+        "frontend-shell",
+    }
+    assert "testing" in groups
+    assert overview["coverage"]["line_coverage"] is None
+    assert load_config(repository).coverage_required is False
+    assert overview["graph_quality"]["fallback_files"] >= 1
+    assert len(findings) > 10
+    feedback = next(item for item in modules if item["path"] == "docs/feedback-log.md")
+    assert feedback["evaluation"]["monitored_by_default"] is False

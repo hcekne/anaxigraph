@@ -9,24 +9,126 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  quality:
+    name: Quality gate
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install uv
-        run: python -m pip install uv
-      - name: Install project
-        run: uv sync --extra dev --locked
-      - name: Lint Python
-        run: uv run ruff check .
-      - name: Run Python tests
+          python-version: "3.11"
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install uv and project
+        run: |
+          python -m pip install uv
+          uv sync --extra dev --locked
+      - name: Run tracked commit checks
+        run: uv run pre-commit run --all-files
+      - name: Enforce whole-repository policies
+        run: |
+          uv run python scripts/check_module_size.py
+          uv run python scripts/check_architecture.py
+          uv run python scripts/check_forbidden_files.py --all-tracked
+      - name: Run tests with coverage
+        run: |
+          uv run pytest \
+            --cov=anaxigraph \
+            --cov-report=term-missing \
+            --cov-report=xml
+      - name: Validate Compose definitions
+        run: |
+          docker compose -f compose.yml config --quiet
+          docker compose -f compose.yml -f compose.maxos.yml config --quiet
+      - name: Run bounded performance smoke benchmark
+        run: |
+          uv run python -m benchmarks.baseline \
+            --repository . \
+            --synthetic-files 120 \
+            --history-frames 8 \
+            --skip-tests \
+            --skip-dashboard \
+            --output "${RUNNER_TEMP}/anaxigraph-baseline-smoke.json"
+      - name: Upload coverage and benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: quality-evidence
+          path: |
+            coverage.xml
+            ${{ runner.temp }}/anaxigraph-baseline-smoke.json
+          if-no-files-found: warn
+
+  python-compatibility:
+    name: Python 3.12 compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install uv and project
+        run: |
+          python -m pip install uv
+          uv sync --extra dev --locked
+      - name: Run tests
         run: uv run pytest
-      - name: Check dashboard JavaScript
-        run: node --check src/anaxigraph/dashboard/app.js
+
+  dashboard-browser:
+    name: Dashboard browser contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install project and browser
+        run: |
+          python -m pip install uv
+          uv sync --extra dev --locked
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Start fixture dashboard
+        run: |
+          uv run python -m benchmarks.dashboard_fixture \
+            "${RUNNER_TEMP}/dashboard-fixture"
+          uv run anaxigraph serve \
+            --repository "${RUNNER_TEMP}/dashboard-fixture" \
+            --db "${RUNNER_TEMP}/browser-anaxi-index.db" \
+            --host 127.0.0.1 \
+            --port 8765 \
+            --scan-on-start \
+            >"${RUNNER_TEMP}/anaxigraph-browser.log" 2>&1 &
+          echo $! >"${RUNNER_TEMP}/anaxigraph-browser.pid"
+          for _attempt in {1..120}; do
+            if curl --fail --silent http://127.0.0.1:8765/healthz >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat "${RUNNER_TEMP}/anaxigraph-browser.log"
+          exit 1
+      - name: Run dashboard contracts
+        run: npm run test:visual
+      - name: Stop fixture dashboard
+        if: always()
+        run: |
+          if test -f "${RUNNER_TEMP}/anaxigraph-browser.pid"; then
+            kill "$(cat "${RUNNER_TEMP}/anaxigraph-browser.pid")" || true
+          fi
+      - name: Upload browser diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: dashboard-browser-diagnostics
+          path: |
+            playwright-report/
+            test-results/
+            ${{ runner.temp }}/anaxigraph-browser.log
+          if-no-files-found: warn
