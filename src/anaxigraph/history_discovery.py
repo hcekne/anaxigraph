@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -36,6 +36,12 @@ class DiscoveryResult:
     source_reads: int
     carried_forward: int
     delta: git.RevisionDelta | None
+
+
+@dataclass(frozen=True, slots=True)
+class InvalidationPlan:
+    reasons: dict[str, str]
+    relationship_sources: frozenset[str]
 
 
 def discover_files(
@@ -89,6 +95,140 @@ def available_changes(root: Path) -> list[git.GitChange]:
         return git.recent_changes(root)
     except git.GitError:
         return []
+
+
+def plan_invalidations(
+    files: list[tuple[str, Any, str, bool]],
+    previous: dict[str, dict[str, Any]],
+) -> InvalidationPlan:
+    """Classify direct changes and relationship-context invalidations conservatively."""
+
+    current = {path: analysis for path, analysis, _reason, _read in files}
+    affected: set[str] = set()
+    reasons: dict[str, str] = {}
+    relationship_sources: set[str] = set()
+    for path in sorted(set(previous) | set(current)):
+        prior_view = _stored_view(previous.get(path))
+        current_view = _analysis_view(path, current.get(path))
+        if prior_view[:2] != current_view[:2]:
+            affected.update(prior_view[0] | prior_view[1] | current_view[0] | current_view[1])
+
+    for path, analysis, initial_reason, source_read in files:
+        prior_view = _stored_view(previous.get(path))
+        current_view = _analysis_view(path, analysis)
+        if source_read:
+            reasons[path] = _direct_reason(initial_reason, prior_view, current_view)
+            relationship_sources.add(path)
+        elif affected and _references_affected(current_view[2], affected):
+            reasons[path] = "resolver_context_changed"
+            relationship_sources.add(path)
+        else:
+            reasons[path] = "carried_forward"
+    return InvalidationPlan(reasons, frozenset(relationship_sources))
+
+
+def apply_invalidation_plan(prepared: list[Any], previous: dict[str, dict[str, Any]]) -> None:
+    plan = plan_invalidations(
+        [
+            (
+                item.discovered.path,
+                item.analysis,
+                item.discovered.invalidation_reason,
+                item.discovered.source_read,
+            )
+            for item in prepared
+        ],
+        previous,
+    )
+    for item in prepared:
+        item.discovered = replace(
+            item.discovered,
+            invalidation_reason=plan.reasons[item.discovered.path],
+        )
+
+
+def _direct_reason(
+    initial: str,
+    prior: tuple[set[str], set[str], set[str]],
+    current: tuple[set[str], set[str], set[str]],
+) -> str:
+    if initial in {"analyzer_upgraded", "policy_changed"}:
+        return initial
+    if prior[0] != current[0]:
+        return "namespace_changed"
+    if prior[1] != current[1]:
+        return "interface_changed"
+    if prior[2] != current[2]:
+        return "resolver_context_changed"
+    return "content_changed"
+
+
+def _analysis_view(path: str, analysis: Any | None) -> tuple[set[str], set[str], set[str]]:
+    if analysis is None:
+        return set(), set(), set()
+    identity = analysis.module_identity
+    namespace = _path_tokens(path)
+    if identity is not None:
+        namespace.update(identity.aliases)
+        namespace.add(identity.canonical_name)
+    interface = set(analysis.exports)
+    interface.update(symbol.name for symbol in analysis.symbols)
+    references = {
+        token
+        for item in analysis.dependencies
+        for token in _reference_tokens(item.target, item.names)
+    }
+    return namespace, interface, references
+
+
+def _stored_view(value: dict[str, Any] | None) -> tuple[set[str], set[str], set[str]]:
+    if value is None:
+        return set(), set(), set()
+    metadata = json.loads(value["metadata_json"] or "{}")
+    ir = metadata.get("ir") or {}
+    identity = ir.get("module_identity") or {}
+    namespace = _path_tokens(str(value["path"]))
+    namespace.update(identity.get("aliases") or [])
+    if identity.get("canonical_name"):
+        namespace.add(identity["canonical_name"])
+    interface = set(ir.get("exports") or [])
+    interface.update(symbol["name"] for symbol in value.get("symbols") or [])
+    references = {
+        token
+        for item in metadata.get("dependencies") or []
+        for token in _reference_tokens(item["target"], item.get("names") or [])
+    }
+    return namespace, interface, references
+
+
+def _path_tokens(path: str) -> set[str]:
+    clean = str(Path(path).with_suffix("")).replace("\\", "/")
+    dotted = clean.replace("/", ".")
+    parts = dotted.split(".")
+    return {clean, dotted, parts[-1], ".".join(parts[1:]) if len(parts) > 1 else dotted}
+
+
+def _normalized_reference(value: str) -> str:
+    clean = value.removeprefix("symbol:").split("?", 1)[0].split("#", 1)[0]
+    return clean.removesuffix(".py").replace("/", ".").lstrip(".")
+
+
+def _reference_tokens(target: str, names: Any) -> set[str]:
+    normalized = _normalized_reference(target)
+    result = {normalized}
+    for name in names:
+        result.add(str(name))
+        result.add(f"{normalized}.{name}".strip("."))
+    return result
+
+
+def _references_affected(references: set[str], affected: set[str]) -> bool:
+    return any(
+        reference == token or reference.endswith(f".{token}") or token.endswith(f".{reference}")
+        for reference in references
+        for token in affected
+        if reference and token
+    )
 
 
 def _materialize(

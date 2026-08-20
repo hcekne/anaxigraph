@@ -5,7 +5,6 @@ from __future__ import annotations
 import dataclasses
 import hashlib
 import json
-import posixpath
 import sqlite3
 import time
 from dataclasses import dataclass
@@ -20,6 +19,7 @@ from anaxigraph.coverage import collect_coverage
 from anaxigraph.history_discovery import (
     DiscoveredFile,
     DiscoveryResult,
+    apply_invalidation_plan,
     available_changes,
     discover_files,
     repository_metadata,
@@ -29,21 +29,13 @@ from anaxigraph.ir import (
     analysis_metadata,
     analyze_with_contract,
     artifact_type,
-    canonical_python_module,
-    python_module_aliases,
 )
 from anaxigraph.models import (
-    Dependency,
     FileAnalysis,
     GitMetadata,
     ScanStats,
 )
-from anaxigraph.relationships import (
-    AMBIGUOUS_INTERNAL,
-    EXTERNAL,
-    RESOLVED_INTERNAL,
-    UNRESOLVED_INTERNAL,
-)
+from anaxigraph.relationship_builder import RelationshipBuildResult, build_relationships
 from anaxigraph.storage import AnaxiIndex, utc_now
 from anaxigraph.understanding import SemanticEngine
 
@@ -58,14 +50,6 @@ class PreparedFile:
     previous_version_id: int | None
     first_seen_at: str
     last_changed_at: str
-
-
-@dataclass(frozen=True, slots=True)
-class ResolvedDependency:
-    target_id: int | None
-    target_external: str | None
-    resolution_status: str
-    candidate_paths: tuple[str, ...] = ()
 
 
 class RepositoryScanner:
@@ -94,10 +78,9 @@ class RepositoryScanner:
             raise ValueError(f"Repository does not exist or is not a directory: {root}")
         config = load_config(root, Path(config_path) if config_path else None)
         git_metadata = repository_metadata(root, revision)
-        name = config.project_name or root.name
         repository_id = self.database.ensure_repository(
             path=root,
-            name=name,
+            name=config.project_name or root.name,
             git=git_metadata,
         )
         run_id = self.database.start_run(repository_id, run_type)
@@ -204,6 +187,7 @@ class RepositoryScanner:
                 return stats
 
             prepared = self._prepare(discovered, previous, config)
+            apply_invalidation_plan(prepared, previous)
             with self.database.transaction() as connection:
                 snapshot_id = self._insert_snapshot(
                     connection,
@@ -227,13 +211,14 @@ class RepositoryScanner:
                     artifacts=artifacts,
                     config=config,
                 )
-                relationship_count = self._insert_relationships(
+                relationship_build = build_relationships(
                     connection,
                     snapshot_id=snapshot_id,
                     prepared=prepared,
                     artifacts=artifacts,
                     config=config,
                 )
+                relationship_count = relationship_build.total
                 self._insert_groups(
                     connection,
                     repository_id=repository_id,
@@ -270,9 +255,7 @@ class RepositoryScanner:
                         (snapshot_id, utc_now(), repository_id),
                     )
 
-            analyzed = sum(item.analysis_status != "raw_unchanged" for item in prepared)
-            reused = len(prepared) - analyzed
-            errors = sum(bool(item.analysis.parse_error) for item in prepared)
+            analyzed, reused, errors = _analysis_counts(prepared)
             duration = int((time.monotonic() - started) * 1_000)
             self.database.finish_run(
                 run_id,
@@ -287,7 +270,7 @@ class RepositoryScanner:
                     duration,
                     revision,
                     deleted=deleted,
-                    relationships=relationship_count,
+                    **_relationship_metadata(relationship_build),
                     coverage_measurements=coverage_count,
                     findings=len(findings),
                 ),
@@ -602,99 +585,6 @@ class RepositoryScanner:
                 )
         return version_ids
 
-    def _insert_relationships(
-        self,
-        connection: sqlite3.Connection,
-        *,
-        snapshot_id: int,
-        prepared: list[PreparedFile],
-        artifacts: dict[str, int],
-        config: AnaxiGraphConfig,
-    ) -> int:
-        resolver = _DependencyResolver(prepared, artifacts, config)
-        aggregated: dict[tuple[int, int | None, str | None, str, str], dict[str, Any]] = {}
-        for item in prepared:
-            source_path = item.discovered.path
-            source_id = artifacts[source_path]
-            for dependency in item.analysis.dependencies:
-                targets = resolver.resolve(source_path, item.discovered.language, dependency)
-                for target in targets:
-                    target_id = target.target_id
-                    target_external = target.target_external
-                    if target_id == source_id and dependency.relationship_type == "imports":
-                        continue
-                    key = (
-                        source_id,
-                        target_id,
-                        target_external if target_id is None else None,
-                        dependency.relationship_type,
-                        target.resolution_status,
-                    )
-                    confidence = dependency.confidence
-                    if target.resolution_status == AMBIGUOUS_INTERNAL:
-                        confidence = min(confidence, 0.5)
-                    elif target.resolution_status == UNRESOLVED_INTERNAL:
-                        confidence = min(confidence, 0.35)
-                    current = aggregated.setdefault(
-                        key,
-                        {
-                            "confidence": confidence,
-                            "weight": 0,
-                            "evidence": [],
-                            "line": dependency.line,
-                            "source": _relationship_source(
-                                item.discovered.language, dependency.relationship_type
-                            ),
-                            "candidate_paths": set(),
-                            "original_targets": set(),
-                        },
-                    )
-                    current["weight"] += 1
-                    current["confidence"] = max(current["confidence"], confidence)
-                    current["candidate_paths"].update(target.candidate_paths)
-                    current["original_targets"].add(dependency.target)
-                    if dependency.evidence and dependency.evidence not in current["evidence"]:
-                        current["evidence"].append(dependency.evidence)
-                    current["line"] = min(
-                        value for value in (current["line"], dependency.line) if value >= 0
-                    )
-        for (
-            source_id,
-            target_id,
-            external,
-            relation_type,
-            resolution_status,
-        ), value in aggregated.items():
-            metadata = {
-                "resolution_status": resolution_status,
-                "original_targets": sorted(value["original_targets"]),
-            }
-            if value["candidate_paths"]:
-                metadata["candidate_paths"] = sorted(value["candidate_paths"])
-            connection.execute(
-                """
-                INSERT INTO relationships(
-                    snapshot_id, source_artifact_id, target_artifact_id, target_external,
-                    relationship_type, source, confidence, evidence, source_line, weight,
-                    metadata_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    snapshot_id,
-                    source_id,
-                    target_id,
-                    external,
-                    relation_type,
-                    value["source"],
-                    value["confidence"],
-                    " | ".join(value["evidence"][:5])[:2_000],
-                    value["line"],
-                    value["weight"],
-                    json.dumps(metadata, sort_keys=True),
-                ),
-            )
-        return len(aggregated)
-
     def _insert_groups(
         self,
         connection: sqlite3.Connection,
@@ -817,168 +707,6 @@ class RepositoryScanner:
         return {"relationships": int(relationships), "findings": int(findings)}
 
 
-class _DependencyResolver:
-    def __init__(
-        self,
-        prepared: list[PreparedFile],
-        artifacts: dict[str, int],
-        config: AnaxiGraphConfig,
-    ) -> None:
-        self.paths = set(artifacts)
-        self.artifacts = artifacts
-        self.config = config
-        self.python_modules: dict[str, set[str]] = {}
-        self.symbols: dict[str, set[str]] = defaultdict_set()
-        for item in prepared:
-            path = item.discovered.path
-            if item.discovered.language == "python":
-                for alias in python_module_aliases(path):
-                    self.python_modules.setdefault(alias, set()).add(path)
-            for symbol in item.analysis.symbols:
-                self.symbols.setdefault(symbol.name, set()).add(path)
-                self.symbols.setdefault(symbol.qualified_name, set()).add(path)
-        self.python_roots = {module.split(".", 1)[0] for module in self.python_modules if module}
-
-    def resolve(
-        self, source_path: str, language: str, dependency: Dependency
-    ) -> list[ResolvedDependency]:
-        if dependency.target.startswith("symbol:"):
-            name = dependency.target.removeprefix("symbol:")
-            matches = sorted(self.symbols.get(name, set()))
-            if len(matches) == 1:
-                return [ResolvedDependency(self.artifacts[matches[0]], None, RESOLVED_INTERNAL)]
-            if matches:
-                return [
-                    ResolvedDependency(
-                        None,
-                        dependency.target,
-                        AMBIGUOUS_INTERNAL,
-                        tuple(matches),
-                    )
-                ]
-            return [ResolvedDependency(None, dependency.target, UNRESOLVED_INTERNAL)]
-        if language == "python":
-            paths, ambiguous, normalized_target = self._resolve_python(source_path, dependency)
-            result = [
-                ResolvedDependency(self.artifacts[path], None, RESOLVED_INTERNAL) for path in paths
-            ]
-            if ambiguous:
-                result.append(
-                    ResolvedDependency(
-                        None,
-                        dependency.target,
-                        AMBIGUOUS_INTERNAL,
-                        tuple(ambiguous),
-                    )
-                )
-            if result:
-                return result
-            internal = dependency.target.startswith(".") or (
-                normalized_target.split(".", 1)[0] in self.python_roots
-            )
-            return [
-                ResolvedDependency(
-                    None,
-                    dependency.target,
-                    UNRESOLVED_INTERNAL if internal else EXTERNAL,
-                )
-            ]
-        paths = self._resolve_path_import(source_path, dependency.target)
-        if paths:
-            return [
-                ResolvedDependency(self.artifacts[path], None, RESOLVED_INTERNAL) for path in paths
-            ]
-        internal = self._is_internal_path_target(dependency.target)
-        return [
-            ResolvedDependency(
-                None,
-                dependency.target,
-                UNRESOLVED_INTERNAL if internal else EXTERNAL,
-            )
-        ]
-
-    def _resolve_python(
-        self, source_path: str, dependency: Dependency
-    ) -> tuple[list[str], list[str], str]:
-        target = dependency.target
-        candidates: list[str] = []
-        if target.startswith("."):
-            level = len(target) - len(target.lstrip("."))
-            remainder = target[level:]
-            full_module = canonical_python_module(source_path)
-            base = full_module.split(".")[:-1]
-            if level > 1:
-                base = base[: max(0, len(base) - (level - 1))]
-            target = ".".join((*base, remainder)).strip(".")
-        candidates.append(target)
-        candidates.extend(f"{target}.{name}".strip(".") for name in dependency.names)
-        matches: list[str] = []
-        ambiguous: set[str] = set()
-        for candidate in candidates:
-            values = self.python_modules.get(candidate, set())
-            if len(values) == 1:
-                path = next(iter(values))
-                if path not in matches:
-                    matches.append(path)
-            elif len(values) > 1:
-                ambiguous.update(values)
-        return matches[:10], sorted(ambiguous), target
-
-    def _is_internal_path_target(self, target: str) -> bool:
-        clean = target.split("?", 1)[0].split("#", 1)[0]
-        if clean.startswith((".", "/")):
-            return True
-        return any(clean.startswith(alias.rstrip("*")) for alias in self.config.aliases)
-
-    def _resolve_path_import(self, source_path: str, target: str) -> list[str]:
-        clean = target.split("?", 1)[0].split("#", 1)[0]
-        source_parent = str(PurePosixPath(source_path).parent)
-        candidate_base: str | None = None
-        if clean.startswith("."):
-            candidate_base = posixpath.normpath(posixpath.join(source_parent, clean))
-        elif clean.startswith("/"):
-            candidate_base = clean.lstrip("/")
-        else:
-            for alias, replacement in sorted(
-                self.config.aliases.items(), key=lambda item: len(item[0]), reverse=True
-            ):
-                alias_prefix = alias.rstrip("*")
-                if clean.startswith(alias_prefix):
-                    suffix = clean[len(alias_prefix) :].lstrip("/")
-                    candidate_base = posixpath.join(replacement.rstrip("*"), suffix)
-                    break
-        if candidate_base is None or candidate_base.startswith("../"):
-            return []
-        extensions = (
-            "",
-            ".py",
-            ".ts",
-            ".tsx",
-            ".js",
-            ".jsx",
-            ".mjs",
-            ".cjs",
-            ".css",
-            ".scss",
-            ".json",
-            ".md",
-            "/__init__.py",
-            "/index.ts",
-            "/index.tsx",
-            "/index.js",
-            "/index.jsx",
-        )
-        return [
-            candidate_base + extension
-            for extension in extensions
-            if candidate_base + extension in self.paths
-        ][:1]
-
-
-def defaultdict_set() -> dict[str, set[str]]:
-    return {}
-
-
 def _version_metadata(item: PreparedFile, config: AnaxiGraphConfig) -> dict[str, Any]:
     metadata = analysis_metadata(
         item.analysis,
@@ -993,6 +721,24 @@ def _version_metadata(item: PreparedFile, config: AnaxiGraphConfig) -> dict[str,
         }
     )
     return metadata
+
+
+def _analysis_counts(prepared: list[PreparedFile]) -> tuple[int, int, int]:
+    analyzed = sum(item.analysis_status != "raw_unchanged" for item in prepared)
+    return (
+        analyzed,
+        len(prepared) - analyzed,
+        sum(bool(item.analysis.parse_error) for item in prepared),
+    )
+
+
+def _relationship_metadata(result: RelationshipBuildResult) -> dict[str, int]:
+    return {
+        "relationships": result.total,
+        "relationships_copied": result.copied,
+        "relationship_sources_resolved": result.resolved_sources,
+        "relationship_sources_reused": result.reused_sources,
+    }
 
 
 def _run_metadata(
@@ -1073,12 +819,4 @@ def _runtime(path: str, language: str) -> str:
         return "node"
     if language in {"dockerfile", "terraform", "hcl", "yaml"}:
         return "deployment"
-    return "static"
-
-
-def _relationship_source(language: str, relationship_type: str) -> str:
-    if language == "python":
-        return "ast"
-    if relationship_type == "references":
-        return "configuration"
     return "static"

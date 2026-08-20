@@ -43,6 +43,7 @@
         "anaxigraph.history",
         "anaxigraph.history_discovery",
         "anaxigraph.onboarding",
+        "anaxigraph.relationship_builder",
         "anaxigraph.scanner",
         "anaxigraph.semantic_agent",
         "anaxigraph.semantic_agent_protocol",

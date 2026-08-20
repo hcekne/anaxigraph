@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 
+import anaxigraph.scanner as scanner_module
 from anaxigraph import git
 from anaxigraph.config import load_config
 from anaxigraph.history import import_git_history
@@ -230,6 +231,12 @@ def test_namespace_changes_recompute_unique_ambiguous_and_unique_edges(tmp_path,
     assert resolutions(unique) == ["resolved_internal"]
     assert resolutions(ambiguous) == ["ambiguous_internal"]
     assert resolutions(restored) == ["resolved_internal"]
+    ambiguous_frame = _frame(database, _snapshot_id(database, root, ambiguous))
+    consumer_metadata = json.loads(ambiguous_frame["files"]["src/consumer.py"]["metadata_json"])
+    added_metadata = json.loads(ambiguous_frame["files"]["lib/pkg/shared.py"]["metadata_json"])
+    assert consumer_metadata["invalidation_reason"] == "resolver_context_changed"
+    assert consumer_metadata["source_read"] is False
+    assert added_metadata["invalidation_reason"] == "namespace_changed"
 
 
 def test_change_classes_keep_structural_and_interface_evidence(tmp_path, database):
@@ -388,8 +395,54 @@ def test_history_reads_only_distinct_changed_blobs_and_records_reuse(
 
     assert sum(item["source_reads"] for item in counters) == 135
     assert sum(item["carried_forward"] for item in counters) > 700
+    assert sum(item["relationship_sources_reused"] for item in counters) > 300
+    assert sum(item["relationships_copied"] for item in counters) > 300
     assert {item["invalidation_reason"] for item in file_metadata} <= {
         "carried_forward",
         "content_changed",
     }
     assert all("history_change_kind" in item and "source_read" in item for item in file_metadata)
+
+
+def test_policy_and_analyzer_changes_force_visible_conservative_reads(
+    tmp_path, database, monkeypatch
+):
+    root = _repository(tmp_path)
+    (root / "src" / "app.py").write_text("VALUE = 1\n", encoding="utf-8")
+    first_commit = _commit(root, "initial")
+    scanner = RepositoryScanner(database)
+    first = scanner.scan(root, revision=first_commit, run_type="history")
+
+    config = root / ".anaxigraph.yml"
+    config.write_text(
+        config.read_text(encoding="utf-8").replace(
+            "name: Temporal correctness fixture", "name: Changed temporal policy"
+        ),
+        encoding="utf-8",
+    )
+    policy_commit = _commit(root, "change analysis policy")
+    policy = scanner.scan(
+        root,
+        revision=policy_commit,
+        run_type="history",
+        baseline_snapshot_id=first.snapshot_id,
+        previous_revision=first_commit,
+    )
+    policy_frame = _frame(database, policy.snapshot_id)
+    policy_metadata = json.loads(policy_frame["files"]["src/app.py"]["metadata_json"])
+
+    monkeypatch.setattr(scanner_module, "ANALYSIS_VERSION", scanner_module.ANALYSIS_VERSION + 1)
+    upgraded = scanner.scan(
+        root,
+        revision=policy_commit,
+        run_type="history",
+        baseline_snapshot_id=policy.snapshot_id,
+        previous_revision=policy_commit,
+    )
+    upgraded_frame = _frame(database, upgraded.snapshot_id)
+    upgraded_metadata = json.loads(upgraded_frame["files"]["src/app.py"]["metadata_json"])
+
+    assert policy_metadata["invalidation_reason"] == "policy_changed"
+    assert policy_metadata["source_read"] is True
+    assert upgraded_metadata["invalidation_reason"] == "analyzer_upgraded"
+    assert upgraded_metadata["source_read"] is True
