@@ -168,6 +168,12 @@ def _store_metrics(database: AnaxiIndex) -> dict[str, Any]:
             "relationships",
             "findings",
             "analysis_runs",
+            "file_facts",
+            "fact_symbols",
+            "snapshot_file_changes",
+            "relationship_sets",
+            "relationship_edges",
+            "snapshot_relationship_changes",
         )
         rows = {
             table: int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
@@ -187,13 +193,25 @@ def _store_metrics(database: AnaxiIndex) -> dict[str, Any]:
                 """
             ).fetchone()[0]
         )
+        temporal = {
+            "immutable_file_facts": rows["file_facts"],
+            "immutable_symbols": rows["fact_symbols"],
+            "file_delta_rows": rows["snapshot_file_changes"],
+            "relationship_sets": rows["relationship_sets"],
+            "relationship_edges": rows["relationship_edges"],
+            "relationship_delta_rows": rows["snapshot_relationship_changes"],
+        }
     return {
         "schema_version": SCHEMA_VERSION,
         "rows": rows,
         "distinct_file_versions": distinct,
         "latest_snapshot_files": latest_files,
-        "relationship_bundles": None,
-        "relationship_bundle_note": "Schema 6 rematerializes edges and has no bundle table.",
+        "temporal": temporal,
+        "relationship_bundles": rows["relationship_sets"],
+        "relationship_bundle_note": (
+            "Schema 7 stores immutable relationship sets and sparse source deltas; "
+            "legacy rows remain during dual-write validation."
+        ),
         "index_bytes": _database_bytes(database.path),
     }
 

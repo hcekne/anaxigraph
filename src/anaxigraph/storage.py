@@ -12,13 +12,13 @@ from typing import Any
 
 from anaxigraph.models import GitMetadata
 from anaxigraph.persistence import (
-    migrate_schema,
+    initialize_index,
     relationship_metadata,
     relationship_quality,
     resolution_status,
 )
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_meta (
@@ -378,16 +378,12 @@ class AnaxiIndex:
         return connection
 
     def initialize(self) -> None:
-        with self.connect() as connection:
-            connection.executescript(SCHEMA)
-            row = connection.execute(
-                "SELECT value FROM schema_meta WHERE key = 'schema_version'"
-            ).fetchone()
-            migrate_schema(
-                connection,
-                current_version=int(row["value"]) if row is not None else None,
-                target_version=SCHEMA_VERSION,
-            )
+        initialize_index(
+            self.path,
+            self.connect,
+            schema=SCHEMA,
+            target_version=SCHEMA_VERSION,
+        )
 
     @contextlib.contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:

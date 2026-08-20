@@ -81,6 +81,14 @@ def test_history_fixture_has_exact_versions_and_agent_scope(tmp_path):
                 "SELECT COUNT(*) FROM relationships WHERE metadata_json LIKE '%ambiguous_internal%'"
             ).fetchone()[0]
         )
+        file_facts = int(connection.execute("SELECT COUNT(*) FROM file_facts").fetchone()[0])
+        file_deltas = int(
+            connection.execute("SELECT COUNT(*) FROM snapshot_file_changes").fetchone()[0]
+        )
+        relationship_sets = int(
+            connection.execute("SELECT COUNT(*) FROM relationship_sets").fetchone()[0]
+        )
+        relationships = int(connection.execute("SELECT COUNT(*) FROM relationships").fetchone()[0])
 
     row = database.repository(repository)
     scope = agent_scope(
@@ -96,6 +104,9 @@ def test_history_fixture_has_exact_versions_and_agent_scope(tmp_path):
     assert latest_files == manifest["final_files"]
     assert raw_versions == manifest["expected_distinct_artifact_raw_versions"]
     assert structural_versions == manifest["expected_distinct_artifact_structural_versions"]
+    assert file_facts == manifest["expected_distinct_artifact_raw_versions"]
+    assert file_deltas < snapshots * latest_files
+    assert 0 < relationship_sets < relationships
     assert ambiguous >= 1
     assert len(primary.intersection(manifest["scope_expected_candidates"])) >= 6
 

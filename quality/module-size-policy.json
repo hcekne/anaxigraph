@@ -29,7 +29,7 @@
     },
     {
       "path": "src/anaxigraph/storage.py",
-      "baseline_lines": 1746,
+      "baseline_lines": 1742,
       "rationale": "Legacy index facade combines schema, repositories, queries, findings, and read models.",
       "owner": "maintainers",
       "removal_phase": "Phase 1b",

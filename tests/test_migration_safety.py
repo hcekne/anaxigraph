@@ -7,6 +7,7 @@ import pytest
 
 from anaxigraph.history import import_git_history
 from anaxigraph.persistence import (
+    backup_path,
     create_schema_backup,
     restore_schema_backup,
     transactional_schema_change,
@@ -70,6 +71,24 @@ def _version(database: AnaxiIndex) -> int:
         )
 
 
+def _downgrade_to_schema_six(database: AnaxiIndex) -> None:
+    """Remove additive v7 state to reproduce the released schema-6 shape."""
+
+    with database.transaction() as connection:
+        for table in (
+            "snapshot_relationship_changes",
+            "relationship_edges",
+            "relationship_sets",
+            "snapshot_file_changes",
+            "fact_symbols",
+            "file_facts",
+        ):
+            connection.execute(f"DROP TABLE {table}")
+        connection.execute("ALTER TABLE snapshots DROP COLUMN sequence")
+        connection.execute("ALTER TABLE snapshots DROP COLUMN base_snapshot_id")
+        connection.execute("UPDATE schema_meta SET value = '6' WHERE key = 'schema_version'")
+
+
 def test_schema_change_rolls_back_every_ddl_and_fact_on_failure(repository, database):
     _commit_change(repository)
     import_git_history(database, repository, every_commit=True)
@@ -78,7 +97,7 @@ def test_schema_change_rolls_back_every_ddl_and_fact_on_failure(repository, data
     def fail_halfway(connection):
         connection.execute("CREATE TABLE migration_probe(value TEXT NOT NULL)")
         connection.execute("INSERT INTO migration_probe(value) VALUES ('partial')")
-        connection.execute("UPDATE schema_meta SET value = '7' WHERE key = 'schema_version'")
+        connection.execute("UPDATE schema_meta SET value = '8' WHERE key = 'schema_version'")
         raise RuntimeError("injected migration failure")
 
     with database.connect() as connection:
@@ -89,7 +108,7 @@ def test_schema_change_rolls_back_every_ddl_and_fact_on_failure(repository, data
         ).fetchone()
 
     assert probe is None
-    assert _version(database) == 6
+    assert _version(database) == 7
     assert _canonical_frames(database) == before
 
 
@@ -98,10 +117,12 @@ def test_real_schema_six_index_has_idempotent_backup_and_exact_restore(repositor
     RepositoryScanner(database).scan(repository)
     import_git_history(database, repository, every_commit=True)
     before = _canonical_frames(database)
+    _downgrade_to_schema_six(database)
 
-    created = create_schema_backup(database.path, schema_version=6)
+    reopened = AnaxiIndex(database.path)
+    created_path = backup_path(database.path, 6)
+    created = validate_schema_backup(created_path, expected_version=6)
     reused = create_schema_backup(database.path, schema_version=6)
-    assert created.reused is False
     assert reused.reused is True
     assert reused.path == created.path
     assert reused.sha256 == created.sha256
@@ -118,13 +139,13 @@ def test_real_schema_six_index_has_idempotent_backup_and_exact_restore(repositor
     )
     reopened = AnaxiIndex(database.path)
     assert restored.sha256
-    assert _version(reopened) == 6
+    assert _version(reopened) == 7
     assert _canonical_frames(reopened) == before
     assert created.path.exists(), "recovery backup must survive a restore"
 
 
 def test_backup_validation_fails_closed_for_wrong_schema(database):
-    backup = create_schema_backup(database.path, schema_version=6)
+    backup = create_schema_backup(database.path, schema_version=7)
 
-    with pytest.raises(RuntimeError, match="expected 5"):
-        validate_schema_backup(backup.path, expected_version=5)
+    with pytest.raises(RuntimeError, match="expected 6"):
+        validate_schema_backup(backup.path, expected_version=6)

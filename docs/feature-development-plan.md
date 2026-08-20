@@ -762,7 +762,7 @@ unbounded process cache.
 
 # Phase 1b — immutable facts and snapshot deltas
 
-**Status:** ACTIVE — 1b.1 IMMUTABLE FACT SCHEMA NEXT
+**Status:** ACTIVE — 1b.1 MIGRATION VALIDATION AND DOCTOR NEXT
 
 **Goal:** make stored facts scale with distinct versions and relationship contexts rather than with
 selected frames multiplied by repository size.
@@ -823,6 +823,15 @@ The migration must be transactional, idempotent, and restartable. It preserves a
 until validation succeeds and exposes a `doctor`/compaction report before old duplicate rows are
 removed. “Rollback” means aborting a failed transaction or restoring that backup; Phase 1b does not
 promise an automatic downgrade after a successful migration.
+
+**Immutable fact schema is complete on 20 August 2026.** Schema 7 now adds immutable `file_facts`
+and `fact_symbols`, content-addressed relationship sets/edges, sparse file and relationship change
+tables, explicit snapshot bases/sequences, and a persistence-only reconstruction API. New scans
+dual-write compatibility frames and canonical facts in the same transaction. A real schema-6 copy
+is backed up before an atomic upgrade, and frame-by-frame tests prove identical file facts, symbols,
+edge evidence, confidence, and resolution provenance after both direct dual-write and migration
+backfill. The compatibility tables intentionally remain until items 19–21 validate semantic and
+finding consumers and `doctor` authorizes compaction.
 
 ## 1b.2 Bound snapshot reconstruction and read amplification
 
@@ -1771,8 +1780,8 @@ queue and the document cannot drift apart.
 | 15 | **COMPLETE** — Replace baked-in 64-frame defaults with an explicit adaptive history policy | §1a.4 |
 | 16 | **COMPLETE** — Make history import a resumable, cancellable job without blocking current intelligence | §1a.5 |
 | 17 | **COMPLETE** — Characterize schema-6 migration rollback/backup behavior and freeze canonical frame reconstruction fixtures | §1b.1 |
-| 18 | **IN PROGRESS** — Introduce immutable file/symbol facts, relationship sets, and snapshot delta tables behind the index abstraction | §1b.1 |
-| 19 | Migrate a copied schema-6 index transactionally, validate it, preserve backup recovery, and expose `doctor`/compaction reporting | §1b.1 |
+| 18 | **COMPLETE** — Introduce immutable file/symbol facts, relationship sets, and snapshot delta tables behind the index abstraction | §1b.1 |
+| 19 | **IN PROGRESS** — Migrate a copied schema-6 index transactionally, validate it, preserve backup recovery, and expose `doctor`/compaction reporting | §1b.1 |
 | 20 | Route snapshot reads through bounded reconstruction with disposable checkpoints and measured read amplification | §1b.2 |
 | 21 | Prove semantic/finding/history compatibility and unchanged canonical results across migration, retry, and checkpoint rebuild | §1b.1–1b.2 |
 | 22 | Run and record the complete Phase 1b storage, migration, read-latency, and quality exit gate before onboarding work begins | Phase 1b gate |

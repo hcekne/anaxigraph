@@ -25,10 +25,20 @@ history accumulate over time.
 | `semantic_scope_states` | Current per-snapshot semantic coverage and document pointers for modules, groups, and repository |
 | `git_changes` | Bounded file-level commit/change history used for churn and age |
 
-Every current snapshot contains a complete set of `file_versions`, but unchanged versions are
-cloned from the prior analysis rather than reparsed. That keeps queries simple while preserving
-incremental behavior. Raw hash equality skips extraction. Structural hash equality after a raw
-change performs only deterministic metadata/documentation refresh and reuses semantic claims.
+Schema 7 dual-writes a compatibility frame and a canonical temporal representation while migration
+equivalence is being validated. `file_facts` stores each analyzed artifact/raw/analyzer identity
+once, `fact_symbols` belongs to that immutable fact, and `snapshot_file_changes` records only
+add/change/delete placement transitions. Relationship edges are grouped into immutable
+`relationship_sets`; `snapshot_relationship_changes` selects or retracts a set for each source.
+Snapshot reads are reconstructed through the persistence abstraction and are tested frame-for-frame
+against the compatibility tables before those duplicate rows may be compacted.
+
+The compatibility `file_versions`, `symbols`, and `relationships` tables still contain complete
+frames during this validation window. They are not the final scaling model and must not be removed
+until `doctor` reports successful migration, semantic/finding compatibility is proven, and the
+schema-6 recovery backup has been retained. Raw hash equality skips extraction. Structural hash
+equality after a raw change performs only deterministic metadata/documentation refresh and reuses
+semantic claims.
 
 Analyzer facts conform to `anaxigraph-ir-v1`. Until Phase 1b normalizes the temporal storage model,
 the additional contract fields live in `file_versions.metadata_json.ir`: IR/analyzer versions,
@@ -52,7 +62,9 @@ Findings use a rule-derived stable key. A recurring resolved finding becomes `re
 not observed in the next complete architecture evaluation becomes `resolved`. Dismissed findings
 remain dismissed unless a human changes their state.
 
-Schema migrations fail closed. The current schema is 6; released schema 2 and current schema 6 are
-the explicitly tested inputs. Versions 3–5 were never released as migration contracts and are not
-guessed at, while a future schema is never opened by an older binary. The v2 fixture verifies data
-preservation and every column added by the semantic queue/agent provenance migration.
+Schema migrations fail closed. The current schema is 7; released schemas 2 and 6 plus current schema
+7 are the explicitly tested inputs. Versions 3–5 were never released as migration contracts and are
+not guessed at, while a future schema is never opened by an older binary. Before a schema-6 index is
+upgraded, SQLite's online-backup API creates and validates an untouched recovery copy. The v2
+fixture verifies repository preservation, and the schema-6 fixture verifies exact files, symbols,
+relationship evidence, and temporal reconstruction across the upgrade and restore path.

@@ -10,6 +10,7 @@ from pathlib import PurePosixPath
 from typing import Any, Protocol
 
 from anaxigraph.ir import canonical_python_module, python_module_aliases
+from anaxigraph.persistence.temporal_facts import record_snapshot_facts
 from anaxigraph.relationships import (
     AMBIGUOUS_INTERNAL,
     EXTERNAL,
@@ -46,6 +47,7 @@ def build_relationships(
     artifacts: dict[str, int],
     config: ResolverConfig,
 ) -> RelationshipBuildResult:
+    base_snapshot_id = _previous_snapshot_id(connection, prepared)
     to_resolve, copied = _copy_reusable(
         connection,
         snapshot_id=snapshot_id,
@@ -55,6 +57,11 @@ def build_relationships(
     resolver = DependencyResolver(prepared, artifacts, config)
     aggregated = _aggregate(to_resolve, artifacts, resolver)
     persisted = _persist(connection, snapshot_id, aggregated)
+    record_snapshot_facts(
+        connection,
+        snapshot_id=snapshot_id,
+        base_snapshot_id=base_snapshot_id,
+    )
     return RelationshipBuildResult(
         copied + persisted,
         copied,

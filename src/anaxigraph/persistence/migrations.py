@@ -5,7 +5,10 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Callable
 
-SUPPORTED_SCHEMA_VERSIONS = frozenset({2, 6})
+from anaxigraph.persistence.temporal_facts import migrate_legacy_temporal_facts
+from anaxigraph.persistence.temporal_schema import install_temporal_schema
+
+SUPPORTED_SCHEMA_VERSIONS = frozenset({2, 6, 7})
 
 
 def migrate_schema(
@@ -16,7 +19,7 @@ def migrate_schema(
 ) -> None:
     """Bring a fresh or explicitly supported schema to the current version."""
 
-    _validate_version(current_version, target_version)
+    validate_schema_version(current_version, target_version)
     _ensure_columns(
         connection,
         "repositories",
@@ -47,6 +50,9 @@ def migrate_schema(
         "semantic_claims",
         {"executor_id": "TEXT", "executor_model": "TEXT"},
     )
+    install_temporal_schema(connection)
+    if current_version != target_version:
+        migrate_legacy_temporal_facts(connection)
     connection.execute(
         "INSERT OR REPLACE INTO schema_meta(key, value) VALUES ('schema_version', ?)",
         (str(target_version),),
@@ -73,7 +79,7 @@ def transactional_schema_change(
         raise
 
 
-def _validate_version(current_version: int | None, target_version: int) -> None:
+def validate_schema_version(current_version: int | None, target_version: int) -> None:
     if current_version is not None and current_version > target_version:
         raise RuntimeError(
             f"Database schema {current_version} is newer than supported {target_version}"
