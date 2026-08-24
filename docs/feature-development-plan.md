@@ -1,8 +1,8 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.5
+**Roadmap version:** 3.6
 
-**Updated:** 20 August 2026
+**Updated:** 24 August 2026
 
 **Execution rule:** one phase is active at a time; the next phase does not begin until the current
 phase's exit gate is met.
@@ -95,23 +95,22 @@ regression thresholds.
 | Semantic understanding | Durable `module-dossier-v4` records, fingerprint invalidation, leased agent work, provenance, and budget controls | Differentiating foundation; internal seven-mixin composition needs simplification before expansion |
 | Parser depth | Python AST plus a regex-oriented JavaScript/TypeScript analyzer; long-tail languages use text heuristics | The product cannot yet make equally strong graph claims for most repositories |
 | History benchmark | Measured 3,000-file/eight-frame import: 69.566 seconds, 23,970 blob reads, 23,970 `file_versions` for 3,217 distinct artifact/raw versions, 47,896 relationship rows, and a 49.56 MB vacuumed index | Unchanged source is repeatedly read and snapshot-heavy facts/edges are repeatedly materialized |
-| Graph delivery | `/api/graph` can return the full graph in one response | Fine for small loopback use, unsafe for large/team deployments |
-| Authentication | No API or MCP authentication | Acceptable only for loopback sidecar mode |
+| Graph delivery | `/api/graph` can return the full graph in one response | Fine for small repositories, wasteful and eventually unusable for large graphs |
 | Installation | PyPI 0.2.0 provides one-command local startup, explicit agent connection, the dual-client plugin, generated hardened Compose, and a protected release workflow; a clean public `uvx anaxigraph up` journey and the registered OIDC publisher identity are verified | The first-run distribution barrier is closed and the next version can use the routine short-lived-identity release path |
-| Internal module size | Four legacy implementation modules exceed 500 physical lines; `storage.py` is a 422-line facade, `scanner.py` is 358 lines, `cli.py` is 22 lines, and `onboarding.py` is 319 lines, all without exceptions | Phase 3 removed both first-run exceptions; Phase 3b next decomposes the dashboard, agent, and architecture owners before Phase 5 extracts the API |
+| Internal module size | Every first-party implementation module is at or below 500 physical lines; the exception list is empty | Phase 3b now locks in the completed dashboard/evaluator decomposition and adds deterministic self-analysis before further feature growth |
 
-The current oversized implementation modules are:
+The modules that were oversized when this roadmap was created were:
 
 | Module | Physical lines at roadmap creation | Planned decomposition phase |
 |---|---:|---|
 | `src/anaxigraph/dashboard/app.js` | 2,066 | Phase 3b |
 | `src/anaxigraph/agent.py` | 898 | Phase 3b |
 | `src/anaxigraph/architecture.py` | 731 | Phase 3b |
-| `src/anaxigraph/api.py` | 564 | Phase 5 |
+| `src/anaxigraph/api.py` | 564 | Phase 5A |
 
-Line counts are current ratchet baselines, not targets. Every listed module must become smaller
-through cohesive responsibility extraction; it must not merely be split at line 500. The completed
-storage, scanner, CLI, and onboarding extractions stay protected by the ordinary 500-line ceiling.
+All four modules are now within the hard ceiling and the size-exception list is empty. That is a
+floor, not a design target: modules approaching 500 lines still need cohesive extraction, and new
+implementation modules should normally remain in the 100–350-line range.
 
 ## Strategic references
 
@@ -233,10 +232,11 @@ The point is that the decision is written down, not that it happens on a schedul
 | 1b | Immutable facts and snapshot deltas | Stored facts scale with distinct versions rather than selected frames | More history features or broader parsers |
 | 2 | Attention signal | Users see a small, actionable, fully accounted queue | Onboarding promotion |
 | 3 | One-command local adoption | One command opens a dashboard; a second or option connects an agent | Ecosystem/language marketing |
-| 3b | Dashboard/evaluator decomposition and self-analysis | Frontend and core evaluators become maintainable; AnaxiGraph checks itself in CI | Parser expansion |
-| 4 | Core parser-backed language platform | JavaScript/TypeScript, Go, Rust, and Java produce honest structural graphs | Broad core-language claims |
-| 5 | Team security and graph-scale APIs | Shared deployment is authenticated, bounded, and repository-scoped | Team-install promotion |
-| 6 | Architect-grade semantic and pattern advice | Module understanding becomes evidence-backed consolidation, dead-code, pattern, and build guidance | Autonomous workflow expansion |
+| 3b | Dashboard/evaluator decomposition and self-analysis | Frontend and core evaluators stay maintainable; AnaxiGraph checks itself in CI | Pattern evidence work |
+| 4A | Pattern-ready evidence contract | Analyzers declare comparable capabilities and expose reusable evidence from function to repository scale | Pattern intelligence and further parser adapters |
+| 5A | Bounded graph and operational APIs | Large local indexes remain bounded from database to browser and the API composition root stays small | Pattern query surfaces |
+| 6 | Architect-grade semantic and pattern intelligence | An extensible catalog of at least 100 patterns is evaluated across code hierarchies and independently reviewed by agents | Parser breadth and autonomous workflow expansion |
+| 4B | Core parser-backed language expansion | JavaScript/TypeScript, Go, Rust, and Java produce honest structural graphs | Broad core-language claims |
 | 7 | Temporal architecture intelligence | History becomes an explanatory biography, not just replay | Client-facing temporal positioning |
 | 8 | Long-tail languages, non-code context, and extensions | Additional languages and operational context join code without weakening evidence semantics | 1.0 scope freeze |
 | 9 | 1.0 hardening and community launch | Stable migrations, public contribution paths, website, and support matrix | 1.0 release |
@@ -407,7 +407,7 @@ threshold is ratcheted, while changed public Python surfaces are reported for co
 review. `quality/architecture-policy.json` classifies every current package and permits one
 explicit legacy sibling-layer edge (`architecture → storage`) without allowing another. CI holds
 total line coverage at 80% and changed executable package lines at the 85% target. Semantic dossier
-cohesion remains a confidence-gated human-review report: responsibility breadth or a high-scoring
+cohesion remains a confidence-gated, non-blocking advisory report: responsibility breadth or a high-scoring
 split recommendation is evidence for inspection, never permission to refactor automatically.
 
 ## 0.5 Record the intended internal architecture
@@ -440,7 +440,7 @@ useful proto-IR. Phase 0 must formalize and version that existing contract rathe
 parallel abstraction or rewrite working analyzers. Phase 1b designs a relationship-set schema and
 Phase 3b reorganizes detector families; if the contract is not explicit before them, both can
 accidentally encode Python AST or JavaScript regex implementation details and force a second
-migration during Phase 4.
+migration during Phase 4A or 4B.
 
 Phase 0 therefore delivers conformance tests and a versioned revision of the existing records,
 adding only the concepts needed by later storage and parser work:
@@ -454,7 +454,7 @@ adding only the concepts needed by later storage and parser work:
 The existing Python analyzer is certified against the contract as the reference implementation,
 using compatibility adapters where a staged transition is necessary. This is contract
 formalization, not parser work: no grammars, packaging changes, or new languages, and no wholesale
-Python analyzer rewrite. Phase 4.1 becomes conformance and extension rather than first definition.
+Python analyzer rewrite. Phase 4A becomes conformance and extension rather than first definition.
 
 Delivered as [`ADR 0001`](adr/0001-internal-layers-and-analyzer-ir.md), the enforced layer policy,
 and the executable `anaxigraph-ir-v1` contract. Analysis version 4 persists the added facts through
@@ -488,10 +488,9 @@ open.
    `License-Expression: Apache-2.0` and `License-File: LICENSE`, with no prior license-table
    deprecation warning. PyPI artifacts are immutable, so this correction begins with the next
    version rather than altering 0.1.0.
-4. **COMPLETE — Soften the shared multi-repository section in the README.** Every public setup
-   guide labels it experimental and trusted-operator only, states that REST/MCP have no
-   authentication or per-user authorization, and requires loopback/SSH rather than untrusted or
-   team exposure until Phase 5.
+4. **COMPLETE — Make the local operating boundary explicit.** Every public setup guide leads with
+   the loopback sidecar and explains the supported local and Docker paths without presenting a
+   larger deployment topology as current product scope.
 
 ### PyPI 0.1.0 release evidence
 
@@ -540,8 +539,7 @@ fresh-machine release gate rather than anecdotal success.
 - [x] The Phase 1a and Phase 1b performance targets have been ratified from the P0.1 report and written
   into this document, replacing the provisional figures carried over from the external review.
 - [x] `init --start` is documented; the tested, functional PyPI 0.1.0 release and next-release PEP 639
-  metadata are recorded; and the README no longer presents an unauthenticated shared deployment as
-  a team installation.
+  metadata are recorded; and the README presents the supported local operating boundary clearly.
 - [x] The supported platform matrix is published, including an explicit decision about Windows.
 
 ### Phase 0 closure evidence
@@ -1174,7 +1172,7 @@ API, AnaxiMCP, and durable history service rather than introducing a second anal
 |---|---|
 | One foreground command | `anaxigraph up . --open --semantic agent --connect codex` creates or loads policy, applies only explicit client changes, and runs the dashboard/MCP service; Claude and deterministic-only variants use the same command |
 | External state | The default is a stable path-derived per-checkout AnaxiIndex under Linux XDG state or macOS Application Support, with `ANAXIGRAPH_STATE_HOME`, `ANAXIGRAPH_DB`, and `--db` overrides; the private state directory is mode `0700` on POSIX |
-| Loopback safety | The convenience server always binds `127.0.0.1`, preflights port conflicts before writes, enables only index-writing agent refresh, and leaves shared/team exposure to the hardened Docker path and later security phase |
+| Loopback safety | The convenience server always binds `127.0.0.1`, preflights port conflicts before writes, and enables only index-writing agent refresh |
 | Startup ordering | FastAPI readiness waits for the current deterministic scan; adaptive history starts through the existing durable background job after that scan and can resume after interruption |
 | Browser and lifecycle | `--open` waits for a successful health response before launching a browser; the startup banner gives dashboard/MCP URLs, state location, Ctrl-C behavior, and an idempotent restart command |
 | Safe preview | `--dry-run --json` previews policy, state, semantic, connection, history, endpoint, and restart choices without creating repository/client/state files or starting a listener |
@@ -1275,8 +1273,7 @@ command family and first-run responsibility has a bounded owner.
 - Median internal first-user test time is under five minutes to dashboard and under ten minutes to
   the first submitted semantic dossier.
 - `cli.py` and `onboarding.py` are removed from the size-exception baseline.
-- Shared/team installation is still documented as experimental and loopback/local-first until
-  Phase 5 security ships.
+- The supported convenience path remains local-first and loopback-bound.
 
 ### Phase 3 exit evidence and release blocker
 
@@ -1295,7 +1292,7 @@ a fresh repository without a Git source URL or manually authored configuration.
 | Container hardening | Inspection of the live generated container proves a read-only root, read-only repository mount, `cap_drop: ALL`, `no-new-privileges`, and a `127.0.0.1`-only published port |
 | Skill lifecycle | The dual Codex/Claude plugin contract completes `SCHEMA -> WORK -> EVIDENCE -> RELEASE -> WORK -> SUBMIT`, validates durable completion, and ships one canonical, reproducible workflow package |
 | Maintainability | `cli.py` is 22 lines and `onboarding.py` is 319 lines; both legacy exceptions and the CLI coupling exception are removed |
-| Exposure boundary | README and onboarding state that unauthenticated REST/MCP must remain on loopback or behind an SSH tunnel and that shared authenticated deployment waits for Phase 5 |
+| Exposure boundary | README and onboarding consistently present the convenience runtime as a loopback sidecar |
 | Complete quality gate | 159 Python tests pass at **89.02%** line coverage; pre-commit, release, size, function-size, complexity, coupling, cycles, coverage, and architecture-layer checks pass; both Compose definitions validate; the bounded temporal benchmark completes; and all 12 Chromium contracts pass |
 
 The source gate now runs the first-user timing journey and hardened-container inspection in CI and
@@ -1344,12 +1341,14 @@ install jobs end to end.
 
 # Phase 3b — dashboard/evaluator decomposition and self-analysis
 
-**Status:** ACTIVE
+**Status:** COMPLETE on 24 August 2026
 
-**Goal:** remove the remaining dashboard and evaluator size exceptions, then prove that
+**Goal:** keep the completed dashboard and evaluator decomposition protected, then prove that
 AnaxiGraph's deterministic attention model can act as a stable regression check on its own code.
 
 ## 3b.1 Decompose evaluators and the dashboard
+
+**Status:** COMPLETE on 22 August 2026
 
 Refactor:
 
@@ -1364,7 +1363,13 @@ Preserve the zero-runtime-JavaScript-dependency goal unless a separate ADR demon
 maintenance and supply-chain benefit. Update package-data rules and browser tests so nested
 dashboard modules ship in wheels and containers.
 
+Delivered: `architecture.py` is 90 physical lines, `agent.py` is 366, `app.js` is 167, and every
+extracted dashboard module is below 400. Package contracts and browser workflows cover the nested
+modules, and `quality/module-size-policy.json` has no legacy exception.
+
 ## 3b.2 Make self-analysis a regression gate, not a zero-backlog gate
+
+**Status:** COMPLETE on 24 August 2026
 
 Run AnaxiGraph against its own pull-request revision in CI and retain the report as a build
 artifact. The required check fails only when a deterministic, policy-enabled condition is newly
@@ -1377,12 +1382,12 @@ The gate must:
 - fail on configured new/regressed severity, architecture boundary, cycle, size, or complexity
   conditions;
 - keep information-level diagnostics and model-derived semantic recommendations non-blocking;
-- allow accepted existing debt only through a reviewed baseline entry with rationale and removal
+- allow accepted existing debt only through an explicit baseline entry with rationale and removal
   phase, never by dismissing a finding merely to make CI green;
 - report when a rule or score-version change requires an explicit baseline review;
 - upload the full scan summary even when the required regression check passes.
 
-The human attention queue may remain non-empty. CI proves that a change did not make the governed
+The attention queue may remain non-empty. CI proves that a change did not make the governed
 architecture worse; it does not pretend all acknowledged or planned work has already been completed.
 
 ## Phase 3b exit gate
@@ -1393,144 +1398,80 @@ architecture worse; it does not pretend all acknowledged or planned work has alr
   regression coverage after decomposition.
 - Wheels and containers include every nested dashboard module.
 - CI self-analysis is deterministic and fails on a fixture that introduces a governed regression.
-- An unchanged accepted backlog does not fail CI, and a changed rule/priority version requests a
-  reviewed rebaseline rather than silently changing the gate.
+- An unchanged accepted backlog does not fail CI, and a changed rule/priority version requests an
+  explicit baseline update rather than silently changing the gate.
 - The self-analysis gate needs no LLM call, network model access, or mutable semantic dossier.
 
----
+### Phase 3b closure evidence
 
-# Phase 4 — core parser-backed language platform
-
-**Status:** BLOCKED BY PHASE 3b
-
-**Goal:** replace the two-language cliff with a maintainable parser platform and honest per-language
-support levels.
-
-## 4.1 Extend and conform to the analyzer intermediate representation
-
-The IR contract was formalized in Phase 0 (§0.5) so that Phase 1b's relationship schema and Phase
-3b's detector families could be designed against it rather than against whatever the Python and
-JavaScript analyzers happened to emit. This item is therefore conformance and extension, not first
-definition: any change to the contract here is a versioned revision with a migration note.
-
-Every parser adapter emits the same versioned records:
-
-- module/package identity and aliases;
-- classes, interfaces, functions, methods, constants, and source spans;
-- imports, exports, re-exports, includes, calls, constructors, and inheritance/implementation;
-- public interfaces/signatures;
-- entry-point and framework evidence;
-- parse errors and recovered regions;
-- complexity inputs;
-- extracted doc/comments without allowing prose to become structural fact;
-- analyzer name/version, grammar version, confidence, and unsupported constructs.
-
-Resolvers consume this representation rather than grammar-specific tree node names. Grammar query
-definitions live in small declarative language adapters; shared traversal and evidence logic is
-tested once.
-
-## 4.2 Introduce tree-sitter behind the analyzer contract
-
-- Pin the runtime and grammar packages within compatible version ranges.
-- Decide whether grammars are a default dependency, a `languages` extra, or bundled only in the
-  container after measuring wheel size and install reliability.
-- Cache parser/language objects safely.
-- Bound parse time and source size; report timeout/recovery instead of falling through silently.
-- Retain Python's standard-library AST where it provides equal or better semantics, while emitting
-  the same intermediate representation.
-- Keep the lexical fallback as an explicitly labeled `text-heuristic` analyzer, never as “full
-  support.”
-
-## 4.3 Wave 1: JavaScript and TypeScript parity
-
-Replace the regex analyzer for `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, and `.tsx`. Fixtures include:
-
-- default/named/dynamic imports and re-exports;
-- CommonJS require/exports;
-- JSX/TSX calls and components;
-- decorators, generics, optional chaining, template literals, and arrow functions;
-- classes, interfaces, enums, type aliases, inheritance, and method calls;
-- malformed but recoverable source.
-
-The new analyzer must match all valid old fixtures, fix documented regex failure cases, and expose
-any remaining unsupported dynamic patterns.
-
-## 4.4 Wave 2: Go, Rust, and Java
-
-Implement one language at a time in this order:
-
-1. Go packages, imports, functions, methods, interfaces, receiver relationships, and calls;
-2. Rust modules/crates, `use`, structs/enums/traits, implementations, macros as bounded evidence,
-   and calls;
-3. Java packages/imports, classes/interfaces/records/enums, inheritance/implementation,
-   annotations, methods, and calls.
-
-Each language ships only after its fixtures, real-repository sample, resolver metrics, dashboard
-support badge, and documentation pass. Work on the next language does not start while the previous
-one is still labeled experimental.
-
-## 4.5 Publish an honest support matrix
-
-Support levels:
-
-- **Deep:** parser, symbols, dependency/call relationships, public interfaces, resolution tests,
-  and maintained real-repo fixtures;
-- **Structural:** parser-backed modules/symbols/imports, but incomplete calls/framework behavior;
-- **Heuristic:** text/regex facts only;
-- **Inventory:** file metadata and Git history only.
-
-Dashboard, API, MCP, and docs show the level and analyzer version. Repository-level graph trust is
-weighted by the actual mix rather than the number of recognized file extensions.
-
-## Phase 4 exit gate
-
-- JavaScript/TypeScript are parser-backed and the regex implementation is removed from normal use.
-- Go, Rust, and Java meet the Deep support contract.
-- Parser and grammar versions participate in analysis fingerprints and targeted invalidation.
-- Malformed syntax produces bounded partial results plus visible parse evidence.
-- Mixed-language fixtures verify cross-language import and API boundary behavior where it is
-  deterministic.
-- No language adapter exceeds 500 lines; shared logic is reused through composition, not a giant
-  switch or inheritance lattice.
-- Scan performance and memory remain within the Phase 1a and 1b benchmark budgets.
+| Contract | Delivered evidence |
+|---|---|
+| Cohesive decomposition | `architecture.py` is 90 physical lines, `agent.py` is 366, `app.js` is 167, every dashboard JavaScript module is below 400, and the module-size exception list is empty |
+| Exact deterministic ratchet | `scripts/check_self_analysis.py` performs a fresh isolated scan and compares every deterministic warning/error by stable key, affected target, severity, and exact evidence against `quality/self-analysis-baseline.json` |
+| Version safety | The baseline pins analysis/IR/detector/priority contracts, every built-in analyzer version, and the effective rule-set digest; a mismatch fails closed and requests an explicit update |
+| Improvement preservation | New or worsened evidence fails, while reduced evidence and disappeared findings require the baseline to tighten in the same change rather than silently leaving stale debt |
+| Non-blocking diagnostics | The closure scan analyzed 272 artifacts and passed with 50 governed findings, 116 retained information-level diagnostics, and zero regressions; no semantic/model result participates in the decision |
+| Regression proof | Six focused tests cover unchanged debt, non-blocking information findings, new findings, evidence regression/improvement/change, stale entries, contract changes, and an actual scanned fixture that introduces new complexity |
+| Local and remote enforcement | The tracked pre-push hook and complete local quality runner execute the same command as CI; CI always uploads the full JSON scan report |
+| Complete verification | All tracked pre-commit checks pass and 216 Python tests pass at 88.65% total coverage |
 
 ---
 
-# Phase 5 — team security and graph-scale APIs
+# Phase 4A — pattern-ready evidence contract
 
-**Status:** BLOCKED BY PHASE 4
+**Status:** ACTIVE
 
-**Goal:** make multi-repository/team deployment safe and keep large graphs bounded from database to
-browser.
+**Goal:** give pattern evaluation a small, language-neutral evidence vocabulary that works from a
+function or type through module, subsystem, area, and repository scope.
 
-## 5.1 Define deployment modes
+## 4A.1 Extend the analyzer intermediate representation
 
-- **Local sidecar:** loopback binding, one operator, optional authentication with clear warning.
-- **Trusted LAN/team:** authentication required, explicit repository scopes, TLS terminated by a
-  documented reverse proxy or native configuration.
-- **Hosted/public:** out of scope until a separate threat model, tenant isolation, rate limiting,
-  backup, and operational ownership exist.
+The `anaxigraph-ir-v1` contract already normalizes modules, symbols, relationships, locations,
+signatures, documentation, parse state, complexity inputs, and analyzer provenance. Extend it only
+where pattern evaluation needs reusable facts that are absent today, such as symbol kind and
+visibility, decorators/annotations, inheritance and implementation roles, entry-point evidence,
+mutation and side-effect evidence, error/async behavior, and test relationships.
 
-AnaxiGraph must fail closed when configured on a non-loopback bind without authentication. README
-language may not promote a team installation before this behavior ships.
+The IR remains pattern-neutral. An analyzer reports what it observed; it does not contain a
+separate detector for Strategy, Adapter, Pipeline, or any other catalog entry.
 
-## 5.2 Authenticate REST, dashboard, and MCP
+## 4A.2 Declare analyzer capabilities
 
-Implement tokens with:
+Each analyzer publishes a versioned capability record describing which facts it can provide and at
+what confidence. Pattern requirements refer to capabilities rather than language names. Missing
+capabilities suppress or lower confidence in an evaluation instead of silently treating missing
+evidence as absence.
 
-- hashed-at-rest credentials or injected secrets, never tokens stored in repository YAML;
-- scopes for `index:read`, `semantic:write`, `scan:run`, `finding:write`, and `admin`;
-- per-token repository allowlists;
-- creation, rotation, revocation, expiry, and last-used metadata;
-- Docker secret/environment and reverse-proxy examples;
-- audit events for scans, semantic leases/submissions, finding lifecycle changes, and admin actions;
-- consistent enforcement across REST and MCP.
+The Python AST analyzer is the reference implementation. Existing JavaScript/TypeScript and
+long-tail heuristic analyzers remain honestly labeled while still contributing the evidence they
+can support.
 
-Browser authentication should use an appropriate short-lived session mechanism and avoid putting
-bearer tokens in URLs or durable browser logs. Protect state-changing routes from cross-site
-requests and configure CORS narrowly.
+## 4A.3 Build reusable evidence projections
 
-## 5.3 Replace unbounded graph responses
+Project deterministic IR, graph, dossier, coverage, and history facts into a compact feature
+vocabulary shared by every pattern. Feature records carry stable target identity, scope level,
+source snapshot, analyzer/capability versions, confidence, and inspectable evidence references.
+Features are calculated once per changed target and reused across catalog candidates.
+
+## Phase 4A exit gate
+
+- Function/type, module, subsystem, area, and repository targets have stable identifiers.
+- Analyzer capabilities and feature-projection versions participate in targeted invalidation.
+- The Python reference fixtures cover every required evidence family without pattern-specific AST
+  queries.
+- Missing parser capability produces an explicit unavailable or lower-confidence result.
+- The contract adds no new parser dependency and no implementation module above 350 lines.
+
+---
+
+# Phase 5A — bounded graph and operational APIs
+
+**Status:** BLOCKED BY PHASE 4A
+
+**Goal:** keep large local indexes bounded from database to browser and expose a compact query plane
+that pattern intelligence can reuse.
+
+## 5A.1 Replace unbounded graph responses
 
 Introduce versioned, cursor-based graph queries with:
 
@@ -1546,212 +1487,223 @@ Introduce versioned, cursor-based graph queries with:
 The dashboard should load architecture aggregates and visible regions first rather than download
 every node and edge before drawing anything. MCP remains biased toward smallest useful subgraphs.
 
-## 5.4 Bound operational work
+## 5A.2 Bound operational work
 
 - Rate-limit expensive scans/history imports per repository.
 - Add job concurrency and cancellation controls.
 - Bound request body sizes, evidence pages, graph depth, and export size.
 - Add database backup/restore and health/size diagnostics.
-- Test repository isolation so an allowed token cannot infer names, counts, or job state from an
-  unlisted repository.
+- Bound concurrent work per repository and expose queue/size pressure in health diagnostics.
 
-## 5.5 Decompose API code
+## 5A.3 Keep the API composition root small
 
 Split `api.py` into thin routers for repositories, graph, findings, history/jobs, semantics, and
-authentication backed by application services. The app factory owns dependency wiring; routers do
-not execute SQL or semantic state transitions.
+patterns backed by application services. The app factory owns dependency wiring; routers do not
+execute SQL or semantic state transitions.
 
-## Phase 5 exit gate
+## Phase 5A exit gate
 
-- Non-loopback startup without configured auth fails with a direct remediation message.
-- REST and MCP authorization tests cover every tool/route and repository scope.
 - No graph endpoint can serialize an unbounded repository graph.
 - A 50,000-node synthetic graph can open an overview and inspect a region without exhausting the
   browser or returning one monolithic payload.
-- Token rotation/revocation and audit events work without restarting the service.
 - Backup/restore and schema upgrade are documented and tested.
-- `api.py` is removed from the size-exception baseline.
-- The legacy exception file is now empty: every first-party implementation module is at or below
-  500 physical lines.
+- `api.py` is a composition root of at most 300 physical lines and each router/service has one
+  bounded responsibility.
+- Every first-party implementation module remains below 500 physical lines, with no exception.
 
 ---
 
-# Phase 6 — architect-grade semantic and pattern advice
+# Phase 6 — architect-grade semantic and pattern intelligence
 
-**Status:** BLOCKED BY PHASE 5
+**Status:** BLOCKED BY PHASE 5A
 
-**Goal:** turn the existing dossier and agent-funded execution foundation into a dependable
-architect and coding partner.
+**Goal:** turn the current semantic map into a compact, evidence-backed pattern intelligence system
+that evaluates code at multiple scales, completes its own critique, and remains cheap to extend.
 
 ## 6.1 Replace the semantic mixin lattice with explicit services
 
-The current `SemanticEngine` composes seven mixins that share an implicit `database` attribute.
-Replace that inheritance with a small facade over injected services, for example:
+Replace the current mixin-composed `SemanticEngine` with a small compatibility facade over explicit
+planning, lease, evidence, contract, persistence, runner, and reporting services. State transitions
+become a tested state machine, services receive narrow protocols, and the CLI/REST/MCP contracts
+remain stable during extraction.
 
-- `SemanticPlanner` — determines intrinsic/contextual work and priority;
-- `LeaseService` — owns claim, heartbeat, release, expiry, and idempotency;
-- `EvidenceAssembler` — pages bounded source and graph evidence;
-- `DossierContract` — schema validation and canonicalization;
-- `DossierRepository` — transactional persistence and provenance;
-- `SemanticRunner` — optional hosted/local worker execution;
-- `SemanticReporting` — coverage, cost, failure, and stale-state read models.
+The extraction is complete only when no service depends on inheritance order or a hidden shared
+database attribute. New implementation modules should normally be 100–300 physical lines.
 
-State transitions become an explicit tested state machine. Services receive narrow protocols
-rather than a global engine or SQLite connection. The public CLI/REST/MCP contract remains stable
-through a compatibility facade during the refactor.
+## 6.2 Preserve complete autonomous semantic mapping
 
-## 6.2 Make every module meaningfully understood
+The shipped module dossiers and agent-reviewed architecture taxonomy remain the semantic baseline.
+Every eligible scope reaches current, excluded, or visibly failed; interrupted sessions resume from
+durable leases; and taxonomy proposals complete their configured independent agent review passes
+before becoming the current map. Map completion has no manual edit or approval gate.
 
-For every eligible first-party module, the durable dossier should contain:
+Incremental refresh rereads source only when structural, interface, relationship, analyzer,
+prompt-contract, enrollment-policy, or age evidence changes. Provider and model are runtime
+provenance, never hard-coded catalog behavior, and switching model does not invalidate otherwise
+current understanding.
 
-- concise purpose and detailed summary;
-- responsibilities and non-responsibilities;
-- inputs, outputs, side effects, public contracts, and runtime role;
-- architecture area/subsystem and why it belongs there;
-- dependencies/dependants with important relationship evidence;
-- local precedents and related responsibilities elsewhere;
-- test strategy and observed coverage state;
-- lifecycle/Git biography and meaningful intent changes;
-- risks, uncertainty, and missing context;
-- pattern opportunities, consolidation candidates, dead-code candidates, and placement guidance;
-- provider/model/prompt/schema, source/context fingerprints, evidence, confidence, token/cost data,
-  and human review state.
+## 6.3 Ship an extensible catalog of at least 120 patterns
 
-Bootstrap remains complete-but-resumable: every eligible module must be current, explicitly
-excluded, or visibly failed. Incremental refresh rereads source only when structural, interface,
-relationship, analyzer, prompt-contract, enrollment-policy, or age fingerprints require it.
-Switching provider or model never invalidates existing understanding.
+The first production catalog contains at least 120 canonical entries and has no architectural
+ceiling. It spans function/symbol construction, object and interface design, data and state,
+module boundaries, composition and workflow, integration and concurrency, reliability and tests,
+and subsystem/repository architecture. Both constructive patterns and recognizable failure modes
+may be represented, but each entry states which it is.
 
-## 6.3 Detect repeated responsibilities and consolidation candidates
+Pattern cards are validated declarative package data, not one detector class per pattern. A card
+contains:
 
-Combine independent signals:
+- stable key, version, name, family, kind, intent, and applicable scope levels;
+- problem signals, required capabilities, supporting evidence, and counter-evidence;
+- semantic questions that an agent must answer when deterministic evidence is insufficient;
+- related, complementary, alternative, and conflicting patterns;
+- applicability, suitability, conformance, and opportunity scoring guidance;
+- benefits, liabilities, migration cautions, verification invariants, and references.
 
-- token/AST similarity for repeated implementation;
-- similar public interfaces and side effects;
-- semantic responsibility similarity from current dossiers;
-- common dependants/dependencies;
-- historical change coupling;
-- shared architecture placement and ownership;
-- differences that argue the modules should remain separate.
+The schema and loader are versioned independently from the bundled catalog. Adding a valid card
+requires no schema migration, Python detector, route, or dashboard component. Keep the catalog
+compact (target below 300 KB) and the initial pattern engine below roughly 1,500 implementation
+lines, with no new model-provider pipeline or vector database.
 
-Produce cluster-level proposals such as merge, extract shared service, introduce adapter, relocate,
-or retain separate implementations. A proposal must identify the exact repeated behavior and the
-meaningful differences; filename similarity alone is insufficient.
+## 6.4 Generate sparse multi-level candidates
 
-## 6.4 Add conservative symbol and module dead-code analysis
+Evaluate function/method, type, module, subsystem, area, and repository targets. Deterministic
+features first select plausible pattern/target pairs; only those candidates receive semantic work.
+Never run or persist the dense product of every pattern and every target.
 
-Start deterministic reachability from configured and detected entry points:
+Candidate generation uses capability requirements, graph shape, responsibility evidence, local
+precedents, churn/coverage, and explicit contradictions. It records why a pattern was considered,
+why it was skipped, and which missing evidence prevents a confident rating. Changed targets and
+their conservatively affected parents/dependants are re-evaluated; unrelated pairs remain current.
 
-- CLI entry points, web routes, workers, scheduled tasks, plugins, framework registrations, public
-  packages, tests, and operator-configured roots;
-- imports, calls, inheritance, registration, serialization, templates/configuration, and ambiguous
-  candidates;
-- dynamic/reflection conventions modeled as explicit lower-confidence evidence.
+## 6.5 Score presence, fit, and opportunity separately
 
-Candidate levels:
+Every completed evaluation reports independent 0–100 values for:
 
-1. unreferenced private symbol;
-2. unreachable module from known entry points;
-3. apparently obsolete feature cluster;
-4. removal proposal with impact and verification plan.
+- **applicability** — how strongly the target exhibits the problem/context the pattern addresses;
+- **suitability** — how well the pattern fits this target and repository's local design;
+- **conformance** — how closely the existing code already implements the pattern;
+- **opportunity** — expected value of changing the code, accounting for current conformance;
+- **confidence** — strength and completeness of the evidence;
+- **benefit, urgency, execution safety, and migration cost** — decision dimensions that must not be
+  hidden inside one magic score.
 
-Coverage absence, low churn, or no resolved inbound edge is never enough by itself. Deletion advice
-is suppressed below a configurable graph-resolution/trust threshold. Every candidate reports
-counter-evidence, dynamic blind spots, affected contracts, and tests to run. AnaxiGraph never
-deletes target code automatically.
+Scores store their component values, score-contract version, evidence, counter-evidence, affected
+targets, local precedents, prerequisites, risks, invariants, and conditions that would invalidate
+the conclusion. A high suitability with high conformance means “already a good example”; it is not
+misreported as a refactor opportunity.
 
-## 6.5 Score pattern and refactor proposals
+## 6.6 Make independent agent critique part of mapping
 
-Evaluate patterns at symbol, module, subsystem, area, and repository levels. Do not force every
-design issue into a named Gang-of-Four pattern; consolidation, extraction, relocation, interface
-stabilization, and removal are first-class proposal types.
-
-Base suitability components:
+The normal lifecycle is fully machine-operated:
 
 ```text
-fit to repeated problem        0–25
-coupling/cohesion improvement  0–20
-consistency with local design  0–15
-testability/safety benefit     0–15
-expected reuse/change value    0–15
-migration cost deduction       0–10
+deterministic candidate -> agent assessment -> independent agent critique -> finalized map result
 ```
 
-Also report independent 1–100 scores for expected benefit, urgency, execution safety, and
-confidence. “85 suitability, 48 confidence” explicitly means the idea may fit if the inferred
-responsibility is correct, but more evidence is required.
+The critique checks scope choice, pattern identity, overlooked alternatives, counter-evidence,
+score consistency, and whether the proposal would add more machinery than value. Disagreement
+lowers confidence or retains competing interpretations; it does not fabricate consensus. Every
+stage is resumable and carries provider/model/reasoning/prompt/schema provenance. Runtime model and
+reasoning selection come from the connected agent/session configuration.
 
-Every proposal includes:
+Optional operator feedback can annotate or override a finalized result and becomes calibration
+evidence, but absence of that feedback never blocks the semantic map or pattern run.
 
-- evidence and counter-evidence;
-- affected symbols/modules and blast radius;
-- local examples to follow or avoid;
-- prerequisites and migration steps;
-- estimated effort and risk;
-- tests and post-change invariants;
-- conditions that invalidate the proposal;
-- score version and component values.
+## 6.7 Add consolidation, dead-code, and placement intelligence
 
-Lifecycle:
+Repeated-responsibility and consolidation analysis combine structural similarity, semantic
+responsibility, public contracts, graph neighborhoods, architecture placement, and change coupling,
+including differences that argue for keeping implementations separate.
 
-```text
-candidate -> reviewed -> approved/rejected -> planned -> implemented -> verified/regressed
-```
+Dead-code analysis starts from configured and detected entry points and accounts for imports,
+calls, inheritance, registration, serialization, templates, configuration, and dynamic/reflection
+blind spots. Low coverage, low churn, or no resolved inbound edge is never sufficient alone, and a
+removal proposal is suppressed when graph trust is inadequate.
 
-Human rationale is durable memory. Rejected proposals should not be repeatedly regenerated unless
-material evidence changes.
+Given a coding goal, placement guidance returns the preferred extension point, patterns and local
+precedents to reuse, bounded file/symbol scope, contracts and tests likely to change, risks,
+verification commands, and post-change architecture facts to compare.
 
-## 6.6 Guide new functionality
+## 6.8 Expose pattern intelligence without multiplying product surfaces
 
-Given a coding goal, return:
+Reuse the existing semantic queue, leases, evidence paging, provenance, taxonomy, and bounded query
+infrastructure. Add one narrow evaluation projection keyed by target, pattern, snapshot, and
+contract signatures rather than a parallel analysis platform.
 
-- the preferred extension point and architecture area;
-- existing abstractions and patterns to reuse;
-- smallest primary file set and bounded related context;
-- contracts, callers, persistence, events, and tests likely to change;
-- active findings and known risky boundaries;
-- proposed sequence of edits;
-- explicit anti-patterns and duplicated paths to avoid;
-- verification commands and architecture facts to compare after the change.
+CLI, MCP, REST, and dashboard support both directions:
 
-After implementation, compare the intended invariants with the new snapshot and explain what
-improved, stayed uncertain, or regressed. This closes the loop between dashboard review and the
-coding agent operating in the repository.
+- target-centric: the best-fitting, already-present, conflicting, and high-opportunity patterns for
+  a function, type, module, subsystem, area, or repository;
+- pattern-centric: the strongest examples, weak conformers, opportunities, and skipped targets for
+  one catalog entry.
 
-## 6.7 Calibrate rather than merely generate advice
-
-Build a reviewed corpus of real examples:
-
-- correct and incorrect provider abstractions;
-- justified large reference modules versus low-cohesion modules;
-- true and false dead-code cases involving dynamic registration;
-- merge candidates that share implementation but not responsibility;
-- pattern opportunities with different migration costs;
-- goals placed correctly and incorrectly in an existing architecture.
-
-Track precision, reviewer acceptance, false-positive reason, score calibration, and repeated
-rejection rate by detector/prompt/model version. Default product views favor high precision over
-proposal volume.
+Build fixture and real-repository calibration sets covering correct/incorrect abstractions,
+justified and low-cohesion modules, dynamic dead-code traps, consolidation false positives, and
+different migration costs. Track precision, critique disagreement, score calibration, false-
+positive cause, and verified post-change outcome by contract/model version.
 
 ## Phase 6 exit gate
 
-- The semantic system uses explicit composition; no seven-mixin facade or hidden shared mutable
-  service state remains.
-- Repeated unchanged reconciliation creates no new source-reading semantic jobs.
-- Every eligible fixture module reaches current, excluded, or failed with visible provenance.
-- Consolidation and dead-code evaluation expose both supporting and contradicting evidence.
-- No deletion proposal appears when relationship trust is below policy or a plausible dynamic root
-  remains unexplained.
-- Pattern scores are reproducible from stored components and calibrated on the reviewed corpus.
-- A coding goal produces placement guidance, a bounded work scope, precedents, risks, tests, and
-  post-change verification.
-- Semantic and pattern modules comply with the 500-line ceiling and dependency-layer rules.
+- The semantic system uses explicit composition and retains durable, session-independent progress.
+- The bundled validated catalog contains at least 120 patterns and can grow without code changes.
+- All six target levels produce stable, evidence-backed candidate and evaluation records.
+- A full run finalizes its own independent agent critique without waiting for manual intervention.
+- Unchanged reconciliation creates no source-reading or pattern-review work, and a local change
+  invalidates only the target and conservatively affected scopes.
+- Applicability, suitability, conformance, opportunity, confidence, benefit, urgency, safety, and
+  cost are reproducible and queryable; high conformance never becomes a false refactor proposal.
+- Consolidation and dead-code results expose supporting and contradicting evidence, and unsafe
+  removal advice is suppressed.
+- The engine stays within the stated code/data budget, adds no parallel provider stack, and every
+  first-party implementation module remains below 500 lines.
+
+---
+
+# Phase 4B — core parser-backed language expansion
+
+**Status:** BLOCKED BY PHASE 6
+
+**Goal:** replace the two-language cliff after the evidence and pattern contracts prove exactly
+which parser capabilities create product value.
+
+## 4B.1 Introduce tree-sitter behind the analyzer contract
+
+Pin runtime and grammar packages, cache parser objects safely, bound parse time/source size, and
+report recovery rather than falling through silently. Retain Python's standard-library AST where
+it provides equal or better semantics. The lexical fallback remains explicitly heuristic.
+
+## 4B.2 Deliver languages consecutively
+
+1. Replace the JavaScript/TypeScript regex analyzer for JS, JSX, MJS, CJS, TS, and TSX.
+2. Add Go packages, interfaces, receivers, imports, calls, and implementations.
+3. Add Rust crates/modules, uses, structs/enums/traits, implementations, bounded macro evidence,
+   and calls.
+4. Add Java packages, classes/interfaces/records/enums, annotations, inheritance, implementations,
+   methods, and calls.
+
+Each language ships only after malformed/recovered syntax fixtures, resolver metrics, pattern-
+capability conformance, a real-repository sample, dashboard support labeling, and documentation.
+
+## 4B.3 Publish an honest support matrix
+
+Support levels remain Deep, Structural, Heuristic, and Inventory. Dashboard, API, MCP, and docs show
+the actual level, analyzer/capability version, and unsupported constructs. Repository graph trust
+is weighted by the analyzer mix rather than recognized file-extension count.
+
+## Phase 4B exit gate
+
+- JavaScript/TypeScript, Go, Rust, and Java meet the Deep support contract.
+- Parser and grammar versions participate in targeted invalidation.
+- Mixed-language fixtures verify deterministic cross-language boundaries.
+- Pattern evaluations disclose capability gaps consistently across languages.
+- No adapter exceeds 500 lines, and scan memory/time stay within the Phase 1 budgets.
 
 ---
 
 # Phase 7 — temporal architecture intelligence
 
-**Status:** BLOCKED BY PHASE 6
+**Status:** BLOCKED BY PHASE 4B
 
 **Goal:** make time an explanatory product advantage rather than only a graph animation.
 
@@ -1822,11 +1774,11 @@ MCP queries should answer:
 **Status:** BLOCKED BY PHASE 7
 
 **Goal:** expand beyond the core language set and understand the system around source code without
-delaying team security or turning AnaxiGraph into an unbounded document-ingestion product.
+turning AnaxiGraph into an unbounded document-ingestion product.
 
 ## 8.1 Add long-tail parser-backed languages
 
-Implement C, C++, C#, Ruby, and PHP one at a time through the Phase 4 analyzer contract. Prioritize
+Implement C, C++, C#, Ruby, and PHP one at a time through the Phase 4A analyzer contract. Prioritize
 constructs that affect module boundaries and impact analysis before advanced symbol completeness.
 C/C++ header/include resolution and build-system ambiguity require explicit provenance;
 dynamic Ruby/PHP framework conventions require configurable entry points and lower-confidence
@@ -1834,8 +1786,8 @@ evidence where static certainty is impossible.
 
 Each language must meet at least the Structural support contract and ship its fixtures,
 real-repository sample, resolution metrics, dashboard support badge, and documentation before the
-next language begins. Moving this wave here keeps it committed in the roadmap without forcing team
-authentication to wait for five unrelated language implementations.
+next language begins. Moving this wave here keeps the core pattern and query work ahead of a long
+language tail.
 
 ## 8.2 Prioritize deterministic operational context
 
@@ -1927,7 +1879,7 @@ Do not call the product 1.0 until published support claims match these results.
 
 ## Phase 9 exit gate
 
-- Fresh-install, upgrade, backup/restore, auth, and uninstall paths pass release-candidate tests.
+- Fresh-install, upgrade, backup/restore, and uninstall paths pass release-candidate tests.
 - No first-party implementation module exceeds 500 lines and no time-limited waiver remains.
 - Required CI checks protect the release branch.
 - Public documentation makes facts, interpretations, recommendations, privacy, and language support
@@ -1972,7 +1924,6 @@ Every phase must satisfy all applicable gates below, not only its own feature te
 - extracted/inferred/ambiguous/unresolved provenance preserved;
 - semantic provider/model/prompt/schema and evidence retained;
 - no credential in repository configuration, logs, fixtures, or index exports;
-- repository authorization enforced wherever team mode exists;
 - state-changing behavior audited and idempotent where retries are expected.
 
 ## User experience
@@ -1990,11 +1941,10 @@ Every phase must satisfy all applicable gates below, not only its own feature te
 | Can a real repo finish history? | Wall time, source reads, analyzer invocations, reused versions, index bytes per selected frame/change |
 | Can users trust the graph? | Analyzer mix, unique/ambiguous/unresolved relationship rate, parse errors, dynamic-wiring caveats |
 | Is the attention queue useful? | Queue size, top-20 action rate, dismissal reason, recurrence, time to resolution |
-| Is architecture advice useful? | Proposal review/approval rate, false-positive category, score calibration, verified improvement/regression |
+| Is architecture advice useful? | Independent-agent agreement, optional operator correction rate, false-positive category, score calibration, verified improvement/regression |
 | Is semantic cost controlled? | Current/stale/failed/excluded coverage, input/output tokens, cost, reuse rate, jobs per changed module |
 | Is AnaxiGraph staying clean? | Modules over 400/500 lines, cycles, layer violations, complexity, changed-code coverage, hotspot trend |
 | Can the dashboard scale? | Initial overview bytes/time, expanded-region bytes/time, peak browser memory, dropped frames |
-| Is team mode safe? | Unauthorized access tests, scoped-token isolation, audit completeness, rotation/revocation tests |
 
 # Explicitly deferred ideas
 
@@ -2003,7 +1953,6 @@ These are not started while a numbered phase above is open:
 - a Rust scanner rewrite before profiling proves Python/parser libraries are the remaining limit;
 - a vector database as a substitute for the versioned graph and canonical dossier contracts;
 - automatic code deletion or unreviewed autonomous refactors;
-- a hosted multi-tenant service before local/team auth and isolation are proven;
 - PDF/media ingestion before deterministic code, schema, and deployment context;
 - all-language marketing based only on file-extension recognition;
 - batching every Git blob before delta-driven avoidance is implemented;
@@ -2024,7 +1973,7 @@ queue and the document cannot drift apart.
 | 6 | **COMPLETE** — Add the complexity, cycle, coverage, and layer budgets as warnings and no-growth ratchets | §0.4 |
 | 7 | **COMPLETE** — Publish the internal architecture ADR, the package-layer policy, and its characterization tests | §0.5 |
 | 8 | **COMPLETE** — Formalize and version the existing analyzer IR, add conformance tests, and certify the Python analyzer | §0.5 |
-| 9 | **COMPLETE** — Document `init --start`, correct the README's team-install claim, record PyPI 0.1.0, and prepare next-release PEP 639 metadata | §0.6 |
+| 9 | **COMPLETE** — Document `init --start`, clarify the local operating boundary, record PyPI 0.1.0, and prepare next-release PEP 639 metadata | §0.6 |
 | 10 | **COMPLETE** — Publish the supported platform matrix, including the Windows decision | §0.7 |
 | 11 | **COMPLETE** — Close the Phase 0 exit gate and record its reproducible evidence | §0 gate |
 | 12 | **COMPLETE** — Build `P1a.1`, the temporal correctness characterization suite on today's schema | §1a.1 |
@@ -2050,7 +1999,15 @@ queue and the document cannot drift apart.
 | 32 | **COMPLETE** — Collapse onboarding around one start action, one connection action, and the agent-funded semantic loop | §3.5 |
 | 33 | **COMPLETE** — Decompose CLI/onboarding responsibilities and remove both size-ratchet exceptions | §3.6 |
 | 34 | **COMPLETE** — First-user, idempotency, Docker/local, skill, quality, immutable 0.2.0 publication, public install, and versioned container evidence pass | Phase 3 gate |
-| 35 | **NEXT** — Decompose architecture evaluation, agent intelligence, and dashboard responsibilities without growing another legacy ratchet | §3b.1 |
+| 35 | **COMPLETE** — Decompose architecture evaluation, agent intelligence, and dashboard responsibilities without growing another legacy ratchet | §3b.1 |
+| 36 | **COMPLETE** — Add deterministic self-analysis baseline comparison, regression fixtures, and retained CI evidence | §3b.2 |
+| 37 | **NEXT** — Add stable multi-level target identities, analyzer capabilities, and reusable pattern evidence projections | Phase 4A |
+| 38 | Bound graph queries and operational work, then reduce `api.py` to a small composition root | Phase 5A |
+| 39 | Replace semantic mixin composition while preserving the durable external work protocol | §6.1–6.2 |
+| 40 | Ship and validate the declarative catalog of at least 120 patterns | §6.3 |
+| 41 | Add sparse multi-level candidates, separate ratings, and independent agent critique | §6.4–6.6 |
+| 42 | Expose target-centric and pattern-centric queries, incremental refresh, and calibration | §6.7–6.8 |
+| 43 | Expand parser-backed core languages against the proven capability contract | Phase 4B |
 
 Items 9 and 10 are the user-visible Phase 0 changes. The completed 0.1.0 publication is the narrow,
 recorded exception described in §0.6; the work that remains in these queue items is restricted to

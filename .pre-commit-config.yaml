@@ -54,6 +54,12 @@ repos:
         entry: uv run python scripts/check_agent_package.py
         language: system
         pass_filenames: false
+      - id: self-analysis-regression
+        name: Deterministic AnaxiGraph self-analysis regression gate
+        entry: uv run python scripts/check_self_analysis.py
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
       - id: python-tests
         name: Complete Python test suite and coverage floor
         entry: uv run pytest --cov=anaxigraph --cov-report=term --cov-report=xml --cov-fail-under=80

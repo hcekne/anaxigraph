@@ -35,6 +35,10 @@ jobs:
           uv run python scripts/check_code_quality.py
           uv run python scripts/check_architecture.py
           uv run python scripts/check_forbidden_files.py --all-tracked
+      - name: Reject deterministic self-analysis regressions
+        run: |
+          uv run python scripts/check_self_analysis.py \
+            --output "${RUNNER_TEMP}/anaxigraph-self-analysis.json"
       - name: Run tests with coverage
         run: |
           uv run pytest \
@@ -79,6 +83,7 @@ jobs:
           name: quality-evidence
           path: |
             coverage.xml
+            ${{ runner.temp }}/anaxigraph-self-analysis.json
             ${{ runner.temp }}/anaxigraph-baseline-smoke.json
             ${{ runner.temp }}/anaxigraph-first-user.json
             ${{ runner.temp }}/anaxigraph-container-smoke.json

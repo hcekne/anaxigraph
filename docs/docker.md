@@ -56,8 +56,8 @@ Git biographies then import in the background and report progress on the History
 > login, bearer-token check, or per-user authorization. Keep the published port on
 > `127.0.0.1`, access it through a trusted local session or SSH tunnel, and never expose it to an
 > untrusted network. Every client that can reach the service can inspect all allowlisted
-> repositories and invoke enabled index workflows. Use isolated per-repository sidecars for team
-> members until authenticated team mode lands.
+> repositories and invoke enabled index workflows. Use isolated per-repository sidecars when
+> operators should not share the same index boundary.
 
 Copy the templates:
 

@@ -231,9 +231,8 @@ Linux x86-64 is release-gated. Linux ARM64, macOS, and WSL2 are best effort; Doc
 recommended macOS path. Native Windows is not supported—use WSL2. See the
 [platform matrix](docs/platform-support.md).
 
-The REST and MCP service currently has no authentication. Keep it bound to loopback or behind an
-SSH tunnel. Do not expose it as an untrusted or shared team service until the authenticated
-deployment phase lands.
+The REST and MCP service is a local sidecar. Keep it bound to loopback or access it through a
+trusted SSH tunnel; do not expose the port to an untrusted network.
 
 ## Advanced operation
 
@@ -249,6 +248,13 @@ uv sync --extra dev
 uv run pre-commit install --install-hooks
 uv run python scripts/run_quality_gate.py --base origin/main
 ```
+
+The quality gate includes a fresh deterministic AnaxiGraph scan of this repository. Its full report
+is retained in CI and compared with
+[`quality/self-analysis-baseline.json`](quality/self-analysis-baseline.json); new or worsened
+warning/error findings fail while unchanged information-level diagnostics remain visible and
+non-blocking. Run it directly with
+`uv run python scripts/check_self_analysis.py --output /tmp/anaxigraph-self-analysis.json`.
 
 The product brief is [`repo_instructions.md`](repo_instructions.md), the consecutive roadmap is
 [`docs/feature-development-plan.md`](docs/feature-development-plan.md), and the release contract is

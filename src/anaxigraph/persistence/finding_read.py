@@ -9,6 +9,8 @@ from typing import Any
 from anaxigraph.persistence.row_decoding import decode_json_columns
 from anaxigraph.persistence.snapshot_projection import install_snapshot_projection
 
+PRIORITY_VERSION = "risk-churn-blast-v1"
+
 
 @dataclass(frozen=True, slots=True)
 class _FindingRisk:
@@ -187,7 +189,7 @@ def finding_priority(
         "priority_score": score,
         "priority_label": _priority_label(score),
         "priority_reasons": reasons,
-        "priority_version": "risk-churn-blast-v1",
+        "priority_version": PRIORITY_VERSION,
         "actionability": _actionability(finding, module_stats, risk, reasons),
     }
 

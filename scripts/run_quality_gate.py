@@ -29,9 +29,21 @@ def quality_commands(
     benchmark_output: Path | None = None,
     first_user_output: Path | None = None,
     container_output: Path | None = None,
+    self_analysis_output: Path | None = None,
 ) -> list[list[str]]:
+    self_analysis_report = self_analysis_output or Path(tempfile.gettempdir()) / (
+        f"anaxigraph-self-analysis-{os.getpid()}.json"
+    )
     commands = [
         ["uv", "run", "pre-commit", "run", "--all-files"],
+        [
+            "uv",
+            "run",
+            "python",
+            "scripts/check_self_analysis.py",
+            "--output",
+            str(self_analysis_report),
+        ],
         [
             "uv",
             "run",
@@ -253,6 +265,7 @@ def main(argv: list[str] | None = None) -> int:
             benchmark_output=Path(temporary) / "baseline-smoke.json",
             first_user_output=Path(temporary) / "first-user.json",
             container_output=Path(temporary) / "container-smoke.json",
+            self_analysis_output=Path(temporary) / "self-analysis.json",
         )
         for command in commands:
             run(command, root=root)

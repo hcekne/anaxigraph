@@ -206,9 +206,8 @@ Linux x86-64 is release-gated. Linux ARM64, macOS, and WSL2 are best effort; Doc
 recommended macOS path. Native Windows is not supported—use WSL2. See the
 [platform matrix](platform-support.md) for exact support levels.
 
-The current service has no authentication. Keep it on loopback or behind an SSH tunnel. Do not
-publish port 8765 to an untrusted or shared network; authenticated team mode is planned for a
-later security phase.
+The current service is a local sidecar. Keep it on loopback or behind a trusted SSH tunnel. Do not
+publish port 8765 to an untrusted network.
 
 ## Advanced operation
 

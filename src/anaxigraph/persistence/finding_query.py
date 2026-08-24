@@ -11,9 +11,12 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from typing import Any
 
-from anaxigraph.persistence.finding_read import finding_sort_key, read_ranked_findings
+from anaxigraph.persistence.finding_read import (
+    PRIORITY_VERSION,
+    finding_sort_key,
+    read_ranked_findings,
+)
 
-PRIORITY_VERSION = "risk-churn-blast-v1"
 _SEVERITY_RANK = {"info": 0, "warning": 1, "error": 2, "critical": 3}
 _STATUSES = {
     "new",
