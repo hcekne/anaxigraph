@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+import pytest
+
+from anaxigraph.analyzer_capabilities import CapabilitySupport, capabilities_from_dict
+from anaxigraph.analyzers import builtin_registry
 from anaxigraph.analyzers.javascript import JavaScriptAnalyzer
 from anaxigraph.analyzers.python import PythonAnalyzer
 from anaxigraph.analyzers.text import TextAnalyzer
@@ -122,6 +126,80 @@ def test_every_builtin_analyzer_emits_conforming_ir():
         assert validate_analysis(analyzer, path, result) == ()
 
 
+def test_builtin_analyzers_declare_honest_pattern_evidence_capabilities():
+    python = PythonAnalyzer.capabilities
+    javascript = JavaScriptAnalyzer.capabilities
+    text = TextAnalyzer.capabilities
+
+    assert python.support_level("symbols") == "deep"
+    assert python.support_level("calls") == "structural"
+    assert python.support_level("mutation") == "structural"
+    assert python.support_level("data_flow") == "unavailable"
+    assert javascript.support_level("symbols") == "lexical"
+    assert javascript.supports("symbols", "structural") is False
+    assert text.support_level("module_identity") == "deep"
+    assert text.support_level("complexity") == "heuristic"
+    assert text.support_level("symbols") == "unavailable"
+    assert len({item.capabilities.fingerprint for item in builtin_registry().analyzers}) == 3
+
+
+def test_python_reference_analyzer_emits_pattern_neutral_evidence_families():
+    result = PythonAnalyzer().analyze(
+        "tests/test_worker.py",
+        '''"""Worker tests."""
+from typing import Generic, TypeVar
+import asyncio
+import package.service
+
+T = TypeVar("T")
+
+@registry.register
+class Worker(Generic[T]):
+    """Runs typed work."""
+
+    def __init__(self, value: T):
+        self.value = value
+
+    async def run(self) -> T:
+        try:
+            await asyncio.sleep(0)
+            print(self.value)
+            return self.value
+        except RuntimeError:
+            raise ValueError("failed")
+
+def test_worker():
+    if Worker(1):
+        pass
+
+if __name__ == "__main__":
+    test_worker()
+''',
+    )
+
+    facts = {item.fact for item in result.evidence_facts}
+    assert facts >= {
+        "annotations",
+        "async_behavior",
+        "concurrency",
+        "constructors",
+        "control_flow",
+        "decorators",
+        "entry_points",
+        "error_handling",
+        "generics",
+        "inheritance",
+        "module_documentation",
+        "mutation",
+        "registrations",
+        "side_effects",
+        "symbol_documentation",
+        "test_relationships",
+    }
+    assert all(item.subject and item.evidence for item in result.evidence_facts)
+    assert validate_analysis(PythonAnalyzer(), "tests/test_worker.py", result) == ()
+
+
 def test_conformance_reports_contract_drift_without_language_guessing():
     analyzer = PythonAnalyzer()
     result = analyzer.analyze("module.py", "import dependency\n")
@@ -134,3 +212,36 @@ def test_conformance_reports_contract_drift_without_language_guessing():
         "ir_version",
         "dependencies[0].confidence",
     }
+
+    result = analyzer.analyze("module.py", "VALUE = 1\n")
+    result.analyzer_capabilities = replace(
+        analyzer.capabilities,
+        limitations=(*analyzer.capabilities.limitations, "Unexpected limitation."),
+    )
+    issues = validate_analysis(analyzer, "module.py", result)
+    assert "analyzer_capabilities" in {item.field for item in issues}
+
+
+def test_capability_declarations_reject_duplicate_facts():
+    capabilities = PythonAnalyzer.capabilities
+    duplicate = CapabilitySupport("symbols", "structural")
+
+    with pytest.raises(ValueError, match="unique and sorted"):
+        replace(capabilities, facts=(*capabilities.facts, duplicate))
+
+
+def test_persisted_capability_declaration_verifies_its_fingerprint():
+    value = PythonAnalyzer.capabilities.as_dict()
+    assert capabilities_from_dict(value) == PythonAnalyzer.capabilities
+
+    value["fingerprint"] = "0" * 64
+    with pytest.raises(ValueError, match="fingerprint"):
+        capabilities_from_dict(value)
+
+
+def test_registry_rejects_a_capability_declaration_for_another_analyzer():
+    class MismatchedPythonAnalyzer(PythonAnalyzer):
+        capabilities = replace(PythonAnalyzer.capabilities, analyzer="different-analyzer")
+
+    with pytest.raises(ValueError, match="capability identity"):
+        builtin_registry().register(MismatchedPythonAnalyzer())

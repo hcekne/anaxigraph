@@ -118,6 +118,7 @@ class RepositoryScanner:
                 config,
                 git_metadata,
                 analysis_version=ANALYSIS_VERSION,
+                registry=self.registry,
             )
             existing_snapshot = self.database.snapshot_by_fingerprint(repository_id, fingerprint)
             if existing_snapshot:
@@ -166,7 +167,6 @@ class RepositoryScanner:
                 if revision is None and config.semantic.enabled:
                     SemanticEngine(self.database).plan(repository_id, root, config)
                 return stats
-
             prepared = prepare_files(
                 discovered,
                 previous,

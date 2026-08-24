@@ -7,6 +7,8 @@ import json
 from pathlib import PurePosixPath
 from typing import Any
 
+from anaxigraph.analyzer_capabilities import capabilities_from_dict
+from anaxigraph.analyzer_facts import AnalyzerFact
 from anaxigraph.models import (
     IR_SCHEMA_VERSION,
     Dependency,
@@ -48,6 +50,11 @@ def analysis_metadata(
             "ir": {
                 "schema_version": analysis.ir_version,
                 "analyzer_version": analysis.analyzer_version,
+                "analyzer_capabilities": (
+                    analysis.analyzer_capabilities.as_dict()
+                    if analysis.analyzer_capabilities is not None
+                    else None
+                ),
                 "module_identity": (
                     dataclasses.asdict(analysis.module_identity)
                     if analysis.module_identity is not None
@@ -56,6 +63,7 @@ def analysis_metadata(
                 "resolver_context": dataclasses.asdict(context) if context is not None else None,
                 "parse_status": analysis.parse_status,
                 "exports": analysis.exports,
+                "evidence_facts": [dataclasses.asdict(value) for value in analysis.evidence_facts],
                 "symbols": [
                     {
                         "qualified_name": item.qualified_name,
@@ -96,6 +104,7 @@ def analysis_from_stored(value: dict[str, Any]) -> FileAnalysis:
         public_interfaces=json.loads(value["public_interfaces_json"]),
         symbols=symbols,
         dependencies=dependencies,
+        evidence_facts=[AnalyzerFact(**item) for item in ir.get("evidence_facts") or ()],
         parse_error=value["parse_error"],
         analyzer=value["analyzer"],
         metadata=metadata,
@@ -107,6 +116,7 @@ def analysis_from_stored(value: dict[str, Any]) -> FileAnalysis:
         analyzer_version=str(ir.get("analyzer_version") or "legacy"),
         ir_version=str(ir.get("schema_version") or IR_SCHEMA_VERSION),
         resolver_context=_stored_context(context_value),
+        analyzer_capabilities=capabilities_from_dict(ir.get("analyzer_capabilities")),
     )
 
 
@@ -172,8 +182,13 @@ def expand_stored_metadata(
             **context,
         }
     ir.setdefault("exports", list(public_interfaces))
+    ir.setdefault("evidence_facts", [])
     ir.setdefault("schema_version", IR_SCHEMA_VERSION)
     ir.setdefault("analyzer_version", "1")
+    ir.setdefault(
+        "analyzer_capabilities",
+        None,
+    )
     ir.setdefault("symbols", [])
     result["ir"] = ir
     return result

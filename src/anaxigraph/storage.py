@@ -18,6 +18,7 @@ from anaxigraph.persistence.index_facade import (
     SCHEMA_VERSION,
     FindingPageQuery,
     GraphReadCache,
+    empty_pattern_evidence,
     initialize_index,
     install_snapshot_projection,
     read_file_details,
@@ -28,6 +29,7 @@ from anaxigraph.persistence.index_facade import (
     read_group_hierarchy,
     read_modules,
     read_overview,
+    read_pattern_evidence,
     read_snapshots,
     read_timeline,
     search_modules,
@@ -314,6 +316,23 @@ class AnaxiIndex:
             return []
         with self.connect() as connection:
             return read_modules(connection, repository_id, int(snapshot["id"]))
+
+    def pattern_evidence(
+        self,
+        repository_id: int,
+        snapshot_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Return reusable multi-level facts for sparse pattern evaluation."""
+
+        snapshot = self._resolve_snapshot(repository_id, snapshot_id)
+        if snapshot is None:
+            return empty_pattern_evidence(repository_id)
+        with self.connect() as connection:
+            return read_pattern_evidence(
+                connection,
+                repository_id,
+                int(snapshot["id"]),
+            ).as_dict()
 
     def _resolve_snapshot(self, repository_id: int, snapshot_id: int | None) -> sqlite3.Row | None:
         with self.connect() as connection:

@@ -7,12 +7,15 @@ from anaxigraph.persistence.finding_facade import (
     read_finding_page,
     read_findings,
 )
-from anaxigraph.persistence.graph_cache import GraphReadCache
-from anaxigraph.persistence.graph_read import read_graph
+from anaxigraph.persistence.graph_read import GraphReadCache, read_graph
 from anaxigraph.persistence.group_read import read_group_hierarchy
 from anaxigraph.persistence.index_initialization import initialize_index
 from anaxigraph.persistence.module_read import read_modules
 from anaxigraph.persistence.overview_read import read_overview
+from anaxigraph.persistence.pattern_evidence_read import (
+    empty_pattern_evidence,
+    read_pattern_evidence,
+)
 from anaxigraph.persistence.schema import SCHEMA, SCHEMA_VERSION
 from anaxigraph.persistence.search_read import search_modules
 from anaxigraph.persistence.semantic_taxonomy_read import taxonomy_map_payload
@@ -26,6 +29,7 @@ __all__ = [
     "FindingPageQuery",
     "initialize_index",
     "install_snapshot_projection",
+    "empty_pattern_evidence",
     "read_file_details",
     "read_finding",
     "read_finding_page",
@@ -34,6 +38,7 @@ __all__ = [
     "read_group_hierarchy",
     "read_modules",
     "read_overview",
+    "read_pattern_evidence",
     "read_snapshots",
     "read_timeline",
     "search_modules",

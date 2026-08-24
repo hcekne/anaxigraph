@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from anaxigraph.analyzer_capabilities import AnalyzerCapabilities
 from anaxigraph.models import FileAnalysis
 
 
@@ -11,6 +12,7 @@ class LanguageAnalyzer(Protocol):
     name: str
     version: str
     languages: frozenset[str]
+    capabilities: AnalyzerCapabilities
 
     def analyze(self, path: str, content: str) -> FileAnalysis: ...
 
@@ -20,6 +22,11 @@ class AnalyzerRegistry:
         self._by_language: dict[str, LanguageAnalyzer] = {}
 
     def register(self, analyzer: LanguageAnalyzer) -> None:
+        if (
+            analyzer.capabilities.analyzer != analyzer.name
+            or analyzer.capabilities.analyzer_version != analyzer.version
+        ):
+            raise ValueError("analyzer capability identity must match the registered analyzer")
         for language in analyzer.languages:
             self._by_language[language] = analyzer
 

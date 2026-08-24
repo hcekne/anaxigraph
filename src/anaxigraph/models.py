@@ -78,6 +78,7 @@ class FileAnalysis:
     public_interfaces: list[str] = field(default_factory=list)
     symbols: list[Symbol] = field(default_factory=list)
     dependencies: list[Dependency] = field(default_factory=list)
+    evidence_facts: list[Any] = field(default_factory=list)
     parse_error: str | None = None
     analyzer: str = "text"
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -87,6 +88,7 @@ class FileAnalysis:
     analyzer_version: str = "1"
     ir_version: str = IR_SCHEMA_VERSION
     resolver_context: ResolverContext | None = None
+    analyzer_capabilities: Any | None = None
 
 
 @dataclass(frozen=True, slots=True)

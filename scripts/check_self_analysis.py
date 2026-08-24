@@ -16,7 +16,7 @@ from anaxigraph.architecture_models import DEFAULT_RULES, DETECTOR_VERSION
 from anaxigraph.clock import utc_now
 from anaxigraph.config import AnaxiGraphConfig, RuleConfig, load_config
 from anaxigraph.history_discovery import repository_metadata
-from anaxigraph.models import IR_SCHEMA_VERSION
+from anaxigraph.pattern_evidence import PATTERN_CONTRACT_VERSIONS
 from anaxigraph.persistence.finding_read import PRIORITY_VERSION
 from anaxigraph.scanner import ANALYSIS_VERSION, RepositoryScanner
 from anaxigraph.storage import AnaxiIndex
@@ -51,10 +51,17 @@ def analysis_contract(config: AnaxiGraphConfig) -> dict[str, Any]:
     return {
         "gate_version": GATE_VERSION,
         "analysis_version": ANALYSIS_VERSION,
-        "ir_schema_version": IR_SCHEMA_VERSION,
+        **PATTERN_CONTRACT_VERSIONS,
         "detector_version": DETECTOR_VERSION,
         "priority_version": PRIORITY_VERSION,
-        "analyzers": {item.name: str(item.version) for item in sorted(analyzers, key=_name)},
+        "analyzers": {
+            item.name: {
+                "version": str(item.version),
+                "capability_schema": item.capabilities.schema_version,
+                "capability_fingerprint": item.capabilities.fingerprint,
+            }
+            for item in sorted(analyzers, key=_name)
+        },
         "rules_sha256": hashlib.sha256(encoded).hexdigest(),
     }
 

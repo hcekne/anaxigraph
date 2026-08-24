@@ -76,6 +76,7 @@ def test_compact_fact_metadata_expands_at_the_snapshot_boundary(repository, data
     assert "symbols" not in stored_ir
     assert projected_ir["module_identity"]["path"] == "pkg/util.py"
     assert projected_ir["exports"] == json.loads(projected["public_interfaces_json"])
+    assert projected_ir["analyzer_capabilities"]["fingerprint"]
 
 
 def test_history_import_rebases_an_existing_current_snapshot(repository, database):

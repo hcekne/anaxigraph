@@ -6,6 +6,7 @@ import hashlib
 import re
 from pathlib import PurePosixPath
 
+from anaxigraph.analyzer_capabilities import declare_capabilities
 from anaxigraph.ir import module_identity, resolver_context, symbol_visibility
 from anaxigraph.languages import detect_language
 from anaxigraph.models import Dependency, FileAnalysis, Symbol
@@ -41,6 +42,31 @@ class JavaScriptAnalyzer:
     name = "builtin-js-lexer"
     version = "1"
     languages = frozenset({"javascript", "javascriptreact", "typescript", "typescriptreact"})
+    capabilities = declare_capabilities(
+        name,
+        version,
+        "lexical",
+        deep=("module_identity",),
+        lexical=(
+            "calls",
+            "complexity",
+            "entry_points",
+            "exports",
+            "imports",
+            "module_documentation",
+            "signatures",
+            "source_spans",
+            "symbol_kind",
+            "symbol_visibility",
+            "symbols",
+            "types",
+        ),
+        heuristic=("side_effects",),
+        limitations=(
+            "Regex extraction cannot prove nested syntax, overloads, or complete call dispatch.",
+            "TypeScript types, decorators, control flow, and mutation are not structural facts.",
+        ),
+    )
 
     def analyze(self, path: str, content: str) -> FileAnalysis:
         language = detect_language(path) or "javascript"
@@ -85,6 +111,7 @@ class JavaScriptAnalyzer:
             parse_status="lexical",
             analyzer_version=self.version,
             resolver_context=resolver_context(identity, import_aliases=aliases),
+            analyzer_capabilities=self.capabilities,
         )
 
 

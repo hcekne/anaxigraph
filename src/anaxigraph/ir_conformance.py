@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass
 from typing import Protocol
 
+from anaxigraph.analyzer_capabilities import CAPABILITY_FACTS, AnalyzerCapabilities
 from anaxigraph.models import (
     IR_SCHEMA_VERSION,
     PARSE_STATUSES,
@@ -31,6 +32,7 @@ class AnalyzerContract(Protocol):
     name: str
     version: str
     languages: frozenset[str]
+    capabilities: AnalyzerCapabilities
 
 
 def validate_analysis(
@@ -53,6 +55,17 @@ def validate_analysis(
         "analyzer_version",
         "result version must match its analyzer",
     )
+    require(
+        analyzer.capabilities.analyzer == analyzer.name
+        and analyzer.capabilities.analyzer_version == analyzer.version,
+        "analyzer_capabilities",
+        "declaration identity must match its analyzer",
+    )
+    require(
+        analysis.analyzer_capabilities == analyzer.capabilities,
+        "analyzer_capabilities",
+        "result capability declaration must match its analyzer",
+    )
     require(analysis.language in analyzer.languages, "language", "language is not declared")
     require(bool(_SHA256.fullmatch(analysis.structural_hash)), "structural_hash", "not SHA-256")
     require(analysis.parse_status in PARSE_STATUSES, "parse_status", "unknown parse status")
@@ -64,6 +77,7 @@ def validate_analysis(
     issues.extend(_identity_issues(path, analysis))
     issues.extend(_symbol_issues(analysis))
     issues.extend(_reference_issues(analysis))
+    issues.extend(_fact_issues(analysis, analyzer.capabilities))
     return tuple(issues)
 
 
@@ -111,6 +125,31 @@ def _reference_issues(analysis: FileAnalysis) -> list[ConformanceIssue]:
             issues.append(ConformanceIssue(f"{prefix}.line", "line cannot be negative"))
         if not reference.evidence:
             issues.append(ConformanceIssue(f"{prefix}.evidence", "source evidence is required"))
+    return issues
+
+
+def _fact_issues(
+    analysis: FileAnalysis,
+    capabilities: AnalyzerCapabilities,
+) -> list[ConformanceIssue]:
+    issues = []
+    seen: set[tuple[str, str, str, int]] = set()
+    for index, fact in enumerate(analysis.evidence_facts):
+        prefix = f"evidence_facts[{index}]"
+        identity = (fact.fact, fact.subject, fact.value, fact.line)
+        if fact.fact not in CAPABILITY_FACTS:
+            issues.append(ConformanceIssue(f"{prefix}.fact", "unknown capability fact"))
+        elif not capabilities.supports(fact.fact):
+            issues.append(ConformanceIssue(f"{prefix}.fact", "fact is not declared available"))
+        if not fact.subject or not fact.value or not fact.evidence:
+            issues.append(ConformanceIssue(prefix, "fact identity or evidence is empty"))
+        if fact.line < 0 or fact.end_line < fact.line:
+            issues.append(ConformanceIssue(f"{prefix}.span", "invalid source span"))
+        if not 0 <= fact.confidence <= 1:
+            issues.append(ConformanceIssue(f"{prefix}.confidence", "outside 0..1"))
+        if identity in seen:
+            issues.append(ConformanceIssue(prefix, "duplicate analyzer fact"))
+        seen.add(identity)
     return issues
 
 

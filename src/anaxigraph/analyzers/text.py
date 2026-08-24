@@ -9,6 +9,7 @@ from pathlib import PurePosixPath
 
 import yaml
 
+from anaxigraph.analyzer_capabilities import declare_capabilities
 from anaxigraph.ir import module_identity, resolver_context
 from anaxigraph.models import Dependency, FileAnalysis
 
@@ -56,6 +57,17 @@ class TextAnalyzer:
             "makefile",
         }
     )
+    capabilities = declare_capabilities(
+        name,
+        version,
+        "inventory",
+        deep=("module_identity",),
+        heuristic=("complexity", "imports", "module_documentation"),
+        limitations=(
+            "Language-specific symbols, calls, types, and control flow are not extracted.",
+            "Import evidence is opportunistic for CSS and Markdown rather than universal.",
+        ),
+    )
 
     def analyze(self, path: str, content: str) -> FileAnalysis:
         language = _language_for_path(path)
@@ -88,6 +100,7 @@ class TextAnalyzer:
             parse_status="parse_error" if parse_error else "fallback",
             analyzer_version=self.version,
             resolver_context=resolver_context(identity),
+            analyzer_capabilities=self.capabilities,
         )
 
 

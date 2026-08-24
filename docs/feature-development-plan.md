@@ -88,7 +88,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 160 tests passing at 89.02% coverage plus 12 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, and release-identity paths are regression-tested |
+| Test health | 228 tests passing at 88.92% coverage plus 12 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, and release-identity paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -235,7 +235,7 @@ The point is that the decision is written down, not that it happens on a schedul
 | 3b | Dashboard/evaluator decomposition and self-analysis | Frontend and core evaluators stay maintainable; AnaxiGraph checks itself in CI | Pattern evidence work |
 | 4A | Pattern-ready evidence contract | Analyzers declare comparable capabilities and expose reusable evidence from function to repository scale | Pattern intelligence and further parser adapters |
 | 5A | Bounded graph and operational APIs | Large local indexes remain bounded from database to browser and the API composition root stays small | Pattern query surfaces |
-| 6 | Architect-grade semantic and pattern intelligence | An extensible catalog of at least 100 patterns is evaluated across code hierarchies and independently reviewed by agents | Parser breadth and autonomous workflow expansion |
+| 6 | Architect-grade semantic and pattern intelligence | An extensible catalog of at least 120 patterns is evaluated across code hierarchies and independently reviewed by agents | Parser breadth and autonomous workflow expansion |
 | 4B | Core parser-backed language expansion | JavaScript/TypeScript, Go, Rust, and Java produce honest structural graphs | Broad core-language claims |
 | 7 | Temporal architecture intelligence | History becomes an explanatory biography, not just replay | Client-facing temporal positioning |
 | 8 | Long-tail languages, non-code context, and extensions | Additional languages and operational context join code without weakening evidence semantics | 1.0 scope freeze |
@@ -1419,7 +1419,7 @@ architecture worse; it does not pretend all acknowledged or planned work has alr
 
 # Phase 4A — pattern-ready evidence contract
 
-**Status:** ACTIVE
+**Status:** COMPLETE on 24 August 2026
 
 **Goal:** give pattern evaluation a small, language-neutral evidence vocabulary that works from a
 function or type through module, subsystem, area, and repository scope.
@@ -1462,11 +1462,24 @@ Features are calculated once per changed target and reused across catalog candid
 - Missing parser capability produces an explicit unavailable or lower-confidence result.
 - The contract adds no new parser dependency and no implementation module above 350 lines.
 
+### Phase 4A closure evidence
+
+| Contract | Delivered evidence |
+|---|---|
+| Honest analyzer depth | Every built-in analyzer publishes a validated `analyzer-capabilities-v1` declaration with per-fact depth, limitations, and a content fingerprint; the full declaration is persisted with immutable file facts and unavailable facts stay explicit |
+| Pattern-neutral Python evidence | The Python AST reference emits documentation, decorators, annotations, inheritance, constructors, entry points, mutation, side effects, error/async behavior, control flow, registrations, generics, concurrency, and test relationships through generic `AnalyzerFact` records; conformance rejects undeclared, malformed, or duplicate facts |
+| Targeted analyzer invalidation | A capability-only Python contract change reanalyzes exactly the five Python modules in the mixed fixture and reuses the other four modules; analyzer identity, version, capability schema, and fingerprint all participate in reuse |
+| Stable six-level identity | `pattern-target-v1` gives symbol, type, module, subsystem, area, and repository targets deterministic repository-scoped keys that exclude database row ids and source lines; methods attach to their owning type where the analyzer can prove it |
+| Reusable evidence | `pattern-evidence-v1` projects IR/analyzer facts, graph shape, coverage, Git history, semantic dossiers, and architecture placement once per target with confidence, availability, provenance, and deduplicated capability contracts |
+| Incremental parent refresh | A fixture edit changes the function and module fingerprints plus their subsystem/area/repository ancestors while an unrelated module fingerprint remains byte-identical; catalog candidates can reuse every unchanged projection |
+| Real-repository scale | A fresh self projection covers 285 modules as 2,247 stable targets: 1,800 symbols, 111 types, 285 modules, 25 subsystems, 25 areas, and one repository, backed by three capability contracts |
+| Maintainability and verification | The Python adapter is 268 lines after extracting cohesive syntax/evidence helpers; every new implementation module is at most 350 lines, no parser dependency was added, 228 tests pass at 88.92% coverage, and deterministic self-analysis passes with 50 governed findings and no regression |
+
 ---
 
 # Phase 5A — bounded graph and operational APIs
 
-**Status:** BLOCKED BY PHASE 4A
+**Status:** ACTIVE
 
 **Goal:** keep large local indexes bounded from database to browser and expose a compact query plane
 that pattern intelligence can reuse.
@@ -2001,8 +2014,8 @@ queue and the document cannot drift apart.
 | 34 | **COMPLETE** — First-user, idempotency, Docker/local, skill, quality, immutable 0.2.0 publication, public install, and versioned container evidence pass | Phase 3 gate |
 | 35 | **COMPLETE** — Decompose architecture evaluation, agent intelligence, and dashboard responsibilities without growing another legacy ratchet | §3b.1 |
 | 36 | **COMPLETE** — Add deterministic self-analysis baseline comparison, regression fixtures, and retained CI evidence | §3b.2 |
-| 37 | **NEXT** — Add stable multi-level target identities, analyzer capabilities, and reusable pattern evidence projections | Phase 4A |
-| 38 | Bound graph queries and operational work, then reduce `api.py` to a small composition root | Phase 5A |
+| 37 | **COMPLETE** — Add stable multi-level target identities, analyzer capabilities, and reusable pattern evidence projections | Phase 4A |
+| 38 | **NEXT** — Bound graph queries and operational work, then reduce `api.py` to a small composition root | Phase 5A |
 | 39 | Replace semantic mixin composition while preserving the durable external work protocol | §6.1–6.2 |
 | 40 | Ship and validate the declarative catalog of at least 120 patterns | §6.3 |
 | 41 | Add sparse multi-level candidates, separate ratings, and independent agent critique | §6.4–6.6 |

@@ -11,6 +11,7 @@ from typing import Any
 
 from anaxigraph import __version__
 from anaxigraph.analyzers import AnalyzerRegistry
+from anaxigraph.analyzers.base import LanguageAnalyzer
 from anaxigraph.clock import utc_now
 from anaxigraph.history_discovery import DiscoveredFile
 from anaxigraph.ir import analysis_from_stored, analyze_with_contract
@@ -40,7 +41,10 @@ def prepare_files(
     prepared: list[PreparedFile] = []
     for item in discovered:
         prior = previous.get(item.path)
-        if _can_reuse(prior, item, analysis_version):
+        analyzer = registry.for_language(item.language)
+        if analyzer is None:
+            raise RuntimeError(f"No analyzer registered for {item.language}")
+        if _can_reuse(prior, item, analysis_version, analyzer):
             prepared.append(
                 PreparedFile(
                     discovered=item,
@@ -52,9 +56,6 @@ def prepare_files(
                 )
             )
             continue
-        analyzer = registry.for_language(item.language)
-        if analyzer is None:
-            raise RuntimeError(f"No analyzer registered for {item.language}")
         analysis = analyze_with_contract(
             analyzer,
             item.path,
@@ -106,6 +107,7 @@ def content_fingerprint(
     git_metadata: Any,
     *,
     analysis_version: int,
+    registry: AnalyzerRegistry,
 ) -> str:
     value = hashlib.sha256()
     value.update(_version_prefix(analysis_version))
@@ -115,6 +117,11 @@ def content_fingerprint(
         value.update(item.path.encode("utf-8", errors="surrogateescape"))
         value.update(b"\0")
         value.update(item.raw_hash.encode())
+        value.update(b"\0")
+        analyzer = registry.for_language(item.language)
+        if analyzer is None:
+            raise RuntimeError(f"No analyzer registered for {item.language}")
+        value.update(_analyzer_contract(analyzer).encode())
     return value.hexdigest()
 
 
@@ -129,13 +136,24 @@ def _can_reuse(
     prior: dict[str, Any] | None,
     item: DiscoveredFile,
     analysis_version: int,
+    analyzer: LanguageAnalyzer,
 ) -> bool:
     metadata = json.loads(prior["metadata_json"] or "{}") if prior else {}
+    ir = metadata.get("ir") or {}
+    capabilities = ir.get("analyzer_capabilities") or {}
     return bool(
         prior
         and prior["raw_hash"] == item.raw_hash
         and metadata.get("analysis_version") == analysis_version
+        and prior.get("analyzer") == analyzer.name
+        and str(ir.get("analyzer_version") or "legacy") == analyzer.version
+        and capabilities.get("schema_version") == analyzer.capabilities.schema_version
+        and capabilities.get("fingerprint") == analyzer.capabilities.fingerprint
     )
+
+
+def _analyzer_contract(analyzer: LanguageAnalyzer) -> str:
+    return ":".join((analyzer.name, analyzer.version, analyzer.capabilities.fingerprint))
 
 
 def _version_prefix(analysis_version: int) -> bytes:

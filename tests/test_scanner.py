@@ -80,6 +80,7 @@ def test_scan_persists_graph_metrics_coverage_and_findings(repository, database)
     assert metadata["analysis_version"] == 4
     assert metadata["ir"]["schema_version"] == "anaxigraph-ir-v1"
     assert metadata["ir"]["analyzer_version"] == "1"
+    assert metadata["ir"]["analyzer_capabilities"] == PythonAnalyzer.capabilities.as_dict()
     assert metadata["ir"]["module_identity"]["canonical_name"] == "pkg.core"
     assert metadata["ir"]["resolver_context"]["configured_aliases"] == [["@/", "web/"]]
     assert stored["symbols"][0]["visibility"] == "public"

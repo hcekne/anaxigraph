@@ -8,6 +8,8 @@
     "foundation": {
       "modules": [
         "anaxigraph",
+        "anaxigraph.analyzer_capabilities",
+        "anaxigraph.analyzer_facts",
         "anaxigraph.agent_lexicon",
         "anaxigraph.clock",
         "anaxigraph.config",
@@ -17,6 +19,8 @@
         "anaxigraph.ir_serialization",
         "anaxigraph.languages",
         "anaxigraph.models",
+        "anaxigraph.pattern_evidence",
+        "anaxigraph.pattern_targets",
         "anaxigraph.registry",
         "anaxigraph.relationships",
         "anaxigraph.semantic_contract",
