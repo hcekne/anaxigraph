@@ -80,14 +80,19 @@ relationship, prompt-contract, and intent fingerprints reuse current dossiers an
 paying to reread every module. Executor and model names are recorded as provenance, but do not
 participate in freshness.
 
-Codex can also drive the same durable queue from one foreground command:
+Codex can also drive the same durable queue from one detached host command:
 
 ```bash
-anaxigraph understand . --until-complete
+anaxigraph understand . --executor codex --model gpt-5.6-terra \
+  --reasoning-effort medium --background
+anaxigraph semantic-status .
 ```
 
-Inside a Codex session the default `--executor auto` selects the authenticated Codex CLI. Pass
-`--model` only when you want to override the model for this run. Pass `--executor mcp` to keep
+Inside a Codex session the default `--executor auto` selects the authenticated Codex CLI. The
+shown model is a per-run example, never a repository or product default. Use `--model` and
+`--reasoning-effort` only when you want to select them for this run. `--background` starts a host
+worker that continues after the invoking coding-agent session exits; `semantic-status` reports its
+PID, log, exact index authority, progress, and terminal state. Pass `--executor mcp` to keep
 inference in the already-connected agent instead. MCP mode only prepares the queue and returns
 `agent_action_required`; the agent must continue WORK → optional EVIDENCE → SUBMIT until the
 terminal status before reporting success.

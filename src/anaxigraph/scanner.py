@@ -14,6 +14,7 @@ from anaxigraph.history_discovery import (
     DiscoveredFile,
     DiscoveryResult,
     apply_invalidation_plan,
+    available_changes,
     discover_files,
     repository_metadata,
 )
@@ -116,38 +117,9 @@ class RepositoryScanner:
                         (json.dumps(snapshot_metadata, sort_keys=True), existing_id),
                     )
                 if revision is None:
-                    self.database.set_current_snapshot(repository_id, existing_id)
-                    with self.database.transaction() as connection:
-                        ingest_git_history(connection, repository_id=repository_id, root=root)
-                        connection.execute(
-                            "DELETE FROM metrics WHERE snapshot_id = ?", (existing_id,)
-                        )
-                        connection.execute(
-                            "DELETE FROM coverage_measurements WHERE snapshot_id = ?",
-                            (existing_id,),
-                        )
-                        artifacts = snapshot_artifacts(connection, existing_id)
-                        refresh_snapshot_intelligence(
-                            connection,
-                            repository_id=repository_id,
-                            snapshot_id=existing_id,
-                            manage_finding_lifecycle=True,
-                            root=root,
-                            config=config,
-                            artifacts=artifacts,
-                        )
-                        connection.execute(
-                            """
-                            UPDATE snapshots SET snapshot_kind = 'working_tree', dirty = ?,
-                                branch = ?, analysis_timestamp = ? WHERE id = ?
-                            """,
-                            (
-                                int(git_metadata.dirty),
-                                git_metadata.branch,
-                                utc_now(),
-                                existing_id,
-                            ),
-                        )
+                    self._refresh_existing_snapshot(
+                        repository_id, existing_id, root, git_metadata, config
+                    )
                 with self.database.connect() as connection:
                     counts = snapshot_counts(connection, existing_id)
                 duration = int((time.monotonic() - started) * 1_000)
@@ -183,6 +155,7 @@ class RepositoryScanner:
                 analysis_version=ANALYSIS_VERSION,
             )
             apply_invalidation_plan(prepared, previous)
+            git_changes = available_changes(root)
             with self.database.transaction() as connection:
                 snapshot_id = insert_snapshot(
                     connection,
@@ -222,7 +195,11 @@ class RepositoryScanner:
                     repository_id=repository_id,
                     config=config,
                 )
-                ingest_git_history(connection, repository_id=repository_id, root=root)
+                ingest_git_history(
+                    connection,
+                    repository_id=repository_id,
+                    changes=git_changes,
+                )
                 findings, coverage_count = refresh_snapshot_intelligence(
                     connection,
                     repository_id=repository_id,
@@ -283,6 +260,44 @@ class RepositoryScanner:
                 error=f"{type(exc).__name__}: {exc}"[:4_000],
             )
             raise
+
+    def _refresh_existing_snapshot(
+        self,
+        repository_id: int,
+        snapshot_id: int,
+        root: Path,
+        git_metadata: Any,
+        config: AnaxiGraphConfig,
+    ) -> None:
+        git_changes = available_changes(root)
+        self.database.set_current_snapshot(repository_id, snapshot_id)
+        with self.database.transaction() as connection:
+            ingest_git_history(
+                connection,
+                repository_id=repository_id,
+                changes=git_changes,
+            )
+            connection.execute("DELETE FROM metrics WHERE snapshot_id = ?", (snapshot_id,))
+            connection.execute(
+                "DELETE FROM coverage_measurements WHERE snapshot_id = ?", (snapshot_id,)
+            )
+            artifacts = snapshot_artifacts(connection, snapshot_id)
+            refresh_snapshot_intelligence(
+                connection,
+                repository_id=repository_id,
+                snapshot_id=snapshot_id,
+                manage_finding_lifecycle=True,
+                root=root,
+                config=config,
+                artifacts=artifacts,
+            )
+            connection.execute(
+                """
+                UPDATE snapshots SET snapshot_kind = 'working_tree', dirty = ?,
+                    branch = ?, analysis_timestamp = ? WHERE id = ?
+                """,
+                (int(git_metadata.dirty), git_metadata.branch, utc_now(), snapshot_id),
+            )
 
     def _discover_frame(
         self,

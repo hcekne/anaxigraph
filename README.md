@@ -80,18 +80,24 @@ codex
 > Use AnaxiGraph to build or resume the semantic baseline for this repository, using your own
 > model context and tokens. Do not edit source while mapping it; continue until no work remains.
 
-Or have Codex execute the complete durable queue from one command:
+Or launch a complete queue worker that survives the invoking Codex session:
 
 ```bash
-anaxigraph understand . --until-complete
+anaxigraph understand . --executor codex --model gpt-5.6-terra \
+  --reasoning-effort medium --background
+anaxigraph semantic-status .
 ```
 
 With `semantic.provider: agent`, `understand` auto-detects an invoking Codex or Claude session and
 uses that authenticated local CLI as a read-only semantic executor. Use `--executor codex` or
 `--executor claude` to select one explicitly. Use `--executor mcp` when the already-connected agent
 should perform the MCP work loop itself; that mode returns `status: agent_action_required` until
-the agent has actually submitted every queued artifact. `--model` is an optional choice for that
-run, not repository semantic policy; changing executor or model never makes a dossier stale.
+the agent has actually submitted every queued artifact. `--background` implies the complete queue,
+records a durable run handoff in user state, and keeps the host worker alive if the coding-agent
+session exits. `semantic-status` reports that worker's PID, log, terminal state, exact index
+authority, model, and reasoning effort. The model above is an example selected for that run, not a
+product default: `--model` and `--reasoning-effort` are runtime choices and changing either never
+makes a dossier stale.
 
 When the loopback dashboard is already running, `understand` matches the checkout to its service by
 Git remote identity and executes against that sidecar's AnaxiIndex—even when the container sees the

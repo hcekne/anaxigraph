@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import contextlib
+import itertools
 import json
 import os
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -16,6 +18,32 @@ from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
 from anaxigraph.semantic import create_semantic_provider
 from anaxigraph.semantic_graph import SupersededSemanticJob
 from anaxigraph.semantic_request_analysis import analyze_semantic_request
+
+
+def _bootstrap_state(
+    limit: int | None,
+    semantic: SemanticConfig,
+    until_complete: bool,
+) -> tuple[int | None, dict[str, int], list[str]]:
+    bounded = max(1, limit if limit is not None else semantic.max_jobs_per_run)
+    remaining = None if until_complete else bounded
+    total = {"planned": 0, "processed": 0, "completed": 0, "failed": 0, "retry": 0}
+    return remaining, total, []
+
+
+def _merge_run_counts(total: dict[str, int], run: dict[str, Any]) -> None:
+    for key in ("processed", "completed", "failed", "retry"):
+        total[key] += int(run[key])
+
+
+def _stop_bootstrap(plan_only: bool, plan: Any, remaining: int | None) -> bool:
+    paused = bool(plan.status.get("budget", {}).get("paused"))
+    exhausted = remaining is not None and remaining <= 0
+    return plan_only or plan.active_jobs == 0 or exhausted or paused
+
+
+def _bootstrap_passes(until_complete: bool, semantic: SemanticConfig) -> Any:
+    return itertools.count() if until_complete else range(10 + semantic.taxonomy.review_passes)
 
 
 class SemanticRunnerMixin:
@@ -97,12 +125,9 @@ class SemanticRunnerMixin:
             plan_only = True
         if execution_semantic is not None and semantic.provider != "agent":
             raise ValueError("A local agent executor can only bridge semantic.provider=agent")
-        bounded = max(1, limit if limit is not None else semantic.max_jobs_per_run)
-        remaining = None if until_complete else bounded
-        total = {"planned": 0, "processed": 0, "completed": 0, "failed": 0, "retry": 0}
-        stages = []
+        remaining, total, stages = _bootstrap_state(limit, semantic, until_complete)
         first = True
-        for _ in range(10 + semantic.taxonomy.review_passes):
+        for _ in _bootstrap_passes(until_complete, semantic):
             plan = self.plan(
                 repository_id,
                 repository,
@@ -113,7 +138,7 @@ class SemanticRunnerMixin:
             first = False
             total["planned"] += plan.enqueued
             stages.append(plan.stage)
-            if plan_only or plan.active_jobs == 0 or (remaining is not None and remaining <= 0):
+            if _stop_bootstrap(plan_only, plan, remaining):
                 break
             run_limit = plan.active_jobs if remaining is None else min(remaining, plan.active_jobs)
             run = self.run_jobs(
@@ -123,11 +148,13 @@ class SemanticRunnerMixin:
                 limit=run_limit,
                 execution_semantic=execution_semantic,
             )
-            for key in ("processed", "completed", "failed", "retry"):
-                total[key] += int(run[key])
+            _merge_run_counts(total, run)
             if remaining is not None:
                 remaining -= int(run["processed"])
             if run["processed"] == 0:
+                if until_complete:
+                    time.sleep(2)
+                    continue
                 break
         total["stages"] = list(dict.fromkeys(stages))
         total["semantic"] = self.status(repository_id, semantic)

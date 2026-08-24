@@ -105,6 +105,10 @@ class CodexSemanticProvider:
                 ]
                 if self.config.model:
                     command.extend(("--model", self.config.model))
+                if self.config.reasoning_effort:
+                    command.extend(
+                        ("--config", f'model_reasoning_effort="{self.config.reasoning_effort}"')
+                    )
                 command.append("-")
                 completed = subprocess.run(
                     command,

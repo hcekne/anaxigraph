@@ -172,15 +172,20 @@ passes run without a human approval step; deterministic validation finalizes map
 The queue survives container and agent-session restarts. Read the result with
 `ANAXIGRAPH_TAXONOMY` or the dashboard's map-layer selector.
 
-The foreground host command can drive this same volume-backed queue:
+The host can launch a worker that drives this same volume-backed queue independently of the
+invoking coding-agent session:
 
 ```bash
-anaxigraph understand . --until-complete
+anaxigraph understand . --executor codex --model gpt-5.6-terra \
+  --reasoning-effort medium --background
+anaxigraph semantic-status .
 ```
 
 It matches the host checkout to `/repo` by canonical Git remote identity, asks the sidecar to scan
 and prepare current work synchronously, then runs the authenticated host Codex/Claude executor and
-submits each validated result through AnaxiMCP. `--model` is runtime provenance only. Pass
+submits each validated result through AnaxiMCP. The shown model is a per-run example, not a baked-in
+default. `--model` and `--reasoning-effort` are runtime provenance only; `--background` persists the
+worker PID, log, exact authority, and terminal result outside the chat session. Pass
 `--service-url` for a non-default endpoint or `--db` only to intentionally bypass the sidecar.
 
 For unattended reconciliation instead, use `provider: openai` or `provider: anthropic`, set a

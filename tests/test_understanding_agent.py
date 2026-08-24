@@ -135,6 +135,25 @@ def test_local_codex_executor_can_complete_an_agent_funded_queue(repository, dat
             )
 
     monkeypatch.setattr("anaxigraph.semantic_runner.create_semantic_provider", lambda _: Provider())
+    original_run_jobs = SemanticEngine.run_jobs
+    attempts = 0
+
+    def briefly_unclaimable(self, *args, **kwargs):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            return {
+                "processed": 0,
+                "completed": 0,
+                "failed": 0,
+                "retry": 0,
+                "semantic": self.status(stats.repository_id, config.semantic),
+            }
+        return original_run_jobs(self, *args, **kwargs)
+
+    sleeps = []
+    monkeypatch.setattr(SemanticEngine, "run_jobs", briefly_unclaimable)
+    monkeypatch.setattr("anaxigraph.semantic_runner.time.sleep", sleeps.append)
     execution = replace(config.semantic, provider="codex", model="test-model")
     completed = SemanticEngine(database).bootstrap(
         stats.repository_id,
@@ -145,6 +164,7 @@ def test_local_codex_executor_can_complete_an_agent_funded_queue(repository, dat
     )
 
     assert completed["semantic"]["semantically_ready"] is True
+    assert sleeps == [2]
     assert {"intrinsic", "context", "taxonomy_proposal", "taxonomy_review", "synthesis"} <= set(
         calls
     )

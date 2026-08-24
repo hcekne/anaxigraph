@@ -113,6 +113,8 @@
         "anaxigraph.local_runtime",
         "anaxigraph.mcp_server",
         "anaxigraph.onboarding_cli",
+        "anaxigraph.semantic_background",
+        "anaxigraph.semantic_execution",
         "anaxigraph.semantic_remote_worker",
         "anaxigraph.semantic_service",
         "anaxigraph.up_cli"

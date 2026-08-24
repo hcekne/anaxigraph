@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 from typing import Any
 
 from anaxigraph import __version__
 from anaxigraph.clock import utc_now
-from anaxigraph.history_discovery import available_changes
 from anaxigraph.ir import analysis_metadata, artifact_type
 from anaxigraph.scan_preparation import PreparedFile
 
@@ -178,9 +177,8 @@ def ingest_git_history(
     connection: sqlite3.Connection,
     *,
     repository_id: int,
-    root: Path,
+    changes: list[Any],
 ) -> None:
-    changes = available_changes(root)
     connection.executemany(
         """
         INSERT OR IGNORE INTO git_changes(

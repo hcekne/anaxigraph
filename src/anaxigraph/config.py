@@ -92,6 +92,7 @@ class SemanticConfig:
     provider: str = "command"
     command: tuple[str, ...] = ()
     model: str = ""
+    reasoning_effort: str = ""
     prompt_version: str = "v1"
     timeout_seconds: int = 120
     refresh: str = "manual"

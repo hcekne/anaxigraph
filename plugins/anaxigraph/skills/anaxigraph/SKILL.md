@@ -48,11 +48,27 @@ model-derived interpretations visibly separate.
 This workflow writes interpretations only to AnaxiIndex. Do not edit repository source while
 performing it.
 
-If the user asks you to run `anaxigraph understand` and its JSON result has
-`status: agent_action_required`, the command is not the completed task. Follow its `next_action`
-with the MCP workflow below and do not return to the user until the queue reaches a terminal state.
-If the command used a local Codex/Claude executor, wait for it and verify `complete: true`; a
-`partial` result also requires continuation.
+For a full baseline or resume request, prefer the durable host executor whenever the authenticated
+Codex or Claude CLI is available. Do not manually consume a repository-sized queue inside the
+lifetime of this chat session:
+
+1. Select the local executor from the current client or the user's instruction. Model and reasoning
+   effort are per-run inputs: never bake either into repository policy or invent a model name. If
+   the user selected `gpt-5.6-terra` with medium effort, pass those exact values.
+2. Run `anaxigraph understand <repository> --executor <executor> --background --json`, adding
+   `--model <model>` and, for Codex, `--reasoning-effort <effort>` when selected. Background mode
+   implies the complete queue and survives this coding-agent session.
+3. Verify the returned `index` is the intended local index or sidecar service. Preserve
+   `execution_run.run_id`, PID, log path, model, effort, and authority in any handoff.
+4. Call `anaxigraph semantic-status <repository> --json` for progress. A running detached worker is
+   real continuing work, not completion; only `semantically_ready: true` is success. If this
+   session ends, a later agent reads the same `execution_run` and queue instead of starting over.
+
+Use the direct MCP loop below only when no authenticated local executor is available or the user
+explicitly selected `--executor mcp`. If `anaxigraph understand` returns
+`status: agent_action_required`, the command only planned work and is not the completed task.
+
+### Manual MCP fallback
 
 1. Call `ANAXIGRAPH_SEMANTIC_SCHEMA` once per schema version in the current session. It contains
    dossier, taxonomy, and taxonomy-review schemas; the live schema is authoritative over this skill.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -92,7 +93,7 @@ def prepare_semantic_service(
             "wait": "true",
         }
     )
-    value = _request_json(
+    value = _request_json_with_retries(
         f"{target.base_url}/api/semantic/refresh?{query}",
         method="POST",
         timeout=timeout,
@@ -100,6 +101,21 @@ def prepare_semantic_service(
     if not isinstance(value, dict):
         raise ValueError("AnaxiGraph service returned an invalid semantic preparation result")
     return value
+
+
+def _request_json_with_retries(url: str, **options: Any) -> Any:
+    for attempt in range(4):
+        try:
+            return _request_json(url, **options)
+        except (OSError, ValueError) as exc:
+            transient = isinstance(exc, OSError) or any(
+                marker in str(exc)
+                for marker in ("HTTP 429", "HTTP 500", "HTTP 502", "HTTP 503", "HTTP 504")
+            )
+            if not transient or attempt == 3:
+                raise
+            time.sleep(0.25 * (2**attempt))
+    raise RuntimeError("Unreachable semantic service retry state")
 
 
 def service_semantic_status(

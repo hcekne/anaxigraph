@@ -11,6 +11,7 @@ import yaml
 import anaxigraph.cli_semantic_commands as semantic_commands
 import anaxigraph.cli_server_commands as server_commands
 import anaxigraph.cli_services as cli_services
+import anaxigraph.semantic_execution as semantic_execution
 from anaxigraph.cli import main
 from anaxigraph.cli_common import default_db
 from anaxigraph.config import SemanticConfig
@@ -113,9 +114,11 @@ def test_semantic_handlers_plan_report_run_and_resume(
 
 
 def test_understand_auto_detects_codex_as_the_local_agent_executor(monkeypatch):
-    args = argparse.Namespace(executor="auto", model="test-model", plan_only=False)
+    args = argparse.Namespace(
+        executor="auto", model="test-model", reasoning_effort="medium", plan_only=False
+    )
     monkeypatch.setenv("CODEX_THREAD_ID", "test-thread")
-    monkeypatch.setattr(semantic_commands.shutil, "which", lambda command: f"/bin/{command}")
+    monkeypatch.setattr(semantic_execution.shutil, "which", lambda command: f"/bin/{command}")
 
     execution, mode = semantic_commands._understand_execution(
         args, SemanticConfig(enabled=True, provider="agent")
@@ -124,11 +127,12 @@ def test_understand_auto_detects_codex_as_the_local_agent_executor(monkeypatch):
     assert mode == "codex"
     assert execution.provider == "codex"
     assert execution.model == "test-model"
+    assert execution.reasoning_effort == "medium"
 
 
 def test_agent_policy_model_cannot_pin_the_runtime_executor(monkeypatch):
-    args = argparse.Namespace(executor="codex", model=None, plan_only=False)
-    monkeypatch.setattr(semantic_commands.shutil, "which", lambda command: f"/bin/{command}")
+    args = argparse.Namespace(executor="codex", model=None, reasoning_effort=None, plan_only=False)
+    monkeypatch.setattr(semantic_execution.shutil, "which", lambda command: f"/bin/{command}")
 
     execution, mode = semantic_commands._understand_execution(
         args,
@@ -137,6 +141,74 @@ def test_agent_policy_model_cannot_pin_the_runtime_executor(monkeypatch):
 
     assert mode == "codex"
     assert execution.model == ""
+
+
+def test_understand_rejects_codex_reasoning_effort_for_claude(monkeypatch):
+    args = argparse.Namespace(
+        executor="claude", model=None, reasoning_effort="medium", plan_only=False
+    )
+    monkeypatch.setattr(semantic_execution.shutil, "which", lambda command: f"/bin/{command}")
+
+    with pytest.raises(ValueError, match="supported only"):
+        semantic_commands._understand_execution(
+            args, SemanticConfig(enabled=True, provider="agent")
+        )
+
+
+@pytest.mark.parametrize(
+    ("options", "message"),
+    [
+        ({"executor": "codex", "model": None, "reasoning_effort": None}, "only valid"),
+        ({"executor": "auto", "model": "runtime", "reasoning_effort": None}, "policy"),
+        ({"executor": "auto", "model": None, "reasoning_effort": "high"}, "agent-funded"),
+    ],
+)
+def test_configured_semantic_provider_rejects_agent_runtime_flags(options, message):
+    args = argparse.Namespace(**options, plan_only=False)
+
+    with pytest.raises(ValueError, match=message):
+        semantic_commands._understand_execution(
+            args, SemanticConfig(enabled=True, provider="openai")
+        )
+
+
+def test_configured_semantic_provider_keeps_its_policy_executor():
+    args = argparse.Namespace(executor="auto", model=None, reasoning_effort=None, plan_only=False)
+
+    execution, mode = semantic_commands._understand_execution(
+        args, SemanticConfig(enabled=True, provider="openai", model="configured")
+    )
+
+    assert execution is None
+    assert mode == "openai"
+
+
+def test_agent_executor_rejects_invalid_plan_mcp_and_missing_cli(monkeypatch):
+    semantic = SemanticConfig(enabled=True, provider="agent")
+    plan = argparse.Namespace(executor="codex", model=None, reasoning_effort=None, plan_only=True)
+    mcp = argparse.Namespace(
+        executor="mcp", model="runtime", reasoning_effort=None, plan_only=False
+    )
+    missing = argparse.Namespace(
+        executor="codex", model=None, reasoning_effort=None, plan_only=False
+    )
+
+    with pytest.raises(ValueError, match="plan-only"):
+        semantic_commands._understand_execution(plan, semantic)
+    with pytest.raises(ValueError, match="local agent executor"):
+        semantic_commands._understand_execution(mcp, semantic)
+    monkeypatch.setattr(semantic_execution.shutil, "which", lambda _command: None)
+    with pytest.raises(ValueError, match="not installed"):
+        semantic_commands._understand_execution(missing, semantic)
+
+
+def test_agent_executor_detection_supports_claude_and_manual_mcp(monkeypatch):
+    monkeypatch.delenv("CODEX_THREAD_ID", raising=False)
+    monkeypatch.setenv("CLAUDECODE", "1")
+    monkeypatch.setattr(semantic_execution.shutil, "which", lambda command: f"/bin/{command}")
+    assert semantic_execution.detected_agent_executor() == "claude"
+    monkeypatch.delenv("CLAUDECODE")
+    assert semantic_execution.detected_agent_executor() == "mcp"
 
 
 def test_understand_routes_omitted_database_to_matching_service(
@@ -174,6 +246,65 @@ def test_understand_routes_omitted_database_to_matching_service(
     assert result["next_action"]["mcp_url"] == "http://127.0.0.1:9999/mcp"
     assert result["next_action"]["repository_id"] == 17
     assert result["status"] == "agent_action_required"
+
+
+def test_understand_background_passes_runtime_codex_settings(repository, capsys, monkeypatch):
+    policy_path = repository / ".anaxigraph.yml"
+    policy = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
+    policy["semantic"] = {"enabled": True, "provider": "agent"}
+    policy_path.write_text(yaml.safe_dump(policy, sort_keys=False), encoding="utf-8")
+    target = SemanticServiceTarget("http://127.0.0.1:9999", 17, "Sample", "/repo")
+    captured = {}
+
+    def launch(args, selected_repository, execution, mode, service):
+        captured.update(
+            repository=selected_repository,
+            model=execution.model,
+            effort=execution.reasoning_effort,
+            mode=mode,
+            service=service,
+        )
+        return {"status": "running", "complete": False}
+
+    monkeypatch.setattr(semantic_commands, "discover_semantic_service", lambda *_a, **_k: target)
+    monkeypatch.setattr(semantic_commands, "launch_understand_background", launch)
+    monkeypatch.setattr(semantic_execution.shutil, "which", lambda command: f"/bin/{command}")
+
+    result = _call(
+        [
+            "understand",
+            str(repository),
+            "--executor",
+            "codex",
+            "--model",
+            "gpt-5.6-terra",
+            "--reasoning-effort",
+            "medium",
+            "--background",
+            "--json",
+        ],
+        capsys,
+    )
+
+    assert result == {"status": "running", "complete": False}
+    assert captured == {
+        "repository": repository.resolve(),
+        "model": "gpt-5.6-terra",
+        "effort": "medium",
+        "mode": "codex",
+        "service": target,
+    }
+
+
+def test_until_complete_cannot_return_a_successful_partial_result():
+    args = argparse.Namespace(until_complete=True)
+    result = {
+        "complete": False,
+        "semantic": {"jobs": {"pending": 3, "retry": 1, "running": 0, "failed": 0}},
+    }
+
+    with pytest.raises(RuntimeError, match="pending=3, retry=1"):
+        semantic_commands._require_requested_completion(args, result)
 
 
 def test_semantic_scheduler_reports_disabled_and_scheduled_targets(

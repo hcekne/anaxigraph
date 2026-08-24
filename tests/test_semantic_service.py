@@ -90,6 +90,31 @@ def test_service_preparation_is_synchronous_and_targets_one_index(monkeypatch):
     assert calls[0][1]["method"] == "POST"
 
 
+def test_service_preparation_retries_transient_writer_contention(monkeypatch):
+    responses = iter(
+        [
+            ValueError("AnaxiGraph service returned HTTP 500: Internal Server Error"),
+            {"status": "prepared"},
+        ]
+    )
+    sleeps = []
+
+    def request(*_args, **_kwargs):
+        response = next(responses)
+        if isinstance(response, Exception):
+            raise response
+        return response
+
+    monkeypatch.setattr("anaxigraph.semantic_service._request_json", request)
+    monkeypatch.setattr("anaxigraph.semantic_service.time.sleep", sleeps.append)
+    target = SemanticServiceTarget("http://127.0.0.1:8765", 1, "Example", "/repo")
+
+    assert prepare_semantic_service(target, force=False, retry_failed=False) == {
+        "status": "prepared"
+    }
+    assert sleeps == [0.25]
+
+
 def test_agent_evidence_pages_reassemble_source_without_changing_bytes():
     source = "".join(f"value_{index} = {index}\n" for index in range(1_000))
     request = {
@@ -163,6 +188,95 @@ def test_agent_evidence_pages_reassemble_taxonomy_memberships():
     assert manifest is not None
     assembled = rehydrate_agent_request(bounded, pages)
     assert assembled == request
+
+
+@pytest.mark.anyio
+async def test_unbounded_remote_worker_waits_through_busy_queue_states(monkeypatch):
+    claims = iter(
+        [
+            ([], {"status": "busy", "semantic": {"jobs": {"running": 1}}}),
+            ([{"job": {"kind": "context"}}], None),
+            ([], {"status": "complete", "semantic": {"semantically_ready": True}}),
+        ]
+    )
+    sleeps = []
+
+    async def claim(*_args):
+        return next(claims)
+
+    async def execute(_session, _target, _execution, _packets, total, _latest):
+        total["processed"] += 1
+        total["completed"] += 1
+        return {"jobs": {"pending": 0}}
+
+    async def sleep(seconds):
+        sleeps.append(seconds)
+
+    monkeypatch.setattr(remote_worker, "_claim_wave", claim)
+    monkeypatch.setattr(remote_worker, "_execute_wave", execute)
+    monkeypatch.setattr(remote_worker.asyncio, "sleep", sleep)
+    total = remote_worker._empty_result()
+
+    semantic = await remote_worker._run_queue(
+        object(),
+        SemanticServiceTarget("http://testserver", 1, "Sample", "/repo"),
+        SemanticConfig(max_parallel_jobs=1),
+        SemanticConfig(provider="codex"),
+        None,
+        False,
+        total,
+    )
+
+    assert sleeps == [2]
+    assert total["processed"] == 1
+    assert semantic["semantically_ready"] is True
+
+
+@pytest.mark.anyio
+async def test_unbounded_remote_worker_retries_transient_wave_failures(monkeypatch):
+    claims = iter(
+        [
+            ([{"job": {"kind": "context"}}], None),
+            ([{"job": {"kind": "context"}}], None),
+            ([], {"status": "complete", "semantic": {"semantically_ready": True}}),
+        ]
+    )
+    attempts = 0
+    sleeps = []
+
+    async def claim(*_args):
+        return next(claims)
+
+    async def execute(_session, _target, _execution, _packets, total, latest):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise RuntimeError("temporary executor failure")
+        total["processed"] += 1
+        return latest
+
+    async def sleep(seconds):
+        sleeps.append(seconds)
+
+    monkeypatch.setattr(remote_worker, "_claim_wave", claim)
+    monkeypatch.setattr(remote_worker, "_execute_wave", execute)
+    monkeypatch.setattr(remote_worker.asyncio, "sleep", sleep)
+    total = remote_worker._empty_result()
+
+    semantic = await remote_worker._run_queue(
+        object(),
+        SemanticServiceTarget("http://testserver", 1, "Sample", "/repo"),
+        SemanticConfig(max_parallel_jobs=1),
+        SemanticConfig(provider="codex"),
+        None,
+        False,
+        total,
+    )
+
+    assert attempts == 2
+    assert sleeps == [2]
+    assert total["processed"] == 1
+    assert semantic["semantically_ready"] is True
 
 
 @pytest.mark.anyio

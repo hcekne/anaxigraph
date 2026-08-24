@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import argparse
 import os
-import shutil
 import sys
 import time
-from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +13,12 @@ import anaxigraph.cli_services as cli_services
 import anaxigraph.registry as repository_registry
 from anaxigraph.cli_common import add_repository_arguments, emit_json
 from anaxigraph.local_runtime import local_database_path
+from anaxigraph.semantic_background import (
+    launch_understand_background,
+    semantic_background_status,
+)
+from anaxigraph.semantic_execution import add_semantic_execution_arguments
+from anaxigraph.semantic_execution import understand_execution as _understand_execution
 from anaxigraph.semantic_remote_worker import execute_remote_semantics
 from anaxigraph.semantic_service import (
     discover_semantic_service,
@@ -57,19 +61,7 @@ def _configure_understand(commands: Any) -> None:
     understand.add_argument(
         "--plan-only", action="store_true", help="Queue stale work without invoking a model"
     )
-    understand.add_argument(
-        "--executor",
-        choices=("auto", "mcp", "codex", "claude"),
-        default="auto",
-        help=(
-            "How to execute provider=agent work: auto detects the invoking coding agent, "
-            "mcp queues work for the connected agent, and codex/claude run the local CLI"
-        ),
-    )
-    understand.add_argument(
-        "--model",
-        help="Optional model override for this local codex/claude execution",
-    )
+    add_semantic_execution_arguments(understand)
     understand.add_argument(
         "--service-url",
         help="Authoritative dashboard/API root (auto-detected on loopback when --db is omitted)",
@@ -122,6 +114,10 @@ def _understand(args: argparse.Namespace) -> dict[str, Any]:
         if _service_discovery_enabled(args) and config.semantic.provider == "agent"
         else None
     )
+    if args.background:
+        return launch_understand_background(
+            args, repository, execution_semantic, execution_mode, service
+        )
     if service is not None:
         return _understand_service(
             args,
@@ -167,6 +163,7 @@ def _understand_local(
     result["execution"] = {
         "mode": execution_mode,
         "model": execution_semantic.model if execution_semantic else None,
+        "reasoning_effort": (execution_semantic.reasoning_effort if execution_semantic else None),
     }
     result["index"] = {"authority": "local", "database": str(database_path)}
     if config.semantic.provider == "agent" and execution_semantic is None:
@@ -178,6 +175,7 @@ def _understand_local(
         ready = bool(result["semantic"].get("semantically_ready"))
         result["status"] = "complete" if ready else "partial"
         result["complete"] = ready
+        _require_requested_completion(args, result)
     return {"scan": stats.as_dict(), **result}
 
 
@@ -208,6 +206,7 @@ def _understand_service(
     result["execution"] = {
         "mode": execution_mode,
         "model": execution_semantic.model if execution_semantic else None,
+        "reasoning_effort": (execution_semantic.reasoning_effort if execution_semantic else None),
     }
     result["index"] = service.identity()
     if execution_semantic is None:
@@ -223,44 +222,20 @@ def _understand_service(
         ready = bool(result["semantic"].get("semantically_ready"))
         result["status"] = "complete" if ready else "partial"
         result["complete"] = ready
+        _require_requested_completion(args, result)
     return {"scan": prepared.get("scan") or {}, **result}
 
 
-def _understand_execution(args: argparse.Namespace, semantic: Any) -> tuple[Any | None, str]:
-    if semantic.provider != "agent":
-        if args.executor not in {"auto", "mcp"}:
-            raise ValueError("--executor is only valid when semantic.provider is agent")
-        if args.model:
-            raise ValueError("Set semantic.model in policy for a configured model provider")
-        return None, semantic.provider
-    if args.plan_only:
-        if args.executor not in {"auto", "mcp"} or args.model:
-            raise ValueError("--plan-only cannot be combined with a local agent executor or model")
-        return None, "plan_only"
-
-    executor = args.executor
-    if executor == "auto":
-        executor = _detected_agent_executor()
-    if executor == "mcp":
-        if args.model:
-            raise ValueError("--model requires --executor codex or --executor claude")
-        return None, "mcp"
-    if shutil.which(executor) is None:
-        raise ValueError(f"The {executor} CLI is not installed or not available on PATH")
-    # Agent policy never selects a model. With no run override, the CLI's current default wins.
-    return replace(semantic, provider=executor, model=args.model or ""), executor
-
-
-def _detected_agent_executor() -> str:
-    if os.environ.get("CODEX_THREAD_ID") and shutil.which("codex"):
-        return "codex"
-    claude_environment = any(
-        os.environ.get(name)
-        for name in ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "CLAUDE_SESSION_ID")
+def _require_requested_completion(args: argparse.Namespace, result: dict[str, Any]) -> None:
+    if not args.until_complete or result["complete"]:
+        return
+    semantic = result.get("semantic") or {}
+    jobs = semantic.get("jobs") or {}
+    raise RuntimeError(
+        "Semantic completion was requested but the queue is not current "
+        f"(pending={jobs.get('pending', 0)}, retry={jobs.get('retry', 0)}, "
+        f"running={jobs.get('running', 0)}, failed={jobs.get('failed', 0)})."
     )
-    if claude_environment and shutil.which("claude"):
-        return "claude"
-    return "mcp"
 
 
 def _mcp_continuation(
@@ -301,17 +276,22 @@ def _semantic_status(args: argparse.Namespace) -> dict[str, Any]:
         else None
     )
     if service is not None:
-        return {**service_semantic_status(service), "index": service.identity()}
-    database_path = local_database_path(repository, explicit=args.db)
-    database = cli_services.open_index(database_path)
-    row = database.repository(args.repository)
-    if row is None:
-        raise ValueError("Repository has not been scanned")
-    config = cli_services.load_repository_config(args.repository.resolve(), args.config)
-    return {
-        **cli_services.semantics(database).status(int(row["id"]), config.semantic),
-        "index": {"authority": "local", "database": str(database_path)},
-    }
+        result = {**service_semantic_status(service), "index": service.identity()}
+    else:
+        database_path = local_database_path(repository, explicit=args.db)
+        database = cli_services.open_index(database_path)
+        row = database.repository(args.repository)
+        if row is None:
+            raise ValueError("Repository has not been scanned")
+        config = cli_services.load_repository_config(args.repository.resolve(), args.config)
+        result = {
+            **cli_services.semantics(database).status(int(row["id"]), config.semantic),
+            "index": {"authority": "local", "database": str(database_path)},
+        }
+    execution_run = semantic_background_status(repository)
+    if execution_run:
+        result["execution_run"] = execution_run
+    return result
 
 
 def _service_discovery_enabled(args: argparse.Namespace) -> bool:

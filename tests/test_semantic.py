@@ -147,12 +147,19 @@ def test_codex_provider_is_ephemeral_read_only_and_schema_constrained(monkeypatc
 
     monkeypatch.setattr("anaxigraph.semantic.subprocess.run", run)
     result = CodexSemanticProvider(
-        SemanticConfig(enabled=True, provider="codex", model="gpt-test")
+        SemanticConfig(
+            enabled=True,
+            provider="codex",
+            model="gpt-test",
+            reasoning_effort="medium",
+        )
     ).analyze({"analysis_kind": "intrinsic", "source": "print('data')"})
 
     assert captured["command"][:2] == ["codex", "exec"]
     assert "--ephemeral" in captured["command"]
     assert captured["command"][captured["command"].index("--sandbox") + 1] == "read-only"
+    assert captured["command"][captured["command"].index("--model") + 1] == "gpt-test"
+    assert 'model_reasoning_effort="medium"' in captured["command"]
     assert captured["command"][-1] == "-"
     assert "untrusted data" in captured["kwargs"]["input"]
     assert result.value["summary"] == "Owns repository enrollment."

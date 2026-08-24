@@ -75,19 +75,24 @@ ssh -L 8765:127.0.0.1:8765 user@example-server
 Then open <http://127.0.0.1:8765> locally. If the coding agent itself runs locally, it can use the
 forwarded MCP URL only while that tunnel remains active.
 
-## Foreground coding-agent executor
+## Durable coding-agent executor
 
 When an authenticated Codex or Claude CLI is available, one command can execute the entire
 `provider: agent` queue without an API key in AnaxiGraph:
 
 ```bash
-anaxigraph understand . --executor codex --until-complete
+anaxigraph understand . --executor codex --model gpt-5.6-terra \
+  --reasoning-effort medium --background
+anaxigraph semantic-status .
 ```
 
 `--executor auto` is the default and detects when Codex or Claude invoked the command. The local
 executor is read-only and schema-constrained; AnaxiGraph records `provider: agent` plus the actual
-executor and model as provenance. Pass `--model` to override the local CLI model for one run; the
-executor and model are deliberately excluded from semantic freshness. `--executor mcp`
+executor, model, and reasoning effort as provenance. `--background` owns the complete queue outside
+the invoking agent session and records its PID, log, index authority, and terminal result for
+handoff through `semantic-status`. The shown model is only a per-run example. Pass `--model` and
+`--reasoning-effort` to select current Codex runtime settings; executor, model, and effort are
+deliberately excluded from semantic freshness. `--executor mcp`
 deliberately performs planning only and returns an `agent_action_required` continuation contract
 instead of claiming semantic work completed.
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import sys
 from typing import Any
 
 from mcp import ClientSession
@@ -15,6 +16,8 @@ from anaxigraph.semantic import create_semantic_provider
 from anaxigraph.semantic_agent_protocol import rehydrate_agent_request
 from anaxigraph.semantic_request_analysis import analyze_semantic_request
 from anaxigraph.semantic_service import SemanticServiceTarget
+
+_TERMINAL_STATES = frozenset({"complete", "complete_with_failures", "paused"})
 
 
 def execute_remote_semantics(
@@ -101,6 +104,7 @@ async def _run_queue(
     total: dict[str, Any],
 ) -> dict[str, Any]:
     latest: dict[str, Any] = {}
+    consecutive_failures = 0
     while maximum is None or total["processed"] < maximum:
         remaining = semantic.max_parallel_jobs
         if maximum is not None:
@@ -109,9 +113,35 @@ async def _run_queue(
         if terminal:
             latest = dict(terminal.get("semantic") or latest)
         if not packets:
-            break
-        latest = await _execute_wave(session, target, execution, packets, total, latest)
+            state = str((terminal or {}).get("status") or "waiting")
+            if maximum is not None or state in _TERMINAL_STATES:
+                break
+            await asyncio.sleep(2)
+            continue
+        try:
+            latest = await _execute_wave(session, target, execution, packets, total, latest)
+        except RuntimeError as exc:
+            consecutive_failures += 1
+            if consecutive_failures >= 3:
+                raise
+            print(f"Semantic wave failed; retrying: {exc}", file=sys.stderr, flush=True)
+            await asyncio.sleep(2**consecutive_failures)
+            continue
+        consecutive_failures = 0
+        _report_progress(total, latest)
     return latest
+
+
+def _report_progress(total: dict[str, Any], semantic: dict[str, Any]) -> None:
+    jobs = semantic.get("jobs") or {}
+    print(
+        "Semantic progress: "
+        f"processed={total['processed']} current={semantic.get('current', 0)} "
+        f"pending={jobs.get('pending', 0)} retry={jobs.get('retry', 0)} "
+        f"running={jobs.get('running', 0)}",
+        file=sys.stderr,
+        flush=True,
+    )
 
 
 async def _execute_wave(
@@ -122,9 +152,13 @@ async def _execute_wave(
     total: dict[str, Any],
     latest: dict[str, Any],
 ) -> dict[str, Any]:
-    requests = await asyncio.gather(
-        *(_request_for_packet(session, target, packet) for packet in packets)
-    )
+    try:
+        requests = await asyncio.gather(
+            *(_request_for_packet(session, target, packet) for packet in packets)
+        )
+    except Exception as exc:
+        await _release_packets(session, target, packets, "evidence read failed")
+        raise RuntimeError(f"Semantic evidence read failed: {exc}") from exc
     results = await asyncio.gather(
         *(asyncio.to_thread(_analyze, request, execution) for request in requests),
         return_exceptions=True,
@@ -136,9 +170,9 @@ async def _execute_wave(
     for index, (packet, result) in enumerate(zip(packets, results, strict=True)):
         try:
             submitted = await _submit(session, target, packet, result)
-        except Exception:
-            await _release_packets(session, target, packets[index + 1 :], "peer submit failed")
-            raise
+        except Exception as exc:
+            await _release_packets(session, target, packets[index:], "peer submit failed")
+            raise RuntimeError(f"Semantic submission failed: {exc}") from exc
         total["processed"] += 1
         total["completed"] += int(submitted.get("status") in {"completed", "already_completed"})
         kind = str(packet.get("job", {}).get("kind") or "")
