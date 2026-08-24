@@ -235,7 +235,7 @@ def test_schema_change_rolls_back_every_ddl_and_fact_on_failure(repository, data
         ).fetchone()
 
     assert probe is None
-    assert _version(database) == 9
+    assert _version(database) == 10
     assert _canonical_frames(database) == before
 
 
@@ -252,7 +252,7 @@ def test_real_schema_six_index_has_idempotent_backup_and_exact_restore(repositor
     report = inspect_index(reopened.path, reopened.connect)
     assert report["status"] == "healthy"
     assert report["migration"]["from_version"] == 6
-    assert report["migration"]["to_version"] == 9
+    assert report["migration"]["to_version"] == 10
     assert report["backup"]["status"] == "valid"
     reused = create_schema_backup(database.path, schema_version=6)
     assert reused.reused is True
@@ -271,13 +271,13 @@ def test_real_schema_six_index_has_idempotent_backup_and_exact_restore(repositor
     )
     reopened = AnaxiIndex(database.path)
     assert restored.sha256
-    assert _version(reopened) == 9
+    assert _version(reopened) == 10
     assert _canonical_frames(reopened) == before
     assert created.path.exists(), "recovery backup must survive a restore"
 
 
 def test_backup_validation_fails_closed_for_wrong_schema(database):
-    backup = create_schema_backup(database.path, schema_version=9)
+    backup = create_schema_backup(database.path, schema_version=10)
 
     with pytest.raises(RuntimeError, match="expected 6"):
         validate_schema_backup(backup.path, expected_version=6)
@@ -317,5 +317,5 @@ def test_schema_six_upgrade_is_restartable_after_injected_failure(
 
     monkeypatch.setattr(initialization_module, "migrate_schema", real_migrate)
     reopened = AnaxiIndex(database.path)
-    assert _version(reopened) == 9
+    assert _version(reopened) == 10
     assert _canonical_frames(reopened) == before

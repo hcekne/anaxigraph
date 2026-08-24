@@ -74,6 +74,30 @@ def test_new_oversized_module_fails_with_extraction_guidance(tmp_path):
     assert any("cohesive_service" in value for value in issues[0].suggestions)
 
 
+def test_whole_repository_check_includes_untracked_modules(tmp_path):
+    source = tmp_path / "src" / "new_large.py"
+    source.parent.mkdir()
+    source.write_text(_lines(501), encoding="utf-8")
+    policy_path = _policy(tmp_path)
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+
+    issues = check_repository(tmp_path, policy_path=policy_path)
+
+    assert any(item.path == "src/new_large.py" and item.level == "error" for item in issues)
+
+
+def test_oversized_dashboard_asset_fails_the_hard_ceiling(tmp_path):
+    asset = tmp_path / "src" / "dashboard" / "large.css"
+    asset.parent.mkdir(parents=True)
+    asset.write_text(".rule {}\n" * 501, encoding="utf-8")
+
+    issues = check_repository(
+        tmp_path, policy_path=_policy(tmp_path), paths=["src/dashboard/large.css"]
+    )
+
+    assert any(item.level == "error" and "hard 500-line ceiling" in item.message for item in issues)
+
+
 def test_legacy_ratchet_requires_exact_baseline_update(tmp_path):
     source = tmp_path / "src" / "legacy.py"
     source.parent.mkdir()

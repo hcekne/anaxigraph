@@ -102,7 +102,9 @@ async def test_skill_semantic_release_resume_evidence_and_submit_contract(reposi
             ) as (read_stream, write_stream, _):
                 async with ClientSession(read_stream, write_stream) as session:
                     schema = await session.call_tool("ANAXIGRAPH_SEMANTIC_SCHEMA", arguments={})
-                    assert schema.structuredContent["schema_version"] == "module-dossier-v4"
+                    assert (
+                        schema.structuredContent["schema_version"] == "repository-understanding-v5"
+                    )
                     first = await _claim(session)
                     manifest = first["evidence_manifest"]
                     assert manifest["page_count"] >= 1

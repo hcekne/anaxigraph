@@ -6,6 +6,7 @@ import json
 import sqlite3
 from typing import Any
 
+from anaxigraph.persistence.semantic_taxonomy_read import taxonomy_assignments
 from anaxigraph.persistence.snapshot_projection import install_snapshot_projection
 
 
@@ -21,12 +22,18 @@ def search_modules(
         return []
     install_snapshot_projection(connection, snapshot_id)
     semantics = _semantic_documents(connection, snapshot_id)
+    assignments = taxonomy_assignments(connection, snapshot_id)
     scored: list[tuple[float, dict[str, Any]]] = []
     for row in _search_rows(connection):
         item = dict(row)
         semantic = semantics.get(int(item["artifact_id"]))
         semantic_value = semantic["value"] if semantic else {}
-        _apply_semantic(item, semantic, semantic_value)
+        _apply_semantic(
+            item,
+            semantic,
+            semantic_value,
+            assignments.get(int(item["artifact_id"])),
+        )
         score = _score(item, semantic_value, terms)
         if score:
             item["score"] = score
@@ -78,6 +85,7 @@ def _apply_semantic(
     item: dict[str, Any],
     semantic: dict[str, Any] | None,
     value: dict[str, Any],
+    assignment: dict[str, Any] | None,
 ) -> None:
     if value.get("summary"):
         item["deterministic_summary"] = item["summary"]
@@ -90,6 +98,10 @@ def _apply_semantic(
             "model": semantic["model"],
             "confidence": semantic["confidence"],
         }
+    if assignment:
+        item["semantic_taxonomy"] = assignment
+        item["architecture_area"] = assignment["area"]
+        item["architecture_subsystem"] = assignment["subsystem"]
 
 
 def _score(item: dict[str, Any], semantic: dict[str, Any], terms: list[str]) -> float:
@@ -107,6 +119,11 @@ def _score(item: dict[str, Any], semantic: dict[str, Any], terms: list[str]) -> 
             *(semantic.get("domain_concepts") or []),
         )
         if value
+    )
+    taxonomy = item.get("semantic_taxonomy") or {}
+    haystack += " " + " ".join(
+        str(taxonomy.get(key) or "")
+        for key in ("area", "area_name", "subsystem", "subsystem_name", "rationale")
     )
     lowered = haystack.lower()
     path = item["path"].lower()

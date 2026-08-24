@@ -6,6 +6,7 @@ import sqlite3
 from collections import Counter
 from typing import Any, Mapping
 
+from anaxigraph.persistence.semantic_taxonomy_read import taxonomy_assignments
 from anaxigraph.persistence.temporal_reads import (
     snapshot_files_with_diagnostics,
     snapshot_relationship_edges_with_diagnostics,
@@ -103,25 +104,95 @@ def _nodes(
     outgoing = Counter(int(edge["source_artifact_id"]) for edge in relationships)
     coverage = _coverage_by_artifact(connection, snapshot_id)
     changes = _changes_by_path(connection, repository_id)
+    assignments = taxonomy_assignments(connection, snapshot_id)
+    parents = _group_parents(connection, repository_id)
     return [
-        {
-            "id": file["artifact_id"],
-            "path": file["path"],
-            "language": file["language"],
-            "lines_of_code": file["lines_of_code"],
-            "complexity": file["complexity"],
-            "summary": file["summary"],
-            "declared_group": file["declared_group"],
-            "inferred_group": file["inferred_group"],
-            "analysis_status": file["analysis_status"],
-            "last_changed_at": file["last_changed_at"],
-            "fan_in": incoming[int(file["artifact_id"])],
-            "fan_out": outgoing[int(file["artifact_id"])],
-            "line_coverage": coverage.get(int(file["artifact_id"])),
-            "change_count": changes.get(str(file["path"]), 0),
-        }
+        _node(
+            file,
+            incoming=incoming[int(file["artifact_id"])],
+            outgoing=outgoing[int(file["artifact_id"])],
+            coverage=coverage.get(int(file["artifact_id"])),
+            changes=changes.get(str(file["path"]), 0),
+            assignment=assignments.get(int(file["artifact_id"])),
+            parents=parents,
+        )
         for file in files
     ]
+
+
+def _node(
+    file: dict[str, Any],
+    *,
+    incoming: int,
+    outgoing: int,
+    coverage: float | None,
+    changes: int,
+    assignment: dict[str, Any] | None,
+    parents: dict[str, str | None],
+) -> dict[str, Any]:
+    policy = file.get("declared_group")
+    inferred = file.get("inferred_group") or "ungrouped"
+    fallback = policy or inferred
+    fallback_area = _root_group(str(fallback), parents)
+    return {
+        "id": file["artifact_id"],
+        "path": file["path"],
+        "language": file["language"],
+        "lines_of_code": file["lines_of_code"],
+        "complexity": file["complexity"],
+        "summary": file["summary"],
+        "declared_group": policy,
+        "inferred_group": inferred,
+        "architecture_area": assignment["area"] if assignment else fallback_area,
+        "architecture_subsystem": assignment["subsystem"] if assignment else fallback,
+        "architecture_layer": "semantic" if assignment else "effective",
+        "architecture_layers": {
+            "semantic": assignment,
+            "policy": (
+                {
+                    "area": _root_group(str(policy), parents),
+                    "subsystem": policy,
+                    "source": "configured policy",
+                }
+                if policy
+                else None
+            ),
+            "inferred": {
+                "area": inferred,
+                "subsystem": inferred,
+                "source": "deterministic fallback",
+            },
+        },
+        "analysis_status": file["analysis_status"],
+        "last_changed_at": file["last_changed_at"],
+        "fan_in": incoming,
+        "fan_out": outgoing,
+        "line_coverage": coverage,
+        "change_count": changes,
+    }
+
+
+def _group_parents(connection: sqlite3.Connection, repository_id: int) -> dict[str, str | None]:
+    rows = connection.execute(
+        """
+        SELECT name, parent_name FROM groups WHERE repository_id = ?
+        ORDER BY CASE source WHEN 'declared' THEN 0 ELSE 1 END
+        """,
+        (repository_id,),
+    ).fetchall()
+    result: dict[str, str | None] = {}
+    for row in rows:
+        result.setdefault(str(row["name"]), row["parent_name"])
+    return result
+
+
+def _root_group(group: str, parents: dict[str, str | None]) -> str:
+    result = group
+    seen: set[str] = set()
+    while parents.get(result) and result not in seen:
+        seen.add(result)
+        result = str(parents[result])
+    return result
 
 
 def _coverage_by_artifact(

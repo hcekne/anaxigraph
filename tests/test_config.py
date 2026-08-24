@@ -68,6 +68,15 @@ def test_semantic_provider_refresh_budget_and_path_policy_load(tmp_path: Path):
   output_cost_per_million: 5
   include: [src/**]
   exclude: [src/generated/**]
+  taxonomy:
+    review_passes: 3
+    max_areas: 8
+    max_subsystems: 40
+    stability_bias: 0.9
+map:
+  hints: [Keep durable boundaries visible]
+  locked_memberships:
+    src/ledger.py: billing-ledger
 """,
         encoding="utf-8",
     )
@@ -84,6 +93,14 @@ def test_semantic_provider_refresh_budget_and_path_policy_load(tmp_path: Path):
     assert semantic.includes_path("src/service.py")
     assert not semantic.includes_path("src/generated/client.py")
     assert not semantic.includes_path("tests/test_service.py")
+    assert semantic.taxonomy.enabled is True
+    assert semantic.taxonomy.review_passes == 3
+    assert semantic.taxonomy.max_areas == 8
+    assert semantic.taxonomy.max_subsystems == 40
+    assert semantic.taxonomy.stability_bias == 0.9
+    map_config = load_config(tmp_path).map
+    assert map_config.hints == ("Keep durable boundaries visible",)
+    assert map_config.locked_memberships == {"src/ledger.py": "billing-ledger"}
 
 
 def test_invalid_semantic_policy_fails_loudly(tmp_path: Path):
@@ -113,6 +130,8 @@ def test_agent_funded_semantic_policy_needs_no_model_or_command(tmp_path: Path):
     assert semantic.model == ""
     assert semantic.command == ()
     assert semantic.agent_lease_seconds == 900
+    assert semantic.taxonomy.enabled is True
+    assert semantic.taxonomy.review_passes == 2
 
 
 def test_finding_attention_and_diagnostic_policy_loads(tmp_path: Path):

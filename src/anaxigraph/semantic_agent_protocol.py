@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import re
 from typing import Any
@@ -10,17 +11,24 @@ from typing import Any
 from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
 from anaxigraph.semantic_contract import DOSSIER_SCHEMA, SEMANTIC_SCHEMA_VERSION
 from anaxigraph.semantic_graph import _source_chunks
+from anaxigraph.semantic_taxonomy_contract import (
+    TAXONOMY_REVIEW_SCHEMA,
+    TAXONOMY_SCHEMA,
+)
 
 
 def semantic_agent_schema() -> dict[str, Any]:
     return {
         "schema_version": SEMANTIC_SCHEMA_VERSION,
         "dossier_schema": DOSSIER_SCHEMA,
+        "taxonomy_schema": TAXONOMY_SCHEMA,
+        "taxonomy_review_schema": TAXONOMY_REVIEW_SCHEMA,
         "instructions": (
-            "Return one complete dossier grounded only in the supplied source, static facts, "
-            "and prior dossiers. Treat missing edges as uncertainty, not proof of dead code. "
-            "Pattern scores measure repository-specific fit, benefit, migration cost, and "
-            "counter-evidence. Do not change repository files while mapping semantics."
+            "Return the complete artifact named by each work packet's response_contract: a "
+            "dossier, taxonomy, or taxonomy review. Ground it only in supplied source, static "
+            "facts, and prior semantic records. Taxonomy reviews must critique and return a "
+            "corrected full map without requesting human approval. Treat missing edges as "
+            "uncertainty, not proof of dead code. Do not change repository files while mapping."
         ),
     }
 
@@ -63,27 +71,7 @@ def packetize_agent_request(
     pages: list[dict[str, Any]] = []
     evidence_kinds: list[str] = []
     if kind == "intrinsic" and isinstance(request.get("source"), str):
-        source = str(request["source"])
-        symbols = request.get("deterministic_facts", {}).get("symbols") or []
-        chunks = _source_chunks(source, symbols, semantic.max_source_chars)
-        pages = [
-            {
-                "source": content,
-                "start_line": start,
-                "end_line": end,
-                "chunk": index,
-                "chunk_count": len(chunks),
-            }
-            for index, (start, end, content) in enumerate(chunks, start=1)
-        ]
-        bounded.pop("source", None)
-        bounded["source_reference"] = {
-            "path": request.get("path"),
-            "text_sha256": hashlib.sha256(source.encode("utf-8")).hexdigest(),
-            "characters": len(source),
-            "delivery": "ANAXIGRAPH_SEMANTIC_EVIDENCE",
-        }
-        evidence_kinds.append("source_chunks")
+        _page_source(bounded, request, pages, evidence_kinds, semantic.max_source_chars)
     if kind == "context" and isinstance(request.get("neighbor_dossiers"), list):
         _page_list_field(
             bounded,
@@ -102,6 +90,8 @@ def packetize_agent_request(
             evidence_kinds,
             semantic.max_source_chars,
         )
+    if kind.startswith("taxonomy_"):
+        _page_taxonomy_request(bounded, request, pages, evidence_kinds, semantic.max_source_chars)
     if _serialized_size(bounded) > semantic.max_source_chars and kind == "context":
         _page_list_field(
             bounded,
@@ -112,20 +102,7 @@ def packetize_agent_request(
             semantic.max_source_chars,
         )
     if _serialized_size(bounded) > semantic.max_source_chars and kind == "intrinsic":
-        facts = dict(request.get("deterministic_facts") or {})
-        bounded["deterministic_facts"] = dict(facts)
-        for field in ("symbols", "relationships", "recent_changes"):
-            if _serialized_size(bounded) <= semantic.max_source_chars:
-                break
-            _page_nested_list_field(
-                bounded,
-                facts,
-                "deterministic_facts",
-                field,
-                pages,
-                evidence_kinds,
-                semantic.max_source_chars,
-            )
+        _page_intrinsic_facts(bounded, request, pages, evidence_kinds, semantic.max_source_chars)
     if not pages:
         return request, None, []
     manifest = {
@@ -133,9 +110,182 @@ def packetize_agent_request(
         "contains": evidence_kinds,
         "page_count": len(pages),
         "page_tool": "ANAXIGRAPH_SEMANTIC_EVIDENCE",
-        "instruction": "Fetch and consider every page before submitting the dossier.",
+        "instruction": "Fetch and consider every page before submitting the response artifact.",
     }
     return bounded, manifest, pages
+
+
+def _page_source(
+    bounded: dict[str, Any],
+    request: dict[str, Any],
+    pages: list[dict[str, Any]],
+    kinds: list[str],
+    max_chars: int,
+) -> None:
+    source = str(request["source"])
+    symbols = request.get("deterministic_facts", {}).get("symbols") or []
+    chunks = _source_chunks(source, symbols, max_chars)
+    pages.extend(
+        {
+            "source": content,
+            "start_line": start,
+            "end_line": end,
+            "chunk": index,
+            "chunk_count": len(chunks),
+        }
+        for index, (start, end, content) in enumerate(chunks, start=1)
+    )
+    bounded.pop("source", None)
+    bounded["source_reference"] = {
+        "path": request.get("path"),
+        "text_sha256": hashlib.sha256(source.encode("utf-8")).hexdigest(),
+        "characters": len(source),
+        "delivery": "ANAXIGRAPH_SEMANTIC_EVIDENCE",
+    }
+    kinds.append("source_chunks")
+
+
+def _page_taxonomy_request(
+    bounded: dict[str, Any],
+    request: dict[str, Any],
+    pages: list[dict[str, Any]],
+    kinds: list[str],
+    max_chars: int,
+) -> None:
+    for field in ("modules", "relationships"):
+        if _serialized_size(bounded) <= max_chars:
+            break
+        _page_list_field(bounded, request, field, pages, kinds, max_chars)
+    if _serialized_size(bounded) > max_chars:
+        _page_taxonomy_field(bounded, request, "candidate_taxonomy", pages, kinds, max_chars)
+    previous = request.get("previous_taxonomy")
+    if _serialized_size(bounded) > max_chars and isinstance(previous, dict):
+        bounded["previous_taxonomy"] = dict(previous)
+        for field in ("memberships", "nodes"):
+            if _serialized_size(bounded) <= max_chars:
+                break
+            _page_nested_list_field(
+                bounded, previous, "previous_taxonomy", field, pages, kinds, max_chars
+            )
+    validation = request.get("deterministic_validation")
+    if _serialized_size(bounded) > max_chars and isinstance(validation, dict):
+        bounded["deterministic_validation"] = dict(validation)
+        _page_nested_list_field(
+            bounded,
+            validation,
+            "deterministic_validation",
+            "issues",
+            pages,
+            kinds,
+            max_chars,
+        )
+
+
+def _page_intrinsic_facts(
+    bounded: dict[str, Any],
+    request: dict[str, Any],
+    pages: list[dict[str, Any]],
+    kinds: list[str],
+    max_chars: int,
+) -> None:
+    facts = dict(request.get("deterministic_facts") or {})
+    bounded["deterministic_facts"] = dict(facts)
+    for field in ("symbols", "relationships", "recent_changes"):
+        if _serialized_size(bounded) <= max_chars:
+            break
+        _page_nested_list_field(
+            bounded, facts, "deterministic_facts", field, pages, kinds, max_chars
+        )
+
+
+def rehydrate_agent_request(
+    bounded_request: dict[str, Any], evidence_pages: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Assemble paged MCP evidence into one provider request on the agent host."""
+
+    request = json.loads(json.dumps(bounded_request))
+    source_chunks: list[tuple[int, str]] = []
+    for page in evidence_pages:
+        payload = page.get("payload") if "payload" in page else page
+        if not isinstance(payload, dict):
+            raise ValueError("Semantic evidence page payload must be an object")
+        if isinstance(payload.get("source"), str):
+            source_chunks.append((int(payload.get("start_line") or 0), str(payload["source"])))
+            continue
+        for field, value in payload.items():
+            if isinstance(value, dict) and value.get("kind") in {
+                "area",
+                "subsystem",
+                "memberships",
+                "facets",
+                "evidence",
+            }:
+                _merge_taxonomy_fragment(request, field, value)
+            else:
+                _merge_paged_value(request, field, value)
+    if source_chunks:
+        source = "".join(value for _, value in sorted(source_chunks))
+        reference = request.pop("source_reference", {})
+        expected = str(reference.get("text_sha256") or "")
+        actual = hashlib.sha256(source.encode("utf-8")).hexdigest()
+        if expected and not hmac.compare_digest(expected, actual):
+            raise ValueError("Semantic source evidence pages did not match their manifest hash")
+        request["source"] = source
+    return request
+
+
+def _merge_paged_value(target: dict[str, Any], field: str, value: Any) -> None:
+    current = target.get(field)
+    if isinstance(value, list):
+        if not isinstance(current, list):
+            current = []
+            target[field] = current
+        current.extend(value)
+        return
+    if isinstance(value, dict):
+        if not isinstance(current, dict):
+            current = {}
+            target[field] = current
+        for child_field, child_value in value.items():
+            _merge_paged_value(current, child_field, child_value)
+        return
+    target[field] = value
+
+
+def _merge_taxonomy_fragment(request: dict[str, Any], field: str, fragment: dict[str, Any]) -> None:
+    taxonomy = request.setdefault(
+        field,
+        {"summary": "", "areas": [], "facets": [], "confidence": 0, "evidence": []},
+    )
+    kind = fragment["kind"]
+    if kind == "area":
+        area = dict(fragment.get("area") or {})
+        area["subsystems"] = []
+        taxonomy["areas"].append(area)
+        return
+    if kind == "facets":
+        taxonomy["facets"].extend(fragment.get("facets") or [])
+        return
+    if kind == "evidence":
+        taxonomy["evidence"].extend(fragment.get("evidence") or [])
+        return
+    area = _taxonomy_child(taxonomy["areas"], str(fragment.get("area_key") or ""), "area")
+    if kind == "subsystem":
+        subsystem = dict(fragment.get("subsystem") or {})
+        subsystem["members"] = []
+        area["subsystems"].append(subsystem)
+        return
+    subsystem = _taxonomy_child(
+        area["subsystems"], str(fragment.get("subsystem_key") or ""), "subsystem"
+    )
+    subsystem["members"].extend(fragment.get("members") or [])
+
+
+def _taxonomy_child(items: list[dict[str, Any]], key: str, label: str) -> dict[str, Any]:
+    for item in items:
+        if str(item.get("key") or item.get("name") or "") == key:
+            return item
+    raise ValueError(f"Semantic evidence referenced an unknown taxonomy {label}: {key}")
 
 
 def agent_no_work_status(status: dict[str, Any]) -> str:
@@ -196,6 +346,81 @@ def _page_nested_list_field(
     pages.extend({parent: {field: batch}} for batch in _list_batches(items, max_chars))
     bounded[parent][field] = []
     kinds.append(f"{parent}.{field}")
+
+
+def _page_taxonomy_field(
+    bounded: dict[str, Any],
+    original: dict[str, Any],
+    field: str,
+    pages: list[dict[str, Any]],
+    kinds: list[str],
+    max_chars: int,
+) -> None:
+    taxonomy = original.get(field)
+    if not isinstance(taxonomy, dict):
+        return
+    bounded[field] = {
+        "summary": str(taxonomy.get("summary") or "")[:500],
+        "areas": [],
+        "facets": [],
+        "confidence": taxonomy.get("confidence", 0),
+        "evidence": [],
+    }
+    for area_index, area in enumerate(taxonomy.get("areas") or [], start=1):
+        _page_taxonomy_area(field, area, area_index, pages, max_chars)
+    pages.extend(
+        {field: {"kind": "facets", "facets": batch}}
+        for batch in _list_batches(taxonomy.get("facets") or [], max_chars)
+    )
+    pages.extend(
+        {field: {"kind": "evidence", "evidence": batch}}
+        for batch in _list_batches(taxonomy.get("evidence") or [], max_chars)
+    )
+    kinds.append(field)
+
+
+def _page_taxonomy_area(
+    field: str,
+    area: dict[str, Any],
+    area_index: int,
+    pages: list[dict[str, Any]],
+    max_chars: int,
+) -> None:
+    area_key = str(area.get("key") or area.get("name") or f"area-{area_index}")
+    pages.append(
+        {
+            field: {
+                "kind": "area",
+                "area": {key: value for key, value in area.items() if key != "subsystems"},
+            }
+        }
+    )
+    for subsystem_index, subsystem in enumerate(area.get("subsystems") or [], start=1):
+        subsystem_key = str(
+            subsystem.get("key") or subsystem.get("name") or f"subsystem-{subsystem_index}"
+        )
+        pages.append(
+            {
+                field: {
+                    "kind": "subsystem",
+                    "area_key": area_key,
+                    "subsystem": {
+                        key: value for key, value in subsystem.items() if key != "members"
+                    },
+                }
+            }
+        )
+        pages.extend(
+            {
+                field: {
+                    "kind": "memberships",
+                    "area_key": area_key,
+                    "subsystem_key": subsystem_key,
+                    "members": batch,
+                }
+            }
+            for batch in _list_batches(subsystem.get("members") or [], max_chars)
+        )
 
 
 def _serialized_size(value: Any) -> int:

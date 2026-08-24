@@ -156,13 +156,32 @@ semantic:
   provider: agent
   refresh: manual
   agent_lease_seconds: 1800
+  taxonomy:
+    enabled: true
+    review_passes: 2
+    max_areas: 6
+    max_subsystems: 30
 ```
 
 The normal `anaxigraph` service is sufficient; no model API key or extra profile is needed. In the
 coding-agent chat, ask it to call `ANAXIGRAPH_SEMANTIC_SCHEMA` once and then repeat
 `ANAXIGRAPH_SEMANTIC_WORK` → optional `ANAXIGRAPH_SEMANTIC_EVIDENCE` pages →
-`ANAXIGRAPH_SEMANTIC_SUBMIT` until complete. The queue survives container and agent-session
-restarts.
+`ANAXIGRAPH_SEMANTIC_SUBMIT` until complete. Work packets name the required response artifact:
+module/group/repository dossiers, a taxonomy proposal, or a taxonomy review. Proposal and critic
+passes run without a human approval step; deterministic validation finalizes map metadata only.
+The queue survives container and agent-session restarts. Read the result with
+`ANAXIGRAPH_TAXONOMY` or the dashboard's map-layer selector.
+
+The foreground host command can drive this same volume-backed queue:
+
+```bash
+anaxigraph understand . --until-complete
+```
+
+It matches the host checkout to `/repo` by canonical Git remote identity, asks the sidecar to scan
+and prepare current work synchronously, then runs the authenticated host Codex/Claude executor and
+submits each validated result through AnaxiMCP. `--model` is runtime provenance only. Pass
+`--service-url` for a non-default endpoint or `--db` only to intentionally bypass the sidecar.
 
 For unattended reconciliation instead, use `provider: openai` or `provider: anthropic`, set a
 model and `refresh: periodic`, export the matching key before creating the containers, then run:

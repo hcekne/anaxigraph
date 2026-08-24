@@ -136,6 +136,17 @@ def _check_implementation(
 def _check_asset(candidate: Path, path: str, policy: dict[str, Any]) -> list[SizeIssue]:
     lines = _physical_lines(candidate)
     warning = int(policy["limits"]["asset_warning"])
+    hard = int(policy["limits"].get("asset_hard", 500))
+    if lines > hard:
+        return [
+            SizeIssue(
+                path,
+                lines,
+                "error",
+                f"asset exceeds the hard {hard}-line ceiling",
+                ("split the asset by responsibility and load the smaller parts explicitly",),
+            )
+        ]
     if lines < warning:
         return []
     return [
@@ -203,7 +214,7 @@ def _matches_any(path: str, patterns: list[str]) -> bool:
 
 def _tracked_files(root: Path) -> list[str]:
     result = subprocess.run(
-        ["git", "-C", str(root), "ls-files", "-z"],
+        ["git", "-C", str(root), "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
         check=True,
         capture_output=True,
     )

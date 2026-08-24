@@ -68,6 +68,7 @@ def create_anaxi_mcp_server(
                     "id": row["id"],
                     "name": row["name"],
                     "path": row["path"],
+                    "remote_url": row.get("remote_url"),
                     "scannable": str(Path(row["path"]).resolve()) in targets_by_path,
                 }
                 for row in visible_repositories()
@@ -107,11 +108,28 @@ def create_anaxi_mcp_server(
         return SemanticEngine(database).status(int(row["id"]), config_for(row, root).semantic)
 
     @server.tool(
+        name="ANAXIGRAPH_TAXONOMY",
+        description=(
+            "Return the current agent-proposed, agent-reviewed, deterministically validated "
+            "semantic area/subsystem map with provenance, confidence, facets, and review issues."
+        ),
+    )
+    def semantic_taxonomy(repository: str = "") -> dict[str, Any]:
+        row, _ = context(repository)
+        result = database.semantic_taxonomy(int(row["id"]))
+        if result is None:
+            return {
+                "status": "not_ready",
+                "message": "No finalized semantic taxonomy exists for the current snapshot.",
+            }
+        return result
+
+    @server.tool(
         name="ANAXIGRAPH_SEMANTIC_SCHEMA",
         title="Read semantic dossier contract",
         description=(
-            "Read the strict dossier schema and reasoning rules once before executing "
-            "agent-funded semantic work."
+            "Read the strict dossier, taxonomy, and taxonomy-review schemas and reasoning rules "
+            "once before executing agent-funded semantic work."
         ),
         annotations=ToolAnnotations(
             readOnlyHint=True,
@@ -186,11 +204,11 @@ def create_anaxi_mcp_server(
 
     @server.tool(
         name="ANAXIGRAPH_SEMANTIC_SUBMIT",
-        title="Store a semantic dossier",
+        title="Store a semantic mapping result",
         description=(
-            "Validate and store one completed coding-agent dossier in AnaxiIndex. This is an "
-            "opt-in index-only write; it never changes repository source. Repeating the same "
-            "completed submission is safe."
+            "Validate and store one completed coding-agent dossier, taxonomy, or taxonomy review "
+            "in AnaxiIndex. This index-only write never changes repository source. Repeating the "
+            "same completed submission is safe."
         ),
         annotations=ToolAnnotations(
             readOnlyHint=False,

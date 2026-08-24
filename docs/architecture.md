@@ -71,12 +71,17 @@ TypeScript are lexical, and other recognized languages are explicitly fallback a
 Resolution outcomes remain separate relationship facts: resolved, ambiguous, unresolved, or
 external.
 
-Semantic enrollment has three barriers: all intrinsic module dossiers, all contextual module
-dossiers, then group/repository synthesis. Structural hashes invalidate source-bound
-understanding; interface, relationship, neighbour-intent, model, prompt, and schema fingerprints
-invalidate context without blindly rereading source. SQLite jobs carry priorities, attempts,
-token/cost estimates, and renewable worker leases, making the pipeline resumable across process
-and coding-agent restarts.
+Semantic enrollment has four phases: intrinsic module dossiers, contextual module dossiers, an
+autonomous responsibility-taxonomy proposal plus independent AI critic/revision passes, then
+taxonomy-shaped group/repository synthesis. Context carry-forward is per module: unaffected scopes
+remain fully current while changed modules and their semantic neighbours wait. A deterministic
+validator repairs duplicate, unknown, missing, and over-limit membership before the map becomes
+current; it also matches nodes to the prior snapshot so unchanged responsibilities retain stable
+identity. Structural hashes invalidate source-bound understanding; interface, relationship,
+neighbour-intent, prompt, stage-contract, and taxonomy fingerprints invalidate only their
+downstream work. Provider and model are execution provenance and never freshness inputs. SQLite
+jobs carry priorities, attempts, token/cost estimates, and renewable worker leases, making the
+pipeline resumable across process and coding-agent restarts.
 
 Historical reconstruction has a separate application-level job coordinator. Its outer
 `history_import` record uses `analysis_runs` metadata for queued, enumerating, importing,

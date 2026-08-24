@@ -78,6 +78,15 @@ class ArchitectureConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class SemanticTaxonomyConfig:
+    enabled: bool = True
+    review_passes: int = 2
+    max_areas: int = 6
+    max_subsystems: int = 30
+    stability_bias: float = 0.8
+
+
+@dataclass(frozen=True, slots=True)
 class SemanticConfig:
     enabled: bool = False
     provider: str = "command"
@@ -107,6 +116,7 @@ class SemanticConfig:
         "generated/**",
         "**/generated/**",
     )
+    taxonomy: SemanticTaxonomyConfig = field(default_factory=SemanticTaxonomyConfig)
 
     def includes_path(self, path: str) -> bool:
         if self.include and not any(path_matches(path, pattern) for pattern in self.include):
@@ -132,6 +142,12 @@ class AgentConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class MapConfig:
+    hints: tuple[str, ...] = ()
+    locked_memberships: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
 class FindingConfig:
     """Separate urgent attention from the complete diagnostic ledger."""
 
@@ -150,6 +166,7 @@ class AnaxiGraphConfig:
     groups: tuple[GroupConfig, ...] = ()
     architecture: ArchitectureConfig = field(default_factory=ArchitectureConfig)
     semantic: SemanticConfig = field(default_factory=SemanticConfig)
+    map: MapConfig = field(default_factory=MapConfig)
     agent: AgentConfig = field(default_factory=AgentConfig)
     findings: FindingConfig = field(default_factory=FindingConfig)
     aliases: dict[str, str] = field(default_factory=dict)
@@ -305,6 +322,23 @@ def _semantic_config(value: Any) -> SemanticConfig:
     output_cost = float(value.get("output_cost_per_million", 0.0))
     if input_cost < 0 or output_cost < 0:
         raise ValueError("semantic token costs cannot be negative")
+    taxonomy = value.get("taxonomy") or {}
+    if not isinstance(taxonomy, dict):
+        raise ValueError("semantic.taxonomy must be a mapping")
+    review_passes = int(taxonomy.get("review_passes", 2))
+    max_areas = int(taxonomy.get("max_areas", 6))
+    max_subsystems = int(taxonomy.get("max_subsystems", 30))
+    stability_bias = float(taxonomy.get("stability_bias", 0.8))
+    if review_passes < 1 or review_passes > 5:
+        raise ValueError("semantic.taxonomy.review_passes must be between 1 and 5")
+    if max_areas < 1 or max_areas > 50:
+        raise ValueError("semantic.taxonomy.max_areas must be between 1 and 50")
+    if max_subsystems < max_areas or max_subsystems > 250:
+        raise ValueError(
+            "semantic.taxonomy.max_subsystems must be at least max_areas and at most 250"
+        )
+    if not 0 <= stability_bias <= 1:
+        raise ValueError("semantic.taxonomy.stability_bias must be between 0 and 1")
 
     return SemanticConfig(
         enabled=bool(value.get("enabled", False)),
@@ -330,6 +364,27 @@ def _semantic_config(value: Any) -> SemanticConfig:
         api_key_env=str(value.get("api_key_env", "")),
         include=_tuple_of_strings(value.get("include")),
         exclude=_tuple_of_strings(value.get("exclude")) or SemanticConfig().exclude,
+        taxonomy=SemanticTaxonomyConfig(
+            enabled=bool(taxonomy.get("enabled", True)),
+            review_passes=review_passes,
+            max_areas=max_areas,
+            max_subsystems=max_subsystems,
+            stability_bias=stability_bias,
+        ),
+    )
+
+
+def _map_config(value: Any) -> MapConfig:
+    if not value:
+        return MapConfig()
+    if not isinstance(value, dict):
+        raise ValueError("map must be a mapping")
+    locked = value.get("locked_memberships") or {}
+    if not isinstance(locked, dict):
+        raise ValueError("map.locked_memberships must be a mapping")
+    return MapConfig(
+        hints=_tuple_of_strings(value.get("hints")),
+        locked_memberships={str(path): str(group) for path, group in locked.items()},
     )
 
 
@@ -396,6 +451,7 @@ def load_config(repository: Path, config_path: Path | None = None) -> AnaxiGraph
             boundaries=boundaries,
         ),
         semantic=_semantic_config(raw.get("semantic")),
+        map=_map_config(raw.get("map")),
         agent=AgentConfig(
             context_limit=int(agent.get("context_limit", 25)),
             neighbor_depth=int(agent.get("neighbor_depth", 2)),

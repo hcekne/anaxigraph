@@ -10,6 +10,7 @@ from anaxigraph.clock import utc_now
 from anaxigraph.config import SemanticConfig
 from anaxigraph.persistence.semantic_fact_references import semantic_fact_id
 from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION
+from anaxigraph.semantic_freshness import legacy_input_matches
 from anaxigraph.semantic_graph import SupersededSemanticJob, _cost
 
 _INSERT_JOB_SQL = """
@@ -53,28 +54,35 @@ def _matching_document(
     kind: str,
     input_hash: str,
     semantic: SemanticConfig,
+    *,
+    legacy_evidence: Any | None = None,
 ) -> dict[str, Any] | None:
-    row = connection.execute(
+    rows = connection.execute(
         """
         SELECT * FROM semantic_documents
         WHERE repository_id = ? AND scope_type = ? AND scope_key = ?
-          AND document_kind = ? AND input_hash = ? AND provider = ? AND model = ?
-          AND prompt_version = ? AND schema_version = ?
-        ORDER BY id DESC LIMIT 1
+          AND document_kind = ? AND prompt_version = ?
+        ORDER BY id DESC
         """,
         (
             repository_id,
             scope_type,
             scope_key,
             kind,
-            input_hash,
-            semantic.provider,
-            semantic.model,
             semantic.prompt_version,
-            SEMANTIC_SCHEMA_VERSION,
         ),
-    ).fetchone()
-    return dict(row) if row else None
+    ).fetchall()
+    for row in rows:
+        document = dict(row)
+        if str(document["input_hash"]) == input_hash:
+            return document
+        if legacy_evidence is not None and legacy_input_matches(
+            document,
+            legacy_evidence,
+            prompt_version=semantic.prompt_version,
+        ):
+            return document
+    return None
 
 
 def _latest_document(
@@ -336,7 +344,9 @@ def _document_by_id(connection: sqlite3.Connection, document_id: int) -> dict[st
 
 def _has_active_module_stage(connection: sqlite3.Connection, snapshot_id: int, stage: str) -> bool:
     statuses = (
-        ("pending_intrinsic",) if stage == "intrinsic" else ("pending_context", "intrinsic_current")
+        ("pending_intrinsic",)
+        if stage == "intrinsic"
+        else ("pending_intrinsic", "pending_context", "intrinsic_current")
     )
     placeholders = ",".join("?" for _ in statuses)
     count = connection.execute(

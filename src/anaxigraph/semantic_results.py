@@ -11,6 +11,7 @@ from anaxigraph.clock import utc_now
 from anaxigraph.config import SemanticConfig
 from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION, SemanticResult
 from anaxigraph.semantic_graph import _cost, _intent_fingerprint
+from anaxigraph.semantic_taxonomy_results import complete_taxonomy_job
 
 _DOCUMENT_SQL = """
 INSERT INTO semantic_documents(
@@ -72,6 +73,18 @@ class SemanticResultMixin:
                 """,
                 (now, input_tokens, output_tokens, estimated_cost, actual_cost, job["id"]),
             )
+            if job["job_kind"] in {"taxonomy_proposal", "taxonomy_review"}:
+                complete_taxonomy_job(
+                    connection,
+                    job=job,
+                    result=result,
+                    document_id=document_id,
+                    provider=provider,
+                    source=source,
+                    semantic=semantic,
+                    now=now,
+                )
+                return
             if job["job_kind"] == "intrinsic":
                 connection.execute(
                     """
@@ -173,6 +186,8 @@ class SemanticResultMixin:
                 "intrinsic": "pending_intrinsic" if retry else "failed_intrinsic",
                 "context": "pending_context" if retry else "failed_context",
                 "synthesis": "pending_synthesis" if retry else "failed_synthesis",
+                "taxonomy_proposal": ("pending_taxonomy_proposal" if retry else "failed_taxonomy"),
+                "taxonomy_review": "pending_taxonomy_review" if retry else "failed_taxonomy",
             }[job["job_kind"]]
             connection.execute(
                 """

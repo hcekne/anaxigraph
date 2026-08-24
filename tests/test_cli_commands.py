@@ -13,7 +13,9 @@ import anaxigraph.cli_server_commands as server_commands
 import anaxigraph.cli_services as cli_services
 from anaxigraph.cli import main
 from anaxigraph.cli_common import default_db
+from anaxigraph.config import SemanticConfig
 from anaxigraph.registry import RepositoryTarget
+from anaxigraph.semantic_service import SemanticServiceTarget
 
 
 def _call(arguments: list[str], capsys) -> dict:
@@ -86,10 +88,16 @@ def test_semantic_handlers_plan_report_run_and_resume(
     common = [str(repository), "--db", str(database_path), "--json"]
 
     planned = _call(["understand", *common, "--limit", "2", "--plan-only"], capsys)
+    requires_agent = _call(["understand", *common, "--limit", "2", "--executor", "mcp"], capsys)
     status = _call(["semantic-status", *common], capsys)
     reconciled = _call(["semantic-worker", *common, "--once"], capsys)
 
     assert planned["semantic"]["enabled"] is True
+    assert planned["status"] == "planned"
+    assert requires_agent["status"] == "agent_action_required"
+    assert requires_agent["complete"] is False
+    assert requires_agent["next_action"]["kind"] == "connected_agent_semantic_loop"
+    assert "must not report" in requires_agent["next_action"]["instruction"]
     assert status["enabled"] is True
     assert reconciled["repositories"][0]["semantic"]["semantic"]["enabled"] is True
 
@@ -102,6 +110,70 @@ def test_semantic_handlers_plan_report_run_and_resume(
     captured = capsys.readouterr()
     assert '"status": "skipped"' in captured.out
     assert "Semantic reconciliation for 1 repositories" in captured.err
+
+
+def test_understand_auto_detects_codex_as_the_local_agent_executor(monkeypatch):
+    args = argparse.Namespace(executor="auto", model="test-model", plan_only=False)
+    monkeypatch.setenv("CODEX_THREAD_ID", "test-thread")
+    monkeypatch.setattr(semantic_commands.shutil, "which", lambda command: f"/bin/{command}")
+
+    execution, mode = semantic_commands._understand_execution(
+        args, SemanticConfig(enabled=True, provider="agent")
+    )
+
+    assert mode == "codex"
+    assert execution.provider == "codex"
+    assert execution.model == "test-model"
+
+
+def test_agent_policy_model_cannot_pin_the_runtime_executor(monkeypatch):
+    args = argparse.Namespace(executor="codex", model=None, plan_only=False)
+    monkeypatch.setattr(semantic_commands.shutil, "which", lambda command: f"/bin/{command}")
+
+    execution, mode = semantic_commands._understand_execution(
+        args,
+        SemanticConfig(enabled=True, provider="agent", model="obsolete-policy-model"),
+    )
+
+    assert mode == "codex"
+    assert execution.model == ""
+
+
+def test_understand_routes_omitted_database_to_matching_service(
+    repository: Path, capsys, monkeypatch
+):
+    policy_path = repository / ".anaxigraph.yml"
+    policy = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
+    policy["semantic"] = {"enabled": True, "provider": "agent"}
+    policy_path.write_text(yaml.safe_dump(policy, sort_keys=False), encoding="utf-8")
+    target = SemanticServiceTarget("http://127.0.0.1:9999", 17, "Sample", "/repo")
+    monkeypatch.setattr(semantic_commands, "discover_semantic_service", lambda *_a, **_k: target)
+    monkeypatch.setattr(
+        semantic_commands,
+        "prepare_semantic_service",
+        lambda *_a, **_k: {
+            "status": "prepared",
+            "scan": {"repository_id": 17},
+            "planned": 4,
+            "semantic": {"semantically_ready": False},
+        },
+    )
+    monkeypatch.setattr(
+        semantic_commands,
+        "service_semantic_status",
+        lambda *_a, **_k: {"semantically_ready": False, "jobs": {"pending": 4}},
+    )
+
+    result = _call(
+        ["understand", str(repository), "--executor", "mcp", "--json"],
+        capsys,
+    )
+
+    assert result["index"]["authority"] == "service"
+    assert result["index"]["repository_id"] == 17
+    assert result["next_action"]["mcp_url"] == "http://127.0.0.1:9999/mcp"
+    assert result["next_action"]["repository_id"] == 17
+    assert result["status"] == "agent_action_required"
 
 
 def test_semantic_scheduler_reports_disabled_and_scheduled_targets(

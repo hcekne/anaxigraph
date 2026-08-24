@@ -9,7 +9,12 @@ from typing import Any
 from anaxigraph.config import SemanticConfig
 from anaxigraph.semantic_records import _document_by_id
 
-_TERMINAL_FAILURES = ("failed_intrinsic", "failed_context", "failed_synthesis")
+_TERMINAL_FAILURES = (
+    "failed_intrinsic",
+    "failed_context",
+    "failed_synthesis",
+    "failed_taxonomy",
+)
 
 
 class SemanticReportingMixin:
@@ -106,6 +111,16 @@ class SemanticReportingMixin:
                 """,
                 (snapshot_id,),
             ).fetchone()
+            taxonomy_row = connection.execute(
+                """
+                SELECT st.*,
+                       (SELECT COUNT(*) FROM semantic_taxonomy_reviews str
+                        WHERE str.taxonomy_id = st.id) AS stored_reviews
+                FROM semantic_taxonomies st WHERE st.snapshot_id = ?
+                ORDER BY CASE st.status WHEN 'current' THEN 0 ELSE 1 END, st.id DESC LIMIT 1
+                """,
+                (snapshot_id,),
+            ).fetchone()
         excluded = counts.get("excluded", 0)
         total = sum(counts.values())
         eligible = max(0, total - excluded)
@@ -134,6 +149,8 @@ class SemanticReportingMixin:
             if key in _TERMINAL_FAILURES
         )
         repository_ready = bool(repository_state and repository_state["status"] == "current")
+        taxonomy_enabled = bool(semantic and semantic.enabled and semantic.taxonomy.enabled)
+        taxonomy_ready = bool(taxonomy_row and taxonomy_row["status"] == "current")
         baseline_complete = total > 0 and pending == 0 and pending_scopes == 0
         semantically_ready = (
             eligible > 0
@@ -141,6 +158,7 @@ class SemanticReportingMixin:
             and failed == 0
             and failed_scopes == 0
             and repository_ready
+            and (taxonomy_ready or not taxonomy_enabled)
         )
         repository_document = None
         if repository_state and repository_state["value_json"]:
@@ -154,6 +172,25 @@ class SemanticReportingMixin:
                 "executor_model": repository_state["executor_model"],
                 "prompt_version": repository_state["prompt_version"],
                 "created_at": repository_state["created_at"],
+            }
+        taxonomy_document = None
+        if taxonomy_row:
+            taxonomy_document = {
+                "id": taxonomy_row["id"],
+                "status": taxonomy_row["status"],
+                "confidence": taxonomy_row["confidence"],
+                "provider": taxonomy_row["provider"],
+                "model": taxonomy_row["model"],
+                "executor_id": taxonomy_row["executor_id"],
+                "executor_model": taxonomy_row["executor_model"],
+                "prompt_version": taxonomy_row["prompt_version"],
+                "review_passes": taxonomy_row["review_passes"],
+                "stored_reviews": taxonomy_row["stored_reviews"],
+                "validation": json.loads(taxonomy_row["validation_json"] or "{}"),
+                "facets": json.loads(taxonomy_row["facets_json"] or "[]"),
+                "changes": json.loads(taxonomy_row["change_json"] or "[]"),
+                "created_at": taxonomy_row["created_at"],
+                "updated_at": taxonomy_row["updated_at"],
             }
         return {
             "enabled": configured,
@@ -213,6 +250,14 @@ class SemanticReportingMixin:
                 ),
             },
             "repository_dossier": repository_document,
+            "taxonomy": {
+                "enabled": taxonomy_enabled,
+                "ready": taxonomy_ready,
+                "required_review_passes": (
+                    semantic.taxonomy.review_passes if semantic and taxonomy_enabled else 0
+                ),
+                "current": taxonomy_document,
+            },
         }
 
     def dossier(

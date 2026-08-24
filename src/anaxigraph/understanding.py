@@ -9,6 +9,7 @@ from anaxigraph.semantic_requests import SemanticRequestMixin
 from anaxigraph.semantic_results import SemanticResultMixin
 from anaxigraph.semantic_runner import SemanticRunnerMixin
 from anaxigraph.semantic_scope_plan import SemanticPlan, SemanticScopePlanningMixin
+from anaxigraph.semantic_taxonomy_plan import SemanticTaxonomyPlanningMixin
 from anaxigraph.storage import AnaxiIndex
 
 __all__ = ["SemanticEngine", "SemanticPlan"]
@@ -16,6 +17,7 @@ __all__ = ["SemanticEngine", "SemanticPlan"]
 
 class SemanticEngine(
     SemanticScopePlanningMixin,
+    SemanticTaxonomyPlanningMixin,
     SemanticModulePlanningMixin,
     SemanticRunnerMixin,
     SemanticRequestMixin,

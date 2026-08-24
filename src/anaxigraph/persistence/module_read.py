@@ -7,6 +7,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from anaxigraph.persistence.semantic_taxonomy_read import taxonomy_assignments
 from anaxigraph.persistence.snapshot_projection import install_snapshot_projection
 
 _MODULE_ROWS_SQL = """
@@ -69,9 +70,18 @@ def read_modules(
     parents = _group_parents(connection, repository_id)
     claims = _claims_by_artifact(connection, snapshot_id)
     semantic_states = _semantic_states(connection, snapshot_id)
+    semantic_assignments = taxonomy_assignments(connection, snapshot_id)
     findings = _findings_by_path(connection, repository_id)
     return [
-        _materialize_module(dict(row), parents, claims, semantic_states, findings) for row in rows
+        _materialize_module(
+            dict(row),
+            parents,
+            claims,
+            semantic_states,
+            semantic_assignments,
+            findings,
+        )
+        for row in rows
     ]
 
 
@@ -177,18 +187,49 @@ def _materialize_module(
     parents: dict[str, str | None],
     claims: dict[int, dict[str, Any]],
     semantic_states: dict[str, dict[str, Any]],
+    semantic_assignments: dict[int, dict[str, Any]],
     findings: dict[str, list[dict[str, Any]]],
 ) -> dict[str, Any]:
     item["responsibilities"] = json.loads(item.pop("responsibilities_json") or "[]")
     item["public_interfaces"] = json.loads(item.pop("public_interfaces_json") or "[]")
-    group = item["declared_group"] or item["inferred_group"] or "ungrouped"
-    area = _architecture_area(str(group), parents)
+    policy_group = item["declared_group"]
+    inferred_group = item["inferred_group"] or "ungrouped"
+    fallback_group = policy_group or inferred_group
+    fallback_area = _architecture_area(str(fallback_group), parents)
+    assignment = semantic_assignments.get(int(item["artifact_id"]))
+    area = assignment["area"] if assignment else fallback_area
+    group = assignment["subsystem"] if assignment else fallback_group
     item.update(
         name=Path(item["path"]).name,
         architecture_area=area,
         architecture_subsystem=group if group != area else None,
         architecture_group=group,
-        architecture_source="configured" if item["declared_group"] else "inferred",
+        architecture_source=(
+            assignment["source"]
+            if assignment
+            else "configured policy"
+            if policy_group
+            else "deterministic fallback"
+        ),
+        architecture_layer="semantic" if assignment else "effective",
+        architecture_layers={
+            "semantic": assignment,
+            "policy": (
+                {
+                    "area": _architecture_area(str(policy_group), parents),
+                    "subsystem": policy_group,
+                    "source": "configured policy",
+                }
+                if policy_group
+                else None
+            ),
+            "inferred": {
+                "area": inferred_group,
+                "subsystem": inferred_group,
+                "source": "deterministic fallback",
+            },
+        },
+        semantic_taxonomy=assignment,
     )
     _apply_semantic_summary(item, claims.get(int(item["artifact_id"])))
     item["semantic"] = _semantic_payload(semantic_states.get(item["path"]))

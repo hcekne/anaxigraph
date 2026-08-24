@@ -6,19 +6,7 @@
     <meta name="color-scheme" content="dark light" />
     <meta id="theme-color" name="theme-color" content="#f5f2ec" />
     <title>AnaxiGraph</title>
-    <script>
-      (() => {
-        const supported = new Set([
-          "constellation-light", "constellation-dark", "high-contrast", "anaxigraph",
-        ]);
-        try {
-          const saved = window.localStorage.getItem("anaxigraph.theme");
-          if (supported.has(saved)) document.documentElement.dataset.theme = saved;
-        } catch (_) {
-          // Storage can be unavailable in privacy-restricted browser contexts.
-        }
-      })();
-    </script>
+    <script src="/assets/theme-boot.js"></script>
     <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
     <link rel="alternate icon" href="/favicon.ico" />
     <link rel="mask-icon" href="/assets/mask-icon.svg" color="#ff4d8d" />
@@ -50,11 +38,14 @@
           Current repository
           <select id="repository-select" aria-label="Selected repository"></select>
         </label>
+        <label class="repository-picker">
+          Map
+          <select id="map-layer-select" aria-label="Architecture map layer"></select>
+        </label>
         <span id="snapshot-label" class="snapshot-label">No snapshot</span>
         <button id="refresh-button" class="button">Refresh scan</button>
       </div>
     </header>
-
     <nav class="tabs" aria-label="Dashboard sections">
       <button class="tab active" data-view="overview">Overview</button>
       <button class="tab" data-view="modules">Modules</button>
@@ -64,7 +55,6 @@
       <button class="tab" data-view="agents">Agents</button>
       <button class="tab" data-view="settings">Settings</button>
     </nav>
-
     <main>
       <section id="view-overview" class="view active">
         <article id="onboarding-guide" class="panel onboarding-guide" hidden>
@@ -111,8 +101,7 @@
               <div>
                 <p class="eyebrow">Areas and their subsystems</p>
                 <h2>Architecture map</h2>
-                <p class="panel-copy">Configured path groups are rolled up under parent areas. A
-                  fallback group is inferred only when repository policy does not match a file.</p>
+                <p id="map-layer-description" class="panel-copy">Loading the best available architecture map.</p>
               </div>
             </div>
             <div id="group-bars" class="group-families"></div>
@@ -129,15 +118,12 @@
           <div id="finding-preview" class="finding-list"></div>
         </article>
       </section>
-
       <section id="view-modules" class="view">
         <article class="panel module-intro">
           <div>
             <p class="eyebrow">AnaxiIndex file intelligence</p>
             <h2>Module inventory</h2>
-            <p class="panel-copy">One row per file in the selected snapshot. Filter and sort
-              deterministic facts, architecture placement, purpose, Git activity, coverage, and
-              review signals. Expand a row for provenance and pattern-review context.</p>
+            <p class="panel-copy">One row per file in the selected snapshot. Filter and sort deterministic facts, architecture placement, purpose, Git activity, coverage, and review signals. Expand a row for provenance and pattern-review context.</p>
           </div>
           <div class="module-legend" aria-label="Inventory information types">
             <span><i class="fact-dot"></i>Fact</span>
@@ -209,7 +195,6 @@
           </div>
         </article>
       </section>
-
       <section id="view-graph" class="view">
         <div class="graph-layout">
           <article class="panel graph-panel">
@@ -286,15 +271,12 @@
           </aside>
         </div>
       </section>
-
       <section id="view-architecture" class="view">
         <article class="panel workflow-guide">
           <div>
             <p class="eyebrow">From signal to verified change</p>
             <h2>How the review workflow works</h2>
-            <p class="muted">A finding is an inspection signal, not an automatic instruction to
-              refactor. Review it, plan it when you want an agent to act, then let a later scan
-              verify that the condition actually disappeared.</p>
+            <p class="muted">A finding is an inspection signal, not an automatic instruction to refactor. Review it, plan it when you want an agent to act, then let a later scan verify that the condition actually disappeared.</p>
           </div>
           <div id="finding-workflow" class="workflow-steps"></div>
         </article>
@@ -370,7 +352,6 @@
           <div id="findings-table" class="finding-list full"></div>
         </article>
       </section>
-
       <section id="view-history" class="view">
         <article class="panel">
           <div class="panel-heading">
@@ -392,7 +373,6 @@
           <div id="trend-grid" class="metric-grid compact"></div>
         </article>
       </section>
-
       <section id="view-agents" class="view">
         <article class="panel agent-intro">
           <p class="eyebrow">Human-approved context for coding agents</p>
@@ -438,7 +418,6 @@
           <p class="muted">Task context, change impact, or a planned finding handoff will appear here.</p>
         </article>
       </section>
-
       <section id="view-settings" class="view">
         <article class="panel settings-intro">
           <div>
@@ -514,7 +493,6 @@
         </article>
       </section>
     </main>
-
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script type="module" src="/assets/app.js"></script>
   </body>

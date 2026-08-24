@@ -21,12 +21,15 @@ from anaxigraph.semantic_agent_protocol import (
     packetize_agent_request,
 )
 from anaxigraph.semantic_contract import (
-    DOSSIER_SCHEMA,
     SEMANTIC_SCHEMA_VERSION,
     SemanticAnalysisError,
-    validated_agent_result,
 )
 from anaxigraph.semantic_graph import SupersededSemanticJob
+from anaxigraph.semantic_taxonomy_contract import (
+    response_contract_name,
+    response_schema,
+    validated_agent_semantic_response,
+)
 
 _MAX_SUBMISSION_BYTES = 1_000_000
 
@@ -83,6 +86,7 @@ class SemanticAgentMixin:
                 continue
 
             bounded_request, manifest, _ = packetize_agent_request(request, semantic)
+            schema = response_schema(request)
             status = self.status(repository_id, semantic)
             return {
                 "status": "work",
@@ -108,12 +112,13 @@ class SemanticAgentMixin:
                 "response_contract": {
                     "schema_version": SEMANTIC_SCHEMA_VERSION,
                     "schema_tool": "ANAXIGRAPH_SEMANTIC_SCHEMA",
-                    "required_fields": list(DOSSIER_SCHEMA["required"]),
+                    "artifact": response_contract_name(request),
+                    "required_fields": list(schema["required"]),
                 },
                 "next_action": (
-                    "Fetch every evidence page when evidence_manifest is present, produce one "
-                    "complete dossier, then call ANAXIGRAPH_SEMANTIC_SUBMIT with this job id and "
-                    "lease token."
+                    "Fetch every evidence page when evidence_manifest is present, produce the "
+                    f"complete {response_contract_name(request)}, then call "
+                    "ANAXIGRAPH_SEMANTIC_SUBMIT with this job id and lease token."
                 ),
                 "semantic": status,
             }
@@ -198,7 +203,7 @@ class SemanticAgentMixin:
         try:
             # Rebuild the request immediately before commit. Intrinsic jobs recheck the current
             # bytes; contextual jobs recheck that their required documents still exist.
-            self._job_request(
+            request = self._job_request(
                 job,
                 Path(repository).expanduser().resolve(),
                 semantic,
@@ -207,8 +212,9 @@ class SemanticAgentMixin:
             self._mark_superseded(job_id, str(exc))
             raise ValueError(str(exc)) from exc
         try:
-            result = validated_agent_result(
+            result = validated_agent_semantic_response(
                 dossier,
+                request,
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
             )
@@ -248,6 +254,8 @@ class SemanticAgentMixin:
             "intrinsic": "pending_intrinsic",
             "context": "pending_context",
             "synthesis": "pending_synthesis",
+            "taxonomy_proposal": "pending_taxonomy_proposal",
+            "taxonomy_review": "pending_taxonomy_review",
         }[job["job_kind"]]
         with self.database.transaction() as connection:
             connection.execute(
@@ -330,7 +338,6 @@ class SemanticAgentMixin:
             and repository is not None
             and int(job["snapshot_id"]) == int(repository["current_snapshot_id"] or 0)
             and job["provider"] == "agent"
-            and job["model"] == semantic.model
             and job["prompt_version"] == semantic.prompt_version
             and job["schema_version"] == SEMANTIC_SCHEMA_VERSION
         )

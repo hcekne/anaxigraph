@@ -5,28 +5,46 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
+from anaxigraph.persistence.semantic_taxonomy_read import read_semantic_hierarchy
+
 
 def read_group_hierarchy(
     connection: sqlite3.Connection,
     repository_id: int,
+    snapshot_id: int,
+    *,
+    layer: str = "effective",
 ) -> list[dict[str, Any]]:
+    if layer not in {"effective", "semantic", "policy", "inferred"}:
+        raise ValueError("Map layer must be effective, semantic, policy, or inferred")
+    if layer in {"effective", "semantic"}:
+        semantic = read_semantic_hierarchy(connection, snapshot_id)
+        if semantic or layer == "semantic":
+            return semantic
+    expression = {
+        "policy": "COALESCE(declared_group, 'unconfigured')",
+        "inferred": "COALESCE(inferred_group, 'ungrouped')",
+        "effective": "COALESCE(declared_group, inferred_group, 'ungrouped')",
+    }[layer]
     stat_rows = connection.execute(
-        """
-        SELECT COALESCE(declared_group, inferred_group, 'ungrouped') AS name,
+        f"""
+        SELECT {expression} AS name,
                COUNT(*) AS files,
                COALESCE(SUM(lines_of_code), 0) AS lines_of_code,
                SUM(CASE WHEN declared_group IS NOT NULL THEN 1 ELSE 0 END) AS declared_files
         FROM projected_file_versions GROUP BY name
         """
     ).fetchall()
-    metadata_rows = connection.execute(
-        """
-        SELECT name, level, parent_name, source, description
-        FROM groups WHERE repository_id = ?
-        ORDER BY CASE source WHEN 'declared' THEN 0 ELSE 1 END, name
-        """,
-        (repository_id,),
-    ).fetchall()
+    metadata_rows = []
+    if layer != "inferred":
+        metadata_rows = connection.execute(
+            """
+            SELECT name, level, parent_name, source, description
+            FROM groups WHERE repository_id = ?
+            ORDER BY CASE source WHEN 'declared' THEN 0 ELSE 1 END, name
+            """,
+            (repository_id,),
+        ).fetchall()
     nodes = _group_nodes(stat_rows, metadata_rows)
     children = _children(nodes)
     _mark_parent_areas(nodes, children)

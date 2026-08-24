@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from anaxigraph.persistence import SUPPORTED_SCHEMA_VERSIONS
+from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.storage import SCHEMA_VERSION, AnaxiIndex
 
 
@@ -29,13 +30,24 @@ def test_fresh_and_current_schema_initialization_is_idempotent(tmp_path):
     first = AnaxiIndex(path)
     second = AnaxiIndex(path)
 
-    assert SUPPORTED_SCHEMA_VERSIONS == frozenset({2, 6, 7, 8, 9})
-    assert _schema_version(first) == _schema_version(second) == SCHEMA_VERSION == 9
+    assert SUPPORTED_SCHEMA_VERSIONS == frozenset({2, 6, 7, 8, 9, 10})
+    assert _schema_version(first) == _schema_version(second) == SCHEMA_VERSION == 10
     assert {"base_snapshot_id", "sequence"} <= _columns(first, "snapshots")
     assert _columns(first, "file_facts")
     assert _columns(first, "snapshot_file_changes")
     assert _columns(first, "relationship_sets")
     assert "file_fact_id" in _columns(first, "semantic_jobs")
+
+
+def test_reopening_current_schema_preserves_canonical_snapshot(repository, tmp_path):
+    path = tmp_path / "reopen.db"
+    first = AnaxiIndex(path)
+    stats = RepositoryScanner(first).scan(repository)
+
+    reopened = AnaxiIndex(path)
+
+    assert reopened.overview(stats.repository_id)["files"] == stats.discovered
+    assert reopened.graph(stats.repository_id)["nodes"]
 
 
 def test_released_v2_schema_migrates_without_losing_repository_data(tmp_path):
@@ -46,7 +58,7 @@ def test_released_v2_schema_migrates_without_losing_repository_data(tmp_path):
 
     database = AnaxiIndex(path)
 
-    assert _schema_version(database) == 9
+    assert _schema_version(database) == 10
     assert database.repository(1)["name"] == "Preserved v2 repository"
     assert {"worker_id", "lease_expires_at", "lease_token_hash", "executor_id"} <= _columns(
         database, "semantic_jobs"
@@ -57,7 +69,7 @@ def test_released_v2_schema_migrates_without_losing_repository_data(tmp_path):
     assert {"executor_id", "executor_model"} <= _columns(database, "semantic_claims")
 
 
-@pytest.mark.parametrize("version", [1, 3, 4, 5, 10])
+@pytest.mark.parametrize("version", [1, 3, 4, 5, 11])
 def test_untested_or_future_schema_versions_fail_closed(tmp_path, version):
     path = tmp_path / f"unsupported-{version}.db"
     with sqlite3.connect(path) as connection:

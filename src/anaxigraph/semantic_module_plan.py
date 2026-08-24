@@ -6,7 +6,11 @@ import sqlite3
 from typing import Any
 
 from anaxigraph.config import SemanticConfig
-from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION
+from anaxigraph.semantic_freshness import (
+    MODULE_CONTEXT_CONTRACT,
+    MODULE_INTRINSIC_CONTRACT,
+    semantic_input_hash,
+)
 from anaxigraph.semantic_graph import _canonical_hash, _expired, _interface_hash, _module_priority
 from anaxigraph.semantic_records import (
     _active_job,
@@ -37,18 +41,17 @@ class SemanticModulePlanningMixin:
         for path, module in inventory.items():
             interface_hash = _interface_hash(module)
             relationship_hash = _canonical_hash(relationships.get(path, []))
-            input_hash = _canonical_hash(
-                {
-                    "schema": SEMANTIC_SCHEMA_VERSION,
-                    "prompt": semantic.prompt_version,
-                    "provider": semantic.provider,
-                    "model": semantic.model,
-                    "path": path,
-                    "language": module["language"],
-                    "analyzer": module["analyzer"],
-                    "structural_hash": module["structural_hash"],
-                    "interface_hash": interface_hash,
-                }
+            evidence = {
+                "path": path,
+                "language": module["language"],
+                "analyzer": module["analyzer"],
+                "structural_hash": module["structural_hash"],
+                "interface_hash": interface_hash,
+            }
+            input_hash = semantic_input_hash(
+                MODULE_INTRINSIC_CONTRACT,
+                semantic.prompt_version,
+                evidence,
             )
             if not semantic.includes_path(path):
                 _upsert_state(
@@ -101,6 +104,7 @@ class SemanticModulePlanningMixin:
                 "intrinsic",
                 input_hash,
                 semantic,
+                legacy_evidence=evidence,
             )
             expired = document is not None and _expired(
                 document["created_at"], semantic.max_age_days
@@ -116,7 +120,7 @@ class SemanticModulePlanningMixin:
                     artifact_id=int(module["artifact_id"]),
                     artifact_version_id=None,
                     status="intrinsic_current",
-                    reason="Intrinsic dossier matches the current source and semantic policy",
+                    reason="Intrinsic dossier matches the current source and analysis contract",
                     intrinsic_input_hash=input_hash,
                     interface_hash=interface_hash,
                     relationship_hash=relationship_hash,
@@ -192,31 +196,28 @@ class SemanticModulePlanningMixin:
         enqueued = 0
         for path, module in inventory.items():
             state = states.get(path)
-            if state is None or state["status"] in {"excluded", "failed_intrinsic"}:
+            if state is None or state["status"] not in {"intrinsic_current", "current"}:
                 continue
             intrinsic_id = state.get("intrinsic_document_id")
             if not intrinsic_id:
                 continue
-            neighbor_evidence = []
-            for relation in relationships.get(path, []):
-                neighbor = relation.get("path")
-                neighbor_evidence.append(
-                    {
-                        **relation,
-                        "neighbor_interface": interface_by_path.get(str(neighbor), ""),
-                        "neighbor_intent": intent_by_path.get(str(neighbor), ""),
-                    }
-                )
-            context_hash = _canonical_hash(
-                {
-                    "schema": SEMANTIC_SCHEMA_VERSION,
-                    "prompt": semantic.prompt_version,
-                    "provider": semantic.provider,
-                    "model": semantic.model,
-                    "intrinsic_intent": intent_by_path.get(path, ""),
-                    "group": module.get("declared_group") or module.get("inferred_group"),
-                    "relationships": neighbor_evidence,
-                }
+            neighbor_evidence = _context_neighbor_evidence(
+                relationships.get(path, []),
+                states,
+                interface_by_path,
+                intent_by_path,
+            )
+            if neighbor_evidence is None:
+                continue
+            context_evidence = {
+                "intrinsic_intent": intent_by_path.get(path, ""),
+                "group": module.get("declared_group") or module.get("inferred_group"),
+                "relationships": neighbor_evidence,
+            }
+            context_hash = semantic_input_hash(
+                MODULE_CONTEXT_CONTRACT,
+                semantic.prompt_version,
+                context_evidence,
             )
             document = _matching_document(
                 connection,
@@ -226,6 +227,7 @@ class SemanticModulePlanningMixin:
                 "context",
                 context_hash,
                 semantic,
+                legacy_evidence=context_evidence,
             )
             expired = document is not None and _expired(
                 document["created_at"], semantic.max_age_days
@@ -300,3 +302,29 @@ class SemanticModulePlanningMixin:
                 intrinsic_document_id=int(intrinsic_id),
             )
         return enqueued
+
+
+def _context_neighbor_evidence(
+    relationships: list[dict[str, Any]],
+    states: dict[str, dict[str, Any]],
+    interface_by_path: dict[str, str],
+    intent_by_path: dict[str, str],
+) -> list[dict[str, Any]] | None:
+    evidence = []
+    for relation in relationships:
+        neighbor = str(relation.get("path") or "")
+        neighbor_state = states.get(neighbor)
+        if (
+            neighbor_state is not None
+            and neighbor_state["status"] == "pending_intrinsic"
+            and neighbor not in intent_by_path
+        ):
+            return None
+        evidence.append(
+            {
+                **relation,
+                "neighbor_interface": interface_by_path.get(neighbor, ""),
+                "neighbor_intent": intent_by_path.get(neighbor, ""),
+            }
+        )
+    return evidence

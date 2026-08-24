@@ -20,6 +20,8 @@ import httpx
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
+from anaxigraph.semantic_contract import SEMANTIC_SCHEMA_VERSION
+
 
 def measure_first_user_path(root: Path, *, runs: int = 3) -> dict[str, Any]:
     results = []
@@ -135,7 +137,7 @@ async def _submit_first_dossier(mcp_url: str) -> dict[str, Any]:
         ) as (read_stream, write_stream, _):
             async with ClientSession(read_stream, write_stream) as session:
                 schema = await session.call_tool("ANAXIGRAPH_SEMANTIC_SCHEMA", arguments={})
-                if schema.structuredContent["schema_version"] != "module-dossier-v4":
+                if schema.structuredContent["schema_version"] != SEMANTIC_SCHEMA_VERSION:
                     raise RuntimeError("unexpected semantic dossier schema")
                 work = await session.call_tool(
                     "ANAXIGRAPH_SEMANTIC_WORK",

@@ -30,6 +30,19 @@ def read_overview(
         (repository_id,),
     ).fetchall()
     coverage = _coverage(connection, snapshot_id)
+    semantic_hierarchy = read_group_hierarchy(
+        connection, repository_id, snapshot_id, layer="semantic"
+    )
+    policy_hierarchy = read_group_hierarchy(connection, repository_id, snapshot_id, layer="policy")
+    inferred_hierarchy = read_group_hierarchy(
+        connection, repository_id, snapshot_id, layer="inferred"
+    )
+    effective_hierarchy = (
+        semantic_hierarchy
+        if semantic_hierarchy
+        else read_group_hierarchy(connection, repository_id, snapshot_id, layer="effective")
+    )
+    default_layer = "semantic" if semantic_hierarchy else "effective"
     return {
         "repository_id": repository_id,
         "snapshot": dict(snapshot),
@@ -40,7 +53,31 @@ def read_overview(
         "findings": {row["severity"]: row["count"] for row in findings},
         "languages": [dict(row) for row in _languages(connection)],
         "groups": [dict(row) for row in _groups(connection)],
-        "group_hierarchy": read_group_hierarchy(connection, repository_id),
+        "group_hierarchy": effective_hierarchy,
+        "group_hierarchies": {
+            "effective": effective_hierarchy,
+            "semantic": semantic_hierarchy,
+            "policy": policy_hierarchy,
+            "inferred": inferred_hierarchy,
+        },
+        "map": {
+            "default_layer": default_layer,
+            "available_layers": [
+                layer
+                for layer, hierarchy in (
+                    ("effective", effective_hierarchy),
+                    ("semantic", semantic_hierarchy),
+                    ("policy", policy_hierarchy),
+                    ("inferred", inferred_hierarchy),
+                )
+                if hierarchy
+            ],
+            "source": (
+                "agent-reviewed semantic taxonomy"
+                if semantic_hierarchy
+                else "configured policy with deterministic fallback"
+            ),
+        },
         "coverage": coverage,
         "reconstruction": projection.as_dict(),
     }

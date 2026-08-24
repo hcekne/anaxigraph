@@ -45,6 +45,20 @@ test("architecture cards have one LOC bar, segmented in place", async ({ page })
   expect(await frontend.locator(".group-segment").count()).toBeGreaterThan(1);
 });
 
+test("map layers update their hierarchy explanation", async ({ page }) => {
+  await openDashboard(page);
+  const picker = page.locator("#map-layer-select");
+
+  await picker.selectOption("policy");
+  await expect(page.locator("#map-layer-description")).toContainText(
+    "Repository-configured path groups only",
+  );
+  await picker.selectOption("inferred");
+  await expect(page.locator("#map-layer-description")).toContainText(
+    "Deterministic path inference only",
+  );
+});
+
 test("missing optional coverage is neutral rather than a failed scan", async ({ page }) => {
   await openDashboard(page);
   await expect(page.locator("#coverage-notice")).toBeHidden();

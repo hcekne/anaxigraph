@@ -81,9 +81,10 @@ coverage:
 # Semantic understanding is opt-in because it sends eligible source and graph context to the
 # configured model. See docs/onboarding.md before enabling it.
 semantic:
-  enabled: false
+  enabled: true
   provider: agent
+  # Select a local executor model per `understand` run; it is provenance, not freshness policy.
   refresh: manual
-  max_jobs_per_run: 100
-  max_parallel_jobs: 1
+  max_jobs_per_run: 1000
+  max_parallel_jobs: 8
   agent_lease_seconds: 1800

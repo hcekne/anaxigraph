@@ -75,6 +75,30 @@ ssh -L 8765:127.0.0.1:8765 user@example-server
 Then open <http://127.0.0.1:8765> locally. If the coding agent itself runs locally, it can use the
 forwarded MCP URL only while that tunnel remains active.
 
+## Foreground coding-agent executor
+
+When an authenticated Codex or Claude CLI is available, one command can execute the entire
+`provider: agent` queue without an API key in AnaxiGraph:
+
+```bash
+anaxigraph understand . --executor codex --until-complete
+```
+
+`--executor auto` is the default and detects when Codex or Claude invoked the command. The local
+executor is read-only and schema-constrained; AnaxiGraph records `provider: agent` plus the actual
+executor and model as provenance. Pass `--model` to override the local CLI model for one run; the
+executor and model are deliberately excluded from semantic freshness. `--executor mcp`
+deliberately performs planning only and returns an `agent_action_required` continuation contract
+instead of claiming semantic work completed.
+
+With no `--db`, the command first probes the configured/default loopback service and matches the
+repository by canonical Git remote (or exact path for a host-local service). A match makes that
+service the sole index authority: scanning/planning happen there, inference happens on the host,
+and write-back goes through AnaxiMCP. If no service matches, the fallback is the stable
+per-checkout database used by `anaxigraph up`, not the old shared global SQLite path. Results expose
+`index.authority`, database/service location, and repository selector so another agent can resume
+the exact same ledger.
+
 ## Hosted semantic worker
 
 Agent-funded semantics is recommended because AnaxiGraph holds no model key. For unattended
@@ -93,6 +117,25 @@ semantic:
   max_age_days: 0
   include: [src/**]
   exclude: [src/generated/**, vendor/**]
+  taxonomy:
+    enabled: true
+    review_passes: 2
+    max_areas: 6
+    max_subsystems: 30
+    stability_bias: 0.8
+```
+
+Taxonomy generation is on by default whenever semantic understanding is enabled. The provider
+proposes a complete responsibility map, critic passes revise it, and deterministic checks repair
+exact membership and bounds before finalization. Optional `map.hints` and
+`map.locked_memberships` can express operator constraints, but neither is required and there is no
+interactive approval gate:
+
+```yaml
+map:
+  hints: [Keep persistence boundaries visible]
+  locked_memberships:
+    src/billing/ledger.py: billing-ledger
 ```
 
 Keep credentials out of repository YAML. Export the matching key before creating the worker:
@@ -127,7 +170,9 @@ anaxigraph semantic-status /path/to/repository
 The Codex adapter invokes non-interactive `codex exec` in an ephemeral read-only sandbox with a
 strict output schema. The Claude adapter uses non-persistent, tool-free print mode. A `command`
 provider can receive one JSON request on standard input and must return
-`{"dossier": {...}, "usage": {...}}` on standard output.
+`{"result": {...}, "usage": {...}}` on standard output. `dossier` remains accepted for existing
+module-dossier integrations; taxonomy requests require the dynamic schema named by
+`analysis_kind`.
 
 The stock Docker image does not bundle Codex or Claude. Use the connected-agent workflow, a
 hosted worker, or an operator-owned image rather than assuming host authentication is visible
@@ -136,13 +181,16 @@ inside the sidecar.
 ## Semantic cost, privacy, and refresh
 
 Every scan first makes cheap deterministic comparisons. Semantic work is created only for missing,
-failed/retried, age-expired, prompt/model-stale, structurally changed, or context-invalidated
+failed/retried, age-expired, prompt-contract-stale, structurally changed, or context-invalidated
 records:
 
 - structural hashes decide when source needs to be read again;
 - interface and relationship fingerprints can refresh context without rereading unchanged source;
 - normalized intent changes invalidate affected parent synthesis;
-- provider, model, prompt, policy, analyzer, or dossier-schema changes produce new versioned work.
+- prompt, analyzer, enrollment policy, or an incompatible stage-contract change produces versioned
+  work only at the affected stage;
+- provider and model changes do not invalidate semantic work; they remain queryable provenance on
+  jobs, documents, claims, usage, and cost records.
 
 Repeated reconciliation of an unchanged repository creates no new source-reading jobs. Durable
 jobs, attempts, leases, failures, token counts, and costs allow interrupted work to resume.

@@ -70,9 +70,38 @@ Use this sentence in the coding-agent chat:
 > remains, and report completed, pending, and failed coverage.
 
 The agent receives one leased job at a time, fetches every bounded evidence page, submits a dossier
-that must match the live schema, and continues. If the session stops, a later session resumes the
-unfinished queue. Unchanged structural, interface, relationship, prompt/model, and intent
-fingerprints reuse current dossiers instead of paying to reread every module.
+or map artifact that must match the work packet's live response contract, and continues. After the
+module dossiers, AnaxiGraph automatically queues a repository taxonomy proposal and independent
+critic/revision passes. Deterministic validation then gives every eligible module exactly one
+primary subsystem, bounds area/subsystem counts, preserves low-confidence modules visibly, and
+stabilizes identities against the prior snapshot. No person has to approve this metadata map. If
+the session stops, a later session resumes the unfinished queue. Unchanged structural, interface,
+relationship, prompt-contract, and intent fingerprints reuse current dossiers and maps instead of
+paying to reread every module. Executor and model names are recorded as provenance, but do not
+participate in freshness.
+
+Codex can also drive the same durable queue from one foreground command:
+
+```bash
+anaxigraph understand . --until-complete
+```
+
+Inside a Codex session the default `--executor auto` selects the authenticated Codex CLI. Pass
+`--model` only when you want to override the model for this run. Pass `--executor mcp` to keep
+inference in the already-connected agent instead. MCP mode only prepares the queue and returns
+`agent_action_required`; the agent must continue WORK → optional EVIDENCE → SUBMIT until the
+terminal status before reporting success.
+
+If a matching loopback dashboard/sidecar is live, the command identifies it from the checkout's
+Git remote and uses its MCP queue and persistent AnaxiIndex. Container paths therefore do not
+create a second host-local baseline. Otherwise the command uses the same per-checkout user-state
+database as `anaxigraph up`. Use `--service-url` or `ANAXIGRAPH_SERVICE_URL` for a non-default
+endpoint; use `--db` only when you intentionally want a standalone local index. The JSON response
+always names the selected index authority.
+
+When `ANAXIGRAPH_SEMANTIC_STATUS` reports ready, call `ANAXIGRAPH_TAXONOMY` or select **Semantic
+map (AI)** in the dashboard. Configured policy and deterministic path inference remain available as
+comparison layers; they do not override the semantic default when a current taxonomy exists.
 
 ## Recommended: install the agent workflow
 

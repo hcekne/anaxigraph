@@ -811,8 +811,8 @@ Important invariants:
 - A relationship set is reusable only when both the source version and resolver context match.
   The resolver-context hash includes the namespace/symbol information that could change unique,
   ambiguous, or unresolved resolution.
-- Semantic claims continue to reference the appropriate immutable version and retain their own
-  prompt/model/context fingerprints.
+- Semantic claims continue to reference the appropriate immutable version, retain prompt/context
+  fingerprints, and record provider/model only as execution provenance.
 - Queries use an index abstraction; REST, MCP, and dashboard code do not learn SQL reconstruction
   details.
 
@@ -1619,7 +1619,8 @@ For every eligible first-party module, the durable dossier should contain:
 
 Bootstrap remains complete-but-resumable: every eligible module must be current, explicitly
 excluded, or visibly failed. Incremental refresh rereads source only when structural, interface,
-relationship, analyzer, prompt/model, policy, or age fingerprints require it.
+relationship, analyzer, prompt-contract, enrollment-policy, or age fingerprints require it.
+Switching provider or model never invalidates existing understanding.
 
 ## 6.3 Detect repeated responsibilities and consolidation candidates
 

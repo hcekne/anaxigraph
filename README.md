@@ -80,10 +80,35 @@ codex
 > Use AnaxiGraph to build or resume the semantic baseline for this repository, using your own
 > model context and tokens. Do not edit source while mapping it; continue until no work remains.
 
+Or have Codex execute the complete durable queue from one command:
+
+```bash
+anaxigraph understand . --until-complete
+```
+
+With `semantic.provider: agent`, `understand` auto-detects an invoking Codex or Claude session and
+uses that authenticated local CLI as a read-only semantic executor. Use `--executor codex` or
+`--executor claude` to select one explicitly. Use `--executor mcp` when the already-connected agent
+should perform the MCP work loop itself; that mode returns `status: agent_action_required` until
+the agent has actually submitted every queued artifact. `--model` is an optional choice for that
+run, not repository semantic policy; changing executor or model never makes a dossier stale.
+
+When the loopback dashboard is already running, `understand` matches the checkout to its service by
+Git remote identity and executes against that sidecar's AnaxiIndex—even when the container sees the
+checkout at `/repo`. It never creates a second default database in that case. Without a matching
+service it uses the same stable per-checkout user-state path as `anaxigraph up`; `--db` explicitly
+selects a standalone index, and `--service-url` explicitly selects a service. Every command result
+reports the chosen `index.authority` and physical/service identity for unambiguous handoff.
+
 That is the key cost model: **the connected coding agent does the reasoning with its own tokens**.
 AnaxiGraph needs no model key in `provider: agent` mode. It leases bounded evidence one module or
 scope at a time, validates returned dossiers, records provenance, and resumes unfinished work in a
-later session. Unchanged fingerprints avoid rereading unchanged modules.
+later session. Once module context is current, the same workflow automatically proposes a
+responsibility-based area/subsystem map, runs independent AI critic/revision passes, and applies
+deterministic exact-membership and size checks. There is no human approval gate: the result is
+versioned map metadata and never edits or controls the analyzed code. Unchanged fingerprints avoid
+rereading unchanged modules or rebuilding an unchanged taxonomy. View the result in the dashboard
+Map selector or through `ANAXIGRAPH_TAXONOMY`.
 
 The complete [onboarding guide](docs/onboarding.md) explains the normal coding loop and setup
 diagnostics.

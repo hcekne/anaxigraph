@@ -35,6 +35,8 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert (await client.get("/healthz")).json() == {"status": "ok"}
         assert (await client.get("/")).status_code == 200
         assert (await client.get("/assets/findings-view.js")).status_code == 200
+        assert (await client.get("/assets/dashboard-core.js")).status_code == 200
+        assert (await client.get("/assets/themes.css")).status_code == 200
         repositories = (await client.get("/api/repositories")).json()
         assert repositories[0]["scannable"] is True
         assert repositories[0]["history_snapshots"] == "auto"
@@ -51,6 +53,11 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         overview = (await client.get("/api/overview")).json()
         assert overview["files"] == 9
         assert overview["group_hierarchy"]
+        assert overview["map"]["default_layer"] == "effective"
+        assert "policy" in overview["map"]["available_layers"]
+        policy_groups = (await client.get("/api/groups", params={"layer": "policy"})).json()
+        assert policy_groups["layer"] == "policy"
+        assert policy_groups["groups"]
         assert overview["graph_quality"]["resolution_rate"] == 1.0
         assert overview["coverage"]["state"] == "imported"
         assert overview["coverage"]["required"] is False
@@ -60,6 +67,7 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert overview["semantic"]["enabled"] is False
         semantic = (await client.get("/api/semantic")).json()
         assert semantic["state"] == "not_started"
+        assert (await client.get("/api/taxonomy")).status_code == 404
         disabled_refresh = await client.post("/api/semantic/refresh")
         assert disabled_refresh.status_code == 400
         attention = (await client.get("/api/findings")).json()
@@ -133,6 +141,7 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                         "ANAXIGRAPH_HISTORY_IMPORT",
                         "ANAXIGRAPH_HISTORY_CANCEL",
                         "ANAXIGRAPH_SEMANTIC_STATUS",
+                        "ANAXIGRAPH_TAXONOMY",
                         "ANAXIGRAPH_SEMANTIC_SCHEMA",
                         "ANAXIGRAPH_SEMANTIC_WORK",
                         "ANAXIGRAPH_SEMANTIC_EVIDENCE",
@@ -162,7 +171,14 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     assert semantic.structuredContent["enabled"] is False
                     schema = await session.call_tool("ANAXIGRAPH_SEMANTIC_SCHEMA", arguments={})
                     assert schema.isError is False
-                    assert schema.structuredContent["schema_version"] == "module-dossier-v4"
+                    assert (
+                        schema.structuredContent["schema_version"] == "repository-understanding-v5"
+                    )
+                    assert schema.structuredContent["taxonomy_schema"]["type"] == "object"
+                    assert schema.structuredContent["taxonomy_review_schema"]["type"] == "object"
+                    taxonomy = await session.call_tool("ANAXIGRAPH_TAXONOMY", arguments={})
+                    assert taxonomy.isError is False
+                    assert taxonomy.structuredContent["status"] == "not_ready"
                     modules = await session.call_tool(
                         "ANAXIGRAPH_MODULES", arguments={"language": "python", "limit": 3}
                     )
@@ -198,6 +214,30 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     assert findings.structuredContent["shown"] == 1
                     assert findings.structuredContent["total_matching"] >= 1
                     assert findings.structuredContent["items"][0]["actionability"]
+
+
+@pytest.mark.anyio
+async def test_semantic_refresh_can_prepare_sidecar_work_synchronously(repository, database):
+    policy_path = repository / ".anaxigraph.yml"
+    policy = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
+    policy["semantic"] = {"enabled": True, "provider": "agent"}
+    policy_path.write_text(yaml.safe_dump(policy, sort_keys=False), encoding="utf-8")
+    RepositoryScanner(database).scan(repository)
+    app = create_app(database=database, repository=repository, enable_mcp=False)
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        response = await client.post(
+            "/api/semantic/refresh",
+            params={"wait": True, "force": True, "retry_failed": True},
+        )
+
+    assert response.status_code == 200
+    result = response.json()
+    assert result["status"] == "prepared"
+    assert result["scan"]["discovered"] == 9
+    assert result["semantic"]["jobs"]["pending"] > 0
 
 
 @pytest.mark.anyio

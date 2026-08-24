@@ -12,6 +12,7 @@ from anaxigraph.persistence.semantic_evidence import module_facts, relationships
 from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION
 from anaxigraph.semantic_graph import SupersededSemanticJob
 from anaxigraph.semantic_records import _document_by_id
+from anaxigraph.semantic_request_support import compact_dossier
 
 
 class SemanticRequestMixin:
@@ -25,6 +26,10 @@ class SemanticRequestMixin:
             return self._intrinsic_request(job, root)
         if job["job_kind"] == "context":
             return self._context_request(job, semantic)
+        if job["job_kind"] in {"taxonomy_proposal", "taxonomy_review"}:
+            from anaxigraph.semantic_taxonomy_requests import taxonomy_request
+
+            return taxonomy_request(self.database, job)
         return self._synthesis_request(job)
 
     def _intrinsic_request(self, job: dict[str, Any], root: Path) -> dict[str, Any]:
@@ -114,7 +119,7 @@ class SemanticRequestMixin:
                         {
                             "path": path,
                             "confidence": document["confidence"],
-                            "dossier": _compact_dossier(document["value"]),
+                            "dossier": compact_dossier(document["value"]),
                         }
                     )
             previous = (
@@ -168,12 +173,13 @@ class SemanticRequestMixin:
             "analysis_kind": "synthesis",
             "scope_type": job["scope_type"],
             "scope_key": job["scope_key"],
+            "taxonomy": job["metadata"].get("taxonomy"),
             "child_dossiers": [
                 {
                     "scope": item["scope_key"],
                     "kind": item["document_kind"],
                     "confidence": item["confidence"],
-                    "value": _compact_dossier(item["value"]),
+                    "value": compact_dossier(item["value"]),
                 }
                 for item in documents
             ],
@@ -181,82 +187,3 @@ class SemanticRequestMixin:
             "missing_child_count": len(job["metadata"].get("missing_members", [])),
             "previous_dossier": previous["value"] if previous else None,
         }
-
-
-def _compact_dossier(value: dict[str, Any]) -> dict[str, Any]:
-    """Keep cross-module reasoning useful without repeatedly nesting full prose."""
-
-    return {
-        "summary": str(value.get("summary") or "")[:2_000],
-        "responsibilities": _compact_strings(value, "responsibilities"),
-        "public_contracts": _compact_strings(value, "public_contracts"),
-        "invariants": _compact_strings(value, "invariants"),
-        "architecture_role": str(value.get("architecture_role") or "")[:1_000],
-        "domain_concepts": _compact_strings(value, "domain_concepts"),
-        "collaborators": _compact_strings(value, "collaborators"),
-        "overlaps": _compact_strings(value, "overlaps"),
-        "extension_points": _compact_strings(value, "extension_points"),
-        "similar_modules": _compact_strings(value, "similar_modules"),
-        "pattern_opportunities": _compact_patterns(value),
-        "consolidation_assessment": _compact_consolidation(value),
-        "dead_code_candidates": _compact_dead_code(value),
-        "placement_guidance": str(value.get("placement_guidance") or "")[:2_000],
-        "risks": _compact_strings(value, "risks"),
-        "confidence": value.get("confidence"),
-    }
-
-
-def _compact_strings(value: dict[str, Any], key: str, limit: int = 12) -> list[str]:
-    return [str(item)[:1_000] for item in (value.get(key) or [])[:limit]]
-
-
-def _compact_patterns(value: dict[str, Any]) -> list[Any]:
-    result = []
-    for item in (value.get("pattern_opportunities") or [])[:8]:
-        if isinstance(item, dict):
-            result.append(
-                {
-                    "name": str(item.get("name") or "")[:300],
-                    "scope": str(item.get("scope") or "")[:200],
-                    "score": item.get("score"),
-                    "confidence": item.get("confidence"),
-                    "rationale": str(item.get("rationale") or "")[:1_000],
-                    "evidence": [str(entry)[:500] for entry in (item.get("evidence") or [])[:4]],
-                    "counter_evidence": [
-                        str(entry)[:500] for entry in (item.get("counter_evidence") or [])[:4]
-                    ],
-                    "migration_cost": item.get("migration_cost"),
-                }
-            )
-        else:
-            result.append(str(item)[:1_000])
-    return result
-
-
-def _compact_dead_code(value: dict[str, Any]) -> list[Any]:
-    result = []
-    for item in (value.get("dead_code_candidates") or [])[:8]:
-        if isinstance(item, dict):
-            result.append(
-                {
-                    "path_or_symbol": str(item.get("path_or_symbol") or "")[:500],
-                    "confidence": item.get("confidence"),
-                    "rationale": str(item.get("rationale") or "")[:1_000],
-                    "verification": str(item.get("verification") or "")[:1_000],
-                }
-            )
-        else:
-            result.append(str(item)[:1_000])
-    return result
-
-
-def _compact_consolidation(value: dict[str, Any]) -> Any:
-    consolidation = value.get("consolidation_assessment")
-    if not isinstance(consolidation, dict):
-        return consolidation
-    return {
-        "recommendation": consolidation.get("recommendation"),
-        "score": consolidation.get("score"),
-        "rationale": str(consolidation.get("rationale") or "")[:1_000],
-        "candidates": [str(item)[:500] for item in (consolidation.get("candidates") or [])[:12]],
-    }

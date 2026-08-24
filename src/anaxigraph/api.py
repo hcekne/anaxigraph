@@ -5,27 +5,20 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import sqlite3
-import threading
-from importlib.resources import files as package_files
 from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse, HTMLResponse
 
-from anaxigraph import __version__, api_support, git
+from anaxigraph import __version__, api_coverage, api_dashboard, api_support, git
 from anaxigraph.agent import agent_scope, branch_collisions, finding_context, impact_analysis
+from anaxigraph.api_semantic import SemanticRefreshCoordinator
 from anaxigraph.config import load_config
 from anaxigraph.mcp_server import create_anaxi_mcp_server
 from anaxigraph.registry import RepositoryTarget
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.storage import AnaxiIndex
 from anaxigraph.understanding import SemanticEngine
-
-DASHBOARD_ASSETS = frozenset(
-    {"app.js", "findings-view.js", "history-view.js", "styles.css", "favicon.svg", "mask-icon.svg"}
-)
-DASHBOARD = package_files("anaxigraph.dashboard")
 
 
 def create_app(
@@ -55,8 +48,7 @@ def create_app(
         )
     default_repository = targets[0].path if targets else repository
     history_service = api_support.HistoryJobService(database)
-    semantic_jobs: dict[str, dict[str, Any]] = {}
-    semantic_lock = threading.Lock()
+    semantic_refresh = SemanticRefreshCoordinator(database)
 
     def target_for_path(path: Path) -> RepositoryTarget | None:
         resolved = path.resolve()
@@ -67,63 +59,6 @@ def create_app(
         if targets:
             rows = [row for row in rows if target_for_path(Path(row["path"])) is not None]
         return rows
-
-    def semantic_worker(target: RepositoryTarget, force: bool, retry_failed: bool) -> None:
-        key = str(target.path.resolve())
-        with semantic_lock:
-            semantic_jobs[key] = {"status": "running"}
-        try:
-            config = load_config(target.path, target.config_path)
-            stats = RepositoryScanner(database).scan(
-                target.path,
-                config_path=target.config_path,
-                run_type="semantic_reconcile",
-            )
-            result = SemanticEngine(database).bootstrap(
-                stats.repository_id,
-                target.path,
-                config,
-                force=force,
-                retry_failed=retry_failed,
-            )
-            with semantic_lock:
-                semantic_jobs[key] = {
-                    "status": "complete",
-                    "scan": stats.as_dict(),
-                    **result,
-                }
-        except Exception as exc:  # Background failures are intentionally visible in the UI.
-            with semantic_lock:
-                semantic_jobs[key] = {
-                    "status": "failed",
-                    "error": f"{type(exc).__name__}: {exc}"[:2_000],
-                }
-
-    def start_semantic_refresh(
-        target: RepositoryTarget, *, force: bool = False, retry_failed: bool = False
-    ) -> bool:
-        key = str(target.path.resolve())
-        config = load_config(target.path, target.config_path)
-        if not config.semantic.enabled:
-            return False
-        repository_row = database.repository(target.path)
-        if repository_row is not None:
-            durable_status = SemanticEngine(database).status(
-                int(repository_row["id"]), config.semantic
-            )
-            if int(durable_status.get("jobs", {}).get("running", 0)) > 0:
-                return False
-        with semantic_lock:
-            if semantic_jobs.get(key, {}).get("status") in {"queued", "running"}:
-                return False
-            semantic_jobs[key] = {"status": "queued"}
-        threading.Thread(
-            target=semantic_worker,
-            args=(target, force, retry_failed),
-            name=f"anaxigraph-semantic-{target.key}",
-            daemon=True,
-        ).start()
-        return True
 
     mcp = (
         create_anaxi_mcp_server(
@@ -153,7 +88,7 @@ def create_app(
                 history_service.start(target)
                 config = load_config(target.path, target.config_path)
                 if config.semantic.enabled and config.semantic.refresh in {"on_scan", "periodic"}:
-                    start_semantic_refresh(target)
+                    semantic_refresh.start(target)
         if mcp is not None:
             async with mcp.session_manager.run():
                 yield
@@ -187,32 +122,6 @@ def create_app(
         row_path = Path(row["path"]).resolve()
         target = target_for_path(row_path)
         return load_config(target.path, target.config_path) if target else load_config(row_path)
-
-    def coverage_diagnostics(row: dict[str, Any], coverage: dict[str, Any]) -> dict[str, Any]:
-        root = Path(row["path"]).resolve()
-        config = selected_config(row)
-        inputs = []
-        for configured in config.coverage_files:
-            path = Path(configured)
-            candidate = path if path.is_absolute() else root / path
-            inputs.append(
-                {
-                    "path": configured,
-                    "exists": candidate.is_file(),
-                    "format": "lcov"
-                    if candidate.name == "lcov.info"
-                    else candidate.suffix.lstrip(".") or "unknown",
-                }
-            )
-        imported = coverage.get("line_coverage") is not None
-        available = sum(1 for item in inputs if item["exists"])
-        return {
-            **coverage,
-            "state": "imported" if imported else "unmatched" if available else "missing",
-            "required": config.coverage_required,
-            "configured_inputs": inputs,
-            "available_inputs": available,
-        }
 
     def is_scan_target(row: dict[str, Any]) -> bool:
         return target_for_path(Path(row["path"])) is not None
@@ -270,7 +179,9 @@ def create_app(
     ) -> dict[str, Any]:
         row = selected_repository(repository_id)
         result = database.overview(int(row["id"]), snapshot_id)
-        result["coverage"] = coverage_diagnostics(row, result.get("coverage") or {})
+        result["coverage"] = api_coverage.coverage_diagnostics(
+            row, selected_config(row), result.get("coverage") or {}
+        )
         if snapshot_id is None:
             result["semantic"] = SemanticEngine(database).status(
                 int(row["id"]), selected_config(row).semantic
@@ -284,14 +195,33 @@ def create_app(
         row = selected_repository(repository_id)
         return database.modules(int(row["id"]), snapshot_id)
 
+    @app.get("/api/groups")
+    def groups(
+        repository_id: int | None = None,
+        snapshot_id: int | None = None,
+        layer: str = Query(default="effective", pattern="^(effective|semantic|policy|inferred)$"),
+    ) -> dict[str, Any]:
+        row = selected_repository(repository_id)
+        return {
+            "layer": layer,
+            "groups": database.group_hierarchy(int(row["id"]), snapshot_id, layer=layer),
+        }
+
+    @app.get("/api/taxonomy")
+    def taxonomy(
+        repository_id: int | None = None, snapshot_id: int | None = None
+    ) -> dict[str, Any]:
+        row = selected_repository(repository_id)
+        result = database.semantic_taxonomy(int(row["id"]), snapshot_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="No current semantic taxonomy")
+        return result
+
     @app.get("/api/semantic")
     def semantic_status(repository_id: int | None = None) -> dict[str, Any]:
         row = selected_repository(repository_id)
         result = SemanticEngine(database).status(int(row["id"]), selected_config(row).semantic)
-        with semantic_lock:
-            result["worker"] = dict(
-                semantic_jobs.get(str(Path(row["path"]).resolve()), {"status": "idle"})
-            )
+        result["worker"] = semantic_refresh.status_for(Path(row["path"]))
         return result
 
     @app.post("/api/semantic/refresh")
@@ -299,6 +229,7 @@ def create_app(
         repository_id: int | None = None,
         force: bool = False,
         retry_failed: bool = False,
+        wait: bool = False,
     ) -> dict[str, Any]:
         row = selected_repository(repository_id)
         target = target_for_path(Path(row["path"]))
@@ -313,7 +244,22 @@ def create_app(
                 status_code=400,
                 detail="Semantic analysis is disabled in this repository's .anaxigraph.yml",
             )
-        started = start_semantic_refresh(target, force=force, retry_failed=retry_failed)
+        if wait:
+            stats = RepositoryScanner(database).scan(
+                target.path,
+                config_path=target.config_path,
+                run_type="semantic_reconcile",
+            )
+            result = SemanticEngine(database).bootstrap(
+                stats.repository_id,
+                target.path,
+                config,
+                force=force,
+                retry_failed=retry_failed,
+                plan_only=True,
+            )
+            return {"status": "prepared", "scan": stats.as_dict(), **result}
+        started = semantic_refresh.start(target, force=force, retry_failed=retry_failed)
         return {
             "status": "started" if started else "already_running",
             "repository_id": row["id"],
@@ -525,27 +471,13 @@ def create_app(
         )
         config = selected_config(row)
         if config.semantic.enabled and config.semantic.refresh == "on_scan":
-            start_semantic_refresh(target)
+            semantic_refresh.start(target)
         return stats.as_dict()
 
     @app.get("/api/trends")
     def trends(repository_id: int | None = None, limit: int = 100) -> dict[str, Any]:
         row = selected_repository(repository_id)
         return api_support.repository_trends(database, int(row["id"]), limit=limit)
-
-    @app.get("/", response_class=HTMLResponse)
-    def dashboard_index() -> FileResponse:
-        return FileResponse(str(DASHBOARD.joinpath("index.html")))
-
-    @app.get("/assets/{name}")
-    def dashboard_asset(name: str) -> FileResponse:
-        if name not in DASHBOARD_ASSETS:
-            raise HTTPException(status_code=404, detail="Asset not found")
-        return FileResponse(str(DASHBOARD.joinpath(name)))
-
-    @app.api_route("/favicon.ico", methods=["GET", "HEAD"], include_in_schema=False)
-    def favicon() -> FileResponse:
-        return FileResponse(str(DASHBOARD.joinpath("favicon.svg")), media_type="image/svg+xml")
 
     @app.get("/api/export")
     def export(repository_id: int | None = None) -> dict[str, Any]:
@@ -557,8 +489,10 @@ def create_app(
                 database, int(row["id"]), selected_config(row)
             ),
             "snapshots": database.snapshots(int(row["id"])),
+            "semantic_taxonomy": database.semantic_taxonomy(int(row["id"])),
         }
 
+    api_dashboard.register_dashboard_routes(app)
     if mcp is not None:
         app.mount("/", mcp.streamable_http_app())
     return app

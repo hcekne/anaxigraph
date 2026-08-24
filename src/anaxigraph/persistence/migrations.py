@@ -24,7 +24,7 @@ from anaxigraph.persistence.temporal_reconstruction import ensure_checkpoint_pol
 from anaxigraph.persistence.temporal_relationships import compact_duplicate_relationship_sets
 from anaxigraph.persistence.temporal_schema import install_temporal_schema
 
-SUPPORTED_SCHEMA_VERSIONS = frozenset({2, 6, 7, 8, 9})
+SUPPORTED_SCHEMA_VERSIONS = frozenset({2, 6, 7, 8, 9, 10})
 
 
 def migrate_schema(
@@ -44,7 +44,7 @@ def migrate_schema(
         "coverage_measurements",
         {"relationship_edge_id": "INTEGER REFERENCES relationship_edges(id) ON DELETE CASCADE"},
     )
-    if current_version not in {7, 8, 9}:
+    if current_version not in {7, 8, 9, 10}:
         migrate_legacy_temporal_facts(connection)
     canonical_metadata_changed = bool(backfill_fact_symbol_details(connection))
     canonical_metadata_changed = (

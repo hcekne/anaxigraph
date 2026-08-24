@@ -6,7 +6,7 @@ import json
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-SEMANTIC_SCHEMA_VERSION = "module-dossier-v4"
+SEMANTIC_SCHEMA_VERSION = "repository-understanding-v5"
 
 _STRING_ARRAY = {"type": "array", "items": {"type": "string"}}
 _PATTERN_OPPORTUNITY = {

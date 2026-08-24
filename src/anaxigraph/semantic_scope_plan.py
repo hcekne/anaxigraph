@@ -11,8 +11,13 @@ from typing import Any
 from anaxigraph.clock import utc_now
 from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
 from anaxigraph.persistence.semantic_evidence import semantic_inventory
-from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION
-from anaxigraph.semantic_graph import _canonical_hash, _expired
+from anaxigraph.semantic_freshness import (
+    GROUP_SYNTHESIS_CONTRACT,
+    REPOSITORY_SYNTHESIS_CONTRACT,
+    semantic_input_hash,
+)
+from anaxigraph.semantic_graph import _expired
+from anaxigraph.semantic_group_membership import synthesis_groups
 from anaxigraph.semantic_records import (
     _ensure_job,
     _has_active_module_stage,
@@ -68,30 +73,7 @@ class SemanticScopePlanningMixin:
             return SemanticPlan(repository_id, snapshot_id, 0, 0, "disabled", status)
 
         with self.database.transaction() as connection:
-            now = utc_now()
-            stale_before = (
-                datetime.now(UTC) - timedelta(seconds=max(90, semantic.timeout_seconds + 60))
-            ).isoformat()
-            connection.execute(
-                """
-                UPDATE semantic_jobs SET status = 'retry', available_at = ?,
-                    worker_id = NULL, lease_expires_at = NULL, lease_token_hash = NULL,
-                    error = 'The previous worker lease expired; this job was safely requeued.'
-                WHERE repository_id = ? AND status = 'running'
-                  AND (lease_expires_at < ? OR (lease_expires_at IS NULL AND started_at < ?))
-                """,
-                (now, repository_id, now, stale_before),
-            )
-            connection.execute(
-                """
-                UPDATE semantic_jobs SET status = 'superseded', completed_at = ?,
-                    worker_id = NULL, lease_expires_at = NULL, lease_token_hash = NULL,
-                    error = 'A newer repository snapshot replaced this job.'
-                WHERE repository_id = ? AND snapshot_id != ?
-                  AND status IN ('pending', 'retry', 'running')
-                """,
-                (utc_now(), repository_id, snapshot_id),
-            )
+            _reconcile_job_leases(connection, repository_id, snapshot_id, semantic)
             inventory, relationships = semantic_inventory(connection, snapshot_id)
             enqueued = self._plan_intrinsic(
                 connection,
@@ -103,40 +85,28 @@ class SemanticScopePlanningMixin:
                 force=force,
                 retry_failed=retry_failed,
             )
-            stage = "intrinsic"
-            if not _has_active_module_stage(connection, snapshot_id, "intrinsic"):
-                enqueued += self._plan_context(
-                    connection,
-                    repository_id=repository_id,
-                    snapshot_id=snapshot_id,
-                    inventory=inventory,
-                    relationships=relationships,
-                    semantic=semantic,
-                    retry_failed=retry_failed,
-                )
-                stage = "context"
-            if not _has_active_module_stage(connection, snapshot_id, "context"):
-                group_jobs = self._plan_groups(
-                    connection,
-                    repository_id=repository_id,
-                    snapshot_id=snapshot_id,
-                    inventory=inventory,
-                    config=config,
-                    semantic=semantic,
-                    retry_failed=retry_failed,
-                )
-                enqueued += group_jobs
-                stage = "groups"
-                if not _has_active_scope(connection, snapshot_id, "group"):
-                    enqueued += self._plan_repository(
-                        connection,
-                        repository_id=repository_id,
-                        snapshot_id=snapshot_id,
-                        inventory=inventory,
-                        semantic=semantic,
-                        retry_failed=retry_failed,
-                    )
-                    stage = "repository"
+            intrinsic_active = _has_active_module_stage(connection, snapshot_id, "intrinsic")
+            enqueued += self._plan_context(
+                connection,
+                repository_id=repository_id,
+                snapshot_id=snapshot_id,
+                inventory=inventory,
+                relationships=relationships,
+                semantic=semantic,
+                retry_failed=retry_failed,
+            )
+            stage = "intrinsic" if intrinsic_active else "context"
+            downstream_jobs, downstream_stage = self._plan_downstream(
+                connection,
+                repository_id=repository_id,
+                snapshot_id=snapshot_id,
+                inventory=inventory,
+                relationships=relationships,
+                config=config,
+                retry_failed=retry_failed,
+            )
+            enqueued += downstream_jobs
+            stage = downstream_stage or stage
             active_jobs = int(
                 connection.execute(
                     """
@@ -156,6 +126,54 @@ class SemanticScopePlanningMixin:
             self.status(repository_id, semantic),
         )
 
+    def _plan_downstream(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        repository_id: int,
+        snapshot_id: int,
+        inventory: dict[str, dict[str, Any]],
+        relationships: dict[str, list[dict[str, Any]]],
+        config: AnaxiGraphConfig,
+        retry_failed: bool,
+    ) -> tuple[int, str | None]:
+        if _has_active_module_stage(connection, snapshot_id, "context"):
+            return 0, None
+        semantic = config.semantic
+        enqueued = 0
+        if semantic.taxonomy.enabled:
+            taxonomy_jobs, taxonomy_current = self._plan_taxonomy(
+                connection,
+                repository_id=repository_id,
+                snapshot_id=snapshot_id,
+                relationships=relationships,
+                config=config,
+                retry_failed=retry_failed,
+            )
+            if not taxonomy_current:
+                return taxonomy_jobs, "taxonomy"
+            enqueued += taxonomy_jobs
+        enqueued += self._plan_groups(
+            connection,
+            repository_id=repository_id,
+            snapshot_id=snapshot_id,
+            inventory=inventory,
+            config=config,
+            semantic=semantic,
+            retry_failed=retry_failed,
+        )
+        if _has_active_scope(connection, snapshot_id, "group"):
+            return enqueued, "groups"
+        enqueued += self._plan_repository(
+            connection,
+            repository_id=repository_id,
+            snapshot_id=snapshot_id,
+            inventory=inventory,
+            semantic=semantic,
+            retry_failed=retry_failed,
+        )
+        return enqueued, "repository"
+
     def _plan_groups(
         self,
         connection: sqlite3.Connection,
@@ -168,39 +186,30 @@ class SemanticScopePlanningMixin:
         retry_failed: bool,
     ) -> int:
         states = _states(connection, snapshot_id, "module")
-        parent_by_group = {group.name: group.parent for group in config.groups}
-        members: dict[str, set[str]] = {}
-        for path, module in inventory.items():
-            state = states.get(path)
-            if state is None or state["status"] == "excluded":
-                continue
-            group = str(module.get("declared_group") or module.get("inferred_group") or "ungrouped")
-            seen = set()
-            while group and group not in seen:
-                seen.add(group)
-                members.setdefault(group, set()).add(path)
-                group = str(parent_by_group.get(group) or "")
+        members, group_metadata = synthesis_groups(
+            connection,
+            snapshot_id=snapshot_id,
+            inventory=inventory,
+            config=config,
+        )
 
         enqueued = 0
         for group, paths in sorted(members.items()):
-            documents, missing = _member_documents(connection, states, sorted(paths))
-            input_hash = _canonical_hash(
-                {
-                    "schema": SEMANTIC_SCHEMA_VERSION,
-                    "prompt": semantic.prompt_version,
-                    "provider": semantic.provider,
-                    "model": semantic.model,
-                    "scope": group,
-                    "documents": [
-                        (
-                            item["scope_key"],
-                            item["intent_fingerprint"],
-                            item["input_hash"],
-                        )
-                        for item in documents
-                    ],
-                    "missing": missing,
-                }
+            active_paths = [
+                path
+                for path in sorted(paths)
+                if states.get(path) and states[path]["status"] != "excluded"
+            ]
+            documents, missing = _member_documents(connection, states, active_paths)
+            metadata = group_metadata.get(group) or {"node_key": group, "name": group}
+            taxonomy_fingerprint = {
+                key: value for key, value in metadata.items() if key != "taxonomy_id"
+            }
+            evidence = _group_synthesis_evidence(group, taxonomy_fingerprint, documents, missing)
+            input_hash = semantic_input_hash(
+                GROUP_SYNTHESIS_CONTRACT,
+                semantic.prompt_version,
+                evidence,
             )
             document = _matching_document(
                 connection,
@@ -210,6 +219,7 @@ class SemanticScopePlanningMixin:
                 "synthesis",
                 input_hash,
                 semantic,
+                legacy_evidence=evidence,
             )
             expired = document is not None and _expired(
                 document["created_at"], semantic.max_age_days
@@ -245,6 +255,7 @@ class SemanticScopePlanningMixin:
                 metadata={
                     "document_ids": [int(item["id"]) for item in documents],
                     "missing_members": missing,
+                    "taxonomy": metadata,
                     "previous_document_id": (
                         int(latest["id"])
                         if (
@@ -286,22 +297,21 @@ class SemanticScopePlanningMixin:
         group_documents, missing = _member_documents(connection, group_states, sorted(group_states))
         if not group_documents and inventory:
             return 0
-        input_hash = _canonical_hash(
-            {
-                "schema": SEMANTIC_SCHEMA_VERSION,
-                "prompt": semantic.prompt_version,
-                "provider": semantic.provider,
-                "model": semantic.model,
-                "documents": [
-                    (
-                        item["scope_key"],
-                        item["intent_fingerprint"],
-                        item["input_hash"],
-                    )
-                    for item in group_documents
-                ],
-                "missing": missing,
-            }
+        evidence = {
+            "documents": [
+                (
+                    item["scope_key"],
+                    item["intent_fingerprint"],
+                    item["input_hash"],
+                )
+                for item in group_documents
+            ],
+            "missing": missing,
+        }
+        input_hash = semantic_input_hash(
+            REPOSITORY_SYNTHESIS_CONTRACT,
+            semantic.prompt_version,
+            evidence,
         )
         document = _matching_document(
             connection,
@@ -311,6 +321,7 @@ class SemanticScopePlanningMixin:
             "synthesis",
             input_hash,
             semantic,
+            legacy_evidence=evidence,
         )
         expired = document is not None and _expired(document["created_at"], semantic.max_age_days)
         if document is not None and not expired:
@@ -373,3 +384,52 @@ class SemanticScopePlanningMixin:
             context_fingerprint=input_hash,
         )
         return int(created)
+
+
+def _reconcile_job_leases(
+    connection: sqlite3.Connection,
+    repository_id: int,
+    snapshot_id: int,
+    semantic: SemanticConfig,
+) -> None:
+    now = utc_now()
+    stale_before = (
+        datetime.now(UTC) - timedelta(seconds=max(90, semantic.timeout_seconds + 60))
+    ).isoformat()
+    connection.execute(
+        """
+        UPDATE semantic_jobs SET status = 'retry', available_at = ?,
+            worker_id = NULL, lease_expires_at = NULL, lease_token_hash = NULL,
+            error = 'The previous worker lease expired; this job was safely requeued.'
+        WHERE repository_id = ? AND status = 'running'
+          AND (lease_expires_at < ? OR (lease_expires_at IS NULL AND started_at < ?))
+        """,
+        (now, repository_id, now, stale_before),
+    )
+    connection.execute(
+        """
+        UPDATE semantic_jobs SET status = 'superseded', completed_at = ?,
+            worker_id = NULL, lease_expires_at = NULL, lease_token_hash = NULL,
+            error = 'A newer repository snapshot replaced this job.'
+        WHERE repository_id = ? AND snapshot_id != ?
+          AND status IN ('pending', 'retry', 'running')
+        """,
+        (utc_now(), repository_id, snapshot_id),
+    )
+
+
+def _group_synthesis_evidence(
+    group: str,
+    taxonomy: dict[str, Any],
+    documents: list[dict[str, Any]],
+    missing: list[str],
+) -> dict[str, Any]:
+    return {
+        "scope": group,
+        "taxonomy": taxonomy,
+        "documents": [
+            (item["scope_key"], item["intent_fingerprint"], item["input_hash"])
+            for item in documents
+        ],
+        "missing": missing,
+    }

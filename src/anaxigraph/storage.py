@@ -29,6 +29,7 @@ from anaxigraph.persistence.index_facade import (
     read_snapshots,
     read_timeline,
     search_modules,
+    taxonomy_map_payload,
 )
 
 
@@ -265,7 +266,11 @@ class AnaxiIndex:
             return read_overview(connection, repository_id, snapshot)
 
     def group_hierarchy(
-        self, repository_id: int, snapshot_id: int | None = None
+        self,
+        repository_id: int,
+        snapshot_id: int | None = None,
+        *,
+        layer: str = "effective",
     ) -> list[dict[str, Any]]:
         """Return effective groups rolled up through their configured parent hierarchy."""
 
@@ -274,7 +279,22 @@ class AnaxiIndex:
             return []
         with self.connect() as connection:
             install_snapshot_projection(connection, int(snapshot["id"]), include_symbols=False)
-            return read_group_hierarchy(connection, repository_id)
+            return read_group_hierarchy(
+                connection,
+                repository_id,
+                int(snapshot["id"]),
+                layer=layer,
+            )
+
+    def semantic_taxonomy(
+        self, repository_id: int, snapshot_id: int | None = None
+    ) -> dict[str, Any] | None:
+        snapshot = self._resolve_snapshot(repository_id, snapshot_id)
+        if snapshot is None:
+            return None
+        with self.connect() as connection:
+            install_snapshot_projection(connection, int(snapshot["id"]), include_symbols=False)
+            return taxonomy_map_payload(connection, int(snapshot["id"]))
 
     def modules(self, repository_id: int, snapshot_id: int | None = None) -> list[dict[str, Any]]:
         """Return the file-level intelligence ledger for inventory views and agents."""

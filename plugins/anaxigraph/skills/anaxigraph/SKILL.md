@@ -13,12 +13,15 @@ treat a graph edge, missing edge, finding, or model dossier as permission to ref
 1. Confirm that the `ANAXIGRAPH_REPOSITORIES` tool is available. If it is absent, stop and tell the
    user to start `uvx anaxigraph up . --semantic agent` or its Docker equivalent, then connect the
    client to `http://127.0.0.1:8765/mcp`. Do not invent index results.
-2. Call `ANAXIGRAPH_REPOSITORIES`. Match the current working-tree path to a returned canonical path.
-   Use that repository selector in every later call when more than one repository is listed.
+2. Call `ANAXIGRAPH_REPOSITORIES`. Match the current working tree by exact path or canonical Git
+   remote identity; a Docker mount such as `/repo` will not have the host path. If an `understand`
+   result supplied `index.repository_id`, use that exact selector. Use the selected repository ID in
+   every later call when more than one repository is listed.
 3. If no path matches, or multiple candidates remain and the user did not select one, ask which
    indexed repository to use. Never silently analyze a similarly named repository.
-4. Call `ANAXIGRAPH_OVERVIEW` and `ANAXIGRAPH_SEMANTIC_STATUS` before choosing a workflow. State
-   analyzer/resolution caveats when they materially affect the answer.
+4. Call `ANAXIGRAPH_OVERVIEW` and `ANAXIGRAPH_SEMANTIC_STATUS` before choosing a workflow. When the
+   semantic baseline is current, call `ANAXIGRAPH_TAXONOMY` and use its area/subsystem hierarchy as
+   the default map. State analyzer/resolution caveats when they materially affect the answer.
 
 With no narrower request, summarize the repository's areas, dominant languages, active attention,
 relationship completeness, history state, and semantic coverage. Keep deterministic facts and
@@ -45,8 +48,14 @@ model-derived interpretations visibly separate.
 This workflow writes interpretations only to AnaxiIndex. Do not edit repository source while
 performing it.
 
-1. Call `ANAXIGRAPH_SEMANTIC_SCHEMA` once per schema version in the current session. Follow its
-   required dossier fields exactly; the live schema is authoritative over this skill.
+If the user asks you to run `anaxigraph understand` and its JSON result has
+`status: agent_action_required`, the command is not the completed task. Follow its `next_action`
+with the MCP workflow below and do not return to the user until the queue reaches a terminal state.
+If the command used a local Codex/Claude executor, wait for it and verify `complete: true`; a
+`partial` result also requires continuation.
+
+1. Call `ANAXIGRAPH_SEMANTIC_SCHEMA` once per schema version in the current session. It contains
+   dossier, taxonomy, and taxonomy-review schemas; the live schema is authoritative over this skill.
 2. Call `ANAXIGRAPH_SEMANTIC_WORK` with a recognizable agent ID and the actual model name when
    available. Preserve the returned job ID and lease token only for that job.
 3. Branch on the returned status:
@@ -62,8 +71,11 @@ performing it.
    Treat an unresolved or absent edge as uncertainty, never as proof that code is dead. Give pattern,
    consolidation, placement, and deletion suggestions repository-specific evidence, counter-evidence,
    migration cost, and calibrated confidence.
-6. Construct one complete dossier matching the live schema. Call `ANAXIGRAPH_SEMANTIC_SUBMIT` with
-   the same job ID and lease token. Count the dossier as stored only after a successful response with
+6. Read `response_contract.artifact` and construct that complete artifact using the corresponding
+   live schema. Taxonomy proposals must assign every supplied eligible module exactly once.
+   Taxonomy-review jobs independently criticize the candidate, repair it, and return the complete
+   corrected taxonomy without asking for human approval. Call `ANAXIGRAPH_SEMANTIC_SUBMIT` with the
+   same job ID and lease token. Count the artifact as stored only after a successful response with
    `status: completed` or `status: already_completed`.
 7. Call `ANAXIGRAPH_SEMANTIC_WORK` again and repeat until it returns a terminal/no-work state. This
    naturally resumes a partial baseline because only stale or unfinished work is leased.
@@ -71,9 +83,9 @@ performing it.
    lease expiry, call `ANAXIGRAPH_SEMANTIC_RELEASE` with a concise reason. If a lease is already
    expired or superseded, discard its token and claim fresh work; never submit stale reasoning.
 
-At the end, call `ANAXIGRAPH_SEMANTIC_STATUS` and report completed coverage, pending/running/failed
-work, and whether the repository-level synthesis is current. Never say that the baseline or a
-module was submitted merely because you drafted a dossier.
+At the end, call `ANAXIGRAPH_SEMANTIC_STATUS` and `ANAXIGRAPH_TAXONOMY`. Report completed coverage,
+pending/running/failed work, taxonomy validation/critic passes, and whether repository synthesis is
+current. Never say that the baseline, module, or map was submitted merely because you drafted it.
 
 ## Prepare a coding handoff
 
