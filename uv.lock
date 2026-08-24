@@ -14,6 +14,7 @@ version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
+    { name = "filelock" },
     { name = "mcp" },
     { name = "pyyaml" },
     { name = "uvicorn" },
@@ -34,6 +35,7 @@ dev = [
 requires-dist = [
     { name = "build", marker = "extra == 'dev'", specifier = ">=1.2,<2" },
     { name = "fastapi", specifier = ">=0.115,<1" },
+    { name = "filelock", specifier = ">=3.16,<4" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27,<1" },
     { name = "mcp", specifier = ">=1.28,<2" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.6,<5" },

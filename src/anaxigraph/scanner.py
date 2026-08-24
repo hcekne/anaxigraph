@@ -70,6 +70,26 @@ class RepositoryScanner:
         baseline_snapshot_id: int | None = None,
         previous_revision: str | None = None,
     ) -> ScanStats:
+        with self.database.scan_lock():
+            return self._scan(
+                repository,
+                config_path=config_path,
+                revision=revision,
+                run_type=run_type,
+                baseline_snapshot_id=baseline_snapshot_id,
+                previous_revision=previous_revision,
+            )
+
+    def _scan(
+        self,
+        repository: str | Path,
+        *,
+        config_path: str | Path | None = None,
+        revision: str | None = None,
+        run_type: str = "scan",
+        baseline_snapshot_id: int | None = None,
+        previous_revision: str | None = None,
+    ) -> ScanStats:
         started = time.monotonic()
         root = Path(repository).expanduser().resolve()
         if not root.is_dir():

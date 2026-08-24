@@ -10,6 +10,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from filelock import FileLock
+
 from anaxigraph.models import GitMetadata
 from anaxigraph.persistence.index_facade import (
     SCHEMA,
@@ -75,6 +77,14 @@ class AnaxiIndex:
             raise
         finally:
             connection.close()
+
+    @contextlib.contextmanager
+    def scan_lock(self) -> Iterator[None]:
+        """Serialize repository scans that share this index across processes."""
+
+        lock = FileLock(f"{self.path}.scan.lock")
+        with lock:
+            yield
 
     def ensure_repository(
         self,
