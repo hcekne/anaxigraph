@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 from typing import Any
 
 from anaxigraph.semantic_contract import SemanticResult, _validate_schema
@@ -164,11 +165,43 @@ PATTERN_REVIEW_SCHEMA: dict[str, Any] = {
 
 def pattern_response_schema(request: dict[str, Any]) -> dict[str, Any] | None:
     kind = str(request.get("analysis_kind") or "")
-    if kind == "pattern_assessment":
-        return PATTERN_EVALUATION_SCHEMA
-    if kind == "pattern_review":
-        return PATTERN_REVIEW_SCHEMA
-    return None
+    schema = _base_pattern_schema(kind)
+    return (
+        _bound_pattern_schema(schema, request, review=kind == "pattern_review") if schema else None
+    )
+
+
+def _base_pattern_schema(kind: str) -> dict[str, Any] | None:
+    return {
+        "pattern_assessment": PATTERN_EVALUATION_SCHEMA,
+        "pattern_review": PATTERN_REVIEW_SCHEMA,
+    }.get(kind)
+
+
+def _bound_pattern_schema(
+    schema: dict[str, Any], request: dict[str, Any], *, review: bool
+) -> dict[str, Any]:
+    result = copy.deepcopy(schema)
+    candidate = request.get("candidate") or {}
+    identities = {
+        "candidate_fingerprint": str(candidate.get("input_fingerprint") or ""),
+        "pattern_key": str(candidate.get("pattern_key") or ""),
+        "target_key": str((candidate.get("target") or {}).get("key") or ""),
+        "score_contract_version": PATTERN_SCORE_CONTRACT_VERSION,
+    }
+    evaluation = result["properties"]["evaluation"] if review else result
+    for field, expected in identities.items():
+        evaluation["properties"][field] = {"type": "string", "enum": [expected]}
+    if review:
+        result["properties"]["candidate_fingerprint"] = {
+            "type": "string",
+            "enum": [identities["candidate_fingerprint"]],
+        }
+        result["properties"]["review_contract_version"] = {
+            "type": "string",
+            "enum": [PATTERN_REVIEW_CONTRACT_VERSION],
+        }
+    return result
 
 
 def pattern_response_name(request: dict[str, Any]) -> str | None:
@@ -187,7 +220,7 @@ def validated_pattern_response(
     output_tokens: int = 0,
 ) -> SemanticResult:
     kind = str(request.get("analysis_kind") or "")
-    schema = pattern_response_schema(request)
+    schema = _base_pattern_schema(kind)
     name = pattern_response_name(request)
     if schema is None or name is None:
         raise ValueError(f"unsupported pattern analysis kind: {kind}")

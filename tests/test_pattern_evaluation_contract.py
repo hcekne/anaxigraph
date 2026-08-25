@@ -229,8 +229,15 @@ def test_review_identity_and_version_are_strict():
 
 def test_response_dispatch_is_narrow_and_versioned():
     assert PATTERN_ANALYSIS_KINDS == {"pattern_assessment", "pattern_review"}
-    assert pattern_response_schema(_request()) is PATTERN_EVALUATION_SCHEMA
-    assert pattern_response_schema(_request("pattern_review")) is PATTERN_REVIEW_SCHEMA
+    assessment = pattern_response_schema(_request())
+    review = pattern_response_schema(_request("pattern_review"))
+    assert assessment is not PATTERN_EVALUATION_SCHEMA
+    assert review is not PATTERN_REVIEW_SCHEMA
+    assert assessment["properties"]["candidate_fingerprint"]["enum"] == [FINGERPRINT]
+    assert assessment["properties"]["pattern_key"]["enum"] == [PATTERN_KEY]
+    assert assessment["properties"]["target_key"]["enum"] == [TARGET_KEY]
+    assert review["properties"]["candidate_fingerprint"]["enum"] == [FINGERPRINT]
+    assert review["properties"]["evaluation"]["properties"]["pattern_key"]["enum"] == [PATTERN_KEY]
     assert pattern_response_name(_request()) == "pattern_evaluation"
     assert pattern_response_name({"analysis_kind": "intrinsic"}) is None
     with pytest.raises(ValueError, match="unsupported pattern analysis kind"):
@@ -248,6 +255,6 @@ def test_shared_semantic_dispatch_uses_pattern_contracts(kind, schema, name):
     request = _request(kind)
     value = _evaluation() if kind == "pattern_assessment" else _review()
 
-    assert response_schema(request) is schema
+    assert response_schema(request)["required"] == schema["required"]
     assert response_contract_name(request) == name
     assert validated_agent_semantic_response(value, request).value == value
