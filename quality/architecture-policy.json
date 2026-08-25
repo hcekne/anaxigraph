@@ -139,6 +139,7 @@
         "anaxigraph.semantic_service_workflows",
         "anaxigraph.semantic_services",
         "anaxigraph.semantic_status",
+        "anaxigraph.semantic_status_language",
         "anaxigraph.semantic_status_queries",
         "anaxigraph.semantic_taxonomy_plan",
         "anaxigraph.semantic_taxonomy_requests",

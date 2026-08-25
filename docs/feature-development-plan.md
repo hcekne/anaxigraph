@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.19
+**Roadmap version:** 3.20
 
 **Updated:** 25 August 2026
 
@@ -95,7 +95,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 516 tests passing at 90.92% coverage plus 16 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
+| Test health | 522 tests passing at 90.96% coverage plus 16 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -1781,6 +1781,21 @@ stable counts and resolution states remain available for automation. The underly
 are also ordinary sentences, so opening or querying more detail never reveals a second layer of
 unexplained shorthand.
 
+Semantic-run status now follows it as well. `semantic-status-explanation-v1` tells both people and
+agents whether work is running **now**, whether an idle queue is safely saved but unable to finish
+by itself, how many included files have current self-and-repository descriptions, which file or
+whole-map work failed or remains, and the exact action that resumes it. Progress is explicitly a
+count of current file descriptions rather than a code-quality grade. Agent-backed status says that
+the connected coding-agent session chooses model and reasoning effort; neither is hardcoded into
+the saved understanding of the code. The API refreshes the explanation after adding live worker
+state, and the dashboard and Settings render those same sentences instead of “intrinsic/contextual dossiers,”
+“synthesis scopes,” or “durable host executor.” This is a read-time projection only: it changes no
+semantic signature, queue item, completed result, or source file. The two semantic browser
+contracts now live in a focused 177-line file, reducing the general dashboard contract from 442 to
+289 lines. Those contracts also pin the expired-lease case: saved work with zero live leases is
+shown as idle, the resume button stays enabled, and polling does not claim that the departed agent
+is still running.
+
 Deterministic dead-code candidates now require trusted relationship resolution, no resolved or
 ambiguous inbound path, configured and conventional entry-point exclusion, parser-backed support
 for both entry-point and registration evidence, no detected dynamic-wiring fact, and the configured
@@ -1812,7 +1827,7 @@ and an observed difference is not called an improvement without the intended out
 | Removal safety | Python fixtures prove trusted module candidates, detected registration suppression, heuristic-language suppression, configured entry-point suppression, uncorroborated semantic suppression, and module/symbol granularity separation; `safe_to_remove` remains false |
 | Responsive authority | A blocking synchronous MCP tool no longer blocks the event loop; discovery tests prove connection-refused fallback, transient retry, and timeout refusal, while real SDK MCP and sidecar-preparation tests retain the work protocol |
 | Focused orchestration | Scope response assembly now lives behind a bounded payload service, reducing `agent_scope` from its 128-line/complexity-24 ratchet to 97/8; finding handoff and reverse-impact assembly moved out of their former 96/22 and 77/18 functions. `agent.py` is 233 lines, the focused finding and impact services are 164 and 143, and all three obsolete self-analysis findings are removed |
-| Verification | The complete suite passes 516 tests at 90.92% coverage; all 16 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis at 31 governed findings, 132 non-blocking findings, and zero issues |
+| Verification | The complete suite passes 522 tests at 90.96% coverage; all 16 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis at 30 governed findings, 131 non-blocking findings, and zero issues |
 
 ## 6.8 Expose pattern intelligence without multiplying product surfaces
 
@@ -1905,9 +1920,9 @@ reasons, and one-click pivots between finalized evaluations and skipped-target e
 Sixty focused candidate/query/calibration/language-contract cases, CLI authority handoff coverage,
 completed-semantic projection coverage, REST integration, and a real MCP SDK round trip cover the
 read model. The dashboard candidate workflow passes within all 16 browser contracts in the pinned
-Playwright container. The complete suite passes 516 tests at 90.92% coverage; architecture, size,
+Playwright container. The complete suite passes 522 tests at 90.96% coverage; architecture, size,
 maintainability, formatting, and deterministic self-analysis gates report no errors or regressions,
-with self-analysis at 31 governed findings, 132 non-blocking findings, and zero issues.
+with self-analysis at 30 governed findings, 131 non-blocking findings, and zero issues.
 
 ## 6.9 Make repository-sized semantic bootstrap operational
 

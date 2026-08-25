@@ -109,6 +109,15 @@ neighbour-intent, prompt, stage-contract, and taxonomy fingerprints invalidate o
 downstream work. Provider and model are execution provenance and never freshness inputs. SQLite
 jobs carry priorities, attempts, token/cost estimates, and renewable worker leases, making the
 pipeline resumable across process and coding-agent restarts.
+The status response adds `semantic-status-explanation-v1` over those machine states. It says
+whether a worker is running now, whether saved work can finish by itself, how many included files
+have current descriptions, which whole-map work or failures remain, and what action will resume it.
+The API route recomputes that explanation after attaching the live worker state, so REST, MCP,
+settings, and the dashboard cannot mistake a saved queue for an active process. For a connected
+coding agent it also states that runtime model and reasoning effort are session choices, not
+hardcoded parts of the saved understanding. Dashboard controls and polling use live leases, not the
+raw count of rows formerly marked running, so an expired agent session remains resumable without
+pretending that a worker still exists.
 
 Historical reconstruction has a separate application-level job coordinator. Its outer
 `history_import` record uses `analysis_runs` metadata for queued, enumerating, importing,

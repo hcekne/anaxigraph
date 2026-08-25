@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException
 
 import anaxigraph.api_support as api_support
 from anaxigraph.config_authority import effective_semantic_policy, service_config_authority
+from anaxigraph.semantic_status_language import semantic_status_explanation
 
 
 def semantic_router(context: Any) -> APIRouter:
@@ -34,6 +35,7 @@ class SemanticRoutes:
         result["worker"] = self.context.semantic_refresh.status_for(Path(row["path"]))
         result["config_authority"] = service_config_authority(Path(row["path"]), target, config)
         result["semantic_policy"] = effective_semantic_policy(config.semantic)
+        result["plain_language"] = semantic_status_explanation(result)
         return result
 
     async def prepare(

@@ -95,6 +95,9 @@ def test_two_thousand_module_plan_has_constant_fact_reconstruction_count(tmp_pat
     assert action["kind"] == "durable_host_executor"
     assert "--background" in action["command"]
     assert "--model" not in action["command"]
+    language = engine.status(stats.repository_id, config.semantic)["plain_language"]
+    assert "no worker is running right now" in language["conclusion"]
+    assert any("does not hardcode" in item for item in language["how_to_read_progress"])
 
 
 def test_agent_claim_uses_an_existing_queue_without_planning(repository, database, monkeypatch):

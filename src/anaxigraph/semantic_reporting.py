@@ -8,6 +8,7 @@ from anaxigraph.semantic_config_port import SemanticConfig
 from anaxigraph.semantic_index_port import SemanticIndex
 from anaxigraph.semantic_records import _document_by_id
 from anaxigraph.semantic_status import semantic_status_payload
+from anaxigraph.semantic_status_language import semantic_status_explanation
 from anaxigraph.semantic_status_queries import read_semantic_status
 
 
@@ -19,7 +20,7 @@ class SemanticReportingService:
         snapshot = self._database.latest_snapshot(repository_id)
         configured = bool(semantic and semantic.enabled)
         if snapshot is None:
-            return {
+            result = {
                 "enabled": configured,
                 "state": "not_indexed",
                 "semantically_ready": False,
@@ -29,6 +30,8 @@ class SemanticReportingService:
                     "message": "Run an explicit repository scan before semantic preparation.",
                 },
             }
+            result["plain_language"] = semantic_status_explanation(result)
+            return result
         snapshot_id = int(snapshot["id"])
         with self._database.connect() as connection:
             rows = read_semantic_status(

@@ -113,24 +113,48 @@ export function renderSettings() {
 }
 
 function semanticSettingsSummary(semantic) {
+  const language = semantic.plain_language || {};
+  if (language.conclusion) return semanticSettingsLanguageSummary(semantic, language);
   if (!semantic.enabled) {
-    return "Disabled for this repository. Deterministic analysis still works; enable semantic.provider: agent to use the connected coding agent without adding a model key to AnaxiGraph, or configure a hosted worker.";
+    return "AI mapping is off for this repository. The non-AI code and dependency map still works. Enable semantic.provider: agent to use the connected coding agent without giving AnaxiGraph a separate model key, or configure a hosted worker.";
   }
+  return semanticSettingsFallbackSummary(semantic);
+}
+
+function semanticSettingsLanguageSummary(semantic, language) {
+  const explanation = [
+    language.conclusion,
+    language.progress,
+    language.work_state,
+    ...(language.remaining_work || []),
+    ...(language.what_to_do || []),
+    ...(language.how_to_read_progress || []),
+  ].filter(Boolean).join(" ");
+  return explanation + semanticPolicyLimit(semantic);
+}
+
+function semanticSettingsFallbackSummary(semantic) {
   const coverage = semantic.coverage == null ? "not started" : `${(semantic.coverage * 100).toFixed(1)}%`;
   const agentFunded = semantic.provider === "agent";
-  const work = `${format.format(semantic.pending || 0)} module job(s) and ${format.format(semantic.pending_scopes || 0)} synthesis scope(s)`;
+  const work = `${format.format(semantic.pending || 0)} file descriptions and ${format.format(semantic.pending_scopes || 0)} whole-map tasks`;
   const summary = agentFunded
-    ? `${coverage} of eligible modules are current. A connected coding agent executes ${work} with its own model and tokens.`
-    : `${coverage} of eligible modules are current through ${semanticProvider(semantic)}. Refresh policy: ${humanize(semantic.refresh || "manual")}. ${work} remain.`;
+    ? `${coverage} of included files have current AI descriptions. A connected coding agent processes ${work} with the model chosen for that agent session.`
+    : `${coverage} of included files have current AI descriptions through ${semanticProvider(semantic)}. Refresh policy: ${humanize(semantic.refresh || "manual")}. ${work} remain.`;
+  return summary + semanticTaxonomySummary(semantic.taxonomy || {}) + semanticPolicyLimit(semantic);
+}
+
+function semanticPolicyLimit(semantic) {
   const policy = semantic.semantic_policy || {};
-  const limit = ` Service limit: ${format.format(policy.max_parallel_jobs || 1)} parallel job(s), ${format.format(policy.timeout_seconds || 300)}s per model call.`;
-  return summary + semanticTaxonomySummary(semantic.taxonomy || {}) + limit;
+  const parallel = Number(policy.max_parallel_jobs || 1);
+  const task = parallel === 1 ? "task" : "tasks";
+  return ` The service can run up to ${format.format(parallel)} AI ${task} at once and allows ${format.format(policy.timeout_seconds || 300)} seconds for each model call.`;
 }
 
 function semanticTaxonomySummary(taxonomy) {
-  if (!taxonomy.enabled) return " Semantic taxonomy generation is disabled.";
-  if (!taxonomy.ready) return " The semantic hierarchy is still being proposed and reviewed.";
-  return ` The semantic map is current after ${format.format(taxonomy.current?.review_passes || 0)} autonomous critic pass(es).`;
+  if (!taxonomy.enabled) return " Automatic creation of the AI code hierarchy is off.";
+  if (!taxonomy.ready) return " The AI-created code hierarchy is still being built and checked automatically.";
+  const checks = Number(taxonomy.current?.review_passes || 0);
+  return ` The AI code hierarchy is current after ${format.format(checks)} independent AI ${checks === 1 ? "check" : "checks"}.`;
 }
 
 function semanticProvider(semantic) {

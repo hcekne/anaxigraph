@@ -75,7 +75,7 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         ]
         assert overview["semantic"]["enabled"] is False
         semantic = (await client.get("/api/semantic")).json()
-        assert semantic["state"] == "not_started"
+        assert semantic["plain_language"]["version"] == "semantic-status-explanation-v1"
         assert semantic["recommended_action"]["kind"] == "enable_semantics"
         assert semantic["semantic_policy"] == repositories[0]["semantic_policy"]
         assert semantic["config_authority"] == repositories[0]["config_authority"]

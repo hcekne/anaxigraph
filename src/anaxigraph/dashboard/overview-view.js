@@ -151,66 +151,90 @@ export function semanticProviderLabel(document = {}) {
 function renderSemanticNotice(semantic) {
   const notice = byId("semantic-notice");
   const repository = selectedRepository();
-  const worker = semantic.worker || {};
-  const running = ["queued", "running"].includes(worker.status)
-    || Number(semantic.jobs?.running || 0) > 0;
-  const total = Number(semantic.eligible_modules || 0);
-  const current = Number(semantic.current || 0);
-  const pending = Number(semantic.pending || 0);
-  const failed = Number(semantic.failed || 0);
-  const failedScopes = Number(semantic.failed_scopes || 0);
-  const excluded = Number(semantic.excluded || 0);
-  const taxonomy = semantic.taxonomy || {};
+  const running = semanticWorkIsActive(semantic);
   if (semantic.semantically_ready && !running) {
     notice.hidden = true;
     return;
   }
   notice.hidden = false;
-  if (!semantic.enabled) {
-    notice.innerHTML = '<strong>AI module understanding is not enabled.</strong><p>The deterministic graph is available. Enable <code>semantic.provider: agent</code> to build the semantic map with a connected coding agent.</p>';
-    return;
-  }
   const agentFunded = semantic.provider === "agent";
-  const taxonomyCopy = taxonomy.enabled
-    ? taxonomy.ready
-      ? ` The semantic hierarchy passed ${format.format(taxonomy.current?.review_passes || 0)} autonomous review pass(es).`
-      : " The repository taxonomy is still awaiting proposal, agent critique, or deterministic validation."
-    : "";
-  const statusCopy = agentFunded
-    ? running ? "A connected coding agent has leased semantic work and is mapping the repository."
-      : `${format.format(current)} of ${format.format(total)} eligible modules have current dossiers. The remaining queue is ready for the durable host executor; direct AnaxiMCP work is a bounded fallback.`
-    : running ? "The semantic worker is reading stale modules and synthesizing architectural context."
-      : worker.status === "failed"
-        ? `The semantic worker stopped: ${worker.error || "unknown error"}`
-        : `${format.format(current)} of ${format.format(total)} eligible modules have current intrinsic and contextual dossiers.`;
-  const action = repository?.scannable
+  const current = Number(semantic.current || 0);
+  const language = semantic.plain_language || semanticStatusFallback(semantic, running);
+  const action = repository?.scannable && semantic.enabled
     ? `<button class="secondary-button" type="button" data-semantic-refresh ${running ? "disabled" : ""}>${agentFunded ? running ? "Agent is mapping…" : "Prepare semantic work" : running ? "Understanding repository…" : current ? "Resume understanding" : "Understand repository"}</button>`
     : "";
-  const budget = semantic.budget || {};
-  const budgetCopy = !agentFunded && budget.paused
-    ? ` The daily model budget is paused with $${Number(budget.remaining_today_usd || 0).toFixed(4)} remaining; the next job is estimated at $${Number(budget.next_job_estimated_usd || 0).toFixed(4)}.`
-    : "";
-  const heading = agentFunded
-    ? running ? "Coding-agent semantic mapping is active." : "Coding-agent semantic mapping is incomplete."
-    : running ? "Semantic mapping is running." : "Repository understanding is incomplete.";
-  const incrementalCopy = agentFunded
-    ? "The coding agent uses its own model and tokens. Hashes ensure later sessions receive only missing or stale work."
-    : "Hashes keep later refreshes incremental; unchanged source is not sent to the model again unless its configured age policy expires.";
-  notice.innerHTML = `<div class="semantic-notice-heading"><div><strong>${heading}</strong><p>${escapeHtml(statusCopy)} ${format.format(pending)} module job(s) and ${format.format(semantic.pending_scopes || 0)} synthesis scope(s) are pending; ${format.format(failed)} module(s) and ${format.format(failedScopes)} synthesis scope(s) failed; ${format.format(excluded)} module(s) are explicitly excluded.${escapeHtml(budgetCopy)}${escapeHtml(taxonomyCopy)}</p><p class="coverage-next">${escapeHtml(incrementalCopy)} Semantic maps are metadata only; proposal, independent agent review, and deterministic validation run automatically.</p></div>${action}</div>`;
+  notice.innerHTML = `<div class="semantic-notice-heading"><div>
+    <strong>${escapeHtml(language.conclusion)}</strong>
+    <p>${escapeHtml(language.progress)}</p><p>${escapeHtml(language.work_state)}</p>
+    ${semanticStatusList("Work still to finish", language.remaining_work)}
+    ${semanticStatusList("What to do", language.what_to_do)}
+    <div class="coverage-next">${(language.how_to_read_progress || []).map((item) => `<p>${escapeHtml(item)}</p>`).join("")}</div>
+    </div>${action}</div>`;
+}
+
+function semanticStatusFallback(semantic, running) {
+  const total = Number(semantic.eligible_modules || 0);
+  const current = Number(semantic.current || 0);
+  const pending = Number(semantic.pending || 0);
+  const pendingMap = Number(semantic.pending_scopes || 0);
+  const enabled = Boolean(semantic.enabled);
+  return {
+    conclusion: !enabled ? "AI mapping is turned off for this repository."
+      : running ? "AI mapping is running now and still has work left."
+        : "AI mapping is incomplete, and no worker is running right now.",
+    progress: enabled
+      ? `${format.format(current)} of ${format.format(total)} included files have a current AI description.`
+      : "The non-AI code and dependency map remains available.",
+    work_state: running
+      ? "A worker is processing saved work now; each completed result is stored immediately."
+      : "Unfinished work is safely saved, but it will not finish until a worker starts.",
+    remaining_work: [
+      `${format.format(pending)} file descriptions and ${format.format(pendingMap)} whole-map steps remain.`,
+    ],
+    what_to_do: semanticFallbackActions(semantic),
+    how_to_read_progress: [
+      "Progress counts current file descriptions; it is not a grade for the code.",
+      "AI mapping updates only AnaxiGraph's external index; it does not edit repository source.",
+      ...(semantic.provider === "agent" ? ["The connected coding agent chooses its runtime model and reasoning effort; AnaxiGraph does not hardcode either one."] : []),
+    ],
+  };
+}
+
+function semanticFallbackActions(semantic) {
+  const action = semantic.recommended_action || {};
+  if (action.kind === "enable_semantics") {
+    return ["Enable AI mapping in the repository's active AnaxiGraph settings."];
+  }
+  if (action.kind === "scan_required") {
+    return ["Run a read-only repository scan, then prepare AI mapping again."];
+  }
+  if (action.kind === "monitor") {
+    return ["Keep the current worker running until this status says the map is complete."];
+  }
+  if (action.kind === "durable_host_executor") {
+    return ["Start a background coding-agent worker and keep it running until the map is complete."];
+  }
+  if (action.kind === "bounded_mcp_fallback") {
+    return ["Have a connected coding agent process each saved task until the map reports complete."];
+  }
+  return ["Start or resume an AI worker, then keep it running until the map is complete."];
+}
+
+function semanticStatusList(title, values = []) {
+  if (!values.length) return "";
+  return `<div><h3>${escapeHtml(title)}</h3><ul>${values.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>`;
 }
 
 export function scheduleSemanticPoll() {
   window.clearTimeout(state.semanticPollTimer);
   const worker = state.semanticStatus?.worker || {};
-  if (!["queued", "running"].includes(worker.status)
-      && !Number(state.semanticStatus?.jobs?.running || 0)) return;
+  if (!semanticWorkIsActive(state.semanticStatus || {})) return;
   state.semanticPollTimer = window.setTimeout(async () => {
     try {
       const previous = worker.status;
       state.semanticStatus = await request(api("/api/semantic"));
       renderOverview();
-      if (["queued", "running"].includes(state.semanticStatus?.worker?.status)
-          || Number(state.semanticStatus?.jobs?.running || 0)) {
+      if (semanticWorkIsActive(state.semanticStatus || {})) {
         scheduleSemanticPoll();
       } else {
         if (previous === "running") toast("Repository understanding refresh finished.");
@@ -220,6 +244,13 @@ export function scheduleSemanticPoll() {
       toast(error.message, true);
     }
   }, 1800);
+}
+
+function semanticWorkIsActive(semantic) {
+  const worker = semantic.worker || {};
+  const jobs = semantic.jobs || {};
+  const runningJobs = jobs.running_live == null ? jobs.running : jobs.running_live;
+  return ["queued", "running"].includes(worker.status) || Number(runningJobs || 0) > 0;
 }
 
 function renderBars(id, items) {

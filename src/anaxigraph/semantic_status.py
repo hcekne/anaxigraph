@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from anaxigraph.semantic_config_port import SemanticConfig
+from anaxigraph.semantic_status_language import semantic_status_explanation
 from anaxigraph.semantic_status_queries import SemanticStatusRows
 
 _TERMINAL_FAILURES = (
@@ -40,7 +41,7 @@ def semantic_status_payload(
     rows: SemanticStatusRows,
 ) -> dict[str, Any]:
     coverage = _coverage(rows, semantic)
-    return {
+    payload = {
         **_identity_payload(snapshot_id, semantic, coverage),
         **_coverage_payload(rows, coverage),
         "usage": _usage_payload(rows),
@@ -50,6 +51,8 @@ def semantic_status_payload(
         "patterns": _pattern_payload(rows, semantic),
         "recommended_action": _recommended_action(rows, semantic, coverage),
     }
+    payload["plain_language"] = semantic_status_explanation(payload)
+    return payload
 
 
 def _recommended_action(
