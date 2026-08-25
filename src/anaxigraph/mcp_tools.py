@@ -10,6 +10,7 @@ from mcp.server.fastmcp import FastMCP
 from anaxigraph.finding_mcp import register_finding_tools as register_finding_tools
 from anaxigraph.graph_mcp import register_graph_tool
 from anaxigraph.history_mcp import register_history_tools
+from anaxigraph.pattern_mcp import register_pattern_tool
 
 __all__ = ["register_finding_tools", "register_query_tools"]
 
@@ -23,6 +24,7 @@ def register_query_tools(
     history_service: Any | None,
 ) -> None:
     register_graph_tool(server, database, context)
+    register_pattern_tool(server, database, context)
     register_history_tools(
         server,
         database=database,

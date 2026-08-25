@@ -92,6 +92,14 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert documentation["evaluation"]["attention_score"] is None
         graph = (await client.get("/api/graph")).json()
         assert graph["nodes"]
+        patterns = (await client.get("/api/patterns")).json()
+        assert patterns["contract_version"] == "pattern-query-v1"
+        assert patterns["snapshot_id"] > 0
+        assert patterns["total"] == 0
+        invalid_pattern_query = await client.get(
+            "/api/patterns", params={"sort_by": "unbounded_magic"}
+        )
+        assert invalid_pattern_query.status_code == 400
         scope = await client.post("/api/agent-scope", json={"goal": "Change Calculator behavior"})
         assert scope.status_code == 200
         assert scope.json()["primary_files"][0]["path"] == "pkg/core.py"
@@ -151,6 +159,7 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                         "ANAXIGRAPH_SEMANTIC_RELEASE",
                         "ANAXIGRAPH_MODULES",
                         "ANAXIGRAPH_GRAPH",
+                        "ANAXIGRAPH_PATTERNS",
                         "ANAXIGRAPH_SEARCH",
                         "ANAXIGRAPH_FILE",
                         "ANAXIGRAPH_SCOPE",
@@ -213,6 +222,14 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     )
                     assert missing_delta.isError is True
                     assert invalid_mode.isError is True
+                    patterns = await session.call_tool("ANAXIGRAPH_PATTERNS", arguments={})
+                    assert patterns.isError is False
+                    assert patterns.structuredContent["contract_version"] == "pattern-query-v1"
+                    assert patterns.structuredContent["total"] == 0
+                    invalid_patterns = await session.call_tool(
+                        "ANAXIGRAPH_PATTERNS", arguments={"limit": 101}
+                    )
+                    assert invalid_patterns.isError is True
                     history = await session.call_tool("ANAXIGRAPH_HISTORY_STATUS", arguments={})
                     assert history.isError is False
                     assert history.structuredContent["status"] == "not_started"

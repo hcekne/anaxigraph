@@ -28,6 +28,22 @@ an independently evidenced assessment followed by a separate agent critique that
 corrected result. Both stages use the existing durable semantic queue and runtime-selected executor;
 an unchanged map creates no new pattern work.
 
+Only a completed independent critique appears in the current pattern projection. Use the single
+bounded query in either direction:
+
+```text
+ANAXIGRAPH_PATTERNS(target="module:src/service.py", sort_by="opportunity")
+ANAXIGRAPH_PATTERNS(pattern="strategy", sort_by="conformance")
+GET /api/patterns?target=src/service.py&include_evidence=true
+```
+
+The default response returns at most 20 compact evaluations and the hard maximum is 100. Filters
+cover target, catalog key, hierarchy level, presence, recommendation, minimum score, score sort,
+offset, and limit. Detailed score evidence, contradictions, review issues, and competing
+interpretations are opt-in. Every row retains provider, runtime model, executor, prompt/schema,
+token, cost, confidence, and creation provenance; model identity is descriptive and is never part
+of catalog behavior.
+
 Treat 40 logical lines per function and 500 source LOC per module as inspection signals. Prefer a
 cohesive module over forwarding layers. Add an abstraction only for multiple real implementations
 or a demonstrated bug class. Avoid hidden global state and circular dependencies. Changed behavior
