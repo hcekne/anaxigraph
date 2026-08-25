@@ -1,31 +1,123 @@
-"""Public semantic bootstrap, invalidation, and dossier refresh facade."""
+"""Stable semantic facade over explicit, independently testable services."""
 
 from __future__ import annotations
 
-from anaxigraph.semantic_agent import SemanticAgentMixin
-from anaxigraph.semantic_module_plan import SemanticModulePlanningMixin
-from anaxigraph.semantic_reporting import SemanticReportingMixin
-from anaxigraph.semantic_requests import SemanticRequestMixin
-from anaxigraph.semantic_results import SemanticResultMixin
-from anaxigraph.semantic_runner import SemanticRunnerMixin
-from anaxigraph.semantic_scope_plan import SemanticPlan, SemanticScopePlanningMixin
-from anaxigraph.semantic_taxonomy_plan import SemanticTaxonomyPlanningMixin
-from anaxigraph.storage import AnaxiIndex
+from pathlib import Path
+from typing import Any
+
+from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
+from anaxigraph.semantic_index_port import SemanticIndex
+from anaxigraph.semantic_scope_plan import SemanticPlan
+from anaxigraph.semantic_services import SemanticServices, build_semantic_services
 
 __all__ = ["SemanticEngine", "SemanticPlan"]
 
 
-class SemanticEngine(
-    SemanticScopePlanningMixin,
-    SemanticTaxonomyPlanningMixin,
-    SemanticModulePlanningMixin,
-    SemanticRunnerMixin,
-    SemanticRequestMixin,
-    SemanticResultMixin,
-    SemanticReportingMixin,
-    SemanticAgentMixin,
-):
-    """Plan and execute semantic work without mixing interpretations with parser facts."""
+class SemanticEngine:
+    """Compatibility facade preserving the CLI, REST, and MCP semantic protocol."""
 
-    def __init__(self, database: AnaxiIndex) -> None:
-        self.database = database
+    def __init__(self, database: SemanticIndex) -> None:
+        self._services: SemanticServices = build_semantic_services(database)
+
+    def plan(
+        self,
+        repository_id: int,
+        repository: str | Path,
+        config: AnaxiGraphConfig,
+        *,
+        force: bool = False,
+        retry_failed: bool = False,
+    ) -> SemanticPlan:
+        return self._services.planning.plan(
+            repository_id,
+            repository,
+            config,
+            force=force,
+            retry_failed=retry_failed,
+        )
+
+    def run_jobs(
+        self,
+        repository_id: int,
+        repository: str | Path,
+        config: AnaxiGraphConfig,
+        *,
+        limit: int | None = None,
+        execution_semantic: SemanticConfig | None = None,
+    ) -> dict[str, Any]:
+        return self._services.runner.run_jobs(
+            repository_id,
+            repository,
+            config,
+            limit=limit,
+            execution_semantic=execution_semantic,
+        )
+
+    def bootstrap(
+        self,
+        repository_id: int,
+        repository: str | Path,
+        config: AnaxiGraphConfig,
+        *,
+        limit: int | None = None,
+        force: bool = False,
+        retry_failed: bool = False,
+        plan_only: bool = False,
+        execution_semantic: SemanticConfig | None = None,
+        until_complete: bool = False,
+    ) -> dict[str, Any]:
+        return self._services.runner.bootstrap(
+            repository_id,
+            repository,
+            config,
+            limit=limit,
+            force=force,
+            retry_failed=retry_failed,
+            plan_only=plan_only,
+            execution_semantic=execution_semantic,
+            until_complete=until_complete,
+            run_jobs=self.run_jobs,
+        )
+
+    def status(
+        self,
+        repository_id: int,
+        semantic: SemanticConfig | None = None,
+    ) -> dict[str, Any]:
+        return self._services.reporting.status(repository_id, semantic)
+
+    def dossier(
+        self,
+        repository_id: int,
+        path: str,
+        snapshot_id: int | None = None,
+    ) -> dict[str, Any] | None:
+        return self._services.reporting.dossier(repository_id, path, snapshot_id)
+
+    def claim_agent_work(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._services.agent.claim_agent_work(*args, **kwargs)
+
+    def agent_evidence_page(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._services.agent.agent_evidence_page(*args, **kwargs)
+
+    def submit_agent_work(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._services.agent.submit_agent_work(*args, **kwargs)
+
+    def release_agent_work(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._services.agent.release_agent_work(*args, **kwargs)
+
+    def _analyze_request(
+        self,
+        provider: Any,
+        request: dict[str, Any],
+        semantic: SemanticConfig,
+    ) -> Any:
+        return self._services.runner.analyze_request(provider, request, semantic)
+
+    def _claim_job(
+        self,
+        repository_id: int,
+        semantic: SemanticConfig,
+        **kwargs: Any,
+    ) -> dict[str, Any] | None:
+        return self._services.leases.claim_job(repository_id, semantic, **kwargs)

@@ -88,11 +88,11 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 228 tests passing at 88.92% coverage plus 12 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, and release-identity paths are regression-tested |
+| Test health | 266 tests passing at 89.57% coverage plus 14 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, and release-identity paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
-| Semantic understanding | Durable `module-dossier-v4` records, fingerprint invalidation, leased agent work, provenance, and budget controls | Differentiating foundation; internal seven-mixin composition needs simplification before expansion |
+| Semantic understanding | Durable `module-dossier-v4` records, fingerprint invalidation, leased agent work, provenance, budget controls, and explicit composed services | Differentiating foundation; semantic planning, leases, evidence, contracts, persistence, execution, and reporting now evolve behind a stable facade |
 | Parser depth | Python AST plus a regex-oriented JavaScript/TypeScript analyzer; long-tail languages use text heuristics | The product cannot yet make equally strong graph claims for most repositories |
 | History benchmark | Measured 3,000-file/eight-frame import: 69.566 seconds, 23,970 blob reads, 23,970 `file_versions` for 3,217 distinct artifact/raw versions, 47,896 relationship rows, and a 49.56 MB vacuumed index | Unchanged source is repeatedly read and snapshot-heavy facts/edges are repeatedly materialized |
 | Graph delivery | `/api/graph` can return the full graph in one response | Fine for small repositories, wasteful and eventually unusable for large graphs |
@@ -1547,6 +1547,8 @@ that evaluates code at multiple scales, completes its own critique, and remains 
 
 ## 6.1 Replace the semantic mixin lattice with explicit services
 
+**Status:** COMPLETE
+
 Replace the current mixin-composed `SemanticEngine` with a small compatibility facade over explicit
 planning, lease, evidence, contract, persistence, runner, and reporting services. State transitions
 become a tested state machine, services receive narrow protocols, and the CLI/REST/MCP contracts
@@ -1557,6 +1559,8 @@ database attribute. New implementation modules should normally be 100–300 phys
 
 ## 6.2 Preserve complete autonomous semantic mapping
 
+**Status:** COMPLETE
+
 The shipped module dossiers and agent-reviewed architecture taxonomy remain the semantic baseline.
 Every eligible scope reaches current, excluded, or visibly failed; interrupted sessions resume from
 durable leases; and taxonomy proposals complete their configured independent agent review passes
@@ -1566,6 +1570,18 @@ Incremental refresh rereads source only when structural, interface, relationship
 prompt-contract, enrollment-policy, or age evidence changes. Provider and model are runtime
 provenance, never hard-coded catalog behavior, and switching model does not invalidate otherwise
 current understanding.
+
+### 6.1–6.2 closure evidence
+
+| Contract | Retained evidence |
+|---|---|
+| Explicit composition | `SemanticEngine` has no mixin bases or database state; a low-fan-out composition root assembles separately testable planning, lease, evidence, contract, persistence, runner, reporting, and agent services through narrow configuration, index, and workflow ports |
+| Durable lifecycle | Pending, retry, running, completed, failed, and superseded jobs move only through the tested semantic-job state machine; claim, release, expiry recovery, retry, completion, failure, reset, and supersession persistence paths use declared transitions |
+| Autonomous completion | Existing full-baseline contracts still require intrinsic and contextual dossiers, repository/group synthesis, taxonomy proposal, and all configured independent agent review passes to converge without an operator approval step |
+| Stable external protocol | The compatibility facade preserves CLI, REST, MCP work/evidence/submit/release, status, dossier, bootstrap, and provider execution contracts; lease state remains resumable across sessions |
+| Incremental/model behavior | Existing characterization proves an unchanged repository creates no semantic work, one local implementation change refreshes only its affected intrinsic scope, and executor/model provenance changes do not invalidate current semantic documents |
+| Maintainability | The 241-line/complexity-52 status operation and 151/125-line module planning operations are decomposed; substantive extracted modules are 160–266 lines, all implementation modules remain below 500 lines, and five obsolete deterministic self-analysis exceptions are removed |
+| Verification | 54 focused semantic/service/state-machine contracts pass; the complete 266-test suite passes at 89.57% coverage; deterministic self-analysis passes with 44 governed findings and no issue; formatting, module-size, maintainability, architecture, forbidden-file, and Compose gates pass |
 
 ## 6.3 Ship an extensible catalog of at least 120 patterns
 
@@ -2028,8 +2044,8 @@ queue and the document cannot drift apart.
 | 36 | **COMPLETE** — Add deterministic self-analysis baseline comparison, regression fixtures, and retained CI evidence | §3b.2 |
 | 37 | **COMPLETE** — Add stable multi-level target identities, analyzer capabilities, and reusable pattern evidence projections | Phase 4A |
 | 38 | **COMPLETE** — Bound graph queries and operational work, then reduce `api.py` to a small composition root | Phase 5A |
-| 39 | **NEXT** — Replace semantic mixin composition while preserving the durable external work protocol | §6.1–6.2 |
-| 40 | Ship and validate the declarative catalog of at least 120 patterns | §6.3 |
+| 39 | **COMPLETE** — Replace semantic mixin composition while preserving the durable external work protocol | §6.1–6.2 |
+| 40 | **NEXT** — Ship and validate the declarative catalog of at least 120 patterns | §6.3 |
 | 41 | Add sparse multi-level candidates, separate ratings, and independent agent critique | §6.4–6.6 |
 | 42 | Expose target-centric and pattern-centric queries, incremental refresh, and calibration | §6.7–6.8 |
 | 43 | Expand parser-backed core languages against the proven capability contract | Phase 4B |

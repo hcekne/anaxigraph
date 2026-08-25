@@ -11,12 +11,16 @@ from anaxigraph.config import SemanticConfig
 from anaxigraph.persistence.semantic_evidence import module_facts, relationships_for_artifact
 from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION
 from anaxigraph.semantic_graph import SupersededSemanticJob
+from anaxigraph.semantic_index_port import SemanticIndex
 from anaxigraph.semantic_records import _document_by_id
 from anaxigraph.semantic_request_support import compact_dossier
 
 
-class SemanticRequestMixin:
-    def _job_request(
+class SemanticEvidenceService:
+    def __init__(self, database: SemanticIndex) -> None:
+        self._database = database
+
+    def job_request(
         self,
         job: dict[str, Any],
         root: Path,
@@ -29,7 +33,7 @@ class SemanticRequestMixin:
         if job["job_kind"] in {"taxonomy_proposal", "taxonomy_review"}:
             from anaxigraph.semantic_taxonomy_requests import taxonomy_request
 
-            return taxonomy_request(self.database, job)
+            return taxonomy_request(self._database, job)
         return self._synthesis_request(job)
 
     def _intrinsic_request(self, job: dict[str, Any], root: Path) -> dict[str, Any]:
@@ -40,7 +44,7 @@ class SemanticRequestMixin:
         raw_content = candidate.read_bytes()
         raw_hash = hashlib.sha256(raw_content).hexdigest()
         content = raw_content.decode("utf-8", errors="replace")
-        with self.database.connect() as connection:
+        with self._database.connect() as connection:
             version, symbols = module_facts(
                 connection,
                 int(job["snapshot_id"]),
@@ -96,7 +100,7 @@ class SemanticRequestMixin:
         }
 
     def _context_request(self, job: dict[str, Any], semantic: SemanticConfig) -> dict[str, Any]:
-        with self.database.connect() as connection:
+        with self._database.connect() as connection:
             intrinsic = _document_by_id(connection, int(job["metadata"]["intrinsic_document_id"]))
             relations = relationships_for_artifact(
                 connection, int(job["snapshot_id"]), int(job["artifact_id"])
@@ -151,7 +155,7 @@ class SemanticRequestMixin:
         }
 
     def _synthesis_request(self, job: dict[str, Any]) -> dict[str, Any]:
-        with self.database.connect() as connection:
+        with self._database.connect() as connection:
             documents = [
                 _document_by_id(connection, int(document_id))
                 for document_id in job["metadata"].get("document_ids", [])

@@ -1,0 +1,56 @@
+"""Narrow structural interfaces shared by composed semantic services."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any, Protocol
+
+from anaxigraph.semantic import SemanticResult
+from anaxigraph.semantic_config_port import AnaxiGraphConfig, SemanticConfig
+from anaxigraph.semantic_index_port import SemanticIndex
+
+__all__ = [
+    "SemanticEvidencePort",
+    "SemanticIndex",
+    "SemanticPersistencePort",
+    "SemanticPlanningPort",
+    "SemanticReportingPort",
+]
+
+
+class SemanticReportingPort(Protocol):
+    def status(
+        self, repository_id: int, semantic: SemanticConfig | None = None
+    ) -> dict[str, Any]: ...
+
+
+class SemanticPlanningPort(Protocol):
+    def plan(
+        self,
+        repository_id: int,
+        repository: str | Path,
+        config: AnaxiGraphConfig,
+        *,
+        force: bool = False,
+        retry_failed: bool = False,
+    ) -> Any: ...
+
+
+class SemanticEvidencePort(Protocol):
+    def job_request(
+        self, job: dict[str, Any], root: Path, semantic: SemanticConfig
+    ) -> dict[str, Any]: ...
+
+
+class SemanticPersistencePort(Protocol):
+    def complete_job(
+        self,
+        job: dict[str, Any],
+        result: SemanticResult,
+        provider: str,
+        semantic: SemanticConfig,
+    ) -> None: ...
+
+    def fail_job(self, job: dict[str, Any], exc: Exception) -> bool: ...
+
+    def mark_superseded(self, job_id: int, reason: str) -> None: ...

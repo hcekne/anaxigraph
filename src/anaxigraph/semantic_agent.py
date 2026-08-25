@@ -2,40 +2,39 @@
 
 from __future__ import annotations
 
-import hmac
-import json
-import secrets
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from anaxigraph.clock import utc_now
 from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
-from anaxigraph.semantic_agent_protocol import (
-    agent_no_work_message,
-    agent_no_work_status,
-    agent_semantic,
-    agent_token_hash,
-    agent_worker_fragment,
-    clean_agent_identity,
-    packetize_agent_request,
-)
-from anaxigraph.semantic_contract import (
-    SEMANTIC_SCHEMA_VERSION,
-    SemanticAnalysisError,
-)
+from anaxigraph.semantic_agent_contracts import SemanticAgentContractService
 from anaxigraph.semantic_graph import SupersededSemanticJob
-from anaxigraph.semantic_taxonomy_contract import (
-    response_contract_name,
-    response_schema,
-    validated_agent_semantic_response,
+from anaxigraph.semantic_leases import SemanticLeaseService
+from anaxigraph.semantic_ports import (
+    SemanticEvidencePort,
+    SemanticPersistencePort,
+    SemanticPlanningPort,
+    SemanticReportingPort,
 )
 
-_MAX_SUBMISSION_BYTES = 1_000_000
 
-
-class SemanticAgentMixin:
+class SemanticAgentService:
     """Let a connected coding agent execute durable semantic jobs with its own model."""
+
+    def __init__(
+        self,
+        planning: SemanticPlanningPort,
+        reporting: SemanticReportingPort,
+        leases: SemanticLeaseService,
+        evidence: SemanticEvidencePort,
+        contracts: SemanticAgentContractService,
+        persistence: SemanticPersistencePort,
+    ) -> None:
+        self._planning = planning
+        self._reporting = reporting
+        self._leases = leases
+        self._evidence = evidence
+        self._contracts = contracts
+        self._persistence = persistence
 
     def claim_agent_work(
         self,
@@ -47,22 +46,19 @@ class SemanticAgentMixin:
         agent_model: str = "",
         retry_failed: bool = False,
     ) -> dict[str, Any]:
-        semantic = agent_semantic(config)
-        executor_id = clean_agent_identity(agent_id, "agent_id")
-        executor_model = clean_agent_identity(agent_model, "agent_model", required=False)
+        semantic = self._contracts.semantic(config)
+        executor_id, executor_model = self._contracts.identity(agent_id, agent_model)
         root = Path(repository).expanduser().resolve()
 
         for _ in range(3):
-            plan = self.plan(
+            plan = self._planning.plan(
                 repository_id,
                 root,
                 config,
                 retry_failed=retry_failed,
             )
-            token = secrets.token_urlsafe(32)
-            token_hash = agent_token_hash(token)
-            worker_id = f"mcp:{agent_worker_fragment(executor_id)}:{token_hash[:12]}"
-            job = self._claim_job(
+            token, token_hash, worker_id = self._contracts.lease_identity(executor_id)
+            job = self._leases.claim_job(
                 repository_id,
                 semantic,
                 worker_id=worker_id,
@@ -72,63 +68,22 @@ class SemanticAgentMixin:
                 executor_model=executor_model or None,
             )
             if job is None:
-                status = self.status(repository_id, semantic)
-                return {
-                    "status": agent_no_work_status(status),
-                    "message": agent_no_work_message(status),
-                    "plan_stage": plan.stage,
-                    "semantic": status,
-                }
+                status = self._reporting.status(repository_id, semantic)
+                return self._contracts.no_work_response(status, plan.stage)
             try:
-                request = self._job_request(job, root, semantic)
+                request = self._evidence.job_request(job, root, semantic)
             except SupersededSemanticJob as exc:
-                self._mark_superseded(int(job["id"]), str(exc))
+                self._persistence.mark_superseded(int(job["id"]), str(exc))
                 continue
 
-            bounded_request, manifest, _ = packetize_agent_request(request, semantic)
-            schema = response_schema(request)
-            status = self.status(repository_id, semantic)
-            return {
-                "status": "work",
-                "message": (
-                    "Analyze this evidence with the coding agent already running in the "
-                    "repository. Do not modify source as part of semantic mapping."
-                ),
-                "job": {
-                    "id": int(job["id"]),
-                    "kind": job["job_kind"],
-                    "scope_type": job["scope_type"],
-                    "scope_key": job["scope_key"],
-                    "reason": job["reason"],
-                    "attempt": int(job["attempts"]),
-                },
-                "lease": {
-                    "token": token,
-                    "expires_at": job["lease_expires_at"],
-                    "seconds": semantic.agent_lease_seconds,
-                },
-                "analysis_request": bounded_request,
-                "evidence_manifest": manifest,
-                "response_contract": {
-                    "schema_version": SEMANTIC_SCHEMA_VERSION,
-                    "schema_tool": "ANAXIGRAPH_SEMANTIC_SCHEMA",
-                    "artifact": response_contract_name(request),
-                    "required_fields": list(schema["required"]),
-                },
-                "next_action": (
-                    "Fetch every evidence page when evidence_manifest is present, produce the "
-                    f"complete {response_contract_name(request)}, then call "
-                    "ANAXIGRAPH_SEMANTIC_SUBMIT with this job id and lease token."
-                ),
-                "semantic": status,
-            }
+            bounded_request, manifest, _ = self._contracts.packetize(request, semantic)
+            status = self._reporting.status(repository_id, semantic)
+            return self._contracts.work_response(
+                job, token, bounded_request, request, manifest, semantic, status
+            )
 
-        status = self.status(repository_id, semantic)
-        return {
-            "status": "waiting",
-            "message": "Stale jobs were superseded while work was being claimed; call again.",
-            "semantic": status,
-        }
+        status = self._reporting.status(repository_id, semantic)
+        return self._contracts.waiting_response(status)
 
     def agent_evidence_page(
         self,
@@ -140,19 +95,19 @@ class SemanticAgentMixin:
         lease_token: str,
         page: int,
     ) -> dict[str, Any]:
-        semantic = agent_semantic(config)
-        job = self._leased_agent_job(job_id, lease_token, repository_id=repository_id)
-        self._validate_current_agent_job(job, repository_id, semantic)
+        semantic = self._contracts.semantic(config)
+        job = self._leases.leased_agent_job(job_id, lease_token, repository_id=repository_id)
+        self._leases.validate_current_agent_job(job, repository_id, semantic)
         try:
-            request = self._job_request(
+            request = self._evidence.job_request(
                 job,
                 Path(repository).expanduser().resolve(),
                 semantic,
             )
         except SupersededSemanticJob as exc:
-            self._mark_superseded(job_id, str(exc))
+            self._persistence.mark_superseded(job_id, str(exc))
             raise ValueError(str(exc)) from exc
-        _, manifest, pages = packetize_agent_request(request, semantic)
+        _, manifest, pages = self._contracts.packetize(request, semantic)
         if not manifest:
             return {
                 "status": "embedded",
@@ -182,53 +137,45 @@ class SemanticAgentMixin:
         input_tokens: int = 0,
         output_tokens: int = 0,
     ) -> dict[str, Any]:
-        semantic = agent_semantic(config)
-        if input_tokens < 0 or output_tokens < 0:
-            raise ValueError("Reported token counts cannot be negative")
-        if len(json.dumps(dossier, ensure_ascii=False)) > _MAX_SUBMISSION_BYTES:
-            raise ValueError("Semantic dossier exceeds the 1 MB submission limit")
-        job = self._leased_agent_job(
+        semantic = self._contracts.semantic(config)
+        job = self._leases.leased_agent_job(
             job_id,
             lease_token,
             repository_id=repository_id,
             allow_completed=True,
         )
         if job["status"] == "completed":
-            return {
-                "status": "already_completed",
-                "job_id": job_id,
-                "semantic": self.status(repository_id, semantic),
-            }
-        self._validate_current_agent_job(job, repository_id, semantic)
+            return self._already_completed(repository_id, semantic, job_id)
+        self._leases.validate_current_agent_job(job, repository_id, semantic)
         try:
             # Rebuild the request immediately before commit. Intrinsic jobs recheck the current
             # bytes; contextual jobs recheck that their required documents still exist.
-            request = self._job_request(
+            request = self._evidence.job_request(
                 job,
                 Path(repository).expanduser().resolve(),
                 semantic,
             )
         except SupersededSemanticJob as exc:
-            self._mark_superseded(job_id, str(exc))
+            self._persistence.mark_superseded(job_id, str(exc))
             raise ValueError(str(exc)) from exc
-        try:
-            result = validated_agent_semantic_response(
-                dossier,
-                request,
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
-            )
-        except SemanticAnalysisError as exc:
-            raise ValueError(str(exc)) from exc
-        self._complete_job(job, result, "agent", semantic)
-        plan = self.plan(repository_id, repository, config)
+        result = self._contracts.validate_submission(
+            dossier,
+            request,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+        )
+        self._persistence.complete_job(job, result, "agent", semantic)
+        plan = self._planning.plan(repository_id, repository, config)
+        status = self._reporting.status(repository_id, semantic)
+        return self._contracts.completed_response(job, plan.stage, status)
+
+    def _already_completed(
+        self, repository_id: int, semantic: SemanticConfig, job_id: int
+    ) -> dict[str, Any]:
         return {
-            "status": "completed",
+            "status": "already_completed",
             "job_id": job_id,
-            "completed_scope": job["scope_key"],
-            "next_plan_stage": plan.stage,
-            "next_action": ("Call ANAXIGRAPH_SEMANTIC_WORK again until it returns complete."),
-            "semantic": self.status(repository_id, semantic),
+            "semantic": self._reporting.status(repository_id, semantic),
         }
 
     def release_agent_work(
@@ -240,8 +187,8 @@ class SemanticAgentMixin:
         lease_token: str,
         reason: str,
     ) -> dict[str, Any]:
-        semantic = agent_semantic(config)
-        job = self._leased_agent_job(
+        semantic = self._contracts.semantic(config)
+        job = self._leases.leased_agent_job(
             job_id,
             lease_token,
             repository_id=repository_id,
@@ -249,98 +196,9 @@ class SemanticAgentMixin:
         )
         if job["status"] == "completed":
             return {"status": "already_completed", "job_id": job_id}
-        message = (reason.strip() or "Coding agent released this work item")[:2_000]
-        state = {
-            "intrinsic": "pending_intrinsic",
-            "context": "pending_context",
-            "synthesis": "pending_synthesis",
-            "taxonomy_proposal": "pending_taxonomy_proposal",
-            "taxonomy_review": "pending_taxonomy_review",
-        }[job["job_kind"]]
-        with self.database.transaction() as connection:
-            connection.execute(
-                """
-                UPDATE semantic_jobs SET status = 'retry', attempts = MAX(0, attempts - 1),
-                    available_at = ?, worker_id = NULL, lease_expires_at = NULL,
-                    lease_token_hash = NULL, error = ?
-                WHERE id = ? AND status = 'running'
-                """,
-                (utc_now(), f"Released by coding agent: {message}", job_id),
-            )
-            connection.execute(
-                """
-                UPDATE semantic_scope_states SET status = ?, reason = ?, last_checked_at = ?
-                WHERE snapshot_id = ? AND scope_type = ? AND scope_key = ?
-                """,
-                (
-                    state,
-                    f"Released by coding agent: {message}",
-                    utc_now(),
-                    job["snapshot_id"],
-                    job["scope_type"],
-                    job["scope_key"],
-                ),
-            )
+        self._leases.release_agent_job(job, reason)
         return {
             "status": "released",
             "job_id": job_id,
-            "semantic": self.status(repository_id, semantic),
+            "semantic": self._reporting.status(repository_id, semantic),
         }
-
-    def _leased_agent_job(
-        self,
-        job_id: int,
-        lease_token: str,
-        *,
-        repository_id: int,
-        allow_completed: bool = False,
-    ) -> dict[str, Any]:
-        if job_id < 1:
-            raise ValueError("A positive semantic job id is required")
-        if not lease_token or len(lease_token) > 512:
-            raise ValueError("A valid semantic lease token is required")
-        with self.database.connect() as connection:
-            row = connection.execute(
-                "SELECT * FROM semantic_jobs WHERE id = ?", (job_id,)
-            ).fetchone()
-        if row is None:
-            raise ValueError("Semantic job does not exist")
-        job = dict(row)
-        if int(job["repository_id"]) != repository_id:
-            raise ValueError("Semantic job does not belong to the selected repository")
-        expected = str(job.get("lease_token_hash") or "")
-        if not expected or not hmac.compare_digest(expected, agent_token_hash(lease_token)):
-            raise ValueError("Semantic lease token is invalid")
-        if allow_completed and job["status"] == "completed":
-            job["metadata"] = json.loads(job.pop("metadata_json") or "{}")
-            return job
-        if job["status"] != "running" or not str(job["worker_id"] or "").startswith("mcp:"):
-            raise ValueError("Semantic job is not leased to a coding agent")
-        expires = datetime.fromisoformat(str(job["lease_expires_at"]))
-        if expires < datetime.now(UTC):
-            raise ValueError("Semantic work lease expired; claim the job again")
-        job["metadata"] = json.loads(job.pop("metadata_json") or "{}")
-        return job
-
-    def _validate_current_agent_job(
-        self,
-        job: dict[str, Any],
-        repository_id: int,
-        semantic: SemanticConfig,
-    ) -> None:
-        with self.database.connect() as connection:
-            repository = connection.execute(
-                "SELECT current_snapshot_id FROM repositories WHERE id = ?",
-                (repository_id,),
-            ).fetchone()
-        matches = (
-            int(job["repository_id"]) == repository_id
-            and repository is not None
-            and int(job["snapshot_id"]) == int(repository["current_snapshot_id"] or 0)
-            and job["provider"] == "agent"
-            and job["prompt_version"] == semantic.prompt_version
-            and job["schema_version"] == SEMANTIC_SCHEMA_VERSION
-        )
-        if not matches:
-            self._mark_superseded(int(job["id"]), "Repository or semantic policy changed")
-            raise ValueError("Semantic job was superseded by a newer snapshot or policy")

@@ -12,6 +12,10 @@ from anaxigraph.persistence.semantic_fact_references import semantic_fact_id
 from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION
 from anaxigraph.semantic_freshness import legacy_input_matches
 from anaxigraph.semantic_graph import SupersededSemanticJob, _cost
+from anaxigraph.semantic_job_state import (
+    semantic_job_bulk_transition,
+    semantic_job_transition,
+)
 
 _INSERT_JOB_SQL = """
 INSERT INTO semantic_jobs(
@@ -122,14 +126,14 @@ def _ensure_job(
     retry_failed: bool,
     force_new: bool = False,
 ) -> tuple[str, bool, str | None]:
-    connection.execute(
-        """
-        UPDATE semantic_jobs SET status = 'superseded', completed_at = ?,
-            error = 'A newer semantic input replaced this queued job.'
-        WHERE repository_id = ? AND snapshot_id = ? AND scope_type = ? AND scope_key = ?
-          AND job_kind = ? AND input_hash != ? AND status IN ('pending', 'retry')
-        """,
-        (utc_now(), repository_id, snapshot_id, scope_type, scope_key, job_kind, input_hash),
+    _supersede_changed_jobs(
+        connection,
+        repository_id,
+        snapshot_id,
+        scope_type,
+        scope_key,
+        job_kind,
+        input_hash,
     )
     existing = connection.execute(
         """
@@ -144,17 +148,10 @@ def _ensure_job(
         status = str(existing["status"])
         if status == "completed" and force_new:
             existing = None
+        elif status == "failed" and retry_failed:
+            pending = _reset_failed_job(connection, int(existing["id"]))
+            return pending, False, None
         else:
-            if status == "failed" and retry_failed:
-                connection.execute(
-                    """
-                    UPDATE semantic_jobs SET status = 'pending', attempts = 0, error = NULL,
-                        available_at = ?, completed_at = NULL, worker_id = NULL,
-                        lease_expires_at = NULL, lease_token_hash = NULL WHERE id = ?
-                    """,
-                    (utc_now(), int(existing["id"])),
-                )
-                return "pending", False, None
             return status, False, str(existing["error"] or "") or None
     _insert_job(
         connection,
@@ -173,6 +170,49 @@ def _ensure_job(
         metadata=metadata,
     )
     return "pending", True, None
+
+
+def _reset_failed_job(connection: sqlite3.Connection, job_id: int) -> str:
+    pending = semantic_job_transition("failed", "reset_failed")
+    connection.execute(
+        """
+        UPDATE semantic_jobs SET status = ?, attempts = 0, error = NULL,
+            available_at = ?, completed_at = NULL, worker_id = NULL,
+            lease_expires_at = NULL, lease_token_hash = NULL WHERE id = ?
+        """,
+        (pending, utc_now(), job_id),
+    )
+    return pending
+
+
+def _supersede_changed_jobs(
+    connection: sqlite3.Connection,
+    repository_id: int,
+    snapshot_id: int,
+    scope_type: str,
+    scope_key: str,
+    job_kind: str,
+    input_hash: str,
+) -> None:
+    superseded = semantic_job_bulk_transition(("pending", "retry"), "supersede")
+    connection.execute(
+        """
+        UPDATE semantic_jobs SET status = ?, completed_at = ?,
+            error = 'A newer semantic input replaced this queued job.'
+        WHERE repository_id = ? AND snapshot_id = ? AND scope_type = ? AND scope_key = ?
+          AND job_kind = ? AND input_hash != ? AND status IN ('pending', 'retry')
+        """,
+        (
+            superseded,
+            utc_now(),
+            repository_id,
+            snapshot_id,
+            scope_type,
+            scope_key,
+            job_kind,
+            input_hash,
+        ),
+    )
 
 
 def _insert_job(
@@ -377,12 +417,13 @@ def _supersede_duplicate_jobs(
     scope_key: str,
     job_kind: str,
 ) -> None:
+    superseded = semantic_job_bulk_transition(("pending", "retry"), "supersede")
     connection.execute(
         """
-        UPDATE semantic_jobs SET status = 'superseded', completed_at = ?,
+        UPDATE semantic_jobs SET status = ?, completed_at = ?,
             error = 'A matching semantic document already exists.'
         WHERE snapshot_id = ? AND scope_type = ? AND scope_key = ? AND job_kind = ?
           AND status IN ('pending', 'retry')
         """,
-        (utc_now(), snapshot_id, scope_type, scope_key, job_kind),
+        (superseded, utc_now(), snapshot_id, scope_type, scope_key, job_kind),
     )

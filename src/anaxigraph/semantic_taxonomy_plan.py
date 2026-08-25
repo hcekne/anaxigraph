@@ -16,8 +16,8 @@ from anaxigraph.semantic_freshness import (
 from anaxigraph.semantic_records import _ensure_job, _member_documents, _states, _upsert_state
 
 
-class SemanticTaxonomyPlanningMixin:
-    def _plan_taxonomy(
+class SemanticTaxonomyPlanner:
+    def plan_taxonomy(
         self,
         connection: sqlite3.Connection,
         *,

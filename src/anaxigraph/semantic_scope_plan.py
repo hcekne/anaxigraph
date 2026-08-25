@@ -4,11 +4,9 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from anaxigraph.clock import utc_now
 from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
 from anaxigraph.persistence.semantic_evidence import semantic_inventory
 from anaxigraph.semantic_freshness import (
@@ -18,6 +16,9 @@ from anaxigraph.semantic_freshness import (
 )
 from anaxigraph.semantic_graph import _expired
 from anaxigraph.semantic_group_membership import synthesis_groups
+from anaxigraph.semantic_leases import SemanticLeaseService
+from anaxigraph.semantic_module_plan import SemanticModulePlanner
+from anaxigraph.semantic_ports import SemanticIndex, SemanticReportingPort
 from anaxigraph.semantic_records import (
     _ensure_job,
     _has_active_module_stage,
@@ -28,6 +29,7 @@ from anaxigraph.semantic_records import (
     _states,
     _upsert_state,
 )
+from anaxigraph.semantic_taxonomy_plan import SemanticTaxonomyPlanner
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,7 +52,21 @@ class SemanticPlan:
         }
 
 
-class SemanticScopePlanningMixin:
+class SemanticPlanningService:
+    def __init__(
+        self,
+        database: SemanticIndex,
+        reporting: SemanticReportingPort,
+        leases: SemanticLeaseService,
+        modules: SemanticModulePlanner,
+        taxonomy: SemanticTaxonomyPlanner,
+    ) -> None:
+        self._database = database
+        self._reporting = reporting
+        self._leases = leases
+        self._modules = modules
+        self._taxonomy = taxonomy
+
     def plan(
         self,
         repository_id: int,
@@ -63,19 +79,19 @@ class SemanticScopePlanningMixin:
         root = Path(repository).expanduser().resolve()
         if not root.is_dir():
             raise ValueError(f"Repository does not exist or is not a directory: {root}")
-        snapshot = self.database.latest_snapshot(repository_id)
+        snapshot = self._database.latest_snapshot(repository_id)
         if snapshot is None:
             raise ValueError("Repository has not been scanned")
         snapshot_id = int(snapshot["id"])
         semantic = config.semantic
         if not semantic.enabled:
-            status = self.status(repository_id, semantic)
+            status = self._reporting.status(repository_id, semantic)
             return SemanticPlan(repository_id, snapshot_id, 0, 0, "disabled", status)
 
-        with self.database.transaction() as connection:
-            _reconcile_job_leases(connection, repository_id, snapshot_id, semantic)
+        with self._database.transaction() as connection:
+            self._leases.reconcile(connection, repository_id, snapshot_id, semantic)
             inventory, relationships = semantic_inventory(connection, snapshot_id)
-            enqueued = self._plan_intrinsic(
+            enqueued = self._modules.plan_intrinsic(
                 connection,
                 repository_id=repository_id,
                 snapshot_id=snapshot_id,
@@ -86,7 +102,7 @@ class SemanticScopePlanningMixin:
                 retry_failed=retry_failed,
             )
             intrinsic_active = _has_active_module_stage(connection, snapshot_id, "intrinsic")
-            enqueued += self._plan_context(
+            enqueued += self._modules.plan_context(
                 connection,
                 repository_id=repository_id,
                 snapshot_id=snapshot_id,
@@ -123,7 +139,7 @@ class SemanticScopePlanningMixin:
             enqueued,
             active_jobs,
             stage,
-            self.status(repository_id, semantic),
+            self._reporting.status(repository_id, semantic),
         )
 
     def _plan_downstream(
@@ -142,7 +158,7 @@ class SemanticScopePlanningMixin:
         semantic = config.semantic
         enqueued = 0
         if semantic.taxonomy.enabled:
-            taxonomy_jobs, taxonomy_current = self._plan_taxonomy(
+            taxonomy_jobs, taxonomy_current = self._taxonomy.plan_taxonomy(
                 connection,
                 repository_id=repository_id,
                 snapshot_id=snapshot_id,
@@ -384,38 +400,6 @@ class SemanticScopePlanningMixin:
             context_fingerprint=input_hash,
         )
         return int(created)
-
-
-def _reconcile_job_leases(
-    connection: sqlite3.Connection,
-    repository_id: int,
-    snapshot_id: int,
-    semantic: SemanticConfig,
-) -> None:
-    now = utc_now()
-    stale_before = (
-        datetime.now(UTC) - timedelta(seconds=max(90, semantic.timeout_seconds + 60))
-    ).isoformat()
-    connection.execute(
-        """
-        UPDATE semantic_jobs SET status = 'retry', available_at = ?,
-            worker_id = NULL, lease_expires_at = NULL, lease_token_hash = NULL,
-            error = 'The previous worker lease expired; this job was safely requeued.'
-        WHERE repository_id = ? AND status = 'running'
-          AND (lease_expires_at < ? OR (lease_expires_at IS NULL AND started_at < ?))
-        """,
-        (now, repository_id, now, stale_before),
-    )
-    connection.execute(
-        """
-        UPDATE semantic_jobs SET status = 'superseded', completed_at = ?,
-            worker_id = NULL, lease_expires_at = NULL, lease_token_hash = NULL,
-            error = 'A newer repository snapshot replaced this job.'
-        WHERE repository_id = ? AND snapshot_id != ?
-          AND status IN ('pending', 'retry', 'running')
-        """,
-        (utc_now(), repository_id, snapshot_id),
-    )
 
 
 def _group_synthesis_evidence(

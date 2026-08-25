@@ -2,21 +2,23 @@
 
 from __future__ import annotations
 
-import contextlib
 import itertools
-import json
-import os
-import threading
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from anaxigraph.clock import utc_now
 from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
 from anaxigraph.semantic import create_semantic_provider
 from anaxigraph.semantic_graph import SupersededSemanticJob
+from anaxigraph.semantic_leases import SemanticLeaseService
+from anaxigraph.semantic_ports import (
+    SemanticEvidencePort,
+    SemanticPersistencePort,
+    SemanticPlanningPort,
+    SemanticReportingPort,
+)
 from anaxigraph.semantic_request_analysis import analyze_semantic_request
 
 
@@ -46,7 +48,21 @@ def _bootstrap_passes(until_complete: bool, semantic: SemanticConfig) -> Any:
     return itertools.count() if until_complete else range(10 + semantic.taxonomy.review_passes)
 
 
-class SemanticRunnerMixin:
+class SemanticRunnerService:
+    def __init__(
+        self,
+        planning: SemanticPlanningPort,
+        reporting: SemanticReportingPort,
+        leases: SemanticLeaseService,
+        evidence: SemanticEvidencePort,
+        persistence: SemanticPersistencePort,
+    ) -> None:
+        self._planning = planning
+        self._reporting = reporting
+        self._leases = leases
+        self._evidence = evidence
+        self._persistence = persistence
+
     def run_jobs(
         self,
         repository_id: int,
@@ -102,7 +118,7 @@ class SemanticRunnerMixin:
             "failed": failed,
             "retry": retried,
             "superseded": superseded,
-            "semantic": self.status(repository_id, semantic),
+            "semantic": self._reporting.status(repository_id, semantic),
         }
 
     def bootstrap(
@@ -117,18 +133,18 @@ class SemanticRunnerMixin:
         plan_only: bool = False,
         execution_semantic: SemanticConfig | None = None,
         until_complete: bool = False,
+        run_jobs: Callable[..., dict[str, Any]],
     ) -> dict[str, Any]:
         semantic = config.semantic
         if semantic.provider == "agent" and execution_semantic is None:
-            # In agent-funded mode the server owns planning and persistence while the connected
-            # coding agent owns inference. Dashboard/scan refreshes therefore prepare work only.
+            # Connected coding agents own inference, so ordinary refreshes only prepare work.
             plan_only = True
         if execution_semantic is not None and semantic.provider != "agent":
             raise ValueError("A local agent executor can only bridge semantic.provider=agent")
         remaining, total, stages = _bootstrap_state(limit, semantic, until_complete)
         first = True
         for _ in _bootstrap_passes(until_complete, semantic):
-            plan = self.plan(
+            plan = self._planning.plan(
                 repository_id,
                 repository,
                 config,
@@ -141,7 +157,7 @@ class SemanticRunnerMixin:
             if _stop_bootstrap(plan_only, plan, remaining):
                 break
             run_limit = plan.active_jobs if remaining is None else min(remaining, plan.active_jobs)
-            run = self.run_jobs(
+            run = run_jobs(
                 repository_id,
                 repository,
                 config,
@@ -157,7 +173,7 @@ class SemanticRunnerMixin:
                     continue
                 break
         total["stages"] = list(dict.fromkeys(stages))
-        total["semantic"] = self.status(repository_id, semantic)
+        total["semantic"] = self._reporting.status(repository_id, semantic)
         return total
 
     def _work_one(
@@ -169,7 +185,7 @@ class SemanticRunnerMixin:
         execution_semantic: SemanticConfig | None = None,
     ) -> str | None:
         runtime_semantic = execution_semantic or config.semantic
-        job = self._claim_job(
+        job = self._leases.claim_job(
             repository_id,
             config.semantic,
             executor_id=(f"cli:{runtime_semantic.provider}" if execution_semantic else None),
@@ -178,23 +194,23 @@ class SemanticRunnerMixin:
         if job is None:
             return None
         try:
-            with self._job_lease(job, config.semantic):
-                request = self._job_request(job, root, config.semantic)
+            with self._leases.job_lease(job, config.semantic):
+                request = self._evidence.job_request(job, root, config.semantic)
                 provider = create_semantic_provider(runtime_semantic)
-                result = self._analyze_request(provider, request, runtime_semantic)
+                result = self.analyze_request(provider, request, runtime_semantic)
                 recorded_provider = (
                     config.semantic.provider if execution_semantic else provider.name
                 )
-                self._complete_job(job, result, recorded_provider, config.semantic)
+                self._persistence.complete_job(job, result, recorded_provider, config.semantic)
             return "completed"
         except SupersededSemanticJob as exc:
-            self._mark_superseded(int(job["id"]), str(exc))
+            self._persistence.mark_superseded(int(job["id"]), str(exc))
             return "superseded"
         except Exception as exc:
-            retry = self._fail_job(job, exc)
+            retry = self._persistence.fail_job(job, exc)
             return "retry" if retry else "failed"
 
-    def _analyze_request(
+    def analyze_request(
         self,
         provider: Any,
         request: dict[str, Any],
@@ -203,132 +219,3 @@ class SemanticRunnerMixin:
         """Compatibility shim for callers testing provider-side request reduction."""
 
         return analyze_semantic_request(provider, request, semantic)
-
-    @contextlib.contextmanager
-    def _job_lease(self, job: dict[str, Any], semantic: SemanticConfig):
-        stopped = threading.Event()
-        lease_seconds = max(90, semantic.timeout_seconds + 60)
-
-        def heartbeat() -> None:
-            while not stopped.wait(min(30, max(10, lease_seconds // 3))):
-                expires = (datetime.now(UTC) + timedelta(seconds=lease_seconds)).isoformat()
-                with self.database.connect() as connection:
-                    connection.execute(
-                        """
-                        UPDATE semantic_jobs SET lease_expires_at = ?
-                        WHERE id = ? AND status = 'running' AND worker_id = ?
-                        """,
-                        (expires, job["id"], job["worker_id"]),
-                    )
-
-        thread = threading.Thread(
-            target=heartbeat,
-            name=f"anaxigraph-semantic-lease-{job['id']}",
-            daemon=True,
-        )
-        thread.start()
-        try:
-            yield
-        finally:
-            stopped.set()
-            thread.join(timeout=1)
-
-    def _claim_job(
-        self,
-        repository_id: int,
-        semantic: SemanticConfig,
-        *,
-        worker_id: str | None = None,
-        lease_seconds: int | None = None,
-        lease_token_hash: str | None = None,
-        executor_id: str | None = None,
-        executor_model: str | None = None,
-    ) -> dict[str, Any] | None:
-        with self.database.transaction() as connection:
-            repository = connection.execute(
-                "SELECT current_snapshot_id FROM repositories WHERE id = ?", (repository_id,)
-            ).fetchone()
-            if repository is None or repository["current_snapshot_id"] is None:
-                return None
-            now = utc_now()
-            active_workers = int(
-                connection.execute(
-                    """
-                    SELECT COUNT(*) FROM semantic_jobs
-                    WHERE repository_id = ? AND status = 'running'
-                      AND lease_expires_at IS NOT NULL AND lease_expires_at >= ?
-                    """,
-                    (repository_id, now),
-                ).fetchone()[0]
-            )
-            if active_workers >= semantic.max_parallel_jobs:
-                return None
-            spent = 0.0
-            if semantic.daily_budget_usd is not None:
-                today = datetime.now(UTC).date().isoformat()
-                spent = float(
-                    connection.execute(
-                        """
-                        SELECT COALESCE(SUM(
-                            CASE WHEN status = 'running'
-                                 THEN COALESCE(estimated_cost_usd, 0)
-                                 ELSE COALESCE(actual_cost_usd, estimated_cost_usd, 0)
-                            END
-                        ), 0)
-                        FROM semantic_jobs WHERE repository_id = ? AND (
-                            status = 'running'
-                            OR (status = 'completed' AND substr(completed_at, 1, 10) = ?)
-                        )
-                        """,
-                        (repository_id, today),
-                    ).fetchone()[0]
-                )
-            row = connection.execute(
-                """
-                SELECT * FROM semantic_jobs
-                WHERE repository_id = ? AND snapshot_id = ?
-                  AND status IN ('pending', 'retry') AND available_at <= ?
-                ORDER BY priority DESC, id LIMIT 1
-                """,
-                (repository_id, int(repository["current_snapshot_id"]), now),
-            ).fetchone()
-            if row is None:
-                return None
-            if (
-                semantic.daily_budget_usd is not None
-                and spent + float(row["estimated_cost_usd"] or 0) > semantic.daily_budget_usd
-            ):
-                return None
-            selected_worker_id = worker_id or (
-                f"{os.getpid()}:{threading.get_ident()}:{int(row['id'])}"
-            )
-            selected_lease_seconds = lease_seconds or max(90, semantic.timeout_seconds + 60)
-            lease_expires = (
-                datetime.now(UTC) + timedelta(seconds=selected_lease_seconds)
-            ).isoformat()
-            connection.execute(
-                """
-                UPDATE semantic_jobs SET status = 'running', attempts = attempts + 1,
-                    started_at = ?, worker_id = ?, lease_expires_at = ?, error = NULL,
-                    lease_token_hash = ?, executor_id = ?, executor_model = ?
-                WHERE id = ?
-                """,
-                (
-                    now,
-                    selected_worker_id,
-                    lease_expires,
-                    lease_token_hash,
-                    executor_id,
-                    executor_model,
-                    int(row["id"]),
-                ),
-            )
-            result = dict(row)
-            result["attempts"] = int(result["attempts"]) + 1
-            result["worker_id"] = selected_worker_id
-            result["lease_expires_at"] = lease_expires
-            result["lease_token_hash"] = lease_token_hash
-            result["executor_id"] = executor_id
-            result["executor_model"] = executor_model
-            result["metadata"] = json.loads(result.pop("metadata_json") or "{}")
-            return result
