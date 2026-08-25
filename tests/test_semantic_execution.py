@@ -11,6 +11,15 @@ import anaxigraph.semantic_execution as semantic_execution
 from anaxigraph.config import SemanticConfig
 
 
+def test_reasoning_effort_is_passed_through_for_future_codex_values():
+    parser = argparse.ArgumentParser()
+    semantic_execution.add_semantic_execution_arguments(parser)
+
+    args = parser.parse_args(["--reasoning-effort", "future-effort"])
+
+    assert args.reasoning_effort == "future-effort"
+
+
 def test_understand_auto_detects_codex_as_the_local_agent_executor(monkeypatch):
     args = argparse.Namespace(
         executor="auto",

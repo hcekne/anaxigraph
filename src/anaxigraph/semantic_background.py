@@ -179,6 +179,7 @@ def _initial_record(
         "index": spec.index,
         "started_at": _now(),
         "heartbeat_at": _now(),
+        "progress_at": None,
         "heartbeat_timeout_seconds": max(120, spec.timeout_seconds + 60),
         "stage": "starting",
         "completed": 0,
@@ -282,8 +283,13 @@ def _run_child(record: dict[str, Any], record_path: Path, latest_path: Path) -> 
     process = subprocess.Popen(record["command"], env=environment)
     record["worker_pid"] = process.pid
     _write_state(record, record_path, latest_path)
+    next_heartbeat = 0.0
     while process.poll() is None:
         _sync_progress(record, record_path, latest_path)
+        if time.monotonic() >= next_heartbeat:
+            record["heartbeat_at"] = _now()
+            _write_state(record, record_path, latest_path)
+            next_heartbeat = time.monotonic() + 10
         time.sleep(1)
     _sync_progress(record, record_path, latest_path)
     return int(process.returncode or 0)
@@ -291,9 +297,10 @@ def _run_child(record: dict[str, Any], record_path: Path, latest_path: Path) -> 
 
 def _sync_progress(record: dict[str, Any], record_path: Path, latest_path: Path) -> None:
     progress = read_background_progress(Path(record["progress_path"]))
-    if not progress or progress.get("heartbeat_at") == record.get("heartbeat_at"):
+    if not progress or progress.get("heartbeat_at") == record.get("progress_at"):
         return
-    for key in ("heartbeat_at", "stage", "completed", "last_error"):
+    record["progress_at"] = progress.get("heartbeat_at")
+    for key in ("stage", "completed", "last_error"):
         if key in progress:
             record[key] = progress[key]
     _write_state(record, record_path, latest_path)

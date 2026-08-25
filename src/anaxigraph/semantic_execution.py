@@ -24,8 +24,10 @@ def add_semantic_execution_arguments(parser: Any) -> None:
     )
     parser.add_argument(
         "--reasoning-effort",
-        choices=("minimal", "low", "medium", "high", "xhigh"),
-        help="Optional Codex reasoning effort for this run",
+        help=(
+            "Optional Codex reasoning effort for this run; the value is passed through so "
+            "new Codex effort levels do not require an AnaxiGraph release"
+        ),
     )
     parser.add_argument(
         "--parallel-jobs",

@@ -156,6 +156,36 @@ def test_background_wrapper_records_terminal_result(repository, tmp_path, monkey
     assert not lock_path.exists()
 
 
+def test_background_wrapper_keeps_healthy_child_alive_without_model_progress(tmp_path, monkeypatch):
+    class Child:
+        pid = 4322
+        returncode = 0
+        polls = 0
+
+        def poll(self):
+            self.polls += 1
+            return None if self.polls == 1 else self.returncode
+
+    record_path = tmp_path / "run.json"
+    latest_path = tmp_path / "latest.json"
+    record = {
+        "run_id": "run-1",
+        "command": ["semantic-worker"],
+        "progress_path": str(tmp_path / "missing-progress.json"),
+        "heartbeat_at": "2020-01-01T00:00:00+00:00",
+    }
+    latest_path.write_text(json.dumps(record), encoding="utf-8")
+    monkeypatch.setattr(background.subprocess, "Popen", lambda *_a, **_k: Child())
+    monkeypatch.setattr(background.time, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(background.time, "monotonic", lambda: 100.0)
+
+    assert background._run_child(record, record_path, latest_path) == 0
+
+    saved = json.loads(record_path.read_text(encoding="utf-8"))
+    assert saved["heartbeat_at"] != "2020-01-01T00:00:00+00:00"
+    assert saved["worker_pid"] == 4322
+
+
 def test_background_launch_records_spawn_failure(repository, tmp_path, monkeypatch):
     monkeypatch.setattr(background, "local_state_root", lambda: tmp_path)
 
