@@ -172,6 +172,11 @@ expected outcome and passing tests. Use `ANAXIGRAPH_IMPACT` for blast radius and
 context for approved architecture work. A missing static edge is not proof that code is unused;
 dynamic runtime wiring remains an explicit blind spot.
 
+Each reviewed pattern inside the decision packet retains its bounded conclusion, observations,
+reason, proposed action, caution, verification, and independent-review summary. A shared reading
+guide explains suitability, conformance, opportunity, and confidence once, so an agent can use the
+ratings without treating them as code-quality grades or permission to refactor.
+
 ## Understand findings
 
 The Architecture page opens on at most 20 findings worth checking first. It suppresses routine

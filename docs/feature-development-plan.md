@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.13
+**Roadmap version:** 3.14
 
 **Updated:** 25 August 2026
 
@@ -1733,6 +1733,13 @@ test guidance, rescan arguments, and the exact snapshot/hash/finding/pattern bas
 together. Tight wire budgets compact the details while preserving contract, status, preferred
 path, and counts. This adds no table, provider call, queue kind, route, MCP tool, or dashboard state.
 
+The goal-specific packet now preserves the bounded `pattern-explanation-v1` conclusion,
+observations, reason, action, caution, verification, and independent-review summary for every
+included pattern. One shared reading guide explains reuse versus opportunity and the four retained
+ratings. Agents therefore receive the same meaning as the pattern query and dashboard instead of a
+bare score map. Tight payloads may still compact the entire optional decision detail through the
+existing explicit omission contract; this adds no semantic work or invalidation.
+
 Deterministic dead-code candidates now require trusted relationship resolution, no resolved or
 ambiguous inbound path, configured and conventional entry-point exclusion, parser-backed support
 for both entry-point and registration evidence, no detected dynamic-wiring fact, and the configured
@@ -1759,7 +1766,7 @@ and an observed difference is not called an improvement without the intended out
 
 | Contract | Current evidence |
 |---|---|
-| Goal-specific decision | Existing REST and MCP scope integration returns `architecture-decision-v1`; focused contracts cover semantic placement, reviewed-pattern reuse/opportunity roles, provenance, constraints, balanced consolidation, exact verification baselines, payload compaction, and deterministic-only fallback |
+| Goal-specific decision | Existing REST and MCP scope integration returns `architecture-decision-v1`; focused contracts cover semantic placement, bounded plain-language reviewed-pattern handoff and rating meanings, reuse/opportunity roles, provenance, constraints, balanced consolidation, exact verification baselines, payload compaction, and deterministic-only fallback |
 | Measured post-change handoff | The existing scope request accepts its earlier bounded baseline through CLI, REST, and MCP; same-snapshot, changed, unchanged, cross-goal, cross-repository, legacy, invalid-contract, and wire-budget behavior is versioned and tested without adding state or another product surface |
 | Removal safety | Python fixtures prove trusted module candidates, detected registration suppression, heuristic-language suppression, configured entry-point suppression, uncorroborated semantic suppression, and module/symbol granularity separation; `safe_to_remove` remains false |
 | Responsive authority | A blocking synchronous MCP tool no longer blocks the event loop; discovery tests prove connection-refused fallback, transient retry, and timeout refusal, while real SDK MCP and sidecar-preparation tests retain the work protocol |

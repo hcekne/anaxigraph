@@ -56,6 +56,20 @@ def _pattern(*, opportunity=20, conformance=84, recommendation="retain"):
             "opportunity": opportunity,
             "confidence": 88,
         },
+        "plain_language": {
+            "version": "pattern-explanation-v1",
+            "conclusion": "Keep Cohesive Module in src/service.py; it fits this code.",
+            "what_anaxigraph_saw": [
+                "src/service.py already shows the main parts of Cohesive Module."
+            ],
+            "why_it_may_matter": "One clear responsibility and public contract stay together.",
+            "what_to_do": "Keep this structure and preserve its public behavior.",
+            "reasons_not_to_change_the_code": [
+                "Splitting the module would separate code that changes together."
+            ],
+            "how_to_check": ["Keep existing callers and focused tests passing."],
+            "independent_review": "A second agent checked the evaluation.",
+        },
         "details": {
             "local_precedents": ["src/peer_service.py"],
             "risks": ["Do not broaden the contract."],
@@ -91,8 +105,14 @@ def test_architecture_decision_combines_placement_patterns_and_balanced_consolid
     assert constraints["items"][0]["invariants"]
     reviewed = result["patterns"]["items"][0]
     assert reviewed["role"] == "reuse"
+    assert reviewed["plain_language"]["version"] == "pattern-explanation-v1"
+    assert reviewed["plain_language"]["conclusion"].startswith("Keep Cohesive Module")
+    assert reviewed["plain_language"]["reasons_not_to_change_the_code"]
     assert reviewed["review"] == {"verdict": "approve", "confidence": 91}
     assert reviewed["provenance"]["executor_model"] == "runtime-model"
+    guide = result["patterns"]["reading_guide"]
+    assert guide["ratings"]["conformance"].startswith("How much")
+    assert "not code-quality grades" in guide["numbers"]
     assert result["consolidation"][0]["status"] == "keep_separate"
     assert result["consolidation"][0]["counter_evidence"]
     assert result["consolidation"][0]["context"]["change_coupling"]["status"] == "unavailable"

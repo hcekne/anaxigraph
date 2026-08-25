@@ -64,6 +64,7 @@ def build_architecture_decision(
         "patterns": {
             "status": "reviewed" if reviewed_patterns else "no_current_reviews",
             "total": len(reviewed_patterns),
+            "reading_guide": _pattern_reading_guide(),
             "items": reviewed_patterns,
         },
         "consolidation": consolidation_advice(primary_files, reviewed_patterns),
@@ -168,12 +169,54 @@ def _reviewed_pattern(item: dict[str, Any]) -> dict[str, Any] | None:
         "presence": presence,
         "recommendation": recommendation,
         "scores": _decision_scores(scores),
+        "plain_language": _pattern_language(item.get("plain_language")),
         "rationale": _text(item.get("rationale"), 800),
         "local_precedents": _strings(details.get("local_precedents"), 4),
         "risks": _strings(details.get("risks"), 3),
         "invariants": _strings(details.get("invariants"), 3),
         "review": _review_summary(item.get("review")),
         "provenance": _pattern_provenance(item.get("provenance")),
+    }
+
+
+def _pattern_reading_guide() -> dict[str, Any]:
+    return {
+        "purpose": (
+            "These are independently reviewed pattern evaluations for the coding goal. Reuse means "
+            "the code already provides a useful local example; opportunity means a change may help."
+        ),
+        "ratings": {
+            "suitability": "How well the pattern fits this code and repository.",
+            "conformance": "How much of the pattern the code already follows.",
+            "opportunity": "How much value a change may add after accounting for what exists.",
+            "confidence": "How strongly the available evidence supports the evaluation.",
+        },
+        "numbers": (
+            "Ratings run from 0 to 100. They are separate evidence summaries, not code-quality "
+            "grades, and no one number is permission to refactor."
+        ),
+    }
+
+
+def _pattern_language(value: Any) -> dict[str, Any]:
+    source = _mapping(value)
+    if not source:
+        return {
+            "version": "missing",
+            "conclusion": "This older pattern result has no complete plain-language explanation.",
+            "what_to_do": "Query the current pattern service before acting on this result.",
+        }
+    return {
+        "version": str(source.get("version") or ""),
+        "conclusion": _text(source.get("conclusion"), 240),
+        "what_anaxigraph_saw": _strings(source.get("what_anaxigraph_saw"), 2, 200),
+        "why_it_may_matter": _text(source.get("why_it_may_matter"), 240),
+        "what_to_do": _text(source.get("what_to_do"), 240),
+        "reasons_not_to_change_the_code": _strings(
+            source.get("reasons_not_to_change_the_code"), 1, 220
+        ),
+        "how_to_check": _strings(source.get("how_to_check"), 2, 220),
+        "independent_review": _text(source.get("independent_review"), 240),
     }
 
 
@@ -252,10 +295,10 @@ def _mapping(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
-def _strings(value: Any, limit: int) -> list[str]:
+def _strings(value: Any, limit: int, width: int = 700) -> list[str]:
     if not isinstance(value, (list, tuple)):
         return []
-    return [_text(item, 700) for item in value[:limit] if str(item or "").strip()]
+    return [_text(item, width) for item in value[:limit] if str(item or "").strip()]
 
 
 def _dedupe(values: list[Any]) -> list[str]:
