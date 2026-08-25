@@ -11,7 +11,7 @@ from anaxigraph.semantic_file_language import (
 )
 
 ARCHITECTURE_HANDOFF_LANGUAGE_VERSION = "architecture-handoff-explanation-v2"
-VERIFICATION_LANGUAGE_VERSION = "architecture-verification-explanation-v2"
+VERIFICATION_LANGUAGE_VERSION = "architecture-verification-explanation-v3"
 
 
 def decision_explanation(
@@ -214,6 +214,11 @@ def _comparison_observations(status: str, value: Any) -> list[str]:
     modules = changes.get("modules") if isinstance(changes.get("modules"), Mapping) else {}
     findings = changes.get("findings") if isinstance(changes.get("findings"), Mapping) else {}
     patterns = changes.get("patterns") if isinstance(changes.get("patterns"), Mapping) else {}
+    effects = (
+        changes.get("structural_effects")
+        if isinstance(changes.get("structural_effects"), Mapping)
+        else {}
+    )
     counts = [
         (
             "file record",
@@ -231,13 +236,38 @@ def _comparison_observations(status: str, value: Any) -> list[str]:
             sum(len(item) for item in patterns.values() if isinstance(item, list)),
         ),
     ]
-    if not any(count for _, _, count in counts):
-        return ["The tracked files, findings, and AI-checked pattern results did not change."]
-    return [
+    observations = [
         f"AnaxiGraph found {_items(count, singular, plural)} that changed."
         for singular, plural, count in counts
         if count
     ]
+    observations.extend(_effect_observations(effects))
+    if not observations:
+        return ["The tracked files, findings, and AI-checked pattern results did not change."]
+    return observations
+
+
+def _effect_observations(effects: Mapping[str, Any]) -> list[str]:
+    wording = {
+        "introduced": ("was introduced", "were introduced"),
+        "worsened": ("became harder to manage", "became harder to manage"),
+        "improved": ("became easier to manage", "became easier to manage"),
+        "resolved": ("was resolved", "were resolved"),
+        "pre_existing": ("was already present", "were already present"),
+    }
+    result = []
+    for name, (singular, plural) in wording.items():
+        values = effects.get(name)
+        count = len(values) if isinstance(values, list) else 0
+        if count:
+            verb = singular if count == 1 else plural
+            result.append(f"{_items(count, 'structural effect', 'structural effects')} {verb}.")
+    omitted = effects.get("omitted_count")
+    if isinstance(omitted, int) and omitted > 0:
+        result.append(
+            f"{_items(omitted, 'additional effect was', 'additional effects were')} omitted to keep the response small."
+        )
+    return result
 
 
 def _comparison_action(status: str) -> str:
@@ -249,8 +279,9 @@ def _comparison_action(status: str) -> str:
             "Save a before-change record for this repository and use the same coding goal."
         ),
         "changed": (
-            "Read the changed file records and plain-language findings, then confirm the intended "
-            "behavior with focused tests before calling the change an improvement."
+            "Start with structural effects marked introduced or harder to manage. Read their "
+            "smallest next steps and exceptions, then confirm the intended behavior with focused "
+            "tests before calling the change an improvement."
         ),
         "unchanged": (
             "If the code map was expected to change, inspect which files were scanned and what "

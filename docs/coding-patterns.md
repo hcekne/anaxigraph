@@ -108,11 +108,12 @@ ANAXIGRAPH_SCOPE(
 )
 ```
 
-The second response includes `architecture-verification-comparison-v1`. It uses
+The second response includes `architecture-verification-comparison-v2`. It uses
 `rescan_required`, `unchanged`, `changed`, or `incomparable` in ordinary language and lists the
-module, finding, and reviewed-pattern facts that differ. “No longer reported” does not mean
-“proved fixed,” and a changed score does not by itself mean the code is better. The focused tests
-and the intended outcome still decide that.
+module, finding, and reviewed-pattern facts that differ. It also groups bounded structural effects
+as introduced, worsened, improved, resolved, or pre-existing. Those labels describe the indexed
+signal: “resolved” does not mean “proved correct,” and a changed score does not by itself mean the
+code is better. The focused tests and the intended outcome still decide that.
 
 The CLI accepts either that nested baseline or the whole earlier scope response:
 

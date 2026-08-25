@@ -84,6 +84,7 @@
     "application": {
       "modules": [
         "anaxigraph.agent",
+        "anaxigraph.agent_change_effects",
         "anaxigraph.agent_decision",
         "anaxigraph.agent_decision_handoff_language",
         "anaxigraph.agent_decision_language",
@@ -95,6 +96,7 @@
         "anaxigraph.agent_impact",
         "anaxigraph.agent_payload",
         "anaxigraph.agent_scope_evidence",
+        "anaxigraph.agent_verification_contract",
         "anaxigraph.bounded_export",
         "anaxigraph.finding_transport",
         "anaxigraph.history",

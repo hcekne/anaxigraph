@@ -91,25 +91,39 @@ def test_impact_reports_an_unknown_repository_or_target(repository, database):
         )
 
 
-def test_agent_scope_compares_tracked_facts_after_a_rescan(repository, database):
+def test_agent_scope_separates_new_structural_harm_from_existing_debt(repository, database):
     first_scan = RepositoryScanner(database).scan(repository)
     config = load_config(repository)
     before = agent_scope(
         database,
         repository_id=first_scan.repository_id,
-        goal="Change the Calculator calculation behavior",
+        goal="Change the double arithmetic helper",
         branch=None,
         config=config,
     )
     baseline = before["architecture_decision"]["verification"]["post_change_baseline"]
-    core = repository / "pkg/core.py"
-    core.write_text(core.read_text(encoding="utf-8") + "\nNEW_DEFAULT = 1\n", encoding="utf-8")
+    tracked = next(item for item in baseline["modules"] if item["path"] == "pkg/util.py")
+    assert tracked["lines_of_code"] > 0
+    assert tracked["fan_in"] == 2
+    assert tracked["fan_out"] == 0
+    helper = repository / "pkg/util.py"
+    helper.write_text(
+        helper.read_text(encoding="utf-8")
+        + "\nfrom pkg.core import Calculator\n\ndef triple(value: int) -> int:\n"
+        "    return Calculator().calculate(value) + value\n",
+        encoding="utf-8",
+    )
+    (repository / "web/bridge.py").write_text(
+        "from pkg.util import double\n\ndef presentation_value(value: int) -> int:\n"
+        "    return double(value)\n",
+        encoding="utf-8",
+    )
 
     second_scan = RepositoryScanner(database).scan(repository)
     after = agent_scope(
         database,
         repository_id=second_scan.repository_id,
-        goal="Change the Calculator calculation behavior",
+        goal="Change the double arithmetic helper",
         branch=None,
         config=config,
         verification_baseline=baseline,
@@ -119,10 +133,20 @@ def test_agent_scope_compares_tracked_facts_after_a_rescan(repository, database)
     assert comparison["status"] == "changed"
     assert comparison["baseline_snapshot_id"] == first_scan.snapshot_id
     assert comparison["current_snapshot_id"] == second_scan.snapshot_id
-    assert any(
-        item["path"] == "pkg/core.py" and item["source_structure_changed"]
-        for item in comparison["changes"]["modules"]["changed"]
+    effects = comparison["changes"]["structural_effects"]
+    introduced = {item["category"] for item in effects["introduced"]}
+    assert {"file_size", "dependency_cycle", "architecture_boundary"} <= introduced
+    worsened = {item["category"] for item in effects["worsened"]}
+    assert {"incoming_coupling", "outgoing_coupling"} <= worsened
+    assert all(
+        item["observation"]
+        and item["why_it_matters"]
+        and item["smallest_next_step"]
+        and item["when_no_change_may_be_needed"]
+        and item["how_to_check"]
+        for item in effects["introduced"] + effects["worsened"]
     )
+    assert any(item["category"] == "file_size" for item in effects["pre_existing"])
 
 
 def test_agent_scope_trims_optional_context_to_the_configured_wire_budget(repository, database):

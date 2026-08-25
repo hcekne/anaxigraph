@@ -70,23 +70,28 @@ The packet preserves the product's fact/interpretation/recommendation boundary:
 
 ## Bounds and freshness
 
-The decision names its snapshot and preserves structural hashes and reviewed-pattern scores as the
-versioned `architecture-verification-baseline-v1` pre-change baseline. The baseline is bound to
-fingerprints of the repository and normalized coding goal. After a rescan, a client may pass that
-baseline back to the same scope request. The resulting
-`architecture-verification-comparison-v1` reports newly or no-longer tracked modules, structural,
-coupling, and placement changes, newly or no-longer reported findings, and reviewed-pattern score
-changes. It says “rescan required” when both packets use the same snapshot and refuses to compare a
-baseline from a different repository or goal. A legacy unversioned baseline remains readable with
-an explicit identity caveat.
+The decision names its snapshot and preserves file size, file complexity, direct incoming and
+outgoing links, structural hashes, architecture placement, bounded semantic responsibilities,
+readable finding evidence, and reviewed-pattern scores in
+`architecture-verification-baseline-v2`. The baseline is bound to fingerprints of the repository
+and normalized coding goal. After a rescan, a client may pass it back to the same scope request.
+The resulting `architecture-verification-comparison-v2` keeps the original module, finding, and
+pattern deltas and adds a bounded structural-effects list grouped as `introduced`, `worsened`,
+`improved`, `resolved`, or `pre_existing`. Every effect states what changed, why it may matter, the
+smallest useful response, why the code may be correct as written, and how to check it.
 
-The comparison is observational: “no longer reported” is not mislabeled “resolved,” and any change
-is not mislabeled an improvement. Passing tests and a stated expected outcome are still required
-to make that judgment. Normal scan and semantic fingerprints continue to own invalidation; this
-read model has no separate freshness mechanism or stored state. Exact target queries reuse the
-bounded pattern application service. If the scope payload exceeds its configured byte budget,
-detailed decision evidence is compacted while contract version, status, preferred path, result
-counts, and the post-change comparison summary remain.
+Those labels describe the direction of indexed evidence. `resolved` means that the current scan no
+longer reports the condition; it is not proof that every runtime path is correct. Likewise, a
+larger or smaller measurement does not prove the whole design became worse or better. The intended
+outcome and focused tests still decide that. Same-snapshot requests return `rescan_required`, and
+cross-repository or cross-goal baselines are refused. Version-1 and unversioned baselines remain
+readable with explicit caveats and do not invent measurements they never stored.
+
+Normal scan and semantic fingerprints continue to own invalidation; this read model has no
+separate freshness mechanism or stored state. Exact target queries reuse the bounded pattern
+application service. If the scope payload exceeds its configured byte budget, detailed decision
+evidence is compacted while contract version, status, preferred path, comparison summary, and the
+highest-priority structural effects remain.
 
 ## Consequences
 

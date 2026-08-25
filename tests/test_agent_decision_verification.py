@@ -59,7 +59,10 @@ def test_comparison_refuses_a_baseline_from_another_repository():
 
     assert result["status"] == "incomparable"
     assert "different repository" in result["summary"]
-    assert result["changes"] == {"modules": {}, "findings": {}, "patterns": {}}
+    assert result["changes"]["modules"] == {}
+    assert result["changes"]["findings"] == {}
+    assert result["changes"]["patterns"] == {}
+    assert result["changes"]["structural_effects"]["introduced"] == []
 
 
 def test_comparison_reads_a_legacy_baseline_with_an_identity_caveat():
@@ -76,3 +79,49 @@ def test_comparison_reads_a_legacy_baseline_with_an_identity_caveat():
     assert result["status"] == "unchanged"
     assert result["caveats"]
     assert "identity could not be checked" in result["caveats"][0]
+
+
+def test_version_one_baseline_does_not_invent_missing_measurement_changes():
+    previous = _baseline(snapshot=10)
+    previous["contract_version"] = "architecture-verification-baseline-v1"
+    previous.pop("findings")
+    previous["modules"][0].pop("lines_of_code")
+    previous["modules"][0].pop("complexity")
+    current = _baseline(snapshot=11)
+    current["modules"][0].update(
+        {"lines_of_code": 400, "complexity": 18, "fan_in": 9, "fan_out": 10}
+    )
+
+    result = compare_verification_baselines(previous, current)
+
+    effects = result["changes"]["structural_effects"]
+    assert effects["introduced"] == []
+    assert effects["worsened"] == []
+    assert "version-1 baseline lacks" in result["caveats"][0]
+
+
+def test_comparison_classifies_a_finding_that_became_more_severe():
+    previous = _baseline(snapshot=10)
+    current = _baseline(snapshot=11)
+    previous["findings"][0]["severity"] = "warning"
+    current["findings"][0]["severity"] = "error"
+
+    result = compare_verification_baselines(previous, current)
+
+    worsened = result["changes"]["structural_effects"]["worsened"]
+    assert len(worsened) == 1
+    assert worsened[0]["finding_key"] == "finding-1"
+    assert worsened[0]["previous_severity"] == "warning"
+    assert worsened[0]["severity"] == "error"
+
+
+def test_comparison_does_not_call_a_small_line_edit_structural_worsening():
+    previous = _baseline(snapshot=10)
+    current = _baseline(snapshot=11)
+    previous["modules"][0]["lines_of_code"] = 120
+    current["modules"][0]["lines_of_code"] = 125
+
+    result = compare_verification_baselines(previous, current)
+
+    worsened = result["changes"]["structural_effects"]["worsened"]
+    assert all(item["category"] != "file_size" for item in worsened)

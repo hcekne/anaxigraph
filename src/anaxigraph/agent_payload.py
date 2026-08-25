@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from anaxigraph import git
+from anaxigraph.agent_change_effects import compact_structural_effects
 from anaxigraph.agent_decision_handoff_language import compact_explanation
 from anaxigraph.config import AnaxiGraphConfig, path_matches
 from anaxigraph.guidance import FILE_MEASUREMENT_MEANINGS
@@ -286,17 +287,29 @@ def _compact_decision(decision: dict[str, Any]) -> dict[str, Any]:
     }
     comparison = (decision.get("verification") or {}).get("post_change_comparison") or {}
     if comparison:
+        effects = (comparison.get("changes") or {}).get("structural_effects")
+        compact_effects = compact_structural_effects(effects)
+        effect_changes = any(
+            compact_effects[name] for name in compact_effects if name != "omitted_count"
+        )
         result["verification"] = {
             "post_change_comparison": {
-                key: comparison.get(key)
-                for key in (
-                    "contract_version",
-                    "status",
-                    "summary",
-                    "baseline_snapshot_id",
-                    "current_snapshot_id",
-                    "interpretation",
-                )
+                **{
+                    key: comparison.get(key)
+                    for key in (
+                        "contract_version",
+                        "status",
+                        "summary",
+                        "baseline_snapshot_id",
+                        "current_snapshot_id",
+                        "interpretation",
+                    )
+                },
+                **(
+                    {"changes": {"structural_effects": compact_effects}}
+                    if effect_changes or compact_effects["omitted_count"]
+                    else {}
+                ),
             }
         }
     return result

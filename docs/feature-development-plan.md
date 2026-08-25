@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.22
+**Roadmap version:** 3.23
 
 **Updated:** 25 August 2026
 
@@ -111,7 +111,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 532 tests passing plus 16 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
+| Test health | 536 tests passing plus 16 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -1788,7 +1788,7 @@ are translated when read, so this change creates no semantic work and invalidate
 dossier.
 
 The rest of the goal-specific packet now uses `architecture-handoff-explanation-v2` and
-`architecture-verification-explanation-v2` instead of asking an agent to interpret internal status
+`architecture-verification-explanation-v3` instead of asking an agent to interpret internal status
 names and raw deltas. The packet states why its evidence is complete or partial, where to start,
 what behavior must remain true, what could go wrong, how to rescan, what changed, and what that
 change does not prove. Same-snapshot comparisons explicitly say that no post-change observation was
@@ -1910,13 +1910,16 @@ and invalid responses fail closed. The former 438-line `mcp_server.py` is now a 
 root over 64–268-line transport modules, with its function and self-analysis exceptions removed.
 
 Post-change verification now closes the gap between recording a baseline and actually reading it.
-`architecture-verification-baseline-v1` binds the bounded module, finding, and finalized-pattern
-facts to repository and normalized-goal fingerprints. The same CLI, REST, and `ANAXIGRAPH_SCOPE`
-surface accepts that baseline after a rescan and returns
-`architecture-verification-comparison-v1`. It refuses cross-repository or cross-goal comparisons,
-requires a newer snapshot for post-change evidence, preserves legacy baselines with an explicit
-identity caveat, and says only what changed. A no-longer-reported finding is not called resolved,
-and an observed difference is not called an improvement without the intended outcome and tests.
+`architecture-verification-baseline-v2` binds bounded file measurements, coupling, placement,
+semantic responsibilities, readable findings, and finalized-pattern facts to repository and
+normalized-goal fingerprints. The same CLI, REST, and `ANAXIGRAPH_SCOPE` surface accepts that
+baseline after a rescan and returns `architecture-verification-comparison-v2`. It refuses
+cross-repository or cross-goal comparisons, requires a newer snapshot for post-change evidence,
+and reads version-1 or unversioned baselines without inventing missing measurements. Its structural
+effects are grouped as introduced, worsened, improved, resolved, or pre-existing, with an
+observation, consequence, smallest response, counter-case, and check. These are directions in the
+indexed evidence: “resolved” is not proof of runtime correctness, and “improved” is not an overall
+code-quality verdict without the intended outcome and focused tests.
 
 ### 6.7 current evidence
 
@@ -1928,7 +1931,7 @@ and an observed difference is not called an improvement without the intended out
 | Readable evidence at every depth | Main and expanded decision fields translate older AI shorthand in place; every one of the 128 bundled patterns defines specialist words next to “what this pattern means,” and legacy dashboard fallbacks use the same ordinary-language rule rather than exposing a jargon drawer |
 | Responsive authority | A blocking synchronous MCP tool no longer blocks the event loop; discovery tests prove connection-refused fallback, transient retry, and timeout refusal, while real SDK MCP and sidecar-preparation tests retain the work protocol |
 | Focused orchestration | Scope response assembly now lives behind a bounded payload service, reducing `agent_scope` from its 128-line/complexity-24 ratchet to 97/8; finding handoff and reverse-impact assembly moved out of their former 96/22 and 77/18 functions. `agent.py` is 233 lines, the focused finding and impact services are 164 and 143, and all three obsolete self-analysis findings are removed |
-| Verification | The complete suite passes 532 tests; all 16 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis at 26 governed findings, 130 non-blocking findings, and zero issues |
+| Verification | The complete suite passes 536 tests; all 16 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis at 26 governed findings, 132 non-blocking findings, and zero issues |
 
 ## 6.8 Expose pattern intelligence without multiplying product surfaces
 
@@ -2023,9 +2026,9 @@ reasons, and one-click pivots between finalized evaluations and skipped-target e
 Sixty focused candidate/query/calibration/language-contract cases, CLI authority handoff coverage,
 completed-semantic projection coverage, REST integration, and a real MCP SDK round trip cover the
 read model. The dashboard candidate workflow passes within all 16 browser contracts in the pinned
-Playwright container. The complete suite passes 532 tests at 91.34% coverage; architecture, size,
+Playwright container. The complete suite passes 536 tests at 91.39% coverage; architecture, size,
 maintainability, formatting, and deterministic self-analysis gates report no errors or regressions,
-with self-analysis at 26 governed findings, 130 non-blocking findings, and zero issues.
+with self-analysis at 26 governed findings, 132 non-blocking findings, and zero issues.
 
 ## 6.9 Make repository-sized semantic bootstrap operational
 
@@ -2128,6 +2131,16 @@ is evidence, not a conclusion that the design improved.
 
 This is the first implementation slice. It upgrades the existing derived comparison contract and
 stores no duplicate architecture history.
+
+`architecture-verification-baseline-v2` and `architecture-verification-comparison-v2` now deliver
+that slice. The baseline retains bounded file measurements, direct coupling, placement, semantic
+responsibilities, and readable finding evidence. The comparison classifies at most 20 effects and
+keeps the highest-priority guidance when the wider scope packet must be compacted. A real
+scope → scan → scope fixture grows a healthy file past its repository rule, adds incoming and
+outgoing links, creates a cycle, and crosses a declared boundary; the response separates all four
+from an older size finding. Version-1 baselines remain readable and cannot create false metric
+changes from fields they never stored. The complete 536-test suite passes at 91.39% coverage, and
+all size, complexity, architecture, formatting, and self-analysis gates have zero errors.
 
 ## 7.3 Turn a large-file warning into a coherent decomposition map
 
@@ -2413,7 +2426,7 @@ queue and the document cannot drift apart.
 | 41 | **COMPLETE** — Add sparse multi-level candidates, separate ratings, and independent agent critique | §6.4–6.6 |
 | 42 | **IMPLEMENTED; LIVE CALIBRATION PAUSED** — Goal-specific placement, consolidation/unused-code safety, readable main and expanded evidence, calibration contracts, and post-change comparison are complete; the only remaining evidence is live calibration after the semantic-run pause is lifted | §6.7–6.8 |
 | 43 | **IMPLEMENTED; LIVE ACCEPTANCE PAUSED** — Make repository-sized semantic bootstrap linear, authoritative, nonblocking, resumable, and deterministically complete | §6.9 |
-| 44 | **IN PROGRESS** — Make the existing scope → update → scope loop distinguish introduced, worsened, improved, resolved, and pre-existing structural effects | §7.1–7.2 |
+| 44 | **COMPLETE** — Make the existing scope → update → scope loop distinguish introduced, worsened, improved, resolved, and pre-existing structural effects | §7.1–7.2 |
 | 45 | Turn mixed-responsibility large-file warnings into bounded, evidence-backed decomposition maps, while explicitly keeping cohesive files together | §7.3 |
 | 46 | Make existing hierarchy navigation task-centered from area through symbol without another graph or dashboard surface | §7.4–7.5 |
 | 47 | Add only change coupling, hotspot trends, and introduction/resolution evidence that improves a current architecture decision | Phase 8 |

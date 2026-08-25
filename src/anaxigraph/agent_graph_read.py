@@ -85,6 +85,8 @@ def _dependency_maps(
     for artifact_id in files:
         outgoing.setdefault(artifact_id, set())
         incoming.setdefault(artifact_id, set())
+        files[artifact_id]["fan_out"] = len(outgoing[artifact_id])
+        files[artifact_id]["fan_in"] = len(incoming[artifact_id])
     return outgoing, incoming
 
 
