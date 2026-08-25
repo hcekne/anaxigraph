@@ -27,7 +27,6 @@
     "src/anaxigraph/architecture.py::evaluate_architecture": [64, 13],
     "src/anaxigraph/architecture_persistence.py::_update_finding_lifecycle": [69, 6],
     "src/anaxigraph/config.py::_semantic_config": [55, 11],
-    "src/anaxigraph/config.py::load_config": [50, 17],
     "src/anaxigraph/git.py::metadata": [51, 12],
     "src/anaxigraph/persistence/module_read.py::_materialize_module": [55, 12],
     "src/anaxigraph/persistence/overview_read.py::read_overview": [71, 8],

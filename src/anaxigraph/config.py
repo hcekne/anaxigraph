@@ -11,43 +11,16 @@ from typing import Any
 
 import yaml
 
-DEFAULT_IGNORE = (
-    ".anaxigraph.yml",
-    ".git/**",
-    ".hg/**",
-    ".svn/**",
-    ".anaxigraph/**",
-    ".venv/**",
-    "venv/**",
-    "node_modules/**",
-    "dist/**",
-    "build/**",
-    ".next/**",
-    ".nuxt/**",
-    "coverage/**",
-    "**/coverage.xml",
-    "**/lcov.info",
-    "htmlcov/**",
-    "__pycache__/**",
-    ".pytest_cache/**",
-    ".mypy_cache/**",
-    ".ruff_cache/**",
-    "*.min.js",
-    "*.map",
-    "*.lock",
-    "*.png",
-    "*.jpg",
-    "*.jpeg",
-    "*.gif",
-    "*.webp",
-    "*.ico",
-    "*.pdf",
-    "*.zip",
-    "*.tar",
-    "*.gz",
-    "*.woff",
-    "*.woff2",
-    "*.ttf",
+DEFAULT_IGNORE = tuple(
+    """
+    .anaxigraph.yml .git/** .hg/** .svn/** .anaxigraph/**
+    .venv/** venv/** node_modules/** dist/** build/** .next/** .nuxt/**
+    coverage/** **/coverage.xml **/lcov.info htmlcov/**
+    __pycache__/** .pytest_cache/** .mypy_cache/** .ruff_cache/**
+    *.min.js *.map *.lock
+    *.png *.jpg *.jpeg *.gif *.webp *.ico *.pdf
+    *.zip *.tar *.gz *.woff *.woff2 *.ttf
+    """.split()
 )
 
 
@@ -430,53 +403,60 @@ def _finding_config(value: Any) -> FindingConfig:
     )
 
 
-def load_config(repository: Path, config_path: Path | None = None) -> AnaxiGraphConfig:
-    repository = repository.resolve()
-    if config_path:
-        selected = config_path.resolve()
-    else:
-        selected = repository / ".anaxigraph.yml"
-    raw: dict[str, Any] = {}
-    if selected.exists():
-        loaded = yaml.safe_load(selected.read_text(encoding="utf-8")) or {}
-        if not isinstance(loaded, dict):
-            raise ValueError(f"{selected} must contain a YAML mapping")
-        raw = loaded
+def _read_config(selected: Path) -> dict[str, Any]:
+    if not selected.exists():
+        return {}
+    loaded = yaml.safe_load(selected.read_text(encoding="utf-8")) or {}
+    if not isinstance(loaded, dict):
+        raise ValueError(f"{selected} must contain a YAML mapping")
+    return loaded
 
-    project = raw.get("project") or {}
-    architecture = raw.get("architecture") or {}
-    agent = raw.get("agent") or {}
+
+def _architecture_config(value: Any) -> ArchitectureConfig:
+    architecture = value or {}
     boundaries = {
         str(name): _tuple_of_strings(paths)
         for name, paths in (architecture.get("boundaries") or {}).items()
     }
-    configured_ignore = _tuple_of_strings(raw.get("ignore"))
+    return ArchitectureConfig(
+        policy=str(architecture["policy"]) if architecture.get("policy") else None,
+        rules=_rules(architecture.get("rules")),
+        protected_paths=_tuple_of_strings(architecture.get("protected_paths")),
+        boundaries=boundaries,
+    )
+
+
+def _agent_config(value: Any) -> AgentConfig:
+    agent = value or {}
+    return AgentConfig(
+        context_limit=int(agent.get("context_limit", 25)),
+        neighbor_depth=int(agent.get("neighbor_depth", 2)),
+        payload_limit_bytes=max(4_000, int(agent.get("payload_limit_bytes", 20_000))),
+        protected_paths=_tuple_of_strings(agent.get("protected_paths")),
+        test_patterns=_tuple_of_strings(agent.get("test_patterns")) or AgentConfig().test_patterns,
+    )
+
+
+def load_config(repository: Path, config_path: Path | None = None) -> AnaxiGraphConfig:
+    repository = repository.resolve()
+    selected = config_path.resolve() if config_path else repository / ".anaxigraph.yml"
+    raw = _read_config(selected)
+    project = raw.get("project") or {}
+    coverage = raw.get("coverage") or {}
     return AnaxiGraphConfig(
         project_name=str(project.get("name")) if project.get("name") else None,
-        ignore=tuple(dict.fromkeys((*DEFAULT_IGNORE, *configured_ignore))),
+        ignore=tuple(dict.fromkeys((*DEFAULT_IGNORE, *_tuple_of_strings(raw.get("ignore"))))),
         include=_tuple_of_strings(raw.get("include")),
         groups=_groups(raw.get("groups")),
-        architecture=ArchitectureConfig(
-            policy=str(architecture["policy"]) if architecture.get("policy") else None,
-            rules=_rules(architecture.get("rules")),
-            protected_paths=_tuple_of_strings(architecture.get("protected_paths")),
-            boundaries=boundaries,
-        ),
+        architecture=_architecture_config(raw.get("architecture")),
         semantic=_semantic_config(raw.get("semantic")),
         map=_map_config(raw.get("map")),
-        agent=AgentConfig(
-            context_limit=int(agent.get("context_limit", 25)),
-            neighbor_depth=int(agent.get("neighbor_depth", 2)),
-            payload_limit_bytes=max(4_000, int(agent.get("payload_limit_bytes", 20_000))),
-            protected_paths=_tuple_of_strings(agent.get("protected_paths")),
-            test_patterns=_tuple_of_strings(agent.get("test_patterns"))
-            or AgentConfig().test_patterns,
-        ),
+        agent=_agent_config(raw.get("agent")),
         findings=_finding_config(raw.get("findings")),
         aliases={str(key): str(value) for key, value in (raw.get("aliases") or {}).items()},
-        coverage_files=_tuple_of_strings(raw.get("coverage", {}).get("files"))
+        coverage_files=_tuple_of_strings(coverage.get("files"))
         or AnaxiGraphConfig().coverage_files,
-        coverage_required=bool(raw.get("coverage", {}).get("required", False)),
+        coverage_required=bool(coverage.get("required", False)),
         max_file_bytes=int(raw.get("max_file_bytes", 2_000_000)),
         config_path=selected if selected.exists() else None,
     )
