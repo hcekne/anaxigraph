@@ -319,7 +319,10 @@ def test_version_030_finding_copy_is_upgraded_without_waiting_for_a_rescan(
                 "detected_registrations=0",
             ],
             None,
-            "The analyzer did not find a framework or runtime registration for it.",
+            (
+                "The analyzer did not find framework setup or code that registers it when the "
+                "application starts or runs."
+            ),
         ),
         (
             "future_check",
@@ -382,6 +385,48 @@ def test_plain_language_contract_explains_semantic_and_unknown_sources():
     assert unknown["confidence"]["value"] == 0.0
     assert "imported-tool" in unknown["source"]["meaning"]
     assert "repository supplied" in unknown["level"]["meaning"]
+
+
+def test_ai_finding_copy_is_rewritten_in_the_primary_explanation():
+    language = plain_language_contract(
+        {
+            "finding_type": "future_check",
+            "summary": "The provider boundary may leak selection policy.",
+            "explanation": "A semantic review found a fragile module boundary.",
+            "recommended_action": "Preserve public contracts during the structural change.",
+            "source": "semantic",
+            "evidence": [],
+        },
+        priority_score=50,
+        priority_label="Medium",
+        priority_reasons=[],
+        false_positive_conditions=["Runtime registration may supply another caller."],
+    )
+
+    visible = " ".join(
+        [
+            language["what"],
+            language["why_it_matters"],
+            language["next_step"],
+            *language["when_no_change_may_be_needed"],
+        ]
+    ).lower()
+    assert "shared interface used to call providers" in visible
+    assert "rules for choosing an implementation" in visible
+    assert "ai review of what the code does" in visible
+    assert "way the code is divided between files" in visible
+    assert "behavior and names that other code relies on" in visible
+    assert "moving, merging, or splitting code" in visible
+    assert "code registered while the application starts or runs" in visible
+
+    free_form = evidence_sentences(
+        {
+            "finding_type": "future_check",
+            "evidence": ["The module boundary hides a public contract."],
+        }
+    )
+    assert "way the code is divided between files" in free_form[0]
+    assert "behavior and names that other code relies on" in free_form[0]
 
 
 def test_unrecognized_old_copy_is_preserved_instead_of_guessed():

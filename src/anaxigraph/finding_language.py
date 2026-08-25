@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from anaxigraph.finding_language_legacy import legacy_replacement
+from anaxigraph.semantic_file_language import explain_specialist_terms
 
 FINDING_LANGUAGE_VERSION = "plain-language-v2"
 
@@ -69,8 +70,9 @@ def finding_caveats(finding_type: str) -> list[str]:
 
     if "dead" in finding_type or "unused" in finding_type:
         return [
-            "Configuration, a framework, generated code, or code that builds a name at runtime uses it.",
-            "The analyzer could not see a runtime registration or another dynamic reference.",
+            "Settings, a framework, generated code, or code that builds a name while running uses it.",
+            "The analyzer could not see code that registers it when the application starts or "
+            "runs, or another link created while running.",
         ]
     if "cycle" in finding_type:
         return [
@@ -105,12 +107,14 @@ def plain_language_contract(
 
     return {
         "version": FINDING_LANGUAGE_VERSION,
-        "what": str(finding.get("summary") or "AnaxiGraph found something to inspect."),
-        "why_it_matters": str(
+        "what": explain_specialist_terms(
+            finding.get("summary") or "AnaxiGraph found something to inspect."
+        ),
+        "why_it_matters": explain_specialist_terms(
             finding.get("explanation")
             or "This may make the code harder to understand, test, or change safely."
         ),
-        "next_step": str(
+        "next_step": explain_specialist_terms(
             finding.get("recommended_action")
             or "Read the affected code and make the smallest change that improves clarity."
         ),
@@ -120,7 +124,9 @@ def plain_language_contract(
             "new result. A changed count is evidence; it does not by itself prove the design is better."
         ),
         **_machine_context(finding, priority_score, priority_label, priority_reasons),
-        "when_no_change_may_be_needed": false_positive_conditions,
+        "when_no_change_may_be_needed": [
+            explain_specialist_terms(item) for item in false_positive_conditions
+        ],
     }
 
 
@@ -171,7 +177,8 @@ def evidence_sentences(finding: Mapping[str, Any]) -> list[str]:
 
 def _generic_fact(value: str) -> str:
     if "=" not in value:
-        return f"AnaxiGraph recorded this evidence: {value}."
+        readable = explain_specialist_terms(value).rstrip(".")
+        return f"AnaxiGraph recorded this evidence: {readable}."
     key, recorded = value.split("=", 1)
     label = _humanize(key).lower()
     return f"AnaxiGraph measured {label} as {recorded}."
@@ -309,7 +316,10 @@ def _dead_code_facts(values: Mapping[str, str], _finding: Mapping[str, Any]) -> 
     if values.get("detected_entry_points") == "0":
         facts.append("The analyzer did not find it registered as a program entry point.")
     if values.get("detected_registrations") == "0":
-        facts.append("The analyzer did not find a framework or runtime registration for it.")
+        facts.append(
+            "The analyzer did not find framework setup or code that registers it when the "
+            "application starts or runs."
+        )
     return facts
 
 

@@ -5,7 +5,65 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from anaxigraph.semantic_file_language import explain_specialist_terms
+
 PATTERN_LANGUAGE_VERSION = "pattern-explanation-v2"
+
+_PATTERN_TERM_DEFINITIONS = (
+    ("interface", r"\binterfaces?\b", "the names and operations other code uses"),
+    ("implementation", r"\bimplementations?\b", "the code that carries out required behavior"),
+    ("abstraction", r"\babstractions?\b", "shared operations that hide which code does the work"),
+    ("algorithm", r"\balgorithms?\b", "a step-by-step way to solve a problem"),
+    ("dependency", r"\b(?:dependencies|dependency)\b", "code that this code directly uses"),
+    ("policy", r"\bpolic(?:y|ies)\b", "rules that decide what should happen"),
+    ("domain", r"\bdomain\b", "the real-world problem area the software represents"),
+    ("event", r"\bevents?\b", "a message or saved fact saying something happened"),
+    ("cohesive", r"\bcohesive\b", "focused on one clear job"),
+    (
+        "asynchronous",
+        r"\basynchronous(?:ly)?\b",
+        "able to finish later without making the caller wait",
+    ),
+    ("mutation", r"\bmutations?\b", "a change to stored or in-memory data"),
+    ("workflow", r"\bworkflows?\b", "a job made of several ordered steps"),
+    ("volatile", r"\bvolatile\b", "likely to change"),
+    ("remote", r"\bremote\b", "running in another process or machine across a network"),
+    (
+        "transaction",
+        r"\btransactions?|transactionally\b",
+        "saved changes that must all succeed or all fail",
+    ),
+    ("consistency", r"\bconsistency\b", "whether related data obeys the same rules"),
+    ("callback", r"\bcallbacks?\b", "a function given to other code to run later"),
+    ("invariant", r"\binvariants?\b", "a rule that must remain true"),
+    ("capability", r"\bcapabilit(?:y|ies)\b", "useful behavior a system part can provide"),
+    (
+        "subtype",
+        r"\bsubtypes?\b",
+        "a specific type expected to work wherever its parent type works",
+    ),
+    (
+        "substitutability",
+        r"\bsubstitutability\b",
+        "whether one implementation can safely replace another",
+    ),
+    ("stateless", r"\bstateless\b", "not keeping request data after the work finishes"),
+    (
+        "declarative",
+        r"\bdeclarative\b",
+        "describing desired rules or results instead of each step",
+    ),
+    ("aggregate", r"\baggregates?\b", "related data changed together under one owner"),
+    (
+        "entity",
+        r"\bentit(?:y|ies)\b",
+        "a stored object whose identity stays the same as its values change",
+    ),
+    ("bounded", r"\bbounded\b", "limited to a clear area, amount, or time"),
+    ("coupling", r"\bcoupl(?:e|ed|ing)\b", "making one part know details of another"),
+    ("precondition", r"\bpreconditions?\b", "a fact that must be true before work starts"),
+    ("procedural", r"\bprocedural\b", "organized as steps separate from the data they change"),
+)
 
 
 def pattern_explanation(
@@ -23,6 +81,7 @@ def pattern_explanation(
     return {
         "version": PATTERN_LANGUAGE_VERSION,
         "conclusion": _conclusion(name, target_name, recommendation),
+        "what_the_pattern_name_means": _pattern_meaning(name, pattern),
         "what_anaxigraph_saw": [
             _presence_sentence(name, target_name, presence),
             *_strings(evaluation.get("evidence"), limit=5),
@@ -43,6 +102,18 @@ def _target_name(target: Mapping[str, Any]) -> str:
         or target.get("label")
         or target.get("key")
         or "this code"
+    )
+
+
+def _pattern_meaning(name: str, pattern: Mapping[str, Any]) -> str:
+    intent = explain_specialist_terms(
+        pattern.get("intent"), extra_definitions=_PATTERN_TERM_DEFINITIONS
+    )
+    if intent:
+        return f"In this result, {name} means: {intent}"
+    return (
+        f"{name} is the exact name from the pattern library. The explanation below states what "
+        "using or changing it would mean for this code."
     )
 
 
@@ -73,8 +144,8 @@ def _presence_sentence(name: str, target: str, presence: str) -> str:
 
 
 def _reason(evaluation: Mapping[str, Any]) -> str:
-    rationale = str(evaluation.get("rationale") or "").strip()
-    summary = str(evaluation.get("summary") or "").strip()
+    rationale = explain_specialist_terms(evaluation.get("rationale"))
+    summary = explain_specialist_terms(evaluation.get("summary"))
     return (
         rationale
         or summary
@@ -268,14 +339,14 @@ def _review_sentence(review: Mapping[str, Any]) -> str:
             "A separate AI pass found another reasonable explanation, so the result keeps the disagreement."
         ),
     }.get(verdict, "A separate AI pass completed its check of this result.")
-    summary = str(review.get("summary") or "").strip()
+    summary = explain_specialist_terms(review.get("summary"))
     return f"{prefix} {summary}".strip()
 
 
 def _strings(value: Any, *, limit: int) -> list[str]:
     if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
         return []
-    return [str(item).strip() for item in value[:limit] if str(item).strip()]
+    return [explain_specialist_terms(item) for item in value[:limit] if str(item).strip()]
 
 
 def _unique(values: Sequence[str], *, limit: int) -> list[str]:

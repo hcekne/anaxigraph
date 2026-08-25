@@ -140,6 +140,12 @@ test("semantic progress and model-backed pattern advice use direct language", as
   await expect(page.locator("#repository-intelligence")).toContainText(
     "Do not delete src/legacy.py from this result alone",
   );
+  await expect(page.locator("#repository-intelligence")).toContainText(
+    "settings and code registered when the application starts or runs",
+  );
+  await expect(page.locator("#repository-intelligence")).not.toContainText(
+    "runtime registration",
+  );
 
   await page.getByRole("button", { name: "Files", exact: true }).click();
   await page.locator("#module-search").fill(semanticPath);

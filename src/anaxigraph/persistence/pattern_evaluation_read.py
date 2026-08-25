@@ -11,6 +11,7 @@ from anaxigraph.pattern_catalog import bundled_pattern_catalog
 from anaxigraph.pattern_evaluation_contract import score_values
 from anaxigraph.pattern_language import pattern_explanation
 from anaxigraph.pattern_query import PATTERN_QUERY_VERSION, PatternEvaluationQuery
+from anaxigraph.semantic_file_language import explain_specialist_terms
 
 _CURRENT_EVALUATIONS_SQL = """
 SELECT ss.scope_key, ss.artifact_id, a.canonical_path,
@@ -104,8 +105,8 @@ def _evaluation_item(
         "candidate": _candidate_summary(candidate),
         "presence": str(evaluation.get("presence") or "uncertain"),
         "recommendation": str(evaluation.get("recommendation") or "insufficient_evidence"),
-        "summary": _text(evaluation.get("summary")),
-        "rationale": _text(evaluation.get("rationale")),
+        "summary": _plain_text(evaluation.get("summary")),
+        "rationale": _plain_text(evaluation.get("rationale")),
         "scores": score_values(evaluation),
         "evidence_count": len(evaluation.get("evidence") or []),
         "counter_evidence_count": len(evaluation.get("counter_evidence") or []),
@@ -141,6 +142,7 @@ def _pattern(pattern_key: str, card: Any | None) -> dict[str, Any]:
     return {
         "key": pattern_key,
         "name": str(card.name if card else pattern_key),
+        "intent": str(card.intent if card else ""),
         "family": str(card.family if card else ""),
         "kind": str(card.kind if card else ""),
         "version": int(card.version if card else 0),
@@ -163,7 +165,7 @@ def _review_summary(review: dict[str, Any]) -> dict[str, Any]:
     )
     return {
         "verdict": str(review.get("verdict") or ""),
-        "summary": _text(review.get("summary")),
+        "summary": _plain_text(review.get("summary")),
         "confidence": int(review.get("confidence") or 0),
         "issue_counts": dict(sorted(severities.items())),
         "competing_interpretation_count": len(review.get("competing_interpretations") or []),
@@ -190,8 +192,8 @@ def _provenance(row: dict[str, Any]) -> dict[str, Any]:
 def _details(evaluation: dict[str, Any], review: dict[str, Any]) -> dict[str, Any]:
     score_rationales = {
         name: {
-            "rationale": _text(value.get("rationale")),
-            "evidence": _strings(value.get("evidence")),
+            "rationale": _plain_text(value.get("rationale")),
+            "evidence": _plain_strings(value.get("evidence")),
         }
         for name, value in (evaluation.get("scores") or {}).items()
         if isinstance(value, dict)
@@ -199,12 +201,10 @@ def _details(evaluation: dict[str, Any], review: dict[str, Any]) -> dict[str, An
     return {
         "score_rationales": score_rationales,
         **{
-            key: _strings(evaluation.get(key))
+            key: _plain_strings(evaluation.get(key))
             for key in (
                 "evidence",
                 "counter_evidence",
-                "affected_targets",
-                "local_precedents",
                 "alternatives",
                 "prerequisites",
                 "risks",
@@ -212,9 +212,13 @@ def _details(evaluation: dict[str, Any], review: dict[str, Any]) -> dict[str, An
                 "invalidation_conditions",
             )
         },
-        "review_issues": _bounded_objects(review.get("issues")),
-        "competing_interpretations": _bounded_objects(review.get("competing_interpretations")),
-        "review_evidence": _strings(review.get("evidence")),
+        "affected_targets": _strings(evaluation.get("affected_targets")),
+        "local_precedents": _strings(evaluation.get("local_precedents")),
+        "review_issues": _plain_bounded_objects(review.get("issues")),
+        "competing_interpretations": _plain_bounded_objects(
+            review.get("competing_interpretations")
+        ),
+        "review_evidence": _plain_strings(review.get("evidence")),
     }
 
 
@@ -253,10 +257,18 @@ def _text(value: Any) -> str:
     return str(value or "")[:_TEXT_LIMIT]
 
 
+def _plain_text(value: Any) -> str:
+    return explain_specialist_terms(_text(value))[:_TEXT_LIMIT]
+
+
 def _strings(value: Any) -> list[str]:
     if not isinstance(value, (list, tuple)):
         return []
     return [_text(item) for item in value[:_LIST_LIMIT]]
+
+
+def _plain_strings(value: Any) -> list[str]:
+    return [_plain_text(item) for item in _strings(value)]
 
 
 def _bounded_objects(value: Any) -> list[dict[str, Any]]:
@@ -274,4 +286,19 @@ def _bounded_value(value: Any) -> Any:
         return _text(value)
     if isinstance(value, list):
         return [_bounded_value(item) for item in value[:_LIST_LIMIT]]
+    return value
+
+
+def _plain_bounded_objects(value: Any) -> list[dict[str, Any]]:
+    return [
+        {key: _plain_bounded_value(nested) for key, nested in item.items()}
+        for item in _bounded_objects(value)
+    ]
+
+
+def _plain_bounded_value(value: Any) -> Any:
+    if isinstance(value, str):
+        return _plain_text(value)
+    if isinstance(value, list):
+        return [_plain_bounded_value(item) for item in value]
     return value

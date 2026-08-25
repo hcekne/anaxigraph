@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 SEMANTIC_FILE_LANGUAGE_VERSION = "semantic-file-explanation-v4"
@@ -25,6 +25,41 @@ _LEGACY_CHANGE = re.compile(
 )
 
 _TERM_REWRITES = (
+    (
+        "scope and evidence proportionate",
+        "amount of code checked and supporting evidence appropriate for the recommendation",
+    ),
+    (
+        "configuration, frameworks, reflection, plugins, or generated code",
+        "settings, framework hooks, code that looks up names while running, plugins, or generated code",
+    ),
+    (
+        "configuration, runtime registration, and focused tests",
+        "settings, code registered while the application starts or runs, and focused tests",
+    ),
+    ("deterministic reachability finding", "direct source-code link check"),
+    ("deterministic reachability", "direct source-code link checking"),
+    ("semantic analysis", "AI review of what the code does"),
+    ("semantic review", "AI review of what the code does"),
+    ("module boundary", "way the code is divided between files"),
+    ("public contracts", "behavior and names that other code relies on"),
+    ("public contract", "behavior and names that other code relies on"),
+    ("public return types", "results returned to callers"),
+    ("execution contract", "required caller-visible behavior"),
+    ("provider boundary", "shared interface used to call providers"),
+    ("selection policy", "rules for choosing an implementation"),
+    ("behavior boundary", "caller-facing behavior"),
+    ("through one boundary", "through one shared caller-facing interface"),
+    ("another abstraction", "another shared layer of code"),
+    ("structural change", "moving, merging, or splitting code"),
+    ("static source links", "direct links found in source code"),
+    ("incoming static link", "direct source-code link to this item"),
+    ("runtime registration", "code registered while the application starts or runs"),
+    ("architecture role", "job in the repository"),
+    (
+        "encapsulate interchangeable algorithms behind one stable operation contract",
+        "put different ways of solving the same problem behind one caller-visible operation so callers can switch between them",
+    ),
     (
         "connecting the packaged plugin to local marketplace discovery",
         "so local tools can find the packaged plugin",
@@ -231,6 +266,16 @@ def _clear_list(value: Any) -> list[str]:
 
 
 def _clear_text(value: Any) -> str:
+    return explain_specialist_terms(re.sub(r"\.\.(?=\s|$)", ".", str(value or "").strip()))
+
+
+def explain_specialist_terms(
+    value: Any,
+    *,
+    extra_definitions: Sequence[tuple[str, str, str]] = (),
+) -> str:
+    """Rewrite avoidable jargon and define precise code language that remains."""
+
     text = str(value or "").strip()
     for term, replacement in _TERM_REWRITES:
         text = re.sub(
@@ -239,19 +284,15 @@ def _clear_text(value: Any) -> str:
             text,
             flags=re.IGNORECASE,
         )
-    return explain_specialist_terms(re.sub(r"\.\.(?=\s|$)", ".", text))
+    return _define_unexplained_terms(text, (*_TERM_DEFINITIONS, *extra_definitions))
 
 
-def explain_specialist_terms(value: Any) -> str:
-    """Keep one sentence self-contained when precise code language is necessary."""
-
-    return _define_unexplained_terms(str(value or "").strip())
-
-
-def _define_unexplained_terms(text: str) -> str:
+def _define_unexplained_terms(
+    text: str, definitions_to_check: Sequence[tuple[str, str, str]]
+) -> str:
     definitions = [
         (term, meaning)
-        for term, pattern, meaning in _TERM_DEFINITIONS
+        for term, pattern, meaning in definitions_to_check
         if re.search(pattern, text, flags=re.IGNORECASE)
         and not _already_defined(text, term, pattern)
     ]

@@ -151,8 +151,9 @@ def _impact_language(
         ),
         "risk": _risk_explanation(risk, risk_reasons),
         "limits": (
-            "The result uses saved source-code links. Configuration, frameworks, generated "
-            "names, and runtime registration can connect code that the map cannot see."
+            "The result uses saved source-code links. Settings, framework setup, generated "
+            "names, and code that registers behavior when the application starts or runs can "
+            "connect code that the map cannot see."
         ),
         "machine_key_note": (
             "snapshot_id identifies the saved scan used for this answer; it is not a score."

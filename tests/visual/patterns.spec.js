@@ -24,6 +24,7 @@ function patternItem(includeEvidence) {
     pattern: {
       key: "strategy",
       name: "Strategy",
+      intent: "Put several ways to solve the same problem behind one caller-visible operation.",
       family: "object_interface",
       kind: "constructive",
       version: 1,
@@ -46,6 +47,7 @@ function patternItem(includeEvidence) {
     plain_language: {
       version: "pattern-explanation-v2",
       conclusion: "storage.py partly follows Strategy; make the existing design more consistent before adding another abstraction.",
+      what_the_pattern_name_means: "In this result, Strategy means putting several ways to solve the same problem behind one caller-visible operation.",
       what_anaxigraph_saw: [
         "storage.py shows some, but not all, of Strategy.",
         "Three providers implement the same execution contract.",
@@ -235,6 +237,10 @@ test("plain-language pattern results can be explored in both directions", async 
   await expect(page.locator(".pattern-result-card")).toContainText("Second AI check");
   await expect(page.locator(".pattern-conclusion")).toContainText("partly follows Strategy");
   await expect(page.locator(".pattern-story-grid")).toContainText("What AnaxiGraph saw");
+  await expect(page.locator(".pattern-story-grid")).toContainText("What this pattern name means");
+  await expect(page.locator(".pattern-story-grid")).toContainText(
+    "putting several ways to solve the same problem",
+  );
   await expect(page.locator(".pattern-story-grid")).toContainText("Reasons not to change the code");
   await expect(page.locator(".pattern-story-grid")).toContainText("How to check the result");
   await expect(page.locator(".pattern-score-story section")).toHaveCount(5);

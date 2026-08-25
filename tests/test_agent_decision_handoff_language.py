@@ -43,6 +43,10 @@ def test_placement_explanation_says_where_to_start_and_when_to_rescope():
 
     assert result["conclusion"] == "Start this change in src/service.py."
     assert result["what_to_do"] == "Add service behavior behind Service.run."
+    assert result["why"] == (
+        "AnaxiGraph chose this file because the AI map describes its job this way: “Owns service "
+        "coordination.”"
+    )
     assert result["examples_to_follow"] == ["src/peer_service.py"]
     assert "instead of silently expanding the change" in result["how_to_check"][1]
 
@@ -63,6 +67,28 @@ def test_constraints_explain_behavior_to_preserve_without_claiming_missing_means
     ]
     missing = constraints_explanation([])
     assert "Do not assume any behavior is safe to change" in missing["what_to_do"]
+
+
+def test_constraints_define_precise_terms_in_the_main_explanation():
+    explanation = constraint_item_explanation(
+        {
+            "path": "src/service.py",
+            "public_contracts": ["Preserve the response schema contract."],
+            "invariants": ["The provider boundary remains stable."],
+            "risks": ["Changing the module boundary could break callers."],
+        }
+    )
+
+    visible = " ".join(
+        [
+            *explanation["what_must_stay_true"],
+            *explanation["what_could_go_wrong"],
+        ]
+    ).lower()
+    assert "rules for the shape of saved or exchanged data" in visible
+    assert "behavior or data that other code relies on" in visible
+    assert "shared interface used to call providers" in visible
+    assert "way the code is divided between files" in visible
 
 
 def test_verification_explanation_turns_the_baseline_protocol_into_steps():

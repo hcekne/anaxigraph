@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from anaxigraph.semantic_file_language import explain_specialist_terms
 from anaxigraph.semantic_file_language import (
     semantic_file_explanation as semantic_file_explanation,
 )
@@ -32,8 +33,8 @@ def decision_explanation(
 
 def placement_explanation(placement: Mapping[str, Any]) -> dict[str, Any]:
     path = str(placement.get("preferred_path") or "")
-    guidance = str(placement.get("guidance") or "").strip()
-    role = str(placement.get("architecture_role") or "").strip()
+    guidance = explain_specialist_terms(placement.get("guidance"))
+    role = explain_specialist_terms(placement.get("architecture_role"))
     precedents = _strings(placement.get("local_precedents"), 4)
     if not path:
         return {
@@ -46,7 +47,7 @@ def placement_explanation(placement: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "version": ARCHITECTURE_HANDOFF_LANGUAGE_VERSION,
         "conclusion": f"Start this change in {path}.",
-        "why": guidance or role or "This is the highest-ranked file for the requested coding goal.",
+        "why": _placement_reason(role, guidance),
         "what_to_do": guidance
         or f"Make the smallest change in {path} that completes the goal without changing unrelated behavior.",
         "examples_to_follow": precedents,
@@ -59,9 +60,9 @@ def placement_explanation(placement: Mapping[str, Any]) -> dict[str, Any]:
 
 def constraint_item_explanation(item: Mapping[str, Any]) -> dict[str, Any]:
     path = str(item.get("path") or "this file")
-    contracts = _strings(item.get("public_contracts"), 6)
-    invariants = _strings(item.get("invariants"), 6)
-    risks = _strings(item.get("risks"), 6)
+    contracts = _plain_strings(item.get("public_contracts"), 6)
+    invariants = _plain_strings(item.get("invariants"), 6)
+    risks = _plain_strings(item.get("risks"), 6)
     return {
         "version": ARCHITECTURE_HANDOFF_LANGUAGE_VERSION,
         "conclusion": f"Keep the recorded behavior of {path} intact while making this change.",
@@ -103,7 +104,9 @@ def verification_explanation(verification: Mapping[str, Any]) -> dict[str, Any]:
     comparison = verification.get("post_change_comparison")
     tests = _strings(verification.get("focused_test_paths"), 8)
     if isinstance(comparison, Mapping):
-        conclusion = str(comparison.get("summary") or "The before/after comparison is available.")
+        conclusion = explain_specialist_terms(
+            comparison.get("summary") or "The before/after comparison is available."
+        )
     else:
         conclusion = (
             "AnaxiGraph saved what the selected code looked like before the change, but it has not "
@@ -137,10 +140,12 @@ def comparison_explanation(comparison: Mapping[str, Any]) -> dict[str, Any]:
     status = str(comparison.get("status") or "")
     return {
         "version": VERIFICATION_LANGUAGE_VERSION,
-        "conclusion": str(comparison.get("summary") or "No comparison summary is available."),
+        "conclusion": explain_specialist_terms(
+            comparison.get("summary") or "No comparison summary is available."
+        ),
         "what_anaxigraph_saw": _comparison_observations(status, comparison.get("changes")),
         "what_to_do": _comparison_action(status),
-        "what_it_does_not_prove": str(
+        "what_it_does_not_prove": explain_specialist_terms(
             comparison.get("interpretation")
             or "The comparison does not prove that the code became better or worse."
         ),
@@ -259,6 +264,28 @@ def _strings(value: Any, limit: int) -> list[str]:
     if not isinstance(value, (list, tuple)):
         return []
     return [str(item)[:700] for item in value[:limit] if str(item or "").strip()]
+
+
+def _plain_strings(value: Any, limit: int) -> list[str]:
+    return [explain_specialist_terms(item) for item in _strings(value, limit)]
+
+
+def _placement_reason(role: str, guidance: str) -> str:
+    if role:
+        return (
+            "AnaxiGraph chose this file because the AI map describes its job this way: "
+            f"“{_sentence(role)}”"
+        )
+    if guidance:
+        return (
+            "AnaxiGraph chose this file because its saved guidance says related work belongs "
+            f"here: “{_sentence(guidance)}”"
+        )
+    return "This is the highest-ranked file for the requested coding goal."
+
+
+def _sentence(value: str) -> str:
+    return value if value.endswith((".", "?", "!")) else f"{value}."
 
 
 def _items(value: int, singular: str, plural: str) -> str:

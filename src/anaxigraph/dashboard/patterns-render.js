@@ -18,6 +18,7 @@ export function renderEvaluationCard(item) {
     ${targetMarkup(target)}
     <div class="pattern-conclusion"><strong>Conclusion</strong><p>${escapeHtml(language.conclusion)}</p></div>
     <div class="pattern-story-grid">
+      ${storyText("What this pattern name means", language.what_the_pattern_name_means)}
       ${storyList("What AnaxiGraph saw", language.what_anaxigraph_saw)}
       ${storyText("Why this may matter", language.why_it_may_matter)}
       ${storyText("What to do", language.what_to_do)}
@@ -39,6 +40,7 @@ function patternLanguage(item) {
   if (item.plain_language) return item.plain_language;
   return {
     conclusion: "This result does not include the current plain-language explanation contract.",
+    what_the_pattern_name_means: "The older response does not explain this pattern name.",
     what_anaxigraph_saw: [],
     why_it_may_matter: "The older response is incomplete, so its recommendation is not safe to use by itself.",
     what_to_do: "Query the current AnaxiGraph service for a complete pattern explanation.",

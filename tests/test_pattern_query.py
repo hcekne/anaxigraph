@@ -92,6 +92,8 @@ def test_current_projection_supports_target_and_pattern_directions(repository, d
     language = first["plain_language"]
     assert language["version"] == "pattern-explanation-v2"
     assert language["conclusion"]
+    assert language["what_the_pattern_name_means"]
+    assert first["pattern"]["intent"]
     assert language["what_anaxigraph_saw"]
     assert language["why_it_may_matter"]
     assert language["what_to_do"]
@@ -111,6 +113,10 @@ def test_current_projection_supports_target_and_pattern_directions(repository, d
     assert target_results["total"] > 0
     assert target_results["items"][0]["target"]["key"] == first["target"]["key"]
     assert target_results["items"][0]["details"]["evidence"]
+    expanded = target_results["items"][0]
+    visible_details = str(expanded["details"]).lower()
+    assert "execution contract" not in visible_details
+    assert "behavior boundary" not in visible_details
 
     pattern_results = service.query(
         stats.repository_id,

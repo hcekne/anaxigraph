@@ -95,7 +95,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 528 tests passing at 91.10% coverage plus 16 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
+| Test health | 532 tests passing plus 16 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -1836,6 +1836,16 @@ contain unexplained labels. Stable JSON names remain for integrations, but every
 confidence value, and source label has an adjacent meaning that says what it measures and what it
 does **not** prove.
 
+That rule now covers AI-written evidence as well as headings. One shared read-time rewriter is
+applied to consolidation observations, unused-code cautions, placement guidance, change
+constraints, finding summaries and actions, finalized-pattern evidence, score reasons, and the
+independent review. Expanded pattern evidence receives the same treatment; opening more detail
+cannot reveal the old unexplained wording. Every finalized result also says what its exact pattern
+name means in the main result. The bundled 128-pattern catalog defines specialist words beside
+that meaning, while the dashboard rewrites older saved responses that predate the current
+contract. These are read projections over preserved evidence: they create no job, provider call,
+freshness change, or semantic reindex.
+
 AI work requests now carry one shared writing rule and a dictionary for unavoidable machine terms.
 The worker must write short, concrete sentences for a smart twelve-year-old and another coding
 agent; state the observed fact, consequence, evidence, uncertainty, and useful next action; and
@@ -1880,9 +1890,10 @@ and an observed difference is not called an improvement without the intended out
 | Goal-specific decision | Existing REST and MCP scope integration returns `architecture-decision-v1`; focused contracts cover readable scope readiness, semantic placement, change constraints, reviewed patterns, consolidation, unused-code advice, before/after interpretation, rating meanings, provenance, exact verification baselines, payload compaction, and deterministic-only fallback |
 | Measured post-change handoff | The existing scope request accepts its earlier bounded baseline through CLI, REST, and MCP; same-snapshot, changed, unchanged, cross-goal, cross-repository, legacy, invalid-contract, and wire-budget behavior is versioned and tested without adding state or another product surface |
 | Removal safety | Python fixtures prove trusted module candidates, detected registration suppression, heuristic-language suppression, configured entry-point suppression, uncorroborated semantic suppression, and module/symbol granularity separation; `safe_to_remove` remains false |
+| Readable evidence at every depth | Main and expanded decision fields translate older AI shorthand in place; every one of the 128 bundled patterns defines specialist words next to “what this pattern means,” and legacy dashboard fallbacks use the same ordinary-language rule rather than exposing a jargon drawer |
 | Responsive authority | A blocking synchronous MCP tool no longer blocks the event loop; discovery tests prove connection-refused fallback, transient retry, and timeout refusal, while real SDK MCP and sidecar-preparation tests retain the work protocol |
 | Focused orchestration | Scope response assembly now lives behind a bounded payload service, reducing `agent_scope` from its 128-line/complexity-24 ratchet to 97/8; finding handoff and reverse-impact assembly moved out of their former 96/22 and 77/18 functions. `agent.py` is 233 lines, the focused finding and impact services are 164 and 143, and all three obsolete self-analysis findings are removed |
-| Verification | The complete suite passes 528 tests at 91.10% coverage; all 16 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis at 26 governed findings, 130 non-blocking findings, and zero issues |
+| Verification | The complete suite passes 532 tests; all 16 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis at 26 governed findings, 130 non-blocking findings, and zero issues |
 
 ## 6.8 Expose pattern intelligence without multiplying product surfaces
 

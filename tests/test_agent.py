@@ -62,7 +62,11 @@ def test_impact_follows_reverse_edges_and_relevant_tests(repository, database):
     assert value["risk"] == "high"
     assert value["risk_reasons"]
     assert "possible follow-on effects" in value["plain_language"]["how_to_use_this"]
-    assert "runtime registration" in value["plain_language"]["limits"]
+    assert (
+        "registers behavior when the application starts or runs"
+        in value["plain_language"]["limits"]
+    )
+    assert "runtime registration" not in value["plain_language"]["limits"]
 
 
 def test_impact_reports_an_unknown_repository_or_target(repository, database):
