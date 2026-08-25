@@ -26,6 +26,8 @@ def initialize_index(
 
     current_version = existing_schema_version(database_path)
     validate_schema_version(current_version, target_version)
+    if current_version == target_version:
+        return
     backup = None
     if current_version is not None and current_version < target_version:
         backup = create_schema_backup(database_path, schema_version=current_version)

@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+import anaxigraph.persistence.index_initialization as initialization_module
 from anaxigraph.persistence import SUPPORTED_SCHEMA_VERSIONS
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.storage import SCHEMA_VERSION, AnaxiIndex
@@ -24,10 +25,15 @@ def _columns(database: AnaxiIndex, table: str) -> set[str]:
         return {row["name"] for row in connection.execute(f"PRAGMA table_info({table})")}
 
 
-def test_fresh_and_current_schema_initialization_is_idempotent(tmp_path):
+def test_fresh_and_current_schema_initialization_is_idempotent(tmp_path, monkeypatch):
     path = tmp_path / "current.db"
 
     first = AnaxiIndex(path)
+
+    def unexpected_migration(*_args, **_kwargs):
+        raise AssertionError("a current schema must not rerun data migration")
+
+    monkeypatch.setattr(initialization_module, "migrate_schema", unexpected_migration)
     second = AnaxiIndex(path)
 
     assert SUPPORTED_SCHEMA_VERSIONS == frozenset({2, 6, 7, 8, 9, 10})
