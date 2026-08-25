@@ -40,8 +40,10 @@ docker compose logs -f anaxigraph
 ```
 
 Open `http://127.0.0.1:8765`. The default registry contains MaxOS and AnaxiGraph itself, so both
-appear under **Current repository**. Current scans finish before the HTTP service starts; sampled
-Git biographies then import in the background and report progress on the History page.
+appear under **Current repository** after the companion watcher finishes its first structural
+scan. The HTTP and MCP service becomes ready immediately; until that scan finishes, currentness
+fields prevent an old map from being mistaken for the mounted checkout. Sampled Git biographies
+then import in the background and report progress on the History page.
 
 | Endpoint | Address |
 |---|---|
@@ -132,10 +134,10 @@ uv run pytest --cov=src/anaxigraph --cov-report=xml:coverage.xml
 
 ## Keep all repositories current
 
-The main service scans every registry entry on startup, and the companion watcher keeps their
-structural maps current. You can also click **Refresh scan** for the selected repository. Dashboard
-refreshes run in the background, show phase/file progress, and can be cancelled without discarding
-the previous current snapshot:
+The companion watcher creates each structural map and keeps it current without blocking HTTP or
+MCP startup. You can also click **Refresh scan** for the selected repository. Dashboard refreshes
+run in the background, show phase/file progress, and can be cancelled without discarding the
+previous current snapshot:
 
 ```bash
 docker compose up --build -d

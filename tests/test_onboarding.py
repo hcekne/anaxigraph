@@ -52,6 +52,7 @@ def test_initializer_generates_reviewable_policy_and_read_only_sidecar(repositor
     assert '"127.0.0.1:${ANAXIGRAPH_PORT:-9123}:8765"' in compose
     assert '--history-snapshots\n      - "37"' in compose
     assert "profiles" not in compose_config["services"]["anaxigraph-watch"]
+    assert "--scan-on-start" not in compose_config["services"]["anaxigraph"]["command"]
     assert result["commands"]["start_with_watch"] == result["commands"]["start"]
     assert result["commands"]["connect_codex"] == (
         "codex mcp add anaxigraph --url http://127.0.0.1:9123/mcp"

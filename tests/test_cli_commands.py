@@ -444,7 +444,7 @@ def test_serve_handler_assembles_and_opens_the_selected_endpoint(
     assert "Dashboard: http://127.0.0.1:9123" in capsys.readouterr().err
 
 
-def test_registry_service_scans_on_start_without_relying_on_a_compose_flag(
+def test_registry_service_does_not_force_a_blocking_startup_scan(
     repository: Path,
     tmp_path: Path,
     monkeypatch,
@@ -468,7 +468,7 @@ def test_registry_service_scans_on_start_without_relying_on_a_compose_flag(
         ]
     )
 
-    assert created[0]["scan_on_start"] is True
+    assert created[0]["scan_on_start"] is False
     assert created[0]["repository_targets"][0].path == repository.resolve()
 
 
