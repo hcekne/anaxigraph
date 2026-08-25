@@ -132,6 +132,44 @@ async def test_wave_shares_parallel_budget_and_submits_fast_jobs_first(monkeypat
     assert total["processed"] == total["completed"] == 3
 
 
+@pytest.mark.anyio
+async def test_wave_runs_thirty_model_calls_without_the_default_thread_cap(monkeypatch):
+    barrier = threading.Barrier(30)
+    packets = [
+        {"job": {"id": index, "kind": "intrinsic"}, "lease": {"token": str(index)}}
+        for index in range(30)
+    ]
+
+    async def request(_session, _target, packet):
+        return {"index": packet["job"]["id"]}
+
+    def analyze(request_value, execution):
+        assert execution.max_parallel_jobs == 1
+        barrier.wait(timeout=2)
+        return SimpleNamespace(
+            value={"index": request_value["index"]}, input_tokens=1, output_tokens=1
+        )
+
+    async def submit(_session, _target, _packet, _result):
+        return {"status": "completed", "semantic": {"jobs": {}}}
+
+    monkeypatch.setattr(remote_worker, "_request_for_packet", request)
+    monkeypatch.setattr(remote_worker, "_analyze", analyze)
+    monkeypatch.setattr(remote_worker, "_submit", submit)
+    total = remote_worker._empty_result()
+
+    await remote_worker._execute_wave(
+        object(),
+        _target(),
+        SemanticConfig(provider="codex", max_parallel_jobs=30),
+        packets,
+        total,
+        {},
+    )
+
+    assert total["processed"] == total["completed"] == 30
+
+
 def _target() -> SemanticServiceTarget:
     return SemanticServiceTarget("http://127.0.0.1:8765", 1, "AnaxiGraph", "/anaxigraph")
 

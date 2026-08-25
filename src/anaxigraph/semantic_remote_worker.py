@@ -6,6 +6,7 @@ import asyncio
 import json
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import timedelta
 from typing import Any
@@ -199,27 +200,31 @@ async def _execute_wave(
     requests = await _wave_requests(session, target, packets)
     call_budget = max(1, execution.max_parallel_jobs // len(packets))
     request_execution = replace(execution, max_parallel_jobs=call_budget)
-    tasks = [
-        asyncio.create_task(_analyze_indexed(index, request, request_execution))
-        for index, request in enumerate(requests)
-    ]
-    remaining = set(range(len(packets)))
-    for completed in asyncio.as_completed(tasks):
-        index, result = await completed
-        if isinstance(result, BaseException):
-            await _abort_wave(session, target, packets, tasks, remaining, str(result))
-            raise RuntimeError(f"Semantic model execution failed: {result}") from result
-        latest = await _submit_wave_result(
-            session,
-            target,
-            packets,
-            tasks,
-            remaining,
-            index,
-            result,
-            total,
-            latest,
-        )
+    with ThreadPoolExecutor(
+        max_workers=min(len(packets), execution.max_parallel_jobs),
+        thread_name_prefix="anaxigraph-model",
+    ) as pool:
+        tasks = [
+            asyncio.create_task(_analyze_indexed(index, request, request_execution, pool))
+            for index, request in enumerate(requests)
+        ]
+        remaining = set(range(len(packets)))
+        for completed in asyncio.as_completed(tasks):
+            index, result = await completed
+            if isinstance(result, BaseException):
+                await _abort_wave(session, target, packets, tasks, remaining, str(result))
+                raise RuntimeError(f"Semantic model execution failed: {result}") from result
+            latest = await _submit_wave_result(
+                session,
+                target,
+                packets,
+                tasks,
+                remaining,
+                index,
+                result,
+                total,
+                latest,
+            )
     return latest
 
 
@@ -284,9 +289,11 @@ async def _analyze_indexed(
     index: int,
     request: dict[str, Any],
     execution: SemanticConfig,
+    pool: ThreadPoolExecutor,
 ) -> tuple[int, Any]:
     try:
-        return index, await asyncio.to_thread(_analyze, request, execution)
+        loop = asyncio.get_running_loop()
+        return index, await loop.run_in_executor(pool, _analyze, request, execution)
     except Exception as exc:
         return index, exc
 
