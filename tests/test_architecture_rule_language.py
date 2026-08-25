@@ -74,27 +74,27 @@ def rule_evidence():
                 params={"max": 500, "paths": "src/*.py"},
             ),
             "module_complexity",
-            "src/a.py may be doing too many jobs",
+            "src/a.py has 620 lines; this project reviews files above 500 lines",
         ),
         (
             RuleConfig("function-size", "max_function_lines", params={"max": 25}),
             "long_function",
-            "load_config takes a lot of code to do one job",
+            "load_config uses 44 lines; this project reviews functions above 25 lines",
         ),
         (
             RuleConfig("function-decisions", "max_symbol_complexity", params={"max": 15}),
             "symbol_complexity",
-            "load_config makes many decisions in one function",
+            "load_config has a branch score of 17; this project reviews functions above 15",
         ),
         (
             RuleConfig("uses-many", "max_fan_out", params={"max": 12}),
             "high_fan_out",
-            "src/a.py reaches into many other modules",
+            "src/a.py directly uses 18 modules; this project reviews files above 12 modules",
         ),
         (
             RuleConfig("used-by-many", "max_fan_in", params={"max": 12}),
             "high_fan_in",
-            "Many modules rely on src/b.py",
+            "18 modules directly use src/b.py; this project reviews files above 12 modules",
         ),
         (
             RuleConfig("dependency-loop", "no_cycles"),
@@ -123,7 +123,7 @@ def rule_evidence():
         (
             RuleConfig("coverage", "minimum_line_coverage", params={"min": 0.8}),
             "weak_test_coverage",
-            "Tests may miss behavior in src/a.py",
+            "Tests run 42% of src/a.py; this project's goal is 80%",
         ),
     ],
 )
@@ -153,8 +153,11 @@ def test_each_architecture_rule_writes_a_plain_explanation(
     assert finding.summary == summary
     assert finding.explanation
     assert finding.recommended_action
-    assert "inspection signal" not in finding.explanation
-    assert "configured threshold" not in finding.explanation
+    rendered = f"{finding.summary} {finding.explanation} {finding.recommended_action}".lower()
+    assert not any(
+        jargon in rendered
+        for jargon in ("inspection signal", "configured threshold", "cyclomatic", "fan-out")
+    )
 
 
 def test_rule_copy_keeps_machine_evidence_without_using_it_as_the_explanation(rule_evidence):
@@ -177,8 +180,9 @@ def test_rule_copy_keeps_machine_evidence_without_using_it_as_the_explanation(ru
     )[0]
 
     assert finding.evidence == ("estimated_cyclomatic_complexity=17",)
-    assert "decision score of 17" in finding.explanation
-    assert "does not prove the design is wrong" in finding.explanation
+    assert "branch score of 17" in finding.summary
+    assert "possible outcomes" in finding.explanation
+    assert "when they answer one clear question" in finding.explanation
 
 
 def test_unknown_rule_and_empty_boundary_pattern_fail_closed(rule_evidence):

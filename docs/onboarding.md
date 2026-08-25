@@ -174,18 +174,19 @@ dynamic runtime wiring remains an explicit blind spot.
 
 ## Understand findings
 
-The Architecture page opens on at most 20 ranked attention items. It suppresses routine
-information-level long-function noise unless repository policy opts in. **All diagnostics** keeps
-the complete evidence ledger and supports filters and pagination.
+The Architecture page opens on at most 20 findings worth checking first. It suppresses routine
+long-function notes unless repository policy opts in. **Complete record** keeps every observation
+and supports filters and pagination.
 
 - **Mark reviewed** records that someone inspected an active condition.
-- **Plan agent work** is explicit approval to prepare a coding handoff.
+- **Plan agent work** selects the finding and prepares a coding handoff.
 - **Accept risk** retains monitoring without occupying normal attention.
 - **Not actionable** dismisses the current condition.
 - **Resolved** and **regressed** are normally determined by later scans, not by a button.
 
-Every finding includes ranking reasons, evidence, plausible false-positive conditions, affected
-areas, the smallest next action, and a scan-based verification rule.
+Every finding directly explains what AnaxiGraph saw, why it may matter, what to do, when the code
+may be fine as it is, and how to check the result. The exact detector and ranking fields remain
+available to tools, but they are not a substitute for that explanation.
 
 ## Check the setup
 

@@ -283,16 +283,16 @@
         <article class="panel">
           <div class="panel-heading finding-controls">
             <div>
-              <p class="eyebrow">Bounded attention · complete evidence</p>
+              <p class="eyebrow">Short attention list · complete record</p>
               <h2>Architecture findings</h2>
-              <p class="panel-copy">Attention keeps the urgent queue short. Diagnostics preserves
-                every lower-severity observation for inspection and filtering.</p>
+              <p class="panel-copy">The attention list keeps the most useful findings short. The
+                complete record keeps every observation for inspection and filtering.</p>
             </div>
             <label>
               View
               <select id="finding-view-filter">
                 <option value="attention">Attention queue</option>
-                <option value="diagnostics">All diagnostics</option>
+                <option value="diagnostics">Complete record</option>
               </select>
             </label>
           </div>
@@ -311,27 +311,27 @@
               </select>
             </label>
             <label>
-              Severity
+              What the project rule says
               <select id="finding-severity-filter">
-                <option value="">Any severity</option>
-                <option value="critical">Critical</option>
-                <option value="error">Error</option>
-                <option value="warning">Warning</option>
-                <option value="info">Info</option>
+                <option value="">Any level</option>
+                <option value="critical">Check before more changes</option>
+                <option value="error">Probably a problem</option>
+                <option value="warning">Worth a closer look</option>
+                <option value="info">Background information</option>
               </select>
             </label>
             <label>
-              Detector
-              <select id="finding-type-filter"><option value="">Any detector</option></select>
+              What AnaxiGraph checked
+              <select id="finding-type-filter"><option value="">Any check</option></select>
             </label>
             <label>
               Architecture area
               <select id="finding-area-filter"><option value="">Any area</option></select>
             </label>
             <label>
-              Confidence
+              How directly it was observed
               <select id="finding-confidence-filter">
-                <option value="0">Any confidence</option>
+                <option value="0">Any evidence strength</option>
                 <option value="0.5">50%+</option>
                 <option value="0.8">80%+</option>
                 <option value="0.95">95%+</option>

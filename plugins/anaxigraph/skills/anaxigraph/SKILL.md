@@ -35,8 +35,8 @@ model-derived interpretations visibly separate.
 - For a module question, use `ANAXIGRAPH_SEARCH` and `ANAXIGRAPH_FILE`. Compare responsibilities,
   collaborators, overlaps, extension points, pattern evidence, and counter-evidence.
 - For architecture attention, call `ANAXIGRAPH_FINDINGS` with the bounded `attention` view. Use
-  `ANAXIGRAPH_FINDING_CONTEXT` only for the chosen finding. A `planned` finding records human
-  approval; other active findings are observations, not an implementation request.
+  `ANAXIGRAPH_FINDING_CONTEXT` only for the chosen finding. A `planned` finding records that it was
+  selected for work; other active findings are observations, not an implementation request.
 - For history questions, use `ANAXIGRAPH_HISTORY_STATUS` and the dashboard timeline. Start or cancel
   an import only when the user requests that index operation.
 - Before an implementation, preserve

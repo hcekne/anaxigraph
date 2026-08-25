@@ -66,6 +66,11 @@ def test_finding_context_combines_scope_and_impact_without_duplicate_paths():
     assert result["protected_paths"] == ["src/critical.py", "src/protected.py"]
     assert result["primary_impact"]["risk"] == "high"
     assert "Start with src/service.py" in result["goal"]
+    assert result["finding"]["plain_language"]["version"] == "plain-language-v2"
+    assert "What AnaxiGraph saw:" in result["agent_prompt"]
+    assert "Why it matters: The boundary has too many responsibilities." in result["agent_prompt"]
+    assert "When no code change may be needed:" in result["agent_prompt"]
+    assert "How to check the result:" in result["agent_prompt"]
     assert "ANAXIGRAPH_FINDING_CONTEXT" in result["agent_prompt"]
 
 

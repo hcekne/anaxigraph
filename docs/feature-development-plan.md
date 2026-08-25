@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.10
+**Roadmap version:** 3.11
 
 **Updated:** 25 August 2026
 
@@ -22,7 +22,7 @@ language falls through to a lexical fallback, or installation feels like a small
 project. The near-term roadmap therefore prioritizes first-run performance, signal quality,
 distribution, and language depth before adding more visible intelligence features.
 
-The recommendations are adopted with seven important refinements:
+The recommendations are adopted with eight important refinements:
 
 - **Delta-driven history comes before batched Git reads.** Profiling says analysis of unchanged
   files is currently the dominant cost. `git cat-file --batch` remains a later optimization for
@@ -30,6 +30,10 @@ The recommendations are adopted with seven important refinements:
 - **Findings are not deleted to make the UI quiet.** AnaxiIndex should retain the complete evidence
   ledger while the product presents a small ranked attention queue and places low-severity
   diagnostics behind an explicit view.
+- **A finding must explain itself without a jargon drawer.** Its factual observation, consequence,
+  sensible action, reasons to leave the code alone, and verification step use the same ordinary
+  language in storage reads, REST, MCP, the dashboard, and agent handoffs. Stable detector IDs and
+  numeric ranking inputs remain structured automation fields, not the explanation shown to people.
 - **The 500-line rule is a ratchet, not an excuse to freeze the repository or create arbitrary
   499-line fragments.** New oversized modules and growth of existing oversized modules are blocked
   immediately. Existing exceptions are then removed in the phases that touch their responsibilities.
@@ -59,8 +63,9 @@ It should help a person or coding agent answer:
 
 1. **What is this system?** See its areas, modules, contracts, relationships, history, and module
    meanings from a repository view down to a symbol.
-2. **What deserves attention?** Rank architecture risks by severity, confidence, churn, complexity,
-   coverage, and blast radius instead of presenting a wall of threshold violations.
+2. **What deserves attention?** Explain what AnaxiGraph saw and why it may matter, then use measured
+   risk, change history, connectivity, test coverage, and affected code to order the work without
+   presenting a wall of scores and detector labels.
 3. **How could the design improve?** Identify repeated responsibilities, misplaced boundaries,
    consolidation opportunities, dead-code candidates, and suitable patterns with evidence and
    counter-evidence.
@@ -88,7 +93,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 480 tests passing at 90.83% coverage plus 15 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
+| Test health | 486 tests passing at 90.85% coverage plus 15 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -1003,13 +1008,13 @@ product queue.
 
 Every queued finding must answer:
 
-- why it is ranked here;
-- what deterministic and semantic evidence supports it;
-- what could make it a false positive;
+- what AnaxiGraph actually saw, in a sentence a smart twelve-year-old can understand;
+- why that observation could make the code harder to understand, test, or change;
+- what could make the current design reasonable as it is;
 - affected modules, contracts, tests, and blast radius;
-- the smallest sensible next action;
-- whether the recommended action is investigate, constrain, refactor, test, or remove;
-- how a later scan will verify resolution.
+- the smallest sensible next action, including the option to leave clear code alone;
+- how focused tests and a later scan will check the result without calling every changed number an
+  improvement.
 
 Lifecycle remains:
 
@@ -1041,6 +1046,7 @@ Resolution normally comes from a later scan, not a “make green” button.
 | Stable pagination | Opaque query-bound cursors use priority, regression state, first detection, and stable key ordering; every page reports shown, total, per-dimension counts, next cursor, and exact omissions |
 | Agent budget | `ANAXIGRAPH_FINDINGS` accepts a token budget, returns a compact actionability record, proves the estimated payload stays inside it, and reports results displaced by that budget |
 | Actionability | Each finding now distinguishes deterministic from attached semantic evidence, lists false-positive conditions, affected modules/areas/contracts/tests and blast radius, classifies the action, proposes the smallest next step, and explains scan-based verification |
+| Plain-language contract | `plain-language-v2` makes the observation, consequence, action, intentional-design caveats, and verification rule canonical across REST, MCP, the dashboard, scope results, and copied agent prompts. Cards show that reasoning directly; queue scores, confidence, source IDs, and detector keys remain structured automation data rather than a heading or hidden jargon section |
 | Lifecycle | The dashboard exposes review, plan, accept-risk, dismiss, reopen, and handoff actions; a characterization test proves a later scan resolves the same stable key and marks it regressed when the condition returns |
 | Browser contract | All 12 containerized Playwright scenarios pass, including attention/diagnostics switching, grouped long-function diagnostics, filters, cursor-driven loading, and persisted lifecycle actions |
 | Maintainability | The API is 564 lines (down from 579), MCP server 427 (down from 461), CLI 555 (down from 557), and dashboard application 2,066 (down from 2,091); extracted finding modules remain below 500 lines and all ratchets pass |
@@ -1758,7 +1764,7 @@ and an observed difference is not called an improvement without the intended out
 | Removal safety | Python fixtures prove trusted module candidates, detected registration suppression, heuristic-language suppression, configured entry-point suppression, uncorroborated semantic suppression, and module/symbol granularity separation; `safe_to_remove` remains false |
 | Responsive authority | A blocking synchronous MCP tool no longer blocks the event loop; discovery tests prove connection-refused fallback, transient retry, and timeout refusal, while real SDK MCP and sidecar-preparation tests retain the work protocol |
 | Focused orchestration | Scope response assembly now lives behind a bounded payload service, reducing `agent_scope` from its 128-line/complexity-24 ratchet to 97/8; finding handoff and reverse-impact assembly moved out of their former 96/22 and 77/18 functions. `agent.py` is 233 lines, the focused finding and impact services are 164 and 143, and all three obsolete self-analysis findings are removed |
-| Verification | The complete suite passes 480 tests at 90.83% coverage; all 15 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis reduced to 31 governed findings, 133 non-blocking findings, and zero issues |
+| Verification | The complete suite passes 486 tests at 90.85% coverage; all 15 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis at 31 governed findings, 132 non-blocking findings, and zero issues |
 
 ## 6.8 Expose pattern intelligence without multiplying product surfaces
 
@@ -1829,9 +1835,9 @@ between finalized evaluations and skipped-target explanations.
 Forty focused candidate/query/calibration-contract cases, CLI authority handoff coverage,
 completed-semantic projection coverage, REST integration, and a real MCP SDK round trip cover the
 read model. The dashboard candidate workflow passes within all 15 browser contracts in the pinned
-Playwright container. The complete suite passes 480 tests at 90.83% coverage; architecture, size,
+Playwright container. The complete suite passes 486 tests at 90.85% coverage; architecture, size,
 maintainability, formatting, and deterministic self-analysis gates report no errors or regressions,
-with self-analysis at 31 governed findings, 133 non-blocking findings, and zero issues.
+with self-analysis at 31 governed findings, 132 non-blocking findings, and zero issues.
 
 ## 6.9 Make repository-sized semantic bootstrap operational
 

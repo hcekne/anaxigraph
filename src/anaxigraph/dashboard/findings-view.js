@@ -1,4 +1,16 @@
 const number = new Intl.NumberFormat();
+const findingTypeLabels = {
+  module_complexity: "File has many lines",
+  long_function: "Function has many lines",
+  symbol_complexity: "Function has many branches",
+  high_fan_out: "File directly uses many modules",
+  high_fan_in: "Many modules directly use this file",
+  dependency_cycle: "Modules depend on one another in a loop",
+  architecture_violation: "Project boundary was crossed",
+  architecture_drift: "File no longer fits its declared area",
+  weak_test_coverage: "Tests miss part of a file",
+  possible_dead_code: "File may no longer be used",
+};
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -22,16 +34,18 @@ function findingCard(item, glossary, actions) {
   const guide = glossary?.findings?.statuses?.[item.status];
   const status = guide?.label || humanize(item.status);
   const language = findingLanguage(item);
-  const priority = language.priority?.label
-    ? `<span class="finding-priority">${escapeHtml(language.priority.label)} priority</span> · `
-    : "";
-  const action = language.next_step
-    ? `<div class="finding-action-copy"><strong>What to do next</strong><p>${escapeHtml(language.next_step)}</p></div>`
-    : "";
+  const attention = language.priority?.guidance || "Use the explanation to decide when to check this.";
   const tags = item.affected_artifacts?.length
     ? `<div class="tag-list">${item.affected_artifacts.slice(0, 8).map((path) => `<span class="tag">${escapeHtml(path)}</span>`).join("")}</div>`
     : "";
-  return `<article class="finding-card"><span class="severity ${escapeHtml(item.severity)}"></span><div><div class="finding-meta">${priority}${escapeHtml(status)}</div><h3>${escapeHtml(language.what)}</h3><div class="finding-meaning"><strong>Why this matters</strong><p>${escapeHtml(language.why_it_matters)}</p></div>${action}${tags}${actionabilityDetails(item, language)}</div>${actions ? findingActionButtons(item) : ""}</article>`;
+  const story = [
+    storyList("What AnaxiGraph saw", language.facts || []),
+    storyText("Why this matters", language.why_it_matters),
+    storyText("What to do", language.next_step),
+    storyList("This may be fine when", language.when_no_change_may_be_needed || []),
+    storyText("How to check the result", language.how_to_check),
+  ].join("");
+  return `<article class="finding-card"><span class="severity ${escapeHtml(item.severity)}"></span><div><div class="finding-meta">${escapeHtml(status)} · ${escapeHtml(attention)}</div><h3>${escapeHtml(language.what)}</h3><div class="finding-story">${story}</div>${tags}</div>${actions ? findingActionButtons(item) : ""}</article>`;
 }
 
 function findingLanguage(item) {
@@ -40,6 +54,7 @@ function findingLanguage(item) {
     why_it_matters: item.explanation,
     next_step: item.recommended_action,
     facts: item.actionability?.evidence?.plain_language || [],
+    how_to_check: item.actionability?.verification || "Run focused tests and scan the repository again.",
     check: { id: item.finding_type, label: humanize(item.finding_type) },
     level: { id: item.severity, meaning: `${humanize(item.severity)} level.` },
     confidence: {
@@ -50,6 +65,7 @@ function findingLanguage(item) {
     priority: {
       score: item.priority_score,
       label: item.priority_label,
+      guidance: "Use the explanation to decide when to check this.",
       meaning: "The priority score only decides which finding appears first; it is not a grade for the code.",
       reasons: item.priority_reasons || [],
     },
@@ -57,29 +73,12 @@ function findingLanguage(item) {
   };
 }
 
-function actionabilityDetails(item, language) {
-  const value = item.actionability || {};
-  const reasons = language.priority?.reasons || value.why_ranked || item.priority_reasons || [];
-  const falsePositives = language.when_no_change_may_be_needed || value.false_positive_conditions || [];
-  const affected = value.affected || {};
-  const areas = affected.architecture_areas || [];
-  const meanings = findingMeanings(language);
-  return `<details class="finding-evidence"><summary>How AnaxiGraph reached this finding</summary><div class="finding-evidence-grid">${detailList("What AnaxiGraph measured", language.facts || [])}${detailList("What the labels and numbers mean", meanings)}${detailList("Why this appears where it does", reasons)}${detailList("When this may not need a change", falsePositives)}${detailList("Affected architecture areas", areas)}${detailList("How to check the result", value.verification ? [value.verification] : [])}</div></details>`;
+function storyText(title, value) {
+  if (!value) return "";
+  return `<section><strong>${escapeHtml(title)}</strong><p>${escapeHtml(value)}</p></section>`;
 }
 
-function findingMeanings(language) {
-  const check = language.check || {};
-  const result = [];
-  if (check.label) {
-    result.push(`The check is “${check.label}.” Its API name is ${check.id || "not supplied"}.`);
-  }
-  [language.level?.meaning, language.source?.meaning, language.confidence?.meaning, language.priority?.meaning]
-    .filter(Boolean)
-    .forEach((value) => result.push(value));
-  return result;
-}
-
-function detailList(title, values) {
+function storyList(title, values) {
   if (!values.length) return "";
   return `<section><strong>${escapeHtml(title)}</strong><ul>${values.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul></section>`;
 }
@@ -114,7 +113,7 @@ export function findingResultNote(page, loaded) {
     ? (total === 1 ? "finding to check" : "findings to check")
     : (total === 1 ? "finding" : "findings");
   const threshold = page.view === "attention"
-    ? ` This view includes planned or returned work, plus findings that meet the project's ${page.filters.attention_minimum_severity} level or ${page.filters.attention_minimum_priority}-point queue limit.`
+    ? " This view includes selected work, returned conditions, and the observations the project asked to see first."
     : " This complete view keeps every finding; filters and pages only change what is shown.";
   return `Showing ${number.format(loaded)} of ${number.format(total)} matching ${label}, ordered by what is most useful to check first.${threshold}`;
 }
@@ -122,7 +121,7 @@ export function findingResultNote(page, loaded) {
 export function findingGroupSummary(groups = []) {
   if (!groups.length) return "";
   const cards = groups.slice(0, 8).map((item) => (
-    `<span class="finding-group"><strong>${number.format(item.count)}</strong> ${escapeHtml(humanize(item.finding_type))}<small>${escapeHtml(humanize(item.architecture_area))}</small></span>`
+    `<span class="finding-group"><strong>${number.format(item.count)}</strong> ${escapeHtml(findingTypeLabel(item.finding_type))}<small>${escapeHtml(humanize(item.architecture_area))}</small></span>`
   )).join("");
   return `<div class="finding-groups"><p>Repeated findings are grouped here so the common shape is easier to see.</p><div>${cards}</div></div>`;
 }
@@ -143,19 +142,23 @@ export function findingQueryParams(cursor = "") {
 
 export function renderFindingFilterOptions(page) {
   const available = page?.available_filters || {};
-  updateSelect("finding-type-filter", available.finding_types || [], "Any check");
+  updateSelect("finding-type-filter", available.finding_types || [], "Any check", findingTypeLabel);
   updateSelect("finding-area-filter", available.architecture_areas || [], "Any area");
 }
 
-function updateSelect(id, values, emptyLabel) {
+function updateSelect(id, values, emptyLabel, label = humanize) {
   const select = document.getElementById(id);
   const selected = select.value;
   const options = [...values];
   if (selected && !options.includes(selected)) options.unshift(selected);
   select.innerHTML = `<option value="">${escapeHtml(emptyLabel)}</option>${options.map((value) => (
-    `<option value="${escapeHtml(value)}">${escapeHtml(humanize(value))}</option>`
+    `<option value="${escapeHtml(value)}">${escapeHtml(label(value))}</option>`
   )).join("")}`;
   select.value = selected;
+}
+
+function findingTypeLabel(value) {
+  return findingTypeLabels[value] || humanize(value);
 }
 
 export function resetFindingFilters() {

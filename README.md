@@ -211,7 +211,7 @@ runtime wiring can still be invisible, so a missing edge is never presented as p
 - **Modules** is a sortable/filterable ledger of purpose, placement, size, complexity, coupling,
   Git activity, coverage state, findings, and pattern review.
 - **Graph** moves between architecture regions and module-level relationships.
-- **Architecture** separates a bounded ranked attention queue from the complete diagnostics ledger.
+- **Architecture** separates a short attention list from the complete finding record.
 - **History** replays representative first-parent commits from repository initialization to HEAD.
 - **Agents** builds evidence-backed work scope, saves a versioned before-change baseline, compares
   it after a rescan, and explains semantic progress without calling every difference an
@@ -222,14 +222,15 @@ runtime wiring can still be invisible, so a missing edge is never presented as p
 
 ## 🎯 Findings are a workflow, not a wall
 
-The default attention queue shows at most 20 qualifying signals and excludes routine
-information-level long-function noise. The complete diagnostics ledger remains filterable and
-paginated; no evidence is deleted merely to quiet the UI.
+The default attention list shows at most 20 useful findings and excludes routine long-function
+notes. The complete record remains filterable and paginated; no evidence is deleted merely to
+quiet the UI.
 
-Every finding explains its priority, evidence, likely false-positive conditions, affected areas,
-smallest next action, and verification rule. **Plan agent work** is the explicit approval boundary.
-Review, accept-risk, and dismiss actions record different human decisions; resolution and
-regression normally come from a later deterministic scan.
+Every finding says what AnaxiGraph saw, why it may matter, what to do, when the code may be fine as
+it is, and how to check the result. The dashboard, REST API, MCP tools, scope results, and copied
+agent prompt use the same wording. Exact rule IDs, evidence values, and ordering scores remain
+structured fields for automation instead of becoming a wall of labels. **Plan agent work** selects
+a finding for implementation; resolution and regression normally come from a later scan.
 
 ## Current support boundary
 

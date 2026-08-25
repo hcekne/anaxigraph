@@ -12,7 +12,7 @@ FINDING_STATUSES = {
     },
     "acknowledged": {
         "label": "Reviewed",
-        "meaning": "A person reviewed the signal; it remains active and monitored.",
+        "meaning": "A person or agent reviewed the finding; it remains active and monitored.",
         "next": ["planned", "accepted", "dismissed"],
     },
     "accepted": {
@@ -22,7 +22,7 @@ FINDING_STATUSES = {
     },
     "planned": {
         "label": "Planned for agent",
-        "meaning": "A person approved this as engineering work; agents can query the planned queue.",
+        "meaning": "This was selected as engineering work; agents can query the planned queue.",
         "next": ["acknowledged", "accepted", "dismissed"],
     },
     "dismissed": {
@@ -102,8 +102,8 @@ AGENT_WORKFLOW = {
         "it, relevant tests, migrations, protected paths, and branch collisions."
     ),
     "planned_queue": (
-        "A human plans a finding in the dashboard. An agent calls ANAXIGRAPH_FINDINGS with "
-        "status='planned', then ANAXIGRAPH_FINDING_CONTEXT for the selected finding before editing."
+        "A person or agent selects a finding for work. The coding agent calls ANAXIGRAPH_FINDINGS "
+        "with status='planned', then ANAXIGRAPH_FINDING_CONTEXT before editing."
     ),
     "semantic_memory": (
         "Call ANAXIGRAPH_SEMANTIC_STATUS to see whether model-backed repository understanding is "
@@ -143,8 +143,8 @@ def product_glossary() -> dict[str, Any]:
         },
         "findings": {
             "definition": (
-                "A persistent, evidence-backed condition produced by a rule. It is an inspection "
-                "signal rather than proof that code must change."
+                "A saved observation produced by a repository rule. It explains what AnaxiGraph "
+                "saw and why it may matter; it is not proof that code must change."
             ),
             "confidence": (
                 "Confidence describes how directly the detector observed the condition; it does "

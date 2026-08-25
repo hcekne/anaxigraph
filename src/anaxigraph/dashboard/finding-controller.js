@@ -54,7 +54,7 @@ export function renderAgentResult(value, kind) {
     state.conflictPaths = new Set((value.active_branch_conflicts || []).map((item) => item.path));
     activateAgentOverlay();
     const findings = (value.known_findings || []).map(
-      (item) => `#${item.id} ${item.summary} (${item.status})`,
+      (item) => `#${item.id} ${item.plain_language?.what || item.summary} (${item.status})`,
     );
     const rules = (value.architecture_rules || []).map(
       (item) => `${item.rule_id}: ${item.description || humanize(item.rule_type)}`,
@@ -81,7 +81,8 @@ function renderFindingHandoff(value) {
   state.protectedPaths = new Set((value.protected_paths || []).map(String));
   state.conflictPaths = new Set((scope.active_branch_conflicts || []).map((item) => item.path));
   activateAgentOverlay();
-  result.innerHTML = `<div class="panel-heading"><div><p class="eyebrow">Finding #${finding.id} · agent handoff</p><h2>${escapeHtml(finding.summary)}</h2><p class="panel-copy">${escapeHtml(value.workflow_note)}</p></div><span class="risk ${escapeHtml(value.risk)}">${escapeHtml(value.risk)} risk</span></div><div class="result-columns">${resultList("Recommended context", value.recommended_context)}${resultList("Relevant tests", value.relevant_tests)}${resultList("Protected paths", value.protected_paths)}${resultList("Verification", value.verification)}</div><h3>Copy this into Codex</h3><textarea id="agent-prompt" class="agent-prompt" readonly>${escapeHtml(state.lastAgentPrompt)}</textarea><div class="handoff-actions"><button id="copy-agent-prompt" class="button" type="button">Copy agent prompt</button><span class="muted">The structured version is available through ANAXIGRAPH_FINDING_CONTEXT.</span></div>`;
+  const explanation = findingCards([finding], { glossary: state.glossary, actions: false });
+  result.innerHTML = `<div class="panel-heading"><div><p class="eyebrow">Finding #${finding.id} · agent handoff</p><h2>Work from the same explanation shown in the architecture map</h2><p class="panel-copy">${escapeHtml(value.workflow_note)}</p></div><span class="risk ${escapeHtml(value.risk)}">${escapeHtml(value.risk)} risk</span></div>${explanation}<div class="result-columns">${resultList("Recommended context", value.recommended_context)}${resultList("Relevant tests", value.relevant_tests)}${resultList("Protected paths", value.protected_paths)}${resultList("Verification", value.verification)}</div><h3>Copy this into Codex</h3><textarea id="agent-prompt" class="agent-prompt" readonly>${escapeHtml(state.lastAgentPrompt)}</textarea><div class="handoff-actions"><button id="copy-agent-prompt" class="button" type="button">Copy agent prompt</button><span class="muted">The structured version is available through ANAXIGRAPH_FINDING_CONTEXT.</span></div>`;
 }
 
 function resultList(title, values = []) {

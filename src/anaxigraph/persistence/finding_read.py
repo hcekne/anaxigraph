@@ -8,6 +8,7 @@ from typing import Any
 
 from anaxigraph.finding_language import (
     evidence_sentences,
+    finding_caveats,
     normalize_finding_copy,
     plain_language_contract,
 )
@@ -15,56 +16,6 @@ from anaxigraph.persistence.row_decoding import decode_json_columns
 from anaxigraph.persistence.snapshot_projection import install_snapshot_projection
 
 PRIORITY_VERSION = "risk-churn-blast-v1"
-
-_DEAD_CODE_LIMITS = [
-    "The application loads the file by name from configuration, a framework, or generated code.",
-    "The language analyzer could not see a runtime registration or another dynamic reference.",
-]
-_CYCLE_LIMITS = [
-    "The loop exists only for type checking or building and does not connect runtime behavior.",
-    "An unclear import was linked to the wrong module.",
-]
-_COVERAGE_LIMITS = [
-    "The imported coverage report is old or does not include the relevant test run.",
-    "The uncovered lines are generated, unreachable, or contain no behavior worth testing.",
-]
-_DEFAULT_LIMITS = [
-    "The repository intentionally allows this structure.",
-    "Missing or unclear dependency data changes what the finding appears to mean.",
-]
-_FINDING_LIMITS = {
-    "long_function": [
-        "The function tells one clear, step-by-step story even though it is long.",
-        "Splitting it would make the order of the steps harder to see.",
-    ],
-    "symbol_complexity": [
-        "Every branch answers part of one clear business decision.",
-        (
-            "Focused tests already cover each important outcome, and splitting the branches would "
-            "hide the logic."
-        ),
-    ],
-    "module_complexity": [
-        "The file has one clear job even though that job needs a lot of code.",
-        "Splitting it would force closely related code to jump between files.",
-    ],
-    "high_fan_out": [
-        "The file is an intentional coordinator whose job is to connect the listed modules.",
-        "Each dependency supports the same clear workflow rather than a separate responsibility.",
-    ],
-    "high_fan_in": [
-        "The file is a stable shared contract that many callers are expected to use.",
-        "Its public behavior changes rarely and has broad tests.",
-    ],
-    "architecture_drift": [
-        "The path-based fallback guessed the wrong architecture area.",
-        "The declared area intentionally owns the dependency that caused the different guess.",
-    ],
-    "architecture_violation": [
-        "The repository rule is out of date or was written too broadly.",
-        "The detected reference is build-only, type-only, or points to the wrong module.",
-    ],
-}
 
 
 @dataclass(frozen=True, slots=True)
@@ -279,7 +230,7 @@ def _actionability(
                 "items": evidence if semantic_source else [],
             },
         },
-        "false_positive_conditions": _false_positive_conditions(finding_type),
+        "false_positive_conditions": finding_caveats(finding_type),
         "affected": _affected_context(module_stats, risk),
         "action_type": action_type,
         "smallest_next_action": str(
@@ -345,16 +296,6 @@ def _fallback_action(action_type: str) -> str:
         ),
         "refactor": "Move one clearly named job without changing what users or callers observe.",
     }.get(action_type, "Read the evidence and decide whether this condition needs a code change.")
-
-
-def _false_positive_conditions(finding_type: str) -> list[str]:
-    if "dead" in finding_type or "unused" in finding_type:
-        return _DEAD_CODE_LIMITS
-    if "cycle" in finding_type:
-        return _CYCLE_LIMITS
-    if "coverage" in finding_type:
-        return _COVERAGE_LIMITS
-    return _FINDING_LIMITS.get(finding_type, _DEFAULT_LIMITS)
 
 
 def _looks_like_test(path: str) -> bool:
@@ -424,10 +365,11 @@ def _priority_reasons(
     coverage: list[float],
     finding: dict[str, Any],
 ) -> list[str]:
-    reasons = [
-        f"The repository rule marks this as {severity}, and the detector reports "
-        f"{confidence:.0%} measurement confidence."
-    ]
+    reasons = [_rule_attention_reason(severity)]
+    if confidence < 1:
+        reasons.append(
+            "Some of the evidence is uncertain, so check the affected code before acting."
+        )
     if changes:
         reasons.append(
             f"The most active affected file changed {changes} times in indexed Git history."
@@ -438,7 +380,7 @@ def _priority_reasons(
         )
     if changes and complexity >= 10:
         reasons.append(
-            f"An affected file both changes often and has a decision score of {complexity:g}."
+            f"An affected file both changes often and has a measured branch score of {complexity:g}."
         )
     if len(paths) > 1:
         reasons.append(f"The finding covers {len(paths)} modules.")
@@ -449,3 +391,12 @@ def _priority_reasons(
     if finding.get("status") == "regressed":
         reasons.append("A previous scan marked this resolved, but the condition has returned.")
     return reasons
+
+
+def _rule_attention_reason(severity: str) -> str:
+    return {
+        "critical": "The project's own rule says to check this before making more changes.",
+        "error": "The project's own rule says this is probably an architecture problem.",
+        "warning": "The project's own rule says this is worth a closer look.",
+        "info": "The project's own rule records this as useful background information.",
+    }.get(severity, "A repository rule asked AnaxiGraph to keep this visible.")

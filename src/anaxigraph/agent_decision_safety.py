@@ -207,19 +207,25 @@ def _semantic_dead_code(
 
 
 def _deterministic_dead_code(path: str, finding: dict[str, Any]) -> dict[str, Any]:
+    language = finding.get("plain_language") or {}
     return {
         "module": path,
         "path_or_symbol": path,
         "status": "deterministic_candidate",
         "safe_to_remove": False,
         "confidence": float(finding.get("confidence") or 0),
-        "rationale": _text(finding.get("explanation") or finding.get("summary"), 800),
-        "evidence": _strings(finding.get("evidence"), 4),
+        "rationale": _text(
+            language.get("why_it_matters") or finding.get("explanation") or finding.get("summary"),
+            800,
+        ),
+        "evidence": _strings(language.get("facts") or finding.get("evidence"), 4),
         "counter_evidence": [],
         "suppression_reasons": [
             "Dynamic registration, reflection, configuration, and generated wiring remain caveats."
         ],
-        "verification": _text(finding.get("recommended_action"), 800),
+        "verification": _text(
+            language.get("how_to_check") or finding.get("recommended_action"), 800
+        ),
     }
 
 

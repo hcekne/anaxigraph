@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from anaxigraph.finding_language import finding_caveats, plain_language_contract
+
 AgentOperation = Callable[..., dict[str, Any]]
 
 
@@ -59,11 +61,27 @@ def _finding(
     finding = database.finding(repository_id, finding_id)
     if finding is None:
         raise ValueError(f"Finding not found: {finding_id}")
-    return repository, finding
+    return repository, _finding_language(dict(finding))
+
+
+def _finding_language(finding: dict[str, Any]) -> dict[str, Any]:
+    language = finding.get("plain_language")
+    if not isinstance(language, dict):
+        language = plain_language_contract(
+            finding,
+            priority_score=int(finding.get("priority_score") or 0),
+            priority_label=str(finding.get("priority_label") or "Low"),
+            priority_reasons=[str(value) for value in finding.get("priority_reasons") or ()],
+            false_positive_conditions=finding_caveats(
+                str(finding.get("finding_type") or "observation")
+            ),
+        )
+    finding["plain_language"] = language
+    return finding
 
 
 def _goal(finding_id: int, finding: dict[str, Any], affected: list[str]) -> str:
-    result = f"Address architecture finding #{finding_id}: {finding['summary']}"
+    result = f"Address architecture finding #{finding_id}: {finding['plain_language']['what']}"
     if affected:
         result += f". Start with {', '.join(affected[:4])}"
     return result
@@ -129,8 +147,7 @@ def _response(
         "primary_impact": impact,
         "verification": [
             "Run focused tests for the affected behavior and dependency boundary.",
-            "Refresh the repository scan after the code change.",
-            "Confirm this stable finding is automatically resolved or explain why it remains.",
+            str(finding["plain_language"]["how_to_check"]),
             "Review any new error-severity findings introduced by the change.",
         ],
         "agent_prompt": _agent_prompt(repository, finding, finding_id),
@@ -139,19 +156,27 @@ def _response(
 
 def _workflow_note(status: str) -> str:
     if status == "planned":
-        return "This finding is in the human-approved agent queue."
+        return "This finding has been selected for agent work."
     return "Plan this finding before treating it as approved engineering work."
 
 
 def _agent_prompt(repository: dict[str, Any], finding: dict[str, Any], finding_id: int) -> str:
     affected = [str(path) for path in finding.get("affected_artifacts") or []]
     affected_text = ", ".join(affected) if affected else "No file was attached by the detector."
+    language = finding["plain_language"]
+    facts = [f"- {value}" for value in language.get("facts") or ()]
+    caveats = [f"- {value}" for value in language.get("when_no_change_may_be_needed") or ()]
     return "\n".join(
         [
             f"Work on AnaxiGraph finding #{finding_id} in {repository['name']}.",
-            f"Goal: {finding['summary']}",
-            f"Why it matters: {finding['explanation']}",
-            f"Suggested direction: {finding['recommended_action']}",
+            f"Finding: {language['what']}",
+            "What AnaxiGraph saw:",
+            *(facts or ["- No measured fact was supplied."]),
+            f"Why it matters: {language['why_it_matters']}",
+            f"Suggested action: {language['next_step']}",
+            "When no code change may be needed:",
+            *(caveats or ["- No specific exception was supplied."]),
+            f"How to check the result: {language['how_to_check']}",
             f"Affected files: {affected_text}",
             "",
             "Before editing, use the AnaxiMCP tools:",

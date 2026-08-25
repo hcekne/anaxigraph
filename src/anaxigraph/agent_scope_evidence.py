@@ -7,7 +7,11 @@ import sqlite3
 from typing import Any
 
 from anaxigraph.config import path_matches
-from anaxigraph.finding_language import normalize_finding_copy
+from anaxigraph.finding_language import (
+    finding_caveats,
+    normalize_finding_copy,
+    plain_language_contract,
+)
 
 
 def _applicable_rules(
@@ -65,7 +69,7 @@ def _applicable_findings(
     for row in connection.execute(
         """
         SELECT id, stable_key, finding_type, severity, confidence, summary, explanation,
-               status, affected_artifacts_json, evidence_json, recommended_action
+               status, affected_artifacts_json, evidence_json, recommended_action, source
         FROM findings WHERE repository_id = ? AND status NOT IN ('resolved', 'dismissed')
         ORDER BY CASE severity WHEN 'critical' THEN 0 WHEN 'error' THEN 1
                  WHEN 'warning' THEN 2 ELSE 3 END, last_detected_at DESC
@@ -97,21 +101,51 @@ def _prioritized_finding(
         "info": 20,
     }.get(str(item["severity"]), 20)
     item["affected_artifacts"] = sorted(affected)
-    item["priority_score"] = min(
+    score = min(
         100,
         severity_score
         + (18 if direct else 7)
         + min(6, len(relevant) * 2)
         + round(float(item["confidence"] or 0) * 4),
     )
-    reasons = [f"{item['severity']} severity"]
+    item["priority_score"] = score
+    reasons = [_severity_reason(str(item["severity"]))]
     reasons.append(
-        "affects a primary task file" if direct else "affects a dependency in the task context"
+        "This applies directly to a likely implementation file."
+        if direct
+        else "This applies to a dependency connected to the task."
     )
     if len(affected) > 1:
-        reasons.append(f"spans {len(affected)} files")
+        reasons.append(f"The finding covers {len(affected)} files.")
     item["priority_reasons"] = reasons
+    item["priority_label"] = _priority_label(score)
+    item["plain_language"] = plain_language_contract(
+        item,
+        priority_score=score,
+        priority_label=item["priority_label"],
+        priority_reasons=reasons,
+        false_positive_conditions=finding_caveats(str(item["finding_type"])),
+    )
     return item
+
+
+def _severity_reason(severity: str) -> str:
+    return {
+        "critical": "The project's own rule says to check this before making more changes.",
+        "error": "The project's own rule says this is probably an architecture problem.",
+        "warning": "The project's own rule says this is worth a closer look.",
+        "info": "The project's own rule records this as useful background information.",
+    }.get(severity, "A repository rule asked AnaxiGraph to keep this visible.")
+
+
+def _priority_label(score: int) -> str:
+    if score >= 80:
+        return "Urgent"
+    if score >= 60:
+        return "High"
+    if score >= 35:
+        return "Medium"
+    return "Low"
 
 
 def _finding_value(row: Any) -> tuple[dict[str, Any], set[str]]:

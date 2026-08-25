@@ -114,7 +114,11 @@ def test_finding_pages_explain_actionability_and_honor_agent_budget(repository, 
     assert language["what"] == finding["summary"]
     assert language["why_it_matters"]
     assert language["next_step"] == finding["recommended_action"]
+    assert language["how_to_check"]
+    assert language["status"]["meaning"]
+    assert language["priority"]["guidance"]
     assert "not a grade for the code" in language["priority"]["meaning"]
+    assert "measurement confidence" not in " ".join(language["priority"]["reasons"])
 
     with pytest.raises(ValueError, match="does not match"):
         query_findings(

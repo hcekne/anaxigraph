@@ -159,9 +159,9 @@ def _candidate(
         confidence=confidence,
         summary=f"{path} may no longer be used",
         explanation=(
-            "No indexed code points to this file, the analyzer found no program entry or runtime "
-            f"registration, and Git shows no change for {days} days. Configuration or code that "
-            "loads files by name could still use it, so this is not proof that deletion is safe."
+            "Unused code makes a project harder to search and maintain. This file may still be "
+            "loaded by configuration, a framework, or code that builds its name at runtime, so "
+            "the finding is not permission to delete it."
         ),
         affected_artifacts=(path,),
         evidence=evidence,

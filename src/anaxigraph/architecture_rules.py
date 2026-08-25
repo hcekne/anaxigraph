@@ -96,11 +96,14 @@ def _module_size_finding(rule: RuleConfig, item: dict[str, Any], maximum: int) -
         rule,
         suffix=item["path"],
         finding_type="module_complexity",
-        summary=f"{item['path']} may be doing too many jobs",
+        summary=(
+            f"{item['path']} has {item['lines_of_code']} lines; this project reviews files "
+            f"above {maximum} lines"
+        ),
         explanation=(
-            f"It contains {item['lines_of_code']} lines of code. This project starts a closer "
-            f"review at {maximum} lines. A large file is not automatically wrong, but unrelated "
-            "jobs can become tangled and make changes harder to understand."
+            "A large file becomes hard to change when it contains jobs that do not belong "
+            "together. Size alone does not mean the file should be split; one clear job may "
+            "need a lot of code."
         ),
         paths=(item["path"],),
         evidence=(f"lines_of_code={item['lines_of_code']}",),
@@ -128,11 +131,14 @@ def _function_size_finding(rule: RuleConfig, item: dict[str, Any], maximum: int)
         rule,
         suffix=f"{item['path']}:{item['qualified_name']}",
         finding_type="long_function",
-        summary=f"{item['name']} takes a lot of code to do one job",
+        summary=(
+            f"{item['name']} uses {item['logical_lines']} lines; this project reviews functions "
+            f"above {maximum} lines"
+        ),
         explanation=(
-            f"Its logic uses {item['logical_lines']} lines. This project starts a closer review at "
-            f"{maximum}. A long function can be clear when every step belongs together, but mixed "
-            "jobs make later changes easier to misunderstand."
+            "A long function becomes hard to follow when it mixes separate jobs or makes a reader "
+            "remember too many details at once. Length alone is not a reason to split a clear, "
+            "step-by-step function."
         ),
         paths=(item["path"],),
         evidence=(
@@ -164,12 +170,13 @@ def _symbol_complexity_finding(rule: RuleConfig, item: dict[str, Any], maximum: 
         rule,
         suffix=f"{item['path']}:{item['qualified_name']}",
         finding_type="symbol_complexity",
-        summary=f"{item['name']} makes many decisions in one function",
+        summary=(
+            f"{item['name']} has a branch score of {item['complexity']:g}; this project reviews "
+            f"functions above {maximum:g}"
+        ),
         explanation=(
-            "Branches such as if-statements and loops give it a decision score of "
-            f"{item['complexity']:g}. This project starts a closer review above {maximum:g}. More "
-            "decisions mean more cases to understand and test, but the count alone does not prove "
-            "the design is wrong."
+            "More branches create more possible outcomes to understand and test. They can still "
+            "belong together when they answer one clear question."
         ),
         paths=(item["path"],),
         evidence=(f"estimated_cyclomatic_complexity={item['complexity']:g}",),
@@ -208,16 +215,16 @@ def _dependency_finding(
     finding_type: str,
 ) -> Finding:
     summary = (
-        f"{item['path']} reaches into many other modules"
+        f"{item['path']} directly uses {count} modules; this project reviews files above {maximum} modules"
         if direction == "outgoing"
-        else f"Many modules rely on {item['path']}"
+        else f"{count} modules directly use {item['path']}; this project reviews files above {maximum} modules"
     )
     return _finding(
         rule,
         suffix=item["path"],
         finding_type=finding_type,
         summary=summary,
-        explanation=_dependency_explanation(direction, count, maximum),
+        explanation=_dependency_explanation(direction),
         paths=(item["path"],),
         evidence=(f"{direction}_dependencies={count}",),
         action=_dependency_action(direction),
@@ -244,10 +251,9 @@ def _cycle_finding(rule: RuleConfig, paths: tuple[str, ...]) -> Finding:
         finding_type="dependency_cycle",
         summary=f"{len(paths)} modules depend on one another in a loop",
         explanation=(
-            "Following the imports or references eventually leads back to the starting module. A "
-            "change in one module can therefore force changes in the others, which makes them "
-            "harder to understand and test separately. The loop does not automatically mean the "
-            "application is broken."
+            "Following the imports or references eventually leads back to the starting module. "
+            "This can make the modules harder to understand and test separately, but it does not "
+            "mean the application is broken."
         ),
         paths=paths,
         evidence=paths,
@@ -360,11 +366,12 @@ def _coverage_finding(
         rule,
         suffix=item["path"],
         finding_type="weak_test_coverage",
-        summary=f"Tests may miss behavior in {item['path']}",
+        summary=(
+            f"Tests run {coverage:.0%} of {item['path']}; this project's goal is {minimum:.0%}"
+        ),
         explanation=(
-            f"The imported test report says tests ran {coverage:.1%} of this file's lines, below "
-            f"the project goal of {minimum:.1%}. Coverage cannot say whether the tests are good, "
-            "but untested branches can break without being noticed."
+            "Line coverage cannot tell whether tests are good, but behavior in lines that never "
+            "run during tests can break without being noticed."
         ),
         paths=(item["path"],),
         evidence=(f"line_coverage={coverage:.4f}",),
@@ -383,17 +390,16 @@ def _dead_code_findings(*args: Any, **kwargs: Any) -> list[Finding]:
     return dead_code_findings(*args, path_matcher=path_matches, **kwargs)
 
 
-def _dependency_explanation(direction: str, count: int, maximum: int) -> str:
+def _dependency_explanation(direction: str) -> str:
     if direction == "outgoing":
         return (
-            f"It directly uses {count} modules. This project starts a closer review above {maximum}. "
-            "That can be correct for a coordinator, but it can also mean this file is handling "
-            "several jobs at once."
+            "A file that reaches into many parts of the project can mix several jobs and become "
+            "hard to test in isolation. This can be exactly right when the file is a coordinator "
+            "for one clear workflow."
         )
     return (
-        f"{count} modules use it directly. This project starts a closer review above {maximum}. "
-        "A behavior change here can reach many places, although that is normal for stable shared "
-        "code."
+        "A behavior change here can affect many callers. That is normal when this file is a stable "
+        "shared promise with broad tests."
     )
 
 

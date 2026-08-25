@@ -30,6 +30,10 @@ def test_agent_scope_is_bounded_and_includes_tests_protection_and_rules(reposito
     assert encoded_size == value["payload_budget"]["estimated_bytes"]
     assert len(value["known_findings"]) <= 12
     assert all("priority_score" in item for item in value["known_findings"])
+    assert all(
+        item["plain_language"]["version"] == "plain-language-v2" for item in value["known_findings"]
+    )
+    assert all(item["plain_language"]["how_to_check"] for item in value["known_findings"])
     assert all("repository_id" not in item for item in value["architecture_rules"])
     assert value["architecture_decision"]["contract_version"] == "architecture-decision-v1"
     assert value["architecture_decision"]["status"] == "deterministic_only"

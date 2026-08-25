@@ -44,15 +44,45 @@ def test_legacy_complexity_copy_becomes_a_complete_plain_language_contract():
     )
     finding.update(finding_priority(finding, {}))
 
-    assert finding["summary"] == "load_config makes many decisions in one function"
-    assert "decision score of 17" in finding["explanation"]
-    assert "does not prove the design is wrong" in finding["explanation"]
+    assert finding["summary"] == (
+        "load_config has a branch score of 17; this project reviews functions above 15"
+    )
+    assert "possible outcomes" in finding["explanation"]
+    assert "one clear question" in finding["explanation"]
     assert "Deterministic branch counting" not in str(finding)
     language = finding["plain_language"]
-    assert language["facts"] == ["The branch count gives it a decision score of 17."]
+    assert language["version"] == "plain-language-v2"
+    assert language["facts"] == [
+        "This function has a branch score of 17.",
+        (
+            "The score starts at 1 and rises for each if-statement, loop, case, exception handler, "
+            "or combined condition."
+        ),
+    ]
+    assert "scan the repository again" in language["how_to_check"]
     assert "not a claim that the design" in language["confidence"]["meaning"]
-    assert "An AI did not decide" in language["source"]["meaning"]
+    assert "does not decide whether the design is good or bad" in language["source"]["meaning"]
     assert "not a grade for the code" in language["priority"]["meaning"]
+    visible_copy = " ".join(
+        [
+            language["what"],
+            *language["facts"],
+            language["why_it_matters"],
+            language["next_step"],
+            *language["when_no_change_may_be_needed"],
+            language["how_to_check"],
+        ]
+    ).lower()
+    assert not any(
+        jargon in visible_copy
+        for jargon in (
+            "estimated complexity",
+            "cyclomatic",
+            "configured threshold",
+            "detection confidence",
+            "smallest suggested next step",
+        )
+    )
 
 
 @pytest.mark.parametrize(
@@ -63,28 +93,34 @@ def test_legacy_complexity_copy_becomes_a_complete_plain_language_contract():
             "src/anaxigraph/config.py is 620 LOC",
             "The module exceeds the 500 LOC inspection threshold.",
             ["lines_of_code=620"],
-            "src/anaxigraph/config.py may be doing too many jobs",
+            "src/anaxigraph/config.py has 620 lines; this project reviews files above 500 lines",
         ),
         (
             "long_function",
             "prepare spans 44 logical lines",
             "The symbol exceeds the 25-line inspection signal.",
             ["symbol=prepare", "lines=10-60"],
-            "prepare takes a lot of code to do one job",
+            "prepare uses 44 lines; this project reviews functions above 25 lines",
         ),
         (
             "high_fan_out",
             "src/anaxigraph/config.py has 18 outgoing dependencies",
             "The module exceeds the configured 12 outgoing-dependency signal.",
             ["outgoing_dependencies=18"],
-            "src/anaxigraph/config.py reaches into many other modules",
+            (
+                "src/anaxigraph/config.py directly uses 18 modules; this project reviews files "
+                "above 12 modules"
+            ),
         ),
         (
             "high_fan_in",
             "src/anaxigraph/config.py has 18 incoming dependencies",
             "The module exceeds the configured 12 incoming-dependency signal.",
             ["incoming_dependencies=18"],
-            "Many modules rely on src/anaxigraph/config.py",
+            (
+                "18 modules directly use src/anaxigraph/config.py; this project reviews files "
+                "above 12 modules"
+            ),
         ),
         (
             "dependency_cycle",
@@ -115,7 +151,7 @@ def test_legacy_complexity_copy_becomes_a_complete_plain_language_contract():
             "src/anaxigraph/config.py has 42.0% line coverage",
             "Coverage is below the configured 80.0% threshold.",
             ["line_coverage=0.4200"],
-            "Tests may miss behavior in src/anaxigraph/config.py",
+            "Tests run 42% of src/anaxigraph/config.py; this project's goal is 80%",
         ),
         (
             "possible_dead_code",
@@ -150,13 +186,76 @@ def test_known_legacy_findings_are_upgraded_without_a_rescan(
 
 
 @pytest.mark.parametrize(
+    ("finding_type", "summary", "explanation", "evidence", "expected"),
+    [
+        (
+            "module_complexity",
+            "src/anaxigraph/config.py may be doing too many jobs",
+            "It contains 620 lines of code. This project starts a closer review at 500 lines.",
+            ["lines_of_code=620"],
+            "has 620 lines; this project reviews files above 500 lines",
+        ),
+        (
+            "long_function",
+            "load_config takes a lot of code to do one job",
+            "Its logic uses 44 lines. This project starts a closer review at 25.",
+            ["symbol=load_config", "lines=10-60"],
+            "uses 44 lines; this project reviews functions above 25 lines",
+        ),
+        (
+            "symbol_complexity",
+            "load_config makes many decisions in one function",
+            "Branches such as if-statements give it a decision score of 17. Review above 15.",
+            ["estimated_cyclomatic_complexity=17"],
+            "has a branch score of 17; this project reviews functions above 15",
+        ),
+        (
+            "high_fan_out",
+            "src/anaxigraph/config.py reaches into many other modules",
+            "It directly uses 18 modules. This project starts a closer review above 12.",
+            ["outgoing_dependencies=18"],
+            "directly uses 18 modules; this project reviews files above 12 modules",
+        ),
+        (
+            "weak_test_coverage",
+            "Tests may miss behavior in src/anaxigraph/config.py",
+            "The imported test report says tests ran 42% of this file, below the project goal of 80%.",
+            ["line_coverage=0.42"],
+            "Tests run 42% of src/anaxigraph/config.py; this project's goal is 80%",
+        ),
+        (
+            "possible_dead_code",
+            "src/anaxigraph/config.py may no longer be used",
+            "No indexed code points to this file, and Git shows no change for 130 days.",
+            ["incoming_static_relationships=0", "days_since_change=130"],
+            "src/anaxigraph/config.py may no longer be used",
+        ),
+    ],
+)
+def test_version_030_finding_copy_is_upgraded_without_waiting_for_a_rescan(
+    finding_type, summary, explanation, evidence, expected
+):
+    finding = normalize_finding_copy(
+        _legacy_finding(
+            finding_type=finding_type,
+            summary=summary,
+            explanation=explanation,
+            evidence=evidence,
+        )
+    )
+
+    assert expected in finding["summary"]
+    assert "configured threshold" not in finding["explanation"]
+
+
+@pytest.mark.parametrize(
     ("finding_type", "evidence", "paths", "expected"),
     [
         (
             "module_complexity",
             ["lines_of_code=620", "review_limit_lines=500"],
             None,
-            "The project starts a closer review above 500 lines.",
+            "This project asks for a closer look above 500 lines.",
         ),
         (
             "long_function",
@@ -173,19 +272,19 @@ def test_known_legacy_findings_are_upgraded_without_a_rescan(
             "symbol_complexity",
             ["decision_score=17", "review_limit_decision_score=15"],
             None,
-            "The branch count gives it a decision score of 17.",
+            "This function has a branch score of 17.",
         ),
         (
             "high_fan_out",
             ["outgoing_dependencies=18", "review_limit_dependencies=12"],
             None,
-            "The module uses 18 directly.",
+            "This module directly uses 18 other modules.",
         ),
         (
             "high_fan_in",
             ["incoming_dependencies=18"],
             None,
-            "Other modules use 18 directly.",
+            "This module is directly used by 18 other modules.",
         ),
         (
             "dependency_cycle",
@@ -226,13 +325,13 @@ def test_known_legacy_findings_are_upgraded_without_a_rescan(
             "future_check",
             ["custom_measurement=7"],
             None,
-            "The check recorded custom measurement as 7.",
+            "AnaxiGraph measured custom measurement as 7.",
         ),
         (
             "future_check",
             ["free-form evidence"],
             None,
-            "The check recorded: free-form evidence.",
+            "AnaxiGraph recorded this evidence: free-form evidence.",
         ),
     ],
 )
@@ -264,11 +363,14 @@ def test_plain_language_contract_explains_semantic_and_unknown_sources():
     )
 
     assert semantic["what"] == "AnaxiGraph found something to inspect."
+    assert semantic["version"] == "plain-language-v2"
     assert semantic["next_step"].startswith("Read the affected code")
     assert semantic["confidence"]["value"] == 1.0
     assert "An AI suggested this" in semantic["source"]["meaning"]
-    assert "Treat it as evidence to check" in semantic["confidence"]["meaning"]
-    assert semantic["level"]["meaning"].startswith("The project treats this as urgent")
+    assert "idea to check" in semantic["confidence"]["meaning"]
+    assert "before making more changes" in semantic["level"]["meaning"]
+    assert semantic["status"]["meaning"].startswith("No decision")
+    assert semantic["priority"]["guidance"] == "Check this before the other findings."
 
     unknown = plain_language_contract(
         {"severity": "project-specific", "confidence": -1, "source": "imported-tool"},
@@ -279,7 +381,7 @@ def test_plain_language_contract_explains_semantic_and_unknown_sources():
     )
     assert unknown["confidence"]["value"] == 0.0
     assert "imported-tool" in unknown["source"]["meaning"]
-    assert "architecture rule" in unknown["level"]["meaning"]
+    assert "repository supplied" in unknown["level"]["meaning"]
 
 
 def test_unrecognized_old_copy_is_preserved_instead_of_guessed():
@@ -335,4 +437,4 @@ def test_legacy_upgrade_names_a_configured_limit_when_old_copy_omits_the_number(
 
     normalized = normalize_finding_copy(finding)
 
-    assert "at the configured limit" in normalized["explanation"]
+    assert "above the configured limit" in normalized["summary"]

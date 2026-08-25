@@ -271,24 +271,28 @@ test("relationship completeness and analyzer limits are visible", async ({ page 
   await page.getByRole("button", { name: "Architecture", exact: true }).click();
   await expect(page.locator("#finding-result-note")).toContainText("findings to check");
   expect(await page.locator("#findings-table .finding-card").count()).toBeLessThanOrEqual(20);
-  await expect(page.locator("#findings-table .finding-meta", { hasText: "Long Function" }))
+  await expect(page.locator("#findings-table .finding-card", { hasText: "reviews functions above 25 lines" }))
     .toHaveCount(0);
 
   await page.locator("#finding-view-filter").selectOption("diagnostics");
   await expect(page.locator("#finding-result-note")).toContainText(
     "This complete view keeps every finding",
   );
-  await expect(page.locator(".finding-priority").first()).toContainText("priority");
-  await expect(page.locator("#finding-type-filter option", { hasText: "Long Function" }))
+  await expect(page.locator("#finding-type-filter option", { hasText: "Function has many lines" }))
     .toHaveCount(1);
   await page.locator("#finding-type-filter").selectOption("long_function");
   await expect(page.locator("#finding-result-note")).toContainText("matching findings");
-  await expect(page.locator("#finding-groups")).toContainText("Long Function");
+  await expect(page.locator("#finding-groups")).toContainText("Function has many lines");
   expect(await page.locator("#findings-table .finding-card").count()).toBeLessThanOrEqual(50);
   const firstFinding = page.locator("#findings-table .finding-card").first();
-  await firstFinding.locator("details summary").click();
-  await expect(firstFinding).toContainText("The check is “Long function.”");
-  await expect(firstFinding).toContainText("not a grade for the code");
+  await expect(firstFinding).toContainText("What AnaxiGraph saw");
+  await expect(firstFinding).toContainText("Why this matters");
+  await expect(firstFinding).toContainText("What to do");
+  await expect(firstFinding).toContainText("This may be fine when");
+  await expect(firstFinding).toContainText("How to check the result");
+  await expect(firstFinding.locator("details")).toHaveCount(0);
+  await expect(firstFinding.locator(".finding-meta")).not.toContainText("priority");
+  await expect(firstFinding.locator(".finding-meta")).not.toContainText("confidence");
   if (await page.locator("#finding-show-all").isVisible()) {
     const before = await page.locator("#findings-table .finding-card").count();
     await page.locator("#finding-show-all").click();

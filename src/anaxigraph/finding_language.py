@@ -7,19 +7,50 @@ from typing import Any
 
 from anaxigraph.finding_language_legacy import legacy_replacement
 
-FINDING_LANGUAGE_VERSION = "plain-language-v1"
+FINDING_LANGUAGE_VERSION = "plain-language-v2"
 
 _CHECK_LABELS = {
-    "module_complexity": "Large file",
-    "long_function": "Long function",
-    "symbol_complexity": "Many decisions in one function",
-    "high_fan_out": "Module uses many other modules",
-    "high_fan_in": "Many modules use this module",
+    "module_complexity": "File has many lines",
+    "long_function": "Function has many lines",
+    "symbol_complexity": "Function has many branches",
+    "high_fan_out": "File directly uses many modules",
+    "high_fan_in": "Many modules directly use this file",
     "dependency_cycle": "Modules depend on one another in a loop",
     "architecture_violation": "Project boundary crossed",
     "architecture_drift": "File does not match its declared area",
     "weak_test_coverage": "Tests miss part of a file",
     "possible_dead_code": "File may no longer be used",
+}
+
+_COMMON_CAVEATS = {
+    "long_function": [
+        "The function tells one clear, step-by-step story even though it is long.",
+        "Splitting it would make the order of the steps harder to see.",
+    ],
+    "symbol_complexity": [
+        "Every branch answers part of one clear business question.",
+        "Focused tests cover each important outcome, and splitting the logic would hide the story.",
+    ],
+    "module_complexity": [
+        "The file has one clear job even though that job needs a lot of code.",
+        "Splitting it would force closely related code to jump between files.",
+    ],
+    "high_fan_out": [
+        "The file intentionally coordinates the listed modules for one clear workflow.",
+        "Every dependency supports the same job rather than a separate responsibility.",
+    ],
+    "high_fan_in": [
+        "The file is a stable shared promise that many callers are expected to use.",
+        "Its public behavior changes rarely and has broad tests.",
+    ],
+    "architecture_drift": [
+        "The path-based guess placed the file in the wrong architecture area.",
+        "The declared area intentionally owns the dependency that caused the different guess.",
+    ],
+    "architecture_violation": [
+        "The repository rule is out of date or was written too broadly.",
+        "The reference exists only for building or type checking, or points to the wrong module.",
+    ],
 }
 
 
@@ -33,6 +64,35 @@ def normalize_finding_copy(finding: Mapping[str, Any]) -> dict[str, Any]:
     return item
 
 
+def finding_caveats(finding_type: str) -> list[str]:
+    """Explain, in ordinary language, when the measured condition may be intentional."""
+
+    if "dead" in finding_type or "unused" in finding_type:
+        return [
+            "Configuration, a framework, generated code, or code that builds a name at runtime uses it.",
+            "The analyzer could not see a runtime registration or another dynamic reference.",
+        ]
+    if "cycle" in finding_type:
+        return [
+            "The loop exists only for building or type checking and does not connect runtime behavior.",
+            "An unclear import was linked to the wrong module.",
+        ]
+    if "coverage" in finding_type:
+        return [
+            "The coverage report is old or does not include the relevant test run.",
+            "The uncovered lines are generated, unreachable, or contain no behavior worth testing.",
+        ]
+    return list(
+        _COMMON_CAVEATS.get(
+            finding_type,
+            [
+                "The repository intentionally allows this structure.",
+                "Missing or unclear dependency data changes what the finding means.",
+            ],
+        )
+    )
+
+
 def plain_language_contract(
     finding: Mapping[str, Any],
     *,
@@ -43,9 +103,6 @@ def plain_language_contract(
 ) -> dict[str, Any]:
     """Return one explicit explanation shared by REST, MCP, CLI, and dashboard clients."""
 
-    confidence = max(0.0, min(1.0, float(finding.get("confidence") or 0)))
-    source = str(finding.get("source") or "deterministic")
-    finding_type = str(finding.get("finding_type") or "observation")
     return {
         "version": FINDING_LANGUAGE_VERSION,
         "what": str(finding.get("summary") or "AnaxiGraph found something to inspect."),
@@ -58,30 +115,45 @@ def plain_language_contract(
             or "Read the affected code and make the smallest change that improves clarity."
         ),
         "facts": evidence_sentences(finding),
+        "how_to_check": (
+            "Run the focused tests, scan the repository again, and compare this finding with the "
+            "new result. A changed count is evidence; it does not by itself prove the design is better."
+        ),
+        **_machine_context(finding, priority_score, priority_label, priority_reasons),
+        "when_no_change_may_be_needed": false_positive_conditions,
+    }
+
+
+def _machine_context(
+    finding: Mapping[str, Any], score: int, label: str, reasons: list[str]
+) -> dict[str, Any]:
+    confidence = max(0.0, min(1.0, float(finding.get("confidence") or 0)))
+    source = str(finding.get("source") or "deterministic")
+    finding_type = str(finding.get("finding_type") or "observation")
+    severity = str(finding.get("severity") or "info")
+    status = str(finding.get("status") or "new")
+    return {
+        "status": {"id": status, "meaning": _status_meaning(status)},
         "check": {
             "id": finding_type,
             "label": _CHECK_LABELS.get(finding_type, _humanize(finding_type)),
         },
-        "level": {
-            "id": str(finding.get("severity") or "info"),
-            "meaning": _severity_meaning(str(finding.get("severity") or "info")),
-        },
+        "level": {"id": severity, "meaning": _severity_meaning(severity)},
         "confidence": {
             "value": confidence,
             "meaning": _confidence_meaning(confidence, source),
         },
         "source": {"id": source, "meaning": _source_meaning(source)},
         "priority": {
-            "score": priority_score,
-            "label": priority_label,
+            "score": score,
+            "label": label,
+            "guidance": _priority_guidance(label),
             "meaning": (
-                f"A queue score of {priority_score} out of 100 puts this in the "
-                f"{priority_label.lower()}-priority group. The score only decides what appears "
-                "first; it is not a grade for the code."
+                f"The internal queue score is {score} out of 100. It only decides which finding "
+                "AnaxiGraph shows first; it is not a grade for the code."
             ),
-            "reasons": priority_reasons,
+            "reasons": reasons,
         },
-        "when_no_change_may_be_needed": false_positive_conditions,
     }
 
 
@@ -99,10 +171,10 @@ def evidence_sentences(finding: Mapping[str, Any]) -> list[str]:
 
 def _generic_fact(value: str) -> str:
     if "=" not in value:
-        return f"The check recorded: {value}."
+        return f"AnaxiGraph recorded this evidence: {value}."
     key, recorded = value.split("=", 1)
     label = _humanize(key).lower()
-    return f"The check recorded {label} as {recorded}."
+    return f"AnaxiGraph measured {label} as {recorded}."
 
 
 def _known_facts(
@@ -134,19 +206,25 @@ def _complexity_facts(values: Mapping[str, str], _finding: Mapping[str, Any]) ->
     score = values.get("estimated_cyclomatic_complexity") or values.get("decision_score")
     if not score:
         return []
-    return _measurement("The branch count gives it a decision score of", score, "", values)
+    facts = [
+        f"This function has a branch score of {score}.",
+        (
+            "The score starts at 1 and rises for each if-statement, loop, case, exception handler, "
+            "or combined condition."
+        ),
+    ]
+    limit = values.get("review_limit_decision_score")
+    if limit:
+        facts.append(f"This project asks for a closer look when the branch score is above {limit}.")
+    return facts
 
 
 def _fan_out_facts(values: Mapping[str, str], finding: Mapping[str, Any]) -> list[str]:
-    return _dependency_facts(
-        values, finding, key="outgoing_dependencies", subject="The module uses"
-    )
+    return _dependency_facts(values, finding, key="outgoing_dependencies", incoming=False)
 
 
 def _fan_in_facts(values: Mapping[str, str], finding: Mapping[str, Any]) -> list[str]:
-    return _dependency_facts(
-        values, finding, key="incoming_dependencies", subject="Other modules use"
-    )
+    return _dependency_facts(values, finding, key="incoming_dependencies", incoming=True)
 
 
 def _dependency_facts(
@@ -154,10 +232,19 @@ def _dependency_facts(
     _finding: Mapping[str, Any],
     *,
     key: str,
-    subject: str,
+    incoming: bool,
 ) -> list[str]:
     count = values.get(key)
-    return _measurement(subject, count, "directly", values) if count else []
+    if not count:
+        return []
+    facts = [
+        f"This module is directly used by {count} other modules."
+        if incoming
+        else f"This module directly uses {count} other modules."
+    ]
+    if limit := values.get("review_limit_dependencies"):
+        facts.append(f"This project asks for a closer look above {limit} modules.")
+    return facts
 
 
 def _cycle_facts(_values: Mapping[str, str], finding: Mapping[str, Any]) -> list[str]:
@@ -210,7 +297,7 @@ def _measurement(prefix: str, value: str, unit: str, values: Mapping[str, str]) 
         "review_limit_dependencies": " modules",
         "review_limit_decision_score": "",
     }.get(key, "")
-    return [sentence, f"The project starts a closer review above {limit}{limit_unit}."]
+    return [sentence, f"This project asks for a closer look above {limit}{limit_unit}."]
 
 
 def _dead_code_facts(values: Mapping[str, str], _finding: Mapping[str, Any]) -> list[str]:
@@ -241,14 +328,14 @@ def _percent(value: str) -> str:
 def _source_meaning(source: str) -> str:
     if source == "deterministic":
         return (
-            "AnaxiGraph measured this directly from source code or repository data. An AI did not "
-            "decide that the design is bad."
+            "AnaxiGraph counted or traced this directly in repository data. It describes what "
+            "exists; it does not decide whether the design is good or bad."
         )
     if source in {"semantic", "llm", "coding_agent"}:
         return (
             "An AI suggested this from the indexed semantic evidence; verify it against the code."
         )
-    return f"The finding came from the {source} detector source."
+    return f"AnaxiGraph received this finding from the source named {source}."
 
 
 def _confidence_meaning(confidence: float, source: str) -> str:
@@ -259,18 +346,39 @@ def _confidence_meaning(confidence: float, source: str) -> str:
             "This is not a claim that the design is that likely to be wrong."
         )
     return (
-        f"The semantic detector reports {percent} confidence in this interpretation. Treat it as "
-        "evidence to check, not as certainty."
+        f"The AI reports {percent} confidence in this explanation. Treat it as an idea to check "
+        "against the code, not as a fact."
     )
 
 
 def _severity_meaning(severity: str) -> str:
     return {
-        "info": "Useful to know about; no change may be needed.",
-        "warning": "Worth reviewing soon; it is not proof that anything is broken.",
-        "error": "The project treats this as a likely architecture problem.",
-        "critical": "The project treats this as urgent because it may block safe changes.",
-    }.get(severity, "This level comes from the repository's architecture rule.")
+        "info": "Keep this in mind; no code change may be needed.",
+        "warning": "Look at this when working in the affected code; nothing is proven broken.",
+        "error": "The project's own rule says this is probably an architecture problem.",
+        "critical": "The project's own rule says to check this before making more changes.",
+    }.get(severity, "The repository supplied this level for the finding.")
+
+
+def _status_meaning(status: str) -> str:
+    return {
+        "new": "No decision has been recorded for this finding yet.",
+        "acknowledged": "This has been reviewed, but no final decision has been recorded.",
+        "planned": "This finding has been selected for agent work.",
+        "accepted": "The current design has been accepted for now; later scans still monitor it.",
+        "dismissed": "This finding was judged not useful for the current design.",
+        "resolved": "A later scan no longer found the same condition.",
+        "regressed": "The condition disappeared in an earlier scan and has now returned.",
+    }.get(status, "The repository supplied this workflow state.")
+
+
+def _priority_guidance(label: str) -> str:
+    return {
+        "Urgent": "Check this before the other findings.",
+        "High": "Check this soon.",
+        "Medium": "Check this when you work in this part of the code.",
+        "Low": "Keep this as background information; it may not need a change.",
+    }.get(label, "Use the explanation to decide when this deserves attention.")
 
 
 def _humanize(value: str) -> str:

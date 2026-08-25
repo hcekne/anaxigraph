@@ -30,7 +30,7 @@ def _register_query_tool(
             "Read a bounded attention queue or the complete diagnostic ledger. Responses include "
             "exact totals, stable cursors, omitted counts, and a plain-language account of what was "
             "found, why it matters, the measured facts, uncertainty, and the next step. Use "
-            "status='planned' for approved work; active signals are not permission to refactor."
+            "status='planned' for selected work; active signals are not permission to refactor."
         ),
     )
     def findings(
@@ -73,7 +73,7 @@ def _register_context_tool(
         name="ANAXIGRAPH_FINDING_CONTEXT",
         description=(
             "Turn one finding into an actionable handoff with affected files, impact, tests, "
-            "protected paths, risk, and verification steps. Planned status means human-approved."
+            "protected paths, risk, and verification steps. Planned status means selected for work."
         ),
     )
     def finding_work(

@@ -36,39 +36,65 @@ def legacy_replacement(item: Mapping[str, Any]) -> dict[str, str] | None:
 
 def _module(context: _LegacyFinding) -> dict[str, str] | None:
     match = re.fullmatch(r"(.+) is (\d+) LOC", context.summary)
-    return (
-        _module_copy(context.path, match.group(2), _number(context.explanation)) if match else None
-    )
+    if match:
+        return _module_copy(context.path, match.group(2), _number(context.explanation))
+    current = re.fullmatch(r"(.+) may be doing too many jobs", context.summary)
+    if current and context.explanation.startswith("It contains "):
+        count = context.evidence.get("lines_of_code") or _number(context.explanation)
+        return _module_copy(context.path, count, _number(context.explanation, last=True))
+    return None
 
 
 def _function(context: _LegacyFinding) -> dict[str, str] | None:
     match = re.fullmatch(r"(.+) spans (\d+) logical lines", context.summary)
-    return (
-        _function_copy(match.group(1), match.group(2), _number(context.explanation))
-        if match
-        else None
-    )
+    if match:
+        return _function_copy(match.group(1), match.group(2), _number(context.explanation))
+    current = re.fullmatch(r"(.+) takes a lot of code to do one job", context.summary)
+    if current and context.explanation.startswith("Its logic uses "):
+        return _function_copy(
+            current.group(1),
+            _number(context.explanation),
+            _number(context.explanation, last=True),
+        )
+    return None
 
 
 def _complexity(context: _LegacyFinding) -> dict[str, str] | None:
     match = re.fullmatch(r"(.+) has estimated complexity ([\d.]+)", context.summary)
-    return (
-        _complexity_copy(match.group(1), match.group(2), _number(context.explanation, last=True))
-        if match
-        else None
-    )
+    if match:
+        return _complexity_copy(
+            match.group(1), match.group(2), _number(context.explanation, last=True)
+        )
+    current = re.fullmatch(r"(.+) makes many decisions in one function", context.summary)
+    if current and context.explanation.startswith("Branches such as "):
+        return _complexity_copy(
+            current.group(1),
+            _number(context.explanation),
+            _number(context.explanation, last=True),
+        )
+    return None
 
 
 def _dependency(context: _LegacyFinding) -> dict[str, str] | None:
     match = re.fullmatch(r"(.+) has (\d+) (incoming|outgoing) dependencies", context.summary)
-    if match is None:
-        return None
-    return _dependency_copy(
-        context.path,
-        match.group(2),
-        _number(context.explanation),
-        match.group(3),
-    )
+    if match:
+        return _dependency_copy(
+            context.path,
+            match.group(2),
+            _number(context.explanation),
+            match.group(3),
+        )
+    outgoing = context.summary.endswith(" reaches into many other modules")
+    incoming = context.summary.startswith("Many modules rely on ")
+    if (outgoing and context.explanation.startswith("It directly uses ")) or (
+        incoming and re.match(r"\d+ modules use it directly", context.explanation)
+    ):
+        direction = "outgoing" if outgoing else "incoming"
+        count = context.evidence.get(f"{direction}_dependencies") or _number(context.explanation)
+        return _dependency_copy(
+            context.path, count, _number(context.explanation, last=True), direction
+        )
+    return None
 
 
 def _cycle(context: _LegacyFinding) -> dict[str, str] | None:
@@ -93,15 +119,24 @@ def _drift(context: _LegacyFinding) -> dict[str, str] | None:
 
 def _coverage(context: _LegacyFinding) -> dict[str, str] | None:
     match = re.fullmatch(r"(.+) has ([\d.]+)% line coverage", context.summary)
-    return (
-        _coverage_copy(match.group(1), match.group(2), _number(context.explanation))
-        if match
-        else None
-    )
+    if match:
+        return _coverage_copy(match.group(1), match.group(2), _number(context.explanation))
+    current = re.fullmatch(r"Tests may miss behavior in (.+)", context.summary)
+    if current and context.explanation.startswith("The imported test report says "):
+        return _coverage_copy(
+            current.group(1),
+            _number(context.explanation),
+            _number(context.explanation, last=True),
+        )
+    return None
 
 
 def _dead_code(context: _LegacyFinding) -> dict[str, str] | None:
-    if not context.summary.endswith(" may be unreachable"):
+    old_copy = context.summary.endswith(" may be unreachable")
+    current_copy = context.summary.endswith(
+        " may no longer be used"
+    ) and context.explanation.startswith("No indexed code points to this file")
+    if not old_copy and not current_copy:
         return None
     return _dead_code_copy(context.path, context.evidence.get("days_since_change") or "many")
 
@@ -109,11 +144,11 @@ def _dead_code(context: _LegacyFinding) -> dict[str, str] | None:
 def _module_copy(path: str, count: str, limit: str) -> dict[str, str]:
     review_point = _with_unit(limit, "lines")
     return {
-        "summary": f"{path} may be doing too many jobs",
+        "summary": f"{path} has {count} lines; this project reviews files above {review_point}",
         "explanation": (
-            f"It contains {count} lines of code. This project starts a closer review at "
-            f"{review_point}. A large file is not automatically wrong, but unrelated jobs can "
-            "become tangled and make changes harder to understand."
+            "A large file becomes hard to change when it contains jobs that do not belong "
+            "together. Size alone does not mean the file should be split; one clear job may "
+            "need a lot of code."
         ),
         "recommended_action": (
             "Name the file's main jobs. If two jobs can change for different reasons, move the "
@@ -123,12 +158,13 @@ def _module_copy(path: str, count: str, limit: str) -> dict[str, str]:
 
 
 def _function_copy(name: str, count: str, limit: str) -> dict[str, str]:
+    review_point = _with_unit(limit, "lines")
     return {
-        "summary": f"{name} takes a lot of code to do one job",
+        "summary": f"{name} uses {count} lines; this project reviews functions above {review_point}",
         "explanation": (
-            f"Its logic uses {count} lines. This project starts a closer review at {limit}. A long "
-            "function can be clear when every step belongs together, but mixed jobs make later "
-            "changes easier to misunderstand."
+            "A long function becomes hard to follow when it mixes separate jobs or makes a reader "
+            "remember too many details at once. Length alone is not a reason to split a clear, "
+            "step-by-step function."
         ),
         "recommended_action": (
             "Name each step in the function. If one step has its own clear input and result, move "
@@ -139,12 +175,14 @@ def _function_copy(name: str, count: str, limit: str) -> dict[str, str]:
 
 
 def _complexity_copy(name: str, score: str, limit: str) -> dict[str, str]:
+    review_point = _clean_number(limit)
     return {
-        "summary": f"{name} makes many decisions in one function",
+        "summary": (
+            f"{name} has a branch score of {score}; this project reviews functions above {review_point}"
+        ),
         "explanation": (
-            f"Branches such as if-statements and loops give it a decision score of {score}. This "
-            f"project starts a closer review above {limit}. More decisions mean more cases to "
-            "understand and test, but the count alone does not prove the design is wrong."
+            "More branches create more possible outcomes to understand and test. They can still "
+            "belong together when they answer one clear question."
         ),
         "recommended_action": (
             "Group the branches by the question they answer. If one group answers a separate "
@@ -163,12 +201,15 @@ def _dependency_copy(path: str, count: str, limit: str, direction: str) -> dict[
 
 
 def _outgoing_copy(path: str, count: str, limit: str) -> dict[str, str]:
+    review_point = _with_unit(limit, "modules")
     return {
-        "summary": f"{path} reaches into many other modules",
+        "summary": (
+            f"{path} directly uses {count} modules; this project reviews files above {review_point}"
+        ),
         "explanation": (
-            f"It directly uses {count} modules. This project starts a closer review above {limit}. "
-            "That can be correct for a coordinator, but it can also mean this file is handling "
-            "several jobs at once."
+            "A file that reaches into many parts of the project can mix several jobs and become "
+            "hard to test in isolation. This can be exactly right when the file is a coordinator "
+            "for one clear workflow."
         ),
         "recommended_action": (
             "Group the dependencies by the job they support. If one group belongs to a separate "
@@ -178,11 +219,14 @@ def _outgoing_copy(path: str, count: str, limit: str) -> dict[str, str]:
 
 
 def _incoming_copy(path: str, count: str, limit: str) -> dict[str, str]:
+    review_point = _with_unit(limit, "modules")
     return {
-        "summary": f"Many modules rely on {path}",
+        "summary": (
+            f"{count} modules directly use {path}; this project reviews files above {review_point}"
+        ),
         "explanation": (
-            f"{count} modules use it directly. This project starts a closer review above {limit}. "
-            "A behavior change here can reach many places, although that is normal for stable shared code."
+            "A behavior change here can affect many callers. That is normal when this file is a "
+            "stable shared promise with broad tests."
         ),
         "recommended_action": (
             "Treat its public behavior as a shared promise. Find its callers and tests before "
@@ -195,9 +239,9 @@ def _dead_code_copy(path: str, days: str) -> dict[str, str]:
     return {
         "summary": f"{path} may no longer be used",
         "explanation": (
-            "No indexed code points to this file, the analyzer found no program entry or runtime "
-            f"registration, and Git shows no change for {days} days. Configuration or code that "
-            "loads files by name could still use it, so this is not proof that deletion is safe."
+            "Unused code makes a project harder to search and maintain. This file may still be "
+            "loaded by configuration, a framework, or code that builds its name at runtime, so "
+            "the finding is not permission to delete it."
         ),
         "recommended_action": (
             "Before deleting it, search routes, events, templates, configuration, and runtime "
@@ -265,12 +309,12 @@ def _drift_copy(path: str, evidence: Mapping[str, str]) -> dict[str, str]:
 
 def _coverage_copy(path: str, percent: str, goal: str) -> dict[str, str]:
     coverage_goal = _with_unit(goal, "%", separator="")
+    coverage = _clean_number(percent)
     return {
-        "summary": f"Tests may miss behavior in {path}",
+        "summary": f"Tests run {coverage}% of {path}; this project's goal is {coverage_goal}",
         "explanation": (
-            f"The imported test report says tests ran {percent}% of this file's lines, below the "
-            f"project goal of {coverage_goal}. Coverage cannot say whether the tests are good, but "
-            "untested branches can break without being noticed."
+            "Line coverage cannot tell whether tests are good, but behavior in lines that never "
+            "run during tests can break without being noticed."
         ),
         "recommended_action": (
             "Find the decisions and error cases the report did not run. Add small tests that check "
@@ -293,7 +337,14 @@ def _number(value: str, *, last: bool = False) -> str:
 
 
 def _with_unit(value: str, unit: str, *, separator: str = " ") -> str:
-    return value if value == "the configured limit" else f"{value}{separator}{unit}"
+    return value if value == "the configured limit" else f"{_clean_number(value)}{separator}{unit}"
+
+
+def _clean_number(value: str) -> str:
+    try:
+        return f"{float(value):g}"
+    except ValueError:
+        return value
 
 
 _Upgrader = Callable[[_LegacyFinding], dict[str, str] | None]
