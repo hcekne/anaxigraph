@@ -1706,9 +1706,10 @@ evidence, but absence of that feedback never blocks the semantic map or pattern 
 
 ## 6.7 Add consolidation, dead-code, and placement intelligence
 
-**Status:** IN PROGRESS — the additive goal-specific decision packet, conservative module-level
-dead-code gates, and bounded post-change comparison are delivered on 25 August 2026; live-sidecar
-refresh and calibration evidence remains paused with the repository-sized semantic run.
+**Status:** IMPLEMENTED; LIVE CALIBRATION PAUSED — goal-specific placement, consolidation and
+unused-code safety, change constraints, post-change comparison, and the human-and-agent-readable
+main and expanded evidence contracts are complete on 25 August 2026. The only remaining §6.7
+evidence is live-sidecar calibration after the operator lifts the semantic-run pause.
 
 Repeated-responsibility and consolidation analysis combine structural similarity, semantic
 responsibility, public contracts, graph neighborhoods, architecture placement, and change coupling,
@@ -1897,10 +1898,12 @@ and an observed difference is not called an improvement without the intended out
 
 ## 6.8 Expose pattern intelligence without multiplying product surfaces
 
-**Status:** IN PROGRESS — current evaluations, on-demand selected/skipped candidate explanations,
-versioned calibration, and deterministic same-goal post-change comparison are delivered on 25
-August 2026; longitudinal outcome correlation remains coupled to the temporal facts in Phase 7,
-and live calibration waits for the paused semantic baseline.
+**Status:** IMPLEMENTED; LIVE CALIBRATION PAUSED — target- and pattern-centric queries, selected and
+skipped candidate explanations, all 128 pattern-name meanings, readable main and expanded evidence,
+versioned calibration, and deterministic same-goal comparison are complete on 25 August 2026. The
+only remaining §6.8 evidence is running the real-repository calibration after the operator lifts the
+semantic-run pause. Longitudinal outcome correlation is explicitly deferred to Phase 7 and is not a
+§6.8 closure item.
 
 Reuse the existing semantic queue, leases, evidence paging, provenance, taxonomy, and bounded query
 infrastructure. Add one narrow evaluation projection keyed by target, pattern, snapshot, and
@@ -1978,7 +1981,7 @@ It also converts the stored zero-to-one observation confidence correctly before 
 zero-to-100 meaning.
 
 The dashboard adds a dedicated **Patterns** view without growing its 499-line HTML shell or
-498-line shared stylesheet. Separate 319-line query/controller, 170-line renderer, and 62-line
+498-line shared stylesheet. Separate 351-line query/controller, 230-line renderer, and 62-line
 responsive stylesheet modules render the complete explanation and grouped exact ratings, critique
 and provider/model provenance, bounded filters and pagination, opt-in evidence, candidate decision
 reasons, and one-click pivots between finalized evaluations and skipped-target explanations.
@@ -1986,7 +1989,7 @@ reasons, and one-click pivots between finalized evaluations and skipped-target e
 Sixty focused candidate/query/calibration/language-contract cases, CLI authority handoff coverage,
 completed-semantic projection coverage, REST integration, and a real MCP SDK round trip cover the
 read model. The dashboard candidate workflow passes within all 16 browser contracts in the pinned
-Playwright container. The complete suite passes 528 tests at 91.10% coverage; architecture, size,
+Playwright container. The complete suite passes 532 tests at 91.34% coverage; architecture, size,
 maintainability, formatting, and deterministic self-analysis gates report no errors or regressions,
 with self-analysis at 26 governed findings, 130 non-blocking findings, and zero issues.
 
@@ -2016,7 +2019,7 @@ Deterministic acceptance evidence:
   tears down the service, starts a fresh server on the same index, reclaims an abandoned expired
   lease, and reaches full coverage, ready taxonomy after two reviews, repository synthesis, and
   finalized pattern review with no source writes or duplicate/running work;
-- all 15 pinned-container browser contracts pass, including durable-executor guidance;
+- all 16 pinned-container browser contracts pass, including durable-executor guidance;
 - complete Python coverage, Ruff, formatting, size, complexity, coupling, architecture,
   self-analysis, Compose, container, first-user, and benchmark gates remain release requirements.
 
@@ -2388,7 +2391,7 @@ queue and the document cannot drift apart.
 | 39 | **COMPLETE** — Replace semantic mixin composition while preserving the durable external work protocol | §6.1–6.2 |
 | 40 | **COMPLETE** — Ship and validate the declarative catalog of at least 120 patterns | §6.3 |
 | 41 | **COMPLETE** — Add sparse multi-level candidates, separate ratings, and independent agent critique | §6.4–6.6 |
-| 42 | **IN PROGRESS** — Goal-specific placement, consolidation/dead-code safety, human-and-agent-readable recommendation handoff, calibration contracts, and post-change comparison are implemented; finish live calibration after the semantic-run pause is lifted | §6.7–6.8 |
+| 42 | **IMPLEMENTED; LIVE CALIBRATION PAUSED** — Goal-specific placement, consolidation/unused-code safety, readable main and expanded evidence, calibration contracts, and post-change comparison are complete; the only remaining evidence is live calibration after the semantic-run pause is lifted | §6.7–6.8 |
 | 43 | **IMPLEMENTED; LIVE ACCEPTANCE PAUSED** — Make repository-sized semantic bootstrap linear, authoritative, nonblocking, resumable, and deterministically complete | §6.9 |
 | 44 | Expand parser-backed core languages against the proven capability contract | Phase 4B |
 

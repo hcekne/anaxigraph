@@ -130,6 +130,8 @@ def test_agent_executor_rejects_invalid_runtime_limits(option, message):
 
 def test_agent_executor_detection_supports_claude_and_manual_mcp(monkeypatch):
     monkeypatch.delenv("CODEX_THREAD_ID", raising=False)
+    for name in ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "CLAUDE_SESSION_ID"):
+        monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("CLAUDECODE", "1")
     monkeypatch.setattr(semantic_execution.shutil, "which", lambda command: f"/bin/{command}")
     assert semantic_execution.detected_agent_executor() == "claude"
