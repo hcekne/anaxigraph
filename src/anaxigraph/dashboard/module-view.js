@@ -187,10 +187,36 @@ function moduleDetailRow(item) {
 
 function semanticPanelMarkup(item, detail) {
   if (!detail) return "<div><h3>AI map</h3><p>Loading the saved AI description…</p></div>";
-  const intrinsic = detail.semantic_dossiers?.intrinsic?.value || {};
-  const contextual = detail.semantic_dossiers?.context?.value || {};
+  const intrinsic = detail.semantic_dossiers?.intrinsic?.value ?? {};
+  const contextual = detail.semantic_dossiers?.context?.value ?? {};
   const value = contextual.summary ? contextual : intrinsic;
-  const language = item.semantic?.plain_language || detail.semantic_plain_language || {};
-  const related = [...(value.similar_modules || []), ...(value.overlaps || [])];
-  return `<div><h3>AI map</h3><p>${escapeHtml(language.conclusion || "The AI map has not described this file yet.")}</p><h3>What this file does</h3><p>${escapeHtml(value.summary || language.what_this_file_does || item.summary)}</p>${value.architecture_role ? `<h3>Role in this repository</h3><p>${escapeHtml(value.architecture_role)}</p>` : ""}${value.change_summary ? `<h3>What changed in this AI description</h3><p>${escapeHtml(value.change_summary)}</p>` : ""}<h3>Files with related or overlapping work</h3>${detailList(related, "The AI map did not identify related or overlapping files")}<h3>Places designed for adding behavior</h3>${detailList(value.extension_points, "The AI map did not identify a specific place for adding behavior")}<h3>Patterns that may fit</h3>${patternOpportunityList(value.pattern_opportunities)}${consolidationMarkup(value.consolidation_assessment)}${value.placement_guidance ? `<h3>Where related work belongs</h3><p>${escapeHtml(value.placement_guidance)}</p>` : ""}<h3>Code that may no longer be used</h3>${deadCodeList(value.dead_code_candidates)}<h3>Risks and uncertainty</h3>${detailList(value.risks, "The AI map did not record a specific risk")}</div>`;
+  const language = item.semantic?.plain_language ?? detail.semantic_plain_language ?? {};
+  const related = [...(value.similar_modules ?? []), ...(value.overlaps ?? [])];
+  const summary = preferredText(language.what_this_file_does, value.summary, item.summary);
+  const role = preferredText(language.role_in_repository, value.architecture_role);
+  const changed = preferredText(language.what_changed_in_description, value.change_summary);
+  const placement = preferredText(language.where_related_work_belongs, value.placement_guidance);
+  const extensionPoints = preferredList(language.places_for_adding_behavior, value.extension_points);
+  const risks = preferredList(language.risks_and_uncertainty, value.risks);
+  const mapState = preferredText(
+    language.conclusion,
+    "The AI map has not described this file yet.",
+  );
+  return `<div><h3>AI map</h3><p>${escapeHtml(mapState)}</p><h3>What this file does</h3><p>${escapeHtml(summary)}</p>${optionalSection("Role in this repository", role)}${optionalSection("What changed in this AI description", changed)}<h3>Files with related or overlapping work</h3>${optionalParagraph(language.related_file_evidence)}${detailList(related, "The AI map did not identify related or overlapping files")}<h3>Places designed for adding behavior</h3>${detailList(extensionPoints, "The AI map did not identify a specific place for adding behavior")}<h3>Patterns that may fit</h3>${patternOpportunityList(value.pattern_opportunities)}${consolidationMarkup(value.consolidation_assessment)}${optionalSection("Where related work belongs", placement)}<h3>Code that may no longer be used</h3>${deadCodeList(value.dead_code_candidates)}<h3>Risks and uncertainty</h3>${detailList(risks, "The AI map did not record a specific risk")}</div>`;
+}
+
+function preferredText(...values) {
+  return values.find((value) => typeof value === "string" && value.length) ?? "";
+}
+
+function preferredList(primary, fallback) {
+  return Array.isArray(primary) ? primary : fallback ?? [];
+}
+
+function optionalSection(title, value) {
+  return value ? `<h3>${escapeHtml(title)}</h3><p>${escapeHtml(value)}</p>` : "";
+}
+
+function optionalParagraph(value) {
+  return value ? `<p class="muted">${escapeHtml(value)}</p>` : "";
 }

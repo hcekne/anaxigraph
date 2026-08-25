@@ -192,33 +192,86 @@ export async function inspectNode(node) {
 
 function inspectorMarkup(node, detail, displayName) {
   const file = detail.file;
-  const inventory = state.modules.find((item) => item.path === file.path) || {};
+  const inventory = state.modules.find((item) => item.path === file.path) ?? {};
+  const semanticData = semanticInspectorData(detail, inventory, file);
+  const placement = inspectorPlacement(inventory, file);
+  const evaluation = inventory.evaluation ?? {};
+  const responsibilities = tagMarkup(file.responsibilities);
+  const patterns = tagMarkup(evaluation.pattern_candidates);
+  const interfaces = tagMarkup(file.public_interfaces, 18);
+  const relationships = relationshipButtons(detail.relationships);
+  const dependants = dependantButtons(detail.dependants);
+  const history = historyMarkup(detail.history);
+  return `<p class="eyebrow">${escapeHtml(humanize(placement.area))} · ${escapeHtml(humanize(placement.subsystem))}</p><h2>${escapeHtml(displayName)}</h2><code class="inspector-path">${escapeHtml(file.path)}</code><h3>Purpose</h3><p class="muted">${escapeHtml(semanticData.purpose)}</p><p class="inspector-provenance">${escapeHtml(semanticData.purposeSource)}</p>${factList(file, node, inventory, detail, coverageLabel(node))}${semanticSection(semanticData.document, semanticData.value, detail)}<h3>Jobs detected in this file</h3><div class="tag-list">${markupOr(responsibilities, "No specific job was detected")}</div><h3>Pattern ideas from code checks</h3><div class="tag-list">${markupOr(patterns, "No pattern idea has direct code evidence yet")}</div><h3>Names other files can use</h3><div class="tag-list">${markupOr(interfaces, "None detected")}</div><h3>Uses</h3><div class="relation-list">${markupOr(relationships, "No direct use of another indexed file was found")}</div><h3>Used by</h3><div class="relation-list">${markupOr(dependants, "No indexed file directly uses this file")}</div><h3>Recent changes</h3><div class="relation-list">${markupOr(history, "No Git history loaded")}</div>`;
+}
+
+function semanticInspectorData(detail, inventory, file) {
   const intrinsicDocument = detail.semantic_dossiers?.intrinsic;
   const contextDocument = detail.semantic_dossiers?.context;
-  const intrinsic = intrinsicDocument?.value || {};
-  const contextual = contextDocument?.value || {};
-  const semantic = contextDocument || intrinsicDocument;
-  const semanticValue = contextual.summary ? contextual : intrinsic;
-  const purpose = semanticValue.summary || inventory.summary || file.summary;
-  const purposeSource = semantic
-    ? `${semanticProviderLabel(semantic)} AI description ${contextDocument ? "using repository context" : "of this file"}. Check the listed evidence before changing code.`
-    : "Generated directly from the file without AI.";
-  const placement = architectureFor(inventory) || architectureFor(file) || {};
-  const area = placement.area || state.groupParents.get(effectiveGroup(file)) || effectiveGroup(file);
-  const subsystem = placement.subsystem || effectiveGroup(file);
-  const coverage = node.line_coverage == null ? "Not imported"
+  const intrinsic = intrinsicDocument?.value ?? {};
+  const contextual = contextDocument?.value ?? {};
+  const document = contextDocument ?? intrinsicDocument;
+  const value = contextual.summary ? contextual : intrinsic;
+  const purpose = firstText(
+    detail.semantic_plain_language?.what_this_file_does,
+    value.summary,
+    inventory.summary,
+    file.summary,
+  );
+  return {
+    document,
+    value,
+    purpose,
+    purposeSource: semanticPurposeSource(document, Boolean(contextDocument)),
+  };
+}
+
+function semanticPurposeSource(document, usesRepositoryContext) {
+  if (!document) return "Generated directly from the file without AI.";
+  const evidence = usesRepositoryContext ? "using repository context" : "of this file";
+  return `${semanticProviderLabel(document)} AI description ${evidence}. Check the listed evidence before changing code.`;
+}
+
+function inspectorPlacement(inventory, file) {
+  const placement = architectureFor(inventory) ?? architectureFor(file) ?? {};
+  const fallback = effectiveGroup(file);
+  return {
+    area: firstText(placement.area, state.groupParents.get(fallback), fallback),
+    subsystem: firstText(placement.subsystem, fallback),
+  };
+}
+
+function coverageLabel(node) {
+  return node.line_coverage == null
+    ? "Not imported"
     : `${(Number(node.line_coverage) * 100).toFixed(1)}%`;
-  const evaluation = inventory.evaluation || {};
-  const relationships = detail.relationships.slice(0, 14).map((item) => (
-    `<button data-path="${escapeAttr(item.target_path || "")}">${escapeHtml(humanize(item.relationship_type))} → ${escapeHtml(item.target_path || item.target_external)}</button>`
+}
+
+function tagMarkup(values, limit = 100) {
+  const selected = Array.isArray(values) ? values.slice(0, limit) : [];
+  return selected.map((item) => `<span class="tag">${escapeHtml(item)}</span>`).join("");
+}
+
+function relationshipButtons(values) {
+  return values.slice(0, 14).map((item) => (
+    `<button data-path="${escapeAttr(item.target_path ?? "")}">${escapeHtml(humanize(item.relationship_type))} → ${escapeHtml(item.target_path ?? item.target_external)}</button>`
   )).join("");
-  const dependants = detail.dependants.slice(0, 14).map((item) => (
-    `<button data-path="${escapeAttr(item.source_path || "")}">${escapeHtml(item.source_path || "")}</button>`
+}
+
+function dependantButtons(values) {
+  return values.slice(0, 14).map((item) => (
+    `<button data-path="${escapeAttr(item.source_path ?? "")}">${escapeHtml(item.source_path ?? "")}</button>`
   )).join("");
-  const responsibilities = (file.responsibilities || []).map(
-    (item) => `<span class="tag">${escapeHtml(item)}</span>`,
-  ).join("");
-  return `<p class="eyebrow">${escapeHtml(humanize(area))} · ${escapeHtml(humanize(subsystem))}</p><h2>${escapeHtml(displayName)}</h2><code class="inspector-path">${escapeHtml(file.path)}</code><h3>Purpose</h3><p class="muted">${escapeHtml(purpose)}</p><p class="inspector-provenance">${escapeHtml(purposeSource)}</p>${factList(file, node, inventory, detail, coverage)}${semanticSection(semantic, semanticValue, detail)}<h3>Jobs detected in this file</h3><div class="tag-list">${responsibilities || '<span class="muted">No specific job was detected</span>'}</div><h3>Pattern ideas from code checks</h3><div class="tag-list">${(evaluation.pattern_candidates || []).map((item) => `<span class="tag">${escapeHtml(item)}</span>`).join("") || '<span class="muted">No pattern idea has direct code evidence yet</span>'}</div><h3>Names other files can use</h3><div class="tag-list">${(file.public_interfaces || []).slice(0, 18).map((item) => `<span class="tag">${escapeHtml(item)}</span>`).join("") || '<span class="muted">None detected</span>'}</div><h3>Uses</h3><div class="relation-list">${relationships || '<span class="muted">No direct use of another indexed file was found</span>'}</div><h3>Used by</h3><div class="relation-list">${dependants || '<span class="muted">No indexed file directly uses this file</span>'}</div><h3>Recent changes</h3><div class="relation-list">${detail.history.slice(0, 6).map((item) => `<span class="muted">${escapeHtml(item.commit_sha.slice(0, 8))} · ${escapeHtml(item.subject)}</span>`).join("") || '<span class="muted">No Git history loaded</span>'}</div>`;
+}
+
+function historyMarkup(values) {
+  return values.slice(0, 6).map((item) => (
+    `<span class="muted">${escapeHtml(item.commit_sha.slice(0, 8))} · ${escapeHtml(item.subject)}</span>`
+  )).join("");
+}
+
+function markupOr(value, fallback) {
+  return value || `<span class="muted">${escapeHtml(fallback)}</span>`;
 }
 
 function factList(file, node, inventory, detail, coverage) {
@@ -240,11 +293,43 @@ function factList(file, node, inventory, detail, coverage) {
 }
 
 function semanticSection(semantic, value, detail) {
-  const language = detail.semantic_plain_language || {};
+  const language = detail.semantic_plain_language ?? {};
   if (!semantic) {
-    return `<h3>AI map</h3><p class="muted">${escapeHtml(language.conclusion || "The AI map has not described this file yet.")}</p>`;
+    const conclusion = firstText(
+      language.conclusion,
+      "The AI map has not described this file yet.",
+    );
+    return `<h3>AI map</h3><p class="muted">${escapeHtml(conclusion)}</p>`;
   }
-  return `<h3>AI map</h3><p class="muted">${escapeHtml(language.conclusion || "The AI map has described this file.")}</p><h3>Role in this repository</h3><p class="muted">${escapeHtml(value.architecture_role || language.what_this_file_does || "The AI map did not record this file's role")}</p>${value.change_summary ? `<h3>What changed in this AI description</h3><p class="muted">${escapeHtml(value.change_summary)}</p>` : ""}<h3>Jobs this file is responsible for</h3>${detailList(value.responsibilities, "The AI map did not record specific jobs for this file")}<h3>Files with related or overlapping work</h3>${detailList([...(value.similar_modules || []), ...(value.overlaps || [])], "The AI map did not identify related or overlapping files")}<h3>Patterns that may fit</h3>${patternOpportunityList(value.pattern_opportunities)}${consolidationMarkup(value.consolidation_assessment)}${value.placement_guidance ? `<h3>Where related work belongs</h3><p class="muted">${escapeHtml(value.placement_guidance)}</p>` : ""}<h3>Code that may no longer be used</h3>${deadCodeList(value.dead_code_candidates)}<h3>Places designed for adding behavior</h3>${detailList(value.extension_points, "The AI map did not identify a specific place for adding behavior")}<h3>Risks and uncertainty</h3>${detailList(value.risks, "The AI map did not record a specific risk")}`;
+  const conclusion = firstText(language.conclusion, "The AI map has described this file.");
+  const role = firstText(
+    language.role_in_repository,
+    value.architecture_role,
+    "The AI map did not record this file's role",
+  );
+  const changed = firstText(language.what_changed_in_description, value.change_summary);
+  const placement = firstText(language.where_related_work_belongs, value.placement_guidance);
+  const jobs = firstList(language.jobs, value.responsibilities);
+  const extensionPoints = firstList(language.places_for_adding_behavior, value.extension_points);
+  const risks = firstList(language.risks_and_uncertainty, value.risks);
+  const related = [...(value.similar_modules ?? []), ...(value.overlaps ?? [])];
+  return `<h3>AI map</h3><p class="muted">${escapeHtml(conclusion)}</p><h3>Role in this repository</h3><p class="muted">${escapeHtml(role)}</p>${optionalMutedSection("What changed in this AI description", changed)}<h3>Jobs this file is responsible for</h3>${detailList(jobs, "The AI map did not record specific jobs for this file")}<h3>Files with related or overlapping work</h3>${optionalMutedParagraph(language.related_file_evidence)}${detailList(related, "The AI map did not identify related or overlapping files")}<h3>Patterns that may fit</h3>${patternOpportunityList(value.pattern_opportunities)}${consolidationMarkup(value.consolidation_assessment)}${optionalMutedSection("Where related work belongs", placement)}<h3>Code that may no longer be used</h3>${deadCodeList(value.dead_code_candidates)}<h3>Places designed for adding behavior</h3>${detailList(extensionPoints, "The AI map did not identify a specific place for adding behavior")}<h3>Risks and uncertainty</h3>${detailList(risks, "The AI map did not record a specific risk")}`;
+}
+
+function firstText(...values) {
+  return values.find((value) => typeof value === "string" && value.length) ?? "";
+}
+
+function firstList(primary, fallback) {
+  return Array.isArray(primary) ? primary : fallback ?? [];
+}
+
+function optionalMutedSection(title, value) {
+  return value ? `<h3>${escapeHtml(title)}</h3><p class="muted">${escapeHtml(value)}</p>` : "";
+}
+
+function optionalMutedParagraph(value) {
+  return value ? `<p class="muted">${escapeHtml(value)}</p>` : "";
 }
 
 export function setupCanvasEvents() {

@@ -419,8 +419,8 @@ def _file_summary(item: dict[str, Any]) -> dict[str, Any]:
             )
             if semantic.get(key) not in (None, "")
         }
-        semantic_summary["plain_language"] = semantic_file_explanation(
-            str(item.get("path") or "this file"), semantic_summary
+        semantic_summary["plain_language"] = semantic.get("plain_language") or (
+            semantic_file_explanation(str(item.get("path") or "this file"), semantic_summary)
         )
         result["semantic"] = semantic_summary
     return result

@@ -188,7 +188,9 @@ def _review_request(
             "large groups have a clear reason. Files in a group should share a real job. Explain "
             "how groups call one another, which tests cover them, where saved data or specially "
             "protected code sits, what supports each choice, and what evidence points elsewhere. "
-            "Keep useful names from the prior map. Complete the check without asking a person to approve it."
+            "Rewrite labels and explanations that use expert terms without saying what the files "
+            "actually do. Keep useful names from the prior map. Complete the check without asking "
+            "a person to approve it."
         ),
         "schema_version": job["schema_version"],
         "analysis_kind": "taxonomy_review",

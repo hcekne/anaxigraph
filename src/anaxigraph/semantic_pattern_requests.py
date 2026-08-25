@@ -56,7 +56,8 @@ def _contract(kind: str) -> str:
             "Independently check the supplied pattern result. Check whether it judged the right "
             "piece of code and the right pattern, considered simpler alternatives and evidence "
             "against the idea, used its scores consistently, counted the work and disruption of "
-            "changing code, and avoided adding more concepts than the problem needs. Return every "
+            "changing code, and avoided adding more concepts than the problem needs. Rewrite any "
+            "sentence that uses an expert term without explaining the concrete fact it represents. Return every "
             "field of the corrected result even when the first result was right. Keep a different "
             "explanation when evidence truly supports both. Do not ask a person to approve it."
         )

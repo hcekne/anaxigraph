@@ -32,6 +32,13 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
     assert status["baseline_complete"] is True
     assert status["current"] == status["eligible_modules"] == 8
     assert status["repository_dossier"]["value"]["summary"]
+    assert status["repository_dossier"]["plain_language"]["version"] == (
+        "semantic-file-explanation-v3"
+    )
+    assert (
+        "how its parts work together"
+        in status["repository_dossier"]["plain_language"]["conclusion"]
+    )
     assert status["taxonomy"]["ready"] is True
     assert status["taxonomy"]["current"]["review_passes"] == 2
     assert status["patterns"]["ready"] is True
@@ -42,10 +49,10 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
     assert core_module["summary_source"] == "command AI description using repository context"
     assert core_module["architecture_layer"] == "semantic"
     assert core_module["semantic_taxonomy"]["confidence"] == 0.85
-    assert core_module["semantic"]["plain_language"]["version"] == ("semantic-file-explanation-v2")
+    assert core_module["semantic"]["plain_language"]["version"] == ("semantic-file-explanation-v3")
     assert "role in this repository" in core_module["semantic"]["plain_language"]["conclusion"]
     core_detail = database.file_details(stats.repository_id, "pkg/core.py")
-    assert core_detail["semantic_plain_language"]["version"] == "semantic-file-explanation-v2"
+    assert core_detail["semantic_plain_language"]["version"] == "semantic-file-explanation-v3"
     assert core_detail["semantic_plain_language"]["what_this_file_does"]
     semantic_map = database.semantic_taxonomy(stats.repository_id)
     assert semantic_map["validation"]["assigned_modules"] == 8
@@ -66,7 +73,7 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
     assert scope["primary_files"][0]["semantic"]["status"] == "current"
     assert scope["primary_files"][0]["semantic"]["pattern_opportunities"][0]["score"] == 84
     file_language = scope["primary_files"][0]["semantic"]["plain_language"]
-    assert file_language["version"] == "semantic-file-explanation-v2"
+    assert file_language["version"] == "semantic-file-explanation-v3"
     assert "early AI notes, not instructions" in file_language["how_to_use_the_raw_fields"]
 
     first_call_count = len(_calls(log))

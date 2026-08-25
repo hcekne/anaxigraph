@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from anaxigraph.semantic_config_port import SemanticConfig
+from anaxigraph.semantic_file_language import semantic_file_explanation
 from anaxigraph.semantic_status_language import semantic_status_explanation
 from anaxigraph.semantic_status_queries import SemanticStatusRows
 
@@ -248,9 +249,10 @@ def _budget_payload(
 def _repository_document(state: dict[str, Any] | None) -> dict[str, Any] | None:
     if not state or not state["value_json"]:
         return None
-    return {
+    value = json.loads(state["value_json"])
+    result = {
         "status": state["status"],
-        "value": json.loads(state["value_json"]),
+        "value": value,
         "confidence": state["confidence"],
         "provider": state["provider"],
         "model": state["model"],
@@ -259,6 +261,16 @@ def _repository_document(state: dict[str, Any] | None) -> dict[str, Any] | None:
         "prompt_version": state["prompt_version"],
         "created_at": state["created_at"],
     }
+    result["plain_language"] = semantic_file_explanation(
+        "the whole repository",
+        {
+            **value,
+            "status": state["status"],
+            "confidence": state["confidence"],
+            "subject_kind": "repository",
+        },
+    )
+    return result
 
 
 def _taxonomy_document(row: dict[str, Any] | None) -> dict[str, Any] | None:

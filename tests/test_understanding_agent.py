@@ -55,6 +55,7 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
         assert packet["analysis_request"]["writing_contract_version"] == "plain-language-v2"
         assert "smart twelve-year-old" in writing["audience"]
         assert "what the number can and cannot mean" in writing["score_rule"]
+        assert "reread every sentence" in writing["final_review"]
         terms = packet["analysis_request"]["input_term_meanings"]
         assert "one repository file" in terms["module"]
         assert "not a code-quality grade" in terms["complexity"]

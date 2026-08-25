@@ -95,7 +95,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 526 tests passing at 91.07% coverage plus 16 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
+| Test health | 528 tests passing at 91.10% coverage plus 16 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -1763,13 +1763,22 @@ over the existing facts and comparison contract, with no semantic work, persiste
 freshness input.
 
 Agent file summaries retain raw semantic pattern, consolidation, and possible-unused-code fields
-for compatibility, but `semantic-file-explanation-v2` now labels their freshness and evidence
+for compatibility, but `semantic-file-explanation-v3` now labels their freshness and evidence
 strength and says explicitly that they are early AI notes rather than instructions to refactor or
 delete code. Agents are directed to `architecture_decision`, where the map checks those notes
 against repository evidence and explains its recommendation. The dashboard Workbench renders that
 same decision as readiness, starting point, constraints, and verification instead of discarding
 it, and no longer describes the autonomous map as “human-approved.” This is another bounded read
 projection and does not change semantic signatures or queue state.
+
+The v3 file and repository projection also prevents older AI jargon from winning in the main
+view. Known legacy phrases such as “contextual synthesis,” “intrinsic dossier,” sampled
+dependencies/consumers, and generic ownership boundaries are translated into sentences about the
+file descriptions and direct code links that were actually compared. Summary, role, placement,
+change, extension-point, and risk sentences from that projection are rendered before the retained
+raw compatibility fields. The shared AI writing contract now ends with an explicit self-review,
+and independent pattern and map reviewers must rewrite expert labels that do not explain a
+concrete fact. None of this claims to change the stored evidence or starts semantic work.
 
 Graph completeness now follows the same no-jargon-drawer rule. Every overview and bounded graph
 response carries `graph-quality-explanation-v1`, which says how many likely links between files were
@@ -1852,7 +1861,7 @@ and an observed difference is not called an improvement without the intended out
 | Removal safety | Python fixtures prove trusted module candidates, detected registration suppression, heuristic-language suppression, configured entry-point suppression, uncorroborated semantic suppression, and module/symbol granularity separation; `safe_to_remove` remains false |
 | Responsive authority | A blocking synchronous MCP tool no longer blocks the event loop; discovery tests prove connection-refused fallback, transient retry, and timeout refusal, while real SDK MCP and sidecar-preparation tests retain the work protocol |
 | Focused orchestration | Scope response assembly now lives behind a bounded payload service, reducing `agent_scope` from its 128-line/complexity-24 ratchet to 97/8; finding handoff and reverse-impact assembly moved out of their former 96/22 and 77/18 functions. `agent.py` is 233 lines, the focused finding and impact services are 164 and 143, and all three obsolete self-analysis findings are removed |
-| Verification | The complete suite passes 526 tests at 91.07% coverage; all 16 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis at 27 governed findings, 130 non-blocking findings, and zero issues |
+| Verification | The complete suite passes 528 tests at 91.10% coverage; all 16 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis at 26 governed findings, 130 non-blocking findings, and zero issues |
 
 ## 6.8 Expose pattern intelligence without multiplying product surfaces
 
@@ -1945,9 +1954,9 @@ reasons, and one-click pivots between finalized evaluations and skipped-target e
 Sixty focused candidate/query/calibration/language-contract cases, CLI authority handoff coverage,
 completed-semantic projection coverage, REST integration, and a real MCP SDK round trip cover the
 read model. The dashboard candidate workflow passes within all 16 browser contracts in the pinned
-Playwright container. The complete suite passes 526 tests at 91.07% coverage; architecture, size,
+Playwright container. The complete suite passes 528 tests at 91.10% coverage; architecture, size,
 maintainability, formatting, and deterministic self-analysis gates report no errors or regressions,
-with self-analysis at 27 governed findings, 130 non-blocking findings, and zero issues.
+with self-analysis at 26 governed findings, 130 non-blocking findings, and zero issues.
 
 ## 6.9 Make repository-sized semantic bootstrap operational
 

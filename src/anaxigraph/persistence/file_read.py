@@ -64,8 +64,13 @@ def _semantic_language(
         {
             "status": state["status"] if state is not None else "not_started",
             "confidence": document.get("confidence"),
+            "summary": value.get("summary"),
             "architecture_role": value.get("architecture_role"),
             "placement_guidance": value.get("placement_guidance"),
+            "change_summary": value.get("change_summary"),
+            "responsibilities": value.get("responsibilities"),
+            "extension_points": value.get("extension_points"),
+            "risks": value.get("risks"),
         },
     )
 

@@ -24,6 +24,11 @@ PLAIN_LANGUAGE_REQUIREMENTS = {
         "Never copy a field name, detector phrase, or score into prose without saying in ordinary "
         "language what it measured and what the number can and cannot mean."
     ),
+    "final_review": (
+        "Before returning the result, reread every sentence as someone new to the repository. "
+        "Rewrite any sentence that merely names an expert concept, process, score, or code shape "
+        "instead of explaining the concrete fact in ordinary words."
+    ),
 }
 
 INPUT_TERM_MEANINGS = {

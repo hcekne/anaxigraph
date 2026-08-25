@@ -137,7 +137,15 @@ function renderRepositoryIntelligence(semantic) {
     panel.innerHTML = "";
     return;
   }
-  panel.innerHTML = `<div class="panel-heading"><div><p class="eyebrow">Whole-repository AI description</p><h2>What this repository does</h2><p class="panel-copy">${escapeHtml(value.summary || "The AI map did not record a repository summary.")}</p><p class="inspector-provenance">Created by ${escapeHtml(semanticProviderLabel(document))}. This is an AI explanation based on indexed evidence; check that evidence before changing code.</p></div></div><div class="repository-intelligence-grid"><div><h3>Role of this repository</h3><p>${escapeHtml(value.architecture_role || value.detailed_summary || "The AI map did not record the repository's role.")}</p><h3>Where new work belongs</h3><p>${escapeHtml(value.placement_guidance || "The AI map did not record where new repository-wide work belongs.")}</p></div><div><h3>Patterns that may fit</h3>${patternOpportunityList(value.pattern_opportunities || [])}${consolidationMarkup(value.consolidation_assessment)}</div><div><h3>Code that may no longer be used</h3>${deadCodeList(value.dead_code_candidates || [])}<h3>Risks and uncertainty</h3>${detailList(value.risks || [], "The AI map did not record a repository-wide risk")}</div></div>`;
+  const language = document.plain_language || {};
+  const summary = language.what_this_file_does || value.summary
+    || "The AI map did not record a repository summary.";
+  const role = language.role_in_repository || value.architecture_role || value.detailed_summary
+    || "The AI map did not record the repository's role.";
+  const placement = language.where_related_work_belongs || value.placement_guidance
+    || "The AI map did not record where new repository-wide work belongs.";
+  const risks = language.risks_and_uncertainty || value.risks || [];
+  panel.innerHTML = `<div class="panel-heading"><div><p class="eyebrow">Whole-repository AI description</p><h2>What this repository does</h2><p class="panel-copy">${escapeHtml(summary)}</p><p class="inspector-provenance">Created by ${escapeHtml(semanticProviderLabel(document))}. This is an AI explanation based on indexed evidence; check that evidence before changing code.</p></div></div><div class="repository-intelligence-grid"><div><h3>Role of this repository</h3><p>${escapeHtml(role)}</p><h3>Where new work belongs</h3><p>${escapeHtml(placement)}</p></div><div><h3>Patterns that may fit</h3>${patternOpportunityList(value.pattern_opportunities || [])}${consolidationMarkup(value.consolidation_assessment)}</div><div><h3>Code that may no longer be used</h3>${deadCodeList(value.dead_code_candidates || [])}<h3>Risks and uncertainty</h3>${detailList(risks, "The AI map did not record a repository-wide risk")}</div></div>`;
 }
 
 export function semanticProviderLabel(document = {}) {

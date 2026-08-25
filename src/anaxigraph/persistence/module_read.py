@@ -307,6 +307,7 @@ def _semantic_payload(path: str, state: dict[str, Any] | None) -> dict[str, Any]
         "executor_id": state["context_executor_id"],
         "executor_model": state["context_executor_model"],
         "confidence": state["context_confidence"],
+        "summary": value.get("summary") or "",
         "architecture_role": value.get("architecture_role") or "",
         "pattern_opportunities": value.get("pattern_opportunities") or [],
         "consolidation_assessment": value.get("consolidation_assessment") or "",
@@ -314,7 +315,7 @@ def _semantic_payload(path: str, state: dict[str, Any] | None) -> dict[str, Any]
         "placement_guidance": value.get("placement_guidance") or "",
         "change_summary": value.get("change_summary") or "",
     }
-    result["plain_language"] = semantic_file_explanation(path, result)
+    result["plain_language"] = semantic_file_explanation(path, {**value, **result})
     return result
 
 

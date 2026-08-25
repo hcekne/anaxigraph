@@ -50,8 +50,15 @@ test("semantic progress and model-backed pattern advice use direct language", as
           provider: "codex",
           model: "test-model",
           confidence: 0.87,
+          plain_language: {
+            version: "semantic-file-explanation-v3",
+            what_this_file_does: "Keeps a saved map of the repository for people and coding agents.",
+            role_in_repository: "Shows how files work together without changing source code.",
+            where_related_work_belongs: "Add new code readers through the existing reader interface.",
+            risks_and_uncertainty: ["Code links created only while the program runs may be missing."],
+          },
           value: {
-            summary: "A repository intelligence sidecar with a durable semantic index.",
+            summary: "Opaque repository intelligence sidecar with a durable semantic index.",
             architecture_role: "Read-only architecture observatory and agent context service.",
             placement_guidance: "Add analyzers behind the existing analyzer protocol.",
             pattern_opportunities: [{
@@ -112,6 +119,15 @@ test("semantic progress and model-backed pattern advice use direct language", as
   await expect(notice).not.toContainText("synthesis scope");
   await expect(notice.locator("[data-semantic-refresh]")).toBeVisible();
   await expect(page.locator("#repository-intelligence")).toBeVisible();
+  await expect(page.locator("#repository-intelligence")).toContainText(
+    "Keeps a saved map of the repository",
+  );
+  await expect(page.locator("#repository-intelligence")).toContainText(
+    "Shows how files work together",
+  );
+  await expect(page.locator("#repository-intelligence")).not.toContainText(
+    "Opaque repository intelligence sidecar",
+  );
   await expect(page.locator("#repository-intelligence")).toContainText(
     "Analyzer strategy may fit this code",
   );

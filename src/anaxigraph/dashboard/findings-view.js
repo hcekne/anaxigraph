@@ -44,8 +44,19 @@ function findingCard(item, glossary, actions) {
     storyText("What to do", language.next_step),
     storyList("This may be fine when", language.when_no_change_may_be_needed || []),
     storyText("How to check the result", language.how_to_check),
+    storyList("How AnaxiGraph knows and orders this", findingMeasurementMeanings(language)),
   ].join("");
   return `<article class="finding-card"><span class="severity ${escapeHtml(item.severity)}"></span><div><div class="finding-meta">${escapeHtml(status)} · ${escapeHtml(attention)}</div><h3>${escapeHtml(language.what)}</h3><div class="finding-story">${story}</div>${tags}</div>${actions ? findingActionButtons(item) : ""}</article>`;
+}
+
+function findingMeasurementMeanings(language) {
+  return [
+    language.source?.meaning,
+    language.confidence?.meaning,
+    language.level?.meaning,
+    language.priority?.meaning,
+    ...(language.priority?.reasons || []),
+  ].filter(Boolean);
 }
 
 function findingLanguage(item) {
