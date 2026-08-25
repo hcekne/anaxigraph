@@ -88,7 +88,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 307 tests passing at 89.72% coverage plus 14 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, and pattern-catalog paths are regression-tested |
+| Test health | 326 tests passing at 89.79% coverage plus 14 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, and pattern-intelligence paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -1581,7 +1581,7 @@ current understanding.
 | Stable external protocol | The compatibility facade preserves CLI, REST, MCP work/evidence/submit/release, status, dossier, bootstrap, and provider execution contracts; lease state remains resumable across sessions |
 | Incremental/model behavior | Existing characterization proves an unchanged repository creates no semantic work, one local implementation change refreshes only its affected intrinsic scope, and executor/model provenance changes do not invalidate current semantic documents |
 | Maintainability | The 241-line/complexity-52 status operation and 151/125-line module planning operations are decomposed; substantive extracted modules are 160–266 lines, all implementation modules remain below 500 lines, and five obsolete deterministic self-analysis exceptions are removed |
-| Verification | 54 focused semantic/service/state-machine contracts pass; the current complete 307-test suite passes at 89.72% coverage; deterministic self-analysis passes with 44 governed findings and no issue; formatting, module-size, maintainability, architecture, forbidden-file, and Compose gates pass |
+| Verification | 54 focused semantic/service/state-machine contracts pass; the current complete 326-test suite passes at 89.79% coverage; deterministic self-analysis passes with 44 governed findings and no issue; formatting, module-size, maintainability, architecture, forbidden-file, and Compose gates pass |
 
 ## 6.3 Ship an extensible catalog of at least 120 patterns
 
@@ -1612,15 +1612,17 @@ lines, with no new model-provider pipeline or vector database.
 
 | Contract | Retained evidence |
 |---|---|
-| Breadth | The bundled `2026.08.1` catalog contains 128 cards across eight equal families: function construction, object/interface, data/state, module boundary, composition/workflow, integration/concurrency, reliability/testing, and subsystem architecture |
+| Breadth | The bundled `2026.08.2` catalog contains 128 cards across eight equal families: function construction, object/interface, data/state, module boundary, composition/workflow, integration/concurrency, reliability/testing, and subsystem architecture |
 | Multiple scales | Card applicability covers symbol, type, module, subsystem, area, and repository targets; the baseline contains 103 constructive patterns and 25 explicit failure modes |
 | Declarative contract | Immutable typed cards validate stable keys, versions, scopes, structured signals, analyzer capability requirements, semantic questions, four relationship categories, four scoring dimensions, benefits, liabilities, cautions, invariants, and references |
 | Independent evolution | `pattern-card-v1`, `pattern-catalog-source-v1`, `pattern-catalog-loader-v1`, and the bundled content version are distinct contracts; the expanded sorted content has a deterministic SHA-256 fingerprint |
 | Extensibility | A 140-card operator catalog loads without code changes, proving the shipped 128 is not a count ceiling; malformed sources, mixed versions, duplicates, unknown relations, invalid evidence, and unsupported capabilities fail validation |
-| Compact delivery | Eight JSON sources occupy 148,102 bytes; the loader and contracts occupy 463 physical Python lines with no module above 280 lines; package and release gates require every source in both wheel and source distribution |
-| Verification | 41 focused catalog contracts pass with 96% catalog-code coverage; release artifact tests pass; the complete 307-test suite passes at 89.72% coverage; deterministic self-analysis returns 44 governed findings, 124 non-blocking findings, and no issue |
+| Compact delivery | Eight JSON sources occupy 148,143 bytes; the loader and contracts occupy 463 physical Python lines with no module above 280 lines; package and release gates require every source in both wheel and source distribution |
+| Verification | 41 focused catalog contracts pass with 96% catalog-code coverage; release artifact tests pass; the complete 326-test suite passes at 89.79% coverage; deterministic self-analysis returns 44 governed findings, 125 non-blocking findings, and no issue |
 
 ## 6.4 Generate sparse multi-level candidates
+
+**Status:** IN PROGRESS
 
 Evaluate function/method, type, module, subsystem, area, and repository targets. Deterministic
 features first select plausible pattern/target pairs; only those candidates receive semantic work.
@@ -1630,6 +1632,18 @@ Candidate generation uses capability requirements, graph shape, responsibility e
 precedents, churn/coverage, and explicit contradictions. It records why a pattern was considered,
 why it was skipped, and which missing evidence prevents a confident rating. Changed targets and
 their conservatively affected parents/dependants are re-evaluated; unrelated pairs remain current.
+
+The first delivered slice defines `pattern-candidate-v1`, evaluates structured card signals and
+capability gaps deterministically, retains explicit supporting/counter/missing evidence, and gives
+every candidate a target-input and catalog fingerprint. Default selection keeps at most four cards
+per target and 200 repository-wide, while reserving representation across all available hierarchy
+levels. Skipped pairs are summarized by reason and can be explained individually without storing
+the dense pattern-by-target matrix. No candidate creates agent work until the durable assessment
+and critique lifecycle in §6.6 is connected.
+
+Nineteen focused candidate contracts cover all six levels, stable fingerprints, changed-target
+isolation, signal aliases and operators, capability gaps, counter-evidence, per-target/global
+bounds, per-level reservation, and individual explanations for selected and skipped pairs.
 
 ## 6.5 Score presence, fit, and opportunity separately
 
@@ -2060,7 +2074,7 @@ queue and the document cannot drift apart.
 | 38 | **COMPLETE** — Bound graph queries and operational work, then reduce `api.py` to a small composition root | Phase 5A |
 | 39 | **COMPLETE** — Replace semantic mixin composition while preserving the durable external work protocol | §6.1–6.2 |
 | 40 | **COMPLETE** — Ship and validate the declarative catalog of at least 120 patterns | §6.3 |
-| 41 | **NEXT** — Add sparse multi-level candidates, separate ratings, and independent agent critique | §6.4–6.6 |
+| 41 | **IN PROGRESS** — Add sparse multi-level candidates, separate ratings, and independent agent critique | §6.4–6.6 |
 | 42 | Expose target-centric and pattern-centric queries, incremental refresh, and calibration | §6.7–6.8 |
 | 43 | Expand parser-backed core languages against the proven capability contract | Phase 4B |
 

@@ -29,7 +29,7 @@ Three identities evolve independently:
 - `pattern-catalog-source-v1` is the compact source-file format, including family defaults;
 - `pattern-catalog-loader-v1` is the implementation that expands and validates source files.
 
-The bundled content has its own catalog version, currently `2026.08.1`. Change that version when
+The bundled content has its own catalog version, currently `2026.08.2`. Change that version when
 card content changes. Change a schema or loader version only when its corresponding contract changes.
 The catalog fingerprint is derived from the fully expanded, sorted cards, so formatting and source
 file ordering do not change its identity.
@@ -65,7 +65,7 @@ reuse this compact shape:
 {
   "format_version": "pattern-catalog-source-v1",
   "card_schema_version": "pattern-card-v1",
-  "catalog_version": "2026.08.1",
+  "catalog_version": "2026.08.2",
   "family": "example_family",
   "defaults": {
     "schema_version": "pattern-card-v1",

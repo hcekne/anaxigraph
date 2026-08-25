@@ -1,7 +1,7 @@
 {
   "format_version": "pattern-catalog-source-v1",
   "card_schema_version": "pattern-card-v1",
-  "catalog_version": "2026.08.1",
+  "catalog_version": "2026.08.2",
   "family": "composition_workflow",
   "defaults": {
     "schema_version": "pattern-card-v1",

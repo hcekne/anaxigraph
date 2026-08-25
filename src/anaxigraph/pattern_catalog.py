@@ -16,7 +16,7 @@ from anaxigraph.pattern_catalog_models import (
 from anaxigraph.pattern_catalog_parse import pattern_card_from_dict
 
 PATTERN_CATALOG_LOADER_VERSION = "pattern-catalog-loader-v1"
-BUNDLED_PATTERN_CATALOG_VERSION = "2026.08.1"
+BUNDLED_PATTERN_CATALOG_VERSION = "2026.08.2"
 MAX_BUNDLED_CATALOG_BYTES = 300_000
 _CATALOG_DIRECTORY = "catalog"
 _CATALOG_GLOB = "patterns-*.json"
