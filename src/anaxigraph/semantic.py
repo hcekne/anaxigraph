@@ -232,20 +232,9 @@ class OpenAISemanticProvider:
             raise SemanticAnalysisError(
                 f"OpenAI response did not complete: {response.get('status', 'unknown')}"
             )
-        output_text = ""
-        for item in response.get("output") or []:
-            if item.get("type") != "message":
-                continue
-            for content in item.get("content") or []:
-                if content.get("type") == "refusal":
-                    raise SemanticAnalysisError(
-                        f"OpenAI refused semantic analysis: {content.get('refusal', '')[:500]}"
-                    )
-                if content.get("type") == "output_text":
-                    output_text += str(content.get("text") or "")
         usage = response.get("usage") or {}
         return _result_from_json(
-            output_text,
+            _openai_output_text(response),
             request=request,
             input_tokens=int(usage.get("input_tokens") or 0),
             output_tokens=int(usage.get("output_tokens") or 0),
@@ -313,6 +302,21 @@ def _system_instruction() -> str:
         "supplied, change_summary must state how meaning changed; otherwise it must be empty. "
         "Use empty strings or arrays when evidence is insufficient."
     )
+
+
+def _openai_output_text(response: dict[str, Any]) -> str:
+    parts: list[str] = []
+    for item in response.get("output") or []:
+        if item.get("type") != "message":
+            continue
+        for content in item.get("content") or []:
+            if content.get("type") == "refusal":
+                raise SemanticAnalysisError(
+                    f"OpenAI refused semantic analysis: {content.get('refusal', '')[:500]}"
+                )
+            if content.get("type") == "output_text":
+                parts.append(str(content.get("text") or ""))
+    return "".join(parts)
 
 
 def _prompt(request: dict[str, Any]) -> str:

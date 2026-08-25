@@ -5,6 +5,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
+
 from anaxigraph.config import SemanticConfig
 from anaxigraph.semantic import (
     AnthropicSemanticProvider,
@@ -12,6 +14,7 @@ from anaxigraph.semantic import (
     CodexSemanticProvider,
     OpenAISemanticProvider,
 )
+from anaxigraph.semantic_contract import SemanticAnalysisError
 
 
 def _dossier() -> dict[str, Any]:
@@ -104,6 +107,33 @@ def test_openai_provider_uses_strict_responses_schema(monkeypatch):
     assert result.value["pattern_opportunities"][0]["score"] == 91
     assert result.input_tokens == 120
     assert result.output_tokens == 80
+
+
+def test_openai_provider_reports_a_structured_refusal(monkeypatch):
+    monkeypatch.setenv("TEST_OPENAI_KEY", "secret")
+    monkeypatch.setattr(
+        "anaxigraph.semantic._post_json",
+        lambda *_args, **_kwargs: {
+            "status": "completed",
+            "output": [
+                {
+                    "type": "message",
+                    "content": [{"type": "refusal", "refusal": "Request rejected"}],
+                }
+            ],
+        },
+    )
+    provider = OpenAISemanticProvider(
+        SemanticConfig(
+            enabled=True,
+            provider="openai",
+            model="gpt-test",
+            api_key_env="TEST_OPENAI_KEY",
+        )
+    )
+
+    with pytest.raises(SemanticAnalysisError, match="Request rejected"):
+        provider.analyze({"analysis_kind": "intrinsic", "source": "untrusted source"})
 
 
 def test_anthropic_provider_uses_structured_output_config(monkeypatch):
