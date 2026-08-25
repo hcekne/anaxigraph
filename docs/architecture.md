@@ -54,6 +54,11 @@ queryable fields, but never substitute for that explanation or move into a jargo
 The same rule covers overall evidence readiness, preferred placement, change constraints, and
 before/after verification. Even the smallest bounded scope keeps the direct scope and placement
 conclusions while compacting optional evidence and duplicate paths.
+Raw semantic advisory fields remain in agent file summaries for compatibility, but a companion
+explanation calls them early AI notes rather than instructions. It directs action to the
+architecture packet, where the map checks those notes against repository evidence and explains its
+recommendation. The dashboard Workbench renders that packet directly; it does not add a human
+approval stage.
 
 The CLI has the same boundary discipline. `cli.py` is a stable facade, `cli_parser.py` assembles
 command families, and focused modules own repository, semantic, agent-context, and server

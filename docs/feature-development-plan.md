@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.16
+**Roadmap version:** 3.17
 
 **Updated:** 25 August 2026
 
@@ -1762,6 +1762,15 @@ trimmed while the direct scope and placement conclusions survive. These are read
 over the existing facts and comparison contract, with no semantic work, persistence, endpoint, or
 freshness input.
 
+Agent file summaries retain raw semantic pattern, consolidation, and possible-unused-code fields
+for compatibility, but `semantic-file-explanation-v1` now labels their freshness and evidence
+strength and says explicitly that they are early AI notes rather than instructions to refactor or
+delete code. Agents are directed to `architecture_decision`, where the map checks those notes
+against repository evidence and explains its recommendation. The dashboard Workbench renders that
+same decision as readiness, starting point, constraints, and verification instead of discarding
+it, and no longer describes the autonomous map as “human-approved.” This is another bounded read
+projection and does not change semantic signatures or queue state.
+
 Deterministic dead-code candidates now require trusted relationship resolution, no resolved or
 ambiguous inbound path, configured and conventional entry-point exclusion, parser-backed support
 for both entry-point and registration evidence, no detected dynamic-wiring fact, and the configured
@@ -1793,7 +1802,7 @@ and an observed difference is not called an improvement without the intended out
 | Removal safety | Python fixtures prove trusted module candidates, detected registration suppression, heuristic-language suppression, configured entry-point suppression, uncorroborated semantic suppression, and module/symbol granularity separation; `safe_to_remove` remains false |
 | Responsive authority | A blocking synchronous MCP tool no longer blocks the event loop; discovery tests prove connection-refused fallback, transient retry, and timeout refusal, while real SDK MCP and sidecar-preparation tests retain the work protocol |
 | Focused orchestration | Scope response assembly now lives behind a bounded payload service, reducing `agent_scope` from its 128-line/complexity-24 ratchet to 97/8; finding handoff and reverse-impact assembly moved out of their former 96/22 and 77/18 functions. `agent.py` is 233 lines, the focused finding and impact services are 164 and 143, and all three obsolete self-analysis findings are removed |
-| Verification | The complete suite passes 513 tests at 90.88% coverage; all 15 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis at 31 governed findings, 132 non-blocking findings, and zero issues |
+| Verification | The complete suite passes 514 tests at 90.97% coverage; all 16 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis at 31 governed findings, 132 non-blocking findings, and zero issues |
 
 ## 6.8 Expose pattern intelligence without multiplying product surfaces
 

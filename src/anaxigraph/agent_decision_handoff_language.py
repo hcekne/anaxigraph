@@ -7,6 +7,7 @@ from typing import Any
 
 ARCHITECTURE_HANDOFF_LANGUAGE_VERSION = "architecture-handoff-explanation-v1"
 VERIFICATION_LANGUAGE_VERSION = "architecture-verification-explanation-v1"
+SEMANTIC_FILE_LANGUAGE_VERSION = "semantic-file-explanation-v1"
 
 
 def decision_explanation(
@@ -148,6 +149,34 @@ def compact_explanation(value: Any, *fields: str) -> dict[str, Any]:
     }
 
 
+def semantic_file_explanation(path: str, semantic: Mapping[str, Any]) -> dict[str, Any]:
+    status = str(semantic.get("status") or "not_available")
+    role = str(semantic.get("architecture_role") or "").strip()
+    placement = str(semantic.get("placement_guidance") or "").strip()
+    confidence = _confidence(semantic.get("confidence"))
+    return {
+        "version": SEMANTIC_FILE_LANGUAGE_VERSION,
+        "conclusion": _semantic_file_conclusion(path, status),
+        "what_this_file_does": role or "No current architecture role was recorded for this file.",
+        "where_related_work_belongs": (
+            placement or "No current semantic placement guidance was recorded for this file."
+        ),
+        "evidence_strength": {
+            "value": confidence,
+            "meaning": (
+                f"Support for this AI interpretation is {_confidence_strength(confidence)}. This "
+                "measures its evidence, not the quality of the code."
+            ),
+        },
+        "how_to_use_the_raw_fields": (
+            "The pattern, combine-or-separate, and possibly-unused values beside this explanation "
+            "are early AI notes, not instructions to change code. Before changing or deleting "
+            "code, use architecture_decision: it checks those notes against repository evidence "
+            "and explains the recommended action."
+        ),
+    }
+
+
 def _decision_conclusion(status: str, selected_modules: int) -> str:
     return {
         "semantic_and_reviewed": (
@@ -167,6 +196,29 @@ def _decision_conclusion(status: str, selected_modules: int) -> str:
             "understanding was not available."
         ),
     }.get(status, f"AnaxiGraph selected {selected_modules} module(s) for this coding goal.")
+
+
+def _semantic_file_conclusion(path: str, status: str) -> str:
+    if status in {"current", "intrinsic_current"}:
+        return f"AnaxiGraph has a current AI interpretation of {path}."
+    if status in {"pending", "stale", "intrinsic_pending", "context_pending"}:
+        return f"The AI interpretation of {path} is incomplete or waiting for refresh."
+    return f"No current AI interpretation is available for {path}."
+
+
+def _confidence(value: Any) -> float:
+    try:
+        return max(0.0, min(1.0, float(value or 0)))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _confidence_strength(value: float) -> str:
+    if value >= 0.7:
+        return "strong"
+    if value >= 0.4:
+        return "mixed"
+    return "weak"
 
 
 def _decision_evidence(

@@ -63,6 +63,10 @@ The packet preserves the product's fact/interpretation/recommendation boundary:
    same plain-language contract. A same-snapshot comparison says that no post-change observation
    was possible, not that the architecture stayed unchanged. Tight payloads retain the direct scope
    and placement conclusions before duplicate context paths.
+10. Early AI notes retained in agent file summaries are explicitly labeled as notes rather than
+    instructions. The architecture packet checks them against repository evidence before explaining
+    pattern, consolidation, or removal advice, and the dashboard renders it without adding a human
+    approval gate.
 
 ## Bounds and freshness
 

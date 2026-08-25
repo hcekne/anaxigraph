@@ -10,7 +10,10 @@ from pathlib import Path
 from typing import Any
 
 from anaxigraph import git
-from anaxigraph.agent_decision_handoff_language import compact_explanation
+from anaxigraph.agent_decision_handoff_language import (
+    compact_explanation,
+    semantic_file_explanation,
+)
 from anaxigraph.config import AnaxiGraphConfig, path_matches
 
 
@@ -317,7 +320,7 @@ def _file_summary(item: dict[str, Any]) -> dict[str, Any]:
     }
     semantic = item.get("semantic") or {}
     if semantic:
-        result["semantic"] = {
+        semantic_summary = {
             key: semantic.get(key)
             for key in (
                 "status",
@@ -334,6 +337,10 @@ def _file_summary(item: dict[str, Any]) -> dict[str, Any]:
             )
             if semantic.get(key) not in (None, "")
         }
+        semantic_summary["plain_language"] = semantic_file_explanation(
+            str(item.get("path") or "this file"), semantic_summary
+        )
+        result["semantic"] = semantic_summary
     return result
 
 

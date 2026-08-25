@@ -59,10 +59,36 @@ export function renderAgentResult(value, kind) {
     const rules = (value.architecture_rules || []).map(
       (item) => `${item.rule_id}: ${item.description || humanize(item.rule_type)}`,
     );
-    result.innerHTML = `<div class="panel-heading"><div><p class="eyebrow">Recommended coding context</p><h2>${escapeHtml(value.goal)}</h2><p class="panel-copy">Primary files are the strongest matches. Related files are connected context, not a suggestion to edit all of them.</p></div><span class="risk ${escapeHtml(risk)}">${escapeHtml(risk)} risk</span></div>${(value.risk_reasons || []).map((item) => `<p class="muted">${escapeHtml(item)}</p>`).join("")}<div class="result-columns">${resultList("Likely implementation files", value.primary_files?.map((item) => item.path))}${resultList("Connected context", value.related_files?.map((item) => item.path))}${resultList("Relevant tests", value.tests)}${resultList("Existing findings", findings)}${resultList("Applicable rules", rules)}${resultList("Branch collisions", value.active_branch_conflicts?.map((item) => `${item.branch}: ${item.path}`))}</div>`;
+    result.innerHTML = `<div class="panel-heading"><div><p class="eyebrow">Recommended coding context</p><h2>${escapeHtml(value.goal)}</h2><p class="panel-copy">Primary files are the strongest matches. Related files are connected context, not a suggestion to edit all of them.</p></div><span class="risk ${escapeHtml(risk)}">${escapeHtml(risk)} risk</span></div>${(value.risk_reasons || []).map((item) => `<p class="muted">${escapeHtml(item)}</p>`).join("")}${architectureDecisionMarkup(value.architecture_decision)}<div class="result-columns">${resultList("Likely implementation files", value.primary_files?.map((item) => item.path))}${resultList("Connected context", value.related_files?.map((item) => item.path))}${resultList("Relevant tests", value.tests)}${resultList("Existing findings", findings)}${resultList("Applicable rules", rules)}${resultList("Branch collisions", value.active_branch_conflicts?.map((item) => `${item.branch}: ${item.path}`))}</div>`;
     return;
   }
   result.innerHTML = `<div class="panel-heading"><div><p class="eyebrow">Change impact</p><h2>${escapeHtml(value.target.path)}</h2><p class="panel-copy">Dependants use this target and may need verification if behavior or interfaces change.</p></div><span class="risk ${escapeHtml(risk)}">${escapeHtml(risk)} risk</span></div><div class="result-columns">${resultList("Direct dependants", value.direct_dependants?.map((item) => item.path))}${resultList("Indirect dependants", value.second_order_dependants?.map((item) => item.path))}${resultList("This file uses", value.outgoing_dependencies?.map((item) => item.path))}${resultList("Relevant tests", value.tests_relevant)}${resultList("Protected paths", value.critical_paths_affected)}${resultList("Possible migrations", value.database_migrations_possibly_affected)}</div>`;
+}
+
+function architectureDecisionMarkup(decision = {}) {
+  const language = decision.plain_language || {};
+  if (!language.conclusion) return "";
+  const placement = decision.placement?.plain_language || {};
+  const constraints = decision.change_constraints?.plain_language || {};
+  const verification = decision.verification?.plain_language || {};
+  return `<section class="agent-decision-copy"><h3>Architecture recommendation</h3>
+    ${decisionText("What this recommendation uses", language.conclusion)}
+    ${decisionText("Where to start", placement.conclusion)}
+    ${decisionText("What to preserve", constraints.conclusion)}
+    ${decisionText("How to verify it", verification.conclusion)}
+    ${decisionList("Next steps", verification.what_to_do || [])}</section>`;
+}
+
+function decisionText(title, value) {
+  return value
+    ? `<div><strong>${escapeHtml(title)}</strong><p>${escapeHtml(value)}</p></div>`
+    : "";
+}
+
+function decisionList(title, values) {
+  return values.length
+    ? `<div><strong>${escapeHtml(title)}</strong><ul>${values.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul></div>`
+    : "";
 }
 
 function activateAgentOverlay() {

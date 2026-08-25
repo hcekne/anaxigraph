@@ -62,6 +62,9 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
     )
     assert scope["primary_files"][0]["semantic"]["status"] == "current"
     assert scope["primary_files"][0]["semantic"]["pattern_opportunities"][0]["score"] == 84
+    file_language = scope["primary_files"][0]["semantic"]["plain_language"]
+    assert file_language["version"] == "semantic-file-explanation-v1"
+    assert "early AI notes, not instructions" in file_language["how_to_use_the_raw_fields"]
 
     first_call_count = len(_calls(log))
     unchanged = SemanticEngine(database).bootstrap(stats.repository_id, repository, config)
