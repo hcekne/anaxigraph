@@ -158,6 +158,24 @@ function changeCouplingMarkup(coupling = {}) {
       || "This is a clue, not a source-code link or an instruction to merge files.")}</div>`;
 }
 
+function findingHistoryMarkup(history = {}) {
+  const language = history.plain_language || {};
+  if (!language.conclusion) return "";
+  const changes = (history.transitions || []).map((item) => {
+    const labels = {
+      already_present: "Already present by",
+      introduced: "Appeared by",
+      resolved: "Gone by",
+      regressed: "Returned by",
+    };
+    return `${labels[item.kind] || humanize(item.kind)} ${item.frame?.label || "an indexed frame"}`;
+  });
+  return `<section class="agent-decision-copy"><h3>History of this problem</h3>
+    ${decisionText("What the retained maps show", language.conclusion)}
+    ${decisionList("Recorded changes", changes)}
+    ${decisionText("Important limit", language.limits)}</section>`;
+}
+
 function taskPathMarkup(path = {}) {
   const module = path.module || {};
   if (!module.path) return "";
@@ -227,7 +245,7 @@ function activateAgentOverlay() {
   drawGraph();
 }
 
-function renderFindingHandoff(value) {
+export function renderFindingHandoff(value) {
   const result = byId("agent-result");
   const finding = value.finding;
   const scope = value.scope || {};
@@ -237,7 +255,7 @@ function renderFindingHandoff(value) {
   state.conflictPaths = new Set((scope.active_branch_conflicts || []).map((item) => item.path));
   activateAgentOverlay();
   const explanation = findingCards([finding], { glossary: state.glossary, actions: false });
-  result.innerHTML = `<div class="panel-heading"><div><p class="eyebrow">Finding #${finding.id} · coding-agent handoff</p><h2>Give the coding agent the same explanation you can read here</h2><p class="panel-copy">${escapeHtml(value.workflow_note)}</p></div><span class="risk ${escapeHtml(value.risk)}">${escapeHtml(riskLabel(value.risk))}</span></div>${explanation}<div class="result-columns">${resultList("Files worth reading", value.recommended_context)}${resultList("Relevant tests", value.relevant_tests)}${resultList("Files project rules mark for extra care", value.protected_paths)}${resultList("How to check the result", value.verification)}</div><h3>Copy this into Codex</h3><textarea id="agent-prompt" class="agent-prompt" readonly>${escapeHtml(state.lastAgentPrompt)}</textarea><div class="handoff-actions"><button id="copy-agent-prompt" class="button" type="button">Copy agent prompt</button><span class="muted">ANAXIGRAPH_FINDING_CONTEXT provides the same information as named JSON fields for coding tools.</span></div>`;
+  result.innerHTML = `<div class="panel-heading"><div><p class="eyebrow">Finding #${finding.id} · coding-agent handoff</p><h2>Give the coding agent the same explanation you can read here</h2><p class="panel-copy">${escapeHtml(value.workflow_note)}</p></div><span class="risk ${escapeHtml(value.risk)}">${escapeHtml(riskLabel(value.risk))}</span></div>${explanation}${findingHistoryMarkup(value.finding_history)}<div class="result-columns">${resultList("Files worth reading", value.recommended_context)}${resultList("Relevant tests", value.relevant_tests)}${resultList("Files project rules mark for extra care", value.protected_paths)}${resultList("How to check the result", value.verification)}</div><h3>Copy this into Codex</h3><textarea id="agent-prompt" class="agent-prompt" readonly>${escapeHtml(state.lastAgentPrompt)}</textarea><div class="handoff-actions"><button id="copy-agent-prompt" class="button" type="button">Copy agent prompt</button><span class="muted">ANAXIGRAPH_FINDING_CONTEXT provides the same information as named JSON fields for coding tools.</span></div>`;
 }
 
 function resultList(title, values = []) {

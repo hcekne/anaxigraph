@@ -7,6 +7,7 @@ from collections import Counter
 from typing import Any
 
 from anaxigraph.persistence.temporal_facts import rebase_snapshot_facts
+from anaxigraph.scan_commit import refresh_historical_snapshot_intelligence
 
 
 def rebase_existing_snapshot(
@@ -38,6 +39,12 @@ def materialize_revision(context: Any, state: Any, commit_sha: str) -> bool:
             context.database,
             snapshot_id=int(existing["id"]),
             base_snapshot_id=state.baseline_snapshot_id,
+        )
+        refresh_historical_snapshot_intelligence(
+            context.database,
+            repository_id=context.plan.repository_id,
+            snapshot_id=int(existing["id"]),
+            config=context.plan.config,
         )
         state.baseline_snapshot_id = int(existing["id"])
         return True

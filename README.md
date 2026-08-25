@@ -241,7 +241,10 @@ it is, and how to check the result. The dashboard, REST API, MCP tools, scope re
 agent prompt use the same wording. Exact rule IDs, evidence values, and ordering scores remain
 structured fields for automation, but each field has an adjacent ordinary-language meaning; they
 are never dumped into a jargon-filled “technical details” section. **Plan agent work** selects
-a finding for implementation; resolution and regression normally come from a later scan.
+a finding for implementation; its handoff also says which retained code map first shows the
+problem, where it disappears, and whether it later returns. Resolution and regression normally
+come from a later scan. Retained maps are samples, so the named frame bounds the change rather than
+claiming that every Git commit was analyzed.
 
 ## Current support boundary
 

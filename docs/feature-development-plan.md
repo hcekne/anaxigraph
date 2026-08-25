@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.26
+**Roadmap version:** 3.27
 
 **Updated:** 25 August 2026
 
@@ -111,7 +111,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 552 tests passing plus 16 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
+| Test health | 554 tests passing plus 17 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -2245,7 +2245,7 @@ Compose, hardened-container, and first-user gates report zero regressions.
 
 # Phase 8 — focused history evidence for architecture risk
 
-**Status:** ACTIVE on 25 August 2026
+**Status:** COMPLETE on 25 August 2026
 
 **Goal:** answer only two history questions that the current task loop cannot answer from a static
 map: which nearby files repeatedly change with the selected code, and when a selected structural
@@ -2296,6 +2296,29 @@ structural finding, identify the earliest retained frame that exhibits it and th
 resolves it when one exists. Agents and people should be able to ask “is this new, persistent,
 improving, or regressed?” through existing history, finding, graph, and scope paths.
 
+**Status:** COMPLETE on 25 August 2026
+
+`finding-history-v1` follows only the current snapshot's stored `base_snapshot_id` lineage and
+compares one selected stable finding across those retained frames. Historical architecture scans
+now save their deterministic occurrences without changing the live attention queue. Reused frames
+are refreshed from the already stored immutable facts and relationships; they do not reread source,
+create semantic work, change the analysis signature, or invalidate current dossiers. A snapshot
+metadata marker distinguishes “not observed” from an older frame that predates this evidence.
+
+The existing `ANAXIGRAPH_FINDING_CONTEXT` / REST finding-context response and Agents handoff now
+classify the selected condition as new, persistent, resolved, regressed, not observed, or unknown.
+They name the first retained appearance, latest disappearance, and later return, return at most 12
+transition records, and state plainly that retained frames may sample Git history. No schema table,
+route, MCP tool, semantic job, model call, replay engine, or primary dashboard view was added.
+
+A real four-commit fixture introduces a Python dependency cycle, removes it, and brings it back.
+It proves exact introduction, resolution, and regression commit identities, live-ledger safety,
+and reuse of previously indexed frames. The complete gate passes with 554 Python tests at 91.60%
+coverage and all 17 browser contracts. Container hardening, first-user startup, the bounded history
+benchmark, JavaScript, architecture, size, complexity, coupling, and Compose checks pass;
+self-analysis reports 26 governed findings, 136 non-blocking findings, and zero regressions. The
+change also lowers the `evaluate_architecture` and finding-lifecycle maintainability ratchets.
+
 ## Phase 8 exit gate
 
 - A fixture identifies two repeatedly co-changing modules with no static edge and labels that
@@ -2310,7 +2333,7 @@ improving, or regressed?” through existing history, finding, graph, and scope 
 
 # Phase 9 — 1.0 reliability and honest support
 
-**Status:** BLOCKED BY PHASE 8
+**Status:** ACTIVE on 25 August 2026
 
 **Goal:** make the proven core change loop safe to install, upgrade, recover, and trust without
 expanding the product to look broader than it is.
@@ -2496,7 +2519,7 @@ queue and the document cannot drift apart.
 | 45 | **COMPLETE** — Turn mixed-responsibility large-file warnings into bounded, evidence-backed decomposition maps, while explicitly keeping cohesive files together | §7.3 |
 | 46 | **COMPLETE** — Make existing hierarchy navigation task-centered from area through symbol without another graph or dashboard surface | §7.4–7.5 |
 | 47 | **COMPLETE** — Add bounded co-change evidence around task-selected files without creating graph edges or a second history store | §8.1 |
-| 48 | Identify the retained change that introduced or resolved a selected cycle, boundary crossing, or structural finding | §8.2 |
+| 48 | **COMPLETE** — Identify the retained change that introduced, resolved, or reintroduced a selected structural finding | §8.2 |
 | 49 | Freeze, validate, document, and release the honestly supported core loop | Phase 9 |
 
 This order now follows the product loop directly. Optional parser, adapter, plugin, media, playback,

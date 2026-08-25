@@ -108,6 +108,7 @@
         "anaxigraph.history_frames",
         "anaxigraph.history_jobs",
         "anaxigraph.environment_doctor",
+        "anaxigraph.finding_history",
         "anaxigraph.onboarding",
         "anaxigraph.onboarding_clients",
         "anaxigraph.onboarding_detection",

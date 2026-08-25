@@ -78,7 +78,7 @@ def snapshot_counts(connection: sqlite3.Connection, snapshot_id: int) -> dict[st
     relationships = len(snapshot_relationship_edges(connection, snapshot_id))
     findings = int(
         connection.execute(
-            "SELECT COUNT(*) FROM findings WHERE last_snapshot_id = ?", (snapshot_id,)
+            "SELECT COUNT(*) FROM finding_occurrences WHERE snapshot_id = ?", (snapshot_id,)
         ).fetchone()[0]
     )
     return {"relationships": relationships, "findings": findings}

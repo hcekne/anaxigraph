@@ -75,7 +75,11 @@ AnaxiGraph-hosted model cost.
 
 Findings use a rule-derived stable key. A recurring resolved finding becomes `regressed`; a finding
 not observed in the next complete architecture evaluation becomes `resolved`. Dismissed findings
-remain dismissed unless a human changes their state.
+remain dismissed unless a human changes their state. Deterministic history imports record an
+occurrence for each retained frame without changing the live attention queue. The selected finding
+handoff follows the current snapshot lineage and reports the first retained appearance,
+disappearance, and later return. A version marker in snapshot metadata distinguishes a true absence
+from an older frame created before per-frame finding observations were recorded.
 
 ## Schema evolution and compatibility
 

@@ -191,7 +191,9 @@ and supports filters and pagination.
 
 Every finding directly explains what AnaxiGraph saw, why it may matter, what to do, when the code
 may be fine as it is, and how to check the result. The exact detector and ranking fields remain
-available to tools, but they are not a substitute for that explanation.
+available to tools, but they are not a substitute for that explanation. The coding handoff also
+uses retained code maps to say when the condition first appears, disappears, or returns. It says
+when older frames lack that evidence and never pretends that sampled frames cover every commit.
 
 ## Understand pattern evaluations
 

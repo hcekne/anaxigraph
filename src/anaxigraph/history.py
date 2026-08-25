@@ -47,6 +47,7 @@ class _HistoryPlan:
     repository_id: int
     signature: str
     summaries: dict[str, git.RevisionSummary]
+    config: Any
 
 
 @dataclass(frozen=True, slots=True)
@@ -149,7 +150,14 @@ def _history_plan(
     )
     selected = _selected_revisions(root, complete, config, max_snapshots, every_commit)
     summaries = {item.commit_sha: item for item in git.revision_summaries(root)}
-    return _HistoryPlan(complete, selected, repository_id, analysis_signature(config), summaries)
+    return _HistoryPlan(
+        complete,
+        selected,
+        repository_id,
+        analysis_signature(config),
+        summaries,
+        config,
+    )
 
 
 def _import_revisions(context: _ImportContext) -> _FrameState:

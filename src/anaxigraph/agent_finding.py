@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from anaxigraph.finding_history import finding_history
 from anaxigraph.finding_language import finding_caveats, plain_language_contract
 
 AgentOperation = Callable[..., dict[str, Any]]
@@ -27,6 +28,7 @@ def build_finding_context(
     config: Any,
     scope_builder: AgentOperation,
     impact_builder: AgentOperation,
+    history_builder: AgentOperation = finding_history,
 ) -> dict[str, Any]:
     """Turn one finding into a size-limited, source-editing handoff."""
 
@@ -48,8 +50,9 @@ def build_finding_context(
         config,
         impact_builder,
     )
+    history = history_builder(database, repository_id, finding_id)
     context = _handoff_context(affected, scope, impact)
-    return _response(repository, finding, finding_id, goal, scope, impact, context)
+    return _response(repository, finding, finding_id, goal, scope, impact, history, context)
 
 
 def _finding(
@@ -129,6 +132,7 @@ def _response(
     goal: str,
     scope: dict[str, Any],
     impact: dict[str, Any] | None,
+    history: dict[str, Any],
     context: _HandoffContext,
 ) -> dict[str, Any]:
     status = str(finding["status"])
@@ -145,12 +149,13 @@ def _response(
         "protected_paths": context.protected,
         "scope": scope,
         "primary_impact": impact,
+        "finding_history": history,
         "verification": [
             "Run focused tests for the affected behavior and the project rule about which files may use one another.",
             str(finding["plain_language"]["how_to_check"]),
             "Check whether the next scan reports a new finding that the project marks as an error.",
         ],
-        "agent_prompt": _agent_prompt(repository, finding, finding_id),
+        "agent_prompt": _agent_prompt(repository, finding, finding_id, history),
     }
 
 
@@ -160,12 +165,18 @@ def _workflow_note(status: str) -> str:
     return "Plan this finding before treating it as approved engineering work."
 
 
-def _agent_prompt(repository: dict[str, Any], finding: dict[str, Any], finding_id: int) -> str:
+def _agent_prompt(
+    repository: dict[str, Any],
+    finding: dict[str, Any],
+    finding_id: int,
+    history: dict[str, Any],
+) -> str:
     affected = [str(path) for path in finding.get("affected_artifacts") or []]
     affected_text = ", ".join(affected) if affected else "No file was attached by the detector."
     language = finding["plain_language"]
     facts = [f"- {value}" for value in language.get("facts") or ()]
     caveats = [f"- {value}" for value in language.get("when_no_change_may_be_needed") or ()]
+    history_language = history.get("plain_language") or {}
     return "\n".join(
         [
             f"Work on AnaxiGraph finding #{finding_id} in {repository['name']}.",
@@ -177,6 +188,8 @@ def _agent_prompt(repository: dict[str, Any], finding: dict[str, Any], finding_i
             "When no code change may be needed:",
             *(caveats or ["- No specific exception was supplied."]),
             f"How to check the result: {language['how_to_check']}",
+            f"History: {history_language.get('conclusion', 'No retained history is available.')}",
+            f"History limit: {history_language.get('limits', 'Only saved code maps can be compared.')}",
             f"Affected files: {affected_text}",
             "",
             "Before editing, use the AnaxiMCP tools:",

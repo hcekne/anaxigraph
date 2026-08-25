@@ -122,6 +122,13 @@ def refresh_existing_snapshot(
         _refresh_current_intelligence(
             database, repository_id, snapshot_id, root, git_metadata, config
         )
+    else:
+        refresh_historical_snapshot_intelligence(
+            database,
+            repository_id=repository_id,
+            snapshot_id=snapshot_id,
+            config=config,
+        )
     with database.connect() as connection:
         return snapshot_counts(connection, snapshot_id)
 
@@ -236,4 +243,27 @@ def _refresh_current_intelligence(
                 branch = ?, analysis_timestamp = ? WHERE id = ?
             """,
             (int(git_metadata.dirty), git_metadata.branch, utc_now(), snapshot_id),
+        )
+
+
+def refresh_historical_snapshot_intelligence(
+    database: Any,
+    *,
+    repository_id: int,
+    snapshot_id: int,
+    config: Any,
+) -> None:
+    """Refresh derived findings for a retained frame without changing current state."""
+
+    with database.transaction() as connection:
+        connection.execute("DELETE FROM metrics WHERE snapshot_id = ?", (snapshot_id,))
+        connection.execute("DELETE FROM finding_occurrences WHERE snapshot_id = ?", (snapshot_id,))
+        refresh_snapshot_intelligence(
+            connection,
+            repository_id=repository_id,
+            snapshot_id=snapshot_id,
+            manage_finding_lifecycle=False,
+            root=None,
+            config=config,
+            artifacts=snapshot_artifacts(connection, snapshot_id),
         )

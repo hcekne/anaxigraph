@@ -48,6 +48,18 @@ def _impact(*args, **kwargs):
     }
 
 
+def _history(*args, **kwargs):
+    return {
+        "contract_version": "finding-history-v1",
+        "status": "available",
+        "state": "persistent",
+        "plain_language": {
+            "conclusion": "This problem was already visible in the first retained frame.",
+            "limits": "This compares retained code maps, not every Git commit.",
+        },
+    }
+
+
 def test_finding_context_combines_scope_and_impact_without_duplicate_paths():
     result = build_finding_context(
         _Database(affected=["src/service.py"]),
@@ -57,6 +69,7 @@ def test_finding_context_combines_scope_and_impact_without_duplicate_paths():
         config=object(),
         scope_builder=_scope,
         impact_builder=_impact,
+        history_builder=_history,
     )
 
     assert result["ready_for_agent"] is True
@@ -71,6 +84,8 @@ def test_finding_context_combines_scope_and_impact_without_duplicate_paths():
     assert "Why it matters: The boundary has too many responsibilities." in result["agent_prompt"]
     assert "When no code change may be needed:" in result["agent_prompt"]
     assert "How to check the result:" in result["agent_prompt"]
+    assert "History: This problem was already visible" in result["agent_prompt"]
+    assert result["finding_history"]["state"] == "persistent"
     assert "ANAXIGRAPH_FINDING_CONTEXT" in result["agent_prompt"]
 
 
@@ -83,6 +98,7 @@ def test_finding_context_handles_an_unplanned_finding_without_an_attached_file()
         config=object(),
         scope_builder=_scope,
         impact_builder=lambda *args, **kwargs: pytest.fail("impact should not run"),
+        history_builder=_history,
     )
 
     assert result["ready_for_agent"] is False
@@ -109,4 +125,5 @@ def test_finding_context_reports_missing_inputs(database, message):
             config=object(),
             scope_builder=_scope,
             impact_builder=_impact,
+            history_builder=_history,
         )

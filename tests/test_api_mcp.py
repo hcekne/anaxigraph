@@ -145,6 +145,8 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert context["ready_for_agent"] is True
         assert "ANAXIGRAPH_FINDING_CONTEXT" in context["agent_prompt"]
         assert context["verification"]
+        assert context["finding_history"]["contract_version"] == "finding-history-v1"
+        assert context["finding_history"]["status"] == "current_frame_only"
 
 
 @pytest.mark.anyio
@@ -352,6 +354,10 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     )
                     assert finding_context.isError is False
                     assert finding_context.structuredContent["ready_for_agent"] is True
+                    assert (
+                        finding_context.structuredContent["finding_history"]["contract_version"]
+                        == "finding-history-v1"
+                    )
                     findings = await session.call_tool(
                         "ANAXIGRAPH_FINDINGS",
                         arguments={

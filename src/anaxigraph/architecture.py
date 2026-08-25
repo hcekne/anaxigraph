@@ -11,8 +11,7 @@ from anaxigraph.architecture_graph import _strongly_connected
 from anaxigraph.architecture_models import DEFAULT_RULES, Finding
 from anaxigraph.architecture_persistence import (
     _persist_rules,
-    _record_metrics,
-    _update_finding_lifecycle,
+    _record_evaluation,
 )
 from anaxigraph.architecture_rules import _evaluate_rule
 from anaxigraph.config import AnaxiGraphConfig, path_matches
@@ -74,8 +73,9 @@ def evaluate_architecture(
             )
         )
 
-    _record_metrics(
+    _record_evaluation(
         connection,
+        repository_id=repository_id,
         snapshot_id=snapshot_id,
         files=files,
         relationships=relationships,
@@ -84,12 +84,6 @@ def evaluate_architecture(
         fan_out=fan_out,
         cycles=cycles,
         findings=findings,
+        manage_lifecycle=manage_finding_lifecycle,
     )
-    if manage_finding_lifecycle:
-        _update_finding_lifecycle(
-            connection,
-            repository_id=repository_id,
-            snapshot_id=snapshot_id,
-            findings=findings,
-        )
     return findings

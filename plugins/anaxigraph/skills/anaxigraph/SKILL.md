@@ -36,7 +36,9 @@ model-derived interpretations visibly separate.
   collaborators, overlaps, extension points, pattern evidence, and counter-evidence.
 - For architecture attention, call `ANAXIGRAPH_FINDINGS` with the bounded `attention` view. Use
   `ANAXIGRAPH_FINDING_CONTEXT` only for the chosen finding. A `planned` finding records that it was
-  selected for work; other active findings are observations, not an implementation request.
+  selected for work; other active findings are observations, not an implementation request. Read
+  its `finding_history` to distinguish a new, persistent, resolved, or returned condition, while
+  preserving the stated limit that retained maps may sample rather than cover every commit.
 - For history questions, use `ANAXIGRAPH_HISTORY_STATUS` and the dashboard timeline. Start or cancel
   an import only when the user requests that index operation.
 - Before an implementation, preserve

@@ -75,7 +75,9 @@ def _register_context_tool(
         description=(
             "Prepare one finding for a coding agent by listing affected files, what a change may "
             "reach, relevant tests, files project rules mark for extra care, risks, and steps for "
-            "checking the result. Planned status means the finding was selected for work."
+            "checking the result. It also says when retained code maps first show the problem, "
+            "when it disappears, and whether it later returns. Planned status means the finding "
+            "was selected for work."
         ),
     )
     def finding_work(

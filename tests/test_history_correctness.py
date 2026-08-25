@@ -167,7 +167,8 @@ def test_frames_preserve_add_modify_delete_rename_copy_and_type_change(tmp_path,
     assert fourth["files"]["src/typed.py"]["raw_hash"] != first["files"]["src/typed.py"]["raw_hash"]
     assert ("src/app.py", "application", "declared") in fourth["memberships"]
     assert fourth["metrics"]
-    assert fourth["findings"] == []
+    assert len(fourth["findings"]) == 1
+    assert fourth["findings"][0].startswith("small-files:")
 
 
 def test_selected_frames_include_all_changes_between_sampled_commits(tmp_path, database):
