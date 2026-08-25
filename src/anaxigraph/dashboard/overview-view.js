@@ -73,10 +73,43 @@ function renderGraphQualityNotice(graphQuality) {
   const partial = graphQuality.status === "partial" || fallback > 0 || parseErrors > 0;
   notice.hidden = !partial;
   if (!partial) return;
-  const resolution = graphQuality.resolution_rate == null
-    ? "No internal references were available to score."
-    : `${(graphQuality.resolution_rate * 100).toFixed(1)}% of likely internal references resolved to one indexed module.`;
-  notice.innerHTML = `<strong>Graph evidence is partial, and advice is confidence-gated.</strong><p>${escapeHtml(resolution)} ${format.format(ambiguous)} ambiguous and ${format.format(unresolved)} unresolved internal reference(s) are retained rather than silently discarded. ${format.format(fallback)} file(s) use fallback analysis${parseErrors ? `; ${format.format(parseErrors)} file(s) have parse errors` : ""}. Dead-code suggestions are suppressed when relationship resolution is too weak.</p><p class="coverage-next">${escapeHtml(graphQuality.extraction_caveat || graphQuality.caveat || "Dynamic runtime wiring may not appear in a static graph.")}</p>`;
+  const language = graphQuality.plain_language || graphQualityFallback(
+    graphQuality, ambiguous, unresolved, fallback, parseErrors,
+  );
+  const limits = (language.what_this_limits || []).map(
+    (item) => `<li>${escapeHtml(item)}</li>`,
+  ).join("");
+  const actions = (language.what_to_do || []).map(
+    (item) => `<li>${escapeHtml(item)}</li>`,
+  ).join("");
+  notice.innerHTML = `<strong>${escapeHtml(language.conclusion)}</strong>
+    <p>${escapeHtml(language.what_was_checked)}</p>
+    ${limits ? `<h3>What this limits</h3><ul>${limits}</ul>` : ""}
+    ${actions ? `<div class="coverage-next"><strong>What to do</strong><ul>${actions}</ul></div>` : ""}`;
+}
+
+function graphQualityFallback(graphQuality, ambiguous, unresolved, fallback, parseErrors) {
+  const internal = Number(graphQuality.internal_references || 0);
+  const resolved = Number(graphQuality.resolved_internal || 0);
+  const missing = ambiguous + unresolved;
+  const reasons = [
+    missing ? `${countLabel(missing, "likely internal link did", "likely internal links did")} not point to exactly one file` : "",
+    fallback ? `${countLabel(fallback, "file was", "files were")} read only as plain text` : "",
+    parseErrors ? `${countLabel(parseErrors, "file could", "files could")} not be parsed` : "",
+  ].filter(Boolean);
+  return {
+    conclusion: `The map may miss connections because ${reasons.join("; ")}.`,
+    what_was_checked: `AnaxiGraph checked ${countLabel(internal, "likely link", "likely links")} between files. ${format.format(resolved)} pointed to exactly one indexed file.`,
+    what_this_limits: [
+      "Dependency, change-impact, and unused-code advice may be incomplete.",
+      "Connections created only while the program runs may not appear in a source-code map.",
+    ],
+    what_to_do: ["Inspect unclear or missing links before acting on dependency or deletion advice."],
+  };
+}
+
+function countLabel(value, singular, plural) {
+  return `${format.format(value)} ${value === 1 ? singular : plural}`;
 }
 
 function renderCoverageNotice(coverage) {

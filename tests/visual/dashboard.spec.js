@@ -282,8 +282,11 @@ test("relationship completeness and analyzer limits are visible", async ({ page 
   ).toContainText("%");
   const notice = page.locator("#graph-quality-notice");
   await expect(notice).toBeVisible();
-  await expect(notice).toContainText("Graph evidence is partial");
-  await expect(notice).toContainText("Dead-code suggestions are suppressed");
+  await expect(notice).toContainText("The map may miss connections because");
+  await expect(notice).toContainText("What this limits");
+  await expect(notice).toContainText("could read words but not code structure");
+  await expect(notice).toContainText("What to do");
+  await expect(notice).not.toContainText("confidence-gated");
   await page.getByRole("button", { name: "Architecture", exact: true }).click();
   await expect(page.locator("#finding-result-note")).toContainText("findings to check");
   expect(await page.locator("#findings-table .finding-card").count()).toBeLessThanOrEqual(20);

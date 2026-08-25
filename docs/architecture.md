@@ -91,6 +91,12 @@ exports, parse depth, analyzer version, and resolver inputs. Python is AST-backe
 TypeScript are lexical, and other recognized languages are explicitly fallback analysis today.
 Resolution outcomes remain separate relationship facts: resolved, ambiguous, unresolved, or
 external.
+Every overview and graph response also carries `graph-quality-explanation-v1`. It translates those
+machine states into the number of links checked, what failed to point to one file, which dependency,
+impact, or deletion advice becomes incomplete, and what to do next. Plain-text and parsing limits
+are described as missing code structure rather than “fallback analysis,” and runtime-only
+connections remain an explicit blind spot. The dashboard renders this same response instead of a
+separate technical warning.
 
 Semantic enrollment has four phases: intrinsic module dossiers, contextual module dossiers, an
 autonomous responsibility-taxonomy proposal plus independent AI critic/revision passes, then

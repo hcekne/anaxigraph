@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.18
+**Roadmap version:** 3.19
 
 **Updated:** 25 August 2026
 
@@ -95,7 +95,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 516 tests passing at 90.93% coverage plus 16 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
+| Test health | 516 tests passing at 90.92% coverage plus 16 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -1771,6 +1771,16 @@ same decision as readiness, starting point, constraints, and verification instea
 it, and no longer describes the autonomous map as “human-approved.” This is another bounded read
 projection and does not change semantic signatures or queue state.
 
+Graph completeness now follows the same no-jargon-drawer rule. Every overview and bounded graph
+response carries `graph-quality-explanation-v1`, which says how many likely links between files were
+checked, how many pointed to one file, how many were unclear or missing, what code structure the
+analyzers could not read, and exactly which dependency, impact, or deletion advice is limited. Its
+action list distinguishes unclear links, plain-text reading, and parsing errors. The dashboard
+renders those sentences instead of “graph evidence is partial” and “confidence-gated,” while the
+stable counts and resolution states remain available for automation. The underlying caveat fields
+are also ordinary sentences, so opening or querying more detail never reveals a second layer of
+unexplained shorthand.
+
 Deterministic dead-code candidates now require trusted relationship resolution, no resolved or
 ambiguous inbound path, configured and conventional entry-point exclusion, parser-backed support
 for both entry-point and registration evidence, no detected dynamic-wiring fact, and the configured
@@ -1802,7 +1812,7 @@ and an observed difference is not called an improvement without the intended out
 | Removal safety | Python fixtures prove trusted module candidates, detected registration suppression, heuristic-language suppression, configured entry-point suppression, uncorroborated semantic suppression, and module/symbol granularity separation; `safe_to_remove` remains false |
 | Responsive authority | A blocking synchronous MCP tool no longer blocks the event loop; discovery tests prove connection-refused fallback, transient retry, and timeout refusal, while real SDK MCP and sidecar-preparation tests retain the work protocol |
 | Focused orchestration | Scope response assembly now lives behind a bounded payload service, reducing `agent_scope` from its 128-line/complexity-24 ratchet to 97/8; finding handoff and reverse-impact assembly moved out of their former 96/22 and 77/18 functions. `agent.py` is 233 lines, the focused finding and impact services are 164 and 143, and all three obsolete self-analysis findings are removed |
-| Verification | The complete suite passes 516 tests at 90.93% coverage; all 16 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis at 31 governed findings, 132 non-blocking findings, and zero issues |
+| Verification | The complete suite passes 516 tests at 90.92% coverage; all 16 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis at 31 governed findings, 132 non-blocking findings, and zero issues |
 
 ## 6.8 Expose pattern intelligence without multiplying product surfaces
 
@@ -1895,7 +1905,7 @@ reasons, and one-click pivots between finalized evaluations and skipped-target e
 Sixty focused candidate/query/calibration/language-contract cases, CLI authority handoff coverage,
 completed-semantic projection coverage, REST integration, and a real MCP SDK round trip cover the
 read model. The dashboard candidate workflow passes within all 16 browser contracts in the pinned
-Playwright container. The complete suite passes 516 tests at 90.93% coverage; architecture, size,
+Playwright container. The complete suite passes 516 tests at 90.92% coverage; architecture, size,
 maintainability, formatting, and deterministic self-analysis gates report no errors or regressions,
 with self-analysis at 31 governed findings, 132 non-blocking findings, and zero issues.
 

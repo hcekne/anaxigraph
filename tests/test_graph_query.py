@@ -228,6 +228,7 @@ async def test_rest_graph_routes_enforce_bounds_and_cursor_contract(repository, 
     assert overview.json()["contract_version"] == "graph-overview-v1"
     assert page.status_code == 200
     assert page.json()["counts"]["page_internal_nodes"] == 2
+    assert page.json()["quality"]["plain_language"]["version"] == ("graph-quality-explanation-v1")
     assert neighbors.status_code == 200
     assert neighbors.json()["contract_version"] == "graph-neighborhood-v1"
     assert oversized.status_code == 422

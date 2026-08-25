@@ -27,6 +27,10 @@ def test_scan_persists_graph_metrics_coverage_and_findings(repository, database)
     assert overview["coverage"]["measured_files"] == 1
     assert overview["graph_quality"]["resolution_rate"] == 1.0
     assert overview["graph_quality"]["resolved_internal"] >= 6
+    graph_language = overview["graph_quality"]["plain_language"]
+    assert graph_language["version"] == "graph-quality-explanation-v1"
+    assert graph_language["what_was_checked"].startswith("AnaxiGraph checked")
+    assert any("while the program runs" in item for item in graph_language["what_this_limits"])
     assert database.file_details(stats.repository_id, ".anaxigraph.yml") is None
     snapshot = database.snapshots(stats.repository_id)[0]
     assert snapshot["file_count"] == overview["files"]
@@ -125,6 +129,11 @@ def test_scan_retains_ambiguous_unresolved_and_external_relationship_evidence(re
     assert quality["ambiguous_internal"] >= 1
     assert quality["unresolved_internal"] >= 1
     assert quality["resolution_rate"] < 1
+    language = quality["plain_language"]
+    assert language["conclusion"].startswith("The map may miss connections because")
+    assert "could point to more than one file" in language["what_was_checked"]
+    assert any("will not recommend deleting code" in item for item in language["what_this_limits"])
+    assert any("before acting" in item for item in language["what_to_do"])
 
     graph = database.graph(stats.repository_id, include_external=True)
     evidence_edges = [

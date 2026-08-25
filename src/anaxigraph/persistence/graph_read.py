@@ -14,14 +14,137 @@ from anaxigraph.relationships import (
     resolution_status,
 )
 
+GRAPH_QUALITY_LANGUAGE_VERSION = "graph-quality-explanation-v1"
+
 
 def projected_graph_quality(connection: sqlite3.Connection) -> dict[str, Any]:
     """Summarize an installed snapshot projection without materializing every edge."""
 
-    return {
+    quality = {
         **_projected_resolution_quality(connection),
         **_projected_analyzer_quality(connection),
     }
+    quality["plain_language"] = graph_quality_explanation(quality)
+    return quality
+
+
+def graph_quality_explanation(quality: dict[str, Any]) -> dict[str, Any]:
+    """Explain graph completeness without requiring resolver or analyzer vocabulary."""
+
+    internal = _count(quality.get("internal_references"))
+    resolved = _count(quality.get("resolved_internal"))
+    ambiguous = _count(quality.get("ambiguous_internal"))
+    unresolved = _count(quality.get("unresolved_internal"))
+    fallback = _count(quality.get("fallback_files"))
+    parse_errors = _count(quality.get("parse_error_files"))
+    return {
+        "version": GRAPH_QUALITY_LANGUAGE_VERSION,
+        "conclusion": _quality_conclusion(internal, ambiguous, unresolved, fallback, parse_errors),
+        "what_was_checked": _resolution_sentence(internal, resolved, ambiguous, unresolved),
+        "what_this_limits": _quality_limits(ambiguous, unresolved, fallback, parse_errors),
+        "what_to_do": _quality_actions(ambiguous, unresolved, fallback, parse_errors),
+    }
+
+
+def _quality_conclusion(
+    internal: int,
+    ambiguous: int,
+    unresolved: int,
+    fallback: int,
+    parse_errors: int,
+) -> str:
+    reasons = []
+    if ambiguous + unresolved:
+        reasons.append(
+            _items(
+                ambiguous + unresolved,
+                "likely internal reference did",
+                "likely internal references did",
+            )
+            + " not link to exactly one indexed file"
+        )
+    if fallback:
+        reasons.append(_items(fallback, "file was", "files were") + " read only as plain text")
+    if parse_errors:
+        reasons.append(_items(parse_errors, "file could", "files could") + " not be parsed")
+    if reasons:
+        return f"The map may miss connections because {_join(reasons)}."
+    if not internal:
+        return "AnaxiGraph found no likely links between files in this repository to check."
+    return "AnaxiGraph linked every extracted internal code reference to one indexed file."
+
+
+def _resolution_sentence(internal: int, resolved: int, ambiguous: int, unresolved: int) -> str:
+    if not internal:
+        return (
+            "No extracted source reference looked like a link to another file in this repository."
+        )
+    return (
+        f"AnaxiGraph checked {_items(internal, 'likely link', 'likely links')} between files. "
+        f"{resolved} pointed to exactly one indexed file, {ambiguous} could point to more than one "
+        f"file, and {unresolved} looked internal but had no matching file."
+    )
+
+
+def _quality_limits(ambiguous: int, unresolved: int, fallback: int, parse_errors: int) -> list[str]:
+    limits = []
+    if ambiguous + unresolved:
+        limits.append(
+            "Dependency, change-impact, and unused-code advice may be incomplete. AnaxiGraph will "
+            "not recommend deleting code when these missing links make that unsafe."
+        )
+    if fallback:
+        limits.append(
+            f"For {_items(fallback, 'file', 'files')}, AnaxiGraph could read words but not code "
+            "structure, so it may have missed functions, classes, or imports."
+        )
+    if parse_errors:
+        limits.append(
+            f"AnaxiGraph could not reliably read code structure from {_items(parse_errors, 'file', 'files')} with parsing errors."
+        )
+    limits.append(
+        "Connections created only while the program runs, such as plugin registration or generated "
+        "imports, may not appear in a source-code map."
+    )
+    return limits
+
+
+def _quality_actions(
+    ambiguous: int, unresolved: int, fallback: int, parse_errors: int
+) -> list[str]:
+    actions = []
+    if ambiguous + unresolved:
+        actions.append(
+            "Inspect the unclear or missing links before acting on dependency, impact, or deletion advice."
+        )
+    if fallback:
+        actions.append(
+            "Use a code-structure analyzer for these file types when exact functions and dependencies matter."
+        )
+    if parse_errors:
+        actions.append(
+            "Fix the parsing errors and scan again before relying on those files' links."
+        )
+    return actions or ["No graph-quality action is needed from this check."]
+
+
+def _count(value: Any) -> int:
+    try:
+        return max(0, int(value or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _items(value: int, singular: str, plural: str) -> str:
+    return f"{value} {singular if value == 1 else plural}"
+
+
+def _join(values: list[str]) -> str:
+    if len(values) < 2:
+        return values[0] if values else "the available evidence is incomplete"
+    if len(values) == 2:
+        return " and ".join(values)
+    return ", ".join(values[:-1]) + f", and {values[-1]}"
 
 
 def _projected_resolution_quality(connection: sqlite3.Connection) -> dict[str, Any]:
@@ -53,7 +176,8 @@ def _projected_resolution_quality(connection: sqlite3.Connection) -> dict[str, A
         "unresolved_internal": counts["unresolved_internal"],
         "external": counts[EXTERNAL],
         "caveat": (
-            "Resolution measures extracted references only; dynamic runtime wiring can still be absent."
+            "This check sees references written in source files. Connections created only while "
+            "the program runs may be missing."
         ),
     }
 
@@ -78,8 +202,9 @@ def _projected_analyzer_quality(connection: sqlite3.Connection) -> dict[str, Any
             ).fetchone()[0]
         ),
         "extraction_caveat": (
-            "Python uses an AST parser; JavaScript and TypeScript use lexical extraction; "
-            "other supported text formats use fallback analysis."
+            "Python files are read from parsed code structure. JavaScript and TypeScript are read "
+            "from names and code tokens. Other recognized text formats are read as plain text, so "
+            "their relationships are less complete."
         ),
     }
 
