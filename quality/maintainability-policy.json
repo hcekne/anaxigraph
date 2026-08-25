@@ -21,7 +21,6 @@
   },
   "legacy_functions": {
     "src/anaxigraph/agent.py::agent_scope": [95, 8],
-    "src/anaxigraph/agent_graph.py::_rank_files": [69, 22],
     "src/anaxigraph/analyzers/javascript.py::_strip_comments": [52, 21],
     "src/anaxigraph/analyzers/text.py::_jsonc_to_json": [37, 18],
     "src/anaxigraph/architecture.py::evaluate_architecture": [64, 13],

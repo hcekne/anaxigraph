@@ -34,12 +34,49 @@ def _rank_files(
     files: dict[int, dict[str, Any]],
     goal: str,
 ) -> list[tuple[float, int]]:
+    words, normalized_goal = _goal_terms(goal)
+    documents = _ranking_documents(connection, snapshot_id, files)
+    document_frequency = {
+        word: sum(1 for values in documents.values() if word in " ".join(values)) for word in words
+    }
+    ranked = [
+        (
+            _document_score(
+                documents[artifact_id],
+                words,
+                document_frequency,
+                normalized_goal,
+                len(files),
+                is_test=item["artifact_type"] == "test",
+            ),
+            artifact_id,
+        )
+        for artifact_id, item in files.items()
+    ]
+    return sorted(
+        (pair for pair in ranked if pair[0]),
+        key=lambda pair: (-pair[0], files[pair[1]]["path"]),
+    )
+
+
+def _goal_terms(goal: str) -> tuple[set[str], str]:
     words = {
         word.lower().replace("-", "_")
         for word in WORD_PATTERN.findall(split_camel(goal))
         if word.lower() not in GOAL_STOPWORDS and len(word) > 1
     }
     words.update(word[:-1] for word in tuple(words) if word.endswith("s") and len(word) > 4)
+    normalized = "_".join(
+        word.lower() for word in WORD_PATTERN.findall(split_camel(goal)) if len(word) > 2
+    )
+    return words, normalized
+
+
+def _ranking_documents(
+    connection: sqlite3.Connection,
+    snapshot_id: int,
+    files: dict[int, dict[str, Any]],
+) -> dict[int, tuple[str, ...]]:
     symbols: dict[int, str] = defaultdict(str)
     for row in connection.execute(
         """
@@ -50,53 +87,53 @@ def _rank_files(
         (snapshot_id,),
     ):
         symbols[int(row["artifact_id"])] = row["names"] or ""
-    documents: dict[int, tuple[str, ...]] = {}
-    for artifact_id, item in files.items():
-        path = item["path"].lower().replace("-", "_")
-        basename = Path(path).stem
-        summary = (item["summary"] or "").lower().replace("-", "_")
-        symbol_text = symbols[artifact_id].lower().replace("-", "_")
-        semantic = item.get("semantic") or {}
-        semantic_text = (
-            " ".join(
-                str(value)
-                for value in (
-                    semantic.get("detailed_summary"),
-                    semantic.get("architecture_role"),
-                    semantic.get("placement_guidance"),
-                    *(semantic.get("responsibilities") or []),
-                    *(semantic.get("domain_concepts") or []),
-                )
-                if value
-            )
-            .lower()
-            .replace("-", "_")
-        )
-        documents[artifact_id] = (path, basename, summary, symbol_text, semantic_text)
-    document_frequency = {
-        word: sum(1 for values in documents.values() if word in " ".join(values)) for word in words
+    return {
+        artifact_id: _ranking_document(item, symbols[artifact_id])
+        for artifact_id, item in files.items()
     }
-    ranked: list[tuple[float, int]] = []
-    for artifact_id, item in files.items():
-        path, basename, summary, symbol_text, semantic_text = documents[artifact_id]
-        score = 0.0
-        for word in words:
-            inverse_frequency = 1 + log((len(files) + 1) / (document_frequency[word] + 1))
-            score += path.count(word) * 7 * inverse_frequency
-            score += basename.count(word) * 8 * inverse_frequency
-            score += summary.count(word) * 3 * inverse_frequency
-            score += symbol_text.count(word) * 4 * inverse_frequency
-            score += semantic_text.count(word) * 2.5 * inverse_frequency
-        normalized_goal = "_".join(
-            word.lower() for word in WORD_PATTERN.findall(split_camel(goal)) if len(word) > 2
-        )
-        if normalized_goal and normalized_goal in path.replace("/", "_"):
-            score += 30
-        if item["artifact_type"] == "test":
-            score *= 0.45
-        if score:
-            ranked.append((score, artifact_id))
-    return sorted(ranked, key=lambda pair: (-pair[0], files[pair[1]]["path"]))
+
+
+def _ranking_document(item: dict[str, Any], symbol_names: str) -> tuple[str, ...]:
+    path = item["path"].lower().replace("-", "_")
+    semantic = item.get("semantic") or {}
+    semantic_values = (
+        semantic.get("detailed_summary"),
+        semantic.get("architecture_role"),
+        semantic.get("placement_guidance"),
+        *(semantic.get("responsibilities") or []),
+        *(semantic.get("domain_concepts") or []),
+    )
+    semantic_text = " ".join(str(value) for value in semantic_values if value)
+    return (
+        path,
+        Path(path).stem,
+        (item["summary"] or "").lower().replace("-", "_"),
+        symbol_names.lower().replace("-", "_"),
+        semantic_text.lower().replace("-", "_"),
+    )
+
+
+def _document_score(
+    document: tuple[str, ...],
+    words: set[str],
+    document_frequency: dict[str, int],
+    normalized_goal: str,
+    file_count: int,
+    *,
+    is_test: bool,
+) -> float:
+    path, basename, summary, symbol_text, semantic_text = document
+    score = 0.0
+    for word in words:
+        inverse_frequency = 1 + log((file_count + 1) / (document_frequency[word] + 1))
+        score += path.count(word) * 7 * inverse_frequency
+        score += basename.count(word) * 8 * inverse_frequency
+        score += summary.count(word) * 3 * inverse_frequency
+        score += symbol_text.count(word) * 4 * inverse_frequency
+        score += semantic_text.count(word) * 2.5 * inverse_frequency
+    if normalized_goal and normalized_goal in path.replace("/", "_"):
+        score += 30
+    return score * 0.45 if is_test else score
 
 
 def _select_primary(
