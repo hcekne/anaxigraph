@@ -9,6 +9,10 @@ import {
   state,
   toast,
 } from "/assets/dashboard-core.js";
+import {
+  renderCandidateCard,
+  renderEvaluationCard,
+} from "/assets/patterns-render.js";
 
 const SCORE_ORDER = [
   "opportunity", "suitability", "applicability", "conformance", "confidence",
@@ -41,6 +45,7 @@ export function resetPatternView() {
   currentResult = null;
   currentOffset = 0;
   byId("patterns-query-form")?.reset();
+  configureQueryMode();
   renderWaitingState();
   if (byId("view-patterns")?.classList.contains("active")) {
     window.setTimeout(loadPatterns, 0);
@@ -61,9 +66,9 @@ function patternViewMarkup() {
       <div>
         <p class="eyebrow">Autonomous, evidence-backed design review</p>
         <h2>Pattern intelligence</h2>
-        <p class="panel-copy">Explore only current evaluations that completed independent agent
-          critique. Start with a target to compare suitable patterns, or a catalog key to find
-          examples, weak conformers, and high-value opportunities across the code hierarchy.</p>
+        <p class="panel-copy">Explore current evaluations that completed independent agent
+          critique, or ask why an eligible target was selected or skipped before evaluation.
+          Query by target or pattern across the full code hierarchy.</p>
       </div>
       <div class="pattern-contract-note"><strong>Nine separate scores</strong><span>Fit,
         presence, value, safety, and cost remain distinct. A high-conformance example is not
@@ -80,31 +85,36 @@ function patternViewMarkup() {
 function patternQueryMarkup() {
   return `<article class="panel pattern-query-panel">
       <form id="patterns-query-form" class="pattern-query-grid">
+        <label>View<select id="pattern-mode-filter">
+          <option value="evaluations">Finalized evaluations</option>
+          <option value="candidates">Candidate explanations</option></select></label>
+        <label>Candidate selection<select id="pattern-selection-filter" disabled>
+          ${options(["skipped", "selected", "all"], "skipped")}</select></label>
         <label class="pattern-query-wide">Target key, path, or qualified name
           <input id="pattern-target-filter" placeholder="module:src/service.py or src/service.py" />
         </label>
-        <label class="pattern-query-wide">Pattern catalog key
+        <label class="pattern-query-wide">Pattern catalog key <span id="pattern-key-requirement"></span>
           <input id="pattern-key-filter" placeholder="strategy" />
         </label>
         <label>Level<select id="pattern-level-filter"><option value="">All levels</option>
           ${options(["symbol", "type", "module", "subsystem", "area", "repository"])}</select>
         </label>
-        <label>Presence<select id="pattern-presence-filter"><option value="">Any presence</option>
+        <label data-evaluation-only>Presence<select id="pattern-presence-filter"><option value="">Any presence</option>
           ${options(["present", "partial", "absent", "uncertain"])}</select></label>
-        <label>Recommendation<select id="pattern-recommendation-filter">
+        <label data-evaluation-only>Recommendation<select id="pattern-recommendation-filter">
           <option value="">Any recommendation</option>${options([
             "retain", "introduce", "improve_conformance", "replace", "avoid", "no_action",
             "insufficient_evidence",
           ])}</select></label>
-        <label>Rank by<select id="pattern-sort-filter">${options(SCORE_ORDER, "opportunity")}
+        <label data-evaluation-only>Rank by<select id="pattern-sort-filter">${options(SCORE_ORDER, "opportunity")}
         </select></label>
-        <label>Minimum score<input id="pattern-minimum-score" type="number" min="0" max="100"
+        <label data-evaluation-only>Minimum score<input id="pattern-minimum-score" type="number" min="0" max="100"
           value="0" /></label>
         <label>Rows<select id="pattern-page-size">${options([20, 50, 100], 20)}</select></label>
         <label class="checkbox-label pattern-evidence-toggle"><input id="pattern-include-evidence"
           type="checkbox" />Include detailed evidence &amp; critique</label>
-        <div class="pattern-query-actions"><button class="button" type="submit">Query finalized
-          evaluations</button><button id="pattern-query-reset" class="secondary-button"
+        <div class="pattern-query-actions"><button id="pattern-query-submit" class="button"
+          type="submit">Query finalized evaluations</button><button id="pattern-query-reset" class="secondary-button"
           type="button">Reset</button></div>
       </form>
     </article>`;
@@ -128,7 +138,14 @@ function bindPatternEvents(tab) {
   byId("pattern-query-reset").addEventListener("click", () => {
     byId("patterns-query-form").reset();
     currentOffset = 0;
+    configureQueryMode();
     loadPatterns();
+  });
+  byId("pattern-mode-filter").addEventListener("change", () => {
+    currentOffset = 0;
+    configureQueryMode();
+    if (queryMode() === "evaluations" || byId("pattern-key-filter").value.trim()) loadPatterns();
+    else renderCandidatePrompt();
   });
   byId("pattern-previous").addEventListener("click", () => movePage(-1));
   byId("pattern-next").addEventListener("click", () => movePage(1));
@@ -136,11 +153,19 @@ function bindPatternEvents(tab) {
 }
 
 async function loadPatterns() {
-  const submit = byId("patterns-query-form").querySelector('[type="submit"]');
+  const mode = queryMode();
+  if (mode === "candidates" && !byId("pattern-key-filter").value.trim()) {
+    renderCandidatePrompt();
+    return;
+  }
+  const submit = byId("pattern-query-submit");
   submit.disabled = true;
-  byId("pattern-query-summary").textContent = "Reading current finalized evaluations…";
+  byId("pattern-query-summary").textContent = mode === "candidates"
+    ? "Explaining current sparse-plan candidate decisions…"
+    : "Reading current finalized evaluations…";
   try {
-    currentResult = await request(api("/api/patterns", queryParameters()));
+    const endpoint = mode === "candidates" ? "/api/patterns/candidates" : "/api/patterns";
+    currentResult = await request(api(endpoint, queryParameters()));
     loadedRepositoryId = state.repositoryId;
     renderPatternResults();
   } catch (error) {
@@ -154,17 +179,23 @@ async function loadPatterns() {
 }
 
 function queryParameters() {
-  return {
+  const shared = {
     target: byId("pattern-target-filter").value.trim(),
     pattern: byId("pattern-key-filter").value.trim(),
     level: byId("pattern-level-filter").value,
+    limit: Number(byId("pattern-page-size").value),
+    offset: currentOffset,
+    include_evidence: byId("pattern-include-evidence").checked,
+  };
+  if (queryMode() === "candidates") {
+    return { ...shared, selection: byId("pattern-selection-filter").value };
+  }
+  return {
+    ...shared,
     presence: byId("pattern-presence-filter").value,
     recommendation: byId("pattern-recommendation-filter").value,
     sort_by: byId("pattern-sort-filter").value,
     minimum_score: Number(byId("pattern-minimum-score").value || 0),
-    limit: Number(byId("pattern-page-size").value),
-    offset: currentOffset,
-    include_evidence: byId("pattern-include-evidence").checked,
   };
 }
 
@@ -177,12 +208,29 @@ function renderWaitingState() {
 
 function renderPatternResults() {
   const result = currentResult || { total: 0, returned: 0, items: [] };
+  if (queryMode() === "candidates") {
+    renderCandidateResults(result);
+    return;
+  }
   const start = result.returned ? result.offset + 1 : 0;
   const end = result.offset + result.returned;
   byId("pattern-query-summary").innerHTML = result.total
     ? `<strong>${format.format(start)}–${format.format(end)}</strong> of <strong>${format.format(result.total)}</strong> current, independently critiqued evaluation(s). Ranked by ${escapeHtml(humanize(result.filters.sort_by))}.`
     : emptyResultMessage();
-  byId("pattern-results").innerHTML = (result.items || []).map(patternCard).join("");
+  byId("pattern-results").innerHTML = (result.items || [])
+    .map((item) => renderEvaluationCard(item, SCORE_ORDER)).join("");
+  updatePagination();
+}
+
+function renderCandidateResults(result) {
+  const start = result.returned ? result.offset + 1 : 0;
+  const end = result.offset + result.returned;
+  const selection = humanize(result.filters?.selection || "all");
+  byId("pattern-query-summary").innerHTML = result.total
+    ? `<strong>${format.format(start)}–${format.format(end)}</strong> of <strong>${format.format(result.total)}</strong> ${escapeHtml(selection)} candidate explanation(s) for <strong>${escapeHtml(result.pattern?.name || result.pattern?.key)}</strong>. ${format.format(result.selected_count)} selected and ${format.format(result.skipped_count)} skipped across ${format.format(result.targets_considered)} eligible target(s).`
+    : `<strong>No ${escapeHtml(selection)} candidates match.</strong> The current plan considered ${format.format(result.targets_considered || 0)} eligible target(s).`;
+  byId("pattern-results").innerHTML = (result.items || [])
+    .map((item) => renderCandidateCard(item, result.pattern || {})).join("");
   updatePagination();
 }
 
@@ -193,50 +241,6 @@ function emptyResultMessage() {
     return `<strong>No finalized pattern evaluations yet.</strong> Semantic mapping${pending ? ` has ${format.format(pending)} queued job(s)` : " is not complete"}; assessments appear here only after independent critique.`;
   }
   return "<strong>No current evaluation matches these filters.</strong> Clear a filter or lower the minimum score.";
-}
-
-function patternCard(item) {
-  const target = item.target || {};
-  const pattern = item.pattern || {};
-  const review = item.review || {};
-  return `<article class="panel pattern-result-card">
-    <div class="pattern-result-heading"><div><p class="eyebrow">${escapeHtml(pattern.family)} · ${escapeHtml(humanize(pattern.kind))}</p>
-      <h2>${escapeHtml(pattern.name)}</h2><code>${escapeHtml(pattern.key)}</code></div>
-      <div class="pattern-verdicts"><span class="pattern-badge recommendation">${escapeHtml(humanize(item.recommendation))}</span>
-      <span class="pattern-badge">${escapeHtml(humanize(item.presence))}</span></div></div>
-    <div class="pattern-target"><div><strong>${escapeHtml(target.label)}</strong>
-      <span>${escapeHtml(target.path || target.qualified_name || target.key)}</span></div>
-      <span class="pattern-level">${escapeHtml(target.level)}</span></div>
-    <p class="pattern-summary">${escapeHtml(item.summary)}</p>
-    <div class="pattern-score-grid">${SCORE_ORDER.map((name) => scoreCell(name, item.scores?.[name])).join("")}</div>
-    <div class="pattern-review"><div><strong>Independent critique · ${escapeHtml(humanize(review.verdict || "complete"))}</strong>
-      <span>${escapeHtml(review.summary || "Final critique completed.")}</span></div>
-      <span>${format.format(review.confidence || 0)}/100 confidence</span></div>
-    ${item.details ? detailMarkup(item.details) : ""}
-    <div class="pattern-result-footer"><span>${escapeHtml(item.provenance?.provider || "provider unknown")} · ${escapeHtml(item.provenance?.model || "runtime model")} · ${escapeHtml(item.provenance?.created_at || "")}</span>
-      <div><button class="text-button" data-pattern-target="${escapeAttr(target.key)}">Compare patterns for target</button>
-      <button class="text-button" data-pattern-key="${escapeAttr(pattern.key)}">Find this pattern elsewhere</button></div></div>
-  </article>`;
-}
-
-function scoreCell(name, value) {
-  const score = Number(value || 0);
-  return `<div class="pattern-score" data-score-band="${score >= 70 ? "high" : score >= 40 ? "medium" : "low"}"><span>${escapeHtml(humanize(name))}</span><strong>${score}</strong></div>`;
-}
-
-function detailMarkup(details) {
-  const lists = ["evidence", "counter_evidence", "alternatives", "prerequisites", "risks"];
-  const sections = lists.map((name) => evidenceGroup(name, details[name])).join("");
-  const issues = (details.review_issues || []).map((issue) => (
-    `<li><strong>${escapeHtml(humanize(issue.kind))}</strong> · ${escapeHtml(issue.explanation)}</li>`
-  )).join("");
-  return `<details class="pattern-details"><summary>Detailed evidence and critique</summary>
-    <div class="pattern-evidence-grid">${sections}${issues ? `<section><h3>Review issues</h3><ul>${issues}</ul></section>` : ""}</div></details>`;
-}
-
-function evidenceGroup(name, values) {
-  if (!values?.length) return "";
-  return `<section><h3>${escapeHtml(humanize(name))}</h3><ul>${values.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul></section>`;
 }
 
 function movePage(direction) {
@@ -258,16 +262,58 @@ function updatePagination() {
 }
 
 function useResultAsFilter(event) {
-  const button = event.target.closest("[data-pattern-target], [data-pattern-key]");
+  const button = event.target.closest(
+    "[data-pattern-target], [data-pattern-key], [data-candidate-key], [data-evaluation-key]",
+  );
   if (!button) return;
   if (button.dataset.patternTarget) {
+    setQueryMode("evaluations");
     byId("pattern-target-filter").value = button.dataset.patternTarget;
     byId("pattern-key-filter").value = "";
-  } else {
+  } else if (button.dataset.patternKey) {
+    setQueryMode("evaluations");
     byId("pattern-key-filter").value = button.dataset.patternKey;
     byId("pattern-target-filter").value = "";
+  } else if (button.dataset.candidateKey) {
+    setQueryMode("candidates");
+    byId("pattern-key-filter").value = button.dataset.candidateKey;
+    byId("pattern-target-filter").value = "";
+    byId("pattern-selection-filter").value = "skipped";
+  } else {
+    setQueryMode("evaluations");
+    byId("pattern-key-filter").value = button.dataset.evaluationKey;
+    byId("pattern-target-filter").value = button.dataset.evaluationTarget;
   }
   currentOffset = 0;
   byId("patterns-query-form").scrollIntoView({ behavior: "smooth", block: "start" });
   loadPatterns();
+}
+
+function queryMode() {
+  return byId("pattern-mode-filter").value;
+}
+
+function setQueryMode(value) {
+  byId("pattern-mode-filter").value = value;
+  configureQueryMode();
+}
+
+function configureQueryMode() {
+  const candidates = queryMode() === "candidates";
+  byId("pattern-selection-filter").disabled = !candidates;
+  document.querySelectorAll("[data-evaluation-only]").forEach((label) => {
+    label.classList.toggle("pattern-control-disabled", candidates);
+    label.querySelector("input, select").disabled = candidates;
+  });
+  byId("pattern-key-requirement").textContent = candidates ? "· required" : "";
+  byId("pattern-key-filter").required = candidates;
+  byId("pattern-query-submit").textContent = candidates
+    ? "Explain candidate selection" : "Query finalized evaluations";
+}
+
+function renderCandidatePrompt() {
+  currentResult = null;
+  byId("pattern-query-summary").innerHTML = "<strong>Enter one exact pattern catalog key.</strong> Candidate explanations are computed on demand without storing a dense target-by-pattern matrix.";
+  byId("pattern-results").innerHTML = "";
+  updatePagination();
 }

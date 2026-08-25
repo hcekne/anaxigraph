@@ -15,6 +15,7 @@ from typing import Any
 from anaxigraph import git
 from anaxigraph.config import load_config
 from anaxigraph.onboarding_clients import validate_mcp_url
+from anaxigraph.pattern_candidate_query import PatternCandidateQuery
 from anaxigraph.pattern_query import PatternEvaluationQuery
 
 DEFAULT_SERVICE_URL = "http://127.0.0.1:8765"
@@ -136,17 +137,52 @@ def service_pattern_evaluations(
     snapshot_id: int | None = None,
     timeout: float = 10,
 ) -> dict[str, Any]:
-    parameters: dict[str, Any] = {
+    return _service_pattern_projection(
+        target,
+        "/api/patterns",
+        {
+            **request.filters(),
+            "limit": request.limit,
+            "offset": request.offset,
+        },
+        snapshot_id=snapshot_id,
+        timeout=timeout,
+    )
+
+
+def service_pattern_candidates(
+    target: SemanticServiceTarget,
+    request: PatternCandidateQuery,
+    *,
+    snapshot_id: int | None = None,
+    timeout: float = 10,
+) -> dict[str, Any]:
+    return _service_pattern_projection(
+        target,
+        "/api/patterns/candidates",
+        {**request.filters(), "limit": request.limit, "offset": request.offset},
+        snapshot_id=snapshot_id,
+        timeout=timeout,
+    )
+
+
+def _service_pattern_projection(
+    target: SemanticServiceTarget,
+    path: str,
+    parameters: dict[str, Any],
+    *,
+    snapshot_id: int | None,
+    timeout: float,
+) -> dict[str, Any]:
+    values = {
         "repository_id": target.repository_id,
         "snapshot_id": snapshot_id,
-        **request.filters(),
-        "limit": request.limit,
-        "offset": request.offset,
+        **parameters,
     }
     query = urllib.parse.urlencode(
-        {key: value for key, value in parameters.items() if value not in (None, "")}
+        {key: value for key, value in values.items() if value not in (None, "")}
     )
-    value = _request_json(f"{target.base_url}/api/patterns?{query}", timeout=timeout)
+    value = _request_json(f"{target.base_url}{path}?{query}", timeout=timeout)
     if not isinstance(value, dict):
         raise ValueError("AnaxiGraph service returned an invalid pattern projection")
     return value

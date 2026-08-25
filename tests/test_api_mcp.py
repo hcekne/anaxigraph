@@ -39,6 +39,7 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert (await client.get("/assets/graph-regions.js")).status_code == 200
         assert (await client.get("/assets/graph-regions.css")).status_code == 200
         assert (await client.get("/assets/patterns-view.js")).status_code == 200
+        assert (await client.get("/assets/patterns-render.js")).status_code == 200
         assert (await client.get("/assets/patterns.css")).status_code == 200
         assert (await client.get("/assets/themes.css")).status_code == 200
         repositories = (await client.get("/api/repositories")).json()
@@ -98,6 +99,19 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert patterns["contract_version"] == "pattern-query-v1"
         assert patterns["snapshot_id"] > 0
         assert patterns["total"] == 0
+        candidates = (
+            await client.get(
+                "/api/patterns/candidates",
+                params={"pattern": "circular-dependency", "limit": 1},
+            )
+        ).json()
+        assert candidates["contract_version"] == "pattern-candidate-query-v1"
+        assert candidates["plan_ready"] is False
+        assert candidates["returned"] <= 1
+        invalid_candidates = await client.get(
+            "/api/patterns/candidates", params={"pattern": "not-a-catalog-card"}
+        )
+        assert invalid_candidates.status_code == 400
         invalid_pattern_query = await client.get(
             "/api/patterns", params={"sort_by": "unbounded_magic"}
         )
@@ -232,6 +246,19 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                         "ANAXIGRAPH_PATTERNS", arguments={"limit": 101}
                     )
                     assert invalid_patterns.isError is True
+                    candidate_explanations = await session.call_tool(
+                        "ANAXIGRAPH_PATTERNS",
+                        arguments={
+                            "mode": "candidates",
+                            "pattern": "circular-dependency",
+                            "limit": 1,
+                        },
+                    )
+                    assert candidate_explanations.isError is False
+                    assert (
+                        candidate_explanations.structuredContent["contract_version"]
+                        == "pattern-candidate-query-v1"
+                    )
                     history = await session.call_tool("ANAXIGRAPH_HISTORY_STATUS", arguments={})
                     assert history.isError is False
                     assert history.structuredContent["status"] == "not_started"

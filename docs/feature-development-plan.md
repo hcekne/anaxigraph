@@ -1713,8 +1713,8 @@ verification commands, and post-change architecture facts to compare.
 
 ## 6.8 Expose pattern intelligence without multiplying product surfaces
 
-**Status:** IN PROGRESS — current target/pattern projection and all four product surfaces delivered
-on 25 August 2026; skipped-pair explanation and calibration remain.
+**Status:** IN PROGRESS — current evaluations and on-demand selected/skipped candidate explanations
+are delivered through all four product surfaces on 25 August 2026; calibration remains.
 
 Reuse the existing semantic queue, leases, evidence paging, provenance, taxonomy, and bounded query
 infrastructure. Add one narrow evaluation projection keyed by target, pattern, snapshot, and
@@ -1740,6 +1740,14 @@ recommendation, offset/limit, compact defaults, and opt-in detailed evidence are
 projection reuses existing semantic documents and scope states; it adds no table, vector store,
 provider path, or catalog coupling.
 
+`pattern-candidate-query-v1` explains candidate membership without persisting a dense matrix. An
+exact catalog key bounds reconstruction to one pattern over its eligible target levels; the result
+is compared with current sparse-plan membership and reports selected, no-positive-evidence,
+counter-evidence, below-priority, sparse-plan-bound, or plan-not-ready as the decision reason.
+Selection, exact target, level, paging, and opt-in signal/capability evidence are supported by
+`anaxigraph patterns --candidates`, `ANAXIGRAPH_PATTERNS(mode="candidates")`, and
+`GET /api/patterns/candidates`.
+
 `anaxigraph patterns` exposes that contract without creating a new scan. When `--db` is omitted it
 uses the same checkout/Git-identity discovery as semantic execution to select a matching active
 sidecar, falling back to the stable per-checkout local index only when no service matches. Explicit
@@ -1747,15 +1755,17 @@ database and service selectors are mutually exclusive, and every response identi
 authority so a completed sidecar map cannot be mistaken for an empty host-local index.
 
 The dashboard adds a dedicated **Patterns** view without growing its 499-line HTML shell or
-498-line shared stylesheet. A separate 273-line controller and 58-line responsive stylesheet
-render all nine scores, critique and provider/model provenance, bounded filters and pagination,
-opt-in evidence, and one-click target/pattern pivots.
+498-line shared stylesheet. Separate 319-line query/controller, 122-line renderer, and 65-line
+responsive stylesheet modules render all nine scores, critique and provider/model provenance,
+bounded filters and pagination, opt-in evidence, candidate decision reasons, and one-click pivots
+between finalized evaluations and skipped-target explanations.
 
-Sixteen focused query-contract cases, CLI authority handoff coverage, completed-semantic projection
-coverage, REST integration, and a real MCP SDK round trip pass. The current complete suite passes
-357 tests at 89.90% coverage; all 15 browser contracts pass in the pinned Playwright container, and
-architecture, size, maintainability, formatting, and deterministic self-analysis gates report no
-errors or regressions.
+Twenty-eight focused candidate/query-contract cases, CLI authority handoff coverage,
+completed-semantic projection coverage, REST integration, and a real MCP SDK round trip cover the
+read model. The dashboard candidate workflow passes within all 15 browser contracts in the pinned
+Playwright container. The complete suite passes 371 tests at 90.02% coverage; architecture, size,
+maintainability, formatting, and deterministic self-analysis gates report no errors or regressions,
+with self-analysis at 43 governed findings, 132 non-blocking findings, and zero issues.
 
 ## Phase 6 exit gate
 

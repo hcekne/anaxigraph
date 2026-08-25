@@ -39,6 +39,10 @@ def test_repository_agent_and_export_handlers_share_the_current_scan(
     impacted = _call(["impact", *common, "--target", "pkg/core.py"], capsys)
     collisions = _call(["collisions", *common], capsys)
     patterns = _call(["patterns", *common, "--limit", "1"], capsys)
+    candidate_explanations = _call(
+        ["patterns", *common, "--candidates", "--pattern", "circular-dependency", "--limit", "1"],
+        capsys,
+    )
     exported = _call(["export", *common], capsys)
 
     assert scanned["status"] == "ok"
@@ -49,6 +53,7 @@ def test_repository_agent_and_export_handlers_share_the_current_scan(
     assert patterns["contract_version"] == "pattern-query-v1"
     assert patterns["index"]["authority"] == "local"
     assert patterns["total"] == 0
+    assert candidate_explanations["contract_version"] == "pattern-candidate-query-v1"
     assert exported["contract_version"] == "anaxigraph-export-v1"
     assert exported["graph"]["nodes"]
     assert exported["graph"]["counts"]["page_internal_nodes"] <= 250

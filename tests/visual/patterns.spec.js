@@ -62,6 +62,47 @@ function patternItem(includeEvidence) {
   return item;
 }
 
+function candidateItem(includeEvidence) {
+  const item = {
+    target: {
+      key: "module:src/anaxigraph/provider.py",
+      level: "module",
+      label: "provider.py",
+      path: "src/anaxigraph/provider.py",
+      qualified_name: "",
+    },
+    selected_for_evaluation: false,
+    reason: "sparse_plan_bound",
+    priority: 76,
+    selection_reasons: ["supporting_evidence", "capabilities_satisfied"],
+    missing_evidence: [],
+    capability_gaps: [],
+    matched_signal_count: 3,
+    counter_signal_count: 0,
+  };
+  if (includeEvidence) {
+    item.details = {
+      signals: [{
+        role: "supporting",
+        feature: "semantic.provider_boundary",
+        operator: "present",
+        outcome: "matched",
+        confidence: 88,
+        evidence: ["Provider implementations share one behavior boundary."],
+      }],
+      capabilities: [{
+        fact: "semantic_dossier",
+        minimum: "summary",
+        best_level: "complete",
+        ratio: 1,
+        complete: true,
+      }],
+      semantic_questions: ["Does selection policy vary independently from execution?"],
+    };
+  }
+  return item;
+}
+
 async function openDashboard(page) {
   await page.goto("/");
   await expect(page.locator("#project-name")).not.toHaveText("Loading…");
@@ -72,8 +113,37 @@ test("pattern intelligence explores finalized results in both directions", async
   const requests = [];
   await page.route("**/api/patterns**", async (route) => {
     const url = new URL(route.request().url());
-    requests.push(url.searchParams);
+    requests.push({ path: url.pathname, params: url.searchParams });
     const includeEvidence = url.searchParams.get("include_evidence") === "true";
+    if (url.pathname.endsWith("/candidates")) {
+      await route.fulfill({
+        json: {
+          contract_version: "pattern-candidate-query-v1",
+          repository_id: 1,
+          snapshot_id: 7,
+          plan_ready: true,
+          pattern: {
+            key: "strategy",
+            name: "Strategy",
+            family: "object_interface",
+            kind: "constructive",
+            scope_levels: ["module"],
+          },
+          filters: { selection: url.searchParams.get("selection") || "skipped" },
+          targets_considered: 5,
+          selected_count: 2,
+          skipped_count: 3,
+          counts_by_reason: { sparse_plan_bound: 3 },
+          total: 1,
+          returned: 1,
+          offset: 0,
+          next_offset: null,
+          omitted: 0,
+          items: [candidateItem(includeEvidence)],
+        },
+      });
+      return;
+    }
     await route.fulfill({
       json: {
         contract_version: "pattern-query-v1",
@@ -109,12 +179,14 @@ test("pattern intelligence explores finalized results in both directions", async
   await page.locator("#patterns-query-form").getByRole("button", {
     name: "Query finalized evaluations",
   }).click();
-  await expect.poll(() => requests.at(-1).get("target")).toBe("src/anaxigraph/storage.py");
+  await expect.poll(() => requests.at(-1).params.get("target")).toBe(
+    "src/anaxigraph/storage.py",
+  );
 
   await page.getByRole("button", { name: "Find this pattern elsewhere" }).click();
   await expect(page.locator("#pattern-key-filter")).toHaveValue("strategy");
   await expect(page.locator("#pattern-target-filter")).toHaveValue("");
-  await expect.poll(() => requests.at(-1).get("pattern")).toBe("strategy");
+  await expect.poll(() => requests.at(-1).params.get("pattern")).toBe("strategy");
 
   await page.locator("#pattern-include-evidence").check();
   await page.locator("#patterns-query-form").getByRole("button", {
@@ -123,5 +195,25 @@ test("pattern intelligence explores finalized results in both directions", async
   await expect(page.locator(".pattern-details")).toContainText("Detailed evidence and critique");
   await expect(page.locator(".pattern-details")).toContainText(
     "Three providers implement the same execution contract",
+  );
+
+  await page.getByRole("button", { name: "Explain skipped candidates" }).click();
+  await expect(page.locator("#pattern-mode-filter")).toHaveValue("candidates");
+  await expect(page.locator("#pattern-presence-filter")).toBeDisabled();
+  await expect.poll(() => requests.at(-1).path).toBe("/api/patterns/candidates");
+  await expect.poll(() => requests.at(-1).params.get("selection")).toBe("skipped");
+  await expect(page.locator(".candidate-result-card")).toContainText("Sparse Plan Bound");
+  await expect(page.locator(".candidate-result-card")).toContainText(
+    "higher-priority candidate occupied the bounded plan",
+  );
+  await expect(page.locator(".candidate-result-card .pattern-details")).toContainText(
+    "Does selection policy vary independently from execution",
+  );
+
+  await page.getByRole("button", { name: "Look for finalized evaluation" }).click();
+  await expect(page.locator("#pattern-mode-filter")).toHaveValue("evaluations");
+  await expect.poll(() => requests.at(-1).path).toBe("/api/patterns");
+  await expect.poll(() => requests.at(-1).params.get("target")).toBe(
+    "module:src/anaxigraph/provider.py",
   );
 });

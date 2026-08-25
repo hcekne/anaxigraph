@@ -5,6 +5,8 @@
 .pattern-query-panel { margin-bottom: 1rem; }
 .pattern-query-grid { display: grid; grid-template-columns: repeat(6, minmax(120px, 1fr)); gap: .75rem; align-items: end; }
 .pattern-query-grid label { display: grid; gap: .35rem; color: var(--muted); font-size: .68rem; }
+.pattern-query-grid label.pattern-control-disabled { opacity: .45; }
+.pattern-query-grid label > span { color: var(--amber); font-size: .6rem; }
 .pattern-query-wide { grid-column: span 3; }
 .pattern-evidence-toggle { grid-column: span 2; align-self: center; }
 .pattern-query-actions { display: flex; grid-column: span 4; justify-content: flex-end; gap: .55rem; }
@@ -22,6 +24,9 @@
 .pattern-target span:not(.pattern-level) { overflow-wrap: anywhere; color: var(--muted); font: .66rem ui-monospace, monospace; }
 .pattern-summary { margin: 0; color: var(--text); font-size: .82rem; line-height: 1.55; }
 .pattern-score-grid { display: grid; grid-template-columns: repeat(9, minmax(74px, 1fr)); gap: .45rem; }
+.candidate-metric-grid { display: grid; grid-template-columns: repeat(4, minmax(90px, 1fr)); gap: .45rem; }
+.candidate-factors { margin-top: 0; }
+.candidate-result-card .pattern-summary { padding-left: .75rem; border-left: 3px solid var(--blue); }
 .pattern-score { display: grid; gap: .25rem; min-width: 0; padding: .55rem; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-subtle); }
 .pattern-score span { overflow-wrap: anywhere; color: var(--muted); font-size: .58rem; text-transform: uppercase; }
 .pattern-score strong { color: var(--text-strong); font-size: 1.05rem; font-variant-numeric: tabular-nums; }
@@ -47,6 +52,7 @@
   .pattern-query-wide { grid-column: span 3; }
   .pattern-query-actions { grid-column: span 3; }
   .pattern-score-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .candidate-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 700px) {
@@ -55,4 +61,5 @@
   .pattern-query-wide, .pattern-evidence-toggle, .pattern-query-actions { grid-column: auto; }
   .pattern-query-actions, .pattern-result-heading, .pattern-target, .pattern-review, .pattern-result-footer { align-items: stretch; flex-direction: column; }
   .pattern-verdicts, .pattern-result-footer > div { justify-content: flex-start; }
+  .candidate-metric-grid { grid-template-columns: 1fr; }
 }

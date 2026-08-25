@@ -51,6 +51,7 @@
         "anaxigraph.coverage",
         "anaxigraph.git",
         "anaxigraph.pattern_candidate_selection",
+        "anaxigraph.pattern_candidate_query",
         "anaxigraph.pattern_candidates",
         "anaxigraph.pattern_signals",
         "anaxigraph.semantic",

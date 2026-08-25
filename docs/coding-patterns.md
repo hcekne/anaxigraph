@@ -55,6 +55,22 @@ index. If no matching service is running, it opens the stable per-checkout local
 `--service-url` or `--db` to choose explicitly; they are mutually exclusive. The JSON response
 always includes `index.authority` and the selected service/repository identity or database path.
 
+Candidate selection is explainable through the same four surfaces. It requires one exact catalog
+key and reconstructs only that pattern over eligible targets, then compares the result with the
+persisted sparse plan. It does not store or regenerate the dense target-by-pattern product:
+
+```text
+anaxigraph patterns . --candidates --pattern=strategy --selection=skipped --include-evidence
+ANAXIGRAPH_PATTERNS(mode="candidates", pattern="strategy", selection="skipped")
+GET /api/patterns/candidates?pattern=strategy&selection=skipped&include_evidence=true
+```
+
+Each result says whether the target was selected, its candidate priority, and one explicit reason:
+no positive evidence, counter-evidence, below threshold, displaced by the bounded sparse plan, or
+plan not yet ready. Optional details expose matched signals, capability gaps, missing evidence, and
+the semantic questions associated with the card. The dashboard switches between finalized ratings
+and candidate explanations without mixing candidate priority with the nine independent scores.
+
 Treat 40 logical lines per function and 500 source LOC per module as inspection signals. Prefer a
 cohesive module over forwarding layers. Add an abstraction only for multiple real implementations
 or a demonstrated bug class. Avoid hidden global state and circular dependencies. Changed behavior
