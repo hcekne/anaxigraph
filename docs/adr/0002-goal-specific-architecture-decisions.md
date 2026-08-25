@@ -59,6 +59,10 @@ The packet preserves the product's fact/interpretation/recommendation boundary:
    Machine statuses and scores remain available for automation but never stand in for that
    explanation or move into a separate jargon drawer. Every unused-code projection says that it
    does not authorize deletion.
+9. Scope readiness, preferred placement, change constraints, and before/after verification use the
+   same plain-language contract. A same-snapshot comparison says that no post-change observation
+   was possible, not that the architecture stayed unchanged. Tight payloads retain the direct scope
+   and placement conclusions before duplicate context paths.
 
 ## Bounds and freshness
 

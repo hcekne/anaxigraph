@@ -37,6 +37,10 @@ def test_agent_scope_is_bounded_and_includes_tests_protection_and_rules(reposito
     assert all("repository_id" not in item for item in value["architecture_rules"])
     assert value["architecture_decision"]["contract_version"] == "architecture-decision-v1"
     assert value["architecture_decision"]["status"] == "deterministic_only"
+    assert (
+        "source structure and repository facts only"
+        in (value["architecture_decision"]["plain_language"]["conclusion"])
+    )
 
 
 def test_impact_follows_reverse_edges_and_relevant_tests(repository, database):
@@ -149,6 +153,8 @@ def test_agent_scope_trims_optional_context_to_the_configured_wire_budget(reposi
     assert value["primary_files"]
     assert all(item["path"] for item in value["primary_files"])
     assert value["architecture_decision"]["contract_version"] == "architecture-decision-v1"
+    assert value["architecture_decision"]["plain_language"]["conclusion"]
+    assert value["architecture_decision"]["placement"]["plain_language"]["conclusion"]
     assert (
         value["architecture_decision"]["verification"]["post_change_comparison"]["status"]
         == "rescan_required"

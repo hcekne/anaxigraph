@@ -4,6 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from anaxigraph.agent_decision_handoff_language import (
+    constraint_item_explanation,
+    constraints_explanation,
+    decision_explanation,
+    placement_explanation,
+)
 from anaxigraph.agent_decision_safety import consolidation_advice, dead_code_advice, verification
 from anaxigraph.pattern_intelligence import PatternIntelligenceService
 
@@ -55,18 +61,17 @@ def build_architecture_decision(
     preferred = _preferred_file(primary_files)
     reviewed_patterns = _reviewed_patterns(pattern_items)
     semantic_current = sum(_semantic_current(item) for item in primary_files)
+    status = _decision_status(primary_files, semantic_current, reviewed_patterns)
     return {
         "contract_version": ARCHITECTURE_DECISION_VERSION,
         "snapshot_id": snapshot_id,
-        "status": _decision_status(primary_files, semantic_current, reviewed_patterns),
+        "status": status,
+        "plain_language": _decision_language(
+            status, primary_files, semantic_current, reviewed_patterns
+        ),
         "placement": _placement(preferred, interfaces, reviewed_patterns),
         "change_constraints": _change_constraints(primary_files),
-        "patterns": {
-            "status": "reviewed" if reviewed_patterns else "no_current_reviews",
-            "total": len(reviewed_patterns),
-            "reading_guide": _pattern_reading_guide(),
-            "items": reviewed_patterns,
-        },
+        "patterns": _pattern_packet(reviewed_patterns),
         "consolidation": consolidation_advice(primary_files, reviewed_patterns),
         "dead_code": dead_code_advice(primary_files, findings),
         "verification": verification(
@@ -79,6 +84,29 @@ def build_architecture_decision(
             goal=goal,
             previous_baseline=verification_baseline,
         ),
+    }
+
+
+def _decision_language(
+    status: str,
+    primary_files: list[dict[str, Any]],
+    semantic_current: int,
+    reviewed_patterns: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return decision_explanation(
+        status,
+        selected_modules=len(primary_files),
+        semantic_modules=semantic_current,
+        reviewed_patterns=len(reviewed_patterns),
+    )
+
+
+def _pattern_packet(reviewed_patterns: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "status": "reviewed" if reviewed_patterns else "no_current_reviews",
+        "total": len(reviewed_patterns),
+        "reading_guide": _pattern_reading_guide(),
+        "items": reviewed_patterns,
     }
 
 
@@ -119,7 +147,7 @@ def _placement(
             for value in item.get("local_precedents") or []
         ]
     )
-    return {
+    result = {
         "preferred_path": path,
         "guidance": _text(semantic.get("placement_guidance"), 1_500),
         "architecture_role": _text(semantic.get("architecture_role"), 800),
@@ -128,6 +156,8 @@ def _placement(
         "interfaces": [_compact_interface(item) for item in interfaces[:12]],
         "local_precedents": precedents[:8],
     }
+    result["plain_language"] = placement_explanation(result)
+    return result
 
 
 def _reviewed_patterns(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -146,10 +176,12 @@ def _change_constraints(primary_files: list[dict[str, Any]]) -> dict[str, Any]:
             "risks": _strings(semantic.get("risks"), 6),
         }
         if any(constraint[key] for key in ("public_contracts", "invariants", "risks")):
+            constraint["plain_language"] = constraint_item_explanation(constraint)
             items.append(constraint)
     return {
         "status": "semantic" if items else "not_available",
         "items": items,
+        "plain_language": constraints_explanation(items),
     }
 
 

@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.15
+**Roadmap version:** 3.16
 
 **Updated:** 25 August 2026
 
@@ -1752,6 +1752,16 @@ sentences instead of leading with scores and confidence percentages. Existing se
 are translated when read, so this change creates no semantic work and invalidates no completed
 dossier.
 
+The rest of the goal-specific packet now uses `architecture-handoff-explanation-v1` and
+`architecture-verification-explanation-v1` instead of asking an agent to interpret internal status
+names and raw deltas. The packet states why its evidence is complete or partial, where to start,
+what behavior must remain true, what could go wrong, how to rescan, what changed, and what that
+change does not prove. Same-snapshot comparisons explicitly say that no post-change observation was
+possible. Under the smallest supported wire budget, optional detail and duplicate context paths are
+trimmed while the direct scope and placement conclusions survive. These are read-time projections
+over the existing facts and comparison contract, with no semantic work, persistence, endpoint, or
+freshness input.
+
 Deterministic dead-code candidates now require trusted relationship resolution, no resolved or
 ambiguous inbound path, configured and conventional entry-point exclusion, parser-backed support
 for both entry-point and registration evidence, no detected dynamic-wiring fact, and the configured
@@ -1778,12 +1788,12 @@ and an observed difference is not called an improvement without the intended out
 
 | Contract | Current evidence |
 |---|---|
-| Goal-specific decision | Existing REST and MCP scope integration returns `architecture-decision-v1`; focused contracts cover semantic placement, bounded plain-language reviewed-pattern, consolidation, and unused-code explanations, rating meanings, reuse/opportunity roles, provenance, constraints, exact verification baselines, payload compaction, and deterministic-only fallback |
+| Goal-specific decision | Existing REST and MCP scope integration returns `architecture-decision-v1`; focused contracts cover readable scope readiness, semantic placement, change constraints, reviewed patterns, consolidation, unused-code advice, before/after interpretation, rating meanings, provenance, exact verification baselines, payload compaction, and deterministic-only fallback |
 | Measured post-change handoff | The existing scope request accepts its earlier bounded baseline through CLI, REST, and MCP; same-snapshot, changed, unchanged, cross-goal, cross-repository, legacy, invalid-contract, and wire-budget behavior is versioned and tested without adding state or another product surface |
 | Removal safety | Python fixtures prove trusted module candidates, detected registration suppression, heuristic-language suppression, configured entry-point suppression, uncorroborated semantic suppression, and module/symbol granularity separation; `safe_to_remove` remains false |
 | Responsive authority | A blocking synchronous MCP tool no longer blocks the event loop; discovery tests prove connection-refused fallback, transient retry, and timeout refusal, while real SDK MCP and sidecar-preparation tests retain the work protocol |
 | Focused orchestration | Scope response assembly now lives behind a bounded payload service, reducing `agent_scope` from its 128-line/complexity-24 ratchet to 97/8; finding handoff and reverse-impact assembly moved out of their former 96/22 and 77/18 functions. `agent.py` is 233 lines, the focused finding and impact services are 164 and 143, and all three obsolete self-analysis findings are removed |
-| Verification | The complete suite passes 508 tests at 90.90% coverage; all 15 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis at 31 governed findings, 132 non-blocking findings, and zero issues |
+| Verification | The complete suite passes 513 tests at 90.88% coverage; all 15 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis at 31 governed findings, 132 non-blocking findings, and zero issues |
 
 ## 6.8 Expose pattern intelligence without multiplying product surfaces
 

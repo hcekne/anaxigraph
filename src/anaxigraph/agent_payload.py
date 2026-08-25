@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from anaxigraph import git
+from anaxigraph.agent_decision_handoff_language import compact_explanation
 from anaxigraph.config import AnaxiGraphConfig, path_matches
 
 
@@ -176,7 +178,7 @@ def _bound_scope_payload(payload: dict[str, Any], limit_bytes: int) -> dict[str,
                 if len(summary) > 120:
                     item["summary"] = summary[:117].rstrip() + "..."
                     omitted["summaries_compacted"] += 1
-    _maybe_compact_decision(payload, size(), limit, omitted)
+    _compact_optional_scope(payload, size, limit, omitted)
     if size() > limit:
         omitted["protected_file_details"] = len(payload["protected_files"])
         payload["protected_files"] = [
@@ -206,13 +208,9 @@ def _compact_decision(decision: dict[str, Any]) -> dict[str, Any]:
         "contract_version": decision.get("contract_version"),
         "snapshot_id": decision.get("snapshot_id"),
         "status": decision.get("status"),
-        "placement": {
-            "preferred_path": (decision.get("placement") or {}).get("preferred_path"),
-        },
-        "patterns": {
-            "status": (decision.get("patterns") or {}).get("status"),
-            "total": (decision.get("patterns") or {}).get("total", 0),
-        },
+        "plain_language": compact_explanation(decision.get("plain_language"), "conclusion"),
+        "placement": _compact_placement(decision.get("placement")),
+        "patterns": _compact_pattern_counts(decision.get("patterns")),
         "consolidation_count": len(decision.get("consolidation") or []),
         "change_constraint_count": len(
             (decision.get("change_constraints") or {}).get("items") or []
@@ -237,6 +235,22 @@ def _compact_decision(decision: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _compact_placement(value: Any) -> dict[str, Any]:
+    placement = value if isinstance(value, dict) else {}
+    return {
+        "preferred_path": placement.get("preferred_path"),
+        "plain_language": compact_explanation(
+            placement.get("plain_language"),
+            "conclusion",
+        ),
+    }
+
+
+def _compact_pattern_counts(value: Any) -> dict[str, Any]:
+    patterns = value if isinstance(value, dict) else {}
+    return {"status": patterns.get("status"), "total": patterns.get("total", 0)}
+
+
 def _maybe_compact_decision(
     payload: dict[str, Any], current_size: int, limit: int, omitted: dict[str, int]
 ) -> None:
@@ -244,6 +258,15 @@ def _maybe_compact_decision(
     if current_size > limit and isinstance(decision, dict):
         payload["architecture_decision"] = _compact_decision(decision)
         omitted["architecture_decision_details"] = 1
+
+
+def _compact_optional_scope(
+    payload: dict[str, Any], size: Callable[[], int], limit: int, omitted: dict[str, int]
+) -> None:
+    _maybe_compact_decision(payload, size(), limit, omitted)
+    while size() > limit and payload["recommended_context"]:
+        payload["recommended_context"].pop()
+        omitted["recommended_context"] += 1
 
 
 def _scope_omissions() -> dict[str, int]:
@@ -259,6 +282,7 @@ def _scope_omissions() -> dict[str, int]:
             "protected_file_details",
             "primary_file_details",
             "architecture_decision_details",
+            "recommended_context",
         )
     }
 

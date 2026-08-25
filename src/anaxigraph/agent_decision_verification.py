@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 from typing import Any
 
+from anaxigraph.agent_decision_handoff_language import comparison_explanation
+
 ARCHITECTURE_BASELINE_VERSION = "architecture-verification-baseline-v1"
 ARCHITECTURE_COMPARISON_VERSION = "architecture-verification-comparison-v1"
 
@@ -71,7 +73,7 @@ def compare_verification_baselines(
         "patterns": _pattern_changes(previous["patterns"], current["patterns"]),
     }
     status, summary = _comparison_status(previous, current, changes)
-    return {
+    result = {
         "contract_version": ARCHITECTURE_COMPARISON_VERSION,
         "status": status,
         "summary": summary,
@@ -84,6 +86,8 @@ def compare_verification_baselines(
         ),
         "caveats": _legacy_caveats(previous),
     }
+    result["plain_language"] = comparison_explanation(result)
+    return result
 
 
 def _comparison_status(
@@ -211,7 +215,7 @@ def _shared_identity(previous: dict[str, Any], current: dict[str, Any]) -> str |
 
 
 def _incomparable(previous: dict[str, Any], current: dict[str, Any], reason: str) -> dict[str, Any]:
-    return {
+    result = {
         "contract_version": ARCHITECTURE_COMPARISON_VERSION,
         "status": "incomparable",
         "summary": f"{reason} AnaxiGraph did not compare their results.",
@@ -221,6 +225,8 @@ def _incomparable(previous: dict[str, Any], current: dict[str, Any], reason: str
         "interpretation": "Use a baseline captured for this repository and the same coding goal.",
         "caveats": _legacy_caveats(previous),
     }
+    result["plain_language"] = comparison_explanation(result)
+    return result
 
 
 def _module_changes(before: list[dict[str, Any]], after: list[dict[str, Any]]) -> dict[str, Any]:

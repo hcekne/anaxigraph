@@ -33,6 +33,9 @@ async def test_rest_scope_accepts_its_previous_verification_baseline(repository,
     assert second.status_code == 200
     comparison = second.json()["architecture_decision"]["verification"]["post_change_comparison"]
     assert comparison["status"] == "rescan_required"
+    assert comparison["plain_language"]["what_anaxigraph_saw"] == [
+        "No newer snapshot was available, so no post-change comparison was possible."
+    ]
 
 
 @pytest.mark.anyio
@@ -78,3 +81,4 @@ async def test_mcp_scope_accepts_its_previous_verification_baseline(repository, 
         "post_change_comparison"
     ]
     assert comparison["status"] == "rescan_required"
+    assert comparison["plain_language"]["what_to_do"].startswith("Run a new scan")

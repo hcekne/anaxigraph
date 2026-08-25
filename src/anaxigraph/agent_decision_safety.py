@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from anaxigraph.agent_decision_handoff_language import verification_explanation
 from anaxigraph.agent_decision_language import (
     consolidation_explanation,
     dead_code_explanation,
@@ -196,6 +197,7 @@ def verification(
         result["post_change_comparison"] = compare_verification_baselines(
             previous_baseline, current_baseline
         )
+    result["plain_language"] = verification_explanation(result)
     return result
 
 

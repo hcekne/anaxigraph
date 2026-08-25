@@ -98,11 +98,18 @@ def test_architecture_decision_combines_placement_patterns_and_balanced_consolid
     )
 
     assert result["status"] == "semantic_and_reviewed"
+    assert result["plain_language"]["version"] == "architecture-handoff-explanation-v1"
+    assert "current module meaning" in result["plain_language"]["conclusion"]
     assert result["placement"]["preferred_path"] == "src/service.py"
     assert result["placement"]["local_precedents"] == ["src/peer_service.py"]
+    assert result["placement"]["plain_language"]["conclusion"] == (
+        "Start this change in src/service.py."
+    )
     constraints = result["change_constraints"]
     assert constraints["status"] == "semantic"
     assert constraints["items"][0]["invariants"]
+    assert constraints["items"][0]["plain_language"]["what_must_stay_true"]
+    assert constraints["plain_language"]["conclusion"].startswith("Preserve the recorded")
     reviewed = result["patterns"]["items"][0]
     assert reviewed["role"] == "reuse"
     assert reviewed["plain_language"]["version"] == "pattern-explanation-v1"
@@ -126,6 +133,7 @@ def test_architecture_decision_combines_placement_patterns_and_balanced_consolid
     assert baseline["finding_keys"] == ["finding-3"]
     assert result["verification"]["focused_test_paths"] == ["tests/test_service.py"]
     assert result["verification"]["semantic_test_guidance"][0]["guidance"]
+    assert "has not compared a new scan" in result["verification"]["plain_language"]["conclusion"]
 
 
 def test_architecture_decision_suppresses_uncorroborated_dead_code_and_weak_merge_advice():
@@ -233,6 +241,12 @@ def test_architecture_decision_compares_a_previous_baseline_after_a_rescan():
     assert score_changes["conformance"]["change"] == 6
     assert score_changes["opportunity"]["change"] == -10
     assert "does not call the change better or worse" in comparison["interpretation"]
+    assert comparison["plain_language"]["version"] == "architecture-verification-explanation-v1"
+    assert comparison["plain_language"]["what_anaxigraph_saw"] == [
+        "AnaxiGraph observed 1 module change(s).",
+        "AnaxiGraph observed 2 finding change(s).",
+        "AnaxiGraph observed 1 reviewed pattern change(s).",
+    ]
 
 
 def test_architecture_decision_requires_a_new_snapshot_and_matching_goal_for_comparison():
