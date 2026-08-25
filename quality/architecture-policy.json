@@ -70,6 +70,7 @@
         "anaxigraph.semantic",
         "anaxigraph.semantic_taxonomy_clusters",
         "anaxigraph.semantic_taxonomy_contract",
+        "anaxigraph.semantic_taxonomy_expansion",
         "anaxigraph.semantic_taxonomy_identity",
         "anaxigraph.semantic_taxonomy_partition",
         "anaxigraph.semantic_taxonomy_runner",

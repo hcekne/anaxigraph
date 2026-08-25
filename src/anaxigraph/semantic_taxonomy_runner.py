@@ -9,11 +9,13 @@ from anaxigraph.semantic_contract import SemanticResult
 from anaxigraph.semantic_parallel import parallel_map
 from anaxigraph.semantic_taxonomy_clusters import (
     cluster_inventory,
-    expand_taxonomy,
-    membership_count,
     representative_locks,
     representative_previous,
     representative_relationships,
+)
+from anaxigraph.semantic_taxonomy_expansion import (
+    expand_taxonomy,
+    membership_count,
     unique_strings,
 )
 from anaxigraph.semantic_taxonomy_partition import (
