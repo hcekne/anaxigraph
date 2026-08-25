@@ -14,6 +14,7 @@ from anaxigraph.agent_decision_safety import consolidation_advice, dead_code_adv
 from anaxigraph.agent_decomposition import decomposition_advice
 from anaxigraph.agent_task_path import task_path
 from anaxigraph.pattern_intelligence import PatternIntelligenceService
+from anaxigraph.trend_service import scoped_change_coupling
 
 ARCHITECTURE_DECISION_VERSION = "architecture-decision-v1"
 
@@ -37,6 +38,12 @@ def architecture_decision(
     verification_baseline: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     patterns = _pattern_items(database, repository_id, snapshot_id, primary_files)
+    coupling = scoped_change_coupling(
+        database,
+        repository_id,
+        snapshot_id,
+        [str(item.get("path") or "") for item in primary_files],
+    )
     return build_architecture_decision(
         snapshot_id=snapshot_id,
         primary_files=primary_files,
@@ -49,6 +56,7 @@ def architecture_decision(
         repository_identity=repository_identity,
         goal=goal,
         verification_baseline=verification_baseline,
+        change_coupling=coupling,
     )
 
 
@@ -65,6 +73,7 @@ def build_architecture_decision(
     verification_baseline: dict[str, Any] | None = None,
     symbols: list[dict[str, Any]] | None = None,
     hierarchy: list[dict[str, Any]] | None = None,
+    change_coupling: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     preferred = _preferred_file(primary_files)
     reviewed_patterns = _reviewed_patterns(pattern_items)
@@ -81,13 +90,13 @@ def build_architecture_decision(
         "placement": _placement(preferred, interfaces, reviewed_patterns),
         "change_constraints": _change_constraints(primary_files),
         "patterns": _pattern_packet(reviewed_patterns),
-        "consolidation": consolidation_advice(primary_files, reviewed_patterns),
-        "decomposition": decomposition_advice(
+        **_structural_advice(
             primary_files,
+            reviewed_patterns,
+            change_coupling,
             symbols or [],
             tests,
             findings,
-            reviewed_patterns,
         ),
         "dead_code": dead_code_advice(primary_files, findings),
         "verification": verification(
@@ -100,6 +109,38 @@ def build_architecture_decision(
             goal=goal,
             previous_baseline=verification_baseline,
         ),
+    }
+
+
+def _structural_advice(
+    primary_files: list[dict[str, Any]],
+    patterns: list[dict[str, Any]],
+    change_coupling: dict[str, Any] | None,
+    symbols: list[dict[str, Any]],
+    tests: list[str],
+    findings: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "history_evidence": {"change_coupling": change_coupling or _missing_change_coupling()},
+        "consolidation": consolidation_advice(
+            primary_files,
+            patterns,
+            change_coupling=change_coupling,
+        ),
+        "decomposition": decomposition_advice(
+            primary_files,
+            symbols,
+            tests,
+            findings,
+            patterns,
+        ),
+    }
+
+
+def _missing_change_coupling() -> dict[str, str]:
+    return {
+        "status": "unavailable",
+        "reason": "No current change-history comparison was supplied for this decision.",
     }
 
 

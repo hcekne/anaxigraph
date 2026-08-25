@@ -10,9 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from anaxigraph import git
-from anaxigraph.agent_change_effects import compact_structural_effects
-from anaxigraph.agent_decision_handoff_language import compact_explanation
-from anaxigraph.agent_decomposition import compact_decomposition
+from anaxigraph.agent_decision_payload import compact_architecture_decision
 from anaxigraph.agent_task_path import compact_task_path
 from anaxigraph.config import AnaxiGraphConfig, path_matches
 from anaxigraph.guidance import FILE_MEASUREMENT_MEANINGS
@@ -282,90 +280,12 @@ def _minimize_task_path(
         omitted["task_path_details"] = 1
 
 
-def _compact_decision(decision: dict[str, Any]) -> dict[str, Any]:
-    patterns = _compact_pattern_counts(decision.get("patterns"))
-    decomposition = compact_decomposition(decision.get("decomposition"))
-    result = {
-        "contract_version": decision.get("contract_version"),
-        "snapshot_id": decision.get("snapshot_id"),
-        "status": decision.get("status"),
-        "plain_language": compact_explanation(decision.get("plain_language"), "conclusion"),
-        "task_path": compact_task_path(decision.get("task_path")),
-        "placement": _compact_placement(decision.get("placement")),
-    }
-    _add_nonempty_decision_counts(result, decision, patterns, decomposition)
-    comparison = (decision.get("verification") or {}).get("post_change_comparison") or {}
-    if comparison:
-        effects = (comparison.get("changes") or {}).get("structural_effects")
-        compact_effects = compact_structural_effects(effects)
-        effect_changes = any(
-            compact_effects[name] for name in compact_effects if name != "omitted_count"
-        )
-        result["verification"] = {
-            "post_change_comparison": {
-                **{
-                    key: comparison.get(key)
-                    for key in (
-                        "contract_version",
-                        "status",
-                        "summary",
-                        "baseline_snapshot_id",
-                        "current_snapshot_id",
-                        "interpretation",
-                    )
-                },
-                **(
-                    {"changes": {"structural_effects": compact_effects}}
-                    if effect_changes or compact_effects["omitted_count"]
-                    else {}
-                ),
-            }
-        }
-    return result
-
-
-def _add_nonempty_decision_counts(
-    result: dict[str, Any],
-    decision: dict[str, Any],
-    patterns: dict[str, Any],
-    decomposition: dict[str, Any],
-) -> None:
-    values = {
-        "consolidation_count": len(decision.get("consolidation") or []),
-        "change_constraint_count": len(
-            (decision.get("change_constraints") or {}).get("items") or []
-        ),
-        "dead_code_candidate_count": (decision.get("dead_code") or {}).get("candidate_count", 0),
-    }
-    result.update({key: value for key, value in values.items() if value})
-    if patterns.get("total"):
-        result["patterns"] = patterns
-    if decomposition.get("items"):
-        result["decomposition"] = decomposition
-
-
-def _compact_placement(value: Any) -> dict[str, Any]:
-    placement = value if isinstance(value, dict) else {}
-    return {
-        "preferred_path": placement.get("preferred_path"),
-        "plain_language": compact_explanation(
-            placement.get("plain_language"),
-            "conclusion",
-        ),
-    }
-
-
-def _compact_pattern_counts(value: Any) -> dict[str, Any]:
-    patterns = value if isinstance(value, dict) else {}
-    return {"status": patterns.get("status"), "total": patterns.get("total", 0)}
-
-
 def _maybe_compact_decision(
     payload: dict[str, Any], current_size: int, limit: int, omitted: dict[str, int]
 ) -> None:
     decision = payload.get("architecture_decision")
     if current_size > limit and isinstance(decision, dict):
-        payload["architecture_decision"] = _compact_decision(decision)
+        payload["architecture_decision"] = compact_architecture_decision(decision)
         omitted["architecture_decision_details"] = 1
 
 

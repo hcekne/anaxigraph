@@ -26,14 +26,23 @@ _CONSOLIDATION_PATTERNS = {
 
 
 def consolidation_advice(
-    primary_files: list[dict[str, Any]], patterns: list[dict[str, Any]]
+    primary_files: list[dict[str, Any]],
+    patterns: list[dict[str, Any]],
+    *,
+    change_coupling: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
-    result = [_consolidation_item(item, patterns) for item in primary_files]
+    result = [
+        _consolidation_item(item, patterns, change_coupling=change_coupling)
+        for item in primary_files
+    ]
     return [item for item in result if item is not None][:6]
 
 
 def _consolidation_item(
-    item: dict[str, Any], patterns: list[dict[str, Any]]
+    item: dict[str, Any],
+    patterns: list[dict[str, Any]],
+    *,
+    change_coupling: dict[str, Any] | None,
 ) -> dict[str, Any] | None:
     assessment = (item.get("semantic") or {}).get("consolidation_assessment")
     if not isinstance(assessment, dict):
@@ -55,7 +64,7 @@ def _consolidation_item(
         "candidates": candidates,
         "evidence": evidence,
         "counter_evidence": counter,
-        "context": _consolidation_context(item),
+        "context": _consolidation_context(item, change_coupling),
         "reviewed_patterns": _consolidation_pattern_keys(item, patterns),
     }
     result["plain_language"] = consolidation_explanation(
@@ -79,7 +88,9 @@ def _consolidation_pattern_keys(item: dict[str, Any], patterns: list[dict[str, A
     ]
 
 
-def _consolidation_context(item: dict[str, Any]) -> dict[str, Any]:
+def _consolidation_context(
+    item: dict[str, Any], change_coupling: dict[str, Any] | None
+) -> dict[str, Any]:
     semantic = item.get("semantic") or {}
     return {
         "responsibilities": _strings(semantic.get("responsibilities"), 5),
@@ -92,10 +103,31 @@ def _consolidation_context(item: dict[str, Any]) -> dict[str, Any]:
             "group": item.get("declared_group") or item.get("inferred_group"),
             "role": _text(semantic.get("architecture_role"), 500),
         },
-        "change_coupling": {
+        "change_coupling": _file_change_coupling(str(item.get("path") or ""), change_coupling),
+    }
+
+
+def _file_change_coupling(path: str, packet: dict[str, Any] | None) -> dict[str, Any]:
+    if not packet:
+        return {
             "status": "unavailable",
             "reason": "No current temporal co-change projection is available.",
-        },
+        }
+    items = [
+        item for item in packet.get("items") or [] if str(item.get("selected_path") or "") == path
+    ][:5]
+    status = str(packet.get("status") or "unavailable")
+    if status == "available" and not items:
+        status = "no_repeated_change"
+    return {
+        "contract_version": packet.get("contract_version"),
+        "status": status,
+        "window_commits": packet.get("window_commits"),
+        "items": items,
+        "safety_note": (
+            "Repeated co-change is supporting evidence only; responsibilities and contracts still "
+            "decide whether code belongs together."
+        ),
     }
 
 

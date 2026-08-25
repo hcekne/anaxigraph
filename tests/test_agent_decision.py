@@ -192,6 +192,39 @@ def test_architecture_decision_suppresses_uncorroborated_dead_code_and_weak_merg
     assert "does not authorize deletion" in explanation["deletion_rule"]
 
 
+def test_architecture_decision_keeps_change_history_separate_and_supporting():
+    packet = {
+        "contract_version": "change-coupling-v1",
+        "status": "available",
+        "window_commits": 100,
+        "items": [
+            {
+                "selected_path": "src/service.py",
+                "partner_path": "src/peer_service.py",
+                "shared_commits": 4,
+                "relationship_kind": "co_change_only",
+            }
+        ],
+    }
+
+    result = build_architecture_decision(
+        snapshot_id=10,
+        primary_files=[_module(counter=["The public contracts intentionally differ."])],
+        interfaces=[],
+        tests=[],
+        findings=[],
+        pattern_items=[_pattern()],
+        change_coupling=packet,
+    )
+
+    assert result["history_evidence"]["change_coupling"] == packet
+    context = result["consolidation"][0]["context"]["change_coupling"]
+    assert context["status"] == "available"
+    assert context["items"][0]["partner_path"] == "src/peer_service.py"
+    assert "supporting evidence only" in context["safety_note"]
+    assert result["consolidation"][0]["status"] == "keep_separate"
+
+
 def test_module_dead_code_finding_does_not_corroborate_symbol_candidate():
     candidate = {
         "path_or_symbol": "src/service.py:legacy_adapter",

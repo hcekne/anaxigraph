@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.25
+**Roadmap version:** 3.26
 
 **Updated:** 25 August 2026
 
@@ -111,7 +111,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 536 tests passing plus 16 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
+| Test health | 552 tests passing plus 16 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -144,7 +144,8 @@ We borrow mechanics with evidence, not product identity:
   path combined with temporal state, finding lifecycle, and agent-funded write-back.
 - [CodeScene hotspots](https://codescene.com/product/hotspots) reinforce the value of combining
   change frequency with code health. AnaxiGraph already uses that principle in finding priority
-  and should extend it into temporal trends and change coupling.
+  and reuses stored changes for task-scoped co-change evidence; that does not require a second
+  repository-wide ranking.
 - [pre-commit](https://pre-commit.com/) provides a tracked, cross-platform way to install local Git
   hooks. The same checks will run in CI because local hooks are intentionally bypassable.
 - Git's [`diff`](https://git-scm.com/docs/git-diff) and later
@@ -250,7 +251,9 @@ The point is that the decision is written down, not that it happens on a schedul
 | New-versus-existing size, complexity, coupling, cycle, and boundary regressions | Essential | Make this the first active implementation slice |
 | Evidence-backed decomposition of mixed-responsibility large files | Essential | Reuse symbols, semantic responsibilities, graph edges, patterns, and focused tests |
 | Area → subsystem → module → symbol navigation for a coding goal | Essential | Improve the existing map, search, and scope paths rather than adding another visualization |
-| Change coupling, churn/complexity hotspots, and “when was this introduced?” | Supporting | Retain only the history evidence that changes a structure or placement decision |
+| Repeated co-change around task-selected code | Supporting | Keep a bounded on-demand clue because it exposes coordination that imports and calls cannot show |
+| “When did this specific structural problem appear or disappear?” | Supporting | Reuse retained findings and frames to explain whether a task-facing risk is new, persistent, resolved, or regressed |
+| A separate repository-wide historical hotspot ranking | Optional | The attention queue and before/after comparison already answer the actionable parts without another scoring product |
 | Stable install, migration, backup, security, and honest support contracts | Supporting | Keep as the final 1.0 reliability phase |
 | JavaScript/TypeScript, Go, Rust, Java, and long-tail parser expansion | Optional | Move out of the numbered roadmap; add one language only when concrete demand justifies its cost |
 | SQL, API-schema, deployment, Terraform, and document adapters | Optional | Reconsider after the source-code change loop is complete |
@@ -273,7 +276,7 @@ The point is that the decision is written down, not that it happens on a schedul
 | 5A | Bounded graph and operational APIs | Large local indexes remain bounded from database to browser and the API composition root stays small | Pattern query surfaces |
 | 6 | Architect-grade semantic and pattern intelligence | An extensible catalog of at least 120 patterns is evaluated across code hierarchies and independently reviewed by agents | Change-safe architecture guidance |
 | 7 | Change-safe architecture loop | Agents and people get placement guidance before a change and a focused entropy comparison afterward | Focused temporal risk signals |
-| 8 | Change-history signals for architecture risk | Co-change, hotspot trends, and introduction history improve present-day structure decisions | 1.0 scope freeze |
+| 8 | Focused history evidence for architecture risk | Co-change and introduction/resolution history improve the current task decision | 1.0 scope freeze |
 | 9 | 1.0 reliability and honest support | Stable migrations, recovery, contracts, documentation, and measured support claims | 1.0 release |
 
 ---
@@ -2240,48 +2243,63 @@ Compose, hardened-container, and first-user gates report zero regressions.
 
 ---
 
-# Phase 8 — change-history signals for architecture risk
+# Phase 8 — focused history evidence for architecture risk
 
 **Status:** ACTIVE on 25 August 2026
 
-**Goal:** use history only where it makes a present-day structure decision better. This is not a
-second history product and does not expand animated playback.
+**Goal:** answer only two history questions that the current task loop cannot answer from a static
+map: which nearby files repeatedly change with the selected code, and when a selected structural
+problem appeared or disappeared. This is not a second history product.
 
-**Feature admission:** this supporting phase improves attention, placement, consolidation, and
-decomposition decisions by showing which code repeatedly changes together and which structural
-risks are growing. It reuses immutable facts, snapshot deltas, findings, graph reads, and the
-existing history import. No renderer-specific history model or identity analytics are required.
+**Feature admission:** this supporting phase improves placement, consolidation, decomposition, and
+post-change decisions by showing repeated co-change and the lifetime of a specific structural
+problem. It reuses immutable facts, snapshot deltas, findings, graph reads, and the existing history
+import. It adds no renderer-specific history model, identity analytics, or general history score.
 
 ## 8.1 Add change coupling without inventing static edges
 
-For configurable recent windows, identify modules that repeatedly change in the same commits. Keep
-co-change separate from imports, calls, and other static relationships. Scope the calculation to
-selected modules/areas and store only a compact reusable projection if measured query cost requires
-it.
+For configurable recent windows of saved commits that touched the task-selected files, identify
+modules that repeatedly change in the same commits. Keep co-change separate from imports, calls,
+and other static relationships. Scope the calculation to selected modules/areas and store only a
+compact reusable projection if measured query cost requires it.
 
-Use this evidence to strengthen or contradict consolidation, placement, impact, and large-file
-decomposition advice. Two files changing together is a clue, not proof they should be merged.
+Expose this evidence once in the current architecture decision and attach the relevant subset to
+consolidation context instead of duplicating it through every advice surface. Two files changing
+together is a clue, not proof they should be merged.
 
-## 8.2 Show structural hotspots that are getting worse
+**Status:** COMPLETE on 25 August 2026
 
-Combine churn with current size, complexity, coupling, coverage, findings, and architecture role.
-Report a short ordered list of rising, stable, and improving hotspots. Explain the measured trend,
-why it may matter, and what evidence argues against acting now. Do not collapse those dimensions
-into one unexplained health score.
+`change-coupling-v1` reads the existing `git_changes` ledger on demand for at most eight selected
+files. It examines the latest 100 relevant commits by default, clamps the window at 500, requires at
+least two shared commits, returns at most 20 pairs by default, and caps output at 50. The query uses
+the existing repository/path and repository/commit indexes, then considers only selected-file hits
+against files in those commits; it never builds the dense product of every repository file pair.
+Only files present in the current snapshot can be returned.
 
-## 8.3 Answer when a structural problem appeared
+Each pair states how often it changed with the selected file and whether a real static relationship
+also exists. A co-change-only result remains a history clue, never a graph edge, dependency claim,
+or merge instruction. The evidence appears in the existing architecture-decision response,
+file-specific consolidation context, bounded agent packet, and Agents view. It adds no table,
+semantic job, model call, route, or primary screen.
 
-For a selected cycle, boundary crossing, oversized responsibility, hotspot, or recommendation,
-identify the earliest retained frame that exhibits it and the frame that resolves it when one
-exists. Agents and people should be able to ask “is this new, persistent, improving, or regressed?”
-through existing history, finding, graph, and scope paths.
+Five focused history fixtures cover static versus co-change-only links, one-off changes, deleted
+files, missing history, hard bounds, and selected-file work scaling. A 1,000-file fixture produces
+1,000 selected pairs instead of 499,500 all-file pairs. The complete gate passes with 552 Python
+tests at 91.60% coverage and all 16 browser contracts. Self-analysis reports zero regressions;
+architecture, size, complexity, and JavaScript checks pass. Moving the already-cohesive decision
+compactor into a 98-line module reduced `agent_payload.py` from 497 to 391 lines.
+
+## 8.2 Answer when a structural problem appeared
+
+For a selected cycle, boundary crossing, oversized module or responsibility, or other current
+structural finding, identify the earliest retained frame that exhibits it and the frame that
+resolves it when one exists. Agents and people should be able to ask “is this new, persistent,
+improving, or regressed?” through existing history, finding, graph, and scope paths.
 
 ## Phase 8 exit gate
 
 - A fixture identifies two repeatedly co-changing modules with no static edge and labels that
   distinction correctly.
-- A rising churn/complexity/coupling hotspot is ordered ahead of stable pre-existing debt, with all
-  component evidence visible.
 - A user or agent can identify the retained change that introduced and resolved a fixture cycle or
   boundary regression.
 - The calculations scale with changed files and selected history frames, not the dense product of
@@ -2344,6 +2362,8 @@ evidence shows that one materially improves the core navigation-and-structure mi
 - a general third-party plugin SDK;
 - PDF, image, audio, or video understanding;
 - animated architecture playback, a visual repository bibliography, or identity/ownership analytics;
+- a standalone historical hotspot score or ranking beside the existing attention queue and
+  before/after structural comparison;
 - a separate website, interactive demo, replay video, or ecosystem-growth program.
 
 Optional work still obeys provenance, safety, bounded-resource, module-size, test, and honest-support
@@ -2407,8 +2427,8 @@ Every phase must satisfy all applicable gates below, not only its own feature te
 | Is the attention queue useful? | Queue size, top-20 action rate, dismissal reason, recurrence, time to resolution |
 | Is architecture advice useful? | Independent-agent agreement, optional operator correction rate, false-positive category, score calibration, verified improvement/regression |
 | Is semantic cost controlled? | Current/stale/failed/excluded coverage, input/output tokens, cost, reuse rate, jobs per changed module |
-| Does history improve today's decision? | Co-change precision, hotspot trend accuracy, introduction/resolution lookup time, and incremental work per changed file |
-| Is AnaxiGraph staying clean? | Modules over 400/500 lines, cycles, layer violations, complexity, changed-code coverage, hotspot trend |
+| Does history improve today's decision? | Co-change precision, introduction/resolution lookup time, and incremental work per changed file |
+| Is AnaxiGraph staying clean? | Modules over 400/500 lines, cycles, layer violations, complexity, changed-code coverage, and finding recurrence |
 | Do product surfaces stay bounded? | Scope, overview, expanded-region, comparison, and evidence payload bytes/time plus peak browser memory |
 
 # Complexity exclusions
@@ -2475,8 +2495,9 @@ queue and the document cannot drift apart.
 | 44 | **COMPLETE** — Make the existing scope → update → scope loop distinguish introduced, worsened, improved, resolved, and pre-existing structural effects | §7.1–7.2 |
 | 45 | **COMPLETE** — Turn mixed-responsibility large-file warnings into bounded, evidence-backed decomposition maps, while explicitly keeping cohesive files together | §7.3 |
 | 46 | **COMPLETE** — Make existing hierarchy navigation task-centered from area through symbol without another graph or dashboard surface | §7.4–7.5 |
-| 47 | Add only change coupling, hotspot trends, and introduction/resolution evidence that improves a current architecture decision | Phase 8 |
-| 48 | Freeze, validate, document, and release the honestly supported core loop | Phase 9 |
+| 47 | **COMPLETE** — Add bounded co-change evidence around task-selected files without creating graph edges or a second history store | §8.1 |
+| 48 | Identify the retained change that introduced or resolved a selected cycle, boundary crossing, or structural finding | §8.2 |
+| 49 | Freeze, validate, document, and release the honestly supported core loop | Phase 9 |
 
 This order now follows the product loop directly. Optional parser, adapter, plugin, media, playback,
 website, and ecosystem work cannot displace it or become an accidental release dependency.

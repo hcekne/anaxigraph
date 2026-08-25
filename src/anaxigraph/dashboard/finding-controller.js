@@ -133,9 +133,29 @@ function architectureDecisionMarkup(decision = {}) {
     ${taskPathMarkup(decision.task_path)}
     ${decisionText("Where to start", placement.conclusion)}
     ${decisionText("What to preserve", constraints.conclusion)}
+    ${changeCouplingMarkup(decision.history_evidence?.change_coupling)}
     ${decisionText("How to verify it", verification.conclusion)}
     ${decisionList("Next steps", verification.what_to_do || [])}
     ${decompositionMarkup(decision.decomposition)}</section>`;
+}
+
+function changeCouplingMarkup(coupling = {}) {
+  const items = coupling.items || [];
+  if (!items.length) return "";
+  const observations = items.slice(0, 8).map((item) => {
+    const language = item.plain_language || {};
+    const observation = language.observation
+      || `${item.selected_path} and ${item.partner_path} changed together in ${item.shared_commits} recent commits.`;
+    const meaning = language.why_it_may_matter || (item.relationship_kind === "co_change_only"
+      ? "No direct source-code link joins them, so check whether a task or responsibility connects them."
+      : "A direct source-code link also joins them, so changes may need both files checked.");
+    return `${observation} ${meaning}`;
+  });
+  return `<div class="agent-change-coupling"><h4>Files that often change together</h4>
+    ${decisionText("What AnaxiGraph found", coupling.plain_language?.conclusion)}
+    ${decisionList("Repeated change clues", observations)}
+    ${decisionText("Important limit", coupling.plain_language?.limits
+      || "This is a clue, not a source-code link or an instruction to merge files.")}</div>`;
 }
 
 function taskPathMarkup(path = {}) {

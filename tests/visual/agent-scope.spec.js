@@ -65,6 +65,23 @@ test("agent workbench shows the readable architecture recommendation", async ({ 
           conclusion: "Preserve the existing task-context response.",
         },
       },
+      history_evidence: {
+        change_coupling: {
+          status: "available",
+          plain_language: {
+            conclusion: "Two files repeatedly changed in the same commits.",
+            limits: "This is a clue, not a source-code link or an instruction to merge files.",
+          },
+          items: [{
+            selected_path: "src/anaxigraph/dashboard/finding-controller.js",
+            partner_path: "tests/visual/agent-scope.spec.js",
+            plain_language: {
+              observation: "The controller and its browser test changed together four times.",
+              why_it_may_matter: "Changes here may need the browser behavior checked.",
+            },
+          }],
+        },
+      },
       verification: {
         plain_language: {
           conclusion: "A new scan has not been compared yet.",
@@ -113,6 +130,9 @@ test("agent workbench shows the readable architecture recommendation", async ({ 
   await expect(result).toContainText("Called by src/anaxigraph/dashboard/app.js");
   await expect(result).toContainText("Where to start");
   await expect(result).toContainText("What to preserve");
+  await expect(result).toContainText("Files that often change together");
+  await expect(result).toContainText("changed together four times");
+  await expect(result).toContainText("not a source-code link");
   await expect(result).toContainText("How to verify it");
   await expect(result).toContainText("Should this large file be split?");
   await expect(result).toContainText("Test a two-part split");

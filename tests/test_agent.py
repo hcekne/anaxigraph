@@ -40,6 +40,10 @@ def test_agent_scope_is_bounded_and_includes_tests_protection_and_rules(reposito
     assert value["architecture_decision"]["contract_version"] == "architecture-decision-v1"
     assert value["architecture_decision"]["status"] == "deterministic_only"
     assert (
+        value["architecture_decision"]["history_evidence"]["change_coupling"]["status"]
+        == "insufficient_history"
+    )
+    assert (
         "facts AnaxiGraph read directly"
         in value["architecture_decision"]["plain_language"]["conclusion"]
     )
@@ -230,6 +234,7 @@ def test_agent_scope_trims_optional_context_to_the_configured_wire_budget(reposi
     assert value["architecture_decision"]["plain_language"]["conclusion"]
     assert value["architecture_decision"]["placement"]["plain_language"]["conclusion"]
     assert value["architecture_decision"]["task_path"]["module"]["path"]
+    assert value["architecture_decision"]["history_evidence"]["change_coupling"]["status"]
     assert (
         value["architecture_decision"]["verification"]["post_change_comparison"]["status"]
         == "rescan_required"
