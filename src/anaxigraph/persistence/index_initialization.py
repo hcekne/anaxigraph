@@ -13,6 +13,7 @@ from anaxigraph.persistence.migrations import (
     transactional_schema_change,
     validate_schema_version,
 )
+from anaxigraph.persistence.temporal_reconstruction import ensure_checkpoint_policy
 
 
 def initialize_index(
@@ -27,6 +28,8 @@ def initialize_index(
     current_version = existing_schema_version(database_path)
     validate_schema_version(current_version, target_version)
     if current_version == target_version:
+        with connection_factory() as connection:
+            ensure_checkpoint_policy(connection)
         return
     backup = None
     if current_version is not None and current_version < target_version:
