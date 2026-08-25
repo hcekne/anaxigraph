@@ -15,16 +15,7 @@ def _bound_scope_payload(payload: dict[str, Any], limit_bytes: int) -> dict[str,
     """Keep MCP task context within a predictable wire budget without dropping primary files."""
 
     limit = max(4_000, int(limit_bytes))
-    omitted = {
-        "related_files": 0,
-        "known_findings": 0,
-        "interfaces": 0,
-        "branch_conflicts": 0,
-        "rule_details": 0,
-        "summaries_compacted": 0,
-        "protected_file_details": 0,
-        "primary_file_details": 0,
-    }
+    omitted = _scope_omissions()
     payload["payload_budget"] = {
         "limit_bytes": limit,
         "estimated_bytes": 0,
@@ -60,6 +51,7 @@ def _bound_scope_payload(payload: dict[str, Any], limit_bytes: int) -> dict[str,
                 if len(summary) > 120:
                     item["summary"] = summary[:117].rstrip() + "..."
                     omitted["summaries_compacted"] += 1
+    _maybe_compact_decision(payload, size(), limit, omitted)
     if size() > limit:
         omitted["protected_file_details"] = len(payload["protected_files"])
         payload["protected_files"] = [
@@ -82,6 +74,52 @@ def _bound_scope_payload(payload: dict[str, Any], limit_bytes: int) -> dict[str,
     # Updating the byte count can change its own digit width. A second pass makes the estimate exact.
     payload["payload_budget"]["estimated_bytes"] = size()
     return payload
+
+
+def _compact_decision(decision: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "contract_version": decision.get("contract_version"),
+        "snapshot_id": decision.get("snapshot_id"),
+        "status": decision.get("status"),
+        "placement": {
+            "preferred_path": (decision.get("placement") or {}).get("preferred_path"),
+        },
+        "patterns": {
+            "status": (decision.get("patterns") or {}).get("status"),
+            "total": (decision.get("patterns") or {}).get("total", 0),
+        },
+        "consolidation_count": len(decision.get("consolidation") or []),
+        "change_constraint_count": len(
+            (decision.get("change_constraints") or {}).get("items") or []
+        ),
+        "dead_code_candidate_count": (decision.get("dead_code") or {}).get("candidate_count", 0),
+    }
+
+
+def _maybe_compact_decision(
+    payload: dict[str, Any], current_size: int, limit: int, omitted: dict[str, int]
+) -> None:
+    decision = payload.get("architecture_decision")
+    if current_size > limit and isinstance(decision, dict):
+        payload["architecture_decision"] = _compact_decision(decision)
+        omitted["architecture_decision_details"] = 1
+
+
+def _scope_omissions() -> dict[str, int]:
+    return {
+        key: 0
+        for key in (
+            "related_files",
+            "known_findings",
+            "interfaces",
+            "branch_conflicts",
+            "rule_details",
+            "summaries_compacted",
+            "protected_file_details",
+            "primary_file_details",
+            "architecture_decision_details",
+        )
+    }
 
 
 def _branch_conflicts(root: Path, paths: set[str], branch: str | None) -> list[dict[str, str]]:

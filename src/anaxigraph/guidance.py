@@ -77,8 +77,9 @@ OVERLAYS = {
         "hotspots."
     ),
     "dead-code": (
-        "Amber modules have no detected incoming static dependency and are old enough to inspect. "
-        "Dynamic runtime use has not been ruled out."
+        "Amber modules have no resolved or ambiguous incoming path, are old enough to inspect, "
+        "are not configured or detected entry points, and have parser-backed registration checks. "
+        "Dynamic runtime use has still not been ruled out."
     ),
     "agent": (
         "After planning a task, green is recommended context, amber is a protected boundary, and "
@@ -93,7 +94,8 @@ OVERLAYS = {
 AGENT_WORKFLOW = {
     "scope": (
         "Describe a coding goal to find a bounded set of likely implementation files, connected "
-        "modules, tests, protected boundaries, applicable rules, and known findings."
+        "modules, tests, protected boundaries, applicable rules, known findings, and an "
+        "evidence-backed architecture decision with a post-change baseline."
     ),
     "impact": (
         "Name a file or symbol before changing it to find direct and indirect code that depends on "

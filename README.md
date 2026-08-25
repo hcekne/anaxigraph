@@ -102,7 +102,8 @@ makes a dossier stale.
 When the loopback dashboard is already running, `understand` matches the checkout to its service by
 Git remote identity and executes against that sidecar's AnaxiIndex—even when the container sees the
 checkout at `/repo`. It never creates a second default database in that case. Without a matching
-service it uses the same stable per-checkout user-state path as `anaxigraph up`; `--db` explicitly
+service it uses the same stable per-checkout user-state path as `anaxigraph up`; a timeout or
+invalid inventory fails closed instead of silently choosing another index. `--db` explicitly
 selects a standalone index, and `--service-url` explicitly selects a service. Every command result
 reports the chosen `index.authority` and physical/service identity for unambiguous handoff.
 

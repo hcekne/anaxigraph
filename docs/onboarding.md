@@ -99,10 +99,11 @@ terminal status before reporting success.
 
 If a matching loopback dashboard/sidecar is live, the command identifies it from the checkout's
 Git remote and uses its MCP queue and persistent AnaxiIndex. Container paths therefore do not
-create a second host-local baseline. Otherwise the command uses the same per-checkout user-state
-database as `anaxigraph up`. Use `--service-url` or `ANAXIGRAPH_SERVICE_URL` for a non-default
-endpoint; use `--db` only when you intentionally want a standalone local index. The JSON response
-always names the selected index authority.
+create a second host-local baseline. A refused connection or a reachable service with no matching
+repository selects the same per-checkout user-state database as `anaxigraph up`; a timeout or
+invalid inventory fails closed because the sidecar may be busy. Use `--service-url` or
+`ANAXIGRAPH_SERVICE_URL` for a non-default endpoint; use `--db` only when you intentionally want a
+standalone local index. The JSON response always names the selected index authority.
 
 When `ANAXIGRAPH_SEMANTIC_STATUS` reports ready, call `ANAXIGRAPH_TAXONOMY` or select **Semantic
 map (AI)** in the dashboard. Configured policy and deterministic path inference remain available as
@@ -165,9 +166,11 @@ Ask the connected agent to use AnaxiGraph before and after meaningful changes:
 - “Compare these provider modules for repeated responsibilities and pattern opportunities.”
 - “Rescan and verify whether this change improved the relevant architecture evidence.”
 
-The agent should use `ANAXIGRAPH_SCOPE` for a bounded work envelope, `ANAXIGRAPH_IMPACT` for blast
-radius, and a planned finding's context for approved architecture work. A missing static edge is
-not proof that code is unused; dynamic runtime wiring remains an explicit blind spot.
+The agent should use `ANAXIGRAPH_SCOPE` for a bounded work envelope and its
+`architecture-decision-v1` placement, reviewed patterns, constraints, safety advice, and
+post-change baseline. Use `ANAXIGRAPH_IMPACT` for blast radius and a planned finding's context for
+approved architecture work. A missing static edge is not proof that code is unused; dynamic
+runtime wiring remains an explicit blind spot.
 
 ## Understand findings
 

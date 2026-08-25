@@ -92,8 +92,8 @@ anaxigraph init . --semantic agent --connect codex \
   --mcp-url http://anaxigraph:8765/mcp
 ```
 
-For Claude Code, replace `codex` with `claude`. Do not expose the unauthenticated loopback service
-on a shared network; authenticated team deployment is a later roadmap phase.
+For Claude Code, replace `codex` with `claude`. Keep the service on loopback or behind a trusted
+SSH tunnel; do not expose it on a shared network.
 
 ## Maintainer validation
 

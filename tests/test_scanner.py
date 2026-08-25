@@ -128,7 +128,22 @@ def test_scan_retains_ambiguous_unresolved_and_external_relationship_evidence(re
 
 def test_dead_code_advice_is_suppressed_when_relationship_resolution_is_weak(repository, database):
     (repository / "pkg" / "orphan.py").write_text("VALUE = 1\n", encoding="utf-8")
-    subprocess.run(["git", "-C", str(repository), "add", "pkg/orphan.py"], check=True)
+    (repository / "pkg" / "registered.py").write_text(
+        "REGISTRY = object()\nREGISTRY.register('plugin')\n", encoding="utf-8"
+    )
+    (repository / "pkg" / "legacy.go").write_text("package pkg\n", encoding="utf-8")
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repository),
+            "add",
+            "pkg/orphan.py",
+            "pkg/registered.py",
+            "pkg/legacy.go",
+        ],
+        check=True,
+    )
     subprocess.run(["git", "-C", str(repository), "commit", "-qm", "Add old orphan"], check=True)
     stats = RepositoryScanner(database).scan(repository)
     rule = RuleConfig(
@@ -141,7 +156,8 @@ def test_dead_code_advice_is_suppressed_when_relationship_resolution_is_weak(rep
     with database.transaction() as connection:
         connection.execute(
             "UPDATE git_changes SET committed_at = '2000-01-01T00:00:00+00:00' "
-            "WHERE repository_id = ? AND path = 'pkg/orphan.py'",
+            "WHERE repository_id = ? AND path IN "
+            "('pkg/orphan.py', 'pkg/registered.py', 'pkg/legacy.go')",
             (stats.repository_id,),
         )
         files, _symbols, relationships = architecture_evidence(connection, stats.snapshot_id)
@@ -173,7 +189,31 @@ def test_dead_code_advice_is_suppressed_when_relationship_resolution_is_weak(rep
             fan_in=fan_in,
             relationship_evidence=resolved,
         )
-        assert any(item.affected_artifacts == ("pkg/orphan.py",) for item in trusted)
+        orphan = next(item for item in trusted if item.affected_artifacts == ("pkg/orphan.py",))
+        assert "entry_point_capability=structural" in orphan.evidence
+        assert "registration_capability=structural" in orphan.evidence
+        assert not any(item.affected_artifacts == ("pkg/registered.py",) for item in trusted)
+        assert not any(item.affected_artifacts == ("pkg/legacy.go",) for item in trusted)
+
+        configured_entrypoint_rule = RuleConfig(
+            rule_id="dead-test",
+            rule_type="dead_code",
+            severity="info",
+            params={
+                "minimum_age_days": 90,
+                "minimum_resolution_rate": 0.8,
+                "entry_points": ["pkg/orphan.py"],
+            },
+        )
+        configured = _dead_code_findings(
+            connection,
+            rule=configured_entrypoint_rule,
+            repository_id=stats.repository_id,
+            files=files,
+            fan_in=fan_in,
+            relationship_evidence=resolved,
+        )
+        assert not any(item.affected_artifacts == ("pkg/orphan.py",) for item in configured)
 
 
 def test_unchanged_scan_refreshes_ignored_coverage_report(repository, database):

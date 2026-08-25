@@ -73,6 +73,29 @@ def test_explicit_service_fails_when_it_indexes_another_repository(repository, m
         discover_semantic_service(repository, explicit_url="http://127.0.0.1:9999")
 
 
+def test_default_service_falls_back_only_on_connection_refusal(repository, monkeypatch):
+    monkeypatch.setattr(
+        "anaxigraph.semantic_service._request_json",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ConnectionRefusedError("refused")),
+    )
+
+    assert discover_semantic_service(repository) is None
+
+
+def test_default_service_timeout_refuses_local_index_fallback(repository, monkeypatch):
+    sleeps = []
+    monkeypatch.setattr(
+        "anaxigraph.semantic_service._request_json",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("timed out")),
+    )
+    monkeypatch.setattr("anaxigraph.semantic_service.time.sleep", sleeps.append)
+
+    with pytest.raises(ValueError, match="refusing local-index fallback"):
+        discover_semantic_service(repository)
+
+    assert sleeps == [0.1, 0.2]
+
+
 def test_service_preparation_is_synchronous_and_targets_one_index(monkeypatch):
     calls = []
     monkeypatch.setattr(

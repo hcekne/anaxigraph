@@ -45,6 +45,7 @@
       "modules": [
         "anaxigraph.analyzers*",
         "anaxigraph.architecture",
+        "anaxigraph.architecture_dead_code",
         "anaxigraph.architecture_graph",
         "anaxigraph.architecture_models",
         "anaxigraph.architecture_persistence",
@@ -74,6 +75,8 @@
     "application": {
       "modules": [
         "anaxigraph.agent",
+        "anaxigraph.agent_decision",
+        "anaxigraph.agent_decision_safety",
         "anaxigraph.agent_graph",
         "anaxigraph.agent_payload",
         "anaxigraph.bounded_export",
@@ -167,12 +170,15 @@
         "anaxigraph.graph_mcp",
         "anaxigraph.history_mcp",
         "anaxigraph.local_runtime",
+        "anaxigraph.mcp_core",
+        "anaxigraph.mcp_runtime",
         "anaxigraph.mcp_server",
         "anaxigraph.mcp_tools",
         "anaxigraph.onboarding_cli",
         "anaxigraph.pattern_mcp",
         "anaxigraph.semantic_background",
         "anaxigraph.semantic_execution",
+        "anaxigraph.semantic_mcp",
         "anaxigraph.semantic_remote_worker",
         "anaxigraph.semantic_service",
         "anaxigraph.up_cli"

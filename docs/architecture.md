@@ -44,6 +44,11 @@ module classification, and versioned analyzer contract are in
 [`ADR 0001`](adr/0001-internal-layers-and-analyzer-ir.md); the corresponding import policy runs in
 every commit and CI gate.
 
+Goal-specific placement, reviewed-pattern, consolidation, dead-code, and verification evidence is
+composed into the existing bounded scope response. [`ADR 0002`](adr/0002-goal-specific-architecture-decisions.md)
+defines the additive contract and the safety rules that keep facts, interpretations, and
+recommendations distinct without creating another provider, persistence, or transport surface.
+
 The CLI has the same boundary discipline. `cli.py` is a stable facade, `cli_parser.py` assembles
 command families, and focused modules own repository, semantic, agent-context, and server
 handlers. `cli_services.py` is their dependency-composition root, so extracting handlers does not

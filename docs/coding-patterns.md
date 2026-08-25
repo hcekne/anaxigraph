@@ -51,9 +51,11 @@ one target to its competing patterns or from one catalog pattern to other evalua
 
 The CLI does not create a fresh scan while reading results. With no `--db`, it first matches a
 running loopback service by checkout path or canonical Git identity, then queries that authoritative
-index. If no matching service is running, it opens the stable per-checkout local index. Pass
-`--service-url` or `--db` to choose explicitly; they are mutually exclusive. The JSON response
-always includes `index.authority` and the selected service/repository identity or database path.
+index. If the port unequivocally refuses a connection or a reachable service indexes no matching
+repository, it opens the stable per-checkout local index. A timeout, malformed inventory, or other
+ambiguous response fails closed instead of silently selecting another index. Pass `--service-url`
+or `--db` to choose explicitly; they are mutually exclusive. The JSON response always includes
+`index.authority` and the selected service/repository identity or database path.
 
 Candidate selection is explainable through the same four surfaces. It requires one exact catalog
 key and reconstructs only that pattern over eligible targets, then compares the result with the
@@ -90,6 +92,16 @@ Calibration labels are regression evidence, not a human approval stage. Mapping 
 critique still finish autonomously, and a failed or incomplete calibration report does not mutate
 the target repository or rewrite its semantic map. The shipped synthetic and real-repository sets
 live under `benchmarks/fixtures/pattern-calibration` and `benchmarks/pattern-calibration`.
+
+The same finalized pattern projection contributes to `architecture-decision-v1` inside the normal
+agent scope. Placement guidance distinguishes patterns already worth reusing from genuine change
+opportunities and retains critic provenance, contracts, invariants, risks, focused tests, and the
+snapshot facts to compare after a rescan. Consolidation keeps supporting and contrary evidence.
+Dead-code advice is stricter: a semantic suggestion needs a same-granularity deterministic
+candidate, and deterministic module candidates require trusted graph resolution plus analyzer
+support for entry points and registrations. A `dead_code` rule may list repository-relative
+`entry_points` globs; configured, conventional, or detected entry points are suppressed. No result
+is presented as automatic permission to merge, split, or delete code.
 
 Treat 40 logical lines per function and 500 source LOC per module as inspection signals. Prefer a
 cohesive module over forwarding layers. Add an abstraction only for multiple real implementations

@@ -6,6 +6,7 @@ import sqlite3
 from collections import Counter, defaultdict
 from typing import Any
 
+from anaxigraph.architecture_dead_code import dead_code_findings
 from anaxigraph.architecture_graph import _strongly_connected
 from anaxigraph.architecture_models import DEFAULT_RULES, Finding
 from anaxigraph.architecture_persistence import (
@@ -13,10 +14,14 @@ from anaxigraph.architecture_persistence import (
     _record_metrics,
     _update_finding_lifecycle,
 )
-from anaxigraph.architecture_rules import _dead_code_findings, _evaluate_rule
-from anaxigraph.config import AnaxiGraphConfig
+from anaxigraph.architecture_rules import _evaluate_rule
+from anaxigraph.config import AnaxiGraphConfig, path_matches
 
 __all__ = ["DEFAULT_RULES", "Finding", "_dead_code_findings", "evaluate_architecture"]
+
+
+def _dead_code_findings(*args: Any, **kwargs: Any) -> list[Finding]:
+    return dead_code_findings(*args, path_matcher=path_matches, **kwargs)
 
 
 def evaluate_architecture(

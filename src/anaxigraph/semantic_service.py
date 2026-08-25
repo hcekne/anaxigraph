@@ -47,20 +47,45 @@ def discover_semantic_service(
     repository: Path,
     *,
     explicit_url: str | None = None,
-    timeout: float = 0.75,
+    timeout: float = 2.0,
 ) -> SemanticServiceTarget | None:
-    """Match a running service by checkout path or canonical Git remote identity."""
+    """Match the service authoritative for this checkout without ambiguous fallback."""
 
     configured = explicit_url or os.environ.get("ANAXIGRAPH_SERVICE_URL")
     base_url = _base_url(configured or DEFAULT_SERVICE_URL)
+    rows = _service_inventory(base_url, timeout, required=bool(configured))
+    return _matching_target(repository, base_url, rows, required=bool(configured))
+
+
+def _service_inventory(
+    base_url: str, timeout: float, *, required: bool
+) -> list[dict[str, Any]] | None:
     try:
-        rows = _request_json(f"{base_url}/api/repositories", timeout=timeout)
-    except (OSError, ValueError) as exc:
-        if configured:
+        rows = _discovery_inventory(base_url, timeout)
+    except ConnectionRefusedError as exc:
+        if required:
             raise ValueError(f"AnaxiGraph service is unavailable at {base_url}: {exc}") from exc
         return None
+    except (OSError, ValueError) as exc:
+        raise ValueError(
+            f"AnaxiGraph service at {base_url} did not return its repository inventory; "
+            "refusing local-index fallback because the service may be busy: "
+            f"{exc}"
+        ) from exc
     if not isinstance(rows, list):
         raise ValueError(f"AnaxiGraph service at {base_url} returned an invalid repository list")
+    return rows
+
+
+def _matching_target(
+    repository: Path,
+    base_url: str,
+    rows: list[dict[str, Any]] | None,
+    *,
+    required: bool,
+) -> SemanticServiceTarget | None:
+    if rows is None:
+        return None
     matches = _matching_rows(repository.expanduser().resolve(), rows)
     if len(matches) == 1:
         row = matches[0]
@@ -75,9 +100,23 @@ def discover_semantic_service(
         raise ValueError(
             f"Service {base_url} has multiple indexes for this Git identity ({identifiers})"
         )
-    if configured:
+    if required:
         raise ValueError(f"Service {base_url} does not index {repository.expanduser().resolve()}")
     return None
+
+
+def _discovery_inventory(base_url: str, timeout: float) -> Any:
+    url = f"{base_url}/api/repositories"
+    for attempt in range(3):
+        try:
+            return _request_json(url, timeout=timeout)
+        except ConnectionRefusedError:
+            raise
+        except (OSError, ValueError):
+            if attempt == 2:
+                raise
+            time.sleep(0.1 * (2**attempt))
+    raise RuntimeError("Unreachable service-discovery retry state")
 
 
 def prepare_semantic_service(
@@ -255,5 +294,17 @@ def _request_json(
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")[:1_000]
         raise ValueError(f"AnaxiGraph service returned HTTP {exc.code}: {body}") from exc
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+    except urllib.error.URLError as exc:
+        if _connection_refused(exc.reason):
+            raise ConnectionRefusedError(str(exc)) from exc
         raise OSError(str(exc)) from exc
+    except (TimeoutError, json.JSONDecodeError) as exc:
+        raise OSError(str(exc)) from exc
+
+
+def _connection_refused(reason: Any) -> bool:
+    return isinstance(reason, ConnectionRefusedError) or getattr(reason, "errno", None) in {
+        61,
+        111,
+        10061,
+    }

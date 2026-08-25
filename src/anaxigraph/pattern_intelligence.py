@@ -66,6 +66,29 @@ class PatternIntelligenceService:
             plan_ready=plan_ready,
         )
 
+    def query_targets(
+        self,
+        repository_id: int,
+        snapshot_id: int,
+        targets: list[str],
+        *,
+        limit_per_target: int = 20,
+    ) -> list[dict[str, Any]]:
+        items = []
+        for target in targets:
+            page = self.query(
+                repository_id,
+                snapshot_id,
+                request=PatternEvaluationQuery(
+                    target=target,
+                    sort_by="opportunity",
+                    limit=limit_per_target,
+                    include_evidence=True,
+                ),
+            )
+            items.extend(page.get("items") or [])
+        return items
+
     def _candidate_inputs(
         self, repository_id: int, snapshot_id: int, pattern_key: str
     ) -> tuple[set[str], bool, Any]:

@@ -17,6 +17,13 @@ from anaxigraph.persistence.snapshot_projection import install_snapshot_projecti
 def _graph_maps(
     connection: sqlite3.Connection, snapshot_id: int
 ) -> tuple[dict[int, dict[str, Any]], dict[int, set[int]], dict[int, set[int]]]:
+    files = _graph_files(connection, snapshot_id)
+    _attach_semantic_files(connection, snapshot_id, files)
+    outgoing, incoming = _dependency_maps(connection, snapshot_id, files)
+    return files, outgoing, incoming
+
+
+def _graph_files(connection: sqlite3.Connection, snapshot_id: int) -> dict[int, dict[str, Any]]:
     files = {
         int(row["artifact_id"]): dict(row)
         for row in connection.execute(
@@ -27,6 +34,12 @@ def _graph_maps(
             (snapshot_id,),
         )
     }
+    return files
+
+
+def _attach_semantic_files(
+    connection: sqlite3.Connection, snapshot_id: int, files: dict[int, dict[str, Any]]
+) -> None:
     for row in connection.execute(
         """
         SELECT ss.artifact_id, ss.status, ss.reason, sd.value_json, sd.provider,
@@ -46,25 +59,12 @@ def _graph_maps(
         item["deterministic_summary"] = item["summary"]
         if value.get("summary"):
             item["summary"] = value["summary"]
-        item["semantic"] = {
-            "status": row["status"],
-            "reason": row["reason"],
-            "source": row["document_kind"],
-            "provider": row["provider"],
-            "model": row["model"],
-            "confidence": row["confidence"],
-            "architecture_role": value.get("architecture_role") or "",
-            "placement_guidance": value.get("placement_guidance") or "",
-            "detailed_summary": value.get("detailed_summary") or "",
-            "responsibilities": value.get("responsibilities") or [],
-            "domain_concepts": value.get("domain_concepts") or [],
-            "extension_points": value.get("extension_points") or [],
-            "similar_modules": value.get("similar_modules") or [],
-            "pattern_opportunities": (value.get("pattern_opportunities") or [])[:5],
-            "consolidation_assessment": value.get("consolidation_assessment"),
-            "dead_code_candidates": (value.get("dead_code_candidates") or [])[:5],
-            "risks": value.get("risks") or [],
-        }
+        item["semantic"] = _semantic_file(row, value)
+
+
+def _dependency_maps(
+    connection: sqlite3.Connection, snapshot_id: int, files: dict[int, dict[str, Any]]
+) -> tuple[dict[int, set[int]], dict[int, set[int]]]:
     outgoing: dict[int, set[int]] = defaultdict(set)
     incoming: dict[int, set[int]] = defaultdict(set)
     for row in connection.execute(
@@ -81,7 +81,37 @@ def _graph_maps(
     for artifact_id in files:
         outgoing.setdefault(artifact_id, set())
         incoming.setdefault(artifact_id, set())
-    return files, outgoing, incoming
+    return outgoing, incoming
+
+
+def _semantic_file(row: Any, value: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": row["status"],
+        "reason": row["reason"],
+        "source": row["document_kind"],
+        "provider": row["provider"],
+        "model": row["model"],
+        "confidence": row["confidence"],
+        "architecture_role": _semantic_field(value, "architecture_role", ""),
+        "placement_guidance": _semantic_field(value, "placement_guidance", ""),
+        "detailed_summary": _semantic_field(value, "detailed_summary", ""),
+        "responsibilities": _semantic_field(value, "responsibilities", []),
+        "public_contracts": _semantic_field(value, "public_contracts", []),
+        "invariants": _semantic_field(value, "invariants", []),
+        "domain_concepts": _semantic_field(value, "domain_concepts", []),
+        "extension_points": _semantic_field(value, "extension_points", []),
+        "similar_modules": _semantic_field(value, "similar_modules", []),
+        "pattern_opportunities": _semantic_field(value, "pattern_opportunities", [])[:5],
+        "consolidation_assessment": value.get("consolidation_assessment"),
+        "dead_code_candidates": _semantic_field(value, "dead_code_candidates", [])[:5],
+        "testing_guidance": _semantic_field(value, "testing_guidance", []),
+        "risks": _semantic_field(value, "risks", []),
+    }
+
+
+def _semantic_field(value: dict[str, Any], key: str, default: Any) -> Any:
+    selected = value.get(key)
+    return default if selected is None else selected
 
 
 def _projected_graph_maps(
@@ -376,8 +406,8 @@ def _applicable_findings(
     result = []
     for row in connection.execute(
         """
-        SELECT id, finding_type, severity, confidence, summary, status,
-               affected_artifacts_json, recommended_action
+        SELECT id, stable_key, finding_type, severity, confidence, summary, explanation,
+               status, affected_artifacts_json, evidence_json, recommended_action
         FROM findings WHERE repository_id = ? AND status NOT IN ('resolved', 'dismissed')
         ORDER BY CASE severity WHEN 'critical' THEN 0 WHEN 'error' THEN 1
                  WHEN 'warning' THEN 2 ELSE 3 END, last_detected_at DESC
@@ -385,8 +415,7 @@ def _applicable_findings(
         """,
         (repository_id,),
     ):
-        item = dict(row)
-        affected = set(_json(item.pop("affected_artifacts_json", "[]")))
+        item, affected = _finding_value(row)
         relevant = affected & paths
         if relevant:
             item["affected_artifacts"] = sorted(affected)
@@ -419,6 +448,13 @@ def _applicable_findings(
         result,
         key=lambda item: (-int(item["priority_score"]), int(item["id"])),
     )[:12]
+
+
+def _finding_value(row: Any) -> tuple[dict[str, Any], set[str]]:
+    item = dict(row)
+    affected = set(_json(item.pop("affected_artifacts_json", "[]")) or [])
+    item["evidence"] = list(_json(item.pop("evidence_json", "[]")) or [])
+    return item, affected
 
 
 def _json(value: str) -> Any:

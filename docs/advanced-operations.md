@@ -99,10 +99,12 @@ instead of claiming semantic work completed.
 With no `--db`, the command first probes the configured/default loopback service and matches the
 repository by canonical Git remote (or exact path for a host-local service). A match makes that
 service the sole index authority: scanning/planning happen there, inference happens on the host,
-and write-back goes through AnaxiMCP. If no service matches, the fallback is the stable
-per-checkout database used by `anaxigraph up`, not the old shared global SQLite path. Results expose
-`index.authority`, database/service location, and repository selector so another agent can resume
-the exact same ledger.
+and write-back goes through AnaxiMCP. If the default endpoint refuses the connection or a reachable
+service has no matching repository, the fallback is the stable per-checkout database used by
+`anaxigraph up`, not the old shared global SQLite path. A timeout or invalid service response fails
+closed because the sidecar may merely be busy; it never silently selects a second index. Results
+expose `index.authority`, database/service location, and repository selector so another agent can
+resume the exact same ledger.
 
 ## Hosted semantic worker
 
@@ -335,9 +337,8 @@ cp repositories.example.yml repositories.yml
 docker compose up --build -d
 ```
 
-The browser and MCP tools remain repository-scoped, but the service has no authentication or
-per-user authorization. Keep it on loopback or behind an SSH tunnel. Anyone who can reach it can
-inspect every registered repository and invoke enabled index workflows. See
+The multi-repository service is a trusted-local operator boundary. Keep it on loopback or behind an
+SSH tunnel; reachability grants access to every registered repository and enabled index workflow. See
 [Docker operation](docker.md#experimental-multi-repository-service).
 
 ## Local CLI reference

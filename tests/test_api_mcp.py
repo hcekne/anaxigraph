@@ -119,6 +119,9 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         scope = await client.post("/api/agent-scope", json={"goal": "Change Calculator behavior"})
         assert scope.status_code == 200
         assert scope.json()["primary_files"][0]["path"] == "pkg/core.py"
+        assert (
+            scope.json()["architecture_decision"]["contract_version"] == "architecture-decision-v1"
+        )
 
         finding = diagnostic_page["items"][0]
         planned = await client.post(
@@ -294,6 +297,7 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     )
                     assert scope.isError is False
                     assert scope.structuredContent["primary_files"][0]["path"] == "pkg/core.py"
+                    assert scope.structuredContent["architecture_decision"]["snapshot_id"] > 0
                     finding_context = await session.call_tool(
                         "ANAXIGRAPH_FINDING_CONTEXT",
                         arguments={"finding_id": finding_id},

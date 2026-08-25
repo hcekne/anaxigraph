@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.7
+**Roadmap version:** 3.8
 
 **Updated:** 25 August 2026
 
@@ -88,7 +88,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 383 tests passing at 90.11% coverage plus 15 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, and pattern-intelligence paths are regression-tested |
+| Test health | 389 tests passing at 90.31% coverage plus 15 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, and architecture-decision paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -1698,9 +1698,17 @@ evidence, but absence of that feedback never blocks the semantic map or pattern 
 
 ## 6.7 Add consolidation, dead-code, and placement intelligence
 
+**Status:** IN PROGRESS — the additive goal-specific decision packet and conservative module-level
+dead-code gates are delivered on 25 August 2026; live-sidecar refresh and calibration evidence is
+being collected.
+
 Repeated-responsibility and consolidation analysis combine structural similarity, semantic
 responsibility, public contracts, graph neighborhoods, architecture placement, and change coupling,
 including differences that argue for keeping implementations separate.
+
+Change coupling is used when the temporal projection exists. Before Phase 7 supplies it, the
+decision contract reports that evidence source as unavailable; it never invents co-change from a
+static dependency or blocks the otherwise current recommendation.
 
 Dead-code analysis starts from configured and detected entry points and accounts for imports,
 calls, inheritance, registration, serialization, templates, configuration, and dynamic/reflection
@@ -1710,6 +1718,36 @@ removal proposal is suppressed when graph trust is inadequate.
 Given a coding goal, placement guidance returns the preferred extension point, patterns and local
 precedents to reuse, bounded file/symbol scope, contracts and tests likely to change, risks,
 verification commands, and post-change architecture facts to compare.
+
+The first delivered slice adds `architecture-decision-v1` to the existing bounded agent-scope
+response. It composes the already-ranked goal scope with current module dossiers and only finalized
+independent pattern reviews. Placement, local precedents, contracts, invariants, risks,
+consolidation evidence and counter-evidence, dead-code suppression reasons, focused tests, semantic
+test guidance, rescan arguments, and the exact snapshot/hash/finding/pattern baseline travel
+together. Tight wire budgets compact the details while preserving contract, status, preferred
+path, and counts. This adds no table, provider call, queue kind, route, MCP tool, or dashboard state.
+
+Deterministic dead-code candidates now require trusted relationship resolution, no resolved or
+ambiguous inbound path, configured and conventional entry-point exclusion, parser-backed support
+for both entry-point and registration evidence, no detected dynamic-wiring fact, and the configured
+Git age. Semantic candidates remain suppressed without a same-granularity deterministic finding;
+a module finding cannot corroborate a symbol suggestion, and no packet labels source safe to
+remove. [`ADR 0002`](adr/0002-goal-specific-architecture-decisions.md) records these boundaries.
+
+The same slice fixes authority under load. Synchronous AnaxiMCP handlers run outside the ASGI event
+loop, and discovery retries transient inventory failures. Only an unequivocal refused connection or
+a reachable service with no matching repository may select the per-checkout local index; timeouts
+and invalid responses fail closed. The former 438-line `mcp_server.py` is now a 40-line composition
+root over 64–268-line transport modules, with its function and self-analysis exceptions removed.
+
+### 6.7 current evidence
+
+| Contract | Current evidence |
+|---|---|
+| Goal-specific decision | Existing REST and MCP scope integration returns `architecture-decision-v1`; focused contracts cover semantic placement, reviewed-pattern reuse/opportunity roles, provenance, constraints, balanced consolidation, exact verification baselines, payload compaction, and deterministic-only fallback |
+| Removal safety | Python fixtures prove trusted module candidates, detected registration suppression, heuristic-language suppression, configured entry-point suppression, uncorroborated semantic suppression, and module/symbol granularity separation; `safe_to_remove` remains false |
+| Responsive authority | A blocking synchronous MCP tool no longer blocks the event loop; discovery tests prove connection-refused fallback, transient retry, and timeout refusal, while real SDK MCP and sidecar-preparation tests retain the work protocol |
+| Verification | The complete suite passes 389 tests at 90.31% coverage; all 15 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis reduced to 39 governed and 129 non-blocking findings |
 
 ## 6.8 Expose pattern intelligence without multiplying product surfaces
 
@@ -1765,9 +1803,10 @@ not permission to edit source and not a blocker on autonomous map completion.
 
 `anaxigraph patterns` exposes that contract without creating a new scan. When `--db` is omitted it
 uses the same checkout/Git-identity discovery as semantic execution to select a matching active
-sidecar, falling back to the stable per-checkout local index only when no service matches. Explicit
-database and service selectors are mutually exclusive, and every response identifies its index
-authority so a completed sidecar map cannot be mistaken for an empty host-local index.
+sidecar. Refused connections and reachable services without a repository match may select the
+stable per-checkout local index; timeouts and invalid inventories fail closed. Explicit database
+and service selectors are mutually exclusive, and every response identifies its index authority so
+a completed sidecar map cannot be mistaken for an empty host-local index.
 
 The dashboard adds a dedicated **Patterns** view without growing its 499-line HTML shell or
 498-line shared stylesheet. Separate 319-line query/controller, 122-line renderer, and 65-line
@@ -1778,9 +1817,9 @@ between finalized evaluations and skipped-target explanations.
 Forty focused candidate/query/calibration-contract cases, CLI authority handoff coverage,
 completed-semantic projection coverage, REST integration, and a real MCP SDK round trip cover the
 read model. The dashboard candidate workflow passes within all 15 browser contracts in the pinned
-Playwright container. The complete suite passes 383 tests at 90.11% coverage; architecture, size,
+Playwright container. The complete suite passes 389 tests at 90.31% coverage; architecture, size,
 maintainability, formatting, and deterministic self-analysis gates report no errors or regressions,
-with self-analysis at 43 governed findings, 132 non-blocking findings, and zero issues.
+with self-analysis at 39 governed findings, 129 non-blocking findings, and zero issues.
 
 ## Phase 6 exit gate
 
@@ -2145,7 +2184,7 @@ queue and the document cannot drift apart.
 | 39 | **COMPLETE** — Replace semantic mixin composition while preserving the durable external work protocol | §6.1–6.2 |
 | 40 | **COMPLETE** — Ship and validate the declarative catalog of at least 120 patterns | §6.3 |
 | 41 | **COMPLETE** — Add sparse multi-level candidates, separate ratings, and independent agent critique | §6.4–6.6 |
-| 42 | Expose target-centric and pattern-centric queries, incremental refresh, and calibration | §6.7–6.8 |
+| 42 | **IN PROGRESS** — Finish goal-specific placement, consolidation/dead-code safety, live calibration, and bounded pattern handoff on the completed query surfaces | §6.7–6.8 |
 | 43 | Expand parser-backed core languages against the proven capability contract | Phase 4B |
 
 Items 9 and 10 are the user-visible Phase 0 changes. The completed 0.1.0 publication is the narrow,

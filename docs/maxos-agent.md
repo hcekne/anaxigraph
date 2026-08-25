@@ -115,17 +115,9 @@ For a non-default repository, first call `ANAXIGRAPH_REPOSITORIES`, then pass it
 optional `repository` argument of the overview, search, file, scope, impact, finding, and collision
 tools.
 
-MaxOS keeps the MCP connection and any network credentials in its trusted backend. Its isolated
-agent runner receives only a revocable broker grant and never receives the AnaxiMCP
-endpoint or credentials.
-
-## Hosted/strict MaxOS
-
-Strict multi-tenant mode requires HTTPS and an exact MaxOS MCP hostname allowlist. Put
-AnaxiGraph behind the deployment's TLS ingress, configure `MAXOS_MCP_ALLOWED_HOSTS` with that
-hostname, and configure the same public hostname in AnaxiGraph's `--allowed-host` list.
-Do not expose a local SQLite database or repository mount publicly. Add authentication at the
-ingress for any endpoint reachable outside a trusted private network.
+MaxOS keeps the MCP connection in its trusted backend. Its isolated agent runner receives only a
+revocable broker grant and never receives the AnaxiMCP endpoint. Keep AnaxiGraph inside that
+trusted network boundary and constrain its accepted hostname with `--allowed-host`.
 
 ## MaxOS-specific analysis policy
 

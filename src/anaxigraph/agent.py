@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from anaxigraph import git
+from anaxigraph.agent_decision import architecture_decision
 from anaxigraph.agent_graph import (
     _applicable_findings,
     _applicable_rules,
@@ -88,10 +89,9 @@ def agent_scope(
         )
         interfaces = _interfaces(connection, snapshot_id, primary_ids)
 
-    conflicts = _branch_conflicts(
-        Path(repository["path"]),
-        {files[item]["path"] for item in relevant_ids},
-        branch,
+    conflicts = _scope_conflicts(repository, files, relevant_ids, branch)
+    decision = _scope_decision(
+        database, repository_id, snapshot_id, files, primary_ids, interfaces, tests, findings
     )
     primary = [_file_summary(files[item]) for item in primary_ids]
     related_order = sorted(
@@ -135,6 +135,7 @@ def agent_scope(
         "interfaces": interfaces,
         "architecture_rules": rules,
         "known_findings": findings,
+        "architecture_decision": decision,
         "active_branch_conflicts": conflicts,
         "risk": risk,
         "risk_reasons": [
@@ -157,6 +158,37 @@ def agent_scope(
         },
     }
     return _bound_scope_payload(payload, config.agent.payload_limit_bytes)
+
+
+def _scope_decision(
+    database: AnaxiIndex,
+    repository_id: int,
+    snapshot_id: int,
+    files: dict[int, dict[str, Any]],
+    primary_ids: list[int],
+    interfaces: list[dict[str, Any]],
+    tests: set[str],
+    findings: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return architecture_decision(
+        database,
+        repository_id=repository_id,
+        snapshot_id=snapshot_id,
+        primary_files=[files[item] for item in primary_ids],
+        interfaces=interfaces,
+        tests=sorted(tests),
+        findings=findings,
+    )
+
+
+def _scope_conflicts(
+    repository: Any,
+    files: dict[int, dict[str, Any]],
+    relevant_ids: set[int],
+    branch: str | None,
+) -> list[dict[str, str]]:
+    paths = {files[item]["path"] for item in relevant_ids}
+    return _branch_conflicts(Path(repository["path"]), paths, branch)
 
 
 def finding_context(

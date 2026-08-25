@@ -5,17 +5,11 @@ from __future__ import annotations
 import hashlib
 import sqlite3
 from collections import Counter
-from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from anaxigraph.architecture_dead_code import dead_code_findings
 from anaxigraph.architecture_models import Finding
 from anaxigraph.config import RuleConfig, path_matches
-from anaxigraph.relationships import (
-    AMBIGUOUS_INTERNAL,
-    relationship_metadata,
-    relationship_quality,
-    resolution_status,
-)
 
 
 def _evaluate_rule(
@@ -253,84 +247,8 @@ def _evaluate_rule(
     return result
 
 
-def _dead_code_findings(
-    connection: sqlite3.Connection,
-    *,
-    rule: RuleConfig,
-    repository_id: int,
-    files: list[dict[str, Any]],
-    fan_in: Counter[int],
-    relationship_evidence: list[dict[str, Any]],
-) -> list[Finding]:
-    if not files:
-        return []
-    quality = relationship_quality(relationship_evidence)
-    resolution_rate = quality["resolution_rate"]
-    minimum_resolution = float(rule.params.get("minimum_resolution_rate", 0.95))
-    if resolution_rate is None or resolution_rate < minimum_resolution:
-        # No incoming edge is not evidence of dead code when too many internal references
-        # could not be resolved. Suppression is deliberately safer than a false deletion hint.
-        return []
-    possible_incoming: set[str] = set()
-    for row in relationship_evidence:
-        if resolution_status(row) != AMBIGUOUS_INTERNAL:
-            continue
-        possible_incoming.update(relationship_metadata(row).get("candidate_paths") or ())
-
-    age_days = int(rule.params.get("minimum_age_days", 90))
-    cutoff = datetime.now(UTC) - timedelta(days=age_days)
-    last_changes = {
-        row["path"]: row["last_change"]
-        for row in connection.execute(
-            """
-            SELECT path, MAX(committed_at) AS last_change FROM git_changes
-            WHERE repository_id = ? GROUP BY path
-            """,
-            (repository_id,),
-        )
-    }
-    result: list[Finding] = []
-    for item in files:
-        path = item["path"]
-        if (
-            item["artifact_type"] != "source"
-            or fan_in[int(item["artifact_id"])]
-            or path in possible_incoming
-            or not _in_rule_scope(path, rule)
-            or _looks_like_entrypoint(path)
-        ):
-            continue
-        last_change = last_changes.get(path)
-        if not last_change:
-            continue
-        try:
-            changed_at = datetime.fromisoformat(last_change.replace("Z", "+00:00"))
-        except ValueError:
-            continue
-        if changed_at > cutoff:
-            continue
-        days = (datetime.now(UTC) - changed_at).days
-        result.append(
-            _finding(
-                rule,
-                suffix=path,
-                finding_type="possible_dead_code",
-                summary=f"{path} may be unreachable",
-                explanation=(
-                    f"No incoming static relationship was detected and the file has not changed for {days} days. "
-                    "Dynamic registration and runtime use have not been disproven."
-                ),
-                paths=(path,),
-                evidence=(
-                    "incoming_static_relationships=0",
-                    f"days_since_change={days}",
-                    f"internal_resolution_rate={resolution_rate:.4f}",
-                ),
-                action="Check route, dependency-injection, event, configuration, and runtime registrations before deletion.",
-                confidence=round(min(0.8, 0.45 + 0.3 * resolution_rate), 2),
-            )
-        )
-    return result
+def _dead_code_findings(*args: Any, **kwargs: Any) -> list[Finding]:
+    return dead_code_findings(*args, path_matcher=path_matches, **kwargs)
 
 
 def _finding(
@@ -376,20 +294,3 @@ def _matches_file_or_group(item: dict[str, Any], pattern: str) -> bool:
         or item.get("declared_group") == pattern
         or item.get("inferred_group") == pattern
     )
-
-
-def _looks_like_entrypoint(path: str) -> bool:
-    name = path.rsplit("/", 1)[-1].lower()
-    return name in {
-        "__init__.py",
-        "__main__.py",
-        "main.py",
-        "app.py",
-        "index.js",
-        "index.ts",
-        "index.tsx",
-        "main.js",
-        "main.ts",
-        "main.tsx",
-        "conftest.py",
-    }
