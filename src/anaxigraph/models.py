@@ -100,6 +100,7 @@ class GitMetadata:
     dirty: bool
     remote_url: str | None
     default_branch: str | None
+    working_tree_fingerprint: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 import anaxigraph.api_support as api_support
 from anaxigraph.config_authority import effective_semantic_policy, service_config_authority
+from anaxigraph.operational_health import served_map_status
 
 
 def repository_router(context: Any) -> APIRouter:
@@ -56,7 +57,12 @@ class RepositoryRoutes:
             "history_snapshots": target.history_snapshots if target else None,
             "config_authority": authority,
             "semantic_policy": effective_semantic_policy(config.semantic),
+            "map_status": self._map_status(row),
         }
+
+    def _map_status(self, row: dict[str, Any]) -> dict[str, Any] | None:
+        snapshot = self.database.latest_snapshot(int(row["id"]))
+        return served_map_status(Path(row["path"]), snapshot) if snapshot is not None else None
 
     def glossary(self) -> dict[str, Any]:
         return api_support.product_glossary()
@@ -68,6 +74,8 @@ class RepositoryRoutes:
     ) -> dict[str, Any]:
         row = self.context.selected_repository(repository_id)
         result = self.database.overview(int(row["id"]), snapshot_id)
+        if snapshot_id is None:
+            result["map_status"] = served_map_status(Path(row["path"]), result["snapshot"])
         config = self.context.selected_config(row)
         result["coverage"] = api_support.coverage_diagnostics(
             row, config, result.get("coverage") or {}
@@ -121,6 +129,8 @@ class RepositoryRoutes:
         result = self.database.file_details(int(row["id"]), path, snapshot_id)
         if result is None:
             raise HTTPException(status_code=404, detail="File not found in snapshot")
+        if snapshot_id is None:
+            result["map_status"] = self._map_status(row)
         return result
 
     def search(
@@ -133,6 +143,7 @@ class RepositoryRoutes:
         return {
             "query": q,
             "results": self.database.search(int(row["id"]), q, limit=limit),
+            "map_status": self._map_status(row),
         }
 
     def snapshots(

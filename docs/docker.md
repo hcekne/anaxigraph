@@ -132,16 +132,19 @@ uv run pytest --cov=src/anaxigraph --cov-report=xml:coverage.xml
 
 ## Keep all repositories current
 
-The main service scans every registry entry on startup. You can click **Refresh scan** for the
-selected repository, or enable registry-wide polling. Dashboard refreshes run in the background,
-show phase/file progress, and can be cancelled without discarding the previous current snapshot:
+The main service scans every registry entry on startup, and the companion watcher keeps their
+structural maps current. You can also click **Refresh scan** for the selected repository. Dashboard
+refreshes run in the background, show phase/file progress, and can be cancelled without discarding
+the previous current snapshot:
 
 ```bash
-docker compose --profile watch up --build -d
+docker compose up --build -d
 docker compose logs -f anaxigraph-watch
 ```
 
-Set `ANAXIGRAPH_WATCH_INTERVAL` in `.env` to change the default ten-second interval.
+Set `ANAXIGRAPH_WATCH_INTERVAL` in `.env` to change the default ten-second interval. Stop the
+`anaxigraph-watch` service if you intentionally want a frozen map; current API and MCP responses
+will then report when the mounted checkout has advanced beyond it.
 
 ## Build and maintain semantic understanding
 

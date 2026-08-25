@@ -1,17 +1,21 @@
 from __future__ import annotations
 
+import json
 import threading
 
 import anyio
 import httpx
 import pytest
+import yaml
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
+import anaxigraph.operational_health as operational_health
 from anaxigraph.api import create_app
 from anaxigraph.api_limits import MAX_REQUEST_BODY_BYTES
 from anaxigraph.api_operation_gate import RepositoryOperationGate
 from anaxigraph.bounded_export import _compact_taxonomy
+from anaxigraph.operational_health import served_map_status
 from anaxigraph.persistence.schema import SCHEMA_VERSION
 from anaxigraph.scanner import RepositoryScanner, ScanCancelled
 
@@ -124,6 +128,85 @@ def test_repository_operation_gate_reports_active_work_and_releases_it():
     assert active[0]["started_at"]
     gate.release(7, "scan")
     assert gate.snapshot()["active_count"] == 0
+
+
+def test_served_map_status_refuses_to_call_a_changed_checkout_current(
+    repository, database, monkeypatch
+):
+    stats = RepositoryScanner(database).scan(repository)
+    snapshot = database.latest_snapshot(stats.repository_id)
+    assert snapshot is not None
+
+    current = served_map_status(repository, snapshot)
+    assert current["state"] == "current"
+    assert current["safe_to_plan"] is True
+    assert current["mapped"]["commit_sha"] == current["checkout"]["commit_sha"]
+
+    legacy_clean = dict(snapshot)
+    legacy_clean["metadata_json"] = "{"
+    assert served_map_status(repository, legacy_clean)["state"] == "current"
+    wrong_commit = {**legacy_clean, "commit_sha": "f" * 40}
+    assert served_map_status(repository, wrong_commit)["state"] == "stale"
+    assert (
+        served_map_status(repository, {**legacy_clean, "commit_sha": "unversioned"})["state"]
+        == "uncertain"
+    )
+    assert served_map_status(repository, {**legacy_clean, "dirty": True})["state"] == "stale"
+
+    core = repository / "pkg" / "core.py"
+    core.write_text(core.read_text(encoding="utf-8") + "\nCHANGED = True\n", encoding="utf-8")
+    stale = served_map_status(repository, snapshot)
+    assert stale["state"] == "stale"
+    assert stale["safe_to_plan"] is False
+    assert stale["scan_recommended"] is True
+    assert "Refresh" in stale["plain_language"]["action"]
+
+    RepositoryScanner(database).scan(repository)
+    dirty_snapshot = database.latest_snapshot(stats.repository_id)
+    assert dirty_snapshot is not None
+    current_dirty = served_map_status(repository, dirty_snapshot)
+    assert current_dirty["state"] == "current"
+    core.write_text(core.read_text(encoding="utf-8") + "CHANGED_AGAIN = True\n", encoding="utf-8")
+    assert served_map_status(repository, dirty_snapshot)["state"] == "stale"
+
+    legacy_snapshot = dict(dirty_snapshot)
+    metadata = json.loads(legacy_snapshot["metadata_json"])
+    metadata.pop("working_tree_fingerprint")
+    legacy_snapshot["metadata_json"] = json.dumps(metadata)
+    uncertain = served_map_status(repository, legacy_snapshot)
+    assert uncertain["state"] == "uncertain"
+    assert "uncommitted content" in uncertain["plain_language"]["summary"]
+
+    def unavailable(_root):
+        raise operational_health.git.GitError("checkout unavailable")
+
+    monkeypatch.setattr(operational_health.git, "metadata", unavailable)
+    unavailable_status = served_map_status(repository, snapshot)
+    assert unavailable_status["state"] == "unavailable"
+    assert unavailable_status["checkout"] is None
+
+
+@pytest.mark.anyio
+async def test_semantic_prepare_requires_a_current_structural_map(repository, database):
+    policy_path = repository / ".anaxigraph.yml"
+    policy = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
+    policy["semantic"] = {"enabled": True, "provider": "agent"}
+    policy_path.write_text(yaml.safe_dump(policy, sort_keys=False), encoding="utf-8")
+    RepositoryScanner(database).scan(repository)
+    core = repository / "pkg" / "core.py"
+    core.write_text(core.read_text(encoding="utf-8") + "\nCHANGED = True\n", encoding="utf-8")
+    app = create_app(database=database, repository=repository, enable_mcp=False)
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        result = (await client.post("/api/semantic/prepare")).json()
+
+    assert result["status"] == "scan_required"
+    assert result["map_status"]["state"] == "stale"
+    assert result["recommended_action"] == "Refresh the structural scan, then retry understand."
+    with database.connect() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM semantic_jobs").fetchone()[0] == 0
 
 
 def test_bounded_export_truncates_nested_taxonomy_collections():

@@ -6,6 +6,7 @@ from typing import Any
 
 from mcp.types import ToolAnnotations
 
+from anaxigraph.operational_health import served_map_status
 from anaxigraph.semantic_agent_protocol import semantic_agent_schema
 from anaxigraph.understanding import SemanticEngine
 
@@ -125,16 +126,19 @@ class SemanticMcpTools:
         row, root = self.context(repository)
         config = self.config_for(row, root)
         result = current_semantic_status(self.database, int(row["id"]), config.semantic)
+        result["map_status"] = self._map_status(row, root)
         result.update(self.config_contract(row, root, config))
         return result
 
     def taxonomy(self, repository: str = "") -> dict[str, Any]:
-        row, _ = self.context(repository)
+        row, root = self.context(repository)
         result = self.database.semantic_taxonomy(int(row["id"]))
-        return result or {
+        value = result or {
             "status": "not_ready",
             "message": "The current saved scan does not have a completed AI-created code-area map.",
         }
+        value["map_status"] = self._map_status(row, root)
+        return value
 
     def schema(self) -> dict[str, Any]:
         return semantic_agent_schema()
@@ -147,6 +151,13 @@ class SemanticMcpTools:
         repository: str = "",
     ) -> dict[str, Any]:
         row, root = self.context(repository)
+        map_status = self._map_status(row, root)
+        if map_status["state"] != "current":
+            return {
+                "status": "scan_required",
+                "map_status": map_status,
+                "message": "Refresh the structural map before claiming more AI-mapping work.",
+            }
         return SemanticEngine(self.database).claim_agent_work(
             int(row["id"]),
             root,
@@ -209,6 +220,17 @@ class SemanticMcpTools:
             lease_token=lease_token,
             reason=reason,
         )
+
+    def _map_status(self, row: dict[str, Any], root: Any) -> dict[str, Any]:
+        snapshot = self.database.latest_snapshot(int(row["id"]))
+        if snapshot is None:
+            return {
+                "contract_version": "served-map-status-v1",
+                "state": "missing",
+                "safe_to_plan": False,
+                "scan_recommended": True,
+            }
+        return served_map_status(root, snapshot)
 
 
 def _read_annotations() -> ToolAnnotations:

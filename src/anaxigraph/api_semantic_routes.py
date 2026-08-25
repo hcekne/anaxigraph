@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException
 
 import anaxigraph.api_support as api_support
 from anaxigraph.config_authority import effective_semantic_policy, service_config_authority
+from anaxigraph.operational_health import served_map_status
 from anaxigraph.semantic_status_language import semantic_status_explanation
 
 
@@ -32,6 +33,7 @@ class SemanticRoutes:
         result = api_support.SemanticEngine(self.context.database).status(
             int(row["id"]), config.semantic
         )
+        result["map_status"] = self._map_status(row)
         result["worker"] = self.context.semantic_refresh.status_for(Path(row["path"]))
         result["config_authority"] = service_config_authority(Path(row["path"]), target, config)
         result["semantic_policy"] = effective_semantic_policy(config.semantic)
@@ -50,13 +52,8 @@ class SemanticRoutes:
         target = self._semantic_target(row)
         config = self.context.selected_config(row)
         self._require_enabled(row, target, config)
-        if self.context.database.latest_snapshot(int(row["id"])) is None:
-            return {
-                "status": "scan_required",
-                "repository_id": int(row["id"]),
-                "recommended_action": "Run the explicit repository scan, then retry understand.",
-                **self._config_contract(row, target, config),
-            }
+        if scan_required := self._scan_required(row, target, config):
+            return scan_required
         self.context.admit_operation(int(row["id"]), "semantic_prepare", hold=True)
         try:
             plan = await asyncio.to_thread(
@@ -86,6 +83,8 @@ class SemanticRoutes:
         target = self._semantic_target(row)
         config = self.context.selected_config(row)
         self._require_enabled(row, target, config)
+        if scan_required := self._scan_required(row, target, config):
+            return scan_required
         self.context.admit_operation(int(row["id"]), "semantic_refresh", hold=wait)
         if wait:
             try:
@@ -153,3 +152,25 @@ class SemanticRoutes:
             plan_only=True,
         )
         return {"status": "prepared", **result, **self._config_contract(row, target, config)}
+
+    def _scan_required(
+        self, row: dict[str, Any], target: Any, config: Any
+    ) -> dict[str, Any] | None:
+        status = self._map_status(row)
+        if status and status["state"] == "current":
+            return None
+        return {
+            "status": "scan_required",
+            "repository_id": int(row["id"]),
+            "map_status": status,
+            "recommended_action": (
+                "Refresh the structural scan, then retry understand."
+                if status
+                else "Run the explicit repository scan, then retry understand."
+            ),
+            **self._config_contract(row, target, config),
+        }
+
+    def _map_status(self, row: dict[str, Any]) -> dict[str, Any] | None:
+        snapshot = self.context.database.latest_snapshot(int(row["id"]))
+        return served_map_status(Path(row["path"]), snapshot) if snapshot is not None else None

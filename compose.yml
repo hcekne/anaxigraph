@@ -75,11 +75,9 @@ services:
       retries: 6
       start_period: 90s
 
-  # Optional continuous refresh. Enable with: docker compose --profile watch up -d
+  # Keep the saved structural map current as the mounted repositories change.
   anaxigraph-watch:
     <<: *anaxigraph-service
-    profiles:
-      - watch
     command:
       - watch
       - --registry

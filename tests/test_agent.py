@@ -21,6 +21,7 @@ def test_agent_scope_is_bounded_and_includes_tests_protection_and_rules(reposito
     )
 
     assert value["primary_files"][0]["path"] == "pkg/core.py"
+    assert value["map_status"]["state"] == "current"
     assert "tests/test_core.py" in value["tests"]
     assert any(item["path"] == "pkg/core.py" for item in value["protected_files"])
     assert value["risk"] == "high"
@@ -101,6 +102,7 @@ def test_impact_follows_reverse_edges_and_relevant_tests(repository, database):
     )
 
     paths = {item["path"] for item in value["direct_dependants"]}
+    assert value["map_status"]["state"] == "current"
     assert "pkg/consumer.py" in paths
     assert "tests/test_core.py" in paths
     assert "tests/test_core.py" in value["tests_relevant"]

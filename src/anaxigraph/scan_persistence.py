@@ -47,6 +47,7 @@ def insert_snapshot(
                     "analysis_version": analysis_version,
                     "analysis_signature": signature,
                     "config_path": str(config.config_path) if config.config_path else None,
+                    "working_tree_fingerprint": git_metadata.working_tree_fingerprint,
                 },
                 sort_keys=True,
             ),

@@ -45,6 +45,7 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert (await client.get("/assets/themes.css")).status_code == 200
         repositories = (await client.get("/api/repositories")).json()
         assert repositories[0]["scannable"] is True
+        assert repositories[0]["map_status"]["state"] == "current"
         assert repositories[0]["history_snapshots"] == "auto"
         assert [row["path"] for row in repositories] == [str(repository.resolve())]
         assert repositories[0]["config_authority"]["source_kind"] == "repository_policy"
@@ -61,6 +62,7 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert glossary["findings"]["statuses"]["planned"]["label"] == "Planned for agent"
         overview = (await client.get("/api/overview")).json()
         assert overview["files"] == 8
+        assert overview["map_status"]["state"] == "current"
         assert overview["group_hierarchy"]
         assert overview["map"]["default_layer"] == "effective"
         assert "policy" in overview["map"]["available_layers"]
@@ -76,6 +78,7 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert overview["semantic"]["enabled"] is False
         semantic = (await client.get("/api/semantic")).json()
         assert semantic["plain_language"]["version"] == "semantic-status-explanation-v2"
+        assert semantic["map_status"]["state"] == "current"
         assert semantic["recommended_action"]["kind"] == "enable_semantics"
         assert semantic["semantic_policy"] == repositories[0]["semantic_policy"]
         assert semantic["config_authority"] == repositories[0]["config_authority"]
@@ -128,6 +131,7 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert invalid_pattern_query.status_code == 400
         scope = await client.post("/api/agent-scope", json={"goal": "Change Calculator behavior"})
         assert scope.status_code == 200
+        assert scope.json()["map_status"]["state"] == "current"
         assert scope.json()["primary_files"][0]["path"] == "pkg/core.py"
         assert (
             scope.json()["architecture_decision"]["contract_version"] == "architecture-decision-v1"
@@ -218,6 +222,7 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     overview = await session.call_tool("ANAXIGRAPH_OVERVIEW", arguments={})
                     assert overview.isError is False
                     assert overview.structuredContent["files"] == 8
+                    assert overview.structuredContent["map_status"]["state"] == "current"
                     graph = await session.call_tool("ANAXIGRAPH_GRAPH", arguments={})
                     assert graph.isError is False
                     assert graph.structuredContent["contract_version"] == "graph-overview-v1"

@@ -86,7 +86,6 @@ def agent_scope(
             set(primary_ids),
         )
         symbols, interfaces = _scope_symbols(connection, snapshot_id, primary_ids)
-
     conflicts = _scope_conflicts(repository, files, relevant_ids, branch)
     decision = _scope_decision(
         database,
@@ -109,6 +108,7 @@ def agent_scope(
             branch=branch,
             repository_id=repository_id,
             snapshot_id=snapshot_id,
+            map_source=(Path(repository["path"]), snapshot),
             files=files,
             outgoing=outgoing,
             incoming=incoming,

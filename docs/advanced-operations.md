@@ -246,10 +246,10 @@ Cancellation happens between atomic frames. Restarting resumes compatible comple
 clients have the matching repository-scoped `ANAXIGRAPH_HISTORY_STATUS`,
 `ANAXIGRAPH_HISTORY_IMPORT`, and `ANAXIGRAPH_HISTORY_CANCEL` tools.
 
-Refresh on demand in the dashboard, or run the optional polling sidecar:
+Refresh on demand in the dashboard, or let the generated polling sidecar keep the map current:
 
 ```bash
-docker compose -f compose.anaxigraph.yml --profile watch up -d
+docker compose -f compose.anaxigraph.yml up -d
 ```
 
 The equivalent service API is deliberately split from semantic execution:

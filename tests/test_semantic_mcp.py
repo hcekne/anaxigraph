@@ -66,3 +66,45 @@ async def test_mcp_coding_agent_can_claim_and_submit_semantic_work(repository, d
         ).fetchone()
     assert tuple(row)[:3] == ("coding_agent", "agent", "codex-integration")
     assert row["file_fact_id"] is not None
+
+
+@pytest.mark.anyio
+async def test_mcp_refuses_to_claim_semantic_work_from_a_stale_map(repository, database):
+    policy_path = repository / ".anaxigraph.yml"
+    policy = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
+    policy["semantic"] = {"enabled": True, "provider": "agent"}
+    policy_path.write_text(yaml.safe_dump(policy, sort_keys=False), encoding="utf-8")
+    RepositoryScanner(database).scan(repository)
+    core = repository / "pkg" / "core.py"
+    core.write_text(core.read_text(encoding="utf-8") + "\nCHANGED = True\n", encoding="utf-8")
+    server = create_anaxi_mcp_server(
+        database=database,
+        repository=repository,
+        config_path=None,
+        allowed_hosts=["testserver"],
+    )
+    app = server.streamable_http_app()
+
+    async with server.session_manager.run():
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+            timeout=5,
+        ) as http_client:
+            async with streamable_http_client(
+                "http://testserver/mcp",
+                http_client=http_client,
+                terminate_on_close=False,
+            ) as (read_stream, write_stream, _):
+                async with ClientSession(read_stream, write_stream) as session:
+                    await session.initialize()
+                    work = await session.call_tool(
+                        "ANAXIGRAPH_SEMANTIC_WORK",
+                        arguments={"agent_id": "stale-map-agent"},
+                    )
+
+    assert work.isError is False
+    assert work.structuredContent["status"] == "scan_required"
+    assert work.structuredContent["map_status"]["state"] == "stale"
+    with database.connect() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM semantic_jobs").fetchone()[0] == 0

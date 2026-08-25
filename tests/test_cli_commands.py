@@ -438,9 +438,38 @@ def test_serve_handler_assembles_and_opens_the_selected_endpoint(
 
     assert created[0]["repository"] == repository.resolve()
     assert created[0]["allow_scan_tool"] is True
+    assert created[0]["scan_on_start"] is False
     assert runs == [(application, "0.0.0.0", 9123, "info")]
     assert opened == ["http://127.0.0.1:9123"]
     assert "Dashboard: http://127.0.0.1:9123" in capsys.readouterr().err
+
+
+def test_registry_service_scans_on_start_without_relying_on_a_compose_flag(
+    repository: Path,
+    tmp_path: Path,
+    monkeypatch,
+):
+    registry = tmp_path / "repositories.yml"
+    registry.write_text(
+        yaml.safe_dump({"repositories": {"sample": {"path": str(repository)}}}),
+        encoding="utf-8",
+    )
+    created: list[dict] = []
+    monkeypatch.setattr(cli_services, "APP_FACTORY", lambda **options: created.append(options))
+    monkeypatch.setattr(server_commands.uvicorn, "run", lambda *_args, **_options: None)
+
+    main(
+        [
+            "serve",
+            "--registry",
+            str(registry),
+            "--db",
+            str(tmp_path / "registry.db"),
+        ]
+    )
+
+    assert created[0]["scan_on_start"] is True
+    assert created[0]["repository_targets"][0].path == repository.resolve()
 
 
 def test_cli_environment_default_and_validation_errors(

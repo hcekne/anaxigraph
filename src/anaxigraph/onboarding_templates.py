@@ -176,7 +176,6 @@ def _compose_app(port: int, history_snapshots: int | str) -> str:
 def _compose_workers(history_snapshots: int | str) -> str:
     return f"""  anaxigraph-watch:
     <<: *anaxigraph-service
-    profiles: [watch]
     command:
       - watch
       - /repo

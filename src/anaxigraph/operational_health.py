@@ -2,11 +2,121 @@
 
 from __future__ import annotations
 
+import json
 import shutil
+from collections.abc import Mapping
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any
 
+import anaxigraph.git as git
+
 _ACTIVE_RUN_STATES = ("queued", "enumerating", "importing", "finalizing", "running")
+
+
+def served_map_status(root: Path, snapshot: Mapping[str, Any]) -> dict[str, Any]:
+    """Compare a saved map with the checkout that the service can currently read."""
+
+    try:
+        checkout = git.metadata(root)
+    except (git.GitError, OSError) as exc:
+        return _unavailable_map_status(snapshot, exc)
+    metadata = _snapshot_metadata(snapshot)
+    mapped_commit = str(snapshot.get("commit_sha") or "unknown")
+    mapped_dirty = bool(snapshot.get("dirty"))
+    state, reason = _map_state(
+        mapped_commit,
+        mapped_dirty,
+        metadata.get("working_tree_fingerprint"),
+        checkout.commit_sha,
+        checkout.dirty,
+        checkout.working_tree_fingerprint,
+    )
+    return {
+        "contract_version": "served-map-status-v1",
+        "state": state,
+        "safe_to_plan": state == "current",
+        "scan_recommended": state != "current",
+        "mapped": {
+            "snapshot_id": int(snapshot["id"]),
+            "commit_sha": mapped_commit,
+            "dirty": mapped_dirty,
+            "analyzed_at": snapshot.get("analysis_timestamp"),
+            "scanner_version": metadata.get("anaxigraph_version"),
+            "working_tree_fingerprint": metadata.get("working_tree_fingerprint"),
+        },
+        "checkout": {
+            "commit_sha": checkout.commit_sha,
+            "branch": checkout.branch,
+            "dirty": checkout.dirty,
+            "working_tree_fingerprint": checkout.working_tree_fingerprint,
+        },
+        "service_version": _service_version(),
+        "plain_language": _map_language(state, reason),
+    }
+
+
+def _map_state(
+    mapped_commit: str,
+    mapped_dirty: bool,
+    mapped_worktree: Any,
+    checkout_commit: str,
+    checkout_dirty: bool,
+    checkout_worktree: str | None,
+) -> tuple[str, str]:
+    if "unversioned" in {mapped_commit, checkout_commit}:
+        return "uncertain", "Git could not identify both saved and current commits."
+    if mapped_commit != checkout_commit:
+        return "stale", f"The saved map uses {mapped_commit[:12]}, not {checkout_commit[:12]}."
+    if mapped_worktree and checkout_worktree:
+        if str(mapped_worktree) == checkout_worktree:
+            return "current", "The saved map matches the current commit and working files."
+        return "stale", "The working files have changed since this map was saved."
+    if mapped_dirty != checkout_dirty:
+        return "stale", "The saved map and checkout disagree about uncommitted changes."
+    if mapped_dirty:
+        return "uncertain", "Both use the same commit, but uncommitted content may have changed."
+    return "current", f"The saved map and clean checkout both use {checkout_commit[:12]}."
+
+
+def _map_language(state: str, reason: str) -> dict[str, str]:
+    action = (
+        "Use this map for planning."
+        if state == "current"
+        else "Refresh the structural scan before relying on this map for a code change."
+    )
+    return {"summary": reason, "action": action}
+
+
+def _snapshot_metadata(snapshot: Mapping[str, Any]) -> dict[str, Any]:
+    try:
+        metadata = json.loads(str(snapshot.get("metadata_json") or "{}"))
+    except (TypeError, ValueError):
+        return {}
+    return metadata if isinstance(metadata, dict) else {}
+
+
+def _service_version() -> str:
+    try:
+        return version("anaxigraph")
+    except PackageNotFoundError:
+        return "unknown"
+
+
+def _unavailable_map_status(snapshot: Mapping[str, Any], error: Exception) -> dict[str, Any]:
+    return {
+        "contract_version": "served-map-status-v1",
+        "state": "unavailable",
+        "safe_to_plan": False,
+        "scan_recommended": True,
+        "mapped": {"snapshot_id": int(snapshot["id"])},
+        "checkout": None,
+        "service_version": _service_version(),
+        "plain_language": {
+            "summary": f"The service could not inspect the checkout: {error}",
+            "action": "Restore read access to the registered checkout, then refresh the scan.",
+        },
+    }
 
 
 def operational_health(database: Any, operation_gate: Any) -> dict[str, Any]:

@@ -9,6 +9,7 @@ from anaxigraph.agent import agent_scope, branch_collisions, impact_analysis
 from anaxigraph.config import load_config
 from anaxigraph.config_authority import effective_semantic_policy, service_config_authority
 from anaxigraph.guidance import FILE_MEASUREMENT_MEANINGS, product_glossary
+from anaxigraph.operational_health import served_map_status
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic_mcp import current_semantic_status
 
@@ -59,6 +60,12 @@ class McpToolContext:
             "config_authority": service_config_authority(root, target, config),
             "semantic_policy": effective_semantic_policy(config.semantic),
         }
+
+    def map_status(self, row: dict[str, Any], root: Path) -> dict[str, Any]:
+        snapshot = self.database.latest_snapshot(int(row["id"]))
+        if snapshot is None:
+            raise ValueError("Repository has not been scanned")
+        return served_map_status(root, snapshot)
 
 
 class CoreMcpTools:
@@ -158,6 +165,7 @@ class CoreMcpTools:
                     "path": row["path"],
                     "remote_url": row.get("remote_url"),
                     "scannable": str(Path(row["path"]).resolve()) in targets,
+                    "map_status": self.context.map_status(row, Path(row["path"])),
                 }
                 for row in self.context.visible_repositories()
             ]
@@ -166,6 +174,7 @@ class CoreMcpTools:
     def overview(self, repository: str = "") -> dict[str, Any]:
         row, root = self.context.select(repository)
         result = self.database.overview(int(row["id"]))
+        result["map_status"] = self.context.map_status(row, root)
         config = self.context.config_for(row, root)
         semantic = current_semantic_status(self.database, int(row["id"]), config.semantic)
         semantic.update(self.context.semantic_config_contract(row, root, config))
@@ -183,7 +192,7 @@ class CoreMcpTools:
         limit: int = 200,
         repository: str = "",
     ) -> dict[str, Any]:
-        row, _ = self.context.select(repository)
+        row, root = self.context.select(repository)
         items = self.database.modules(int(row["id"]))
         items = _filter_modules(items, query, area, subsystem, language)
         allowed = {
@@ -212,21 +221,24 @@ class CoreMcpTools:
                 ),
                 "measurement_meanings": FILE_MEASUREMENT_MEANINGS,
             },
+            "map_status": self.context.map_status(row, root),
         }
 
     def search(self, query: str, limit: int = 20, repository: str = "") -> dict[str, Any]:
-        row, _ = self.context.select(repository)
+        row, root = self.context.select(repository)
         bounded = max(1, min(limit, 50))
         return {
             "query": query,
             "results": self.database.search(int(row["id"]), query, limit=bounded),
+            "map_status": self.context.map_status(row, root),
         }
 
     def file_details(self, path: str, repository: str = "") -> dict[str, Any]:
-        row, _ = self.context.select(repository)
+        row, root = self.context.select(repository)
         result = self.database.file_details(int(row["id"]), _safe_relative_path(path))
         if result is None:
             raise ValueError(f"File is not present in the current saved scan: {path}")
+        result["map_status"] = self.context.map_status(row, root)
         return result
 
     def scope(

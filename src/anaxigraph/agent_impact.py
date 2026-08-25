@@ -14,6 +14,7 @@ from anaxigraph.agent_payload import (
     _risk_explanation,
     _sorted_ids,
 )
+from anaxigraph.operational_health import served_map_status
 from anaxigraph.persistence.snapshot_projection import resolve_projected_target
 
 
@@ -21,6 +22,7 @@ from anaxigraph.persistence.snapshot_projection import resolve_projected_target
 class _ImpactGraph:
     repository: dict[str, Any]
     snapshot_id: int
+    map_status: dict[str, Any]
     files: dict[int, dict[str, Any]]
     outgoing: dict[int, set[int]]
     incoming: dict[int, set[int]]
@@ -59,12 +61,13 @@ def _impact_graph(database: Any, repository_id: int, target: str) -> _ImpactGrap
     if snapshot is None:
         raise ValueError("Repository has not been scanned")
     snapshot_id = int(snapshot["id"])
+    map_status = served_map_status(Path(repository["path"]), snapshot)
     with database.connect() as connection:
         files, outgoing, incoming = _projected_graph_maps(connection, snapshot_id)
         target_id = resolve_projected_target(connection, snapshot_id, files, target)
     if target_id is None:
         raise ValueError(f"Target not found: {target}")
-    return _ImpactGraph(repository, snapshot_id, files, outgoing, incoming, target_id)
+    return _ImpactGraph(repository, snapshot_id, map_status, files, outgoing, incoming, target_id)
 
 
 def _impact_evidence(graph: _ImpactGraph, target: str, config: Any) -> _ImpactEvidence:
@@ -110,6 +113,7 @@ def _impact_response(
     return {
         "repository_id": repository_id,
         "snapshot_id": graph.snapshot_id,
+        "map_status": graph.map_status,
         "target": _file_summary(graph.files[graph.target_id]),
         "direct_dependants": [
             _file_summary(graph.files[item]) for item in _sorted_ids(graph.files, evidence.direct)

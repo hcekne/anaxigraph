@@ -17,6 +17,7 @@ from anaxigraph.agent_decision_payload import (
 from anaxigraph.agent_task_path import compact_task_path
 from anaxigraph.config import AnaxiGraphConfig, path_matches
 from anaxigraph.guidance import FILE_MEASUREMENT_MEANINGS
+from anaxigraph.operational_health import served_map_status
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,6 +26,7 @@ class _ScopePayloadData:
     branch: str | None
     repository_id: int
     snapshot_id: int
+    map_source: tuple[Path, dict[str, Any]]
     files: dict[int, dict[str, Any]]
     outgoing: dict[int, set[int]]
     incoming: dict[int, set[int]]
@@ -66,6 +68,7 @@ def _scope_payload(data: _ScopePayloadData) -> dict[str, Any]:
         "branch": data.branch,
         "repository_id": data.repository_id,
         "snapshot_id": data.snapshot_id,
+        "map_status": served_map_status(*data.map_source),
         "primary_files": primary,
         "related_files": related,
         "protected_files": protected,
@@ -274,7 +277,7 @@ def _compact_scope_file_details(
         ]
     if size() > limit and payload["risk_reasons"]:
         omitted["risk_reasons"] = len(payload["risk_reasons"])
-        payload["risk_reasons"] = []
+        payload.pop("risk_reasons")
 
 
 def _minimize_task_path(
@@ -298,6 +301,7 @@ def _maybe_compact_decision(
 def _compact_optional_scope(
     payload: dict[str, Any], size: Callable[[], int], limit: int, omitted: dict[str, int]
 ) -> None:
+    _compact_map_status(payload, size, limit, omitted)
     _maybe_compact_decision(payload, size(), limit, omitted)
     while size() > limit and payload["recommended_context"]:
         payload["recommended_context"].pop()
@@ -317,6 +321,18 @@ def _compact_optional_scope(
     if size() > limit and payload.get("stats"):
         omitted["stats"] = len(payload["stats"])
         payload.pop("stats")
+    if size() > limit and payload.get("branch") is None:
+        payload.pop("branch")
+
+
+def _compact_map_status(
+    payload: dict[str, Any], size: Callable[[], int], limit: int, omitted: dict[str, int]
+) -> None:
+    status = payload.get("map_status") or {}
+    if size() <= limit or not status:
+        return
+    payload["map_status"] = {"state": status.get("state")}
+    omitted["plain_language_details"] += 1
 
 
 def _scope_omissions() -> dict[str, int]:

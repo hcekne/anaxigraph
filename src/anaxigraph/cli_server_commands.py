@@ -73,7 +73,7 @@ def _serve(args: argparse.Namespace) -> None:
         database=database,
         repository=repository,
         config_path=args.config.resolve() if args.config else None,
-        scan_on_start=args.scan_on_start,
+        scan_on_start=args.scan_on_start or bool(targets),
         enable_mcp=True,
         allowed_hosts=args.allowed_hosts,
         allow_scan_tool=args.allow_agent_scan,

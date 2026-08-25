@@ -303,7 +303,7 @@ def _initialization_commands(
     return {
         "start": f"docker compose -f {quoted_compose} up -d" if quoted_compose else None,
         "start_with_watch": (
-            f"docker compose -f {quoted_compose} --profile watch up -d" if quoted_compose else None
+            f"docker compose -f {quoted_compose} up -d" if quoted_compose else None
         ),
         "logs": (
             f"docker compose -f {quoted_compose} logs -f anaxigraph" if quoted_compose else None

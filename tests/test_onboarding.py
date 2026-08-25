@@ -38,6 +38,7 @@ def test_initializer_generates_reviewable_policy_and_read_only_sidecar(repositor
     compose_path = repository / "compose.anaxigraph.yml"
     policy = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
     compose = compose_path.read_text(encoding="utf-8")
+    compose_config = yaml.safe_load(compose)
     assert policy["project"]["name"] == "Sample Observatory"
     assert policy["coverage"] == {"required": False, "files": ["coverage.xml"]}
     assert policy["groups"]["frontend"]["paths"] == ["web/**"]
@@ -50,6 +51,8 @@ def test_initializer_generates_reviewable_policy_and_read_only_sidecar(repositor
     assert "read_only: true" in compose
     assert '"127.0.0.1:${ANAXIGRAPH_PORT:-9123}:8765"' in compose
     assert '--history-snapshots\n      - "37"' in compose
+    assert "profiles" not in compose_config["services"]["anaxigraph-watch"]
+    assert result["commands"]["start_with_watch"] == result["commands"]["start"]
     assert result["commands"]["connect_codex"] == (
         "codex mcp add anaxigraph --url http://127.0.0.1:9123/mcp"
     )

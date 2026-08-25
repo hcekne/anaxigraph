@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -86,9 +88,7 @@ def metadata(root: Path, *, revision: str | None = None) -> GitMetadata:
     remote = _run(root, "remote", "get-url", "origin", check=False)
     remote_url = remote.stdout.strip() if remote.returncode == 0 else None
     origin_head = _run(root, "symbolic-ref", "--short", "refs/remotes/origin/HEAD", check=False)
-    default_branch = (
-        origin_head.stdout.strip().removeprefix("origin/") if origin_head.returncode == 0 else None
-    )
+    default_branch = _default_branch(origin_head)
     return GitMetadata(
         commit_sha=commit_sha,
         parent_commit_sha=parent_sha,
@@ -97,7 +97,47 @@ def metadata(root: Path, *, revision: str | None = None) -> GitMetadata:
         dirty=dirty,
         remote_url=remote_url,
         default_branch=default_branch,
+        working_tree_fingerprint=(working_tree_fingerprint(root) if revision == "HEAD" else None),
     )
+
+
+def _default_branch(result: subprocess.CompletedProcess) -> str | None:
+    return result.stdout.strip().removeprefix("origin/") if result.returncode == 0 else None
+
+
+def working_tree_fingerprint(root: Path) -> str | None:
+    """Hash tracked changes and untracked content without rereading unchanged files."""
+
+    diff = _run(
+        root,
+        "diff",
+        "--binary",
+        "--no-ext-diff",
+        "--no-textconv",
+        "HEAD",
+        "--",
+        check=False,
+        text=False,
+    )
+    untracked = _run(
+        root, "ls-files", "--others", "--exclude-standard", "-z", check=False, text=False
+    )
+    if diff.returncode != 0 or untracked.returncode != 0:
+        return None
+    digest = hashlib.sha256(diff.stdout)
+    for encoded_path in sorted(item for item in untracked.stdout.split(b"\0") if item):
+        path = root / encoded_path.decode("utf-8", errors="surrogateescape")
+        digest.update(encoded_path)
+        digest.update(b"\0")
+        try:
+            if path.is_symlink():
+                digest.update(os.readlink(path).encode("utf-8", errors="surrogateescape"))
+            elif path.is_file():
+                with path.open("rb") as stream:
+                    digest.update(hashlib.file_digest(stream, "sha256").digest())
+        except OSError:
+            return None
+    return digest.hexdigest()
 
 
 def listed_files(root: Path) -> list[str]:
