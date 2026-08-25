@@ -37,3 +37,20 @@ def test_compact_decision_keeps_actionable_change_coupling_fields():
             "relationship_kind": "co_change_only",
         }
     ]
+
+
+def test_compact_decision_keeps_the_before_change_record():
+    baseline = {
+        "contract_version": "architecture-verification-baseline-v2",
+        "snapshot_id": 12,
+        "modules": [{"path": "src/service.py", "structural_hash": "before"}],
+    }
+
+    result = compact_architecture_decision(
+        {
+            "contract_version": "architecture-decision-v1",
+            "verification": {"post_change_baseline": baseline},
+        }
+    )
+
+    assert result["verification"]["post_change_baseline"] == baseline

@@ -135,17 +135,28 @@ def scope_metrics(
     row = database.repository(repository)
     if row is None:
         raise RuntimeError("benchmark repository was not indexed")
-    payload = agent_scope(
-        database,
-        repository_id=int(row["id"]),
-        goal=goal,
-        branch=None,
-        config=load_config(repository),
+    payload, timing = measure(
+        lambda: agent_scope(
+            database,
+            repository_id=int(row["id"]),
+            goal=goal,
+            branch=None,
+            config=load_config(repository),
+        )
     )
-    encoded = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()
+    encoded = json.dumps(
+        payload,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode()
     primary = [item["path"] for item in payload["primary_files"]]
     expected_set = set(expected)
+    decision = payload["architecture_decision"]
+    verification = decision.get("verification") or {}
+    baseline = verification.get("post_change_baseline") or {}
     return {
+        **timing,
         "goal": goal,
         "payload_bytes": len(encoded),
         "estimated_tokens": (len(encoded) + SCOPE_TOKEN_ESTIMATE_BYTES - 1)
@@ -153,6 +164,16 @@ def scope_metrics(
         "primary_files": primary,
         "expected_candidate_hits": sorted(expected_set.intersection(primary)),
         "unexpected_primary_files": sorted(set(primary).difference(expected_set)),
+        "architecture_decision": {
+            "contract_version": decision.get("contract_version"),
+            "status": decision.get("status"),
+            "preferred_path": (decision.get("placement") or {}).get("preferred_path"),
+            "task_path_status": (decision.get("task_path") or {}).get("status"),
+            "task_path_module": ((decision.get("task_path") or {}).get("module") or {}).get("path"),
+            "baseline_contract_version": baseline.get("contract_version"),
+            "baseline_included": bool(baseline),
+        },
+        "payload_budget": payload["payload_budget"],
     }
 
 

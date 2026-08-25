@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from anaxigraph.agent_change_effects import compact_structural_effects
@@ -24,9 +25,42 @@ def compact_architecture_decision(decision: dict[str, Any]) -> dict[str, Any]:
     if history := _compact_history_evidence(decision):
         result["history_evidence"] = history
     _add_nonempty_counts(result, decision, patterns, decomposition)
-    if comparison := (decision.get("verification") or {}).get("post_change_comparison") or {}:
-        result["verification"] = _compact_verification(comparison)
+    if verification := _compact_verification(decision.get("verification")):
+        result["verification"] = verification
     return result
+
+
+def fit_verification_to_budget(
+    decision: dict[str, Any], *, current_size: Callable[[], int], limit: int
+) -> dict[str, int]:
+    """Remove a baseline only when the configured response limit cannot hold it."""
+
+    if current_size() <= limit:
+        return {}
+    verification = decision.get("verification") or {}
+    if verification.pop("post_change_baseline", None) is None:
+        return {}
+    verification["post_change_baseline_status"] = {
+        "status": "omitted_for_payload_limit",
+        "reason": (
+            "The configured scope response limit is too small for the before-change record. "
+            "Request scope again with a larger agent.payload_limit_bytes value before editing "
+            "when you need post-change comparison."
+        ),
+    }
+    omitted = {"verification_baseline": 1}
+    if current_size() > limit and (comparison := verification.get("post_change_comparison")):
+        verification["post_change_comparison"] = {
+            key: comparison.get(key)
+            for key in (
+                "contract_version",
+                "status",
+                "baseline_snapshot_id",
+                "current_snapshot_id",
+            )
+        }
+        omitted["verification_details"] = 1
+    return omitted
 
 
 def _compact_history_evidence(decision: dict[str, Any]) -> dict[str, Any]:
@@ -45,7 +79,14 @@ def _compact_history_evidence(decision: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _compact_verification(comparison: dict[str, Any]) -> dict[str, Any]:
+def _compact_verification(value: Any) -> dict[str, Any]:
+    verification = value if isinstance(value, dict) else {}
+    result: dict[str, Any] = {}
+    if baseline := verification.get("post_change_baseline"):
+        result["post_change_baseline"] = baseline
+    comparison = verification.get("post_change_comparison") or {}
+    if not comparison:
+        return result
     effects = (comparison.get("changes") or {}).get("structural_effects")
     compact_effects = compact_structural_effects(effects)
     effect_changes = any(
@@ -59,10 +100,11 @@ def _compact_verification(comparison: dict[str, Any]) -> dict[str, Any]:
         "current_snapshot_id",
         "interpretation",
     )
-    result = {key: comparison.get(key) for key in keys}
+    compact = {key: comparison.get(key) for key in keys}
     if effect_changes or compact_effects["omitted_count"]:
-        result["changes"] = {"structural_effects": compact_effects}
-    return {"post_change_comparison": result}
+        compact["changes"] = {"structural_effects": compact_effects}
+    result["post_change_comparison"] = compact
+    return result
 
 
 def _add_nonempty_counts(

@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.28
+**Roadmap version:** 3.29
 
 **Updated:** 25 August 2026
 
@@ -111,7 +111,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 555 tests passing plus 17 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
+| Test health | 559 tests passing plus 17 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, post-change comparison, and three-size core-loop paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -2373,6 +2373,9 @@ module size, code quality, architecture, Ruff, and focused REST/MCP tests also p
 
 ## 9.2 Prove architecture decisions at representative sizes
 
+**Status:** DETERMINISTIC SCALE ACCEPTANCE COMPLETE on 25 August 2026; paid live semantic
+acceptance remains paused
+
 Run the same coding tasks against small, medium, and large Python-first repositories. Record only
 measurements that decide whether the map is useful:
 
@@ -2389,6 +2392,36 @@ measurements that decide whether the map is useful:
 Deterministic fixtures and the repository's own self-analysis can run now. The paid live MaxOS
 semantic acceptance remains paused at the operator's request; do not replace that missing evidence
 with adjacent features or claim the phase complete while it is paused.
+
+`tests/test_core_loop_scale.py` now repeats one coding task at 120, 1,000, and 3,000 files. Every
+size returns the same eight expected primary files and no unrelated primary file, chooses
+`src/sample/analyzers/base.py` as the task path and `src/sample/languages.py` as the preferred
+placement, finds the same two direct dependants, and keeps the exact response within 20 KB. It then
+introduces a real dependency cycle by changing one file and resolves it with a second one-file
+change; each update analyzes one file and the before/after contract classifies the introduction and
+resolution correctly.
+
+The first probe exposed a core-loop defect: compacting a large scope packet discarded its
+before-change baseline, so an agent could not perform the promised later comparison. Normal bounded
+packets now retain `architecture-verification-baseline-v2`. An explicitly tiny 4 KB policy still
+stays inside its configured limit, but reports plainly that the baseline was omitted and tells the
+agent to request a larger limit before editing. The fitting logic lives in the existing
+architecture-decision compactor; `agent_payload.py` remains below the 400-line review threshold.
+
+| Files | One-frame map | Vacuumed index | Scope | Scope bytes | Expected / unrelated primary files |
+|---:|---:|---:|---:|---:|---:|
+| 120 | 573 ms | 1,146,880 | 67 ms | 13,182 | 8 / 0 |
+| 1,000 | 4,452 ms | 6,414,336 | 192 ms | 13,182 | 8 / 0 |
+| 3,000 | 15,189 ms | 18,378,752 | 510 ms | 13,182 | 8 / 0 |
+
+These absolute times describe one 16-core Linux runner; accuracy, bounded payload, baseline
+presence, and one-file incremental work are the contracts. The exact environment and results are
+retained in `benchmarks/results/core-loop-scale-2026-08-25.json`. Mixed-versus-cohesive large-file
+decisions and all five structural-effect classes remain covered by focused bounded fixtures after
+scope selection; multiplying irrelevant modules inside those already-local calculations would not
+add product evidence. The only remaining §9.2 item is the retained live MaxOS semantic acceptance
+after the operator lifts its pause. The complete Python suite passes with 559 tests at 91.63%
+coverage; Ruff, module-size, code-quality, architecture, and self-analysis gates also pass.
 
 ## 9.3 Keep one documented coding loop
 
@@ -2564,7 +2597,7 @@ queue and the document cannot drift apart.
 | 48 | **COMPLETE** — Identify the retained change that introduced, resolved, or reintroduced a selected structural finding | §8.2 |
 | 49 | **COMPLETE** — Re-evaluate Phase 9 and remove duplicate reliability work and generic product-maturity scope from the active path | Phase 9 |
 | 50 | **COMPLETE** — Freeze the smallest required CLI, REST, and MCP coding-loop contract as a tested subset | §9.1 |
-| 51 | Run and record the same architecture-decision fixtures at small, medium, and large scales | §9.2 |
+| 51 | **COMPLETE** — Run and record the same architecture-decision fixtures at small, medium, and large scales | §9.2 |
 | 52 | Complete the retained live MaxOS semantic acceptance after the operator lifts the pause | §9.2 |
 | 53 | Close the one-path documentation and prepare the evidence-backed 1.0 release candidate | §9.3 and Phase 9 gate |
 

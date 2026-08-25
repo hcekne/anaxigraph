@@ -36,6 +36,30 @@ The committed report is a baseline, not a performance promise. Phase 0 ratifies 
 targets from ratios and measured work avoided; it does not encode this server's absolute duration
 as a universal laptop threshold.
 
+## Core coding loop at repository scale
+
+The Phase 9 matrix repeats one placement task at 120, 1,000, and 3,000 files. It requires the same
+eight relevant primary files, no unrelated primary files, a bounded scope packet with its
+before-change record intact, the expected task path and placement, and the expected reverse impact.
+It then changes one file to introduce a dependency cycle and changes that file again to resolve the
+cycle. Each update must analyze one file and the comparison must classify both transitions.
+
+```bash
+uv run pytest tests/test_core_loop_scale.py
+
+for size in 120 1000 3000; do
+  uv run python -m benchmarks.baseline \
+    --repository . --synthetic-files "$size" --history-frames 1 \
+    --skip-tests --skip-dashboard \
+    --output "/tmp/anaxigraph-core-loop-${size}.json"
+done
+```
+
+The retained measurements are in
+[`results/core-loop-scale-2026-08-25.json`](results/core-loop-scale-2026-08-25.json). Absolute time
+is runner-specific. Candidate accuracy, unexpected files, payload bounds, baseline presence, and
+one-file incremental work are the regression contracts.
+
 ## First-user time to value
 
 The Phase 3 gate exercises the assembled local product rather than timing helper functions. Each

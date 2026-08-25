@@ -1,0 +1,86 @@
+{
+  "report_schema_version": 1,
+  "generated_at": "2026-08-25T20:06:31.909541+00:00",
+  "source": {
+    "base_revision": "dc6209529d250d54b0a706c0e3129245874d8632",
+    "changes_under_test": "Phase 9 scale acceptance and before-change baseline preservation",
+    "anaxigraph_version": "0.3.0"
+  },
+  "environment": {
+    "cpu_count": 16,
+    "machine": "x86_64",
+    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+    "python": "3.11.15",
+    "sqlite": "3.53.1"
+  },
+  "fixture": {
+    "goal": "Add a new language analyzer for Go",
+    "history_frames": 1,
+    "expected_primary_files": [
+      "src/sample/analyzers/__init__.py",
+      "src/sample/analyzers/base.py",
+      "src/sample/analyzers/javascript.py",
+      "src/sample/analyzers/python.py",
+      "src/sample/analyzers/text.py",
+      "src/sample/languages.py",
+      "src/sample/service.py",
+      "tests/test_analyzers.py"
+    ]
+  },
+  "scale_matrix": [
+    {
+      "file_count": 120,
+      "one_frame_history_import_ms": 573,
+      "vacuumed_index_bytes": 1146880,
+      "scope_ms": 67,
+      "scope_payload_bytes": 13182,
+      "expected_primary_hits": 8,
+      "unexpected_primary_files": 0
+    },
+    {
+      "file_count": 1000,
+      "one_frame_history_import_ms": 4452,
+      "vacuumed_index_bytes": 6414336,
+      "scope_ms": 192,
+      "scope_payload_bytes": 13182,
+      "expected_primary_hits": 8,
+      "unexpected_primary_files": 0
+    },
+    {
+      "file_count": 3000,
+      "one_frame_history_import_ms": 15189,
+      "vacuumed_index_bytes": 18378752,
+      "scope_ms": 510,
+      "scope_payload_bytes": 13182,
+      "expected_primary_hits": 8,
+      "unexpected_primary_files": 0
+    }
+  ],
+  "decision_contract": {
+    "contract_version": "architecture-decision-v1",
+    "status": "deterministic_only",
+    "task_path_status": "policy_with_symbols",
+    "task_path_module": "src/sample/analyzers/base.py",
+    "preferred_path": "src/sample/languages.py",
+    "baseline_contract_version": "architecture-verification-baseline-v2",
+    "baseline_included_at_every_size": true,
+    "payload_limit_bytes": 20000
+  },
+  "change_loop": {
+    "test": "tests/test_core_loop_scale.py",
+    "sizes": [120, 1000, 3000],
+    "direct_dependants_found": [
+      "src/sample/service.py",
+      "tests/test_analyzers.py"
+    ],
+    "changed_files_analyzed_per_update": 1,
+    "introduced_dependency_cycle_classified": true,
+    "resolved_dependency_cycle_classified": true,
+    "status": "passed"
+  },
+  "notes": [
+    "The same eight relevant files were returned at every size; no unrelated primary file appeared.",
+    "The scope payload stayed constant while repository size grew and retained its before-change record.",
+    "Absolute timings describe this runner only; correctness, bounded payload, and work counters are the release contracts."
+  ]
+}

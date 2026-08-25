@@ -4,7 +4,6 @@ import json
 import subprocess
 from pathlib import Path
 
-from anaxigraph.agent import agent_scope
 from anaxigraph.analyzers import builtin_registry
 from anaxigraph.config import load_config
 from anaxigraph.history import import_git_history
@@ -20,7 +19,7 @@ from benchmarks.repository_factory import (
     DEFAULT_SEED,
     create_history_repository,
 )
-from benchmarks.runtime_metrics import api_metrics
+from benchmarks.runtime_metrics import api_metrics, scope_metrics
 
 
 def _revisions(root: Path) -> list[str]:
@@ -95,15 +94,13 @@ def test_history_fixture_has_exact_versions_and_agent_scope(tmp_path):
             for table in ("file_versions", "symbols", "relationships", "group_memberships")
         )
 
-    row = database.repository(repository)
-    scope = agent_scope(
+    scope = scope_metrics(
         database,
-        repository_id=int(row["id"]),
-        goal=manifest["scope_goal"],
-        branch=None,
-        config=load_config(repository),
+        repository,
+        manifest["scope_goal"],
+        manifest["scope_expected_candidates"],
     )
-    primary = {item["path"] for item in scope["primary_files"]}
+    primary = set(scope["primary_files"])
     graph_metrics = api_metrics(database, repository)
 
     assert snapshots == 8
@@ -116,6 +113,8 @@ def test_history_fixture_has_exact_versions_and_agent_scope(tmp_path):
     assert compatibility_rows == 0
     assert ambiguous >= 1
     assert len(primary.intersection(manifest["scope_expected_candidates"])) >= 6
+    assert scope["payload_bytes"] == scope["payload_budget"]["estimated_bytes"]
+    assert scope["architecture_decision"]["baseline_included"] is True
     assert set(graph_metrics["temporal_reads"]) == {"current", "oldest", "middle"}
     for measurement in graph_metrics["temporal_reads"].values():
         assert measurement["reconstruction"]["files"]["traversed_deltas"] < 16

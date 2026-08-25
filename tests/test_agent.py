@@ -235,6 +235,9 @@ def test_agent_scope_trims_optional_context_to_the_configured_wire_budget(reposi
     assert value["architecture_decision"]["placement"]["plain_language"]["conclusion"]
     assert value["architecture_decision"]["task_path"]["module"]["path"]
     assert value["architecture_decision"]["history_evidence"]["change_coupling"]["status"]
+    baseline_status = value["architecture_decision"]["verification"]["post_change_baseline_status"]
+    assert baseline_status["status"] == "omitted_for_payload_limit"
+    assert "larger agent.payload_limit_bytes" in baseline_status["reason"]
     assert (
         value["architecture_decision"]["verification"]["post_change_comparison"]["status"]
         == "rescan_required"
