@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.30
+**Roadmap version:** 3.31
 
 **Updated:** 25 August 2026
 
@@ -111,7 +111,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 560 tests passing plus 17 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, post-change comparison, and three-size core-loop paths are regression-tested |
+| Test health | 561 tests passing plus 17 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, post-change comparison, and three-size core-loop paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -245,24 +245,30 @@ The point is that the decision is written down, not that it happens on a schedul
 
 ## Remaining feature re-evaluation
 
-| Previous feature | Classification | Decision |
-|---|---|---|
-| Goal-specific scope, placement, impact, and post-change comparison | Essential | Strengthen the existing change loop; do not create a second planning product |
-| New-versus-existing size, complexity, coupling, cycle, and boundary regressions | Essential | Make this the first active implementation slice |
-| Evidence-backed decomposition of mixed-responsibility large files | Essential | Reuse symbols, semantic responsibilities, graph edges, patterns, and focused tests |
-| Area → subsystem → module → symbol navigation for a coding goal | Essential | Improve the existing map, search, and scope paths rather than adding another visualization |
-| Repeated co-change around task-selected code | Supporting | Keep a bounded on-demand clue because it exposes coordination that imports and calls cannot show |
-| “When did this specific structural problem appear or disappear?” | Supporting | Reuse retained findings and frames to explain whether a task-facing risk is new, persistent, resolved, or regressed |
-| A separate repository-wide historical hotspot ranking | Optional | The attention queue and before/after comparison already answer the actionable parts without another scoring product |
-| Required CLI, REST, and MCP contracts for the coding loop | Supporting | Protect only the paths used to understand, scope, inspect impact, act on findings, and verify a change |
-| Representative-repository proof of placement, impact, decomposition, and before/after advice | Essential | Make this the remaining release decision; measure usefulness and false positives at small, medium, and large scales |
-| Install, index migration, backup/restore, source-egress boundaries, and release integrity | Supporting and already implemented | Keep the existing tests and documentation green; add work only when a core-loop regression exposes a gap |
-| JavaScript/TypeScript, Go, Rust, Java, and long-tail parser expansion | Optional | Move out of the numbered roadmap; add one language only when concrete demand justifies its cost |
-| SQL, API-schema, deployment, Terraform, and document adapters | Optional | Reconsider after the source-code change loop is complete |
-| General plugin SDK and third-party extension ecosystem | Optional | Do not build a framework in anticipation of integrations |
-| Animated history playback and a visual repository bibliography | Optional | Keep current bounded history views; do not invest in presentation that does not improve a decision |
-| PDF, image, audio, and video understanding | Optional | Outside the core source-architecture mission |
-| Product website, replay video, interactive demo, and ecosystem promotion | Optional | Not a product-development blocker |
+The 25 August self-hosted check changed the active priority. AnaxiGraph's MCP service returned a
+working-tree snapshot several commits behind `main` and no semantic hierarchy while the checkout
+had continued to change. Deterministic fixtures were green, but the map an agent actually received
+was not demonstrably current. That is a failed core outcome, so authoritative map lifecycle work is
+reopened ahead of release acceptance.
+
+Only these outcomes remain in the active feature list, in this order:
+
+| Priority | Outcome | Why it is essential | Boundary |
+|---:|---|---|---|
+| 1 | One authoritative, current map | Navigation and advice are unsafe when CLI, MCP, a watcher, and a sidecar can appear to describe different repository states | Reuse the repository registry, service discovery, scanner, and existing index; expose identity and lag instead of adding another index mode |
+| 2 | Semantic work that reliably reaches an explicit end state | An autonomous hierarchy cannot exist if a coding-agent session can stop with useful work still queued | Keep leases, retries, bounded parallel claims, and resumability; model and reasoning effort remain operator configuration, never hard-coded architecture identity |
+| 3 | A useful autonomous area → subsystem → module → symbol hierarchy | A flat directory list does not help an agent understand where responsibilities belong | Reuse deterministic facts, semantic dossiers, taxonomy proposal, and independent agent review; no default human taxonomy-edit gate and no second visualization |
+| 4 | Evidence-backed placement, pattern, decomposition, and change advice | This is how AnaxiGraph prevents misplaced code, tangles, sprawl, and giant files during real coding work | Reuse scope, impact, findings, the 120+ pattern catalog, and before/after comparison; improve calibration and language rather than creating another product surface |
+| 5 | Representative live proof | Fixture success is insufficient when the real persistent map can lag or a worker can exit early | Finish AnaxiGraph dogfooding now; retain the paused MaxOS run as the final large-repository acceptance after the operator resumes it |
+
+Supporting work is admitted only when one of those five outcomes cannot be correct, bounded, safe,
+or recoverable without it. Existing install, migration, backup/restore, source-egress, release,
+history, and bounded-API tests stay green, but they are not an open-ended feature queue.
+
+Warning cleanup is also not an automatic queue. Fix a warning when it blocks a hard gate, touches
+code already being changed for a core outcome, or describes a demonstrated product defect. A clean
+non-regression baseline is sufficient otherwise. In particular, do not create another explanatory
+module merely because an adjacent administrative response could be worded more elegantly.
 
 ## Master delivery order
 
@@ -279,7 +285,7 @@ The point is that the decision is written down, not that it happens on a schedul
 | 6 | Architect-grade semantic and pattern intelligence | An extensible catalog of at least 120 patterns is evaluated across code hierarchies and independently reviewed by agents | Change-safe architecture guidance |
 | 7 | Change-safe architecture loop | Agents and people get placement guidance before a change and a focused entropy comparison afterward | Focused temporal risk signals |
 | 8 | Focused history evidence for architecture risk | Co-change and introduction/resolution history improve the current task decision | 1.0 scope freeze |
-| 9 | Prove the core loop for 1.0 | The existing product gives useful, bounded architecture decisions at representative sizes through stable agent-facing paths | 1.0 release |
+| 9 | Make the real core loop dependable, then prove it for 1.0 | The current authoritative map reaches a useful autonomous hierarchy and gives bounded architecture decisions through stable agent-facing paths | 1.0 release |
 
 ---
 
@@ -2037,8 +2043,8 @@ with self-analysis at 26 governed findings, 132 non-blocking findings, and zero 
 
 ## 6.9 Make repository-sized semantic bootstrap operational
 
-**Status:** IMPLEMENTED AND DETERMINISTICALLY VERIFIED on 25 August 2026; paid MaxOS acceptance is
-paused at the operator's direction while unrelated defects are addressed.
+**Status:** IMPLEMENTED AND DETERMINISTICALLY VERIFIED on 25 August 2026; Phase 9 self-hosted
+authority acceptance reopened and paid MaxOS acceptance paused.
 
 The repository-sized path now uses a queue-first, stage-boundary lifecycle. Module planning carries
 canonical file-fact identities directly, claim atomically reclaims expired leases, and submission
@@ -2065,10 +2071,13 @@ Deterministic acceptance evidence:
 - complete Python coverage, Ruff, formatting, size, complexity, coupling, architecture,
   self-analysis, Compose, container, first-user, and benchmark gates remain release requirements.
 
-The remaining release gate is the paid live MaxOS run from the P0 handoff: start without a model
-override, prove immediate durable handoff plus interruption/resume, finish the baseline, and record
-terminal counts, taxonomy, elapsed time, provenance, token use, failures, and retries. Do not start
-that run while the explicit semantic-indexing pause remains active.
+The implementation claim remains bounded to deterministic evidence. A later self-hosted check found
+that the served AnaxiGraph snapshot lagged the checkout and exposed no semantic hierarchy, so Phase
+9.0 reopened authoritative current-map acceptance before the paid run. After that is fixed, the
+remaining external gate is the MaxOS run from the P0 handoff: start without a model override, prove
+immediate durable handoff plus interruption/resume, finish the baseline, and record terminal counts,
+taxonomy, elapsed time, provenance, token use, failures, and retries. Do not start that run while the
+explicit semantic-indexing pause remains active.
 
 ## Phase 6 exit gate
 
@@ -2333,19 +2342,53 @@ change also lowers the `evaluate_architecture` and finding-lifecycle maintainabi
 
 ---
 
-# Phase 9 — prove the core loop for 1.0
+# Phase 9 — make the real core loop dependable, then prove it for 1.0
 
-**Status:** ACTIVE; SCOPE RE-EVALUATED on 25 August 2026
+**Status:** ACTIVE; AUTHORITATIVE MAP LIFECYCLE REOPENED on 25 August 2026
 
 **Goal:** prove that the existing AnaxiGraph loop helps a person or coding agent place and change
 code without creating sprawl, tangled dependencies, misplaced responsibilities, or giant files.
-Phase 9 is an acceptance and contract phase, not another feature family.
+Phase 9 is a bounded core-defect and acceptance phase, not another feature family.
 
 The re-evaluation removed generic product-maturity work from the active path. Package installation,
 schema migration, online backup/restore, platform and analyzer-depth disclosure, semantic-egress
 controls, container hardening, artifact attestations, and public-install verification already exist.
 Their current tests remain release gates, but they do not justify new subsystems, surfaces, or
 documentation projects.
+
+The same re-evaluation stopped the self-analysis backlog from becoming feature work. Phase 9 does
+not chase every accepted warning, add plain-language coverage to every administrative response, or
+split a cohesive module merely to lower a metric. Internal cleanup is part of a Phase 9 change only
+when that change touches the code or cannot pass a hard quality gate without it.
+
+## 9.0 Make the served map authoritative and current
+
+**Status:** ACTIVE — self-hosted MCP acceptance failed on 25 August 2026
+
+The active AnaxiGraph MCP service returned snapshot 221 at commit `80a44a7`, with an empty semantic
+hierarchy, while the repository's `main` branch had advanced. The response was internally valid but
+could not support the promise that an agent sees the repository it is about to change. Treat this
+as a product defect, not an operator footnote.
+
+Fix and accept the existing lifecycle so that:
+
+- CLI, MCP, watcher, and sidecar resolution identify the same repository and authoritative index;
+- status names the mapped commit or working-tree fingerprint, the checkout state it was compared
+  with, semantic current/stale coverage, and a plain reason for any lag;
+- a changed checkout is incrementally scanned or explicitly reported as paused/blocked; an older
+  map is never silently presented as current;
+- semantic invalidation is scoped to changed evidence or a genuinely incompatible contract, while
+  the last known interpretation remains visible as stale instead of disappearing into a misleading
+  zero-knowledge state;
+- agent-funded execution uses operator-selected provider/model/reasoning settings, safely claims a
+  bounded parallel batch, survives interruption through leases and requeueing, and does not report
+  success until the durable queue returns `complete`;
+- local, service, and container-path identity fixtures reproduce the exact behavior without adding
+  another index, provider pipeline, scheduler, or configuration system.
+
+The paused MaxOS semantic run remains paused. Reproduce and fix lifecycle defects against the
+self-hosted AnaxiGraph index and deterministic fixtures until the operator explicitly resumes that
+run.
 
 ## 9.1 Protect the smallest agent-facing contract
 
@@ -2373,8 +2416,8 @@ module size, code quality, architecture, Ruff, and focused REST/MCP tests also p
 
 ## 9.2 Prove architecture decisions at representative sizes
 
-**Status:** DETERMINISTIC SCALE ACCEPTANCE COMPLETE on 25 August 2026; paid live semantic
-acceptance remains paused
+**Status:** DETERMINISTIC SCALE ACCEPTANCE COMPLETE on 25 August 2026; current self-hosted
+acceptance reopened and paid live semantic acceptance paused
 
 Run the same coding tasks against small, medium, and large Python-first repositories. Record only
 measurements that decide whether the map is useful:
@@ -2389,9 +2432,15 @@ measurements that decide whether the map is useful:
 - whether interrupted semantic work resumes against the authoritative index and reaches explicit
   completion without rereading unchanged modules.
 
-Deterministic fixtures and the repository's own self-analysis can run now. The paid live MaxOS
-semantic acceptance remains paused at the operator's request; do not replace that missing evidence
-with adjacent features or claim the phase complete while it is paused.
+Deterministic fixtures and the repository's own self-analysis can run now. After §9.0 makes the
+self-hosted map current, use it for real AnaxiGraph tasks covering placement, reverse impact,
+multi-level pattern fit, mixed-responsibility decomposition, and the before/after architecture
+comparison. Record whether the first recommendation was useful, which files were unnecessary, and
+whether its explanation was directly actionable. Fix demonstrated defects through existing paths;
+do not widen the product to improve a benchmark score.
+
+The paid live MaxOS semantic acceptance remains paused at the operator's request. Do not resume it,
+replace its missing evidence with adjacent features, or claim the phase complete while it is paused.
 
 `tests/test_core_loop_scale.py` now repeats one coding task at 120, 1,000, and 3,000 files. Every
 size returns the same eight expected primary files and no unrelated primary file, chooses
@@ -2419,9 +2468,10 @@ presence, and one-file incremental work are the contracts. The exact environment
 retained in `benchmarks/results/core-loop-scale-2026-08-25.json`. Mixed-versus-cohesive large-file
 decisions and all five structural-effect classes remain covered by focused bounded fixtures after
 scope selection; multiplying irrelevant modules inside those already-local calculations would not
-add product evidence. The only remaining §9.2 item is the retained live MaxOS semantic acceptance
-after the operator lifts its pause. The complete Python suite passes with 559 tests at 91.63%
-coverage; Ruff, module-size, code-quality, architecture, and self-analysis gates also pass.
+add product evidence. Remaining §9.2 evidence is the current self-hosted task set above and the
+retained live MaxOS semantic acceptance after the operator lifts its pause. The complete Python
+suite passes with 559 tests at 91.63% coverage; Ruff, module-size, code-quality, architecture, and
+self-analysis gates also pass.
 
 ## 9.3 Keep one documented coding loop
 
@@ -2441,11 +2491,17 @@ suite passes with 560 tests at 91.63% coverage.
 
 ## Phase 9 exit gate
 
+- CLI, MCP, watcher, and sidecar checks resolve one authoritative index and report whether its
+  structural and semantic views match the checkout they claim to describe.
+- A bounded parallel agent-funded run uses operator-selected model settings, survives an interrupted
+  controller, resumes without losing completed work, and returns `complete` only after the durable
+  queue is empty.
 - The required CLI, REST, and MCP subset has a versioned characterization test and remains bounded.
 - The complete before/after coding loop passes the same decision fixtures at small, medium, and
-  large scales within the declared Python-first support boundary.
-- The interrupted semantic loop passes deterministic recovery tests and, after the operator lifts
-  the pause, the retained live MaxOS acceptance run reaches explicit completion.
+  large scales within the declared Python-first support boundary, then gives useful placement,
+  impact, pattern, decomposition, and verification advice on the current AnaxiGraph map.
+- After the operator lifts the pause, the retained live MaxOS acceptance run reaches explicit
+  completion against its authoritative index.
 - Existing install, migration, backup/restore, container, and release-integrity gates remain green.
 - No first-party implementation module exceeds 500 lines and no temporary architecture waiver
   remains.
@@ -2454,10 +2510,11 @@ suite passes with 560 tests at 91.63% coverage.
 
 ---
 
-# Optional feature backlog — not part of the numbered execution path
+# Parked ideas — not an implementation queue
 
-These ideas are not active phases and do not block 1.0. They are reopened only when concrete user
-evidence shows that one materially improves the core navigation-and-structure mission:
+These are recorded only so they are not repeatedly rediscovered and mistaken for active work. They
+do not block 1.0 and are not implementation tasks. The owner must explicitly reopen one after
+concrete user evidence shows that it materially improves the core navigation-and-structure mission:
 
 - parser-backed JavaScript/TypeScript, Go, Rust, Java, C, C++, C#, Ruby, or PHP support, delivered
   one language at a time through the existing analyzer contract;
@@ -2551,64 +2608,19 @@ These are not introduced to deliver the active core roadmap:
 
 # Immediate implementation queue
 
-Development begins with this exact order. Each item cites the section that specifies it, so the
-queue and the document cannot drift apart.
+Completed work stays documented in its phase and is intentionally absent here. This is the entire
+remaining queue; a warning, idea, or adjacent polish task does not enter it without passing the
+feature-admission rule.
 
-| # | Item | Specified in |
-|---:|---|---|
-| 1 | **COMPLETE** — Add the reproducible history/storage/performance benchmark and capture baseline output | §0.1 |
-| 2 | **COMPLETE** — Ratify the Phase 1a and 1b numeric targets from that report and write them into this document | §0.1 |
-| 3 | **COMPLETE** — Add the module-size checker, the current eight-file ratchet baseline, and checker tests | §0.3 |
-| 4 | **COMPLETE** — Add tracked pre-commit configuration and installation documentation | §0.2 |
-| 5 | **COMPLETE** — Run the same size/lint/test checks in CI and make them eligible as required checks | §0.2 |
-| 6 | **COMPLETE** — Add the complexity, cycle, coverage, and layer budgets as warnings and no-growth ratchets | §0.4 |
-| 7 | **COMPLETE** — Publish the internal architecture ADR, the package-layer policy, and its characterization tests | §0.5 |
-| 8 | **COMPLETE** — Formalize and version the existing analyzer IR, add conformance tests, and certify the Python analyzer | §0.5 |
-| 9 | **COMPLETE** — Document `init --start`, clarify the local operating boundary, record PyPI 0.1.0, and prepare next-release PEP 639 metadata | §0.6 |
-| 10 | **COMPLETE** — Publish the supported platform matrix, including the Windows decision | §0.7 |
-| 11 | **COMPLETE** — Close the Phase 0 exit gate and record its reproducible evidence | §0 gate |
-| 12 | **COMPLETE** — Build `P1a.1`, the temporal correctness characterization suite on today's schema | §1a.1 |
-| 13 | **COMPLETE** — Discover selected-frame changes before reading source and carry unchanged analysis and safe relationship rows forward | §1a.2 |
-| 14 | **COMPLETE** — Expose conservative invalidation reasons and work counters in benchmark and product surfaces | §1a.3 |
-| 15 | **COMPLETE** — Replace baked-in 64-frame defaults with an explicit adaptive history policy | §1a.4 |
-| 16 | **COMPLETE** — Make history import a resumable, cancellable job without blocking current intelligence | §1a.5 |
-| 17 | **COMPLETE** — Characterize schema-6 migration rollback/backup behavior and freeze canonical frame reconstruction fixtures | §1b.1 |
-| 18 | **COMPLETE** — Introduce immutable file/symbol facts, relationship sets, and snapshot delta tables behind the index abstraction | §1b.1 |
-| 19 | **COMPLETE** — Migrate a copied schema-6 index transactionally, validate it, preserve backup recovery, and expose `doctor`/compaction reporting | §1b.1 |
-| 20 | **COMPLETE** — Route snapshot reads through bounded reconstruction with disposable checkpoints and measured read amplification | §1b.2 |
-| 21 | **COMPLETE** — Prove semantic/finding/history compatibility and unchanged canonical results across migration, retry, and checkpoint rebuild | §1b.1–1b.2 |
-| 22 | **COMPLETE** — Run and record the complete Phase 1b storage, migration, read-latency, and quality exit gate before onboarding work begins | Phase 1b gate |
-| 23 | **COMPLETE** — Separate a configurable maximum-20 attention queue from the complete diagnostic ledger | §2.1 |
-| 24 | **COMPLETE** — Add stable cursor pagination, exact totals/omissions, diagnostic grouping, and MCP token budgets | §2.2 |
-| 25 | **COMPLETE** — Add evidence, caveats, affected contracts, action type, smallest action, and scan-verification guidance to every finding | §2.3 |
-| 26 | **COMPLETE** — Ship dashboard filters and lifecycle actions, then prove automatic resolve/regress behavior in backend and browser contracts | Phase 2 gate |
-| 27 | **COMPLETE** — Close the Phase 2 exit gate without growing a legacy size, function, or coupling ratchet | Phase 2 gate |
-| 28 | **COMPLETE** — Automate the published-package release contract and test the exact fresh-install artifact | §3.1 |
-| 29 | **COMPLETE** — Make initialization enable agent-funded semantics and connect the selected MCP client idempotently | §3.2 |
-| 30 | **COMPLETE** — Add the loopback `anaxigraph up` path with external user-state storage and clean lifecycle behavior | §3.3 |
-| 31 | **COMPLETE** — Package and contract-test the AnaxiMCP bootstrap workflow as supported agent skills/plugins | §3.4 |
-| 32 | **COMPLETE** — Collapse onboarding around one start action, one connection action, and the agent-funded semantic loop | §3.5 |
-| 33 | **COMPLETE** — Decompose CLI/onboarding responsibilities and remove both size-ratchet exceptions | §3.6 |
-| 34 | **COMPLETE** — First-user, idempotency, Docker/local, skill, quality, immutable 0.2.0 publication, public install, and versioned container evidence pass | Phase 3 gate |
-| 35 | **COMPLETE** — Decompose architecture evaluation, agent intelligence, and dashboard responsibilities without growing another legacy ratchet | §3b.1 |
-| 36 | **COMPLETE** — Add deterministic self-analysis baseline comparison, regression fixtures, and retained CI evidence | §3b.2 |
-| 37 | **COMPLETE** — Add stable multi-level target identities, analyzer capabilities, and reusable pattern evidence projections | Phase 4A |
-| 38 | **COMPLETE** — Bound graph queries and operational work, then reduce `api.py` to a small composition root | Phase 5A |
-| 39 | **COMPLETE** — Replace semantic mixin composition while preserving the durable external work protocol | §6.1–6.2 |
-| 40 | **COMPLETE** — Ship and validate the declarative catalog of at least 120 patterns | §6.3 |
-| 41 | **COMPLETE** — Add sparse multi-level candidates, separate ratings, and independent agent critique | §6.4–6.6 |
-| 42 | **IMPLEMENTED; LIVE CALIBRATION PAUSED** — Goal-specific placement, consolidation/unused-code safety, readable main and expanded evidence, calibration contracts, and post-change comparison are complete; the only remaining evidence is live calibration after the semantic-run pause is lifted | §6.7–6.8 |
-| 43 | **IMPLEMENTED; LIVE ACCEPTANCE PAUSED** — Make repository-sized semantic bootstrap linear, authoritative, nonblocking, resumable, and deterministically complete | §6.9 |
-| 44 | **COMPLETE** — Make the existing scope → update → scope loop distinguish introduced, worsened, improved, resolved, and pre-existing structural effects | §7.1–7.2 |
-| 45 | **COMPLETE** — Turn mixed-responsibility large-file warnings into bounded, evidence-backed decomposition maps, while explicitly keeping cohesive files together | §7.3 |
-| 46 | **COMPLETE** — Make existing hierarchy navigation task-centered from area through symbol without another graph or dashboard surface | §7.4–7.5 |
-| 47 | **COMPLETE** — Add bounded co-change evidence around task-selected files without creating graph edges or a second history store | §8.1 |
-| 48 | **COMPLETE** — Identify the retained change that introduced, resolved, or reintroduced a selected structural finding | §8.2 |
-| 49 | **COMPLETE** — Re-evaluate Phase 9 and remove duplicate reliability work and generic product-maturity scope from the active path | Phase 9 |
-| 50 | **COMPLETE** — Freeze the smallest required CLI, REST, and MCP coding-loop contract as a tested subset | §9.1 |
-| 51 | **COMPLETE** — Run and record the same architecture-decision fixtures at small, medium, and large scales | §9.2 |
-| 52 | Complete the retained live MaxOS semantic acceptance after the operator lifts the pause | §9.2 |
-| 53 | **DOCUMENTATION COMPLETE; RELEASE-CANDIDATE PREPARATION WAITS ON #52** — Close the one-path documentation and prepare the evidence-backed 1.0 release candidate | §9.3 and Phase 9 gate |
+| # | Status | Outcome and acceptance | Specified in |
+|---:|---|---|---|
+| 1 | **ACTIVE** | Reproduce why the self-hosted MCP map lagged the checkout, then make CLI/MCP/watcher/sidecar identity and currentness explicit and consistent | §9.0 |
+| 2 | **NEXT** | Prove a bounded parallel agent-funded run uses operator-selected model settings, survives interruption, and reaches durable `complete` without losing finished work | §9.0 |
+| 3 | **NEXT** | On the current AnaxiGraph index, form and independently review the autonomous hierarchy with complete module coverage and no default human edit step | §9.0 and §9.2 |
+| 4 | **NEXT** | Run real AnaxiGraph tasks for placement, impact, multi-level pattern fit, large-file decomposition, and before/after verification; fix only demonstrated core defects | §9.2 |
+| 5 | **PAUSED BY OPERATOR** | Resume and finish the retained live MaxOS acceptance only after the operator explicitly lifts the pause | §9.2 |
+| 6 | **WAITING ON 1–5** | Prepare the evidence-backed 1.0 release candidate with the existing one-path documentation and release pipeline | §9.3 and Phase 9 gate |
 
-This order now follows the product loop directly. Optional parser, adapter, plugin, media, playback,
-website, and ecosystem work cannot displace it or become an accidental release dependency.
+No parser expansion, adapter family, plugin framework, new dashboard, website, media support,
+generic operations work, warning-cleanup campaign, or additional plain-language sweep may displace
+this queue.
