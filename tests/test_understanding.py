@@ -85,6 +85,14 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
     assert file_language["version"] == "semantic-file-explanation-v4"
     assert "early AI notes, not instructions" in file_language["how_to_use_the_raw_fields"]
     assert scope["primary_files"][0]["summary"] == file_language["what_this_file_does"]
+    task_path = scope["architecture_decision"]["task_path"]
+    assert task_path["status"].startswith("semantic_")
+    assert task_path["area"]["responsibility"]
+    assert task_path["subsystem"]["why_grouped"]
+    assert task_path["module"]["path"] == "pkg/core.py"
+    assert task_path["module"]["callers_to_check"]
+    assert "tests/test_core.py" in task_path["module"]["focused_tests"]
+    assert "Calculator" in {item["name"] for item in task_path["symbols"]}
     search_result = next(
         item
         for item in database.search(stats.repository_id, "core")

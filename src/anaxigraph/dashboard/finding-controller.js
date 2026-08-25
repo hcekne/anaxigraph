@@ -130,11 +130,41 @@ function architectureDecisionMarkup(decision = {}) {
   const verification = decision.verification?.plain_language || {};
   return `<section class="agent-decision-copy"><h3>Where to make the change and how to check it</h3>
     ${decisionText("What this advice uses", language.conclusion)}
+    ${taskPathMarkup(decision.task_path)}
     ${decisionText("Where to start", placement.conclusion)}
     ${decisionText("What to preserve", constraints.conclusion)}
     ${decisionText("How to verify it", verification.conclusion)}
     ${decisionList("Next steps", verification.what_to_do || [])}
     ${decompositionMarkup(decision.decomposition)}</section>`;
+}
+
+function taskPathMarkup(path = {}) {
+  const module = path.module || {};
+  if (!module.path) return "";
+  const area = path.area?.name || path.area?.key || "Unmapped area";
+  const subsystem = path.subsystem?.name || path.subsystem?.key || "Unmapped group";
+  const symbols = (path.symbols || []).map((symbol) => (
+    symbol.signature || symbol.name
+  ));
+  const boundaries = [
+    ...(module.callers_to_check || []).map((value) => `Called by ${value}`),
+    ...(module.dependencies_to_check || []).map((value) => `Uses ${value}`),
+  ];
+  const nearby = (path.nearby_files || []).map((item) => `${item.path} — ${item.reason}`);
+  return `<div class="agent-task-path"><h4>Task path through the code map</h4>
+    <p>${escapeHtml(`${area} → ${subsystem} → ${module.path}`)}</p>
+    ${decisionText("Why this route", path.plain_language?.conclusion)}
+    ${decisionText(`What ${area} owns`, path.area?.responsibility)}
+    ${decisionText(`Why ${area} is grouped this way`, path.area?.why_grouped)}
+    ${decisionText(`What ${subsystem} owns`, path.subsystem?.responsibility)}
+    ${decisionText(`Why ${subsystem} is grouped this way`, path.subsystem?.why_grouped)}
+    ${decisionText("What this file is responsible for", module.responsibility)}
+    ${decisionList("Named code parts that match the goal", symbols)}
+    ${decisionList("Contracts to preserve", module.contracts_to_preserve || [])}
+    ${decisionList("Extension points", module.extension_points || [])}
+    ${decisionList("Boundaries to check", boundaries)}
+    ${decisionList("Focused tests", module.focused_tests || [])}
+    ${decisionList("Nearby files worth reading", nearby)}</div>`;
 }
 
 function decompositionMarkup(decomposition = {}) {

@@ -9,6 +9,9 @@ from pathlib import Path
 from typing import Any
 
 from anaxigraph.agent_graph_read import (
+    _attach_architecture_map as _attach_architecture_map,
+)
+from anaxigraph.agent_graph_read import (
     _interfaces as _interfaces,
 )
 from anaxigraph.agent_graph_read import (

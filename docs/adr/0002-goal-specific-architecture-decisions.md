@@ -24,6 +24,8 @@ ranked primary modules; the decision composes current evidence for those modules
 
 - a preferred placement, semantic placement guidance, extension points, public contracts,
   interfaces, and local precedents;
+- one bounded task path from the effective architecture area and subsystem to a selected module
+  and only the named symbols whose own source names match the coding goal;
 - module contracts, invariants, and change risks;
 - patterns worth reusing and pattern opportunities, sourced only from current finalized
   `pattern_review` documents and retaining critique and runtime provenance;
@@ -73,6 +75,9 @@ The packet preserves the product's fact/interpretation/recommendation boundary:
     current dossier, explicit supporting and opposing evidence, at least two named responsibilities,
     and an unambiguous deterministic mapping to symbols for at least two jobs. Cohesive, stale,
     ambiguous, or weak evidence produces a keep-together or insufficient-evidence result.
+12. Task navigation uses the finalized AI-reviewed taxonomy when available, configured project
+    groups otherwise, and clearly labels a file-path guess. It never invents a symbol match: when
+    no symbol name, signature, or summary overlaps the goal, the path ends honestly at the module.
 
 ## Bounds and freshness
 
@@ -99,7 +104,10 @@ application service. If the scope payload exceeds its configured byte budget, de
 evidence is compacted while contract version, status, preferred path, comparison summary, and the
 highest-priority structural effects remain. `large-file-decomposition-v1` returns at most five
 files and five responsibility slices, preserves the extraction order in compact packets, and adds
-no semantic job, provider call, persistent state, route, or dashboard screen.
+no semantic job, provider call, persistent state, route, or dashboard screen. `task-path-v1`
+returns one area, one subsystem, one module, at most eight matching symbols, and at most ten nearby
+files. Normal compaction preserves its reasons, contracts, boundaries, and tests; the 4 KB fallback
+keeps only the usable breadcrumb and matching names.
 
 ## Consequences
 
@@ -112,3 +120,7 @@ later evidence input rather than a fabricated signal.
 The explanation is assembled when current evidence is read. It adds no prompt-signature or
 freshness input, so adopting clearer language does not invalidate completed semantic dossiers or
 restart repository indexing.
+
+The task path is assembled by the same scope read. The dashboard renders it inside the existing
+Agents result and highlights the same files on the existing Map; CLI, REST, and MCP receive the
+identical additive object without another endpoint or workflow.

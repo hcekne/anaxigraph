@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.24
+**Roadmap version:** 3.25
 
 **Updated:** 25 August 2026
 
@@ -2084,7 +2084,7 @@ that run while the explicit semantic-indexing pause remains active.
 
 # Phase 7 — change-safe architecture loop
 
-**Status:** ACTIVE on 25 August 2026
+**Status:** COMPLETE on 25 August 2026
 
 **Goal:** make the existing map useful during an actual coding change: show where work belongs,
 keep the working set small, and say plainly whether the change introduced or worsened structural
@@ -2189,6 +2189,33 @@ Do not add another graph visualization. Improve the existing architecture-first 
 bounded read models used by agents. The AI-reviewed taxonomy remains automatic map metadata; no
 human approval or edit gate is introduced.
 
+`task-path-v1` now adds one goal-specific route to the existing `architecture-decision-v1`
+response: area → subsystem → selected module → matching symbols. It uses the same finalized
+semantic taxonomy shown by Map when available, falls back to configured project groups, and labels
+file-path guesses as guesses. The route explains each group's responsibility and why its files are
+together, then carries the selected file's responsibility, contracts, extension points, direct
+callers/dependencies, focused tests, and at most ten nearby files. At most eight symbols are
+included, and only when their own name, signature, or summary matches words in the coding goal. A
+module-only result is returned instead of inventing a symbol match.
+
+The existing Agents view renders that route while the existing agent overlay highlights the same
+working set on Map. CLI, MCP, REST, and dashboard therefore share one bounded contract. Normal
+compaction retains responsibilities, grouping reasons, boundaries, tests, and symbol names; the
+4 KB emergency packet retains the breadcrumb and matched names while removing duplicate detail.
+The implementation adds one 342-line application module but no table, semantic job, model call,
+route, dashboard state, or primary screen. It does not alter semantic input fingerprints or make
+existing dossiers stale.
+
+The complete Phase 7 gate passes with 545 Python tests at 91.56% coverage and all 16 browser
+contracts. The task-path module has 100% statement coverage. The harmful-change scanner fixture
+separates new size, coupling, cycle, and boundary problems from existing debt; the improvement
+fixture reports smaller size, complexity, and coupling while retaining a pre-existing cycle; the
+decomposition fixtures distinguish split, keep-together, stale, ambiguous, and unmapped cases; and
+semantic plus configured-policy fixtures both produce an area → subsystem → module → symbol route.
+An unchanged semantic reconciliation performs zero new work, while the tight scope fixture keeps
+the comparison and route within 4 KB. Self-analysis, size, complexity, architecture, package,
+Compose, hardened-container, and first-user gates report zero regressions.
+
 ## 7.5 Keep the implementation smaller than the problem
 
 - Extend existing contracts and application services before adding a module or route.
@@ -2215,7 +2242,7 @@ human approval or edit gate is introduced.
 
 # Phase 8 — change-history signals for architecture risk
 
-**Status:** BLOCKED BY PHASE 7
+**Status:** ACTIVE on 25 August 2026
 
 **Goal:** use history only where it makes a present-day structure decision better. This is not a
 second history product and does not expand animated playback.
@@ -2447,7 +2474,7 @@ queue and the document cannot drift apart.
 | 43 | **IMPLEMENTED; LIVE ACCEPTANCE PAUSED** — Make repository-sized semantic bootstrap linear, authoritative, nonblocking, resumable, and deterministically complete | §6.9 |
 | 44 | **COMPLETE** — Make the existing scope → update → scope loop distinguish introduced, worsened, improved, resolved, and pre-existing structural effects | §7.1–7.2 |
 | 45 | **COMPLETE** — Turn mixed-responsibility large-file warnings into bounded, evidence-backed decomposition maps, while explicitly keeping cohesive files together | §7.3 |
-| 46 | Make existing hierarchy navigation task-centered from area through symbol without another graph or dashboard surface | §7.4–7.5 |
+| 46 | **COMPLETE** — Make existing hierarchy navigation task-centered from area through symbol without another graph or dashboard surface | §7.4–7.5 |
 | 47 | Add only change coupling, hotspot trends, and introduction/resolution evidence that improves a current architecture decision | Phase 8 |
 | 48 | Freeze, validate, document, and release the honestly supported core loop | Phase 9 |
 

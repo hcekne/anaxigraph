@@ -43,6 +43,47 @@ def test_agent_scope_is_bounded_and_includes_tests_protection_and_rules(reposito
         "facts AnaxiGraph read directly"
         in value["architecture_decision"]["plain_language"]["conclusion"]
     )
+    path = value["architecture_decision"]["task_path"]
+    assert path["contract_version"] == "task-path-v1"
+    assert path["module"]["path"] == "pkg/core.py"
+    assert "Calculator" in {item["name"] for item in path["symbols"]}
+    assert "tests/test_core.py" in path["module"]["focused_tests"]
+
+
+def test_agent_scope_follows_a_declared_area_and_subsystem(repository, database):
+    policy = repository / ".anaxigraph.yml"
+    policy.write_text(
+        policy.read_text(encoding="utf-8").replace(
+            "groups:\n  domain:\n    paths: [pkg/**]",
+            """groups:
+  domain-core:
+    level: subsystem
+    parent: domain
+    description: Core domain behavior.
+    paths: [pkg/core.py]
+  domain:
+    level: area
+    description: Domain implementation.
+    paths: [pkg/**]""",
+        ),
+        encoding="utf-8",
+    )
+    stats = RepositoryScanner(database).scan(repository)
+
+    value = agent_scope(
+        database,
+        repository_id=stats.repository_id,
+        goal="Change Calculator behavior",
+        branch=None,
+        config=load_config(repository),
+    )
+
+    path = value["architecture_decision"]["task_path"]
+    assert path["status"] == "policy_with_symbols"
+    assert path["area"]["name"] == "Domain"
+    assert path["subsystem"]["name"] == "Domain Core"
+    assert path["area"]["responsibility"] == "Domain implementation."
+    assert path["subsystem"]["responsibility"] == "Core domain behavior."
 
 
 def test_impact_follows_reverse_edges_and_relevant_tests(repository, database):
@@ -188,6 +229,7 @@ def test_agent_scope_trims_optional_context_to_the_configured_wire_budget(reposi
     assert value["architecture_decision"]["contract_version"] == "architecture-decision-v1"
     assert value["architecture_decision"]["plain_language"]["conclusion"]
     assert value["architecture_decision"]["placement"]["plain_language"]["conclusion"]
+    assert value["architecture_decision"]["task_path"]["module"]["path"]
     assert (
         value["architecture_decision"]["verification"]["post_change_comparison"]["status"]
         == "rescan_required"

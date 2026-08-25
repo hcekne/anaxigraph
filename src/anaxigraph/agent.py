@@ -11,6 +11,7 @@ from anaxigraph.agent_finding import build_finding_context
 from anaxigraph.agent_graph import (
     _applicable_findings,
     _applicable_rules,
+    _attach_architecture_map,
     _expand_relevant,
     _projected_graph_maps,
     _public_interfaces,
@@ -47,7 +48,7 @@ def agent_scope(
         raise ValueError("Repository has not been scanned")
     snapshot_id = int(snapshot["id"])
     with database.connect() as connection:
-        files, outgoing, incoming = _projected_graph_maps(connection, snapshot_id)
+        files, outgoing, incoming, hierarchy = _scope_graph(connection, repository_id, snapshot_id)
         ranked = _rank_files(connection, snapshot_id, files, goal)
         primary_ids = _select_primary(ranked, files, limit=min(8, config.agent.context_limit))
         if not primary_ids and files:
@@ -84,8 +85,7 @@ def agent_scope(
             relevant_ids,
             set(primary_ids),
         )
-        symbols = _symbols(connection, snapshot_id, primary_ids)
-        interfaces = _public_interfaces(symbols)
+        symbols, interfaces = _scope_symbols(connection, snapshot_id, primary_ids)
 
     conflicts = _scope_conflicts(repository, files, relevant_ids, branch)
     decision = _scope_decision(
@@ -98,6 +98,7 @@ def agent_scope(
         primary_ids,
         interfaces,
         symbols,
+        hierarchy,
         tests,
         findings,
         verification_baseline,
@@ -127,6 +128,21 @@ def agent_scope(
     )
 
 
+def _scope_graph(
+    connection: Any, repository_id: int, snapshot_id: int
+) -> tuple[Any, Any, Any, list[dict[str, Any]]]:
+    files, outgoing, incoming = _projected_graph_maps(connection, snapshot_id)
+    hierarchy = _attach_architecture_map(connection, repository_id, snapshot_id, files)
+    return files, outgoing, incoming, hierarchy
+
+
+def _scope_symbols(
+    connection: Any, snapshot_id: int, primary_ids: list[int]
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    symbols = _symbols(connection, snapshot_id, primary_ids)
+    return symbols, _public_interfaces(symbols)
+
+
 def _scope_decision(
     database: AnaxiIndex,
     repository_id: int,
@@ -137,6 +153,7 @@ def _scope_decision(
     primary_ids: list[int],
     interfaces: list[dict[str, Any]],
     symbols: list[dict[str, Any]],
+    hierarchy: list[dict[str, Any]],
     tests: set[str],
     findings: list[dict[str, Any]],
     verification_baseline: dict[str, Any] | None,
@@ -150,6 +167,7 @@ def _scope_decision(
         primary_files=[files[item] for item in primary_ids],
         interfaces=interfaces,
         symbols=symbols,
+        hierarchy=hierarchy,
         tests=sorted(tests),
         findings=findings,
         verification_baseline=verification_baseline,

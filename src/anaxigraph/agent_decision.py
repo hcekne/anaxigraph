@@ -12,6 +12,7 @@ from anaxigraph.agent_decision_handoff_language import (
 )
 from anaxigraph.agent_decision_safety import consolidation_advice, dead_code_advice, verification
 from anaxigraph.agent_decomposition import decomposition_advice
+from anaxigraph.agent_task_path import task_path
 from anaxigraph.pattern_intelligence import PatternIntelligenceService
 
 ARCHITECTURE_DECISION_VERSION = "architecture-decision-v1"
@@ -30,6 +31,7 @@ def architecture_decision(
     primary_files: list[dict[str, Any]],
     interfaces: list[dict[str, Any]],
     symbols: list[dict[str, Any]],
+    hierarchy: list[dict[str, Any]],
     tests: list[str],
     findings: list[dict[str, Any]],
     verification_baseline: dict[str, Any] | None = None,
@@ -40,6 +42,7 @@ def architecture_decision(
         primary_files=primary_files,
         interfaces=interfaces,
         symbols=symbols,
+        hierarchy=hierarchy,
         tests=tests,
         findings=findings,
         pattern_items=patterns,
@@ -61,18 +64,20 @@ def build_architecture_decision(
     goal: str = "",
     verification_baseline: dict[str, Any] | None = None,
     symbols: list[dict[str, Any]] | None = None,
+    hierarchy: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     preferred = _preferred_file(primary_files)
     reviewed_patterns = _reviewed_patterns(pattern_items)
     semantic_current = sum(_semantic_current(item) for item in primary_files)
     status = _decision_status(primary_files, semantic_current, reviewed_patterns)
+    language = _decision_language(status, primary_files, semantic_current, reviewed_patterns)
+    route = task_path(goal, preferred, primary_files, symbols or [], tests, hierarchy or [])
     return {
         "contract_version": ARCHITECTURE_DECISION_VERSION,
         "snapshot_id": snapshot_id,
         "status": status,
-        "plain_language": _decision_language(
-            status, primary_files, semantic_current, reviewed_patterns
-        ),
+        "plain_language": language,
+        "task_path": route,
         "placement": _placement(preferred, interfaces, reviewed_patterns),
         "change_constraints": _change_constraints(primary_files),
         "patterns": _pattern_packet(reviewed_patterns),

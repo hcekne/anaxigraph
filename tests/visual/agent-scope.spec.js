@@ -21,6 +21,40 @@ test("agent workbench shows the readable architecture recommendation", async ({ 
       plain_language: {
         conclusion: "This recommendation uses current module meaning.",
       },
+      task_path: {
+        area: {
+          key: "product",
+          name: "Product behavior",
+          responsibility: "Own behavior people use directly.",
+          why_grouped: "These files deliver user-facing behavior.",
+        },
+        subsystem: {
+          key: "dashboard",
+          name: "Browser dashboard",
+          responsibility: "Show repository guidance in the browser.",
+          why_grouped: "These files build the same browser workflow.",
+        },
+        module: {
+          path: "src/anaxigraph/dashboard/finding-controller.js",
+          responsibility: "Show focused coding-agent advice.",
+          contracts_to_preserve: ["The scope result remains readable."],
+          extension_points: ["renderAgentResult"],
+          callers_to_check: ["src/anaxigraph/dashboard/app.js"],
+          dependencies_to_check: ["src/anaxigraph/dashboard/findings-view.js"],
+          focused_tests: ["tests/visual/agent-scope.spec.js"],
+        },
+        symbols: [{
+          name: "renderAgentResult",
+          signature: "renderAgentResult(value, kind)",
+        }],
+        nearby_files: [{
+          path: "tests/visual/agent-scope.spec.js",
+          reason: "checks this route",
+        }],
+        plain_language: {
+          conclusion: "Follow the dashboard route to renderAgentResult.",
+        },
+      },
       placement: {
         plain_language: {
           conclusion: "Start this change in finding-controller.js.",
@@ -68,6 +102,15 @@ test("agent workbench shows the readable architecture recommendation", async ({ 
   const result = page.locator("#agent-result");
   await expect(result).toContainText("Where to make the change and how to check it");
   await expect(result).toContainText("What this advice uses");
+  await expect(result).toContainText("Task path through the code map");
+  await expect(result).toContainText(
+    "Product behavior → Browser dashboard → src/anaxigraph/dashboard/finding-controller.js",
+  );
+  await expect(result).toContainText("renderAgentResult(value, kind)");
+  await expect(result).toContainText("Own behavior people use directly");
+  await expect(result).toContainText("These files build the same browser workflow");
+  await expect(result).toContainText("The scope result remains readable");
+  await expect(result).toContainText("Called by src/anaxigraph/dashboard/app.js");
   await expect(result).toContainText("Where to start");
   await expect(result).toContainText("What to preserve");
   await expect(result).toContainText("How to verify it");

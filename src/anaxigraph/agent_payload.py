@@ -13,9 +13,9 @@ from anaxigraph import git
 from anaxigraph.agent_change_effects import compact_structural_effects
 from anaxigraph.agent_decision_handoff_language import compact_explanation
 from anaxigraph.agent_decomposition import compact_decomposition
+from anaxigraph.agent_task_path import compact_task_path
 from anaxigraph.config import AnaxiGraphConfig, path_matches
 from anaxigraph.guidance import FILE_MEASUREMENT_MEANINGS
-from anaxigraph.semantic_file_language import semantic_file_explanation
 
 
 @dataclass(frozen=True, slots=True)
@@ -218,6 +218,7 @@ def _bound_scope_payload(payload: dict[str, Any], limit_bytes: int) -> dict[str,
     _trim_scope_collections(payload, size, limit, omitted)
     _compact_optional_scope(payload, size, limit, omitted)
     _compact_scope_file_details(payload, size, limit, omitted)
+    _minimize_task_path(payload, size, limit, omitted)
     payload["payload_budget"]["truncated"] = any(omitted.values())
     payload["payload_budget"]["estimated_bytes"] = size()
     # Updating the byte count can change its own digit width. A second pass makes the estimate exact.
@@ -272,21 +273,27 @@ def _compact_scope_file_details(
         payload["risk_reasons"] = []
 
 
+def _minimize_task_path(
+    payload: dict[str, Any], size: Callable[[], int], limit: int, omitted: dict[str, int]
+) -> None:
+    decision = payload.get("architecture_decision") or {}
+    if size() > limit and decision.get("task_path"):
+        decision["task_path"] = compact_task_path(decision["task_path"], route_only=True)
+        omitted["task_path_details"] = 1
+
+
 def _compact_decision(decision: dict[str, Any]) -> dict[str, Any]:
+    patterns = _compact_pattern_counts(decision.get("patterns"))
+    decomposition = compact_decomposition(decision.get("decomposition"))
     result = {
         "contract_version": decision.get("contract_version"),
         "snapshot_id": decision.get("snapshot_id"),
         "status": decision.get("status"),
         "plain_language": compact_explanation(decision.get("plain_language"), "conclusion"),
+        "task_path": compact_task_path(decision.get("task_path")),
         "placement": _compact_placement(decision.get("placement")),
-        "patterns": _compact_pattern_counts(decision.get("patterns")),
-        "consolidation_count": len(decision.get("consolidation") or []),
-        "decomposition": compact_decomposition(decision.get("decomposition")),
-        "change_constraint_count": len(
-            (decision.get("change_constraints") or {}).get("items") or []
-        ),
-        "dead_code_candidate_count": (decision.get("dead_code") or {}).get("candidate_count", 0),
     }
+    _add_nonempty_decision_counts(result, decision, patterns, decomposition)
     comparison = (decision.get("verification") or {}).get("post_change_comparison") or {}
     if comparison:
         effects = (comparison.get("changes") or {}).get("structural_effects")
@@ -315,6 +322,26 @@ def _compact_decision(decision: dict[str, Any]) -> dict[str, Any]:
             }
         }
     return result
+
+
+def _add_nonempty_decision_counts(
+    result: dict[str, Any],
+    decision: dict[str, Any],
+    patterns: dict[str, Any],
+    decomposition: dict[str, Any],
+) -> None:
+    values = {
+        "consolidation_count": len(decision.get("consolidation") or []),
+        "change_constraint_count": len(
+            (decision.get("change_constraints") or {}).get("items") or []
+        ),
+        "dead_code_candidate_count": (decision.get("dead_code") or {}).get("candidate_count", 0),
+    }
+    result.update({key: value for key, value in values.items() if value})
+    if patterns.get("total"):
+        result["patterns"] = patterns
+    if decomposition.get("items"):
+        result["decomposition"] = decomposition
 
 
 def _compact_placement(value: Any) -> dict[str, Any]:
@@ -379,6 +406,7 @@ def _scope_omissions() -> dict[str, int]:
             "protected_file_details",
             "primary_file_details",
             "architecture_decision_details",
+            "task_path_details",
             "recommended_context",
             "plain_language_details",
             "risk_reasons",
@@ -434,9 +462,7 @@ def _file_summary(item: dict[str, Any]) -> dict[str, Any]:
             )
             if semantic.get(key) not in (None, "")
         }
-        semantic_summary["plain_language"] = semantic.get("plain_language") or (
-            semantic_file_explanation(str(item.get("path") or "this file"), semantic_summary)
-        )
+        semantic_summary["plain_language"] = semantic.get("plain_language") or {}
         result["semantic"] = semantic_summary
     return result
 
