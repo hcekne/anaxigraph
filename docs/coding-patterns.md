@@ -19,6 +19,10 @@ lines. `pattern-evidence-v1` projects those facts with graph, coverage, Git, sem
 architecture-map evidence once; every catalog card reuses that projection. Pattern cards must not
 branch on a language name or introduce their own AST query.
 
+The versioned declarative card format, 128-pattern bundled baseline, family coverage, and extension
+contract are documented in [Pattern catalog](pattern-catalog.md). The shipped count is a baseline,
+not a ceiling.
+
 Treat 40 logical lines per function and 500 source LOC per module as inspection signals. Prefer a
 cohesive module over forwarding layers. Add an abstraction only for multiple real implementations
 or a demonstrated bug class. Avoid hidden global state and circular dependencies. Changed behavior

@@ -10,3 +10,4 @@ include repo_instructions.md
 recursive-include docs *.md
 recursive-include examples *.yml
 recursive-include src/anaxigraph/dashboard *.html *.css *.js *.svg
+recursive-include src/anaxigraph/catalog *.json

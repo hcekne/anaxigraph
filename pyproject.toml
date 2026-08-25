@@ -54,7 +54,13 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-anaxigraph = ["dashboard/*.html", "dashboard/*.css", "dashboard/*.js", "dashboard/*.svg"]
+anaxigraph = [
+  "catalog/*.json",
+  "dashboard/*.html",
+  "dashboard/*.css",
+  "dashboard/*.js",
+  "dashboard/*.svg",
+]
 
 [tool.pytest.ini_options]
 addopts = "-ra"

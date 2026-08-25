@@ -27,6 +27,19 @@ REQUIRED_DASHBOARD_ASSETS = (
     "anaxigraph/dashboard/mask-icon.svg",
     "anaxigraph/dashboard/styles.css",
 )
+REQUIRED_PATTERN_CATALOG = tuple(
+    f"anaxigraph/catalog/patterns-{family}.json"
+    for family in (
+        "composition-workflow",
+        "data-state",
+        "function-construction",
+        "integration-concurrency",
+        "module-boundary",
+        "object-interface",
+        "reliability-testing",
+        "subsystem-architecture",
+    )
+)
 
 
 class ReleaseContractError(ValueError):
@@ -100,6 +113,7 @@ def verify_wheel(wheel: Path, version: str) -> dict[str, Any]:
         raise ReleaseContractError("wheel must carry exactly the py3-none-any tag")
     required = {
         *REQUIRED_DASHBOARD_ASSETS,
+        *REQUIRED_PATTERN_CATALOG,
         f"{dist_info}/licenses/LICENSE",
     }
     missing = sorted(required - names)
@@ -129,6 +143,7 @@ def verify_sdist(sdist: Path, version: str) -> dict[str, Any]:
         f"{prefix}/README.md",
         f"{prefix}/pyproject.toml",
         *(f"{prefix}/src/{asset}" for asset in REQUIRED_DASHBOARD_ASSETS),
+        *(f"{prefix}/src/{asset}" for asset in REQUIRED_PATTERN_CATALOG),
     }
     missing = sorted(required - names)
     if missing:
