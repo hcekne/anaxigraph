@@ -16,9 +16,12 @@ PLAIN_LANGUAGE_REQUIREMENTS = {
         "the statement, why it matters, and what is uncertain."
     ),
     "term_rule": (
-        "Do not use labels such as cohesion, coupling, boundary, seam, taxonomy, synthesis, "
-        "provenance, orchestration, or deterministic as substitutes for an explanation. When a "
-        "precise technical term is necessary, define it in the same sentence."
+        "Do not use labels such as adapter, facade, contract, boundary, composition root, "
+        "persistence, semantic, transport, projection, deterministic, canonical, metadata, "
+        "schema, lifecycle, pipeline, provenance, cohesion, topology, oracle, seam, surface, "
+        "protocol, taxonomy, synthesis, or orchestration as substitutes for an explanation. "
+        "State the concrete action first. When a precise technical term is necessary, define it "
+        "in the same sentence."
     ),
     "score_rule": (
         "Never copy a field name, detector phrase, or score into prose without saying in ordinary "

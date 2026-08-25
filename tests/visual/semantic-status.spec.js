@@ -51,7 +51,7 @@ test("semantic progress and model-backed pattern advice use direct language", as
           model: "test-model",
           confidence: 0.87,
           plain_language: {
-            version: "semantic-file-explanation-v3",
+            version: "semantic-file-explanation-v4",
             what_this_file_does: "Keeps a saved map of the repository for people and coding agents.",
             role_in_repository: "Shows how files work together without changing source code.",
             where_related_work_belongs: "Add new code readers through the existing reader interface.",

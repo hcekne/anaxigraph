@@ -6,7 +6,7 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
-SEMANTIC_FILE_LANGUAGE_VERSION = "semantic-file-explanation-v3"
+SEMANTIC_FILE_LANGUAGE_VERSION = "semantic-file-explanation-v4"
 
 _RELATED_FILES = re.compile(
     r"\s*Contextually connected to (\d+) sampled dependencies and "
@@ -60,6 +60,87 @@ _TERM_REWRITES = (
     ("contextual synthesis", "combined description using related files"),
     ("orchestration", "coordination"),
     ("dossier", "saved AI description"),
+)
+
+_TERM_DEFINITIONS = (
+    (
+        "composition root",
+        r"\bcomposition roots?\b",
+        "startup code that creates and connects the main parts",
+    ),
+    (
+        "adapter",
+        r"\badapters?\b",
+        "code that translates between two parts",
+    ),
+    (
+        "facade",
+        r"\bfacades?\b",
+        "a small public entry point that hides internal details",
+    ),
+    (
+        "boundary",
+        r"\bboundar(?:y|ies)\b",
+        "the place where one part hands work or data to another",
+    ),
+    (
+        "contract",
+        r"\bcontracts?\b",
+        "behavior or data that other code relies on",
+    ),
+    (
+        "persistence",
+        r"\bpersistence\b",
+        "saving and loading data",
+    ),
+    (
+        "semantic",
+        r"\bsemantic\b",
+        "based on saved descriptions of what code means and does",
+    ),
+    (
+        "transport",
+        r"\btransports?\b",
+        "the way requests move between tools or processes",
+    ),
+    (
+        "projection",
+        r"\bprojections?\b",
+        "a view derived from saved facts",
+    ),
+    (
+        "deterministic",
+        r"\bdeterministic\b",
+        "produced by fixed code rules rather than an AI judgment",
+    ),
+    (
+        "canonical",
+        r"\bcanonical\b",
+        "the authoritative version used by the system",
+    ),
+    (
+        "metadata",
+        r"\bmetadata\b",
+        "information that describes other data",
+    ),
+    ("schema", r"\bschemas?\b", "rules for the shape of saved or exchanged data"),
+    (
+        "lifecycle",
+        r"\blifecycles?\b",
+        "the steps from creation or start through completion",
+    ),
+    ("pipeline", r"\bpipelines?\b", "an ordered sequence of automated steps"),
+    (
+        "provenance",
+        r"\bprovenance\b",
+        "a record of where information came from",
+    ),
+    ("cohesion", r"\bcohesion\b", "whether code is focused on one clear job"),
+    ("topology", r"\btopolog(?:y|ies)\b", "the layout of connected parts"),
+    ("oracle", r"\boracles?\b", "an expected answer used by a test"),
+    ("seam", r"\bseams?\b", "a place where two parts connect"),
+    ("surface", r"\bsurfaces?\b", "behavior visible to other code"),
+    ("protocol", r"\bprotocols?\b", "rules two parts follow when communicating"),
 )
 
 
@@ -158,7 +239,37 @@ def _clear_text(value: Any) -> str:
             text,
             flags=re.IGNORECASE,
         )
-    return re.sub(r"\.\.(?=\s|$)", ".", text)
+    text = re.sub(r"\.\.(?=\s|$)", ".", text)
+    return _define_unexplained_terms(text)
+
+
+def _define_unexplained_terms(text: str) -> str:
+    definitions = [
+        (term, meaning)
+        for term, pattern, meaning in _TERM_DEFINITIONS
+        if re.search(pattern, text, flags=re.IGNORECASE)
+        and not _already_defined(text, term, pattern)
+    ]
+    if not definitions:
+        return text
+    meanings = "; ".join(f"“{term}” means {meaning}" for term, meaning in definitions)
+    return f"{_sentence(text)} In this description, {meanings}."
+
+
+def _already_defined(text: str, term: str, pattern: str) -> bool:
+    if re.search(
+        rf"[“\"]{re.escape(term)}[”\"]\s+means\b",
+        text,
+        flags=re.IGNORECASE,
+    ):
+        return True
+    match = re.search(pattern, text, flags=re.IGNORECASE)
+    if match is None:
+        return False
+    following = text[match.end() : match.end() + 48].lower()
+    return bool(
+        re.match(r"\s*(?:\(|,?\s*(?:means?|meaning|which means|in other words)\b)", following)
+    )
 
 
 def _matching_case(replacement: str, original: str) -> str:

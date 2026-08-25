@@ -111,7 +111,7 @@ def test_semantic_file_explanation_labels_raw_advice_as_input_not_authorization(
         },
     )
 
-    assert result["version"] == "semantic-file-explanation-v3"
+    assert result["version"] == "semantic-file-explanation-v4"
     assert result["conclusion"] == (
         "The AI map has an up-to-date description of src/service.py and its role in this repository."
     )

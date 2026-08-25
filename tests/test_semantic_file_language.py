@@ -31,7 +31,7 @@ def test_legacy_ai_templates_are_rewritten_as_the_main_explanation():
         },
     )
 
-    assert result["version"] == "semantic-file-explanation-v3"
+    assert result["version"] == "semantic-file-explanation-v4"
     assert result["what_this_file_does"] == "Builds the container used to run AnaxiGraph."
     assert result["role_in_repository"] == (
         "Container build and release file that controls how the running service is isolated and "
@@ -95,6 +95,40 @@ def test_missing_or_newer_semantic_copy_stays_honest():
         {"status": "current", "architecture_role": "Runs DossierService."},
     )
     assert named_code["role_in_repository"] == "Runs DossierService."
+
+    technical = semantic_file_explanation(
+        "src/http_bridge.py",
+        {
+            "status": "current",
+            "summary": "Connects HTTP requests to saved repository information.",
+            "architecture_role": (
+                "HTTP adapter at the persistence contract boundary and semantic service facade."
+            ),
+        },
+    )
+    role = technical["role_in_repository"]
+    assert "“adapter” means code that translates between two parts" in role
+    assert "“persistence” means saving and loading data" in role
+    assert "“contract” means behavior or data that other code relies on" in role
+    assert "“boundary” means the place where one part hands work or data to another" in role
+    assert "“semantic” means based on saved descriptions of what code means and does" in role
+    assert "“facade” means a small public entry point that hides internal details" in role
+    projected_again = semantic_file_explanation(
+        "src/http_bridge.py",
+        {"status": "current", "architecture_role": role},
+    )
+    assert projected_again["role_in_repository"] == role
+
+    already_defined = semantic_file_explanation(
+        "src/format.py",
+        {
+            "status": "current",
+            "architecture_role": (
+                "Owns the schema, meaning the rules for the shape of exchanged data."
+            ),
+        },
+    )
+    assert already_defined["role_in_repository"].count("“schema” means") == 0
 
     marketplace = semantic_file_explanation(
         ".agents/plugins/marketplace.json",

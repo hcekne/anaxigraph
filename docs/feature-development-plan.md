@@ -1763,7 +1763,7 @@ over the existing facts and comparison contract, with no semantic work, persiste
 freshness input.
 
 Agent file summaries retain raw semantic pattern, consolidation, and possible-unused-code fields
-for compatibility, but `semantic-file-explanation-v3` now labels their freshness and evidence
+for compatibility, but `semantic-file-explanation-v4` now labels their freshness and evidence
 strength and says explicitly that they are early AI notes rather than instructions to refactor or
 delete code. Agents are directed to `architecture_decision`, where the map checks those notes
 against repository evidence and explains its recommendation. The dashboard Workbench renders that
@@ -1771,12 +1771,15 @@ same decision as readiness, starting point, constraints, and verification instea
 it, and no longer describes the autonomous map as “human-approved.” This is another bounded read
 projection and does not change semantic signatures or queue state.
 
-The v3 file and repository projection also prevents older AI jargon from winning in the main
+The v4 file and repository projection also prevents older AI jargon from winning in the main
 view. Known legacy phrases such as “contextual synthesis,” “intrinsic dossier,” sampled
 dependencies/consumers, and generic ownership boundaries are translated into sentences about the
 file descriptions and direct code links that were actually compared. Summary, role, placement,
 change, extension-point, and risk sentences from that projection are rendered before the retained
-raw compatibility fields. The shared AI writing contract now ends with an explicit self-review,
+raw compatibility fields. If an older sentence still needs a specialist term such as “adapter,”
+“contract,” “persistence,” or “schema,” v4 defines that term immediately in the same explanation;
+it never sends the reader to a separate technical-details drawer. The shared AI writing contract
+now ends with an explicit self-review,
 and independent pattern and map reviewers must rewrite expert labels that do not explain a
 concrete fact. None of this claims to change the stored evidence or starts semantic work.
 
