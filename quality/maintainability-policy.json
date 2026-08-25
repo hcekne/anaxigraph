@@ -44,15 +44,13 @@
     "src/anaxigraph/semantic_taxonomy_clusters.py::_materialize_clusters": [95, 14],
     "src/anaxigraph/semantic_taxonomy_clusters.py::expand_taxonomy": [75, 29],
     "src/anaxigraph/semantic_taxonomy_identity.py::stable_taxonomy_nodes": [63, 11],
-    "src/anaxigraph/semantic_taxonomy_partition.py::filter_taxonomy": [30, 19],
     "src/anaxigraph/semantic_taxonomy_plan.py::SemanticTaxonomyPlanner.plan_taxonomy": [90, 7],
     "src/anaxigraph/semantic_taxonomy_plan.py::SemanticTaxonomyPlanner._enqueue_review": [73, 6],
     "src/anaxigraph/semantic_taxonomy_results.py::_store_candidate": [60, 1],
     "src/anaxigraph/semantic_taxonomy_results.py::_store_review": [53, 2],
     "src/anaxigraph/semantic_taxonomy_results.py::_finalize": [89, 3],
     "src/anaxigraph/semantic_taxonomy_runner.py::analyze_taxonomy_proposal": [57, 5],
-    "src/anaxigraph/semantic_taxonomy_runner.py::analyze_taxonomy_review": [79, 11],
-    "src/anaxigraph/semantic_taxonomy_validation.py::_bound_subsystems": [50, 18]
+    "src/anaxigraph/semantic_taxonomy_runner.py::analyze_taxonomy_review": [79, 11]
   },
   "legacy_coupling": {
     "anaxigraph": [13, 0],

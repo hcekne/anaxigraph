@@ -260,23 +260,7 @@ def _bound_subsystems(
     counts = Counter(item["node_key"] for item in assignments.values())
     locked = {key for key in subsystems if nodes[key]["locked"]}
     if len(locked) >= maximum:
-        unlocked = set(subsystems) - locked
-        if unlocked:
-            parent = nodes[sorted(locked)[0]]["parent_temp_key"]
-            overflow = _unique_key("other-modules", set(nodes))
-            nodes[overflow] = _fallback_node(overflow, "Other modules", "subsystem", parent)
-            for assignment in assignments.values():
-                if assignment["node_key"] in unlocked:
-                    assignment["node_key"] = overflow
-                    assignment["confidence"] = min(float(assignment.get("confidence") or 0), 0.4)
-            for subsystem in unlocked:
-                del nodes[subsystem]
-            issues.append(
-                _issue(
-                    "repaired_subsystem_limit_with_locked_overflow", str(len(unlocked)), "warning"
-                )
-            )
-        issues.append(_issue("subsystem_limit_overridden_by_locks", str(len(locked)), "warning"))
+        _bound_locked_subsystems(nodes, assignments, subsystems, locked, issues)
         return
     ordered = sorted(
         subsystems,
@@ -287,17 +271,42 @@ def _bound_subsystems(
         if len(kept) >= maximum - 1:
             break
         kept.add(key)
-    parent = nodes[ordered[0]]["parent_temp_key"]
+    moved = set(subsystems) - kept
+    _merge_subsystems(nodes, assignments, moved, nodes[ordered[0]]["parent_temp_key"])
+    issues.append(_issue("repaired_subsystem_limit", str(len(subsystems)), "warning"))
+
+
+def _bound_locked_subsystems(
+    nodes: dict[str, dict[str, Any]],
+    assignments: dict[str, dict[str, Any]],
+    subsystems: list[str],
+    locked: set[str],
+    issues: list[dict[str, Any]],
+) -> None:
+    unlocked = set(subsystems) - locked
+    if unlocked:
+        parent = nodes[sorted(locked)[0]]["parent_temp_key"]
+        _merge_subsystems(nodes, assignments, unlocked, parent)
+        issues.append(
+            _issue("repaired_subsystem_limit_with_locked_overflow", str(len(unlocked)), "warning")
+        )
+    issues.append(_issue("subsystem_limit_overridden_by_locks", str(len(locked)), "warning"))
+
+
+def _merge_subsystems(
+    nodes: dict[str, dict[str, Any]],
+    assignments: dict[str, dict[str, Any]],
+    moved: set[str],
+    parent: str | None,
+) -> None:
     overflow = _unique_key("other-modules", set(nodes))
     nodes[overflow] = _fallback_node(overflow, "Other modules", "subsystem", parent)
     for assignment in assignments.values():
-        if assignment["node_key"] not in kept:
+        if assignment["node_key"] in moved:
             assignment["node_key"] = overflow
             assignment["confidence"] = min(float(assignment.get("confidence") or 0), 0.4)
-    for subsystem in subsystems:
-        if subsystem not in kept:
-            del nodes[subsystem]
-    issues.append(_issue("repaired_subsystem_limit", str(len(subsystems)), "warning"))
+    for subsystem in moved:
+        del nodes[subsystem]
 
 
 def _memberships(

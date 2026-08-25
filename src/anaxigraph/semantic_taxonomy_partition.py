@@ -104,35 +104,52 @@ def filter_previous(value: Any, paths: set[str]) -> dict[str, Any] | None:
 
 
 def filter_taxonomy(value: dict[str, Any], paths: set[str]) -> dict[str, Any]:
-    areas = []
-    for area in value.get("areas") or []:
-        subsystems = []
-        for subsystem in area.get("subsystems") or []:
-            members = [
-                compact_member(member)
-                for member in subsystem.get("members") or []
-                if member.get("path") in paths
-            ]
-            if members:
-                subsystems.append({**compact_node(subsystem), "members": members})
-        if subsystems:
-            areas.append({**compact_node(area), "subsystems": subsystems})
     return {
         "summary": str(value.get("summary") or "")[:1_000],
-        "areas": areas,
-        "facets": [
-            {
-                "name": str(item.get("name") or "")[:250],
-                "description": str(item.get("description") or "")[:500],
-                "members": [path for path in item.get("members") or [] if path in paths],
-                "evidence": short_strings(item.get("evidence"), 10, 300),
-            }
-            for item in value.get("facets") or []
-            if any(path in paths for path in item.get("members") or [])
-        ],
+        "areas": _filtered_areas(value.get("areas"), paths),
+        "facets": _filtered_facets(value.get("facets"), paths),
         "confidence": float(value.get("confidence") or 0),
         "evidence": short_strings(value.get("evidence"), 20, 300),
     }
+
+
+def _filtered_areas(value: Any, paths: set[str]) -> list[dict[str, Any]]:
+    areas = []
+    for area in value or []:
+        subsystems = _filtered_subsystems(area.get("subsystems"), paths)
+        if subsystems:
+            areas.append({**compact_node(area), "subsystems": subsystems})
+    return areas
+
+
+def _filtered_subsystems(value: Any, paths: set[str]) -> list[dict[str, Any]]:
+    subsystems = []
+    for subsystem in value or []:
+        members = [
+            compact_member(member)
+            for member in subsystem.get("members") or []
+            if member.get("path") in paths
+        ]
+        if members:
+            subsystems.append({**compact_node(subsystem), "members": members})
+    return subsystems
+
+
+def _filtered_facets(value: Any, paths: set[str]) -> list[dict[str, Any]]:
+    facets = []
+    for item in value or []:
+        members = [path for path in item.get("members") or [] if path in paths]
+        if not members:
+            continue
+        facets.append(
+            {
+                "name": str(item.get("name") or "")[:250],
+                "description": str(item.get("description") or "")[:500],
+                "members": members,
+                "evidence": short_strings(item.get("evidence"), 10, 300),
+            }
+        )
+    return facets
 
 
 def compact_node(value: dict[str, Any]) -> dict[str, Any]:
