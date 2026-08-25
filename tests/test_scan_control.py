@@ -47,3 +47,24 @@ def test_structural_scan_does_not_implicitly_prepare_semantic_work(repository, d
     assert sum(status["jobs"].values()) == 0
     assert status["total_modules"] == 0
     assert status["coverage"] is None
+
+
+def test_new_scan_marks_abandoned_structural_run_interrupted(repository, database):
+    first = RepositoryScanner(database).scan(repository)
+    abandoned_id = database.start_run(first.repository_id, "watch")
+
+    current = RepositoryScanner(database).scan(repository, run_type="watch")
+
+    with database.connect() as connection:
+        abandoned = connection.execute(
+            "SELECT status, completed_at, error FROM analysis_runs WHERE id = ?",
+            (abandoned_id,),
+        ).fetchone()
+        latest = connection.execute(
+            "SELECT status FROM analysis_runs WHERE id = ?",
+            (current.analysis_run_id,),
+        ).fetchone()
+    assert abandoned["status"] == "interrupted"
+    assert abandoned["completed_at"]
+    assert abandoned["error"] == "Previous scan process ended before completion"
+    assert latest["status"] == "unchanged"

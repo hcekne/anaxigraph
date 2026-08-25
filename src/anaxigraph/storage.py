@@ -227,11 +227,14 @@ class AnaxiIndex:
 
     def start_run(self, repository_id: int, run_type: str) -> int:
         with self.transaction() as connection:
+            connection.execute(
+                "UPDATE analysis_runs SET status = 'interrupted', completed_at = ?, error = ? "
+                "WHERE repository_id = ? AND status = 'running'",
+                (utc_now(), "Previous scan process ended before completion", repository_id),
+            )
             cursor = connection.execute(
-                """
-                INSERT INTO analysis_runs(repository_id, run_type, status, started_at)
-                VALUES (?, ?, 'running', ?)
-                """,
+                "INSERT INTO analysis_runs(repository_id, run_type, status, started_at) "
+                "VALUES (?, ?, 'running', ?)",
                 (repository_id, run_type, utc_now()),
             )
             return int(cursor.lastrowid)
