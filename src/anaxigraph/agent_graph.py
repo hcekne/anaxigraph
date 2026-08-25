@@ -1,124 +1,26 @@
-"""Graph loading, semantic ranking, and bounded context expansion for agents."""
+"""Lexically rank files and expand bounded graph context for agents."""
 
 from __future__ import annotations
 
-import json
 import sqlite3
 from collections import defaultdict, deque
 from math import log
 from pathlib import Path
 from typing import Any
 
+from anaxigraph.agent_graph_read import (
+    _interfaces as _interfaces,
+)
+from anaxigraph.agent_graph_read import (
+    _projected_graph_maps as _projected_graph_maps,
+)
 from anaxigraph.agent_lexicon import GOAL_STOPWORDS, WORD_PATTERN, split_camel
-from anaxigraph.config import path_matches
-from anaxigraph.persistence.snapshot_projection import install_snapshot_projection
-
-
-def _graph_maps(
-    connection: sqlite3.Connection, snapshot_id: int
-) -> tuple[dict[int, dict[str, Any]], dict[int, set[int]], dict[int, set[int]]]:
-    files = _graph_files(connection, snapshot_id)
-    _attach_semantic_files(connection, snapshot_id, files)
-    outgoing, incoming = _dependency_maps(connection, snapshot_id, files)
-    return files, outgoing, incoming
-
-
-def _graph_files(connection: sqlite3.Connection, snapshot_id: int) -> dict[int, dict[str, Any]]:
-    files = {
-        int(row["artifact_id"]): dict(row)
-        for row in connection.execute(
-            """
-            SELECT fv.*, a.artifact_type FROM projected_file_versions fv
-            JOIN artifacts a ON a.id = fv.artifact_id WHERE fv.snapshot_id = ?
-            """,
-            (snapshot_id,),
-        )
-    }
-    return files
-
-
-def _attach_semantic_files(
-    connection: sqlite3.Connection, snapshot_id: int, files: dict[int, dict[str, Any]]
-) -> None:
-    for row in connection.execute(
-        """
-        SELECT ss.artifact_id, ss.status, ss.reason, sd.value_json, sd.provider,
-               sd.model, sd.confidence, sd.document_kind
-        FROM semantic_scope_states ss
-        LEFT JOIN semantic_documents sd
-          ON sd.id = COALESCE(ss.context_document_id, ss.intrinsic_document_id)
-        WHERE ss.snapshot_id = ? AND ss.scope_type = 'module'
-        """,
-        (snapshot_id,),
-    ):
-        artifact_id = int(row["artifact_id"])
-        if artifact_id not in files:
-            continue
-        value = _json(row["value_json"] or "{}") or {}
-        item = files[artifact_id]
-        item["deterministic_summary"] = item["summary"]
-        if value.get("summary"):
-            item["summary"] = value["summary"]
-        item["semantic"] = _semantic_file(row, value)
-
-
-def _dependency_maps(
-    connection: sqlite3.Connection, snapshot_id: int, files: dict[int, dict[str, Any]]
-) -> tuple[dict[int, set[int]], dict[int, set[int]]]:
-    outgoing: dict[int, set[int]] = defaultdict(set)
-    incoming: dict[int, set[int]] = defaultdict(set)
-    for row in connection.execute(
-        """
-        SELECT source_artifact_id, target_artifact_id FROM projected_relationships
-        WHERE snapshot_id = ? AND target_artifact_id IS NOT NULL
-        """,
-        (snapshot_id,),
-    ):
-        source = int(row["source_artifact_id"])
-        target = int(row["target_artifact_id"])
-        outgoing[source].add(target)
-        incoming[target].add(source)
-    for artifact_id in files:
-        outgoing.setdefault(artifact_id, set())
-        incoming.setdefault(artifact_id, set())
-    return outgoing, incoming
-
-
-def _semantic_file(row: Any, value: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "status": row["status"],
-        "reason": row["reason"],
-        "source": row["document_kind"],
-        "provider": row["provider"],
-        "model": row["model"],
-        "confidence": row["confidence"],
-        "architecture_role": _semantic_field(value, "architecture_role", ""),
-        "placement_guidance": _semantic_field(value, "placement_guidance", ""),
-        "detailed_summary": _semantic_field(value, "detailed_summary", ""),
-        "responsibilities": _semantic_field(value, "responsibilities", []),
-        "public_contracts": _semantic_field(value, "public_contracts", []),
-        "invariants": _semantic_field(value, "invariants", []),
-        "domain_concepts": _semantic_field(value, "domain_concepts", []),
-        "extension_points": _semantic_field(value, "extension_points", []),
-        "similar_modules": _semantic_field(value, "similar_modules", []),
-        "pattern_opportunities": _semantic_field(value, "pattern_opportunities", [])[:5],
-        "consolidation_assessment": value.get("consolidation_assessment"),
-        "dead_code_candidates": _semantic_field(value, "dead_code_candidates", [])[:5],
-        "testing_guidance": _semantic_field(value, "testing_guidance", []),
-        "risks": _semantic_field(value, "risks", []),
-    }
-
-
-def _semantic_field(value: dict[str, Any], key: str, default: Any) -> Any:
-    selected = value.get(key)
-    return default if selected is None else selected
-
-
-def _projected_graph_maps(
-    connection: sqlite3.Connection, snapshot_id: int
-) -> tuple[dict[int, dict[str, Any]], dict[int, set[int]], dict[int, set[int]]]:
-    install_snapshot_projection(connection, snapshot_id)
-    return _graph_maps(connection, snapshot_id)
+from anaxigraph.agent_scope_evidence import (
+    _applicable_findings as _applicable_findings,
+)
+from anaxigraph.agent_scope_evidence import (
+    _applicable_rules as _applicable_rules,
+)
 
 
 def _rank_files(
@@ -330,135 +232,3 @@ def _related_tests(
     return {
         path for _, path in sorted(scored, key=lambda value: (-value[0], value[1]))[: max(1, limit)]
     }
-
-
-def _interfaces(
-    connection: sqlite3.Connection, snapshot_id: int, artifact_ids: list[int]
-) -> list[dict[str, Any]]:
-    if not artifact_ids:
-        return []
-    placeholders = ",".join("?" for _ in artifact_ids)
-    rows = connection.execute(
-        f"""
-        SELECT fv.path, s.symbol_type, s.name, s.signature, s.summary
-        FROM projected_symbols s
-        JOIN projected_file_versions fv ON fv.id = s.artifact_version_id
-        WHERE fv.snapshot_id = ? AND fv.artifact_id IN ({placeholders})
-          AND s.symbol_type IN ('class', 'api_endpoint', 'database_model')
-        ORDER BY fv.path, s.start_line LIMIT 100
-        """,
-        [snapshot_id, *artifact_ids],
-    ).fetchall()
-    return [dict(row) for row in rows]
-
-
-def _applicable_rules(
-    connection: sqlite3.Connection,
-    repository_id: int,
-    files: dict[int, dict[str, Any]],
-    artifact_ids: set[int],
-) -> list[dict[str, Any]]:
-    paths = [files[item]["path"] for item in artifact_ids]
-    result: list[dict[str, Any]] = []
-    for row in connection.execute(
-        """
-        SELECT rule_id, rule_type, severity, description, source, config_json
-        FROM architecture_rules WHERE repository_id = ? AND enabled = 1
-        ORDER BY rule_id
-        """,
-        (repository_id,),
-    ):
-        item = dict(row)
-        config = _json(item.pop("config_json", "{}"))
-        patterns = config.get("paths") if isinstance(config, dict) else None
-        if not patterns or any(
-            path_matches(path, pattern)
-            for path in paths
-            for pattern in ([patterns] if isinstance(patterns, str) else patterns)
-        ):
-            compact = {
-                key: value
-                for key, value in (config or {}).items()
-                if value not in (None, "", [], {}, ())
-            }
-            result.append(
-                {
-                    "rule_id": item["rule_id"],
-                    "type": item["rule_type"],
-                    "severity": item["severity"],
-                    **({"description": item["description"]} if item["description"] else {}),
-                    "source": item["source"],
-                    **({"parameters": compact} if compact else {}),
-                }
-            )
-    return result
-
-
-def _applicable_findings(
-    connection: sqlite3.Connection,
-    repository_id: int,
-    files: dict[int, dict[str, Any]],
-    artifact_ids: set[int],
-    primary_ids: set[int],
-) -> list[dict[str, Any]]:
-    paths = {files[item]["path"] for item in artifact_ids}
-    primary_paths = {files[item]["path"] for item in primary_ids}
-    result = []
-    for row in connection.execute(
-        """
-        SELECT id, stable_key, finding_type, severity, confidence, summary, explanation,
-               status, affected_artifacts_json, evidence_json, recommended_action
-        FROM findings WHERE repository_id = ? AND status NOT IN ('resolved', 'dismissed')
-        ORDER BY CASE severity WHEN 'critical' THEN 0 WHEN 'error' THEN 1
-                 WHEN 'warning' THEN 2 ELSE 3 END, last_detected_at DESC
-        LIMIT 500
-        """,
-        (repository_id,),
-    ):
-        item, affected = _finding_value(row)
-        relevant = affected & paths
-        if relevant:
-            item["affected_artifacts"] = sorted(affected)
-            direct = affected & primary_paths
-            severity_score = {
-                "critical": 72,
-                "error": 62,
-                "warning": 42,
-                "info": 20,
-            }.get(str(item["severity"]), 20)
-            score = min(
-                100,
-                severity_score
-                + (18 if direct else 7)
-                + min(6, len(relevant) * 2)
-                + round(float(item["confidence"] or 0) * 4),
-            )
-            reasons = [f"{item['severity']} severity"]
-            reasons.append(
-                "affects a primary task file"
-                if direct
-                else "affects a dependency in the task context"
-            )
-            if len(affected) > 1:
-                reasons.append(f"spans {len(affected)} files")
-            item["priority_score"] = score
-            item["priority_reasons"] = reasons
-            result.append(item)
-    return sorted(
-        result,
-        key=lambda item: (-int(item["priority_score"]), int(item["id"])),
-    )[:12]
-
-
-def _finding_value(row: Any) -> tuple[dict[str, Any], set[str]]:
-    item = dict(row)
-    affected = set(_json(item.pop("affected_artifacts_json", "[]")) or [])
-    item["evidence"] = list(_json(item.pop("evidence_json", "[]")) or [])
-    return item, affected
-
-
-def _json(value: str) -> Any:
-    try:
-        return json.loads(value)
-    except (ValueError, TypeError):
-        return None

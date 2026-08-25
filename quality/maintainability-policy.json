@@ -24,7 +24,6 @@
     "src/anaxigraph/agent.py::finding_context": [96, 22],
     "src/anaxigraph/agent.py::impact_analysis": [77, 18],
     "src/anaxigraph/agent_graph.py::_rank_files": [69, 22],
-    "src/anaxigraph/agent_graph.py::_applicable_findings": [54, 9],
     "src/anaxigraph/agent_payload.py::_bound_scope_payload": [63, 21],
     "src/anaxigraph/analyzers/javascript.py::_strip_comments": [52, 21],
     "src/anaxigraph/analyzers/text.py::_jsonc_to_json": [37, 18],
