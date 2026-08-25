@@ -7,6 +7,67 @@ from typing import Any
 from anaxigraph.semantic_taxonomy_partition import compact_member
 
 
+def complete_representative_taxonomy(
+    value: dict[str, Any], fallback: dict[str, Any]
+) -> dict[str, Any]:
+    areas = [_copy_area(area) for area in value.get("areas") or []]
+    assigned = _representative_paths(areas)
+    recovered_subsystems = []
+    for fallback_area in fallback.get("areas") or []:
+        for fallback_subsystem in fallback_area.get("subsystems") or []:
+            missing = [
+                compact_member(member)
+                for member in fallback_subsystem.get("members") or []
+                if str(member.get("path") or "") not in assigned
+            ]
+            if not missing:
+                continue
+            recovered_subsystems.append({**fallback_subsystem, "members": missing})
+    if not recovered_subsystems:
+        return value
+    recovered = sum(len(item["members"]) for item in recovered_subsystems)
+    areas.append(
+        {
+            "key": "locally-reviewed-groups",
+            "name": "Locally reviewed groups",
+            "description": "Local AI reviews classified these groups before global reconciliation.",
+            "responsibility": "Retain reviewed responsibilities omitted from the global reply.",
+            "confidence": 0.5,
+            "rationale": "The global AI reply omitted these groups, so their local review remains.",
+            "evidence": [],
+            "counter_evidence": [],
+            "subsystems": recovered_subsystems,
+        }
+    )
+    evidence = unique_strings(
+        [
+            *(value.get("evidence") or []),
+            f"Retained {recovered} locally reviewed groups omitted by global reconciliation.",
+        ],
+        limit=100,
+    )
+    return {**value, "areas": areas, "evidence": evidence}
+
+
+def _copy_area(area: dict[str, Any]) -> dict[str, Any]:
+    return {
+        **area,
+        "subsystems": [
+            {**subsystem, "members": list(subsystem.get("members") or [])}
+            for subsystem in area.get("subsystems") or []
+        ],
+    }
+
+
+def _representative_paths(areas: list[dict[str, Any]]) -> set[str]:
+    return {
+        str(member.get("path") or "")
+        for area in areas
+        for subsystem in area.get("subsystems") or []
+        for member in subsystem.get("members") or []
+    }
+
+
 def expand_taxonomy(
     value: dict[str, Any], expansion: dict[str, list[dict[str, Any]]]
 ) -> dict[str, Any]:

@@ -11,6 +11,7 @@ from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic_agent_protocol import packetize_agent_request
 from anaxigraph.semantic_contract import SemanticAnalysisError, SemanticResult
 from anaxigraph.semantic_freshness import legacy_input_matches
+from anaxigraph.semantic_taxonomy_clusters import cluster_inventory
 from anaxigraph.semantic_taxonomy_contract import (
     taxonomy_analysis_kind,
     validated_agent_semantic_response,
@@ -241,7 +242,10 @@ def test_large_hosted_taxonomy_proposal_and_review_reconcile_clusters():
                 peak = max(peak, active)
             if chunk:
                 time.sleep(0.01)
-            taxonomy = _taxonomy_for_modules(request.get("modules") or [])
+            requested_modules = list(request.get("modules") or [])
+            if not chunk and requested_modules:
+                requested_modules.pop()  # Global reconciliation may accidentally omit a cluster.
+            taxonomy = _taxonomy_for_modules(requested_modules)
             value = (
                 {
                     "verdict": "approve",
@@ -301,6 +305,41 @@ def test_large_hosted_taxonomy_proposal_and_review_reconcile_clusters():
     assert review.input_tokens == len(calls) * 10
     assert review.output_tokens == len(calls) * 5
     validated_agent_semantic_response(review.value, review_request)
+
+
+def test_partition_reconciliation_distributes_overflow_clusters():
+    modules = [
+        {
+            "path": f"src/domain_{index}/module.py",
+            "lines_of_code": 20,
+        }
+        for index in range(60)
+    ]
+    chunks = []
+    for index, module in enumerate(modules):
+        chunks.append(
+            {
+                "modules": [module],
+                "taxonomy": {
+                    "areas": [
+                        _node(
+                            f"area-{index}",
+                            [_node(f"job-{index}", [_member(module["path"], 0.8)])],
+                            level="area",
+                        )
+                    ]
+                },
+            }
+        )
+
+    clustered = cluster_inventory(chunks, modules, maximum=10)
+    expansion = clustered["expansion"]
+
+    assert len(expansion) == 10
+    assert {member["path"] for members in expansion.values() for member in members} == {
+        module["path"] for module in modules
+    }
+    assert max(len(members) for members in expansion.values()) <= 12
 
 
 def test_large_agent_taxonomy_review_pages_candidate_memberships():

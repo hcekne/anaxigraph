@@ -14,6 +14,7 @@ from anaxigraph.semantic_taxonomy_clusters import (
     representative_relationships,
 )
 from anaxigraph.semantic_taxonomy_expansion import (
+    complete_representative_taxonomy,
     expand_taxonomy,
     membership_count,
     unique_strings,
@@ -134,6 +135,11 @@ def _partition_reviews(
     return chunks, verdicts, reviews
 
 
+def _expanded_taxonomy(value: dict[str, Any], clustered: dict[str, Any]) -> dict[str, Any]:
+    complete = complete_representative_taxonomy(value, clustered["taxonomy"])
+    return expand_taxonomy(complete, clustered["expansion"])
+
+
 def analyze_taxonomy_proposal(
     provider: Any,
     request: dict[str, Any],
@@ -183,7 +189,7 @@ def analyze_taxonomy_proposal(
         ),
     }
     result = provider.analyze(final_request)
-    expanded = expand_taxonomy(result.value, clustered["expansion"])
+    expanded = _expanded_taxonomy(result.value, clustered)
     return SemanticResult(
         value=expanded,
         confidence=result.confidence,
@@ -262,7 +268,7 @@ def analyze_taxonomy_review(
             "revise" if result.value["verdict"] == "revise" or "revise" in verdicts else "approve"
         ),
         "issues": issues[:500],
-        "taxonomy": expand_taxonomy(result.value["taxonomy"], clustered["expansion"]),
+        "taxonomy": _expanded_taxonomy(result.value["taxonomy"], clustered),
         "evidence": evidence,
     }
     return SemanticResult(

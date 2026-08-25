@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from collections import Counter, defaultdict
 from typing import Any
@@ -103,18 +104,65 @@ def _bounded_clusters(clusters: dict[str, dict[str, Any]], maximum: int) -> list
         clusters.values(),
         key=lambda item: (-len(item["members"]), item["subsystem"]["name"]),
     )
-    if len(ordered) > maximum:
-        overflow = {
-            "area": _fallback_node("other-responsibilities", "Other responsibilities"),
-            "subsystem": _fallback_node("other-clusters", "Other reviewed clusters"),
-            "members": {},
-            "origins": [],
-        }
-        for cluster in ordered[maximum - 1 :]:
-            overflow["members"].update(cluster["members"])
-            overflow["origins"].extend(cluster["origins"])
-        ordered = ordered[: maximum - 1] + [overflow]
-    return ordered
+    if len(ordered) <= maximum:
+        return ordered
+    anchors = [_copy_cluster(cluster) for cluster in ordered[:maximum]]
+    total_members = sum(len(cluster["members"]) for cluster in ordered)
+    target_limit = max(
+        max(len(cluster["members"]) for cluster in ordered),
+        math.ceil(total_members / maximum) * 2,
+    )
+    for cluster in ordered[maximum:]:
+        candidates = [
+            anchor
+            for anchor in anchors
+            if len(anchor["members"]) + len(cluster["members"]) <= target_limit
+        ] or anchors
+        target = max(
+            candidates,
+            key=lambda anchor: (
+                len(_cluster_terms(anchor) & _cluster_terms(cluster)),
+                -len(anchor["members"]),
+                str(anchor["subsystem"]["name"]),
+            ),
+        )
+        _merge_cluster(target, cluster)
+    return anchors
+
+
+def _copy_cluster(cluster: dict[str, Any]) -> dict[str, Any]:
+    return {
+        **cluster,
+        "area": dict(cluster["area"]),
+        "subsystem": dict(cluster["subsystem"]),
+        "members": dict(cluster["members"]),
+        "origins": list(cluster["origins"]),
+        "components": [{"area": dict(cluster["area"]), "subsystem": dict(cluster["subsystem"])}],
+    }
+
+
+def _merge_cluster(target: dict[str, Any], source: dict[str, Any]) -> None:
+    target["members"].update(source["members"])
+    target["origins"].extend(source["origins"])
+    target["components"].extend(
+        source.get("components")
+        or [{"area": dict(source["area"]), "subsystem": dict(source["subsystem"])}]
+    )
+
+
+def _cluster_terms(cluster: dict[str, Any]) -> set[str]:
+    components = cluster.get("components") or [
+        {"area": cluster["area"], "subsystem": cluster["subsystem"]}
+    ]
+    values = []
+    for component in components:
+        for node in (component["area"], component["subsystem"]):
+            values.extend(
+                str(node.get(field) or "")
+                for field in ("key", "name", "description", "responsibility")
+            )
+    values.extend(str(path) for path in cluster["members"])
+    return set(re.findall(r"[a-z0-9]{3,}", " ".join(values).lower()))
 
 
 def _materialize_clusters(
@@ -134,12 +182,12 @@ def _materialize_clusters(
             path_to_representative[member["path"]] = representative
         confidence = _average_confidence(members)
         confidences.append(confidence)
-        sample = [item["path"] for item in members[:5]]
+        sample = _member_sample(members)
         area = cluster["area"]
         subsystem = cluster["subsystem"]
         representatives.append(
             _representative_module(
-                representative, members, module_by_path, subsystem, confidence, sample
+                representative, members, module_by_path, cluster, confidence, sample
             )
         )
         summaries.append(
@@ -170,14 +218,22 @@ def _average_confidence(values: list[Any]) -> float:
     ) / len(values)
 
 
+def _member_sample(members: list[dict[str, Any]], limit: int = 5) -> list[str]:
+    paths = sorted(str(item["path"]) for item in members)
+    if len(paths) <= limit:
+        return paths
+    return [paths[index * (len(paths) - 1) // (limit - 1)] for index in range(limit)]
+
+
 def _representative_module(
     representative: str,
     members: list[dict[str, Any]],
     module_by_path: dict[str, dict[str, Any]],
-    subsystem: dict[str, Any],
+    cluster: dict[str, Any],
     confidence: float,
     sample: list[str],
 ) -> dict[str, Any]:
+    subsystem = cluster["subsystem"]
     lines = sum(
         int(module_by_path.get(item["path"], {}).get("lines_of_code") or 0) for item in members
     )
@@ -188,10 +244,10 @@ def _representative_module(
         "lines_of_code": lines,
         "dossier": {
             "summary": subsystem["description"] or subsystem["responsibility"],
-            "responsibilities": [subsystem["responsibility"]],
+            "responsibilities": _component_values(cluster, "responsibility"),
             "public_contracts": [],
             "architecture_role": subsystem["name"],
-            "domain_concepts": [],
+            "domain_concepts": _component_values(cluster, "name"),
             "collaborators": [],
             "overlaps": [],
             "extension_points": [],
@@ -219,7 +275,17 @@ def _cluster_summary(
         "members": len(members),
         "sample_members": sample,
         "origins": cluster["origins"][:10],
+        "component_groups": _component_values(cluster, "name"),
+        "component_responsibilities": _component_values(cluster, "responsibility"),
     }
+
+
+def _component_values(cluster: dict[str, Any], field: str) -> list[str]:
+    components = cluster.get("components") or [
+        {"area": cluster["area"], "subsystem": cluster["subsystem"]}
+    ]
+    values = [str(item["subsystem"].get(field) or "") for item in components]
+    return list(dict.fromkeys(value for value in values if value))[:10]
 
 
 def _add_representative_group(
