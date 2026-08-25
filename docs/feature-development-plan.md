@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.27
+**Roadmap version:** 3.28
 
 **Updated:** 25 August 2026
 
@@ -111,7 +111,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 554 tests passing plus 17 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
+| Test health | 555 tests passing plus 17 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -254,7 +254,9 @@ The point is that the decision is written down, not that it happens on a schedul
 | Repeated co-change around task-selected code | Supporting | Keep a bounded on-demand clue because it exposes coordination that imports and calls cannot show |
 | “When did this specific structural problem appear or disappear?” | Supporting | Reuse retained findings and frames to explain whether a task-facing risk is new, persistent, resolved, or regressed |
 | A separate repository-wide historical hotspot ranking | Optional | The attention queue and before/after comparison already answer the actionable parts without another scoring product |
-| Stable install, migration, backup, security, and honest support contracts | Supporting | Keep as the final 1.0 reliability phase |
+| Required CLI, REST, and MCP contracts for the coding loop | Supporting | Protect only the paths used to understand, scope, inspect impact, act on findings, and verify a change |
+| Representative-repository proof of placement, impact, decomposition, and before/after advice | Essential | Make this the remaining release decision; measure usefulness and false positives at small, medium, and large scales |
+| Install, index migration, backup/restore, source-egress boundaries, and release integrity | Supporting and already implemented | Keep the existing tests and documentation green; add work only when a core-loop regression exposes a gap |
 | JavaScript/TypeScript, Go, Rust, Java, and long-tail parser expansion | Optional | Move out of the numbered roadmap; add one language only when concrete demand justifies its cost |
 | SQL, API-schema, deployment, Terraform, and document adapters | Optional | Reconsider after the source-code change loop is complete |
 | General plugin SDK and third-party extension ecosystem | Optional | Do not build a framework in anticipation of integrations |
@@ -277,7 +279,7 @@ The point is that the decision is written down, not that it happens on a schedul
 | 6 | Architect-grade semantic and pattern intelligence | An extensible catalog of at least 120 patterns is evaluated across code hierarchies and independently reviewed by agents | Change-safe architecture guidance |
 | 7 | Change-safe architecture loop | Agents and people get placement guidance before a change and a focused entropy comparison afterward | Focused temporal risk signals |
 | 8 | Focused history evidence for architecture risk | Co-change and introduction/resolution history improve the current task decision | 1.0 scope freeze |
-| 9 | 1.0 reliability and honest support | Stable migrations, recovery, contracts, documentation, and measured support claims | 1.0 release |
+| 9 | Prove the core loop for 1.0 | The existing product gives useful, bounded architecture decisions at representative sizes through stable agent-facing paths | 1.0 release |
 
 ---
 
@@ -2331,46 +2333,82 @@ change also lowers the `evaluate_architecture` and finding-lifecycle maintainabi
 
 ---
 
-# Phase 9 — 1.0 reliability and honest support
+# Phase 9 — prove the core loop for 1.0
 
-**Status:** ACTIVE on 25 August 2026
+**Status:** ACTIVE; SCOPE RE-EVALUATED on 25 August 2026
 
-**Goal:** make the proven core change loop safe to install, upgrade, recover, and trust without
-expanding the product to look broader than it is.
+**Goal:** prove that the existing AnaxiGraph loop helps a person or coding agent place and change
+code without creating sprawl, tangled dependencies, misplaced responsibilities, or giant files.
+Phase 9 is an acceptance and contract phase, not another feature family.
 
-## 9.1 Freeze the contracts people and agents rely on
+The re-evaluation removed generic product-maturity work from the active path. Package installation,
+schema migration, online backup/restore, platform and analyzer-depth disclosure, semantic-egress
+controls, container hardening, artifact attestations, and public-install verification already exist.
+Their current tests remain release gates, but they do not justify new subsystems, surfaces, or
+documentation projects.
 
-- Stable CLI commands, exit codes, REST contracts, and MCP tools for scan, map, scope, impact,
-  findings, patterns, semantic work, and before/after verification;
-- a documented AnaxiIndex migration/support window and configuration upgrade path;
-- honest language, analyzer-depth, deployment, privacy, and semantic-egress support matrices;
-- backup/restore and disaster-recovery guidance;
-- security policy, threat model, vulnerability reporting, and signed releases.
+## 9.1 Protect the smallest agent-facing contract
 
-## 9.2 Run release candidates on representative repositories
+**Status:** COMPLETE on 25 August 2026
 
-Use small, medium, and large repositories within the honestly supported language/deployment matrix.
-Record setup completion, scan/update performance, index size, relationship trust, scope usefulness,
-placement/decomposition false positives, semantic interruption/reuse, payload bounds,
-accessibility, upgrade, and recovery. Do not call the product 1.0 until published claims match those
-results.
+Freeze the names and minimum versioned response fields needed for one workflow:
 
-## 9.3 Keep documentation centered on the coding loop
+1. start or scan a repository and read its map;
+2. ask where a coding goal belongs and inspect direct/reverse impact;
+3. inspect actionable findings, pattern advice, and a large-file decomposition when relevant;
+4. run or resume semantic work without model names becoming stored architecture identity;
+5. rescan and compare the focused before-change record with the result.
 
-The primary documentation must show one path: start AnaxiGraph, understand the map, ask where a
-change belongs, inspect impact, make the change, update the map, and verify architecture effects.
-Advanced operations remain available but do not obscure that path.
+Use characterization tests around the existing CLI, REST, and MCP paths. The contract is a required
+subset, not a freeze on every administrative command or every response field. New API versions,
+compatibility frameworks, transports, and duplicated workflow endpoints are outside this slice.
+
+`coding-loop-contract-v1` is now returned by the existing REST glossary and
+`ANAXIGRAPH_GUIDE(topic="coding_loop")`. It names ten CLI commands, fifteen REST method/path pairs,
+eighteen MCP tools, and eleven versioned result locations as required subsets. Parser, generated
+OpenAPI, live MCP, and implementation-version characterization tests fail on an accidental removal,
+rename, or incompatible version change. This added no endpoint, database state, provider path, UI,
+or compatibility framework. The complete Python suite passes with 555 tests at 91.60% coverage;
+module size, code quality, architecture, Ruff, and focused REST/MCP tests also pass.
+
+## 9.2 Prove architecture decisions at representative sizes
+
+Run the same coding tasks against small, medium, and large Python-first repositories. Record only
+measurements that decide whether the map is useful:
+
+- whether the right extension point, affected contracts, tests, and direct neighbors are returned;
+- whether a mixed-responsibility large file gets a coherent split while a cohesive one stays
+  together;
+- whether introduced, worsened, improved, resolved, and pre-existing structural effects are
+  classified correctly;
+- relationship resolution/ambiguity, unnecessary-file rate, bounded payload size, scan/update
+  work, and response time;
+- whether interrupted semantic work resumes against the authoritative index and reaches explicit
+  completion without rereading unchanged modules.
+
+Deterministic fixtures and the repository's own self-analysis can run now. The paid live MaxOS
+semantic acceptance remains paused at the operator's request; do not replace that missing evidence
+with adjacent features or claim the phase complete while it is paused.
+
+## 9.3 Keep one documented coding loop
+
+The primary documentation shows one path: start AnaxiGraph, understand the map, ask where a change
+belongs, inspect impact, make the change, update the map, and verify architecture effects. Existing
+advanced operations stay available by link. Phase 9 adds no second tutorial, dashboard, planning
+surface, or operator product.
 
 ## Phase 9 exit gate
 
-- Fresh-install, upgrade, backup/restore, and uninstall paths pass release-candidate tests.
-- The complete before/after coding loop passes against representative small, medium, and large
-  repositories within the declared support matrix.
+- The required CLI, REST, and MCP subset has a versioned characterization test and remains bounded.
+- The complete before/after coding loop passes the same decision fixtures at small, medium, and
+  large scales within the declared Python-first support boundary.
+- The interrupted semantic loop passes deterministic recovery tests and, after the operator lifts
+  the pause, the retained live MaxOS acceptance run reaches explicit completion.
+- Existing install, migration, backup/restore, container, and release-integrity gates remain green.
 - No first-party implementation module exceeds 500 lines and no temporary architecture waiver
   remains.
-- Required CI checks protect the release branch.
-- Documentation makes facts, interpretations, recommendations, privacy, language depth, and
-  unsupported behavior unambiguous.
+- The main documentation distinguishes deterministic facts, semantic interpretations,
+  recommendations, source egress, analyzer depth, and unsupported behavior in ordinary language.
 
 ---
 
@@ -2388,6 +2426,10 @@ evidence shows that one materially improves the core navigation-and-structure mi
 - a standalone historical hotspot score or ranking beside the existing attention queue and
   before/after structural comparison;
 - a separate website, interactive demo, replay video, or ecosystem-growth program.
+- extra disaster-recovery automation beyond the tested backup/restore path;
+- new release-governance infrastructure beyond the existing protected, attested pipeline;
+- guarantees for administrative/export endpoints that are not part of the coding loop;
+- uninstall automation or a second operations interface.
 
 Optional work still obeys provenance, safety, bounded-resource, module-size, test, and honest-support
 rules. Installing a parser or recognizing an extension never counts as supporting a language.
@@ -2520,7 +2562,11 @@ queue and the document cannot drift apart.
 | 46 | **COMPLETE** — Make existing hierarchy navigation task-centered from area through symbol without another graph or dashboard surface | §7.4–7.5 |
 | 47 | **COMPLETE** — Add bounded co-change evidence around task-selected files without creating graph edges or a second history store | §8.1 |
 | 48 | **COMPLETE** — Identify the retained change that introduced, resolved, or reintroduced a selected structural finding | §8.2 |
-| 49 | Freeze, validate, document, and release the honestly supported core loop | Phase 9 |
+| 49 | **COMPLETE** — Re-evaluate Phase 9 and remove duplicate reliability work and generic product-maturity scope from the active path | Phase 9 |
+| 50 | **COMPLETE** — Freeze the smallest required CLI, REST, and MCP coding-loop contract as a tested subset | §9.1 |
+| 51 | Run and record the same architecture-decision fixtures at small, medium, and large scales | §9.2 |
+| 52 | Complete the retained live MaxOS semantic acceptance after the operator lifts the pause | §9.2 |
+| 53 | Close the one-path documentation and prepare the evidence-backed 1.0 release candidate | §9.3 and Phase 9 gate |
 
 This order now follows the product loop directly. Optional parser, adapter, plugin, media, playback,
 website, and ecosystem work cannot displace it or become an accidental release dependency.

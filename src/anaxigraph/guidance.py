@@ -141,6 +141,83 @@ AGENT_WORKFLOW = {
     ),
 }
 
+CODING_LOOP_CONTRACT = {
+    "version": "coding-loop-contract-v1",
+    "purpose": (
+        "These are the existing names an agent can rely on to understand a repository, choose "
+        "where a change belongs, inspect its likely effects, and compare the result after a new "
+        "scan. The lists are required subsets, so AnaxiGraph may expose other operations too."
+    ),
+    "cli_commands": [
+        "up",
+        "scan",
+        "update",
+        "scope",
+        "impact",
+        "review",
+        "finding",
+        "patterns",
+        "understand",
+        "semantic-status",
+    ],
+    "rest_operations": [
+        "GET /api/overview",
+        "GET /api/modules",
+        "GET /api/file",
+        "GET /api/graph/overview",
+        "GET /api/graph",
+        "GET /api/findings",
+        "GET /api/findings/{finding_id}/context",
+        "GET /api/patterns",
+        "GET /api/patterns/candidates",
+        "GET /api/semantic",
+        "GET /api/scan",
+        "POST /api/scan",
+        "POST /api/semantic/prepare",
+        "POST /api/agent-scope",
+        "POST /api/impact",
+    ],
+    "mcp_tools": [
+        "ANAXIGRAPH_REPOSITORIES",
+        "ANAXIGRAPH_OVERVIEW",
+        "ANAXIGRAPH_MODULES",
+        "ANAXIGRAPH_GRAPH",
+        "ANAXIGRAPH_SEARCH",
+        "ANAXIGRAPH_FILE",
+        "ANAXIGRAPH_SCOPE",
+        "ANAXIGRAPH_IMPACT",
+        "ANAXIGRAPH_FINDINGS",
+        "ANAXIGRAPH_FINDING_CONTEXT",
+        "ANAXIGRAPH_PATTERNS",
+        "ANAXIGRAPH_SEMANTIC_STATUS",
+        "ANAXIGRAPH_TAXONOMY",
+        "ANAXIGRAPH_SEMANTIC_SCHEMA",
+        "ANAXIGRAPH_SEMANTIC_WORK",
+        "ANAXIGRAPH_SEMANTIC_EVIDENCE",
+        "ANAXIGRAPH_SEMANTIC_SUBMIT",
+        "ANAXIGRAPH_SEMANTIC_RELEASE",
+    ],
+    "versioned_results": {
+        "scope.architecture_decision.contract_version": "architecture-decision-v1",
+        "scope.architecture_decision.verification.post_change_baseline.contract_version": (
+            "architecture-verification-baseline-v2"
+        ),
+        "scope.architecture_decision.verification.post_change_comparison.contract_version": (
+            "architecture-verification-comparison-v2"
+        ),
+        "scope.architecture_decision.decomposition.contract_version": (
+            "large-file-decomposition-v1"
+        ),
+        "patterns.contract_version": "pattern-query-v1",
+        "pattern_candidates.contract_version": "pattern-candidate-query-v1",
+        "graph_overview.contract_version": "graph-overview-v1",
+        "graph_page.contract_version": "graph-query-v1",
+        "finding_context.finding_history.contract_version": "finding-history-v1",
+        "semantic_schema.schema_version": "repository-understanding-v5",
+        "semantic_schema.writing_contract_version": "plain-language-v2",
+    },
+}
+
 
 def product_glossary() -> dict[str, Any]:
     return {
@@ -150,6 +227,7 @@ def product_glossary() -> dict[str, Any]:
         "overlays": OVERLAYS,
         "file_measurements": FILE_MEASUREMENT_MEANINGS,
         "agents": AGENT_WORKFLOW,
+        "coding_loop": CODING_LOOP_CONTRACT,
         "coverage": {
             "missing": (
                 "No configured coverage.xml or lcov.info matched this saved scan. Missing coverage "

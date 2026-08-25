@@ -341,6 +341,13 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     )
                     assert guide.isError is False
                     assert guide.structuredContent["findings"]["statuses"]["planned"]["label"]
+                    loop_guide = await session.call_tool(
+                        "ANAXIGRAPH_GUIDE", arguments={"topic": "coding_loop"}
+                    )
+                    assert loop_guide.isError is False
+                    contract = loop_guide.structuredContent["coding_loop"]
+                    assert contract["version"] == "coding-loop-contract-v1"
+                    assert set(contract["mcp_tools"]) <= names
                     scope = await session.call_tool(
                         "ANAXIGRAPH_SCOPE",
                         arguments={"goal": "Change Calculator behavior"},

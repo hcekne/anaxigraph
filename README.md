@@ -125,6 +125,11 @@ Map selector or through `ANAXIGRAPH_TAXONOMY`.
 The complete [onboarding guide](docs/onboarding.md) explains the normal coding loop and setup
 diagnostics.
 
+Connected agents can call `ANAXIGRAPH_GUIDE` with `topic="coding_loop"` to read the
+`coding-loop-contract-v1` required command, route, tool, and response-version names. It is a small
+compatibility subset for this workflow, not a promise that every administrative field will remain
+unchanged.
+
 ## 🐳 Durable Docker sidecar
 
 If you prefer an isolated, persistent container beside the repository:
