@@ -88,7 +88,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 475 tests passing at 90.75% coverage plus 15 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
+| Test health | 480 tests passing at 90.83% coverage plus 15 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -1757,7 +1757,8 @@ and an observed difference is not called an improvement without the intended out
 | Measured post-change handoff | The existing scope request accepts its earlier bounded baseline through CLI, REST, and MCP; same-snapshot, changed, unchanged, cross-goal, cross-repository, legacy, invalid-contract, and wire-budget behavior is versioned and tested without adding state or another product surface |
 | Removal safety | Python fixtures prove trusted module candidates, detected registration suppression, heuristic-language suppression, configured entry-point suppression, uncorroborated semantic suppression, and module/symbol granularity separation; `safe_to_remove` remains false |
 | Responsive authority | A blocking synchronous MCP tool no longer blocks the event loop; discovery tests prove connection-refused fallback, transient retry, and timeout refusal, while real SDK MCP and sidecar-preparation tests retain the work protocol |
-| Verification | The complete suite passes 475 tests at 90.75% coverage; all 15 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis reduced to 33 governed findings, 136 non-blocking findings, and zero issues |
+| Focused orchestration | Scope response assembly now lives behind a bounded payload service, reducing `agent_scope` from its 128-line/complexity-24 ratchet to 97/8; finding handoff and reverse-impact assembly moved out of their former 96/22 and 77/18 functions. `agent.py` is 233 lines, the focused finding and impact services are 164 and 143, and all three obsolete self-analysis findings are removed |
+| Verification | The complete suite passes 480 tests at 90.83% coverage; all 15 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis reduced to 31 governed findings, 133 non-blocking findings, and zero issues |
 
 ## 6.8 Expose pattern intelligence without multiplying product surfaces
 
@@ -1828,9 +1829,9 @@ between finalized evaluations and skipped-target explanations.
 Forty focused candidate/query/calibration-contract cases, CLI authority handoff coverage,
 completed-semantic projection coverage, REST integration, and a real MCP SDK round trip cover the
 read model. The dashboard candidate workflow passes within all 15 browser contracts in the pinned
-Playwright container. The complete suite passes 475 tests at 90.75% coverage; architecture, size,
+Playwright container. The complete suite passes 480 tests at 90.83% coverage; architecture, size,
 maintainability, formatting, and deterministic self-analysis gates report no errors or regressions,
-with self-analysis at 33 governed findings, 136 non-blocking findings, and zero issues.
+with self-analysis at 31 governed findings, 133 non-blocking findings, and zero issues.
 
 ## 6.9 Make repository-sized semantic bootstrap operational
 

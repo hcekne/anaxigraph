@@ -17,12 +17,10 @@
     "function_identity": "path::qualified_name maps to [physical lines, cyclomatic complexity]",
     "coupling_identity": "module maps to [fan-in, fan-out]",
     "owner": "maintainers",
-    "removal": "Lower each baseline in the same change that reduces it; remove it once within limits. Legacy scanner/storage limits belong to Phase 1b, CLI/onboarding to Phase 3, analyzer limits to Phase 4B, API transport to Phase 5A, and remaining orchestration limits to Phase 3b. Semantic-taxonomy launch baselines are exact growth ratchets and must be reduced as those workflows are decomposed further."
+    "removal": "Lower each baseline in the same change that reduces it; remove it once within limits. Remaining analyzer debt belongs to Phase 4B, agent and semantic-taxonomy orchestration debt is retired during Phase 6, and temporal/dashboard debt belongs to Phase 7. Every other legacy entry remains a continuous exact no-growth ratchet."
   },
   "legacy_functions": {
     "src/anaxigraph/agent.py::agent_scope": [97, 8],
-    "src/anaxigraph/agent.py::finding_context": [96, 22],
-    "src/anaxigraph/agent.py::impact_analysis": [77, 18],
     "src/anaxigraph/agent_graph.py::_rank_files": [69, 22],
     "src/anaxigraph/agent_payload.py::_bound_scope_payload": [63, 21],
     "src/anaxigraph/analyzers/javascript.py::_strip_comments": [52, 21],

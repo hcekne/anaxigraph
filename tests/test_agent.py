@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from dataclasses import replace
 
+import pytest
+
 from anaxigraph.agent import agent_scope, impact_analysis
 from anaxigraph.config import load_config
 from anaxigraph.scanner import RepositoryScanner
@@ -48,6 +50,28 @@ def test_impact_follows_reverse_edges_and_relevant_tests(repository, database):
     assert "tests/test_core.py" in paths
     assert "tests/test_core.py" in value["tests_relevant"]
     assert value["risk"] == "high"
+
+
+def test_impact_reports_an_unknown_repository_or_target(repository, database):
+    config = load_config(repository)
+    with pytest.raises(ValueError, match="Repository not found"):
+        impact_analysis(
+            database,
+            repository_id=999,
+            target="pkg/core.py",
+            branch=None,
+            config=config,
+        )
+
+    stats = RepositoryScanner(database).scan(repository)
+    with pytest.raises(ValueError, match="Target not found: pkg/missing.py"):
+        impact_analysis(
+            database,
+            repository_id=stats.repository_id,
+            target="pkg/missing.py",
+            branch=None,
+            config=config,
+        )
 
 
 def test_agent_scope_compares_tracked_facts_after_a_rescan(repository, database):
