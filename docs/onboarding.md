@@ -151,26 +151,33 @@ uvx anaxigraph init . --start --semantic agent --connect codex --dry-run --json
 
 See [Docker operation](docker.md) for container lifecycle and the generated security controls.
 
-## Use AnaxiGraph during normal coding
+## Use one coding loop
 
-Ask the connected agent to use AnaxiGraph before and after meaningful changes:
+Give the connected agent one concrete goal:
 
-- “Map this repository and explain its major boundaries.”
-- “Find the smallest safe scope for adding saved prompt exports.”
-- “Show the reverse-dependency impact of changing `backend/app/services/chat.py`.”
-- “Explain the highest-priority planned architecture finding and prepare a verification plan.”
-- “Compare these provider modules for repeated responsibilities and pattern opportunities.”
-- “Rescan and verify whether this change improved the relevant architecture evidence.”
+> Use AnaxiGraph to plan and verify “add saved prompt exports.” Find the smallest relevant file
+> set, tell me where the code belongs, inspect what depends on the shared files, save the
+> before-change record, and after implementation rescan and compare the same goal.
 
-The agent should use `ANAXIGRAPH_SCOPE` for a small list of likely files and its
-`architecture-decision-v1` placement, reviewed patterns, constraints, safety advice, and
-post-change baseline. After implementation, keep the goal text unchanged, rescan, and pass
-`architecture_decision.verification.post_change_baseline` back as `verification_baseline` in the
-next scope request. AnaxiGraph then reports exactly which tracked file, finding, and reviewed
-pattern facts changed. It deliberately does not call a difference an improvement without the
-expected outcome and passing tests. Use `ANAXIGRAPH_IMPACT` to find code that may be affected and a planned finding's
-context for approved architecture work. A missing static edge is not proof that code is unused;
-dynamic runtime wiring remains an explicit blind spot.
+The agent should follow this sequence for a feature, fix, or refactor:
+
+1. **Scope.** Call `ANAXIGRAPH_SCOPE`. Read the small file list and its
+   `architecture-decision-v1` placement, boundaries, likely tests, relevant findings, and reviewed
+   patterns. Save `architecture_decision.verification.post_change_baseline` and keep the goal text
+   unchanged.
+2. **Impact.** Call `ANAXIGRAPH_IMPACT` for shared files that may change. Inspect direct dependants
+   and tests; a missing static edge is not proof that code is unused because dynamic wiring may be
+   invisible.
+3. **Change.** Edit source and run focused tests through the normal coding workflow. AnaxiGraph
+   observes repository source and updates its external index; it does not edit the target code.
+4. **Verify.** Request `ANAXIGRAPH_SCAN`, then repeat `ANAXIGRAPH_SCOPE` with the exact same goal and
+   pass the saved object as `verification_baseline`. Read `post_change_comparison` beside the test
+   results.
+
+The comparison says what changed in the bounded file, finding, and reviewed-pattern evidence. It
+does not call a difference an improvement unless the expected outcome and tests support that
+conclusion. Findings and pattern evaluations below explain optional evidence inside this same loop;
+they are not separate planning products.
 
 Each reviewed pattern inside the decision packet retains its concise conclusion, observations,
 reason, proposed action, caution, verification, and independent-review summary. A shared reading

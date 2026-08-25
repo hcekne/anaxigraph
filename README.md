@@ -130,6 +130,30 @@ Connected agents can call `ANAXIGRAPH_GUIDE` with `topic="coding_loop"` to read 
 compatibility subset for this workflow, not a promise that every administrative field will remain
 unchanged.
 
+## 🔁 Use one coding loop
+
+Give the connected agent one concrete goal:
+
+> Use AnaxiGraph to plan and verify “add saved prompt exports.” Find the smallest relevant file
+> set, tell me where the code belongs, inspect what depends on the shared files, save the
+> before-change record, and after implementation rescan and compare the same goal.
+
+The agent follows one sequence:
+
+1. **Scope** — `ANAXIGRAPH_SCOPE` returns likely files, placement, boundaries, tests, risks, and a
+   `post_change_baseline`. Keep that baseline and the goal text unchanged.
+2. **Impact** — `ANAXIGRAPH_IMPACT` shows direct dependants of the shared files before they change.
+3. **Change** — edit source and run focused tests through the normal coding workflow. AnaxiGraph
+   observes the repository; it does not edit it.
+4. **Verify** — request `ANAXIGRAPH_SCAN`, then call `ANAXIGRAPH_SCOPE` with the same goal and pass
+   the saved object as `verification_baseline`. Read `post_change_comparison` beside the test
+   results.
+
+A difference is not automatically an improvement. The expected behavior, focused tests, and
+before/after architecture evidence must agree. The [onboarding guide](docs/onboarding.md#use-one-coding-loop)
+explains the same loop; lower-level and operator workflows stay in the
+[advanced guide](docs/advanced-operations.md).
+
 ## 🐳 Durable Docker sidecar
 
 If you prefer an isolated, persistent container beside the repository:

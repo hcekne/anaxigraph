@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.29
+**Roadmap version:** 3.30
 
 **Updated:** 25 August 2026
 
@@ -111,7 +111,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 559 tests passing plus 17 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, post-change comparison, and three-size core-loop paths are regression-tested |
+| Test health | 560 tests passing plus 17 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, post-change comparison, and three-size core-loop paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -2425,10 +2425,19 @@ coverage; Ruff, module-size, code-quality, architecture, and self-analysis gates
 
 ## 9.3 Keep one documented coding loop
 
+**Status:** COMPLETE on 25 August 2026
+
 The primary documentation shows one path: start AnaxiGraph, understand the map, ask where a change
 belongs, inspect impact, make the change, update the map, and verify architecture effects. Existing
 advanced operations stay available by link. Phase 9 adds no second tutorial, dashboard, planning
 surface, or operator product.
+
+README and onboarding now share one concrete scope → impact → change/test → rescan → same-goal
+comparison sequence. Both name the saved `post_change_baseline`, the returned
+`post_change_comparison`, and the rule that a difference is not automatically an improvement. The
+existing agent plugin already executes that sequence. `tests/test_onboarding_docs.py` protects its
+order while advanced and operator modes remain linked outside the primary path. The complete Python
+suite passes with 560 tests at 91.63% coverage.
 
 ## Phase 9 exit gate
 
@@ -2599,7 +2608,7 @@ queue and the document cannot drift apart.
 | 50 | **COMPLETE** — Freeze the smallest required CLI, REST, and MCP coding-loop contract as a tested subset | §9.1 |
 | 51 | **COMPLETE** — Run and record the same architecture-decision fixtures at small, medium, and large scales | §9.2 |
 | 52 | Complete the retained live MaxOS semantic acceptance after the operator lifts the pause | §9.2 |
-| 53 | Close the one-path documentation and prepare the evidence-backed 1.0 release candidate | §9.3 and Phase 9 gate |
+| 53 | **DOCUMENTATION COMPLETE; RELEASE-CANDIDATE PREPARATION WAITS ON #52** — Close the one-path documentation and prepare the evidence-backed 1.0 release candidate | §9.3 and Phase 9 gate |
 
 This order now follows the product loop directly. Optional parser, adapter, plugin, media, playback,
 website, and ecosystem work cannot displace it or become an accidental release dependency.
