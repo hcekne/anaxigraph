@@ -24,6 +24,7 @@
         "anaxigraph.languages",
         "anaxigraph.models",
         "anaxigraph.pattern_candidate_models",
+        "anaxigraph.pattern_candidate_language",
         "anaxigraph.pattern_catalog",
         "anaxigraph.pattern_catalog_models",
         "anaxigraph.pattern_catalog_parse",

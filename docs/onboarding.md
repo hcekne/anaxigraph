@@ -201,6 +201,11 @@ change help now, how difficult would the change be, and how strong is the eviden
 0–100 values remain beside those explanations for tools and comparisons; they are not grades for
 the code.
 
+Candidate explanations use the same rule. They say why AnaxiGraph considered one pattern/target
+pair, why it entered or missed the bounded evaluation queue, what evidence matched, what the
+analyzers could not check, and what happens next. The candidate queue rank only limits agent work;
+it is not a pattern rating or advice to refactor.
+
 ## Check the setup
 
 Run the end-to-end environment check when the dashboard or agent connection is unclear:

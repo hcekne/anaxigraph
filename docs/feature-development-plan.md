@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.12
+**Roadmap version:** 3.13
 
 **Updated:** 25 August 2026
 
@@ -93,7 +93,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 496 tests passing at 90.86% coverage plus 15 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
+| Test health | 504 tests passing at 90.88% coverage plus 15 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -1764,7 +1764,7 @@ and an observed difference is not called an improvement without the intended out
 | Removal safety | Python fixtures prove trusted module candidates, detected registration suppression, heuristic-language suppression, configured entry-point suppression, uncorroborated semantic suppression, and module/symbol granularity separation; `safe_to_remove` remains false |
 | Responsive authority | A blocking synchronous MCP tool no longer blocks the event loop; discovery tests prove connection-refused fallback, transient retry, and timeout refusal, while real SDK MCP and sidecar-preparation tests retain the work protocol |
 | Focused orchestration | Scope response assembly now lives behind a bounded payload service, reducing `agent_scope` from its 128-line/complexity-24 ratchet to 97/8; finding handoff and reverse-impact assembly moved out of their former 96/22 and 77/18 functions. `agent.py` is 233 lines, the focused finding and impact services are 164 and 143, and all three obsolete self-analysis findings are removed |
-| Verification | The complete suite passes 496 tests at 90.86% coverage; all 15 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis at 31 governed findings, 132 non-blocking findings, and zero issues |
+| Verification | The complete suite passes 504 tests at 90.88% coverage; all 15 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis at 31 governed findings, 132 non-blocking findings, and zero issues |
 
 ## 6.8 Expose pattern intelligence without multiplying product surfaces
 
@@ -1835,16 +1835,23 @@ comparison. The projection is derived from current reviewed documents when they 
 evaluations gain it without a semantic rerun; new assessment and critique requests explicitly ask
 for short ordinary sentences that people and coding agents can both understand.
 
+Candidate queries now carry `pattern-candidate-explanation-v1` as well. Selected, rejected,
+below-cutoff, bounded-out, and not-yet-final selections each state their reason directly. Matched
+and opposing observations, missing feature evidence, analyzer capability gaps, the next machine
+step, and the internal queue rank are explained without turning that rank into a pattern rating or
+refactoring recommendation. Exact signal/operator/capability records remain available as optional
+machine evidence; they are no longer asked to serve as the explanation.
+
 The dashboard adds a dedicated **Patterns** view without growing its 499-line HTML shell or
-498-line shared stylesheet. Separate 319-line query/controller, 154-line renderer, and 69-line
+498-line shared stylesheet. Separate 319-line query/controller, 147-line renderer, and 62-line
 responsive stylesheet modules render the complete explanation and grouped exact ratings, critique
 and provider/model provenance, bounded filters and pagination, opt-in evidence, candidate decision
 reasons, and one-click pivots between finalized evaluations and skipped-target explanations.
 
-Fifty focused candidate/query/calibration/language-contract cases, CLI authority handoff coverage,
+Fifty-eight focused candidate/query/calibration/language-contract cases, CLI authority handoff coverage,
 completed-semantic projection coverage, REST integration, and a real MCP SDK round trip cover the
 read model. The dashboard candidate workflow passes within all 15 browser contracts in the pinned
-Playwright container. The complete suite passes 496 tests at 90.86% coverage; architecture, size,
+Playwright container. The complete suite passes 504 tests at 90.88% coverage; architecture, size,
 maintainability, formatting, and deterministic self-analysis gates report no errors or regressions,
 with self-analysis at 31 governed findings, 132 non-blocking findings, and zero issues.
 

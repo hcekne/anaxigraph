@@ -220,6 +220,8 @@ runtime wiring can still be invisible, so a missing edge is never presented as p
   in the **Patterns** view or through `anaxigraph patterns`, `ANAXIGRAPH_PATTERNS`, and the bounded
   `/api/patterns` endpoint. Each result leads with a conclusion, evidence, action, cautions, and
   verification; its nine exact ratings are grouped and explained instead of shown as a number wall.
+  Candidate results likewise explain why a pair was selected or skipped, what evidence is missing,
+  and why the bounded queue rank is not itself a pattern recommendation.
 
 ## 🎯 Findings are a workflow, not a wall
 

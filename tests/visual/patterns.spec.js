@@ -104,6 +104,27 @@ function candidateItem(includeEvidence) {
     capability_gaps: [],
     matched_signal_count: 3,
     counter_signal_count: 0,
+    plain_language: {
+      version: "pattern-candidate-explanation-v1",
+      conclusion: "Strategy qualified for provider.py, but more relevant work filled the bounded queue.",
+      why_this_pair_was_considered: [
+        "The code shows a problem that this pattern is designed to address.",
+        "Other repository evidence also supports checking this pattern here.",
+      ],
+      why_it_was_selected_or_skipped: "The pair passed the cutoff, but the queue keeps only the strongest bounded set.",
+      what_anaxigraph_found: [
+        "AnaxiGraph found semantic provider boundary = yes. This supports checking the pattern here.",
+        "AnaxiGraph found graph fan out = 12. This shows a problem that the pattern may address.",
+      ],
+      what_anaxigraph_could_not_check: [
+        "No required evidence gap was recorded for this candidate decision.",
+      ],
+      what_happens_next: "No agent work is created unless repository evidence or the bounded plan changes.",
+      queue_rank: {
+        value: 76,
+        meaning: "The internal queue rank is 76 out of 100. It selects bounded work; it is not a pattern rating or recommendation.",
+      },
+    },
   };
   if (includeEvidence) {
     item.details = {
@@ -234,8 +255,17 @@ test("pattern intelligence explores finalized results in both directions", async
   await expect.poll(() => requests.at(-1).path).toBe("/api/patterns/candidates");
   await expect.poll(() => requests.at(-1).params.get("selection")).toBe("skipped");
   await expect(page.locator(".candidate-result-card")).toContainText("Sparse Plan Bound");
+  await expect(page.locator(".candidate-result-card .pattern-conclusion")).toContainText(
+    "more relevant work filled the bounded queue",
+  );
   await expect(page.locator(".candidate-result-card")).toContainText(
-    "higher-priority candidate occupied the bounded plan",
+    "Why AnaxiGraph considered this pair",
+  );
+  await expect(page.locator(".candidate-result-card")).toContainText(
+    "What AnaxiGraph could not check",
+  );
+  await expect(page.locator(".candidate-result-card .pattern-candidate-rank")).toContainText(
+    "not a pattern rating or recommendation",
   );
   await expect(page.locator(".candidate-result-card .pattern-details")).toContainText(
     "Does selection policy vary independently from execution",

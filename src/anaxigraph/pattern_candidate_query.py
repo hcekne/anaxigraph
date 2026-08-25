@@ -6,6 +6,7 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Any
 
+from anaxigraph.pattern_candidate_language import candidate_explanation
 from anaxigraph.pattern_candidate_models import PatternCandidatePolicy
 from anaxigraph.pattern_candidate_selection import CandidateDecision, candidate_decision
 from anaxigraph.pattern_catalog_models import PatternCard, PatternCatalog
@@ -204,6 +205,10 @@ def _candidate_item(
         "matched_signal_count": len(observed.matched if observed else ()),
         "counter_signal_count": len(observed.contradictions if observed else ()),
     }
+    observations = (*observed.matched, *observed.contradictions) if observed else ()
+    item["plain_language"] = candidate_explanation(
+        item, card.name, [value.as_dict() for value in observations]
+    )
     if include_evidence:
         item["details"] = _candidate_details(card, decision)
     return item

@@ -31,12 +31,7 @@
 .pattern-story-grid ul { margin: .4rem 0 0; padding-left: 1rem; color: var(--text); font-size: .72rem; line-height: 1.5; }
 .pattern-score-story section { border-color: var(--accent-border); background: var(--surface-detail); }
 .pattern-score-story span { display: block; margin-top: .35rem; color: var(--muted); font-size: .62rem; line-height: 1.4; }
-.candidate-metric-grid { display: grid; grid-template-columns: repeat(4, minmax(90px, 1fr)); gap: .45rem; }
-.candidate-factors { margin-top: 0; }
-.candidate-result-card .pattern-summary { padding-left: .75rem; border-left: 3px solid var(--blue); }
-.pattern-score { display: grid; gap: .25rem; min-width: 0; padding: .55rem; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-subtle); }
-.pattern-score span { overflow-wrap: anywhere; color: var(--muted); font-size: .58rem; text-transform: uppercase; }
-.pattern-score strong { color: var(--text-strong); font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.pattern-candidate-rank { padding: .65rem .75rem; border-left: 3px solid var(--blue); color: var(--muted); background: var(--surface-detail); font-size: .68rem; line-height: 1.5; }
 .pattern-review { align-items: center; padding: .7rem .8rem; border-left: 3px solid var(--accent); background: var(--surface-detail); }
 .pattern-review div { display: grid; gap: .25rem; }
 .pattern-review strong { color: var(--text-strong); font-size: .72rem; }
@@ -56,7 +51,6 @@
   .pattern-query-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .pattern-query-wide { grid-column: span 3; }
   .pattern-query-actions { grid-column: span 3; }
-  .candidate-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 700px) {
@@ -65,5 +59,4 @@
   .pattern-query-wide, .pattern-evidence-toggle, .pattern-query-actions { grid-column: auto; }
   .pattern-query-actions, .pattern-result-heading, .pattern-target, .pattern-review, .pattern-result-footer { align-items: stretch; flex-direction: column; }
   .pattern-verdicts, .pattern-result-footer > div { justify-content: flex-start; }
-  .candidate-metric-grid { grid-template-columns: 1fr; }
 }
