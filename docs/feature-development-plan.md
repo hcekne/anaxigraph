@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.31
+**Roadmap version:** 3.32
 
 **Updated:** 25 August 2026
 
@@ -2363,7 +2363,7 @@ when that change touches the code or cannot pass a hard quality gate without it.
 
 ## 9.0 Make the served map authoritative and current
 
-**Status:** ACTIVE — self-hosted MCP acceptance failed on 25 August 2026
+**Status:** AUTHORITATIVE MAP COMPLETE; SEMANTIC EXECUTION ACCEPTANCE ACTIVE on 25 August 2026
 
 The active AnaxiGraph MCP service returned snapshot 221 at commit `80a44a7`, with an empty semantic
 hierarchy, while the repository's `main` branch had advanced. The response was internally valid but
@@ -2389,6 +2389,26 @@ Fix and accept the existing lifecycle so that:
 The paused MaxOS semantic run remains paused. Reproduce and fix lifecycle defects against the
 self-hosted AnaxiGraph index and deterministic fixtures until the operator explicitly resumes that
 run.
+
+Delivered currentness acceptance reuses the existing registry, index, scanner, watcher, REST, and
+MCP paths. `served-map-status-v1` compares the saved commit and working-tree fingerprint with the
+mounted checkout and labels the map `current`, `stale`, `uncertain`, or `unavailable`; agent scope,
+impact, inventory, semantic status, and semantic work all carry that result. A stale map cannot
+claim semantic work. The structural watcher now starts by default, while the API/MCP service
+becomes healthy before a potentially long first scan and clearly serves the last map as stale until
+the replacement transaction commits. Current-schema index startup no longer reruns full migration
+and compatibility compaction, and the next lock-owning structural scan closes abandoned `running`
+records as `interrupted`.
+
+Live sidecar acceptance rebuilt the runtime at 0.3.0 and refreshed both configured repositories.
+Direct MCP reads returned AnaxiGraph snapshot 223 at commit `39254ef`, with the saved and checkout
+working-tree fingerprints equal, `safe_to_plan: true`, the service and scanner both at 0.3.0, both
+containers healthy/running, and zero phantom active structural runs. MaxOS likewise reached its
+exact checkout commit through the default watcher. The retained semantic run was not resumed;
+semantic status remained not ready with zero live or expired leases. The complete 565-test suite
+passed at 91.56% coverage before the two focused lifecycle follow-ups; 26 startup/onboarding tests,
+20 migration/recovery tests, and four scan-lock/storage tests passed afterward with all size,
+complexity, coupling, architecture, formatting, and hook gates clean.
 
 ## 9.1 Protect the smallest agent-facing contract
 
@@ -2614,8 +2634,8 @@ feature-admission rule.
 
 | # | Status | Outcome and acceptance | Specified in |
 |---:|---|---|---|
-| 1 | **ACTIVE** | Reproduce why the self-hosted MCP map lagged the checkout, then make CLI/MCP/watcher/sidecar identity and currentness explicit and consistent | §9.0 |
-| 2 | **NEXT** | Prove a bounded parallel agent-funded run uses operator-selected model settings, survives interruption, and reaches durable `complete` without losing finished work | §9.0 |
+| 1 | **COMPLETE** | Reproduce why the self-hosted MCP map lagged the checkout, then make CLI/MCP/watcher/sidecar identity and currentness explicit and consistent | §9.0 |
+| 2 | **ACTIVE** | Prove a bounded parallel agent-funded run uses operator-selected model settings, survives interruption, and reaches durable `complete` without losing finished work | §9.0 |
 | 3 | **NEXT** | On the current AnaxiGraph index, form and independently review the autonomous hierarchy with complete module coverage and no default human edit step | §9.0 and §9.2 |
 | 4 | **NEXT** | Run real AnaxiGraph tasks for placement, impact, multi-level pattern fit, large-file decomposition, and before/after verification; fix only demonstrated core defects | §9.2 |
 | 5 | **PAUSED BY OPERATOR** | Resume and finish the retained live MaxOS acceptance only after the operator explicitly lifts the pause | §9.2 |
