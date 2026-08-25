@@ -102,6 +102,7 @@
         "anaxigraph.scanner",
         "anaxigraph.semantic_agent",
         "anaxigraph.semantic_agent_contracts",
+        "anaxigraph.semantic_agent_paging",
         "anaxigraph.semantic_agent_protocol",
         "anaxigraph.semantic_group_membership",
         "anaxigraph.semantic_lease_claim",
