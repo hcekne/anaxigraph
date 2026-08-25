@@ -38,6 +38,8 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert (await client.get("/assets/dashboard-core.js")).status_code == 200
         assert (await client.get("/assets/graph-regions.js")).status_code == 200
         assert (await client.get("/assets/graph-regions.css")).status_code == 200
+        assert (await client.get("/assets/patterns-view.js")).status_code == 200
+        assert (await client.get("/assets/patterns.css")).status_code == 200
         assert (await client.get("/assets/themes.css")).status_code == 200
         repositories = (await client.get("/api/repositories")).json()
         assert repositories[0]["scannable"] is True

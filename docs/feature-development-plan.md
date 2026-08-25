@@ -88,7 +88,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 357 tests passing at 89.90% coverage plus 14 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, and pattern-intelligence paths are regression-tested |
+| Test health | 357 tests passing at 89.90% coverage plus 15 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, and pattern-intelligence paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -1713,8 +1713,8 @@ verification commands, and post-change architecture facts to compare.
 
 ## 6.8 Expose pattern intelligence without multiplying product surfaces
 
-**Status:** IN PROGRESS — current target/pattern projection, MCP, REST, and authority-aware CLI
-delivered on 25 August 2026; dashboard exploration and calibration remain.
+**Status:** IN PROGRESS — current target/pattern projection and all four product surfaces delivered
+on 25 August 2026; skipped-pair explanation and calibration remain.
 
 Reuse the existing semantic queue, leases, evidence paging, provenance, taxonomy, and bounded query
 infrastructure. Add one narrow evaluation projection keyed by target, pattern, snapshot, and
@@ -1746,8 +1746,14 @@ sidecar, falling back to the stable per-checkout local index only when no servic
 database and service selectors are mutually exclusive, and every response identifies its index
 authority so a completed sidecar map cannot be mistaken for an empty host-local index.
 
-Fourteen focused query-contract cases, completed-semantic projection coverage, REST integration, and
-a real MCP SDK round trip pass. The current complete suite passes 357 tests at 89.90% coverage;
+The dashboard adds a dedicated **Patterns** view without growing its 499-line HTML shell or
+498-line shared stylesheet. A separate 273-line controller and 58-line responsive stylesheet
+render all nine scores, critique and provider/model provenance, bounded filters and pagination,
+opt-in evidence, and one-click target/pattern pivots.
+
+Sixteen focused query-contract cases, CLI authority handoff coverage, completed-semantic projection
+coverage, REST integration, and a real MCP SDK round trip pass. The current complete suite passes
+357 tests at 89.90% coverage; all 15 browser contracts pass in the pinned Playwright container, and
 architecture, size, maintainability, formatting, and deterministic self-analysis gates report no
 errors or regressions.
 

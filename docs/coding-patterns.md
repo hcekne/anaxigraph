@@ -45,6 +45,10 @@ interpretations are opt-in. Every row retains provider, runtime model, executor,
 token, cost, confidence, and creation provenance; model identity is descriptive and is never part
 of catalog behavior.
 
+The dashboard's **Patterns** view uses the same projection. Each result keeps the nine scores
+visibly separate, shows the finalized critique and runtime provenance, and can pivot directly from
+one target to its competing patterns or from one catalog pattern to other evaluated targets.
+
 The CLI does not create a fresh scan while reading results. With no `--db`, it first matches a
 running loopback service by checkout path or canonical Git identity, then queries that authoritative
 index. If no matching service is running, it opens the stable per-checkout local index. Pass

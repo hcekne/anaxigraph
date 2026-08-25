@@ -29,6 +29,7 @@ import { renderHistory, stopHistoryPlayback } from "/assets/history-controller.j
 import { setupModuleEvents } from "/assets/module-events.js";
 import { renderModuleFilters, renderModules } from "/assets/module-view.js";
 import { renderOverview, scheduleSemanticPoll, selectedHierarchy } from "/assets/overview-view.js";
+import { resetPatternView, setupPatternView } from "/assets/patterns-view.js";
 import {
   displaySnapshot,
   renderOnboarding,
@@ -136,6 +137,7 @@ function resetRepositoryState() {
   state.modulePage = 1;
   state.expandedModuleId = null;
   state.hiddenGroups.clear();
+  resetPatternView();
 }
 
 function configureMapLayers() {
@@ -175,6 +177,7 @@ function renderAllViews() {
 
 state.reloadRepository = loadRepository;
 setupTheme();
+setupPatternView();
 setupModuleEvents();
 setupGraphEvents();
 setupGraphRegionEvents();
