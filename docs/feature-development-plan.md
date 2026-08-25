@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.32
+**Roadmap version:** 3.33
 
 **Updated:** 25 August 2026
 
@@ -2363,7 +2363,8 @@ when that change touches the code or cannot pass a hard quality gate without it.
 
 ## 9.0 Make the served map authoritative and current
 
-**Status:** AUTHORITATIVE MAP COMPLETE; SEMANTIC EXECUTION ACCEPTANCE ACTIVE on 25 August 2026
+**Status:** AUTHORITATIVE MAP AND SEMANTIC EXECUTOR COMPLETE; SELF-HOSTED HIERARCHY ACTIVE on
+25 August 2026
 
 The active AnaxiGraph MCP service returned snapshot 221 at commit `80a44a7`, with an empty semantic
 hierarchy, while the repository's `main` branch had advanced. The response was internally valid but
@@ -2409,6 +2410,21 @@ semantic status remained not ready with zero live or expired leases. The complet
 passed at 91.56% coverage before the two focused lifecycle follow-ups; 26 startup/onboarding tests,
 20 migration/recovery tests, and four scan-lock/storage tests passed afterward with all size,
 complexity, coupling, architecture, formatting, and hook gates clean.
+
+Semantic execution acceptance now separates process liveness from stage progress. The detached
+wrapper refreshes its own heartbeat while its child is alive, so a valid partitioned taxonomy job
+cannot be declared stalled merely because it needs more than one model call. Operator model names
+remain free-form, and Codex reasoning effort is passed through instead of being restricted by an
+AnaxiGraph-owned list; `gpt-5.6-terra`, `medium`, and a requested parallel limit of 30 are preserved
+through the command and durable-run record while repository policy still supplies the ceiling. The
+real MCP lifecycle fixture processes 200 modules in bounded 16-call waves, stops after 100 jobs,
+restarts the service, reclaims an abandoned expired lease, and reaches an empty durable queue,
+complete coverage, repository synthesis, pattern completion, and an independently reviewed
+taxonomy without changing source. The gate also caught and fixed a startup fast-path regression:
+current indexes still skip full migration/compaction, but restore missing bounded-history checkpoint
+metadata. Forty-five focused semantic lifecycle tests, 20 temporal/migration/recovery tests, and the
+complete 568-test suite pass; total coverage is 91.70%, and formatting, size, complexity, dependency,
+package-contract, and deterministic self-analysis gates are clean.
 
 ## 9.1 Protect the smallest agent-facing contract
 
@@ -2635,8 +2651,8 @@ feature-admission rule.
 | # | Status | Outcome and acceptance | Specified in |
 |---:|---|---|---|
 | 1 | **COMPLETE** | Reproduce why the self-hosted MCP map lagged the checkout, then make CLI/MCP/watcher/sidecar identity and currentness explicit and consistent | §9.0 |
-| 2 | **ACTIVE** | Prove a bounded parallel agent-funded run uses operator-selected model settings, survives interruption, and reaches durable `complete` without losing finished work | §9.0 |
-| 3 | **NEXT** | On the current AnaxiGraph index, form and independently review the autonomous hierarchy with complete module coverage and no default human edit step | §9.0 and §9.2 |
+| 2 | **COMPLETE** | Prove bounded parallel executor mechanics preserve operator-selected settings, survive interruption, and reach durable `complete` without losing finished work | §9.0 |
+| 3 | **ACTIVE** | On the current AnaxiGraph index, form and independently review the autonomous hierarchy with complete module coverage and no default human edit step | §9.0 and §9.2 |
 | 4 | **NEXT** | Run real AnaxiGraph tasks for placement, impact, multi-level pattern fit, large-file decomposition, and before/after verification; fix only demonstrated core defects | §9.2 |
 | 5 | **PAUSED BY OPERATOR** | Resume and finish the retained live MaxOS acceptance only after the operator explicitly lifts the pause | §9.2 |
 | 6 | **WAITING ON 1–5** | Prepare the evidence-backed 1.0 release candidate with the existing one-path documentation and release pipeline | §9.3 and Phase 9 gate |
