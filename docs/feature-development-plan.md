@@ -2422,9 +2422,10 @@ restarts the service, reclaims an abandoned expired lease, and reaches an empty 
 complete coverage, repository synthesis, pattern completion, and an independently reviewed
 taxonomy without changing source. The gate also caught and fixed a startup fast-path regression:
 current indexes still skip full migration/compaction, but restore missing bounded-history checkpoint
-metadata. Forty-five focused semantic lifecycle tests, 20 temporal/migration/recovery tests, and the
-complete 568-test suite pass; total coverage is 91.70%, and formatting, size, complexity, dependency,
-package-contract, and deterministic self-analysis gates are clean.
+metadata. Forty-six focused semantic lifecycle tests and 20 temporal/migration/recovery tests pass.
+The complete 568-test suite passed at 91.70% coverage before the final direct progress-sync
+assertion raised changed executable coverage for this slice to 100%; formatting, size, complexity,
+dependency, package-contract, and deterministic self-analysis gates are clean.
 
 ## 9.1 Protect the smallest agent-facing contract
 

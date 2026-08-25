@@ -186,6 +186,41 @@ def test_background_wrapper_keeps_healthy_child_alive_without_model_progress(tmp
     assert saved["worker_pid"] == 4322
 
 
+def test_background_wrapper_records_progress_without_replacing_its_liveness(tmp_path):
+    progress_path = tmp_path / "progress.json"
+    record_path = tmp_path / "run.json"
+    latest_path = tmp_path / "latest.json"
+    progress_path.write_text(
+        json.dumps(
+            {
+                "heartbeat_at": "2026-08-25T10:00:00+00:00",
+                "stage": "taxonomy_review",
+                "completed": 17,
+                "last_error": "retrying one review",
+            }
+        ),
+        encoding="utf-8",
+    )
+    record = {
+        "run_id": "run-1",
+        "progress_path": str(progress_path),
+        "heartbeat_at": "2026-08-25T10:00:05+00:00",
+        "progress_at": None,
+    }
+    latest_path.write_text(json.dumps(record), encoding="utf-8")
+
+    background._sync_progress(record, record_path, latest_path)
+
+    saved = json.loads(record_path.read_text(encoding="utf-8"))
+    assert saved["heartbeat_at"] == "2026-08-25T10:00:05+00:00"
+    assert saved["progress_at"] == "2026-08-25T10:00:00+00:00"
+    assert (saved["stage"], saved["completed"], saved["last_error"]) == (
+        "taxonomy_review",
+        17,
+        "retrying one review",
+    )
+
+
 def test_background_launch_records_spawn_failure(repository, tmp_path, monkeypatch):
     monkeypatch.setattr(background, "local_state_root", lambda: tmp_path)
 
