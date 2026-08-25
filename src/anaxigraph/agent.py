@@ -12,11 +12,12 @@ from anaxigraph.agent_graph import (
     _applicable_findings,
     _applicable_rules,
     _expand_relevant,
-    _interfaces,
     _projected_graph_maps,
+    _public_interfaces,
     _rank_files,
     _related_tests,
     _select_primary,
+    _symbols,
 )
 from anaxigraph.agent_impact import build_impact_analysis
 from anaxigraph.agent_payload import (
@@ -48,11 +49,7 @@ def agent_scope(
     with database.connect() as connection:
         files, outgoing, incoming = _projected_graph_maps(connection, snapshot_id)
         ranked = _rank_files(connection, snapshot_id, files, goal)
-        primary_ids = _select_primary(
-            ranked,
-            files,
-            limit=min(8, config.agent.context_limit),
-        )
+        primary_ids = _select_primary(ranked, files, limit=min(8, config.agent.context_limit))
         if not primary_ids and files:
             primary_ids = [next(iter(files))]
         related_ids, related_scores = _expand_relevant(
@@ -87,7 +84,8 @@ def agent_scope(
             relevant_ids,
             set(primary_ids),
         )
-        interfaces = _interfaces(connection, snapshot_id, primary_ids)
+        symbols = _symbols(connection, snapshot_id, primary_ids)
+        interfaces = _public_interfaces(symbols)
 
     conflicts = _scope_conflicts(repository, files, relevant_ids, branch)
     decision = _scope_decision(
@@ -99,6 +97,7 @@ def agent_scope(
         files,
         primary_ids,
         interfaces,
+        symbols,
         tests,
         findings,
         verification_baseline,
@@ -137,6 +136,7 @@ def _scope_decision(
     files: dict[int, dict[str, Any]],
     primary_ids: list[int],
     interfaces: list[dict[str, Any]],
+    symbols: list[dict[str, Any]],
     tests: set[str],
     findings: list[dict[str, Any]],
     verification_baseline: dict[str, Any] | None,
@@ -149,6 +149,7 @@ def _scope_decision(
         snapshot_id=snapshot_id,
         primary_files=[files[item] for item in primary_ids],
         interfaces=interfaces,
+        symbols=symbols,
         tests=sorted(tests),
         findings=findings,
         verification_baseline=verification_baseline,

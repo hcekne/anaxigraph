@@ -14,6 +14,8 @@ from anaxigraph.agent_graph_read import (
 from anaxigraph.agent_graph_read import (
     _projected_graph_maps as _projected_graph_maps,
 )
+from anaxigraph.agent_graph_read import _public_interfaces as _public_interfaces
+from anaxigraph.agent_graph_read import _symbols as _symbols
 from anaxigraph.agent_lexicon import GOAL_STOPWORDS, WORD_PATTERN, split_camel
 from anaxigraph.agent_scope_evidence import (
     _applicable_findings as _applicable_findings,

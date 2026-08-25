@@ -85,6 +85,8 @@
       "modules": [
         "anaxigraph.agent",
         "anaxigraph.agent_change_effects",
+        "anaxigraph.agent_decomposition",
+        "anaxigraph.agent_decomposition_mapping",
         "anaxigraph.agent_decision",
         "anaxigraph.agent_decision_handoff_language",
         "anaxigraph.agent_decision_language",

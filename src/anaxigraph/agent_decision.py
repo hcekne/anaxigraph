@@ -11,6 +11,7 @@ from anaxigraph.agent_decision_handoff_language import (
     placement_explanation,
 )
 from anaxigraph.agent_decision_safety import consolidation_advice, dead_code_advice, verification
+from anaxigraph.agent_decomposition import decomposition_advice
 from anaxigraph.pattern_intelligence import PatternIntelligenceService
 
 ARCHITECTURE_DECISION_VERSION = "architecture-decision-v1"
@@ -28,6 +29,7 @@ def architecture_decision(
     snapshot_id: int,
     primary_files: list[dict[str, Any]],
     interfaces: list[dict[str, Any]],
+    symbols: list[dict[str, Any]],
     tests: list[str],
     findings: list[dict[str, Any]],
     verification_baseline: dict[str, Any] | None = None,
@@ -37,6 +39,7 @@ def architecture_decision(
         snapshot_id=snapshot_id,
         primary_files=primary_files,
         interfaces=interfaces,
+        symbols=symbols,
         tests=tests,
         findings=findings,
         pattern_items=patterns,
@@ -57,6 +60,7 @@ def build_architecture_decision(
     repository_identity: str = "",
     goal: str = "",
     verification_baseline: dict[str, Any] | None = None,
+    symbols: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     preferred = _preferred_file(primary_files)
     reviewed_patterns = _reviewed_patterns(pattern_items)
@@ -73,6 +77,13 @@ def build_architecture_decision(
         "change_constraints": _change_constraints(primary_files),
         "patterns": _pattern_packet(reviewed_patterns),
         "consolidation": consolidation_advice(primary_files, reviewed_patterns),
+        "decomposition": decomposition_advice(
+            primary_files,
+            symbols or [],
+            tests,
+            findings,
+            reviewed_patterns,
+        ),
         "dead_code": dead_code_advice(primary_files, findings),
         "verification": verification(
             snapshot_id,

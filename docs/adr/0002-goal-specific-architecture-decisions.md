@@ -29,6 +29,8 @@ ranked primary modules; the decision composes current evidence for those modules
   `pattern_review` documents and retaining critique and runtime provenance;
 - consolidation advice with supporting evidence, counter-evidence, graph degree, responsibility,
   contracts, placement, and an explicit unavailable state for evidence not yet projected;
+- bounded large-file decomposition advice that maps current semantic responsibilities back to
+  named symbols, callers, dependencies, contracts, tests, and honest destination modules;
 - dead-code candidates with deterministic and semantic evidence kept distinct; and
 - focused tests, semantic test guidance, a tokenized rescan command, exact post-change facts, and
   an optional machine-readable comparison with an earlier baseline.
@@ -67,6 +69,10 @@ The packet preserves the product's fact/interpretation/recommendation boundary:
     instructions. The architecture packet checks them against repository evidence before explaining
     pattern, consolidation, or removal advice, and the dashboard renders it without adding a human
     approval gate.
+11. File size starts a decomposition inspection but never creates a split. A candidate requires a
+    current dossier, explicit supporting and opposing evidence, at least two named responsibilities,
+    and an unambiguous deterministic mapping to symbols for at least two jobs. Cohesive, stale,
+    ambiguous, or weak evidence produces a keep-together or insufficient-evidence result.
 
 ## Bounds and freshness
 
@@ -91,7 +97,9 @@ Normal scan and semantic fingerprints continue to own invalidation; this read mo
 separate freshness mechanism or stored state. Exact target queries reuse the bounded pattern
 application service. If the scope payload exceeds its configured byte budget, detailed decision
 evidence is compacted while contract version, status, preferred path, comparison summary, and the
-highest-priority structural effects remain.
+highest-priority structural effects remain. `large-file-decomposition-v1` returns at most five
+files and five responsibility slices, preserves the extraction order in compact packets, and adds
+no semantic job, provider call, persistent state, route, or dashboard screen.
 
 ## Consequences
 

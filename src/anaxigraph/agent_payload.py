@@ -12,6 +12,7 @@ from typing import Any
 from anaxigraph import git
 from anaxigraph.agent_change_effects import compact_structural_effects
 from anaxigraph.agent_decision_handoff_language import compact_explanation
+from anaxigraph.agent_decomposition import compact_decomposition
 from anaxigraph.config import AnaxiGraphConfig, path_matches
 from anaxigraph.guidance import FILE_MEASUREMENT_MEANINGS
 from anaxigraph.semantic_file_language import semantic_file_explanation
@@ -280,6 +281,7 @@ def _compact_decision(decision: dict[str, Any]) -> dict[str, Any]:
         "placement": _compact_placement(decision.get("placement")),
         "patterns": _compact_pattern_counts(decision.get("patterns")),
         "consolidation_count": len(decision.get("consolidation") or []),
+        "decomposition": compact_decomposition(decision.get("decomposition")),
         "change_constraint_count": len(
             (decision.get("change_constraints") or {}).get("items") or []
         ),

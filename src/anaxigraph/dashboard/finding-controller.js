@@ -133,7 +133,29 @@ function architectureDecisionMarkup(decision = {}) {
     ${decisionText("Where to start", placement.conclusion)}
     ${decisionText("What to preserve", constraints.conclusion)}
     ${decisionText("How to verify it", verification.conclusion)}
-    ${decisionList("Next steps", verification.what_to_do || [])}</section>`;
+    ${decisionList("Next steps", verification.what_to_do || [])}
+    ${decompositionMarkup(decision.decomposition)}</section>`;
+}
+
+function decompositionMarkup(decomposition = {}) {
+  const items = decomposition.items || [];
+  if (!items.length) return "";
+  return items.map((item) => {
+    const language = item.plain_language || {};
+    const slices = (item.slices || []).map((slice) => {
+      const names = slice.symbol_names
+        || (slice.symbols || []).map((symbol) => symbol.name).filter(Boolean);
+      const destination = slice.destination?.path
+        ? ` → ${slice.destination.path}`
+        : "";
+      return `${slice.job}${destination}${names.length ? `: ${names.join(", ")}` : ""}`;
+    });
+    return `<div class="agent-decomposition"><h4>Should this large file be split?</h4>
+      ${decisionText("Recommendation", language.conclusion)}
+      ${decisionList("Safe extraction order", slices)}
+      ${decisionList("Why keeping it together may be better", language.reasons_not_to_split || [])}
+      ${decisionList("Checks after each step", language.how_to_check || [])}</div>`;
+  }).join("");
 }
 
 function decisionText(title, value) {

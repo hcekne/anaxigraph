@@ -131,6 +131,13 @@ require trusted graph resolution plus analyzer support for entry points and regi
 detected entry points are suppressed. No result is presented as automatic permission to merge,
 split, or delete code.
 
+For a selected oversized file, that same scope response may include
+`architecture_decision.decomposition`. A concrete split appears only when the current dossier
+names separate responsibilities, argues both for and against the split, and those jobs map
+unambiguously to real symbols. The packet names callers, contracts, focused tests, destination
+evidence, and a bounded extraction order. Size by itself returns no split, and stale, cohesive, or
+ambiguous evidence tells the agent to keep the file together or gather better evidence.
+
 Treat 40 logical lines per function and 500 source LOC per module as inspection signals. Prefer a
 cohesive module over forwarding layers. Add an abstraction only for multiple real implementations
 or a demonstrated bug class. Avoid hidden global state and circular dependencies. Changed behavior

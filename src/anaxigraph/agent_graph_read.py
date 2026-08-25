@@ -87,6 +87,12 @@ def _dependency_maps(
         incoming.setdefault(artifact_id, set())
         files[artifact_id]["fan_out"] = len(outgoing[artifact_id])
         files[artifact_id]["fan_in"] = len(incoming[artifact_id])
+        files[artifact_id]["outgoing_paths"] = sorted(
+            files[target]["path"] for target in outgoing[artifact_id] if target in files
+        )
+        files[artifact_id]["incoming_paths"] = sorted(
+            files[source]["path"] for source in incoming[artifact_id] if source in files
+        )
     return outgoing, incoming
 
 
@@ -123,7 +129,7 @@ def _semantic_field(value: dict[str, Any], key: str, default: Any) -> Any:
     return default if selected is None else selected
 
 
-def _interfaces(
+def _symbols(
     connection: sqlite3.Connection, snapshot_id: int, artifact_ids: list[int]
 ) -> list[dict[str, Any]]:
     if not artifact_ids:
@@ -131,16 +137,27 @@ def _interfaces(
     placeholders = ",".join("?" for _ in artifact_ids)
     rows = connection.execute(
         f"""
-        SELECT fv.path, s.symbol_type, s.name, s.signature, s.summary
+        SELECT fv.path, s.symbol_type, s.name, s.qualified_name, s.signature,
+               s.start_line, s.end_line, s.summary
         FROM projected_symbols s
         JOIN projected_file_versions fv ON fv.id = s.artifact_version_id
         WHERE fv.snapshot_id = ? AND fv.artifact_id IN ({placeholders})
-          AND s.symbol_type IN ('class', 'api_endpoint', 'database_model')
-        ORDER BY fv.path, s.start_line LIMIT 100
+        ORDER BY fv.path, s.start_line LIMIT 1000
         """,
         [snapshot_id, *artifact_ids],
     ).fetchall()
     return [dict(row) for row in rows]
+
+
+def _public_interfaces(symbols: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    kinds = {"class", "api_endpoint", "database_model"}
+    return [item for item in symbols if item.get("symbol_type") in kinds][:100]
+
+
+def _interfaces(
+    connection: sqlite3.Connection, snapshot_id: int, artifact_ids: list[int]
+) -> list[dict[str, Any]]:
+    return _public_interfaces(_symbols(connection, snapshot_id, artifact_ids))
 
 
 def _json(value: str) -> Any:

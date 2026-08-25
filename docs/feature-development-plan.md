@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.23
+**Roadmap version:** 3.24
 
 **Updated:** 25 August 2026
 
@@ -2159,6 +2159,25 @@ Size alone never fabricates a split. If the file has one cohesive job or the sem
 strong enough, say to keep it together and identify the missing evidence. AnaxiGraph proposes the
 map; it does not edit the analyzed repository.
 
+`large-file-decomposition-v1` now adds that map to the existing `architecture-decision-v1`
+response. It reuses current dossiers, projected symbols, direct callers/dependencies, focused
+tests, size findings, and finalized pattern reviews; it adds no semantic job, provider call,
+table, endpoint, or screen. A split candidate requires a current dossier, an explicit split
+recommendation of at least 65, supporting and opposing evidence, at least two named
+responsibilities, and an unambiguous symbol mapping covering at least 60% of the selected file's
+symbols. At most five files, five slices, and 30 symbols per slice are returned. The slice with the
+most caller-facing contracts stays in the original file while lower-contract slices are ordered
+first. If an existing destination cannot be justified from current similar-module evidence, the
+result leaves the path unset and tells the agent to check the map before creating a sibling file.
+
+Cohesive, stale, weak, ambiguous, and unmapped cases return `keep_together` or
+`insufficient_evidence`, never a speculative extraction plan. The full and compact scope packets
+retain the decision and extraction order, and the existing Agents view explains the recommendation,
+counter-evidence, and checks. Focused backend tests and all 16 browser contracts pass; the complete
+repository gate passes with 541 tests at 91.47% coverage, 0 self-analysis regressions, and the
+container, first-user, Compose, package, formatting, size, complexity, and architecture contracts
+all green.
+
 ## 7.4 Make hierarchy navigation task-centered
 
 Reuse the current Map, module inspector, search, and scope response so a coding goal can move from
@@ -2427,7 +2446,7 @@ queue and the document cannot drift apart.
 | 42 | **IMPLEMENTED; LIVE CALIBRATION PAUSED** — Goal-specific placement, consolidation/unused-code safety, readable main and expanded evidence, calibration contracts, and post-change comparison are complete; the only remaining evidence is live calibration after the semantic-run pause is lifted | §6.7–6.8 |
 | 43 | **IMPLEMENTED; LIVE ACCEPTANCE PAUSED** — Make repository-sized semantic bootstrap linear, authoritative, nonblocking, resumable, and deterministically complete | §6.9 |
 | 44 | **COMPLETE** — Make the existing scope → update → scope loop distinguish introduced, worsened, improved, resolved, and pre-existing structural effects | §7.1–7.2 |
-| 45 | Turn mixed-responsibility large-file warnings into bounded, evidence-backed decomposition maps, while explicitly keeping cohesive files together | §7.3 |
+| 45 | **COMPLETE** — Turn mixed-responsibility large-file warnings into bounded, evidence-backed decomposition maps, while explicitly keeping cohesive files together | §7.3 |
 | 46 | Make existing hierarchy navigation task-centered from area through symbol without another graph or dashboard surface | §7.4–7.5 |
 | 47 | Add only change coupling, hotspot trends, and introduction/resolution evidence that improves a current architecture decision | Phase 8 |
 | 48 | Freeze, validate, document, and release the honestly supported core loop | Phase 9 |
