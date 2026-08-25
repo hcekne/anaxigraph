@@ -233,37 +233,51 @@ def validated_agent_result(
 def _validate_schema(value: Any, schema: dict[str, Any], path: str) -> None:
     expected = schema.get("type")
     if expected == "object":
-        if not isinstance(value, dict):
-            raise SemanticAnalysisError(f"{path} must be an object")
-        properties = schema.get("properties") or {}
-        missing = [key for key in schema.get("required") or [] if key not in value]
-        if missing:
-            raise SemanticAnalysisError(
-                f"{path} is missing required fields: {', '.join(sorted(missing))}"
-            )
-        if schema.get("additionalProperties") is False:
-            unexpected = sorted(set(value) - set(properties))
-            if unexpected:
-                raise SemanticAnalysisError(
-                    f"{path} has unsupported fields: {', '.join(unexpected)}"
-                )
-        for key, child in properties.items():
-            if key in value:
-                _validate_schema(value[key], child, f"{path}.{key}")
+        _validate_object(value, schema, path)
         return
     if expected == "array":
-        if not isinstance(value, list):
-            raise SemanticAnalysisError(f"{path} must be an array")
-        child = schema.get("items") or {}
-        for index, item in enumerate(value):
-            _validate_schema(item, child, f"{path}[{index}]")
+        _validate_array(value, schema, path)
         return
+    _validate_scalar(value, expected, path)
+    _validate_constraints(value, schema, path)
+
+
+def _validate_object(value: Any, schema: dict[str, Any], path: str) -> None:
+    if not isinstance(value, dict):
+        raise SemanticAnalysisError(f"{path} must be an object")
+    properties = schema.get("properties") or {}
+    missing = [key for key in schema.get("required") or [] if key not in value]
+    if missing:
+        raise SemanticAnalysisError(
+            f"{path} is missing required fields: {', '.join(sorted(missing))}"
+        )
+    if schema.get("additionalProperties") is False:
+        unexpected = sorted(set(value) - set(properties))
+        if unexpected:
+            raise SemanticAnalysisError(f"{path} has unsupported fields: {', '.join(unexpected)}")
+    for key, child in properties.items():
+        if key in value:
+            _validate_schema(value[key], child, f"{path}.{key}")
+
+
+def _validate_array(value: Any, schema: dict[str, Any], path: str) -> None:
+    if not isinstance(value, list):
+        raise SemanticAnalysisError(f"{path} must be an array")
+    child = schema.get("items") or {}
+    for index, item in enumerate(value):
+        _validate_schema(item, child, f"{path}[{index}]")
+
+
+def _validate_scalar(value: Any, expected: Any, path: str) -> None:
     if expected == "string" and not isinstance(value, str):
         raise SemanticAnalysisError(f"{path} must be a string")
     if expected == "integer" and (not isinstance(value, int) or isinstance(value, bool)):
         raise SemanticAnalysisError(f"{path} must be an integer")
     if expected == "number" and (not isinstance(value, (int, float)) or isinstance(value, bool)):
         raise SemanticAnalysisError(f"{path} must be a number")
+
+
+def _validate_constraints(value: Any, schema: dict[str, Any], path: str) -> None:
     if "enum" in schema and value not in schema["enum"]:
         raise SemanticAnalysisError(f"{path} must be one of: {', '.join(schema['enum'])}")
     if isinstance(value, (int, float)) and not isinstance(value, bool):

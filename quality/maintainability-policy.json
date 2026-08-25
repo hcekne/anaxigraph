@@ -35,7 +35,6 @@
     "src/anaxigraph/scanner.py::RepositoryScanner._scan": [151, 8],
     "src/anaxigraph/semantic.py::ClaudeSemanticProvider.analyze": [51, 11],
     "src/anaxigraph/semantic_contract.py::validated_result": [56, 11],
-    "src/anaxigraph/semantic_contract.py::_validate_schema": [41, 31],
     "src/anaxigraph/semantic_records.py::_ensure_job": [59, 2],
     "src/anaxigraph/semantic_requests.py::SemanticEvidenceService._intrinsic_request": [62, 10],
     "src/anaxigraph/semantic_runner.py::SemanticRunnerService.bootstrap": [54, 12],
