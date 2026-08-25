@@ -15,6 +15,7 @@ from typing import Any
 from anaxigraph import git
 from anaxigraph.config import load_config
 from anaxigraph.onboarding_clients import validate_mcp_url
+from anaxigraph.pattern_query import PatternEvaluationQuery
 
 DEFAULT_SERVICE_URL = "http://127.0.0.1:8765"
 
@@ -125,6 +126,29 @@ def service_semantic_status(
     value = _request_json(f"{target.base_url}/api/semantic?{query}", timeout=timeout)
     if not isinstance(value, dict):
         raise ValueError("AnaxiGraph service returned an invalid semantic status")
+    return value
+
+
+def service_pattern_evaluations(
+    target: SemanticServiceTarget,
+    request: PatternEvaluationQuery,
+    *,
+    snapshot_id: int | None = None,
+    timeout: float = 10,
+) -> dict[str, Any]:
+    parameters: dict[str, Any] = {
+        "repository_id": target.repository_id,
+        "snapshot_id": snapshot_id,
+        **request.filters(),
+        "limit": request.limit,
+        "offset": request.offset,
+    }
+    query = urllib.parse.urlencode(
+        {key: value for key, value in parameters.items() if value not in (None, "")}
+    )
+    value = _request_json(f"{target.base_url}/api/patterns?{query}", timeout=timeout)
+    if not isinstance(value, dict):
+        raise ValueError("AnaxiGraph service returned an invalid pattern projection")
     return value
 
 

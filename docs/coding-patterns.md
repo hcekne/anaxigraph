@@ -32,6 +32,7 @@ Only a completed independent critique appears in the current pattern projection.
 bounded query in either direction:
 
 ```text
+anaxigraph patterns . --target module:src/service.py --sort-by opportunity --json
 ANAXIGRAPH_PATTERNS(target="module:src/service.py", sort_by="opportunity")
 ANAXIGRAPH_PATTERNS(pattern="strategy", sort_by="conformance")
 GET /api/patterns?target=src/service.py&include_evidence=true
@@ -43,6 +44,12 @@ offset, and limit. Detailed score evidence, contradictions, review issues, and c
 interpretations are opt-in. Every row retains provider, runtime model, executor, prompt/schema,
 token, cost, confidence, and creation provenance; model identity is descriptive and is never part
 of catalog behavior.
+
+The CLI does not create a fresh scan while reading results. With no `--db`, it first matches a
+running loopback service by checkout path or canonical Git identity, then queries that authoritative
+index. If no matching service is running, it opens the stable per-checkout local index. Pass
+`--service-url` or `--db` to choose explicitly; they are mutually exclusive. The JSON response
+always includes `index.authority` and the selected service/repository identity or database path.
 
 Treat 40 logical lines per function and 500 source LOC per module as inspection signals. Prefer a
 cohesive module over forwarding layers. Add an abstraction only for multiple real implementations

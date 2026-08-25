@@ -38,6 +38,7 @@ def test_repository_agent_and_export_handlers_share_the_current_scan(
     scoped = _call(["scope", *common, "--goal", "Change the calculator"], capsys)
     impacted = _call(["impact", *common, "--target", "pkg/core.py"], capsys)
     collisions = _call(["collisions", *common], capsys)
+    patterns = _call(["patterns", *common, "--limit", "1"], capsys)
     exported = _call(["export", *common], capsys)
 
     assert scanned["status"] == "ok"
@@ -45,6 +46,9 @@ def test_repository_agent_and_export_handlers_share_the_current_scan(
     assert scoped["goal"] == "Change the calculator"
     assert impacted["target"]["path"] == "pkg/core.py"
     assert collisions["branches"] == {}
+    assert patterns["contract_version"] == "pattern-query-v1"
+    assert patterns["index"]["authority"] == "local"
+    assert patterns["total"] == 0
     assert exported["contract_version"] == "anaxigraph-export-v1"
     assert exported["graph"]["nodes"]
     assert exported["graph"]["counts"]["page_internal_nodes"] <= 250
@@ -296,6 +300,53 @@ def test_understand_background_passes_runtime_codex_settings(repository, capsys,
         "effort": "medium",
         "mode": "codex",
         "service": target,
+    }
+
+
+def test_pattern_query_uses_the_matching_authoritative_service(repository, capsys, monkeypatch):
+    target = SemanticServiceTarget("http://127.0.0.1:9999", 17, "Sample", "/repo")
+    captured = {}
+
+    monkeypatch.setattr(
+        "anaxigraph.cli_pattern_commands.discover_semantic_service",
+        lambda *_a, **_k: target,
+    )
+
+    def query_service(service, request, *, snapshot_id=None):
+        captured.update(
+            service=service,
+            target=request.target,
+            limit=request.limit,
+            snapshot_id=snapshot_id,
+        )
+        return {"contract_version": "pattern-query-v1", "total": 1, "items": [{}]}
+
+    monkeypatch.setattr(
+        "anaxigraph.cli_pattern_commands.service_pattern_evaluations", query_service
+    )
+    result = _call(
+        [
+            "patterns",
+            str(repository),
+            "--service-url",
+            target.base_url,
+            "--target",
+            "module:pkg/core.py",
+            "--snapshot-id",
+            "7",
+            "--limit",
+            "1",
+            "--json",
+        ],
+        capsys,
+    )
+
+    assert result["index"] == target.identity()
+    assert captured == {
+        "service": target,
+        "target": "module:pkg/core.py",
+        "limit": 1,
+        "snapshot_id": 7,
     }
 
 

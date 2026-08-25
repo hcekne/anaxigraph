@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import urllib.parse
+
 import pytest
 from semantic_support import _fake_provider, _semantic_config
 
@@ -11,6 +13,7 @@ from anaxigraph.pattern_query import (
     PatternEvaluationQuery,
 )
 from anaxigraph.scanner import RepositoryScanner
+from anaxigraph.semantic_service import SemanticServiceTarget, service_pattern_evaluations
 from anaxigraph.understanding import SemanticEngine
 
 
@@ -107,3 +110,48 @@ def test_current_projection_supports_target_and_pattern_directions(repository, d
     assert {item["pattern"]["key"] for item in pattern_results["items"]} == {
         first["pattern"]["key"]
     }
+
+
+def test_service_pattern_query_preserves_bounds_and_filters(monkeypatch):
+    captured = {}
+
+    def request_json(url, *, timeout):
+        captured.update(url=url, timeout=timeout)
+        return {"contract_version": "pattern-query-v1", "total": 0, "items": []}
+
+    monkeypatch.setattr("anaxigraph.semantic_service._request_json", request_json)
+    target = SemanticServiceTarget("http://127.0.0.1:8765", 17, "Fixture", "/repo")
+    query = PatternEvaluationQuery(
+        target="module:src/service.py",
+        pattern="strategy",
+        sort_by="suitability",
+        minimum_score=60,
+        limit=7,
+        offset=14,
+        include_evidence=True,
+    )
+
+    result = service_pattern_evaluations(target, query, snapshot_id=9, timeout=3)
+    parameters = urllib.parse.parse_qs(urllib.parse.urlsplit(captured["url"]).query)
+
+    assert result["contract_version"] == "pattern-query-v1"
+    assert captured["timeout"] == 3
+    assert parameters == {
+        "repository_id": ["17"],
+        "snapshot_id": ["9"],
+        "target": ["module:src/service.py"],
+        "pattern": ["strategy"],
+        "sort_by": ["suitability"],
+        "minimum_score": ["60"],
+        "include_evidence": ["True"],
+        "limit": ["7"],
+        "offset": ["14"],
+    }
+
+
+def test_service_pattern_query_rejects_an_invalid_projection(monkeypatch):
+    monkeypatch.setattr("anaxigraph.semantic_service._request_json", lambda *_a, **_k: [])
+    target = SemanticServiceTarget("http://127.0.0.1:8765", 17, "Fixture", "/repo")
+
+    with pytest.raises(ValueError, match="invalid pattern projection"):
+        service_pattern_evaluations(target, PatternEvaluationQuery())

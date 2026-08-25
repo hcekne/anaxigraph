@@ -209,7 +209,7 @@ runtime wiring can still be invisible, so a missing edge is never presented as p
 - **History** replays representative first-parent commits from repository initialization to HEAD.
 - **Agents** builds evidence-backed work scope and explains semantic progress.
 - **Pattern intelligence** lets agents query finalized evaluations by target or catalog pattern
-  through `ANAXIGRAPH_PATTERNS` or the bounded `/api/patterns` endpoint.
+  through `anaxigraph patterns`, `ANAXIGRAPH_PATTERNS`, or the bounded `/api/patterns` endpoint.
 
 ## 🎯 Findings are a workflow, not a wall
 

@@ -88,7 +88,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 355 tests passing at 89.90% coverage plus 14 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, and pattern-intelligence paths are regression-tested |
+| Test health | 357 tests passing at 89.90% coverage plus 14 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, and pattern-intelligence paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -1694,7 +1694,7 @@ evidence, but absence of that feedback never blocks the semantic map or pattern 
 | Incremental reuse | The plan is cached against current baseline document identities and catalog/contracts; unchanged reconciliation creates zero jobs, expired work is rebuilt, and a one-module implementation edit refreshes only that target plus conservatively affected hierarchy parents |
 | Provenance and handoff | Documents retain provider, model, executor, prompt, schema, token, cost, and evidence provenance; local executor handoff records retain selected reasoning effort, and runtime model/effort changes do not invalidate unchanged semantic or pattern understanding |
 | Compact implementation | Operational selection and lifecycle code remains about 1,490 physical lines, split into cohesive modules of 92–370 lines; every first-party implementation module remains below 500 lines and one obsolete complexity exception was removed |
-| Verification | 34 focused candidate/rating contracts plus command-provider and MCP-agent end-to-end lifecycle tests pass; the complete 355-test suite passes at 89.90% coverage, and deterministic self-analysis reports 43 governed findings, 133 non-blocking findings, and zero issues |
+| Verification | 34 focused candidate/rating contracts plus command-provider and MCP-agent end-to-end lifecycle tests pass; the complete 357-test suite passes at 89.90% coverage, and deterministic self-analysis reports 43 governed findings, 133 non-blocking findings, and zero issues |
 
 ## 6.7 Add consolidation, dead-code, and placement intelligence
 
@@ -1713,8 +1713,8 @@ verification commands, and post-change architecture facts to compare.
 
 ## 6.8 Expose pattern intelligence without multiplying product surfaces
 
-**Status:** IN PROGRESS — current target/pattern projection, MCP, and REST delivered on 25 August
-2026; CLI/dashboard exploration and calibration remain.
+**Status:** IN PROGRESS — current target/pattern projection, MCP, REST, and authority-aware CLI
+delivered on 25 August 2026; dashboard exploration and calibration remain.
 
 Reuse the existing semantic queue, leases, evidence paging, provenance, taxonomy, and bounded query
 infrastructure. Add one narrow evaluation projection keyed by target, pattern, snapshot, and
@@ -1740,8 +1740,14 @@ recommendation, offset/limit, compact defaults, and opt-in detailed evidence are
 projection reuses existing semantic documents and scope states; it adds no table, vector store,
 provider path, or catalog coupling.
 
+`anaxigraph patterns` exposes that contract without creating a new scan. When `--db` is omitted it
+uses the same checkout/Git-identity discovery as semantic execution to select a matching active
+sidecar, falling back to the stable per-checkout local index only when no service matches. Explicit
+database and service selectors are mutually exclusive, and every response identifies its index
+authority so a completed sidecar map cannot be mistaken for an empty host-local index.
+
 Fourteen focused query-contract cases, completed-semantic projection coverage, REST integration, and
-a real MCP SDK round trip pass. The current complete suite passes 355 tests at 89.90% coverage;
+a real MCP SDK round trip pass. The current complete suite passes 357 tests at 89.90% coverage;
 architecture, size, maintainability, formatting, and deterministic self-analysis gates report no
 errors or regressions.
 

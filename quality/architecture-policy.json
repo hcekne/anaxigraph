@@ -151,6 +151,7 @@
         "anaxigraph.cli_agent_commands",
         "anaxigraph.cli_common",
         "anaxigraph.cli_index_commands",
+        "anaxigraph.cli_pattern_commands",
         "anaxigraph.cli_parser",
         "anaxigraph.cli_repository_commands",
         "anaxigraph.cli_semantic_commands",
