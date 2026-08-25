@@ -17,21 +17,24 @@ from anaxigraph.persistence.index_facade import (
     SCHEMA,
     SCHEMA_VERSION,
     FindingPageQuery,
-    GraphReadCache,
     empty_pattern_evidence,
+    index_graph_delta,
+    index_graph_neighborhood,
+    index_graph_overview,
+    index_graph_page,
+    index_modules,
     initialize_index,
     install_snapshot_projection,
     read_file_details,
     read_finding,
     read_finding_page,
     read_findings,
-    read_graph,
     read_group_hierarchy,
-    read_modules,
     read_overview,
     read_pattern_evidence,
     read_snapshots,
     read_timeline,
+    resolve_snapshot,
     search_modules,
     taxonomy_map_payload,
 )
@@ -47,7 +50,6 @@ class AnaxiIndex:
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path).expanduser().resolve()
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._graph_cache = GraphReadCache()
         self.initialize()
 
     def connect(self) -> sqlite3.Connection:
@@ -73,7 +75,6 @@ class AnaxiIndex:
             connection.execute("BEGIN IMMEDIATE")
             yield connection
             connection.commit()
-            self._graph_cache.clear()
         except Exception:
             connection.rollback()
             raise
@@ -308,14 +309,16 @@ class AnaxiIndex:
             install_snapshot_projection(connection, int(snapshot["id"]), include_symbols=False)
             return taxonomy_map_payload(connection, int(snapshot["id"]))
 
-    def modules(self, repository_id: int, snapshot_id: int | None = None) -> list[dict[str, Any]]:
+    def modules(
+        self,
+        repository_id: int,
+        snapshot_id: int | None = None,
+        *,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
         """Return the file-level intelligence ledger for inventory views and agents."""
-
-        snapshot = self._resolve_snapshot(repository_id, snapshot_id)
-        if snapshot is None:
-            return []
-        with self.connect() as connection:
-            return read_modules(connection, repository_id, int(snapshot["id"]))
+        return index_modules(self, repository_id, snapshot_id, limit=limit, offset=offset)
 
     def pattern_evidence(
         self,
@@ -336,25 +339,7 @@ class AnaxiIndex:
 
     def _resolve_snapshot(self, repository_id: int, snapshot_id: int | None) -> sqlite3.Row | None:
         with self.connect() as connection:
-            if snapshot_id is None:
-                row = connection.execute(
-                    """
-                    SELECT s.* FROM repositories r
-                    JOIN snapshots s ON s.id = r.current_snapshot_id
-                    WHERE r.id = ?
-                    """,
-                    (repository_id,),
-                ).fetchone()
-                if row is not None:
-                    return row
-                return connection.execute(
-                    "SELECT * FROM snapshots WHERE repository_id = ? ORDER BY id DESC LIMIT 1",
-                    (repository_id,),
-                ).fetchone()
-            return connection.execute(
-                "SELECT * FROM snapshots WHERE id = ? AND repository_id = ?",
-                (snapshot_id, repository_id),
-            ).fetchone()
+            return resolve_snapshot(connection, repository_id, snapshot_id)
 
     def graph(
         self,
@@ -362,23 +347,62 @@ class AnaxiIndex:
         snapshot_id: int | None = None,
         *,
         include_external: bool = False,
+        query: Any | None = None,
     ) -> dict[str, Any]:
-        snapshot = self._resolve_snapshot(repository_id, snapshot_id)
-        if snapshot is None:
-            return {"nodes": [], "edges": [], "snapshot": None}
-        key = (repository_id, int(snapshot["id"]), include_external)
-        cached = self._graph_cache.get(key)
-        if cached is not None:
-            return cached
-        with self.connect() as connection:
-            result = read_graph(
-                connection,
-                repository_id,
-                snapshot,
-                include_external=include_external,
-            )
-        self._graph_cache.put(key, result)
-        return result
+        return index_graph_page(
+            self,
+            repository_id,
+            snapshot_id,
+            include_external=include_external,
+            query=query,
+        )
+
+    def graph_overview(
+        self,
+        repository_id: int,
+        snapshot_id: int | None = None,
+        *,
+        level: str,
+        group_limit: int,
+        edge_limit: int,
+        include_external: bool = False,
+    ) -> dict[str, Any]:
+        return index_graph_overview(
+            self,
+            repository_id,
+            snapshot_id,
+            level=level,
+            group_limit=group_limit,
+            edge_limit=edge_limit,
+            include_external=include_external,
+        )
+
+    def graph_neighborhood(
+        self,
+        repository_id: int,
+        snapshot_id: int | None = None,
+        *,
+        query: Any,
+    ) -> dict[str, Any]:
+        return index_graph_neighborhood(self, repository_id, snapshot_id, query=query)
+
+    def graph_delta(
+        self,
+        repository_id: int,
+        baseline_snapshot_id: int,
+        target_snapshot_id: int | None = None,
+        *,
+        node_limit: int,
+        edge_limit: int,
+    ) -> dict[str, Any]:
+        return index_graph_delta(
+            self,
+            repository_id,
+            baseline_snapshot_id,
+            target_snapshot_id,
+            node_limit=node_limit,
+            edge_limit=edge_limit,
+        )
 
     def file_details(
         self, repository_id: int, path: str, snapshot_id: int | None = None

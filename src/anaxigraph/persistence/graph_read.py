@@ -3,104 +3,85 @@
 from __future__ import annotations
 
 import sqlite3
-import threading
-from collections import Counter, OrderedDict
-from typing import Any, Mapping
+from collections import Counter
+from typing import Any
 
-from anaxigraph.persistence.semantic_taxonomy_read import taxonomy_assignments
-from anaxigraph.persistence.temporal_reads import (
-    snapshot_files_with_diagnostics,
-    snapshot_relationship_edges_with_diagnostics,
-)
 from anaxigraph.relationships import (
     EXTERNAL,
     RESOLUTION_STATUSES,
     RESOLVED_INTERNAL,
     relationship_metadata,
-    relationship_quality,
     resolution_status,
 )
 
 
-class GraphReadCache:
-    """Small process-local cache for immutable snapshot graph read models."""
+def projected_graph_quality(connection: sqlite3.Connection) -> dict[str, Any]:
+    """Summarize an installed snapshot projection without materializing every edge."""
 
-    def __init__(self, capacity: int = 4) -> None:
-        self._capacity = capacity
-        self._values: OrderedDict[tuple[int, int, bool], dict[str, Any]] = OrderedDict()
-        self._lock = threading.RLock()
-
-    def get(self, key: tuple[int, int, bool]) -> dict[str, Any] | None:
-        with self._lock:
-            value = self._values.get(key)
-            if value is not None:
-                self._values.move_to_end(key)
-            return value
-
-    def put(self, key: tuple[int, int, bool], value: dict[str, Any]) -> None:
-        with self._lock:
-            self._values[key] = value
-            self._values.move_to_end(key)
-            while len(self._values) > self._capacity:
-                self._values.popitem(last=False)
-
-    def clear(self) -> None:
-        with self._lock:
-            self._values.clear()
-
-
-def read_graph(
-    connection: sqlite3.Connection,
-    repository_id: int,
-    snapshot: Mapping[str, Any],
-    *,
-    include_external: bool,
-) -> dict[str, Any]:
-    snapshot_id = int(snapshot["id"])
-    files, file_diagnostics = snapshot_files_with_diagnostics(
-        connection,
-        snapshot_id,
-        expand_metadata=False,
-    )
-    relationships, relationship_diagnostics = snapshot_relationship_edges_with_diagnostics(
-        connection, snapshot_id
-    )
-    relationships = [_annotated_relationship(edge) for edge in relationships]
-    nodes = _nodes(connection, repository_id, snapshot_id, files, relationships)
-    edges, external_nodes = _materialize_edges(
-        relationships,
-        include_external=include_external,
-    )
-    if include_external:
-        nodes.extend(
-            _external_node(node_id, label, status)
-            for node_id, (label, status) in external_nodes.items()
-        )
     return {
-        "snapshot": dict(snapshot),
-        "nodes": nodes,
-        "edges": edges,
-        "quality": _quality(files, relationships),
-        "reconstruction": {
-            "snapshot_id": snapshot_id,
-            "files": file_diagnostics.as_dict(),
-            "relationships": relationship_diagnostics.as_dict(),
-            "symbol_count": 0,
-        },
+        **_projected_resolution_quality(connection),
+        **_projected_analyzer_quality(connection),
     }
 
 
-def graph_quality(
-    connection: sqlite3.Connection,
-    relationship_rows: list[dict[str, Any]] | list[sqlite3.Row],
-) -> dict[str, Any]:
-    files = [
-        dict(row)
-        for row in connection.execute(
-            "SELECT analyzer, parse_error FROM projected_file_versions"
-        ).fetchall()
-    ]
-    return _quality(files, [dict(row) for row in relationship_rows])
+def _projected_resolution_quality(connection: sqlite3.Connection) -> dict[str, Any]:
+    rows = connection.execute(
+        """
+        SELECT CASE
+                 WHEN json_extract(metadata_json, '$.resolution_status') IN
+                      ('resolved_internal', 'ambiguous_internal', 'unresolved_internal', 'external')
+                 THEN json_extract(metadata_json, '$.resolution_status')
+                 WHEN target_artifact_id IS NOT NULL THEN 'resolved_internal'
+                 ELSE 'external'
+               END AS resolution_status,
+               COUNT(*) AS count
+        FROM projected_relationships GROUP BY resolution_status
+        """
+    ).fetchall()
+    counts = Counter({str(row["resolution_status"]): int(row["count"]) for row in rows})
+    internal = (
+        counts[RESOLVED_INTERNAL] + counts["ambiguous_internal"] + counts["unresolved_internal"]
+    )
+    unresolved = counts["ambiguous_internal"] + counts["unresolved_internal"]
+    return {
+        "status": "unavailable" if not internal else "complete" if not unresolved else "partial",
+        "resolution_rate": counts[RESOLVED_INTERNAL] / internal if internal else None,
+        "total_relationships": sum(counts.values()),
+        "internal_references": internal,
+        "resolved_internal": counts[RESOLVED_INTERNAL],
+        "ambiguous_internal": counts["ambiguous_internal"],
+        "unresolved_internal": counts["unresolved_internal"],
+        "external": counts[EXTERNAL],
+        "caveat": (
+            "Resolution measures extracted references only; dynamic runtime wiring can still be absent."
+        ),
+    }
+
+
+def _projected_analyzer_quality(connection: sqlite3.Connection) -> dict[str, Any]:
+    analyzers = Counter(
+        {
+            str(row["analyzer"]): int(row["count"])
+            for row in connection.execute(
+                "SELECT analyzer, COUNT(*) AS count FROM projected_file_versions GROUP BY analyzer"
+            ).fetchall()
+        }
+    )
+    return {
+        "analyzers": dict(sorted(analyzers.items())),
+        "ast_files": analyzers["builtin-python-ast"],
+        "lexical_files": analyzers["builtin-js-lexer"],
+        "fallback_files": analyzers["builtin-text"],
+        "parse_error_files": int(
+            connection.execute(
+                "SELECT COUNT(*) FROM projected_file_versions WHERE parse_error IS NOT NULL"
+            ).fetchone()[0]
+        ),
+        "extraction_caveat": (
+            "Python uses an AST parser; JavaScript and TypeScript use lexical extraction; "
+            "other supported text formats use fallback analysis."
+        ),
+    }
 
 
 def decode_relationship(value: dict[str, Any]) -> dict[str, Any]:
@@ -117,38 +98,7 @@ def decode_relationship(value: dict[str, Any]) -> dict[str, Any]:
     return value
 
 
-def _nodes(
-    connection: sqlite3.Connection,
-    repository_id: int,
-    snapshot_id: int,
-    files: list[dict[str, Any]],
-    relationships: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
-    incoming = Counter(
-        int(edge["target_artifact_id"])
-        for edge in relationships
-        if edge["target_artifact_id"] is not None
-    )
-    outgoing = Counter(int(edge["source_artifact_id"]) for edge in relationships)
-    coverage = _coverage_by_artifact(connection, snapshot_id)
-    changes = _changes_by_path(connection, repository_id)
-    assignments = taxonomy_assignments(connection, snapshot_id)
-    parents = _group_parents(connection, repository_id)
-    return [
-        _node(
-            file,
-            incoming=incoming[int(file["artifact_id"])],
-            outgoing=outgoing[int(file["artifact_id"])],
-            coverage=coverage.get(int(file["artifact_id"])),
-            changes=changes.get(str(file["path"]), 0),
-            assignment=assignments.get(int(file["artifact_id"])),
-            parents=parents,
-        )
-        for file in files
-    ]
-
-
-def _node(
+def graph_node(
     file: dict[str, Any],
     *,
     incoming: int,
@@ -161,7 +111,7 @@ def _node(
     policy = file.get("declared_group")
     inferred = file.get("inferred_group") or "ungrouped"
     fallback = policy or inferred
-    fallback_area = _root_group(str(fallback), parents)
+    fallback_area = root_group(str(fallback), parents)
     return {
         "id": file["artifact_id"],
         "path": file["path"],
@@ -178,7 +128,7 @@ def _node(
             "semantic": assignment,
             "policy": (
                 {
-                    "area": _root_group(str(policy), parents),
+                    "area": root_group(str(policy), parents),
                     "subsystem": policy,
                     "source": "configured policy",
                 }
@@ -200,7 +150,7 @@ def _node(
     }
 
 
-def _group_parents(connection: sqlite3.Connection, repository_id: int) -> dict[str, str | None]:
+def group_parents(connection: sqlite3.Connection, repository_id: int) -> dict[str, str | None]:
     rows = connection.execute(
         """
         SELECT name, parent_name FROM groups WHERE repository_id = ?
@@ -214,7 +164,7 @@ def _group_parents(connection: sqlite3.Connection, repository_id: int) -> dict[s
     return result
 
 
-def _root_group(group: str, parents: dict[str, str | None]) -> str:
+def root_group(group: str, parents: dict[str, str | None]) -> str:
     result = group
     seen: set[str] = set()
     while parents.get(result) and result not in seen:
@@ -223,89 +173,7 @@ def _root_group(group: str, parents: dict[str, str | None]) -> str:
     return result
 
 
-def _coverage_by_artifact(
-    connection: sqlite3.Connection,
-    snapshot_id: int,
-) -> dict[int, float | None]:
-    rows = connection.execute(
-        """
-        SELECT artifact_id, MAX(line_coverage) AS line_coverage
-        FROM coverage_measurements
-        WHERE snapshot_id = ? AND artifact_id IS NOT NULL
-        GROUP BY artifact_id
-        """,
-        (snapshot_id,),
-    ).fetchall()
-    return {int(row["artifact_id"]): row["line_coverage"] for row in rows}
-
-
-def _changes_by_path(
-    connection: sqlite3.Connection,
-    repository_id: int,
-) -> dict[str, int]:
-    rows = connection.execute(
-        """
-        SELECT path, COUNT(*) AS change_count FROM git_changes
-        WHERE repository_id = ? GROUP BY path
-        """,
-        (repository_id,),
-    ).fetchall()
-    return {str(row["path"]): int(row["change_count"]) for row in rows}
-
-
-def _quality(
-    files: list[dict[str, Any]],
-    relationships: list[dict[str, Any]],
-) -> dict[str, Any]:
-    result = relationship_quality(relationships)
-    analyzers = Counter(str(file["analyzer"]) for file in files)
-    result.update(
-        {
-            "analyzers": dict(sorted(analyzers.items())),
-            "ast_files": analyzers["builtin-python-ast"],
-            "lexical_files": analyzers["builtin-js-lexer"],
-            "fallback_files": analyzers["builtin-text"],
-            "parse_error_files": sum(file.get("parse_error") is not None for file in files),
-            "extraction_caveat": (
-                "Python uses an AST parser; JavaScript and TypeScript use lexical extraction; "
-                "other supported text formats use fallback analysis."
-            ),
-        }
-    )
-    return result
-
-
-def _annotated_relationship(edge: dict[str, Any]) -> dict[str, Any]:
-    metadata = relationship_metadata(edge)
-    status = metadata.get("resolution_status")
-    if status not in RESOLUTION_STATUSES:
-        status = RESOLVED_INTERNAL if edge.get("target_artifact_id") is not None else EXTERNAL
-    edge["metadata"] = metadata
-    edge["resolution_status"] = status
-    return edge
-
-
-def _materialize_edges(
-    rows: list[dict[str, Any]],
-    *,
-    include_external: bool,
-) -> tuple[list[dict[str, Any]], dict[str, tuple[str, str]]]:
-    edges: list[dict[str, Any]] = []
-    external_nodes: dict[str, tuple[str, str]] = {}
-    for row in rows:
-        edge = _graph_edge(row)
-        if edge["target"] is None:
-            if not include_external:
-                continue
-            label = edge["target_external"]
-            external_id = f"{edge['resolution_status']}:{label}"
-            external_nodes.setdefault(external_id, (str(label), edge["resolution_status"]))
-            edge["target"] = external_id
-        edges.append(edge)
-    return edges, external_nodes
-
-
-def _graph_edge(row: dict[str, Any]) -> dict[str, Any]:
+def graph_edge(row: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": row["id"],
         "source": row["source_artifact_id"],
@@ -323,7 +191,26 @@ def _graph_edge(row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _external_node(node_id: str, label: str, status: str) -> dict[str, Any]:
+def materialize_graph_edges(
+    rows: list[sqlite3.Row],
+) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
+    edges = []
+    external: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        edge = graph_edge(decode_relationship(dict(row)))
+        if edge["target"] is None:
+            label = str(edge["target_external"])
+            node_id = f"{edge['resolution_status']}:{label}"
+            external.setdefault(
+                node_id,
+                external_node(node_id, label, str(edge["resolution_status"])),
+            )
+            edge["target"] = node_id
+        edges.append(edge)
+    return edges, external
+
+
+def external_node(node_id: str, label: str, status: str) -> dict[str, Any]:
     external = status == "external"
     return {
         "id": node_id,

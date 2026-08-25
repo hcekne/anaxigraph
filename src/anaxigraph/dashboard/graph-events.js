@@ -1,5 +1,6 @@
-import { api, byId, request, state, toast } from "/assets/dashboard-core.js";
+import { byId, state, toast } from "/assets/dashboard-core.js";
 import { drawGraph, inspectNode, renderLegend, renderOverlayHelp, setupCanvasEvents } from "/assets/graph-view.js";
+import { loadGraphRegion } from "/assets/graph-regions.js";
 import {
   layoutGraph,
   renderGraphAreaOptions,
@@ -82,14 +83,7 @@ function showAllAreas() {
 }
 
 async function reloadGraph() {
-  const snapshotId = state.graph.snapshot?.id || state.overview?.snapshot?.id;
-  state.graph = await request(api("/api/graph", {
-    snapshot_id: snapshotId,
-    include_external: byId("external-toggle").checked,
-    layer: state.mapLayer,
-  }));
-  renderGraphAreaOptions();
-  redrawLayout(false);
+  await loadGraphRegion(state.graphRegion);
 }
 
 function inspectLinkedNode(event) {

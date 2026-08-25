@@ -11,6 +11,32 @@ from anaxigraph.persistence.temporal_reads import (
 )
 
 
+def resolve_snapshot(
+    connection: sqlite3.Connection,
+    repository_id: int,
+    snapshot_id: int | None,
+) -> sqlite3.Row | None:
+    if snapshot_id is not None:
+        return connection.execute(
+            "SELECT * FROM snapshots WHERE id = ? AND repository_id = ?",
+            (snapshot_id, repository_id),
+        ).fetchone()
+    row = connection.execute(
+        """
+        SELECT s.* FROM repositories r
+        JOIN snapshots s ON s.id = r.current_snapshot_id
+        WHERE r.id = ?
+        """,
+        (repository_id,),
+    ).fetchone()
+    if row is not None:
+        return row
+    return connection.execute(
+        "SELECT * FROM snapshots WHERE repository_id = ? ORDER BY id DESC LIMIT 1",
+        (repository_id,),
+    ).fetchone()
+
+
 def read_snapshots(
     connection: sqlite3.Connection,
     repository_id: int,

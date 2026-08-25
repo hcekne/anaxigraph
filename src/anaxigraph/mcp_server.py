@@ -12,9 +12,8 @@ from mcp.types import ToolAnnotations
 
 from anaxigraph.agent import agent_scope, branch_collisions, impact_analysis
 from anaxigraph.config import load_config
-from anaxigraph.finding_mcp import register_finding_tools
 from anaxigraph.guidance import product_glossary
-from anaxigraph.history_mcp import register_history_tools
+from anaxigraph.mcp_tools import register_finding_tools, register_query_tools
 from anaxigraph.registry import RepositoryTarget
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic_agent_protocol import semantic_agent_schema
@@ -87,14 +86,7 @@ def create_anaxi_mcp_server(
         )
         return result
 
-    register_history_tools(
-        server,
-        database=database,
-        targets_by_path=targets_by_path,
-        config_path=config_path,
-        service=history_service,
-        context=context,
-    )
+    register_query_tools(server, database, context, targets_by_path, config_path, history_service)
 
     @server.tool(
         name="ANAXIGRAPH_SEMANTIC_STATUS",

@@ -77,6 +77,8 @@ Findings use a rule-derived stable key. A recurring resolved finding becomes `re
 not observed in the next complete architecture evaluation becomes `resolved`. Dismissed findings
 remain dismissed unless a human changes their state.
 
+## Schema evolution and compatibility
+
 Schema migrations fail closed. The current schema is 10; schemas 2, 6, 7, 8, 9, and 10 are the
 explicitly tested inputs. Versions 3–5 were never released as migration contracts and are not
 guessed at, while a future schema is never opened by an older binary. Before a schema-6 index is

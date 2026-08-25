@@ -9,6 +9,7 @@ import {
   toast,
 } from "/assets/dashboard-core.js";
 import { drawGraph } from "/assets/graph-view.js";
+import { graphRequestParams, renderGraphRegionBrowser } from "/assets/graph-regions.js";
 import { buildGroupIndex, layoutGraph, renderGraphAreaOptions } from "/assets/graph-model.js";
 import { activeHistoryStates, historyStartMessage, historyView } from "/assets/history-view.js";
 import { switchView } from "/assets/navigation.js";
@@ -89,15 +90,12 @@ export function showHistoryIndex(index) {
 
 export async function graphAtSnapshot(snapshotId, preserveCamera = true) {
   const selectedPath = state.selectedNode?.path;
-  state.graph = await request(api("/api/graph", {
-    snapshot_id: snapshotId,
-    include_external: byId("external-toggle").checked,
-    layer: state.mapLayer,
-  }));
+  state.graph = await request(api("/api/graph", graphRequestParams(snapshotId)));
   state.selectedNode = selectedPath
     ? state.graph.nodes.find((node) => node.path === selectedPath) || null : null;
   buildGroupIndex(selectedHierarchy());
   renderGraphAreaOptions();
+  renderGraphRegionBrowser();
   const currentId = Number(state.overview?.snapshot?.id);
   displaySnapshot(state.graph.snapshot, Number(snapshotId) !== currentId);
   layoutGraph(!preserveCamera);

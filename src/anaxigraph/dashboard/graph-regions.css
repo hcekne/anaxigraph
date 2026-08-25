@@ -1,0 +1,11 @@
+.graph-region-browser { display: grid; gap: .65rem; padding: .75rem 1rem; border-bottom: 1px solid var(--line); background: var(--surface-detail); }
+.graph-region-summary { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; }
+.graph-region-summary div { display: grid; gap: .05rem; }
+.graph-region-summary span { color: var(--muted); font-size: .64rem; letter-spacing: .06em; text-transform: uppercase; }
+.graph-region-summary strong { color: var(--text-strong); font-size: .82rem; }
+.graph-region-summary p { flex: 1; min-width: 220px; margin: 0; color: var(--muted); font-size: .72rem; }
+.graph-region-list { display: flex; gap: .45rem; overflow-x: auto; padding-bottom: .2rem; scrollbar-width: thin; }
+.graph-region { display: grid; flex: 0 0 auto; gap: .08rem; min-width: 118px; padding: .48rem .6rem; border: 1px solid var(--line); border-radius: 8px; color: var(--text); background: var(--field-bg); text-align: left; cursor: pointer; }
+.graph-region:hover, .graph-region.active { border-color: var(--accent); background: var(--surface-hover); }
+.graph-region span { font-size: .7rem; font-weight: 650; }
+.graph-region em { color: var(--muted); font-size: .62rem; font-style: normal; }

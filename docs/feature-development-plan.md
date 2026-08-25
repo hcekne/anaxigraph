@@ -1479,7 +1479,7 @@ Features are calculated once per changed target and reused across catalog candid
 
 # Phase 5A — bounded graph and operational APIs
 
-**Status:** ACTIVE
+**Status:** COMPLETE on 25 August 2026
 
 **Goal:** keep large local indexes bounded from database to browser and expose a compact query plane
 that pattern intelligence can reuse.
@@ -1524,11 +1524,23 @@ execute SQL or semantic state transitions.
   bounded responsibility.
 - Every first-party implementation module remains below 500 physical lines, with no exception.
 
+### Phase 5A closure evidence
+
+| Contract | Delivered evidence |
+|---|---|
+| Bounded graph plane | `graph-query-v1`, `graph-overview-v1`, `graph-neighborhood-v1`, and `graph-delta-v1` resolve an explicit repository/snapshot, enforce node/edge/depth maxima, report counts/timing/payload bytes, and use filter-bound opaque cursors; REST and the single `ANAXIGRAPH_GRAPH` MCP tool share those contracts |
+| Architecture-first browser | The dashboard fetches area aggregates first, opens the largest region only when a repository exceeds 250 modules, replaces rather than accumulates cursor pages, and preserves the active region across graph controls and history; all 14 browser contracts pass in the pinned Playwright container |
+| 50,000-node scale | The retained `graph-scale-v1` fixture represents all 50,000 modules in a 4,216-byte overview, opens a 250-node/500-edge region in 328,773 bytes with a continuation cursor, and reads a five-node neighborhood in 6,472 bytes; every read stays below 15 seconds, 2 MB, and 512 MB peak-resident delta |
+| Bounded operations | POST/PUT/PATCH bodies stop at 2 MiB before parsing; per-repository admission prevents concurrent or immediately repeated scan/history/semantic work; bounded module inventory and export contracts cap every collection; operational health reports schema, WAL/index allocation, reclaimable bytes, free disk, active work, and queue pressure |
+| Recoverable index | `anaxigraph backup` creates a new integrity/schema-validated online SQLite image and refuses overwrite; local-only `anaxigraph restore --yes` validates before atomic replacement and opens through the supported migration path; round-trip, invalid-source, confirmation, schema-upgrade, and exact migration-recovery tests pass, with local and sidecar runbooks published |
+| Small composition roots | `api.py` is 111 physical lines with a 50-line app factory; graph, repository, history, semantic, agent, and operational routers are separate, bounded modules; MCP tool-family registration is behind a focused facade, reducing the deterministic MCP fan-out signal from 18 to 16 |
+| Hard size and quality gate | Every first-party implementation and dashboard asset remains at or below the 500-line ceiling with no exception; the complete Python suite passes at 89% coverage, deterministic self-analysis passes with 49 governed findings and no issue, and architecture, maintainability, formatting, Compose, container, benchmark, and browser gates are retained as release checks |
+
 ---
 
 # Phase 6 — architect-grade semantic and pattern intelligence
 
-**Status:** BLOCKED BY PHASE 5A
+**Status:** ACTIVE
 
 **Goal:** turn the current semantic map into a compact, evidence-backed pattern intelligence system
 that evaluates code at multiple scales, completes its own critique, and remains cheap to extend.
@@ -2015,8 +2027,8 @@ queue and the document cannot drift apart.
 | 35 | **COMPLETE** — Decompose architecture evaluation, agent intelligence, and dashboard responsibilities without growing another legacy ratchet | §3b.1 |
 | 36 | **COMPLETE** — Add deterministic self-analysis baseline comparison, regression fixtures, and retained CI evidence | §3b.2 |
 | 37 | **COMPLETE** — Add stable multi-level target identities, analyzer capabilities, and reusable pattern evidence projections | Phase 4A |
-| 38 | **NEXT** — Bound graph queries and operational work, then reduce `api.py` to a small composition root | Phase 5A |
-| 39 | Replace semantic mixin composition while preserving the durable external work protocol | §6.1–6.2 |
+| 38 | **COMPLETE** — Bound graph queries and operational work, then reduce `api.py` to a small composition root | Phase 5A |
+| 39 | **NEXT** — Replace semantic mixin composition while preserving the durable external work protocol | §6.1–6.2 |
 | 40 | Ship and validate the declarative catalog of at least 120 patterns | §6.3 |
 | 41 | Add sparse multi-level candidates, separate ratings, and independent agent critique | §6.4–6.6 |
 | 42 | Expose target-centric and pattern-centric queries, incremental refresh, and calibration | §6.7–6.8 |

@@ -3,8 +3,11 @@
 from anaxigraph.persistence.index_backup import (
     IndexBackup,
     backup_path,
+    create_index_backup,
     create_schema_backup,
+    restore_index_backup,
     restore_schema_backup,
+    validate_index_backup,
     validate_schema_backup,
 )
 from anaxigraph.persistence.index_doctor import inspect_index
@@ -46,6 +49,7 @@ __all__ = [
     "ensure_checkpoint_policy",
     "backup_path",
     "canonical_state_hashes",
+    "create_index_backup",
     "create_schema_backup",
     "initialize_index",
     "inspect_index",
@@ -56,12 +60,14 @@ __all__ = [
     "reconstruct_files_with_diagnostics",
     "reconstruct_relationships_with_diagnostics",
     "resolution_status",
+    "restore_index_backup",
     "restore_schema_backup",
     "snapshot_files",
     "snapshot_relationship_edges",
     "snapshot_symbols",
     "temporal_counts",
     "transactional_schema_change",
+    "validate_index_backup",
     "validate_schema_backup",
     "validate_schema_version",
 ]

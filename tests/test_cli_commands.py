@@ -45,7 +45,10 @@ def test_repository_agent_and_export_handlers_share_the_current_scan(
     assert scoped["goal"] == "Change the calculator"
     assert impacted["target"]["path"] == "pkg/core.py"
     assert collisions["branches"] == {}
+    assert exported["contract_version"] == "anaxigraph-export-v1"
     assert exported["graph"]["nodes"]
+    assert exported["graph"]["counts"]["page_internal_nodes"] <= 250
+    assert exported["findings"]["shown"] <= 200
 
     finding_id = reviewed["finding_page"]["items"][0]["id"]
     changed = _call(

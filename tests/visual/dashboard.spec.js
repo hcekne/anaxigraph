@@ -331,6 +331,22 @@ test("graph area labels fit and deselecting an area rebuilds the viewport", asyn
   await expect(canvas).toHaveAttribute("data-region-count", String(initialRegions));
 });
 
+test("architecture overview opens one bounded graph region at a time", async ({ page }) => {
+  await openDashboard(page);
+  await page.getByRole("button", { name: "Graph", exact: true }).click();
+  const browser = page.locator("#graph-region-browser");
+  await expect(browser).toBeVisible();
+  await expect(browser).toContainText("Architecture-first explorer");
+  const testing = browser.locator('[data-graph-region="testing"]');
+  await expect(testing).toContainText("modules");
+  await testing.click();
+  await expect(browser.locator(".graph-region-summary strong")).toHaveText("Testing");
+  await expect(testing).toHaveClass(/active/);
+  await expect(page.locator("#graph-canvas")).toHaveAttribute("data-region-count", "1");
+  await browser.locator('[data-graph-region=""]').click();
+  await expect(browser.locator(".graph-region-summary strong")).toHaveText("All Modules");
+});
+
 test("reference artifacts are excluded by default and pattern review is visible", async ({ page }) => {
   await openDashboard(page);
   await page.getByRole("button", { name: "Modules", exact: true }).click();

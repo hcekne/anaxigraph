@@ -36,6 +36,8 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert (await client.get("/")).status_code == 200
         assert (await client.get("/assets/findings-view.js")).status_code == 200
         assert (await client.get("/assets/dashboard-core.js")).status_code == 200
+        assert (await client.get("/assets/graph-regions.js")).status_code == 200
+        assert (await client.get("/assets/graph-regions.css")).status_code == 200
         assert (await client.get("/assets/themes.css")).status_code == 200
         repositories = (await client.get("/api/repositories")).json()
         assert repositories[0]["scannable"] is True
@@ -148,6 +150,7 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                         "ANAXIGRAPH_SEMANTIC_SUBMIT",
                         "ANAXIGRAPH_SEMANTIC_RELEASE",
                         "ANAXIGRAPH_MODULES",
+                        "ANAXIGRAPH_GRAPH",
                         "ANAXIGRAPH_SEARCH",
                         "ANAXIGRAPH_FILE",
                         "ANAXIGRAPH_SCOPE",
@@ -163,6 +166,53 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     overview = await session.call_tool("ANAXIGRAPH_OVERVIEW", arguments={})
                     assert overview.isError is False
                     assert overview.structuredContent["files"] == 9
+                    graph = await session.call_tool("ANAXIGRAPH_GRAPH", arguments={})
+                    assert graph.isError is False
+                    assert graph.structuredContent["contract_version"] == "graph-overview-v1"
+                    graph_delta = await session.call_tool(
+                        "ANAXIGRAPH_GRAPH",
+                        arguments={
+                            "mode": "delta",
+                            "baseline_snapshot_id": stats.snapshot_id,
+                        },
+                    )
+                    assert graph_delta.isError is False
+                    assert graph_delta.structuredContent["contract_version"] == "graph-delta-v1"
+                    graph_page = await session.call_tool(
+                        "ANAXIGRAPH_GRAPH",
+                        arguments={
+                            "mode": "page",
+                            "node_limit": 3,
+                            "edge_limit": 4,
+                            "language": ["python"],
+                        },
+                    )
+                    assert graph_page.isError is False
+                    assert graph_page.structuredContent["contract_version"] == "graph-query-v1"
+                    assert len(graph_page.structuredContent["nodes"]) <= 3
+                    graph_neighbors = await session.call_tool(
+                        "ANAXIGRAPH_GRAPH",
+                        arguments={
+                            "mode": "neighbors",
+                            "node": "pkg/core.py",
+                            "depth": 1,
+                            "direction": "both",
+                            "relationship": ["imports"],
+                        },
+                    )
+                    assert graph_neighbors.isError is False
+                    assert (
+                        graph_neighbors.structuredContent["contract_version"]
+                        == "graph-neighborhood-v1"
+                    )
+                    missing_delta = await session.call_tool(
+                        "ANAXIGRAPH_GRAPH", arguments={"mode": "delta"}
+                    )
+                    invalid_mode = await session.call_tool(
+                        "ANAXIGRAPH_GRAPH", arguments={"mode": "everything"}
+                    )
+                    assert missing_delta.isError is True
+                    assert invalid_mode.isError is True
                     history = await session.call_tool("ANAXIGRAPH_HISTORY_STATUS", arguments={})
                     assert history.isError is False
                     assert history.structuredContent["status"] == "not_started"

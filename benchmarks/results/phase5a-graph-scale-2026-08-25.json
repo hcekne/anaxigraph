@@ -1,0 +1,81 @@
+{
+  "assertions": {
+    "all_payloads_bounded": true,
+    "all_reads_within_budget": true,
+    "memory_within_budget": true,
+    "neighborhood_is_bounded": true,
+    "overview_represents_every_node": true,
+    "region_is_paginated": true
+  },
+  "budgets": {
+    "payload_bytes": 2000000,
+    "peak_resident_delta_bytes": 536870912,
+    "read_ms": 15000
+  },
+  "fixture": {
+    "areas": 10,
+    "edges": 50000,
+    "index_bytes": 89895696,
+    "nodes": 50000,
+    "seed_ms": 916
+  },
+  "neighborhood": {
+    "contract_version": "graph-neighborhood-v1",
+    "counts": {
+      "matching_nodes": 5,
+      "omitted_edges": 0,
+      "omitted_nodes": 0,
+      "returned_edges": 4,
+      "returned_external_nodes": 0,
+      "returned_internal_nodes": 5,
+      "selected_edges": 4
+    },
+    "has_next_cursor": false,
+    "payload_bytes": 6472,
+    "peak_resident_bytes": 286871552,
+    "peak_resident_delta_bytes": 72495104,
+    "represented_files": 0,
+    "returned_edges": 4,
+    "returned_nodes": 5,
+    "wall_time_ms": 3024
+  },
+  "overview": {
+    "contract_version": "graph-overview-v1",
+    "counts": {
+      "aggregate_edges": 10,
+      "groups": 10,
+      "omitted_aggregate_edges": 0,
+      "omitted_groups": 0,
+      "returned_aggregate_edges": 10,
+      "returned_groups": 10
+    },
+    "has_next_cursor": false,
+    "payload_bytes": 4216,
+    "peak_resident_bytes": 278749184,
+    "peak_resident_delta_bytes": 204271616,
+    "represented_files": 50000,
+    "returned_edges": 10,
+    "returned_nodes": 10,
+    "wall_time_ms": 2986
+  },
+  "passed": true,
+  "region": {
+    "contract_version": "graph-query-v1",
+    "counts": {
+      "matching_edges": 5000,
+      "matching_nodes": 5000,
+      "page_edges": 500,
+      "page_external_nodes": 0,
+      "page_internal_nodes": 250
+    },
+    "has_next_cursor": true,
+    "payload_bytes": 328773,
+    "peak_resident_bytes": 285712384,
+    "peak_resident_delta_bytes": 89391104,
+    "represented_files": 0,
+    "returned_edges": 500,
+    "returned_nodes": 250,
+    "wall_time_ms": 3143
+  },
+  "schema_version": "graph-scale-v1"
+}

@@ -64,9 +64,18 @@ def read_modules(
     connection: sqlite3.Connection,
     repository_id: int,
     snapshot_id: int,
+    *,
+    limit: int | None = None,
+    offset: int = 0,
 ) -> list[dict[str, Any]]:
     install_snapshot_projection(connection, snapshot_id, include_symbols=False)
-    rows = _module_rows(connection, repository_id, snapshot_id)
+    rows = _module_rows(
+        connection,
+        repository_id,
+        snapshot_id,
+        limit=limit,
+        offset=offset,
+    )
     parents = _group_parents(connection, repository_id)
     claims = _claims_by_artifact(connection, snapshot_id)
     semantic_states = _semantic_states(connection, snapshot_id)
@@ -89,10 +98,24 @@ def _module_rows(
     connection: sqlite3.Connection,
     repository_id: int,
     snapshot_id: int,
+    *,
+    limit: int | None,
+    offset: int,
 ) -> list[sqlite3.Row]:
+    parameters: tuple[Any, ...] = (
+        repository_id,
+        repository_id,
+        repository_id,
+        snapshot_id,
+        repository_id,
+    )
+    sql = _MODULE_ROWS_SQL
+    if limit is not None:
+        sql += " LIMIT ? OFFSET ?"
+        parameters = (*parameters, limit, offset)
     return connection.execute(
-        _MODULE_ROWS_SQL,
-        (repository_id, repository_id, repository_id, snapshot_id, repository_id),
+        sql,
+        parameters,
     ).fetchall()
 
 

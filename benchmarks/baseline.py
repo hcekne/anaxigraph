@@ -44,6 +44,7 @@ class _CountingAnalyzer:
         self.name = delegate.name
         self.version = delegate.version
         self.languages = delegate.languages
+        self.capabilities = delegate.capabilities
 
     def analyze(self, path: str, content: str):
         self._counts["total"] += 1

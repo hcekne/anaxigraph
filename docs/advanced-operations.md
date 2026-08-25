@@ -246,6 +246,60 @@ Refresh on demand in the dashboard, or run the optional polling sidecar:
 docker compose -f compose.anaxigraph.yml --profile watch up -d
 ```
 
+## Back up and restore AnaxiIndex
+
+`backup` is safe while AnaxiGraph is running: it uses SQLite's online-backup API, includes committed
+WAL state, validates integrity and schema version, and refuses to overwrite an existing file.
+
+```bash
+anaxigraph backup \
+  --db ~/.local/state/anaxigraph/anaxi-index.db \
+  --output ./anaxi-index-2026-08-25.backup \
+  --json
+```
+
+Stop every process using the selected index before restoring, including the server, watcher, and
+semantic worker. Restore validates the source before atomically replacing the index, retains the
+source backup, and upgrades any supported older schema when it opens the restored database.
+
+```bash
+anaxigraph restore ./anaxi-index-2026-08-25.backup \
+  --db ~/.local/state/anaxigraph/anaxi-index.db \
+  --yes \
+  --json
+anaxigraph doctor --db ~/.local/state/anaxigraph/anaxi-index.db --json
+```
+
+For the generated Docker sidecar, first create the online backup in the named volume and copy it
+to independent host storage. Use a new filename for each backup.
+
+```bash
+mkdir -p .anaxigraph-backups
+docker compose -f compose.anaxigraph.yml exec anaxigraph \
+  anaxigraph backup --db /state/anaxi-index.db \
+  --output /state/anaxi-index-2026-08-25.backup --json
+docker compose -f compose.anaxigraph.yml cp \
+  anaxigraph:/state/anaxi-index-2026-08-25.backup \
+  .anaxigraph-backups/anaxi-index-2026-08-25.backup
+```
+
+To restore that sidecar, stop all profiles while retaining the named volume, run a one-off local
+restore with the host backup mounted read-only, then start the service again.
+
+```bash
+docker compose -f compose.anaxigraph.yml down
+docker compose -f compose.anaxigraph.yml run --rm --no-deps \
+  -v "$PWD/.anaxigraph-backups:/recovery:ro" \
+  anaxigraph restore /recovery/anaxi-index-2026-08-25.backup \
+  --db /state/anaxi-index.db --yes --json
+docker compose -f compose.anaxigraph.yml up -d
+```
+
+Schema upgrades use the same validated backup primitive automatically and record the recovery
+path, checksum, byte size, and version transition in the index. `doctor` verifies that migration
+record and its retained recovery image. See
+[AnaxiIndex schema evolution](data-model.md#schema-evolution-and-compatibility).
+
 ## Integrity and environment diagnostics
 
 Opening an older index uses the backed-up migration contract and never edits repository source.

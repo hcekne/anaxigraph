@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Any, Mapping
 
-from anaxigraph.persistence.graph_read import graph_quality
+from anaxigraph.persistence.graph_read import projected_graph_quality
 from anaxigraph.persistence.group_read import read_group_hierarchy
 from anaxigraph.persistence.snapshot_projection import install_snapshot_projection
 
@@ -18,9 +18,9 @@ def read_overview(
     snapshot_id = int(snapshot["id"])
     projection = install_snapshot_projection(connection, snapshot_id)
     totals = _totals(connection)
-    relationship_rows = connection.execute(
-        "SELECT target_artifact_id, metadata_json FROM projected_relationships"
-    ).fetchall()
+    relationship_count = int(
+        connection.execute("SELECT COUNT(*) FROM projected_relationships").fetchone()[0]
+    )
     findings = connection.execute(
         """
         SELECT severity, COUNT(*) AS count FROM findings
@@ -47,8 +47,8 @@ def read_overview(
         "repository_id": repository_id,
         "snapshot": dict(snapshot),
         **dict(totals),
-        "relationships": len(relationship_rows),
-        "graph_quality": graph_quality(connection, relationship_rows),
+        "relationships": relationship_count,
+        "graph_quality": projected_graph_quality(connection),
         "symbols": projection.symbol_count,
         "findings": {row["severity"]: row["count"] for row in findings},
         "languages": [dict(row) for row in _languages(connection)],

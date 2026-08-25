@@ -12,6 +12,7 @@ from typing import Any
 import anaxigraph.cli_services as cli_services
 import anaxigraph.cli_workflows as cli_workflows
 import anaxigraph.registry as repository_registry
+from anaxigraph.bounded_export import bounded_export
 from anaxigraph.cli_common import add_repository_arguments, default_db, emit_json, ensure_current
 
 
@@ -133,12 +134,7 @@ def _repository_targets(
 
 def _export(args: argparse.Namespace) -> dict[str, Any] | None:
     database, repository_id, config = ensure_current(args)
-    value = {
-        "overview": database.overview(repository_id),
-        "graph": database.graph(repository_id, include_external=True),
-        "findings": cli_workflows.collect_finding_ledger(database, repository_id, config),
-        "snapshots": database.snapshots(repository_id, limit=1_000),
-    }
+    value = bounded_export(database, repository_id, config)
     if not args.output:
         return value
     output = args.output.expanduser().resolve()
