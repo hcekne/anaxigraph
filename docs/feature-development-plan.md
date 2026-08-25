@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.14
+**Roadmap version:** 3.15
 
 **Updated:** 25 August 2026
 
@@ -30,10 +30,12 @@ The recommendations are adopted with eight important refinements:
 - **Findings are not deleted to make the UI quiet.** AnaxiIndex should retain the complete evidence
   ledger while the product presents a small ranked attention queue and places low-severity
   diagnostics behind an explicit view.
-- **A finding must explain itself without a jargon drawer.** Its factual observation, consequence,
-  sensible action, reasons to leave the code alone, and verification step use the same ordinary
-  language in storage reads, REST, MCP, the dashboard, and agent handoffs. Stable detector IDs and
-  numeric ranking inputs remain structured automation fields, not the explanation shown to people.
+- **Every recommendation must explain itself without a jargon drawer.** Findings, pattern advice,
+  consolidation proposals, and possible unused-code reports lead with the observation, consequence,
+  sensible action, reasons to leave the code alone, and verification step in ordinary sentences
+  that both people and coding agents can act on. Stable detector IDs, machine statuses, and numeric
+  ranking inputs remain structured automation fields; moving them to a “technical details” section
+  does not count as explaining them.
 - **The 500-line rule is a ratchet, not an excuse to freeze the repository or create arbitrary
   499-line fragments.** New oversized modules and growth of existing oversized modules are blocked
   immediately. Existing exceptions are then removed in the phases that touch their responsibilities.
@@ -1740,6 +1742,16 @@ ratings. Agents therefore receive the same meaning as the pattern query and dash
 bare score map. Tight payloads may still compact the entire optional decision detail through the
 existing explicit omission contract; this adds no semantic work or invalidation.
 
+Consolidation and possible-unused-code advice follow the same rule. The additive
+`consolidation-explanation-v1` and `dead-code-explanation-v1` projections state the conclusion,
+what AnaxiGraph observed, why it may matter, what to do, what could make the proposal wrong, and
+how to check it. Consolidation strength is explicitly evidence for one suggestion, never a grade
+or refactoring authorization. Every unused-code candidate starts with “do not delete yet,” explains
+static-analysis blind spots, and carries an explicit no-deletion rule. The dashboard uses these
+sentences instead of leading with scores and confidence percentages. Existing semantic dossiers
+are translated when read, so this change creates no semantic work and invalidates no completed
+dossier.
+
 Deterministic dead-code candidates now require trusted relationship resolution, no resolved or
 ambiguous inbound path, configured and conventional entry-point exclusion, parser-backed support
 for both entry-point and registration evidence, no detected dynamic-wiring fact, and the configured
@@ -1766,12 +1778,12 @@ and an observed difference is not called an improvement without the intended out
 
 | Contract | Current evidence |
 |---|---|
-| Goal-specific decision | Existing REST and MCP scope integration returns `architecture-decision-v1`; focused contracts cover semantic placement, bounded plain-language reviewed-pattern handoff and rating meanings, reuse/opportunity roles, provenance, constraints, balanced consolidation, exact verification baselines, payload compaction, and deterministic-only fallback |
+| Goal-specific decision | Existing REST and MCP scope integration returns `architecture-decision-v1`; focused contracts cover semantic placement, bounded plain-language reviewed-pattern, consolidation, and unused-code explanations, rating meanings, reuse/opportunity roles, provenance, constraints, exact verification baselines, payload compaction, and deterministic-only fallback |
 | Measured post-change handoff | The existing scope request accepts its earlier bounded baseline through CLI, REST, and MCP; same-snapshot, changed, unchanged, cross-goal, cross-repository, legacy, invalid-contract, and wire-budget behavior is versioned and tested without adding state or another product surface |
 | Removal safety | Python fixtures prove trusted module candidates, detected registration suppression, heuristic-language suppression, configured entry-point suppression, uncorroborated semantic suppression, and module/symbol granularity separation; `safe_to_remove` remains false |
 | Responsive authority | A blocking synchronous MCP tool no longer blocks the event loop; discovery tests prove connection-refused fallback, transient retry, and timeout refusal, while real SDK MCP and sidecar-preparation tests retain the work protocol |
 | Focused orchestration | Scope response assembly now lives behind a bounded payload service, reducing `agent_scope` from its 128-line/complexity-24 ratchet to 97/8; finding handoff and reverse-impact assembly moved out of their former 96/22 and 77/18 functions. `agent.py` is 233 lines, the focused finding and impact services are 164 and 143, and all three obsolete self-analysis findings are removed |
-| Verification | The complete suite passes 504 tests at 90.88% coverage; all 15 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis at 31 governed findings, 132 non-blocking findings, and zero issues |
+| Verification | The complete suite passes 508 tests at 90.90% coverage; all 15 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis at 31 governed findings, 132 non-blocking findings, and zero issues |
 
 ## 6.8 Expose pattern intelligence without multiplying product surfaces
 
@@ -2260,7 +2272,7 @@ queue and the document cannot drift apart.
 | 39 | **COMPLETE** — Replace semantic mixin composition while preserving the durable external work protocol | §6.1–6.2 |
 | 40 | **COMPLETE** — Ship and validate the declarative catalog of at least 120 patterns | §6.3 |
 | 41 | **COMPLETE** — Add sparse multi-level candidates, separate ratings, and independent agent critique | §6.4–6.6 |
-| 42 | **IN PROGRESS** — Goal-specific placement, consolidation/dead-code safety, bounded plain-language pattern handoff, calibration contracts, and post-change comparison are implemented; finish live calibration after the semantic-run pause is lifted | §6.7–6.8 |
+| 42 | **IN PROGRESS** — Goal-specific placement, consolidation/dead-code safety, human-and-agent-readable recommendation handoff, calibration contracts, and post-change comparison are implemented; finish live calibration after the semantic-run pause is lifted | §6.7–6.8 |
 | 43 | **IMPLEMENTED; LIVE ACCEPTANCE PAUSED** — Make repository-sized semantic bootstrap linear, authoritative, nonblocking, resumable, and deterministically complete | §6.9 |
 | 44 | Expand parser-backed core languages against the proven capability contract | Phase 4B |
 

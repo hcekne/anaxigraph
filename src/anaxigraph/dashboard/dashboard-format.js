@@ -1,4 +1,4 @@
-import { escapeHtml, format, humanize } from "/assets/dashboard-core.js";
+import { escapeHtml, humanize } from "/assets/dashboard-core.js";
 
 export function detailList(values = [], empty = "No data") {
   const items = values || [];
@@ -7,18 +7,29 @@ export function detailList(values = [], empty = "No data") {
 
 export function patternOpportunityLabel(item) {
   if (!item || typeof item !== "object") return String(item || "Unnamed pattern");
-  return `${item.name || "Unnamed pattern"} · ${format.format(Number(item.score || 0))}/100`;
+  return item.name || "Unnamed pattern";
 }
 
 export function patternOpportunityExplanation(item) {
   if (!item || typeof item !== "object") return String(item || "");
-  const confidence = `${(Number(item.confidence || 0) * 100).toFixed(0)}% confidence`;
+  const language = item.plain_language || {};
+  if (language.conclusion) {
+    return [
+      language.conclusion,
+      language.why_it_may_matter,
+      language.what_to_do,
+    ].filter(Boolean).map(sentence).join(" ");
+  }
+  const name = patternOpportunityLabel(item);
+  const effort = item.migration_cost
+    ? `The expected effort and disruption are ${item.migration_cost}.`
+    : "";
   return [
-    patternOpportunityLabel(item),
+    `${name} may fit this code.`,
     item.rationale,
-    confidence,
-    `${item.migration_cost || "unknown"} migration cost`,
-  ].filter(Boolean).join(" · ");
+    effort,
+    "Treat this as a design idea to check, not as a grade for the code.",
+  ].filter(Boolean).map(sentence).join(" ");
 }
 
 export function patternOpportunityList(
@@ -34,18 +45,66 @@ export function consolidationMarkup(value) {
       : "";
   }
   if (value.recommendation === "insufficient_evidence" && !value.rationale) return "";
-  const candidates = value.candidates?.length ? ` Candidates: ${value.candidates.join(", ")}.` : "";
-  return `<h3>Merge or split assessment</h3><p><strong>${escapeHtml(humanize(value.recommendation || "review"))} · ${format.format(Number(value.score || 0))}/100.</strong> ${escapeHtml(value.rationale || "No rationale supplied.")}${escapeHtml(candidates)}</p>`;
+  const language = value.plain_language || {};
+  const conclusion = language.conclusion || consolidationConclusion(value);
+  const reason = language.why_it_may_matter || value.rationale
+    || "The analysis did not supply a clear reason for changing this boundary.";
+  const action = language.what_to_do || consolidationAction(value);
+  return `<h3>Should this code be merged or split?</h3><p><strong>${escapeHtml(sentence(conclusion))}</strong> ${escapeHtml(sentence(reason))} ${escapeHtml(sentence(action))}</p>`;
 }
 
 export function deadCodeList(values = []) {
   const descriptions = (values || []).map((item) => {
     if (!item || typeof item !== "object") return String(item || "");
-    const confidence = `${(Number(item.confidence || 0) * 100).toFixed(0)}% confidence`;
-    return [item.path_or_symbol, confidence, item.rationale, item.verification]
-      .filter(Boolean).join(" · ");
+    const language = item.plain_language || {};
+    if (language.conclusion) {
+      return [language.conclusion, language.what_to_do, language.deletion_rule]
+        .filter(Boolean).map(sentence).join(" ");
+    }
+    const target = item.path_or_symbol || "This item";
+    const reason = item.rationale
+      ? `It was raised because ${lowerSentence(item.rationale)}`
+      : "The analysis did not supply a concrete reason.";
+    const check = item.verification
+      ? `Before changing it, ${lowerSentence(item.verification)}`
+      : "Trace its callers, configuration, runtime registration, and focused tests before changing it.";
+    return [
+      `Do not delete ${target} from this result alone.`,
+      reason,
+      check,
+      "Static source links can miss uses through configuration, frameworks, plugins, or generated code.",
+    ].map(sentence).join(" ");
   });
-  return detailList(descriptions, "No evidence-backed dead-code candidate recorded");
+  return detailList(descriptions, "AnaxiGraph did not find code that appears unused");
+}
+
+function consolidationConclusion(value) {
+  const candidates = (value.candidates || []).join(", ") || "nearby code";
+  if (value.recommendation === "keep") return `Keep this code separate from ${candidates} for now.`;
+  if (value.recommendation === "merge") {
+    return `Consider combining this code with ${candidates}, but test the proposal first.`;
+  }
+  if (value.recommendation === "split") {
+    return "Consider splitting this code, but test whether the proposed parts have clear responsibilities.";
+  }
+  return "Do not merge or split this code based on this result; there is not enough evidence.";
+}
+
+function consolidationAction(value) {
+  if (!["merge", "split"].includes(value.recommendation)) {
+    return "Leave the current boundary alone unless stronger code, history, and test evidence changes the result.";
+  }
+  return "Check responsibilities, public behavior, callers, and focused tests before moving any code.";
+}
+
+function sentence(value) {
+  const text = String(value || "").trim();
+  return text && !/[.?!]$/.test(text) ? `${text}.` : text;
+}
+
+function lowerSentence(value) {
+  const text = sentence(value);
+  return text ? `${text[0].toLowerCase()}${text.slice(1)}` : text;
 }
 
 export function formatDate(value) {

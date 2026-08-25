@@ -201,7 +201,7 @@ function inspectorMarkup(node, detail, displayName) {
   const semanticValue = contextual.summary ? contextual : intrinsic;
   const purpose = semanticValue.summary || inventory.summary || file.summary;
   const purposeSource = semantic
-    ? `${semanticProviderLabel(semantic)} ${contextDocument ? "contextual" : "intrinsic"} interpretation · ${(Number(semantic.confidence || 0) * 100).toFixed(0)}% confidence`
+    ? `${semanticProviderLabel(semantic)} ${contextDocument ? "contextual" : "intrinsic"} interpretation · AI-generated; check the evidence before changing code`
     : "Deterministic analyzer summary";
   const placement = architectureFor(inventory) || architectureFor(file) || {};
   const area = placement.area || state.groupParents.get(effectiveGroup(file)) || effectiveGroup(file);
@@ -243,7 +243,7 @@ function semanticSection(semantic, value, detail) {
   if (!semantic) {
     return `<h3>AI understanding</h3><p class="muted">${escapeHtml(detail.semantic_state?.reason || "No current model-backed dossier.")}</p>`;
   }
-  return `<h3>AI architecture role</h3><p class="muted">${escapeHtml(value.architecture_role || "No architecture role recorded")}</p>${value.change_summary ? `<h3>Meaning changed</h3><p class="muted">${escapeHtml(value.change_summary)}</p>` : ""}<h3>AI-understood responsibilities</h3>${detailList(value.responsibilities, "No semantic responsibilities recorded")}<h3>Similar or overlapping modules</h3>${detailList([...(value.similar_modules || []), ...(value.overlaps || [])], "No evidence-backed overlap recorded")}<h3>Pattern opportunities</h3>${patternOpportunityList(value.pattern_opportunities)}${consolidationMarkup(value.consolidation_assessment)}${value.placement_guidance ? `<h3>Where new work belongs</h3><p class="muted">${escapeHtml(value.placement_guidance)}</p>` : ""}<h3>Possible dead code</h3>${deadCodeList(value.dead_code_candidates)}<h3>Extension seams</h3>${detailList(value.extension_points, "No extension seam recorded")}<h3>Semantic risks</h3>${detailList(value.risks, "No semantic risk recorded")}`;
+  return `<h3>AI architecture role</h3><p class="muted">${escapeHtml(value.architecture_role || "No architecture role recorded")}</p>${value.change_summary ? `<h3>Meaning changed</h3><p class="muted">${escapeHtml(value.change_summary)}</p>` : ""}<h3>AI-understood responsibilities</h3>${detailList(value.responsibilities, "No semantic responsibilities recorded")}<h3>Similar or overlapping modules</h3>${detailList([...(value.similar_modules || []), ...(value.overlaps || [])], "No evidence-backed overlap recorded")}<h3>Pattern opportunities</h3>${patternOpportunityList(value.pattern_opportunities)}${consolidationMarkup(value.consolidation_assessment)}${value.placement_guidance ? `<h3>Where new work belongs</h3><p class="muted">${escapeHtml(value.placement_guidance)}</p>` : ""}<h3>Code that may no longer be used</h3>${deadCodeList(value.dead_code_candidates)}<h3>Extension seams</h3>${detailList(value.extension_points, "No extension seam recorded")}<h3>Semantic risks</h3>${detailList(value.risks, "No semantic risk recorded")}`;
 }
 
 export function setupCanvasEvents() {

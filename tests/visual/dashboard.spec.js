@@ -166,7 +166,12 @@ test("semantic bootstrap progress and model-backed pattern advice are visible", 
               rationale: "Keep provider transport separate from orchestration.",
               candidates: [],
             },
-            dead_code_candidates: [],
+            dead_code_candidates: [{
+              path_or_symbol: "src/legacy.py",
+              confidence: 0.82,
+              rationale: "The indexed source has no direct caller.",
+              verification: "Check configuration and runtime registration.",
+            }],
             risks: ["Static edges cannot prove runtime reachability."],
           },
         },
@@ -203,12 +208,23 @@ test("semantic bootstrap progress and model-backed pattern advice are visible", 
   await expect(page.locator("#semantic-notice")).toContainText("15 module job(s)");
   await expect(page.locator("#semantic-notice [data-semantic-refresh]")).toBeVisible();
   await expect(page.locator("#repository-intelligence")).toBeVisible();
-  await expect(page.locator("#repository-intelligence")).toContainText("Analyzer strategy · 93/100");
+  await expect(page.locator("#repository-intelligence")).toContainText(
+    "Analyzer strategy may fit this code",
+  );
+  await expect(page.locator("#repository-intelligence")).not.toContainText("93/100");
+  await expect(page.locator("#repository-intelligence")).not.toContainText("88/100");
+  await expect(page.locator("#repository-intelligence")).not.toContainText("% confidence");
+  await expect(page.locator("#repository-intelligence")).toContainText(
+    "Keep this code separate from nearby code for now",
+  );
+  await expect(page.locator("#repository-intelligence")).toContainText(
+    "Do not delete src/legacy.py from this result alone",
+  );
 
   await page.getByRole("button", { name: "Modules", exact: true }).click();
   await page.locator("#module-search").fill(semanticPath);
   await expect(page.locator(".pattern-cell", { hasText: "Adapter pattern" })).toContainText("AI");
-  await expect(page.locator(".pattern-cell", { hasText: "Adapter pattern" })).toContainText("91/100");
+  await expect(page.locator(".pattern-cell", { hasText: "Adapter pattern" })).not.toContainText("91/100");
 });
 
 test("agent-funded semantic mode explains the durable host executor", async ({ page }) => {

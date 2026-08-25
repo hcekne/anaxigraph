@@ -48,6 +48,9 @@ Goal-specific placement, reviewed-pattern, consolidation, dead-code, and verific
 composed into the existing bounded scope response. [`ADR 0002`](adr/0002-goal-specific-architecture-decisions.md)
 defines the additive contract and the safety rules that keep facts, interpretations, and
 recommendations distinct without creating another provider, persistence, or transport surface.
+Its recommendation projections lead with ordinary-language conclusions, evidence, action,
+cautions, and checks for both people and coding agents. Machine statuses and exact scores remain
+queryable fields, but never substitute for that explanation or move into a jargon-only drawer.
 
 The CLI has the same boundary discipline. `cli.py` is a stable facade, `cli_parser.py` assembles
 command families, and focused modules own repository, semantic, agent-context, and server

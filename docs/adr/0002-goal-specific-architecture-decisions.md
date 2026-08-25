@@ -54,6 +54,11 @@ The packet preserves the product's fact/interpretation/recommendation boundary:
    dynamic-wiring fact, no configured or conventional entry point, and the configured Git age.
 7. Consolidation preserves “keep separate” conclusions and exposes contrary evidence. Missing
    temporal co-change evidence is labeled unavailable rather than inferred.
+8. Pattern, consolidation, and possible-unused-code advice includes a versioned plain-language
+   projection with a direct conclusion, observations, consequence, action, cautions, and checks.
+   Machine statuses and scores remain available for automation but never stand in for that
+   explanation or move into a separate jargon drawer. Every unused-code projection says that it
+   does not authorize deletion.
 
 ## Bounds and freshness
 
@@ -82,3 +87,7 @@ mapping, without a human review gate. Deterministic-only and partially semantic 
 receive an honestly labeled packet. Post-change verification compares the same bounded facts after
 a rescan through the existing scope surface; longitudinal temporal outcome correlation remains a
 later evidence input rather than a fabricated signal.
+
+The explanation is assembled when current evidence is read. It adds no prompt-signature or
+freshness input, so adopting clearer language does not invalidate completed semantic dossiers or
+restart repository indexing.

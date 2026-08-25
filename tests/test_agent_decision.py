@@ -115,6 +115,10 @@ def test_architecture_decision_combines_placement_patterns_and_balanced_consolid
     assert "not code-quality grades" in guide["numbers"]
     assert result["consolidation"][0]["status"] == "keep_separate"
     assert result["consolidation"][0]["counter_evidence"]
+    consolidation = result["consolidation"][0]["plain_language"]
+    assert consolidation["version"] == "consolidation-explanation-v1"
+    assert consolidation["conclusion"].startswith("Keep src/service.py separate")
+    assert "not a code-quality grade" in consolidation["evidence_strength"]["meaning"]
     assert result["consolidation"][0]["context"]["change_coupling"]["status"] == "unavailable"
     baseline = result["verification"]["post_change_baseline"]
     assert baseline["contract_version"] == ARCHITECTURE_BASELINE_VERSION
@@ -150,6 +154,10 @@ def test_architecture_decision_suppresses_uncorroborated_dead_code_and_weak_merg
     assert dead_code["items"][0]["status"] == "suppressed"
     assert dead_code["items"][0]["safe_to_remove"] is False
     assert "deterministic reachability" in dead_code["items"][0]["suppression_reasons"][0]
+    assert dead_code["plain_language"]["summary"].startswith("AnaxiGraph found 1 item")
+    explanation = dead_code["items"][0]["plain_language"]
+    assert explanation["conclusion"].startswith("Do not delete")
+    assert "does not authorize deletion" in explanation["deletion_rule"]
 
 
 def test_module_dead_code_finding_does_not_corroborate_symbol_candidate():

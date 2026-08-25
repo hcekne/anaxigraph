@@ -82,6 +82,7 @@
       "modules": [
         "anaxigraph.agent",
         "anaxigraph.agent_decision",
+        "anaxigraph.agent_decision_language",
         "anaxigraph.agent_decision_safety",
         "anaxigraph.agent_decision_verification",
         "anaxigraph.agent_finding",

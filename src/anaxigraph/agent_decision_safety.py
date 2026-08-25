@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from anaxigraph.agent_decision_language import (
+    consolidation_explanation,
+    dead_code_explanation,
+    dead_code_policy_explanation,
+)
 from anaxigraph.agent_decision_verification import (
     compare_verification_baselines,
     verification_baseline,
@@ -36,22 +41,41 @@ def _consolidation_item(
     score = int(assessment.get("score") or 0)
     evidence = _strings(assessment.get("evidence"), 4)
     counter = _strings(assessment.get("counter_evidence"), 4)
-    return {
-        "path": str(item.get("path") or ""),
-        "status": _consolidation_status(recommendation, score, evidence, counter),
+    status = _consolidation_status(recommendation, score, evidence, counter)
+    path = str(item.get("path") or "")
+    rationale = _text(assessment.get("rationale"), 1_000)
+    candidates = _strings(assessment.get("candidates"), 5)
+    result = {
+        "path": path,
+        "status": status,
         "recommendation": recommendation,
         "score": score,
-        "rationale": _text(assessment.get("rationale"), 1_000),
-        "candidates": _strings(assessment.get("candidates"), 5),
+        "rationale": rationale,
+        "candidates": candidates,
         "evidence": evidence,
         "counter_evidence": counter,
         "context": _consolidation_context(item),
-        "reviewed_patterns": [
-            value["key"]
-            for value in patterns
-            if value["target"] == item.get("path") and value["key"] in _CONSOLIDATION_PATTERNS
-        ],
+        "reviewed_patterns": _consolidation_pattern_keys(item, patterns),
     }
+    result["plain_language"] = consolidation_explanation(
+        path=path,
+        status=status,
+        recommendation=recommendation,
+        score=score,
+        rationale=rationale,
+        candidates=candidates,
+        evidence=evidence,
+        counter_evidence=counter,
+    )
+    return result
+
+
+def _consolidation_pattern_keys(item: dict[str, Any], patterns: list[dict[str, Any]]) -> list[str]:
+    return [
+        value["key"]
+        for value in patterns
+        if value["target"] == item.get("path") and value["key"] in _CONSOLIDATION_PATTERNS
+    ]
 
 
 def _consolidation_context(item: dict[str, Any]) -> dict[str, Any]:
@@ -103,7 +127,11 @@ def dead_code_advice(
         "safe_removal_count": 0,
         "candidate_count": len(result),
         "items": result[:8],
-        "policy": "Removal remains suppressed until static reachability and dynamic-use checks agree.",
+        "policy": (
+            "Nothing in this result is approved for deletion. Source, configuration, runtime "
+            "registration, and focused tests must all agree before removal."
+        ),
+        "plain_language": dead_code_policy_explanation(len(result)),
     }
 
 
@@ -192,7 +220,7 @@ def _semantic_dead_code(
     reasons.append(
         "Dynamic registration, reflection, configuration, and generated wiring remain caveats."
     )
-    return {
+    result = {
         "module": module,
         "path_or_symbol": _text(candidate.get("path_or_symbol"), 500),
         "status": "corroborated_candidate" if corroborated else "suppressed",
@@ -204,11 +232,22 @@ def _semantic_dead_code(
         "suppression_reasons": reasons,
         "verification": _text(candidate.get("verification"), 800),
     }
+    result["plain_language"] = dead_code_explanation(
+        module=module,
+        path_or_symbol=result["path_or_symbol"],
+        status=result["status"],
+        rationale=result["rationale"],
+        evidence=result["evidence"],
+        counter_evidence=result["counter_evidence"],
+        suppression_reasons=result["suppression_reasons"],
+        verification=result["verification"],
+    )
+    return result
 
 
 def _deterministic_dead_code(path: str, finding: dict[str, Any]) -> dict[str, Any]:
     language = finding.get("plain_language") or {}
-    return {
+    result = {
         "module": path,
         "path_or_symbol": path,
         "status": "deterministic_candidate",
@@ -227,6 +266,17 @@ def _deterministic_dead_code(path: str, finding: dict[str, Any]) -> dict[str, An
             language.get("how_to_check") or finding.get("recommended_action"), 800
         ),
     }
+    result["plain_language"] = dead_code_explanation(
+        module=path,
+        path_or_symbol=path,
+        status=result["status"],
+        rationale=result["rationale"],
+        evidence=result["evidence"],
+        counter_evidence=result["counter_evidence"],
+        suppression_reasons=result["suppression_reasons"],
+        verification=result["verification"],
+    )
+    return result
 
 
 def _strings(value: Any, limit: int) -> list[str]:
