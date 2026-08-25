@@ -14,27 +14,65 @@ const CANDIDATE_REASON_COPY = {
   plan_not_ready: "The target qualifies, but the current sparse plan has not been finalized.",
 };
 
-export function renderEvaluationCard(item, scoreOrder) {
+export function renderEvaluationCard(item) {
   const target = item.target || {};
   const pattern = item.pattern || {};
   const review = item.review || {};
+  const language = patternLanguage(item);
   return `<article class="panel pattern-result-card">
     <div class="pattern-result-heading"><div><p class="eyebrow">${escapeHtml(pattern.family)} · ${escapeHtml(humanize(pattern.kind))}</p>
       <h2>${escapeHtml(pattern.name)}</h2><code>${escapeHtml(pattern.key)}</code></div>
       <div class="pattern-verdicts"><span class="pattern-badge recommendation">${escapeHtml(humanize(item.recommendation))}</span>
       <span class="pattern-badge">${escapeHtml(humanize(item.presence))}</span></div></div>
     ${targetMarkup(target)}
-    <p class="pattern-summary">${escapeHtml(item.summary)}</p>
-    <div class="pattern-score-grid">${scoreOrder.map((name) => scoreCell(name, item.scores?.[name])).join("")}</div>
+    <div class="pattern-conclusion"><strong>Conclusion</strong><p>${escapeHtml(language.conclusion)}</p></div>
+    <div class="pattern-story-grid">
+      ${storyList("What AnaxiGraph saw", language.what_anaxigraph_saw)}
+      ${storyText("Why this may matter", language.why_it_may_matter)}
+      ${storyText("What to do", language.what_to_do)}
+      ${storyList("Reasons not to change the code", language.reasons_not_to_change_the_code)}
+      ${storyList("How to check the result", language.how_to_check)}
+    </div>
+    <div class="pattern-score-story">${(language.score_meanings || []).map(scoreMeaning).join("")}</div>
     <div class="pattern-review"><div><strong>Independent critique · ${escapeHtml(humanize(review.verdict || "complete"))}</strong>
-      <span>${escapeHtml(review.summary || "Final critique completed.")}</span></div>
-      <span>${format.format(review.confidence || 0)}/100 confidence</span></div>
+      <span>${escapeHtml(language.independent_review || review.summary || "A second agent completed its check.")}</span></div></div>
     ${item.details ? evaluationDetails(item.details) : ""}
     <div class="pattern-result-footer"><span>${escapeHtml(item.provenance?.provider || "provider unknown")} · ${escapeHtml(item.provenance?.model || "runtime model")} · ${escapeHtml(item.provenance?.created_at || "")}</span>
       <div><button class="text-button" data-pattern-target="${escapeAttr(target.key)}">Compare patterns for target</button>
       <button class="text-button" data-pattern-key="${escapeAttr(pattern.key)}">Find this pattern elsewhere</button>
       <button class="text-button" data-candidate-key="${escapeAttr(pattern.key)}">Explain skipped candidates</button></div></div>
   </article>`;
+}
+
+function patternLanguage(item) {
+  if (item.plain_language) return item.plain_language;
+  return {
+    conclusion: "This result does not include the current plain-language explanation contract.",
+    what_anaxigraph_saw: [],
+    why_it_may_matter: "The older response is incomplete, so its recommendation is not safe to use by itself.",
+    what_to_do: "Query the current AnaxiGraph service for a complete pattern explanation.",
+    reasons_not_to_change_the_code: ["Do not refactor from an incomplete pattern response."],
+    how_to_check: ["Confirm the response includes pattern-explanation-v1 before acting."],
+    score_meanings: [],
+    independent_review: item.review?.summary || "A second agent completed its check.",
+  };
+}
+
+function scoreMeaning(item) {
+  const values = Object.entries(item.scores || {}).map(([name, value]) => (
+    `${humanize(name)} ${format.format(Number(value || 0))}/100`
+  )).join(" · ");
+  return `<section><strong>${escapeHtml(item.label)}</strong><p>${escapeHtml(item.meaning)}</p><span>${escapeHtml(values)}</span></section>`;
+}
+
+function storyText(title, value) {
+  if (!value) return "";
+  return `<section><strong>${escapeHtml(title)}</strong><p>${escapeHtml(value)}</p></section>`;
+}
+
+function storyList(title, values = []) {
+  if (!values.length) return "";
+  return `<section><strong>${escapeHtml(title)}</strong><ul>${values.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul></section>`;
 }
 
 export function renderCandidateCard(item, pattern) {
@@ -67,12 +105,6 @@ function targetMarkup(target) {
   return `<div class="pattern-target"><div><strong>${escapeHtml(target.label)}</strong>
     <span>${escapeHtml(target.path || target.qualified_name || target.key)}</span></div>
     <span class="pattern-level">${escapeHtml(target.level)}</span></div>`;
-}
-
-function scoreCell(name, value) {
-  const score = Number(value || 0);
-  const band = score >= 70 ? "high" : score >= 40 ? "medium" : "low";
-  return `<div class="pattern-score" data-score-band="${band}"><span>${escapeHtml(humanize(name))}</span><strong>${score}</strong></div>`;
 }
 
 function metric(label, value) {

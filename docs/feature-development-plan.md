@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.11
+**Roadmap version:** 3.12
 
 **Updated:** 25 August 2026
 
@@ -93,7 +93,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 486 tests passing at 90.85% coverage plus 15 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
+| Test health | 496 tests passing at 90.86% coverage plus 15 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -1764,7 +1764,7 @@ and an observed difference is not called an improvement without the intended out
 | Removal safety | Python fixtures prove trusted module candidates, detected registration suppression, heuristic-language suppression, configured entry-point suppression, uncorroborated semantic suppression, and module/symbol granularity separation; `safe_to_remove` remains false |
 | Responsive authority | A blocking synchronous MCP tool no longer blocks the event loop; discovery tests prove connection-refused fallback, transient retry, and timeout refusal, while real SDK MCP and sidecar-preparation tests retain the work protocol |
 | Focused orchestration | Scope response assembly now lives behind a bounded payload service, reducing `agent_scope` from its 128-line/complexity-24 ratchet to 97/8; finding handoff and reverse-impact assembly moved out of their former 96/22 and 77/18 functions. `agent.py` is 233 lines, the focused finding and impact services are 164 and 143, and all three obsolete self-analysis findings are removed |
-| Verification | The complete suite passes 486 tests at 90.85% coverage; all 15 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis at 31 governed findings, 132 non-blocking findings, and zero issues |
+| Verification | The complete suite passes 496 tests at 90.86% coverage; all 15 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis at 31 governed findings, 132 non-blocking findings, and zero issues |
 
 ## 6.8 Expose pattern intelligence without multiplying product surfaces
 
@@ -1826,16 +1826,25 @@ stable per-checkout local index; timeouts and invalid inventories fail closed. E
 and service selectors are mutually exclusive, and every response identifies its index authority so
 a completed sidecar map cannot be mistaken for an empty host-local index.
 
-The dashboard adds a dedicated **Patterns** view without growing its 499-line HTML shell or
-498-line shared stylesheet. Separate 319-line query/controller, 122-line renderer, and 65-line
-responsive stylesheet modules render all nine scores, critique and provider/model provenance,
-bounded filters and pagination, opt-in evidence, candidate decision reasons, and one-click pivots
-between finalized evaluations and skipped-target explanations.
+Every finalized evaluation now also carries `pattern-explanation-v1`. It turns the existing review
+into one explicit conclusion, observed evidence, reason, proposed action, reasons not to change the
+code, verification steps, and an ordinary-language account of all nine ratings. The dashboard
+shows that complete explanation directly instead of leading with a nine-number grid. REST, MCP,
+and CLI receive the same record, while exact scores remain structured for filtering and agent
+comparison. The projection is derived from current reviewed documents when they are read, so old
+evaluations gain it without a semantic rerun; new assessment and critique requests explicitly ask
+for short ordinary sentences that people and coding agents can both understand.
 
-Forty focused candidate/query/calibration-contract cases, CLI authority handoff coverage,
+The dashboard adds a dedicated **Patterns** view without growing its 499-line HTML shell or
+498-line shared stylesheet. Separate 319-line query/controller, 154-line renderer, and 69-line
+responsive stylesheet modules render the complete explanation and grouped exact ratings, critique
+and provider/model provenance, bounded filters and pagination, opt-in evidence, candidate decision
+reasons, and one-click pivots between finalized evaluations and skipped-target explanations.
+
+Fifty focused candidate/query/calibration/language-contract cases, CLI authority handoff coverage,
 completed-semantic projection coverage, REST integration, and a real MCP SDK round trip cover the
 read model. The dashboard candidate workflow passes within all 15 browser contracts in the pinned
-Playwright container. The complete suite passes 486 tests at 90.85% coverage; architecture, size,
+Playwright container. The complete suite passes 496 tests at 90.86% coverage; architecture, size,
 maintainability, formatting, and deterministic self-analysis gates report no errors or regressions,
 with self-analysis at 31 governed findings, 132 non-blocking findings, and zero issues.
 
@@ -2237,7 +2246,7 @@ queue and the document cannot drift apart.
 | 39 | **COMPLETE** — Replace semantic mixin composition while preserving the durable external work protocol | §6.1–6.2 |
 | 40 | **COMPLETE** — Ship and validate the declarative catalog of at least 120 patterns | §6.3 |
 | 41 | **COMPLETE** — Add sparse multi-level candidates, separate ratings, and independent agent critique | §6.4–6.6 |
-| 42 | **IN PROGRESS** — Goal-specific placement, consolidation/dead-code safety, bounded pattern handoff, calibration contracts, and post-change comparison are implemented; finish live calibration after the semantic-run pause is lifted | §6.7–6.8 |
+| 42 | **IN PROGRESS** — Goal-specific placement, consolidation/dead-code safety, bounded plain-language pattern handoff, calibration contracts, and post-change comparison are implemented; finish live calibration after the semantic-run pause is lifted | §6.7–6.8 |
 | 43 | **IMPLEMENTED; LIVE ACCEPTANCE PAUSED** — Make repository-sized semantic bootstrap linear, authoritative, nonblocking, resumable, and deterministically complete | §6.9 |
 | 44 | Expand parser-backed core languages against the proven capability contract | Phase 4B |
 

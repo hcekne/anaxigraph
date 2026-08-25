@@ -218,7 +218,8 @@ runtime wiring can still be invisible, so a missing edge is never presented as p
   improvement.
 - **Pattern intelligence** lets agents query finalized evaluations by target or catalog pattern
   in the **Patterns** view or through `anaxigraph patterns`, `ANAXIGRAPH_PATTERNS`, and the bounded
-  `/api/patterns` endpoint.
+  `/api/patterns` endpoint. Each result leads with a conclusion, evidence, action, cautions, and
+  verification; its nine exact ratings are grouped and explained instead of shown as a number wall.
 
 ## 🎯 Findings are a workflow, not a wall
 

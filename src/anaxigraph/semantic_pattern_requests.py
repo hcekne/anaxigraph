@@ -81,6 +81,11 @@ def _constraints() -> dict[str, Any]:
             "refactoring opportunity."
         ),
         "evidence_rule": "Cite supplied facts and explicitly record counter-evidence.",
+        "language_rule": (
+            "Write summaries, reasons, evidence, cautions, and verification rules in short, "
+            "ordinary sentences that a smart twelve-year-old and another coding agent can both "
+            "understand. Explain necessary design terms when they first appear."
+        ),
         "automation": "Complete the map without a human approval or edit gate.",
     }
 

@@ -188,6 +188,19 @@ Every finding directly explains what AnaxiGraph saw, why it may matter, what to 
 may be fine as it is, and how to check the result. The exact detector and ranking fields remain
 available to tools, but they are not a substitute for that explanation.
 
+## Understand pattern evaluations
+
+The **Patterns** page contains only evaluations that completed an independent agent critique. Each
+result states its conclusion, what AnaxiGraph saw, why the pattern may matter, the smallest sensible
+action, reasons not to change the code, and how to verify any change. The API, MCP tool, CLI, and
+dashboard share the same `pattern-explanation-v1` record.
+
+The nine ratings are still separate and queryable, but the page groups them into five questions:
+does the problem exist and does the pattern fit, how much of the pattern already exists, would a
+change help now, how difficult would the change be, and how strong is the evidence? The exact
+0–100 values remain beside those explanations for tools and comparisons; they are not grades for
+the code.
+
 ## Check the setup
 
 Run the end-to-end environment check when the dashboard or agent connection is unclear:

@@ -218,7 +218,7 @@ function renderPatternResults() {
     ? `<strong>${format.format(start)}–${format.format(end)}</strong> of <strong>${format.format(result.total)}</strong> current, independently critiqued evaluation(s). Ranked by ${escapeHtml(humanize(result.filters.sort_by))}.`
     : emptyResultMessage();
   byId("pattern-results").innerHTML = (result.items || [])
-    .map((item) => renderEvaluationCard(item, SCORE_ORDER)).join("");
+    .map((item) => renderEvaluationCard(item)).join("");
   updatePagination();
 }
 

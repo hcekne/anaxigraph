@@ -30,6 +30,7 @@
         "anaxigraph.pattern_calibration_models",
         "anaxigraph.pattern_evidence",
         "anaxigraph.pattern_evaluation_contract",
+        "anaxigraph.pattern_language",
         "anaxigraph.pattern_query",
         "anaxigraph.pattern_targets",
         "anaxigraph.registry",

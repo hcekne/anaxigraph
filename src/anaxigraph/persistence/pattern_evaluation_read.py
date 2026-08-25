@@ -9,6 +9,7 @@ from typing import Any
 
 from anaxigraph.pattern_catalog import bundled_pattern_catalog
 from anaxigraph.pattern_evaluation_contract import score_values
+from anaxigraph.pattern_language import pattern_explanation
 from anaxigraph.pattern_query import PATTERN_QUERY_VERSION, PatternEvaluationQuery
 
 _CURRENT_EVALUATIONS_SQL = """
@@ -95,9 +96,11 @@ def _evaluation_item(
     candidate = metadata.get("candidate") if isinstance(metadata.get("candidate"), dict) else {}
     if candidate.get("input_fingerprint") != evaluation.get("candidate_fingerprint"):
         candidate = {}
+    target = _target(evaluation, candidate, row)
+    pattern = _pattern(pattern_key, card)
     item = {
-        "target": _target(evaluation, candidate, row),
-        "pattern": _pattern(pattern_key, card),
+        "target": target,
+        "pattern": pattern,
         "candidate": _candidate_summary(candidate),
         "presence": str(evaluation.get("presence") or "uncertain"),
         "recommendation": str(evaluation.get("recommendation") or "insufficient_evidence"),
@@ -108,6 +111,7 @@ def _evaluation_item(
         "counter_evidence_count": len(evaluation.get("counter_evidence") or []),
         "review": _review_summary(review),
         "provenance": _provenance(row),
+        "plain_language": pattern_explanation(evaluation, review, target, pattern),
     }
     if include_evidence:
         item["details"] = _details(evaluation, review)

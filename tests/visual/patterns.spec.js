@@ -43,6 +43,31 @@ function patternItem(includeEvidence) {
       issue_counts: {},
       competing_interpretation_count: 0,
     },
+    plain_language: {
+      version: "pattern-explanation-v1",
+      conclusion: "storage.py partly follows Strategy; make the existing design more consistent before adding another abstraction.",
+      what_anaxigraph_saw: [
+        "storage.py shows some, but not all, of Strategy.",
+        "Three providers implement the same execution contract.",
+      ],
+      why_it_may_matter: "Multiple implementations share one stable behavior boundary.",
+      what_to_do: "Fix the smallest inconsistent part without building a second system beside it.",
+      reasons_not_to_change_the_code: [
+        "An extra abstraction could hide simple policy.",
+      ],
+      how_to_check: [
+        "Preserve provider error behavior.",
+        "Run focused tests, scan again, and compare the result.",
+      ],
+      score_meanings: [
+        { label: "Problem and fit", scores: { problem_match: 82, pattern_fit: 91 }, meaning: "The problem match and pattern fit are strong." },
+        { label: "What already exists", scores: { current_match: 24 }, meaning: "The current match is weak." },
+        { label: "Value and timing", scores: { value_of_change: 88, expected_benefit: 84, urgency: 62 }, meaning: "Expected value is strong, while urgency is mixed." },
+        { label: "Difficulty of changing it", scores: { execution_safety: 73, migration_cost: 37 }, meaning: "The change looks reasonably safe with weak migration cost." },
+        { label: "Strength of evidence", scores: { evidence_strength: 86 }, meaning: "Evidence is strong; this is not a code-quality grade." },
+      ],
+      independent_review: "A second agent checked the evaluation and did not require a correction.",
+    },
     provenance: {
       provider: "agent",
       model: "runtime-test-model",
@@ -170,7 +195,13 @@ test("pattern intelligence explores finalized results in both directions", async
   await expect(page.locator("#view-patterns")).toBeVisible();
   await expect(page.locator(".pattern-result-card")).toContainText("Strategy");
   await expect(page.locator(".pattern-result-card")).toContainText("Independent critique");
-  await expect(page.locator(".pattern-score")).toHaveCount(9);
+  await expect(page.locator(".pattern-conclusion")).toContainText("partly follows Strategy");
+  await expect(page.locator(".pattern-story-grid")).toContainText("What AnaxiGraph saw");
+  await expect(page.locator(".pattern-story-grid")).toContainText("Reasons not to change the code");
+  await expect(page.locator(".pattern-story-grid")).toContainText("How to check the result");
+  await expect(page.locator(".pattern-score-story section")).toHaveCount(5);
+  await expect(page.locator(".pattern-score-story")).toContainText("Problem Match 82/100");
+  await expect(page.locator(".pattern-result-card .pattern-score")).toHaveCount(0);
   await expect(page.locator("#pattern-query-summary")).toContainText(
     "current, independently critiqued",
   );
