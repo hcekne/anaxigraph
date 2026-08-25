@@ -89,7 +89,7 @@ def test_candidate_query_distinguishes_selected_work_from_sparse_bound_omissions
     result = query_pattern_candidates(
         bundled_pattern_catalog(),
         projection,
-        PatternCandidateQuery(pattern="long-function", selection="all"),
+        PatternCandidateQuery(pattern="long-function", selection="all", include_evidence=True),
         selected_target_keys={first.key},
         plan_ready=True,
     )
@@ -109,6 +109,15 @@ def test_candidate_query_distinguishes_selected_work_from_sparse_bound_omissions
     assert selected["what_anaxigraph_could_not_check"]
     assert selected["what_happens_next"]
     assert selected["queue_rank"]["value"] > 0
+    signal = next(
+        item
+        for item in result["items"][0]["details"]["signals"]
+        if item["feature"] == "code.logical_lines"
+    )
+    assert signal["actual"] == 60
+    assert signal["expected"] is not None
+    assert signal["plain_language"]["what_was_checked"].startswith("AnaxiGraph checked whether")
+    assert "not code quality" in signal["plain_language"]["evidence_strength"]["meaning"]
     with pytest.raises(ValueError, match="unknown pattern key"):
         query_pattern_candidates(
             bundled_pattern_catalog(),

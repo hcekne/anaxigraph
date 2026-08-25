@@ -6,7 +6,11 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Any
 
-from anaxigraph.pattern_candidate_language import candidate_explanation
+from anaxigraph.pattern_candidate_language import (
+    candidate_capability_explanation,
+    candidate_explanation,
+    candidate_signal_explanation,
+)
 from anaxigraph.pattern_candidate_models import PatternCandidatePolicy
 from anaxigraph.pattern_candidate_selection import CandidateDecision, candidate_decision
 from anaxigraph.pattern_catalog_models import PatternCard, PatternCatalog
@@ -226,29 +230,40 @@ def _candidate_details(card: PatternCard, decision: CandidateDecision) -> dict[s
     observed = decision.observed
     signals = (*observed.problem, *observed.supporting, *observed.counter) if observed else ()
     return {
-        "signals": [
-            {
-                "role": signal.role,
-                "feature": signal.feature,
-                "operator": signal.operator,
-                "outcome": signal.outcome,
-                "confidence": signal.confidence,
-                "evidence": list(signal.evidence[:20]),
-            }
-            for signal in signals[:100]
-        ],
+        "signals": [_signal_detail(signal) for signal in signals[:100]],
         "capabilities": [
-            {
-                "fact": item.fact,
-                "minimum": item.minimum,
-                "best_level": item.best_level,
-                "ratio": item.ratio,
-                "complete": item.complete,
-            }
-            for item in (observed.capabilities if observed else ())[:100]
+            _capability_detail(item) for item in (observed.capabilities if observed else ())[:100]
         ],
         "semantic_questions": list(card.semantic_questions[:100]),
     }
+
+
+def _signal_detail(signal: Any) -> dict[str, Any]:
+    value = {
+        "role": signal.role,
+        "feature": signal.feature,
+        "resolved_feature": signal.resolved_feature,
+        "operator": signal.operator,
+        "expected": signal.expected,
+        "actual": signal.actual,
+        "outcome": signal.outcome,
+        "confidence": signal.confidence,
+        "evidence": list(signal.evidence[:20]),
+    }
+    value["plain_language"] = candidate_signal_explanation(value)
+    return value
+
+
+def _capability_detail(item: Any) -> dict[str, Any]:
+    value = {
+        "fact": item.fact,
+        "minimum": item.minimum,
+        "best_level": item.best_level,
+        "ratio": item.ratio,
+        "complete": item.complete,
+    }
+    value["plain_language"] = candidate_capability_explanation(value)
+    return value
 
 
 def _selection_matches(item: dict[str, Any], selection: str) -> bool:

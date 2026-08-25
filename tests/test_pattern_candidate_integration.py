@@ -65,4 +65,6 @@ def test_current_sparse_plan_explains_selected_and_skipped_targets(repository, d
     )
     assert selected["total"] == 1
     assert selected["items"][0]["reason"] == "selected"
-    assert selected["items"][0]["details"]["signals"]
+    signal = selected["items"][0]["details"]["signals"][0]
+    assert signal["plain_language"]["what_was_checked"].startswith("AnaxiGraph checked")
+    assert "not code quality" in signal["plain_language"]["evidence_strength"]["meaning"]

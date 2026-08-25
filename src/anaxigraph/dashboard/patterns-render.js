@@ -124,21 +124,44 @@ function evaluationDetails(details) {
 }
 
 function candidateDetails(details) {
-  const signals = (details.signals || []).map((signal) => (
-    `<li><strong>${escapeHtml(humanize(signal.role))}</strong> · ${escapeHtml(signal.feature)}
-      ${escapeHtml(signal.operator)} · ${escapeHtml(humanize(signal.outcome))}
-      (${format.format(signal.confidence || 0)}/100)</li>`
-  )).join("");
-  const capabilities = (details.capabilities || []).map((item) => (
-    `<li><strong>${escapeHtml(item.fact)}</strong> · ${escapeHtml(item.best_level)} / ${escapeHtml(item.minimum)}
-      (${Math.round(Number(item.ratio || 0) * 100)}%)</li>`
-  )).join("");
-  return `<details class="pattern-details"><summary>Exact machine evidence for this explanation</summary>
+  const signals = (details.signals || []).map(signalDetail).join("");
+  const capabilities = (details.capabilities || []).map(capabilityDetail).join("");
+  return `<details class="pattern-details"><summary>How AnaxiGraph checked this evidence</summary>
     <div class="pattern-evidence-grid">
-      ${signals ? `<section><h3>Signals</h3><ul>${signals}</ul></section>` : ""}
-      ${capabilities ? `<section><h3>Capabilities</h3><ul>${capabilities}</ul></section>` : ""}
-      ${textGroup("Semantic questions", details.semantic_questions)}
+      ${signals ? `<section><h3>Code observations</h3><ul>${signals}</ul></section>` : ""}
+      ${capabilities ? `<section><h3>Information available to the check</h3><ul>${capabilities}</ul></section>` : ""}
+      ${textGroup("Questions for the AI evaluation", details.semantic_questions)}
     </div></details>`;
+}
+
+function signalDetail(signal) {
+  const language = signal.plain_language || {};
+  const feature = humanize(signal.feature || "repository evidence");
+  const checked = language.what_was_checked
+    || `AnaxiGraph checked ${feature} using its ${humanize(signal.operator || "catalog")} rule.`;
+  const found = language.what_was_found
+    || `The recorded result was ${humanize(signal.outcome || "unknown")}.`;
+  const effect = language.how_it_affected_selection
+    || "This older response does not explain how the observation affected selection.";
+  const strength = language.evidence_strength?.meaning
+    || "This older response does not explain how strongly the observation is supported.";
+  return `<li><strong>${escapeHtml(feature)}</strong><p>${escapeHtml(checked)}</p>
+    <p>${escapeHtml(found)} ${escapeHtml(effect)}</p><p>${escapeHtml(strength)}</p></li>`;
+}
+
+function capabilityDetail(item) {
+  const language = item.plain_language || {};
+  const fact = humanize(item.fact || "required code information");
+  const conclusion = language.conclusion
+    || `AnaxiGraph checked whether enough ${fact} detail was available.`;
+  const requirement = language.required_detail
+    || `This response requires ${humanize(item.minimum || "an expected")} detail.`;
+  const available = language.available_detail
+    || `The best available detail was ${humanize(item.best_level || "unavailable")}.`;
+  const use = language.how_to_use_this
+    || "This older response does not explain whether the information was complete enough to use.";
+  return `<li><strong>${escapeHtml(fact)}</strong><p>${escapeHtml(conclusion)}</p>
+    <p>${escapeHtml(requirement)} ${escapeHtml(available)}</p><p>${escapeHtml(use)}</p></li>`;
 }
 
 function textGroup(name, values) {

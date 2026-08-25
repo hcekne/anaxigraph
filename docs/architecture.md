@@ -51,6 +51,11 @@ recommendations distinct without creating another provider, persistence, or tran
 Its recommendation projections lead with ordinary-language conclusions, evidence, action,
 cautions, and checks for both people and coding agents. Machine statuses and exact scores remain
 queryable fields, but never substitute for that explanation or move into a jargon-only drawer.
+That rule continues inside expandable evidence panels: opening a detail view must reveal a clearer
+account of what was checked, what was found, how it affected the result, and what the number means.
+Pattern-candidate signal and analyzer-coverage records therefore carry their own `plain_language`
+projection beside the stable machine fields, so REST, MCP, CLI, and dashboard readers receive the
+same explanation.
 The same rule covers overall evidence readiness, preferred placement, change constraints, and
 before/after verification. Even the smallest bounded scope keeps the direct scope and placement
 conclusions while compacting optional evidence and duplicate paths.

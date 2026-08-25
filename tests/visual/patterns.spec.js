@@ -133,8 +133,18 @@ function candidateItem(includeEvidence) {
         feature: "semantic.provider_boundary",
         operator: "present",
         outcome: "matched",
-        confidence: 88,
+        confidence: 0.88,
         evidence: ["Provider implementations share one behavior boundary."],
+        plain_language: {
+          version: "pattern-candidate-detail-explanation-v1",
+          what_was_checked: "AnaxiGraph checked whether a provider boundary was present.",
+          what_was_found: "The observation met the pattern's evidence rule.",
+          how_it_affected_selection: "This supports checking Strategy for this code.",
+          evidence_strength: {
+            value: 88,
+            meaning: "Support for this observation is strong (88 out of 100). This is not a code-quality grade.",
+          },
+        },
       }],
       capabilities: [{
         fact: "semantic_dossier",
@@ -142,6 +152,13 @@ function candidateItem(includeEvidence) {
         best_level: "complete",
         ratio: 1,
         complete: true,
+        plain_language: {
+          version: "pattern-candidate-detail-explanation-v1",
+          conclusion: "The available analyzers supplied enough semantic summary detail for this check.",
+          required_detail: "This pattern check needs at least summary detail about the code's purpose.",
+          available_detail: "All relevant code information met that requirement.",
+          how_to_use_this: "This evidence was complete enough to use in candidate selection.",
+        },
       }],
       semantic_questions: ["Does selection policy vary independently from execution?"],
     };
@@ -270,6 +287,13 @@ test("pattern intelligence explores finalized results in both directions", async
   await expect(page.locator(".candidate-result-card .pattern-details")).toContainText(
     "Does selection policy vary independently from execution",
   );
+  await expect(page.locator(".candidate-result-card .pattern-details")).toContainText(
+    "How AnaxiGraph checked this evidence",
+  );
+  await expect(page.locator(".candidate-result-card .pattern-details")).toContainText(
+    "Support for this observation is strong (88 out of 100)",
+  );
+  await expect(page.locator(".candidate-result-card .pattern-details")).not.toContainText("/100");
 
   await page.getByRole("button", { name: "Look for finalized evaluation" }).click();
   await expect(page.locator("#pattern-mode-filter")).toHaveValue("evaluations");
