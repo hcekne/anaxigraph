@@ -24,6 +24,8 @@ class SemanticBackgroundSpec:
     model: str
     reasoning_effort: str
     index: dict[str, Any]
+    parallel_jobs: int = 0
+    timeout_seconds: int = 0
     config_path: Path | None = None
     database_path: Path | None = None
     service_url: str | None = None
@@ -55,6 +57,8 @@ def launch_understand_background(
             model=execution_semantic.model,
             reasoning_effort=execution_semantic.reasoning_effort,
             index=index,
+            parallel_jobs=int(getattr(execution_semantic, "max_parallel_jobs", 0)),
+            timeout_seconds=int(getattr(execution_semantic, "timeout_seconds", 0)),
             config_path=args.config,
             database_path=database_path,
             service_url=service.base_url if service else None,
@@ -77,6 +81,8 @@ def _execution_identity(mode: str, execution: Any) -> dict[str, Any]:
         "mode": mode,
         "model": execution.model or None,
         "reasoning_effort": execution.reasoning_effort or None,
+        "parallel_jobs": int(getattr(execution, "max_parallel_jobs", 0)) or None,
+        "timeout_seconds": int(getattr(execution, "timeout_seconds", 0)) or None,
         "background": True,
     }
 
@@ -147,6 +153,8 @@ def _initial_record(
         "executor": spec.executor,
         "model": spec.model or None,
         "reasoning_effort": spec.reasoning_effort or None,
+        "parallel_jobs": spec.parallel_jobs or None,
+        "timeout_seconds": spec.timeout_seconds or None,
         "index": spec.index,
         "started_at": _now(),
         "record_path": str(record_path),
@@ -176,6 +184,10 @@ def _understand_command(spec: SemanticBackgroundSpec) -> list[str]:
         command.extend(("--model", spec.model))
     if spec.reasoning_effort:
         command.extend(("--reasoning-effort", spec.reasoning_effort))
+    if spec.parallel_jobs:
+        command.extend(("--parallel-jobs", str(spec.parallel_jobs)))
+    if spec.timeout_seconds:
+        command.extend(("--timeout-seconds", str(spec.timeout_seconds)))
     if spec.force:
         command.append("--force")
     if spec.retry_failed:

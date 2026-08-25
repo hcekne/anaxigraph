@@ -86,5 +86,7 @@ semantic:
   # Select a local executor model per `understand` run; it is provenance, not freshness policy.
   refresh: manual
   max_jobs_per_run: 1000
-  max_parallel_jobs: 8
+  # Independent semantic work can fan out aggressively; executor runs may choose a lower ceiling.
+  max_parallel_jobs: 30
+  timeout_seconds: 300
   agent_lease_seconds: 1800

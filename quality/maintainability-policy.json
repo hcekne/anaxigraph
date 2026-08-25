@@ -46,7 +46,6 @@
     "src/anaxigraph/semantic_records.py::_ensure_job": [63, 8],
     "src/anaxigraph/semantic_requests.py::SemanticEvidenceService._intrinsic_request": [62, 10],
     "src/anaxigraph/semantic_requests.py::SemanticEvidenceService._context_request": [54, 7],
-    "src/anaxigraph/semantic_runner.py::SemanticRunnerService.run_jobs": [57, 12],
     "src/anaxigraph/semantic_runner.py::SemanticRunnerService.bootstrap": [54, 12],
     "src/anaxigraph/semantic_scope_plan.py::SemanticPlanningService.plan": [74, 6],
     "src/anaxigraph/semantic_scope_plan.py::SemanticPlanningService._plan_groups": [108, 13],
@@ -61,8 +60,8 @@
     "src/anaxigraph/semantic_taxonomy_results.py::_store_candidate": [60, 1],
     "src/anaxigraph/semantic_taxonomy_results.py::_store_review": [53, 2],
     "src/anaxigraph/semantic_taxonomy_results.py::_finalize": [89, 3],
-    "src/anaxigraph/semantic_taxonomy_runner.py::analyze_taxonomy_proposal": [79, 9],
-    "src/anaxigraph/semantic_taxonomy_runner.py::analyze_taxonomy_review": [109, 15],
+    "src/anaxigraph/semantic_taxonomy_runner.py::analyze_taxonomy_proposal": [57, 5],
+    "src/anaxigraph/semantic_taxonomy_runner.py::analyze_taxonomy_review": [79, 11],
     "src/anaxigraph/semantic_taxonomy_validation.py::_bound_subsystems": [50, 18]
   },
   "legacy_coupling": {

@@ -8,6 +8,7 @@ from typing import Any
 from anaxigraph.config import SemanticConfig
 from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION, SemanticResult
 from anaxigraph.semantic_graph import _source_chunks
+from anaxigraph.semantic_parallel import parallel_map
 from anaxigraph.semantic_request_support import compact_dossier
 from anaxigraph.semantic_taxonomy_runner import (
     analyze_taxonomy_proposal,
@@ -42,8 +43,7 @@ def _analyze_intrinsic_chunks(
 ) -> SemanticResult:
     symbols = request.get("deterministic_facts", {}).get("symbols") or []
     chunks = _source_chunks(source, symbols, semantic.max_source_chars)
-    partials = []
-    input_tokens = output_tokens = 0
+    requests = []
     for index, (start, end, content) in enumerate(chunks, start=1):
         partial = dict(request)
         partial["analysis_kind"] = "intrinsic_chunk"
@@ -54,10 +54,11 @@ def _analyze_intrinsic_chunks(
             "end_line": end,
         }
         partial["source"] = content
-        result = provider.analyze(partial)
-        partials.append(result.value)
-        input_tokens += result.input_tokens
-        output_tokens += result.output_tokens
+        requests.append(partial)
+    results = parallel_map(provider.analyze, requests, semantic.max_parallel_jobs)
+    partials = [result.value for result in results]
+    input_tokens = sum(result.input_tokens for result in results)
+    output_tokens = sum(result.output_tokens for result in results)
     synthesis = {
         "contract": request["contract"],
         "schema_version": SEMANTIC_SCHEMA_VERSION,
@@ -88,10 +89,12 @@ def _analyze_synthesis(
 
     base = {key: value for key, value in request.items() if key != "child_dossiers"}
     batches = _payload_batches(children, semantic.max_source_chars, base)
-    partials, input_tokens, output_tokens = _run_synthesis_chunks(provider, base, batches)
+    partials, input_tokens, output_tokens = _run_synthesis_chunks(
+        provider, base, batches, semantic.max_parallel_jobs
+    )
     reduction_width = max(2, min(20, semantic.max_context_modules))
     partials, reduction_input, reduction_output = _reduce_synthesis_partials(
-        provider, base, partials, reduction_width
+        provider, base, partials, reduction_width, semantic.max_parallel_jobs
     )
 
     final_request = {**base, "analysis_kind": "synthesis", "child_dossiers": partials}
@@ -127,21 +130,25 @@ def _payload_batches(
 
 
 def _run_synthesis_chunks(
-    provider: Any, base: dict[str, Any], batches: list[list[dict[str, Any]]]
+    provider: Any,
+    base: dict[str, Any],
+    batches: list[list[dict[str, Any]]],
+    parallel_jobs: int,
 ) -> tuple[list[dict[str, Any]], int, int]:
-    partials = []
-    input_tokens = output_tokens = 0
+    requests = []
     for index, batch in enumerate(batches, start=1):
-        request = {
-            **base,
-            "analysis_kind": "synthesis_chunk",
-            "chunk": {"index": index, "total": len(batches)},
-            "child_dossiers": batch,
-        }
-        result = provider.analyze(request)
-        partials.append(_partial_dossier(index, result))
-        input_tokens += result.input_tokens
-        output_tokens += result.output_tokens
+        requests.append(
+            {
+                **base,
+                "analysis_kind": "synthesis_chunk",
+                "chunk": {"index": index, "total": len(batches)},
+                "child_dossiers": batch,
+            }
+        )
+    results = parallel_map(provider.analyze, requests, parallel_jobs)
+    partials = [_partial_dossier(index, result) for index, result in enumerate(results, start=1)]
+    input_tokens = sum(result.input_tokens for result in results)
+    output_tokens = sum(result.output_tokens for result in results)
     return partials, input_tokens, output_tokens
 
 
@@ -150,23 +157,26 @@ def _reduce_synthesis_partials(
     base: dict[str, Any],
     partials: list[dict[str, Any]],
     width: int,
+    parallel_jobs: int,
 ) -> tuple[list[dict[str, Any]], int, int]:
     input_tokens = output_tokens = 0
     level = 1
     while len(partials) > width:
         groups = [partials[index : index + width] for index in range(0, len(partials), width)]
-        reduced = []
+        requests = []
         for index, batch in enumerate(groups, start=1):
-            request = {
-                **base,
-                "analysis_kind": "synthesis_reduction",
-                "reduction": {"level": level, "index": index, "total": len(groups)},
-                "child_dossiers": batch,
-            }
-            result = provider.analyze(request)
-            reduced.append(_partial_dossier(index, result))
-            input_tokens += result.input_tokens
-            output_tokens += result.output_tokens
+            requests.append(
+                {
+                    **base,
+                    "analysis_kind": "synthesis_reduction",
+                    "reduction": {"level": level, "index": index, "total": len(groups)},
+                    "child_dossiers": batch,
+                }
+            )
+        results = parallel_map(provider.analyze, requests, parallel_jobs)
+        reduced = [_partial_dossier(index, result) for index, result in enumerate(results, start=1)]
+        input_tokens += sum(result.input_tokens for result in results)
+        output_tokens += sum(result.output_tokens for result in results)
         partials = reduced
         level += 1
     return partials, input_tokens, output_tokens

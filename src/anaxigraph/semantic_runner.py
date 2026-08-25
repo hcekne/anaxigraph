@@ -6,6 +6,7 @@ import itertools
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -48,6 +49,51 @@ def _bootstrap_passes(until_complete: bool, semantic: SemanticConfig) -> Any:
     return itertools.count() if until_complete else range(10 + semantic.taxonomy.review_passes)
 
 
+def _validate_job_execution(
+    semantic: SemanticConfig,
+    execution: SemanticConfig | None,
+) -> None:
+    if not semantic.enabled:
+        raise ValueError("Semantic analysis is disabled in .anaxigraph.yml")
+    if semantic.provider == "agent" and execution is None:
+        raise ValueError(
+            "Agent-funded semantic jobs are executed through AnaxiMCP, not the local "
+            "semantic worker; pass a local agent executor or use the MCP work loop"
+        )
+    if execution is not None and semantic.provider != "agent":
+        raise ValueError("A local agent executor can only bridge semantic.provider=agent")
+    create_semantic_provider(execution or semantic)
+
+
+def _worker_limits(
+    semantic: SemanticConfig,
+    execution: SemanticConfig | None,
+    bounded: int,
+) -> tuple[int, int]:
+    requested = execution.max_parallel_jobs if execution else semantic.max_parallel_jobs
+    return requested, min(semantic.max_parallel_jobs, requested, bounded)
+
+
+def _wave_execution(
+    execution: SemanticConfig | None,
+    requested_workers: int,
+    wave: int,
+) -> SemanticConfig | None:
+    if execution is None:
+        return None
+    return replace(execution, max_parallel_jobs=max(1, requested_workers // wave))
+
+
+def _job_counts() -> dict[str, int]:
+    return {key: 0 for key in ("processed", "completed", "failed", "retry", "superseded")}
+
+
+def _count_job_results(counts: dict[str, int], results: list[str]) -> None:
+    counts["processed"] += len(results)
+    for result in results:
+        counts[result] += 1
+
+
 class SemanticRunnerService:
     def __init__(
         self,
@@ -73,53 +119,47 @@ class SemanticRunnerService:
         execution_semantic: SemanticConfig | None = None,
     ) -> dict[str, Any]:
         semantic = config.semantic
-        if not semantic.enabled:
-            raise ValueError("Semantic analysis is disabled in .anaxigraph.yml")
-        if semantic.provider == "agent" and execution_semantic is None:
-            raise ValueError(
-                "Agent-funded semantic jobs are executed through AnaxiMCP, not the local "
-                "semantic worker; pass a local agent executor or use the MCP work loop"
-            )
-        if execution_semantic is not None and semantic.provider != "agent":
-            raise ValueError("A local agent executor can only bridge semantic.provider=agent")
-        # Validate provider configuration before claiming a job.
-        create_semantic_provider(execution_semantic or semantic)
+        _validate_job_execution(semantic, execution_semantic)
         bounded = max(1, limit if limit is not None else semantic.max_jobs_per_run)
-        workers = min(semantic.max_parallel_jobs, bounded)
-        completed = failed = retried = superseded = 0
-        processed = 0
+        requested_workers, workers = _worker_limits(semantic, execution_semantic, bounded)
+        counts = _job_counts()
         root = Path(repository).expanduser().resolve()
-        while processed < bounded:
-            wave = min(workers, bounded - processed)
-            with ThreadPoolExecutor(max_workers=wave) as executor:
-                results = list(
-                    executor.map(
-                        lambda _: self._work_one(
-                            repository_id,
-                            root,
-                            config,
-                            execution_semantic=execution_semantic,
-                        ),
-                        range(wave),
-                    )
-                )
-            active = [result for result in results if result is not None]
-            if not active:
+        while counts["processed"] < bounded:
+            wave = min(workers, bounded - counts["processed"])
+            results = self._work_wave(
+                repository_id,
+                root,
+                config,
+                wave,
+                _wave_execution(execution_semantic, requested_workers, wave),
+            )
+            if not results:
                 break
-            processed += len(active)
-            for result in active:
-                completed += int(result == "completed")
-                failed += int(result == "failed")
-                retried += int(result == "retry")
-                superseded += int(result == "superseded")
+            _count_job_results(counts, results)
         return {
-            "processed": processed,
-            "completed": completed,
-            "failed": failed,
-            "retry": retried,
-            "superseded": superseded,
+            **counts,
             "semantic": self._reporting.status(repository_id, semantic),
         }
+
+    def _work_wave(
+        self,
+        repository_id: int,
+        root: Path,
+        config: AnaxiGraphConfig,
+        workers: int,
+        execution_semantic: SemanticConfig | None,
+    ) -> list[str]:
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            results = executor.map(
+                lambda _: self._work_one(
+                    repository_id,
+                    root,
+                    config,
+                    execution_semantic=execution_semantic,
+                ),
+                range(workers),
+            )
+        return [result for result in results if result is not None]
 
     def bootstrap(
         self,

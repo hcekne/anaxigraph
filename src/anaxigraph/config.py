@@ -94,7 +94,7 @@ class SemanticConfig:
     model: str = ""
     reasoning_effort: str = ""
     prompt_version: str = "v1"
-    timeout_seconds: int = 120
+    timeout_seconds: int = 300
     refresh: str = "manual"
     reconcile_interval_minutes: int = 1_440
     max_age_days: int = 0
@@ -347,7 +347,7 @@ def _semantic_config(value: Any) -> SemanticConfig:
         command=_tuple_of_strings(value.get("command")),
         model=str(value.get("model", "")),
         prompt_version=str(value.get("prompt_version", "v1")),
-        timeout_seconds=integer("timeout_seconds", 120, 1),
+        timeout_seconds=integer("timeout_seconds", 300, 1),
         refresh=refresh,
         reconcile_interval_minutes=integer("reconcile_interval_minutes", 1_440, 1),
         max_age_days=integer("max_age_days", 0, 0),

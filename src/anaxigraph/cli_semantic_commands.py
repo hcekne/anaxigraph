@@ -164,6 +164,8 @@ def _understand_local(
         "mode": execution_mode,
         "model": execution_semantic.model if execution_semantic else None,
         "reasoning_effort": (execution_semantic.reasoning_effort if execution_semantic else None),
+        "parallel_jobs": (execution_semantic.max_parallel_jobs if execution_semantic else None),
+        "timeout_seconds": (execution_semantic.timeout_seconds if execution_semantic else None),
     }
     result["index"] = {"authority": "local", "database": str(database_path)}
     if config.semantic.provider == "agent" and execution_semantic is None:
@@ -207,6 +209,8 @@ def _understand_service(
         "mode": execution_mode,
         "model": execution_semantic.model if execution_semantic else None,
         "reasoning_effort": (execution_semantic.reasoning_effort if execution_semantic else None),
+        "parallel_jobs": (execution_semantic.max_parallel_jobs if execution_semantic else None),
+        "timeout_seconds": (execution_semantic.timeout_seconds if execution_semantic else None),
     }
     result["index"] = service.identity()
     if execution_semantic is None:

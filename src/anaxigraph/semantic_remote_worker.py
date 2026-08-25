@@ -6,6 +6,7 @@ import asyncio
 import json
 import os
 import sys
+from dataclasses import replace
 from typing import Any
 
 from mcp import ClientSession
@@ -107,7 +108,7 @@ async def _run_queue(
     consecutive_failures = 0
     recovery = _IdleRecovery(target, retry_failed)
     while maximum is None or total["processed"] < maximum:
-        remaining = semantic.max_parallel_jobs
+        remaining = min(semantic.max_parallel_jobs, execution.max_parallel_jobs)
         if maximum is not None:
             remaining = min(remaining, maximum - total["processed"])
         packets, terminal = await _claim_wave(session, target, execution, remaining, retry_failed)
@@ -233,34 +234,99 @@ async def _execute_wave(
     total: dict[str, Any],
     latest: dict[str, Any],
 ) -> dict[str, Any]:
+    requests = await _wave_requests(session, target, packets)
+    call_budget = max(1, execution.max_parallel_jobs // len(packets))
+    request_execution = replace(execution, max_parallel_jobs=call_budget)
+    tasks = [
+        asyncio.create_task(_analyze_indexed(index, request, request_execution))
+        for index, request in enumerate(requests)
+    ]
+    remaining = set(range(len(packets)))
+    for completed in asyncio.as_completed(tasks):
+        index, result = await completed
+        if isinstance(result, BaseException):
+            await _abort_wave(session, target, packets, tasks, remaining, str(result))
+            raise RuntimeError(f"Semantic model execution failed: {result}") from result
+        latest = await _submit_wave_result(
+            session,
+            target,
+            packets,
+            tasks,
+            remaining,
+            index,
+            result,
+            total,
+            latest,
+        )
+    return latest
+
+
+async def _wave_requests(
+    session: ClientSession,
+    target: SemanticServiceTarget,
+    packets: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     try:
-        requests = await asyncio.gather(
+        return await asyncio.gather(
             *(_request_for_packet(session, target, packet) for packet in packets)
         )
     except Exception as exc:
         await _release_packets(session, target, packets, "evidence read failed")
         raise RuntimeError(f"Semantic evidence read failed: {exc}") from exc
-    results = await asyncio.gather(
-        *(asyncio.to_thread(_analyze, request, execution) for request in requests),
-        return_exceptions=True,
+
+
+async def _abort_wave(
+    session: ClientSession,
+    target: SemanticServiceTarget,
+    packets: list[dict[str, Any]],
+    tasks: list[Any],
+    remaining: set[int],
+    reason: str,
+) -> None:
+    await asyncio.gather(*tasks, return_exceptions=True)
+    await _release_packets(
+        session,
+        target,
+        [packets[index] for index in sorted(remaining)],
+        reason,
     )
-    failure = next((item for item in results if isinstance(item, BaseException)), None)
-    if failure is not None:
-        await _release_packets(session, target, packets, str(failure))
-        raise RuntimeError(f"Semantic model execution failed: {failure}") from failure
-    for index, (packet, result) in enumerate(zip(packets, results, strict=True)):
-        try:
-            submitted = await _submit(session, target, packet, result)
-        except Exception as exc:
-            await _release_packets(session, target, packets[index:], "peer submit failed")
-            raise RuntimeError(f"Semantic submission failed: {exc}") from exc
-        total["processed"] += 1
-        total["completed"] += int(submitted.get("status") in {"completed", "already_completed"})
-        kind = str(packet.get("job", {}).get("kind") or "")
-        if kind and kind not in total["stages"]:
-            total["stages"].append(kind)
-        latest = dict(submitted.get("semantic") or latest)
-    return latest
+
+
+async def _submit_wave_result(
+    session: ClientSession,
+    target: SemanticServiceTarget,
+    packets: list[dict[str, Any]],
+    tasks: list[Any],
+    remaining: set[int],
+    index: int,
+    result: Any,
+    total: dict[str, Any],
+    latest: dict[str, Any],
+) -> dict[str, Any]:
+    packet = packets[index]
+    try:
+        submitted = await _submit(session, target, packet, result)
+    except Exception as exc:
+        await _abort_wave(session, target, packets, tasks, remaining, "peer submit failed")
+        raise RuntimeError(f"Semantic submission failed: {exc}") from exc
+    remaining.remove(index)
+    total["processed"] += 1
+    total["completed"] += int(submitted.get("status") in {"completed", "already_completed"})
+    kind = str(packet.get("job", {}).get("kind") or "")
+    if kind and kind not in total["stages"]:
+        total["stages"].append(kind)
+    return dict(submitted.get("semantic") or latest)
+
+
+async def _analyze_indexed(
+    index: int,
+    request: dict[str, Any],
+    execution: SemanticConfig,
+) -> tuple[int, Any]:
+    try:
+        return index, await asyncio.to_thread(_analyze, request, execution)
+    except Exception as exc:
+        return index, exc
 
 
 async def _claim_wave(

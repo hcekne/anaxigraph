@@ -37,6 +37,7 @@
         "anaxigraph.semantic_graph",
         "anaxigraph.semantic_index_port",
         "anaxigraph.semantic_pattern_identity",
+        "anaxigraph.semantic_parallel",
         "anaxigraph.semantic_job_state"
       ],
       "may_import": ["foundation"]

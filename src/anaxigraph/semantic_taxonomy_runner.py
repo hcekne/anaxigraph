@@ -6,10 +6,10 @@ from typing import Any
 
 from anaxigraph.config import SemanticConfig
 from anaxigraph.semantic_contract import SemanticResult
+from anaxigraph.semantic_parallel import parallel_map
 from anaxigraph.semantic_taxonomy_clusters import (
     cluster_inventory,
     expand_taxonomy,
-    group_summaries,
     membership_count,
     representative_locks,
     representative_previous,
@@ -29,6 +29,109 @@ from anaxigraph.semantic_taxonomy_partition import (
 )
 
 
+def _proposal_requests(
+    request: dict[str, Any],
+    semantic: SemanticConfig,
+    base: dict[str, Any],
+    batches: list[list[dict[str, Any]]],
+    relationships: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    requests = []
+    for index, batch in enumerate(batches, start=1):
+        paths = {str(item.get("path") or "") for item in batch}
+        requests.append(
+            {
+                **base,
+                "analysis_kind": "taxonomy_inventory_chunk",
+                "chunk": {"index": index, "total": len(batches)},
+                "constraints": chunk_constraints(request.get("constraints") or {}, len(batches)),
+                "modules": batch,
+                "relationships": bounded_relationships(
+                    relationships, paths, semantic.max_source_chars
+                ),
+                "previous_taxonomy": filter_previous(request.get("previous_taxonomy"), paths),
+                "provisional_groups": [],
+                "contract": (
+                    f"{request['contract']} This is partition {index} of {len(batches)}. "
+                    "Classify every supplied module. Independent partition results are reconciled "
+                    "into stable global groups automatically."
+                ),
+            }
+        )
+    return requests
+
+
+def _review_requests(
+    request: dict[str, Any],
+    semantic: SemanticConfig,
+    base: dict[str, Any],
+    batches: list[list[dict[str, Any]]],
+    relationships: list[dict[str, Any]],
+    candidate: dict[str, Any],
+) -> list[dict[str, Any]]:
+    requests = []
+    for index, batch in enumerate(batches, start=1):
+        paths = {str(item.get("path") or "") for item in batch}
+        requests.append(
+            {
+                **base,
+                "analysis_kind": "taxonomy_review_chunk",
+                "chunk": {"index": index, "total": len(batches)},
+                "constraints": chunk_constraints(request.get("constraints") or {}, len(batches)),
+                "candidate_taxonomy": filter_taxonomy(candidate, paths),
+                "modules": batch,
+                "relationships": bounded_relationships(
+                    relationships, paths, semantic.max_source_chars
+                ),
+                "previous_taxonomy": filter_previous(request.get("previous_taxonomy"), paths),
+                "contract": (
+                    f"{request['contract']} This is review partition {index} of {len(batches)}. "
+                    "Return the complete corrected taxonomy for every supplied module; global "
+                    "boundary reconciliation follows automatically."
+                ),
+            }
+        )
+    return requests
+
+
+def _token_usage(results: list[SemanticResult]) -> tuple[int, int]:
+    return (
+        sum(result.input_tokens for result in results),
+        sum(result.output_tokens for result in results),
+    )
+
+
+def _inventory_chunks(
+    batches: list[list[dict[str, Any]]],
+    results: list[SemanticResult],
+) -> list[dict[str, Any]]:
+    return [
+        {"taxonomy": result.value, "modules": batch}
+        for batch, result in zip(batches, results, strict=True)
+    ]
+
+
+def _partition_reviews(
+    batches: list[list[dict[str, Any]]],
+    results: list[SemanticResult],
+) -> tuple[list[dict[str, Any]], list[str], list[dict[str, Any]]]:
+    chunks = []
+    verdicts = []
+    reviews = []
+    for index, (batch, result) in enumerate(zip(batches, results, strict=True), start=1):
+        chunks.append({"taxonomy": result.value["taxonomy"], "modules": batch})
+        verdicts.append(str(result.value["verdict"]))
+        reviews.append(
+            {
+                "partition": index,
+                "verdict": result.value["verdict"],
+                "summary": result.value["summary"],
+                "issues": list(result.value["issues"])[:20],
+            }
+        )
+    return chunks, verdicts, reviews
+
+
 def analyze_taxonomy_proposal(
     provider: Any,
     request: dict[str, Any],
@@ -44,34 +147,12 @@ def analyze_taxonomy_proposal(
         base,
         partition_limit(semantic),
     )
-    chunks: list[dict[str, Any]] = []
-    input_tokens = output_tokens = 0
     relationships = list(request.get("relationships") or [])
-    provisional: list[dict[str, Any]] = []
-    for index, batch in enumerate(batches, start=1):
-        paths = {str(item.get("path") or "") for item in batch}
-        chunk_request = {
-            **base,
-            "analysis_kind": "taxonomy_inventory_chunk",
-            "chunk": {"index": index, "total": len(batches)},
-            "constraints": chunk_constraints(request.get("constraints") or {}, len(batches)),
-            "modules": batch,
-            "relationships": bounded_relationships(relationships, paths, semantic.max_source_chars),
-            "previous_taxonomy": filter_previous(request.get("previous_taxonomy"), paths),
-            "provisional_groups": provisional,
-            "contract": (
-                f"{request['contract']} This is partition {index} of {len(batches)}. "
-                "Classify every supplied module, and reuse provisional group keys whenever "
-                "the responsibility is materially the same."
-            ),
-        }
-        result = provider.analyze(chunk_request)
-        chunks.append({"taxonomy": result.value, "modules": batch})
-        provisional = group_summaries(chunks)[-partition_limit(semantic) :]
-        input_tokens += result.input_tokens
-        output_tokens += result.output_tokens
+    chunk_requests = _proposal_requests(request, semantic, base, batches, relationships)
+    results = parallel_map(provider.analyze, chunk_requests, semantic.max_parallel_jobs)
+    input_tokens, output_tokens = _token_usage(results)
     clustered = cluster_inventory(
-        chunks,
+        _inventory_chunks(batches, results),
         modules,
         maximum=cluster_limit(request, semantic),
     )
@@ -128,40 +209,10 @@ def analyze_taxonomy_review(
         partition_limit(semantic),
     )
     relationships = list(request.get("relationships") or [])
-    chunks: list[dict[str, Any]] = []
-    partition_reviews: list[dict[str, Any]] = []
-    input_tokens = output_tokens = 0
-    verdicts: list[str] = []
-    for index, batch in enumerate(batches, start=1):
-        paths = {str(item.get("path") or "") for item in batch}
-        chunk_request = {
-            **base,
-            "analysis_kind": "taxonomy_review_chunk",
-            "chunk": {"index": index, "total": len(batches)},
-            "constraints": chunk_constraints(request.get("constraints") or {}, len(batches)),
-            "candidate_taxonomy": filter_taxonomy(candidate, paths),
-            "modules": batch,
-            "relationships": bounded_relationships(relationships, paths, semantic.max_source_chars),
-            "previous_taxonomy": filter_previous(request.get("previous_taxonomy"), paths),
-            "contract": (
-                f"{request['contract']} This is review partition {index} of {len(batches)}. "
-                "Return the complete corrected taxonomy for every supplied module; global "
-                "boundary reconciliation follows automatically."
-            ),
-        }
-        result = provider.analyze(chunk_request)
-        chunks.append({"taxonomy": result.value["taxonomy"], "modules": batch})
-        verdicts.append(str(result.value["verdict"]))
-        partition_reviews.append(
-            {
-                "partition": index,
-                "verdict": result.value["verdict"],
-                "summary": result.value["summary"],
-                "issues": list(result.value["issues"])[:20],
-            }
-        )
-        input_tokens += result.input_tokens
-        output_tokens += result.output_tokens
+    chunk_requests = _review_requests(request, semantic, base, batches, relationships, candidate)
+    results = parallel_map(provider.analyze, chunk_requests, semantic.max_parallel_jobs)
+    chunks, verdicts, partition_reviews = _partition_reviews(batches, results)
+    input_tokens, output_tokens = _token_usage(results)
     clustered = cluster_inventory(
         chunks,
         modules,

@@ -18,6 +18,8 @@ def _spec(repository: Path) -> background.SemanticBackgroundSpec:
         model="gpt-5.6-terra",
         reasoning_effort="medium",
         index={"authority": "service", "service_url": "http://127.0.0.1:8765"},
+        parallel_jobs=30,
+        timeout_seconds=420,
         service_url="http://127.0.0.1:8765",
     )
 
@@ -40,7 +42,12 @@ def test_background_command_returns_complete_handoff_for_service(repository, mon
         base_url="http://127.0.0.1:8765",
         identity=lambda: {"authority": "service", "repository_id": 1},
     )
-    execution = SimpleNamespace(model="gpt-5.6-terra", reasoning_effort="medium")
+    execution = SimpleNamespace(
+        model="gpt-5.6-terra",
+        reasoning_effort="medium",
+        max_parallel_jobs=30,
+        timeout_seconds=420,
+    )
     captured = {}
 
     def launch(spec):
@@ -58,6 +65,8 @@ def test_background_command_returns_complete_handoff_for_service(repository, mon
         "mode": "codex",
         "model": "gpt-5.6-terra",
         "reasoning_effort": "medium",
+        "parallel_jobs": 30,
+        "timeout_seconds": 420,
         "background": True,
     }
     assert result["index"]["authority"] == "service"
@@ -111,10 +120,14 @@ def test_background_launch_pins_authority_model_and_effort(repository, tmp_path,
     assert launched["pid"] == 4321
     assert launched["model"] == "gpt-5.6-terra"
     assert launched["reasoning_effort"] == "medium"
+    assert launched["parallel_jobs"] == 30
+    assert launched["timeout_seconds"] == 420
     assert "--service-url" in record["command"]
     assert "http://127.0.0.1:8765" in record["command"]
     assert record["command"][record["command"].index("--model") + 1] == "gpt-5.6-terra"
     assert record["command"][record["command"].index("--reasoning-effort") + 1] == "medium"
+    assert record["command"][record["command"].index("--parallel-jobs") + 1] == "30"
+    assert record["command"][record["command"].index("--timeout-seconds") + 1] == "420"
     assert "--until-complete" in record["command"]
     assert "--background" not in record["command"]
     assert "command" not in launched

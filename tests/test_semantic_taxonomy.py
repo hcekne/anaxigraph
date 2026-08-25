@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import threading
+import time
 
 import pytest
 
@@ -223,10 +225,20 @@ def test_large_hosted_taxonomy_proposal_and_review_reconcile_clusters():
         for index in range(36)
     ]
     calls = []
+    lock = threading.Lock()
+    active = 0
+    peak = 0
 
     class Provider:
         def analyze(self, request):
-            calls.append(request)
+            nonlocal active, peak
+            chunk = str(request.get("analysis_kind")).endswith("_chunk")
+            with lock:
+                calls.append(request)
+                active += int(chunk)
+                peak = max(peak, active)
+            if chunk:
+                time.sleep(0.01)
             taxonomy = _taxonomy_for_modules(request.get("modules") or [])
             value = (
                 {
@@ -240,9 +252,11 @@ def test_large_hosted_taxonomy_proposal_and_review_reconcile_clusters():
                 if str(request.get("analysis_kind")).startswith("taxonomy_review")
                 else taxonomy
             )
+            with lock:
+                active -= int(chunk)
             return SemanticResult(value, 0.9, (), input_tokens=10, output_tokens=5)
 
-    semantic = SemanticConfig(max_source_chars=5_000, max_output_tokens=900)
+    semantic = SemanticConfig(max_source_chars=5_000, max_output_tokens=900, max_parallel_jobs=4)
     proposal_request = {
         "contract": "Build the complete responsibility map.",
         "schema_version": "repository-understanding-v5",
@@ -262,10 +276,12 @@ def test_large_hosted_taxonomy_proposal_and_review_reconcile_clusters():
     assert proposal_paths == {item["path"] for item in modules}
     assert "taxonomy_inventory_chunk" in {item["analysis_kind"] for item in calls}
     assert calls[-1]["analysis_kind"] == "taxonomy_proposal"
+    assert peak == 4
     assert all(not path.startswith("@anaxigraph/") for path in proposal_paths)
     validated_agent_semantic_response(proposal.value, proposal_request)
 
     calls.clear()
+    peak = 0
     review_request = {
         **proposal_request,
         "analysis_kind": "taxonomy_review",
@@ -279,6 +295,7 @@ def test_large_hosted_taxonomy_proposal_and_review_reconcile_clusters():
     assert review_paths == {item["path"] for item in modules}
     assert "taxonomy_review_chunk" in {item["analysis_kind"] for item in calls}
     assert calls[-1]["analysis_kind"] == "taxonomy_review"
+    assert peak == 4
     assert review.input_tokens == len(calls) * 10
     assert review.output_tokens == len(calls) * 5
     validated_agent_semantic_response(review.value, review_request)

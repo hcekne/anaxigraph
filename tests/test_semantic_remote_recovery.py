@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import threading
+import time
+from types import SimpleNamespace
+
 import pytest
 
 import anaxigraph.semantic_remote_worker as remote_worker
@@ -82,6 +86,48 @@ async def test_recovery_rejects_a_snapshot_that_remains_stranded(monkeypatch):
     assert await recovery.recover("waiting", semantic) is None
     with pytest.raises(RuntimeError, match="after a synchronous rescan"):
         await recovery.recover("waiting", semantic)
+
+
+@pytest.mark.anyio
+async def test_wave_shares_parallel_budget_and_submits_fast_jobs_first(monkeypatch):
+    barrier = threading.Barrier(3)
+    budgets = []
+    submitted = []
+    packets = [
+        {"job": {"id": index, "kind": "context"}, "lease": {"token": str(index)}}
+        for index in range(1, 4)
+    ]
+
+    async def request(_session, _target, packet):
+        return {"index": packet["job"]["id"]}
+
+    def analyze(request_value, execution):
+        budgets.append(execution.max_parallel_jobs)
+        barrier.wait(timeout=1)
+        time.sleep((4 - request_value["index"]) * 0.01)
+        return SimpleNamespace(value={}, input_tokens=1, output_tokens=1)
+
+    async def submit(_session, _target, packet, _result):
+        submitted.append(packet["job"]["id"])
+        return {"status": "completed", "semantic": {"jobs": {}}}
+
+    monkeypatch.setattr(remote_worker, "_request_for_packet", request)
+    monkeypatch.setattr(remote_worker, "_analyze", analyze)
+    monkeypatch.setattr(remote_worker, "_submit", submit)
+    total = remote_worker._empty_result()
+
+    await remote_worker._execute_wave(
+        object(),
+        _target(),
+        SemanticConfig(provider="codex", max_parallel_jobs=9),
+        packets,
+        total,
+        {},
+    )
+
+    assert budgets == [3, 3, 3]
+    assert submitted == [3, 2, 1]
+    assert total["processed"] == total["completed"] == 3
 
 
 def _target() -> SemanticServiceTarget:

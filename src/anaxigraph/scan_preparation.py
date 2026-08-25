@@ -162,6 +162,9 @@ def _version_prefix(analysis_version: int) -> bytes:
 
 def _config_json(config: Any) -> str:
     config_value = dataclasses.asdict(config)
+    # Semantic settings govern a separate evidence/freshness pipeline. Executor, model,
+    # batching, timeout, and semantic-contract changes must never invalidate source analysis.
+    config_value.pop("semantic", None)
     # Mount points differ between local and container runs; only policy content affects analysis.
     config_value.pop("config_path", None)
     return json.dumps(config_value, sort_keys=True, default=str)

@@ -130,6 +130,7 @@ def test_agent_funded_semantic_policy_needs_no_model_or_command(tmp_path: Path):
     assert semantic.model == ""
     assert semantic.command == ()
     assert semantic.agent_lease_seconds == 900
+    assert semantic.timeout_seconds == 300
     assert semantic.taxonomy.enabled is True
     assert semantic.taxonomy.review_passes == 2
 
