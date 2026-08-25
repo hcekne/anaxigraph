@@ -8,6 +8,7 @@ from collections import defaultdict
 from typing import Any
 
 from anaxigraph.persistence.snapshot_projection import install_snapshot_projection
+from anaxigraph.semantic_file_language import semantic_file_explanation
 
 
 def _projected_graph_maps(
@@ -59,9 +60,10 @@ def _attach_semantic_files(
         value = _json(row["value_json"] or "{}") or {}
         item = files[artifact_id]
         item["deterministic_summary"] = item["summary"]
+        semantic = _semantic_file(row, value, str(item["path"]))
         if value.get("summary"):
-            item["summary"] = value["summary"]
-        item["semantic"] = _semantic_file(row, value)
+            item["summary"] = semantic["plain_language"]["what_this_file_does"]
+        item["semantic"] = semantic
 
 
 def _dependency_maps(
@@ -86,14 +88,15 @@ def _dependency_maps(
     return outgoing, incoming
 
 
-def _semantic_file(row: Any, value: dict[str, Any]) -> dict[str, Any]:
-    return {
+def _semantic_file(row: Any, value: dict[str, Any], path: str) -> dict[str, Any]:
+    result = {
         "status": row["status"],
         "reason": row["reason"],
         "source": row["document_kind"],
         "provider": row["provider"],
         "model": row["model"],
         "confidence": row["confidence"],
+        "summary": _semantic_field(value, "summary", ""),
         "architecture_role": _semantic_field(value, "architecture_role", ""),
         "placement_guidance": _semantic_field(value, "placement_guidance", ""),
         "detailed_summary": _semantic_field(value, "detailed_summary", ""),
@@ -109,6 +112,8 @@ def _semantic_file(row: Any, value: dict[str, Any]) -> dict[str, Any]:
         "testing_guidance": _semantic_field(value, "testing_guidance", []),
         "risks": _semantic_field(value, "risks", []),
     }
+    result["plain_language"] = semantic_file_explanation(path, {**value, **result})
+    return result
 
 
 def _semantic_field(value: dict[str, Any], key: str, default: Any) -> Any:

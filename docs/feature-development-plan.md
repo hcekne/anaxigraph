@@ -1780,6 +1780,11 @@ raw compatibility fields. The shared AI writing contract now ends with an explic
 and independent pattern and map reviewers must rewrite expert labels that do not explain a
 concrete fact. None of this claims to change the stored evidence or starts semantic work.
 
+The compact module inventory, repository search, and agent graph now select that same projected
+summary as their primary `summary` value. The original AI sentence remains in the nested semantic
+record for compatibility and search matching, but it can no longer bypass the readable contract in
+the first sentence shown to a person or supplied to an agent.
+
 Graph completeness now follows the same no-jargon-drawer rule. Every overview and bounded graph
 response carries `graph-quality-explanation-v1`, which says how many likely links between files were
 checked, how many pointed to one file, how many were unclear or missing, what code structure the

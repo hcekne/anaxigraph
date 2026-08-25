@@ -8,6 +8,7 @@ from typing import Any
 
 from anaxigraph.persistence.semantic_taxonomy_read import taxonomy_assignments
 from anaxigraph.persistence.snapshot_projection import install_snapshot_projection
+from anaxigraph.semantic_file_language import semantic_file_explanation
 
 
 def search_modules(
@@ -87,17 +88,22 @@ def _apply_semantic(
     value: dict[str, Any],
     assignment: dict[str, Any] | None,
 ) -> None:
-    if value.get("summary"):
-        item["deterministic_summary"] = item["summary"]
-        item["summary"] = value["summary"]
     if semantic:
-        item["semantic"] = {
+        semantic_payload = {
             "status": semantic["status"],
             "source": semantic["document_kind"],
             "provider": semantic["provider"],
             "model": semantic["model"],
             "confidence": semantic["confidence"],
+            "summary": value.get("summary") or "",
         }
+        semantic_payload["plain_language"] = semantic_file_explanation(
+            str(item["path"]), {**value, **semantic_payload}
+        )
+        item["semantic"] = semantic_payload
+        if value.get("summary"):
+            item["deterministic_summary"] = item["summary"]
+            item["summary"] = semantic_payload["plain_language"]["what_this_file_does"]
     if assignment:
         item["semantic_taxonomy"] = assignment
         item["architecture_area"] = assignment["area"]

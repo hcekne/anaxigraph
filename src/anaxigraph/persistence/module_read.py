@@ -256,11 +256,18 @@ def _materialize_module(
         semantic_taxonomy=assignment,
     )
     _apply_semantic_summary(item, claims.get(int(item["artifact_id"])))
-    item["semantic"] = _semantic_payload(item["path"], semantic_states.get(item["path"]))
+    _attach_semantic(item, semantic_states.get(item["path"]))
     active_findings = findings.get(item["path"], [])
     item["active_findings"] = active_findings
     item["evaluation"] = module_evaluation(item, active_findings)
     return item
+
+
+def _attach_semantic(item: dict[str, Any], state: dict[str, Any] | None) -> None:
+    semantic = _semantic_payload(str(item["path"]), state)
+    item["semantic"] = semantic
+    if semantic.get("summary"):
+        item["summary"] = semantic["plain_language"]["what_this_file_does"]
 
 
 def _architecture_area(group: str, parents: dict[str, str | None]) -> str:
