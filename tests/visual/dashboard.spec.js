@@ -269,21 +269,26 @@ test("relationship completeness and analyzer limits are visible", async ({ page 
   await expect(notice).toContainText("Graph evidence is partial");
   await expect(notice).toContainText("Dead-code suggestions are suppressed");
   await page.getByRole("button", { name: "Architecture", exact: true }).click();
-  await expect(page.locator("#finding-result-note")).toContainText("attention signals");
+  await expect(page.locator("#finding-result-note")).toContainText("findings to check");
   expect(await page.locator("#findings-table .finding-card").count()).toBeLessThanOrEqual(20);
   await expect(page.locator("#findings-table .finding-meta", { hasText: "Long Function" }))
     .toHaveCount(0);
 
   await page.locator("#finding-view-filter").selectOption("diagnostics");
-  await expect(page.locator("#finding-result-note")).toContainText("complete ledger");
-  await expect(page.locator(".finding-priority").first()).toContainText("/100");
+  await expect(page.locator("#finding-result-note")).toContainText(
+    "This complete view keeps every finding",
+  );
+  await expect(page.locator(".finding-priority").first()).toContainText("priority");
   await expect(page.locator("#finding-type-filter option", { hasText: "Long Function" }))
     .toHaveCount(1);
   await page.locator("#finding-type-filter").selectOption("long_function");
-  await expect(page.locator("#finding-result-note")).toContainText("diagnostics");
+  await expect(page.locator("#finding-result-note")).toContainText("matching findings");
   await expect(page.locator("#finding-groups")).toContainText("Long Function");
   expect(await page.locator("#findings-table .finding-card").count()).toBeLessThanOrEqual(50);
-  await expect(page.locator("#findings-table .finding-meta").first()).toContainText("Long Function");
+  const firstFinding = page.locator("#findings-table .finding-card").first();
+  await firstFinding.locator("details summary").click();
+  await expect(firstFinding).toContainText("The check is “Long function.”");
+  await expect(firstFinding).toContainText("not a grade for the code");
   if (await page.locator("#finding-show-all").isVisible()) {
     const before = await page.locator("#findings-table .finding-card").count();
     await page.locator("#finding-show-all").click();

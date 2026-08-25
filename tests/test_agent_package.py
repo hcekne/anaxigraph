@@ -34,8 +34,8 @@ def test_shared_agent_package_is_versioned_and_contract_complete():
 
 
 def test_agent_plugin_archive_is_complete_and_reproducible(tmp_path: Path):
-    first = tmp_path / "first/anaxigraph-agent-plugin-0.2.0.zip"
-    second = tmp_path / "second/anaxigraph-agent-plugin-0.2.0.zip"
+    first = tmp_path / "first/anaxigraph-agent-plugin-0.3.0.zip"
+    second = tmp_path / "second/anaxigraph-agent-plugin-0.3.0.zip"
     first_report = build_agent_plugin(ROOT, first, epoch=1_700_000_000)
     second_report = build_agent_plugin(ROOT, second, epoch=1_700_000_000)
 
@@ -64,7 +64,7 @@ def test_agent_package_check_rejects_version_drift(tmp_path: Path):
             shutil.copy2(source, destination)
     manifest = tmp_path / "plugins/anaxigraph/.codex-plugin/plugin.json"
     manifest.write_text(
-        manifest.read_text(encoding="utf-8").replace('"version": "0.2.0"', '"version": "9.9.9"'),
+        manifest.read_text(encoding="utf-8").replace('"version": "0.3.0"', '"version": "9.9.9"'),
         encoding="utf-8",
     )
 

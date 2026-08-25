@@ -14,6 +14,8 @@
         "anaxigraph.clock",
         "anaxigraph.config",
         "anaxigraph.config_authority",
+        "anaxigraph.finding_language",
+        "anaxigraph.finding_language_legacy",
         "anaxigraph.guidance",
         "anaxigraph.graph_contract",
         "anaxigraph.ir",

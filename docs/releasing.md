@@ -91,17 +91,17 @@ the same contract again against the immutable tag before requesting permission t
    uv run twine check dist/*
    uv run python scripts/verify_release_artifacts.py \
      --dist dist \
-     --tag v0.2.0 \
+     --tag v0.3.0 \
      --check-pypi \
      --checksums /tmp/anaxigraph-SHA256SUMS
    uv run python scripts/check_agent_package.py
    mkdir -p release
    uv run python scripts/build_agent_plugin.py \
-     --output release/anaxigraph-agent-plugin-0.2.0.zip \
+     --output release/anaxigraph-agent-plugin-0.3.0.zip \
      >> /tmp/anaxigraph-SHA256SUMS
    ```
 
-   Replace `v0.2.0` with the version being prepared. The last command intentionally fails when the
+   Replace `v0.3.0` with the version being prepared. The last command intentionally fails when the
    tag and package disagree, when required package data is absent, when the license metadata
    regresses, or when the version is already on PyPI.
 
@@ -109,8 +109,8 @@ the same contract again against the immutable tag before requesting permission t
 6. Create the exact annotated tag from the protected commit and push it:
 
    ```bash
-   git tag -a v0.2.0 -m "AnaxiGraph 0.2.0"
-   git push origin v0.2.0
+   git tag -a v0.3.0 -m "AnaxiGraph 0.3.0"
+   git push origin v0.3.0
    ```
 
 7. Draft a GitHub release for that existing tag. Review the commit and generated notes, then
@@ -128,9 +128,9 @@ included checksum file:
 
 ```bash
 sha256sum --check SHA256SUMS
-gh attestation verify anaxigraph-0.2.0-py3-none-any.whl \
+gh attestation verify anaxigraph-0.3.0-py3-none-any.whl \
   --repo hcekne/anaxigraph
-gh attestation verify oci://ghcr.io/hcekne/anaxigraph:0.2.0 \
+gh attestation verify oci://ghcr.io/hcekne/anaxigraph:0.3.0 \
   --repo hcekne/anaxigraph
 ```
 

@@ -109,7 +109,12 @@ def test_finding_pages_explain_actionability_and_honor_agent_budget(repository, 
     assert actionability["false_positive_conditions"]
     assert actionability["affected"]["architecture_areas"] == ["domain"]
     assert actionability["smallest_next_action"]
-    assert "resolved automatically" in actionability["verification"]
+    assert "marks this finding resolved" in actionability["verification"]
+    language = finding["plain_language"]
+    assert language["what"] == finding["summary"]
+    assert language["why_it_matters"]
+    assert language["next_step"] == finding["recommended_action"]
+    assert "not a grade for the code" in language["priority"]["meaning"]
 
     with pytest.raises(ValueError, match="does not match"):
         query_findings(

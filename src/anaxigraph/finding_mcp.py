@@ -28,8 +28,9 @@ def _register_query_tool(
         name="ANAXIGRAPH_FINDINGS",
         description=(
             "Read a bounded attention queue or the complete diagnostic ledger. Responses include "
-            "exact totals, stable cursors, omitted counts, and actionability. Use status='planned' "
-            "for work a human explicitly approved; active signals are not permission to refactor."
+            "exact totals, stable cursors, omitted counts, and a plain-language account of what was "
+            "found, why it matters, the measured facts, uncertainty, and the next step. Use "
+            "status='planned' for approved work; active signals are not permission to refactor."
         ),
     )
     def findings(

@@ -200,6 +200,30 @@ def test_executor_and_model_changes_do_not_invalidate_semantic_documents(
     assert len(_calls(log)) == baseline_calls
 
 
+def test_package_version_change_reuses_unchanged_semantic_documents(
+    repository, database, tmp_path, monkeypatch
+):
+    log = tmp_path / "semantic-release-change.log"
+    provider = _fake_provider(tmp_path)
+    _semantic_config(repository, provider, log)
+    config = load_config(repository)
+    first = RepositoryScanner(database).scan(repository)
+    engine = SemanticEngine(database)
+    baseline = engine.bootstrap(first.repository_id, repository, config)
+    assert baseline["semantic"]["semantically_ready"] is True
+    baseline_calls = len(_calls(log))
+
+    monkeypatch.setattr("anaxigraph.scan_preparation.__version__", "next-release-test")
+    next_release = RepositoryScanner(database).scan(repository, run_type="update")
+    repeated = engine.bootstrap(next_release.repository_id, repository, config)
+
+    assert next_release.snapshot_id != first.snapshot_id
+    assert repeated["processed"] == 0
+    assert repeated["semantic"]["current"] == repeated["semantic"]["eligible_modules"]
+    assert repeated["semantic"]["semantically_ready"] is True
+    assert len(_calls(log)) == baseline_calls
+
+
 def test_unaffected_context_dossiers_remain_current_while_changed_modules_wait(
     repository, database, tmp_path
 ):

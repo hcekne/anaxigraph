@@ -6,10 +6,65 @@ import sqlite3
 from dataclasses import dataclass
 from typing import Any
 
+from anaxigraph.finding_language import (
+    evidence_sentences,
+    normalize_finding_copy,
+    plain_language_contract,
+)
 from anaxigraph.persistence.row_decoding import decode_json_columns
 from anaxigraph.persistence.snapshot_projection import install_snapshot_projection
 
 PRIORITY_VERSION = "risk-churn-blast-v1"
+
+_DEAD_CODE_LIMITS = [
+    "The application loads the file by name from configuration, a framework, or generated code.",
+    "The language analyzer could not see a runtime registration or another dynamic reference.",
+]
+_CYCLE_LIMITS = [
+    "The loop exists only for type checking or building and does not connect runtime behavior.",
+    "An unclear import was linked to the wrong module.",
+]
+_COVERAGE_LIMITS = [
+    "The imported coverage report is old or does not include the relevant test run.",
+    "The uncovered lines are generated, unreachable, or contain no behavior worth testing.",
+]
+_DEFAULT_LIMITS = [
+    "The repository intentionally allows this structure.",
+    "Missing or unclear dependency data changes what the finding appears to mean.",
+]
+_FINDING_LIMITS = {
+    "long_function": [
+        "The function tells one clear, step-by-step story even though it is long.",
+        "Splitting it would make the order of the steps harder to see.",
+    ],
+    "symbol_complexity": [
+        "Every branch answers part of one clear business decision.",
+        (
+            "Focused tests already cover each important outcome, and splitting the branches would "
+            "hide the logic."
+        ),
+    ],
+    "module_complexity": [
+        "The file has one clear job even though that job needs a lot of code.",
+        "Splitting it would force closely related code to jump between files.",
+    ],
+    "high_fan_out": [
+        "The file is an intentional coordinator whose job is to connect the listed modules.",
+        "Each dependency supports the same clear workflow rather than a separate responsibility.",
+    ],
+    "high_fan_in": [
+        "The file is a stable shared contract that many callers are expected to use.",
+        "Its public behavior changes rarely and has broad tests.",
+    ],
+    "architecture_drift": [
+        "The path-based fallback guessed the wrong architecture area.",
+        "The declared area intentionally owns the dependency that caused the different guess.",
+    ],
+    "architecture_violation": [
+        "The repository rule is out of date or was written too broadly.",
+        "The detected reference is build-only, type-only, or points to the wrong module.",
+    ],
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,7 +116,7 @@ def read_ranked_findings(
     stats = _module_stats(connection, repository_id, snapshot_id) if snapshot_id is not None else {}
     ranked: list[dict[str, Any]] = []
     for row in rows:
-        item = decode_json_columns(dict(row))
+        item = normalize_finding_copy(decode_json_columns(dict(row)))
         item.update(finding_priority(item, stats))
         ranked.append(item)
     return sorted(ranked, key=finding_sort_key)
@@ -84,7 +139,7 @@ def read_finding(
     ).fetchone()
     if row is None:
         return None
-    item = decode_json_columns(dict(row))
+    item = normalize_finding_copy(decode_json_columns(dict(row)))
     stats = _module_stats(connection, repository_id, snapshot_id) if snapshot_id else {}
     item.update(finding_priority(item, stats))
     return item
@@ -185,12 +240,21 @@ def finding_priority(
         risk.coverage,
         finding,
     )
+    actionability = _actionability(finding, module_stats, risk, reasons)
+    label = _priority_label(score)
     return {
         "priority_score": score,
-        "priority_label": _priority_label(score),
+        "priority_label": label,
         "priority_reasons": reasons,
         "priority_version": PRIORITY_VERSION,
-        "actionability": _actionability(finding, module_stats, risk, reasons),
+        "actionability": actionability,
+        "plain_language": plain_language_contract(
+            finding,
+            priority_score=score,
+            priority_label=label,
+            priority_reasons=reasons,
+            false_positive_conditions=actionability["false_positive_conditions"],
+        ),
     }
 
 
@@ -209,6 +273,7 @@ def _actionability(
         "why_ranked": reasons,
         "evidence": {
             "deterministic": [] if semantic_source else evidence,
+            "plain_language": evidence_sentences(finding),
             "semantic": {
                 "status": "attached" if semantic_source else "not_attached",
                 "items": evidence if semantic_source else [],
@@ -221,9 +286,9 @@ def _actionability(
             finding.get("recommended_action") or _fallback_action(action_type)
         ),
         "verification": (
-            "Run a complete AnaxiGraph scan after the change. The same stable finding key is "
-            "resolved automatically when its detector no longer observes the condition, and is "
-            "marked regressed if it later returns."
+            "Scan the repository again after the change. If AnaxiGraph no longer sees the same "
+            "condition, it marks this finding resolved. If the condition comes back in a later "
+            "scan, AnaxiGraph marks it as returned."
         ),
     }
 
@@ -269,33 +334,27 @@ def _action_type(finding_type: str) -> str:
 
 def _fallback_action(action_type: str) -> str:
     return {
-        "remove": "Verify runtime and reflective usage, then remove the smallest proven-dead unit.",
-        "test": "Add the smallest test that proves the affected behavior or boundary.",
-        "constrain": "Trace the dependency evidence and introduce the narrowest enforceable boundary.",
-        "refactor": "Extract one cohesive responsibility without changing observable behavior.",
-    }.get(action_type, "Inspect the supplied evidence and decide whether the signal is actionable.")
+        "remove": (
+            "Search for runtime and configuration-based use first. Remove only the smallest piece "
+            "that tests and a normal application start show is unused."
+        ),
+        "test": "Add a small test that checks the affected behavior or project boundary.",
+        "constrain": (
+            "Follow the dependency shown in the evidence and route it through the smallest clear "
+            "boundary."
+        ),
+        "refactor": "Move one clearly named job without changing what users or callers observe.",
+    }.get(action_type, "Read the evidence and decide whether this condition needs a code change.")
 
 
 def _false_positive_conditions(finding_type: str) -> list[str]:
     if "dead" in finding_type or "unused" in finding_type:
-        return [
-            "The symbol is reached through reflection, framework registration, or generated wiring.",
-            "The indexed language analyzer could not resolve a dynamic reference.",
-        ]
-    if finding_type == "long_function":
-        return [
-            "The function is intentionally linear orchestration with one cohesive responsibility.",
-            "Splitting it would hide control flow or create artificial abstractions.",
-        ]
+        return _DEAD_CODE_LIMITS
     if "cycle" in finding_type:
-        return [
-            "The cycle is type-only, build-time-only, or otherwise absent from runtime coupling.",
-            "An unresolved or ambiguous edge points at the wrong internal module.",
-        ]
-    return [
-        "Repository policy intentionally permits this structure.",
-        "Incomplete or ambiguous dependency extraction changes the apparent impact.",
-    ]
+        return _CYCLE_LIMITS
+    if "coverage" in finding_type:
+        return _COVERAGE_LIMITS
+    return _FINDING_LIMITS.get(finding_type, _DEFAULT_LIMITS)
 
 
 def _looks_like_test(path: str) -> bool:
@@ -365,17 +424,28 @@ def _priority_reasons(
     coverage: list[float],
     finding: dict[str, Any],
 ) -> list[str]:
-    reasons = [f"{severity.title()} severity · {confidence:.0%} confidence"]
+    reasons = [
+        f"The repository rule marks this as {severity}, and the detector reports "
+        f"{confidence:.0%} measurement confidence."
+    ]
     if changes:
-        reasons.append(f"Hot path: up to {changes} indexed changes")
+        reasons.append(
+            f"The most active affected file changed {changes} times in indexed Git history."
+        )
     if degree:
-        reasons.append(f"Blast radius: up to {degree} incoming + outgoing links")
+        reasons.append(
+            f"The most connected affected file has {degree} incoming and outgoing links in total."
+        )
     if changes and complexity >= 10:
-        reasons.append(f"Behavioral hotspot: churn × complexity {complexity:g}")
+        reasons.append(
+            f"An affected file both changes often and has a decision score of {complexity:g}."
+        )
     if len(paths) > 1:
-        reasons.append(f"Spans {len(paths)} modules")
+        reasons.append(f"The finding covers {len(paths)} modules.")
     if coverage:
-        reasons.append(f"Lowest imported line coverage {min(coverage):.0%}")
+        reasons.append(
+            f"Tests ran only {min(coverage):.0%} of the least-covered affected file's lines."
+        )
     if finding.get("status") == "regressed":
-        reasons.append("Previously resolved condition has returned")
+        reasons.append("A previous scan marked this resolved, but the condition has returned.")
     return reasons

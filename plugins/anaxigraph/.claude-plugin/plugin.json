@@ -1,6 +1,6 @@
 {
   "name": "anaxigraph",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Ground Claude Code work in AnaxiGraph architecture, history, findings, and semantic dossiers.",
   "author": {
     "name": "AnaxiGraph contributors"

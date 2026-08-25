@@ -28,7 +28,6 @@
     "src/anaxigraph/analyzers/javascript.py::_strip_comments": [52, 21],
     "src/anaxigraph/analyzers/text.py::_jsonc_to_json": [37, 18],
     "src/anaxigraph/architecture.py::evaluate_architecture": [69, 14],
-    "src/anaxigraph/architecture_rules.py::_evaluate_rule": [233, 56],
     "src/anaxigraph/architecture_persistence.py::_update_finding_lifecycle": [93, 7],
     "src/anaxigraph/config.py::_semantic_config": [55, 11],
     "src/anaxigraph/config.py::load_config": [50, 17],

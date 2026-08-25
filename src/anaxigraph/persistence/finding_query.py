@@ -283,6 +283,7 @@ def _compact(item: dict[str, Any]) -> dict[str, Any]:
         "priority_reasons",
         "priority_version",
         "actionability",
+        "plain_language",
     )
     return {key: item[key] for key in keys if key in item}
 

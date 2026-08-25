@@ -91,6 +91,8 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert findings[0]["priority_score"] >= findings[-1]["priority_score"]
         assert findings[0]["priority_reasons"]
         assert findings[0]["actionability"]["verification"]
+        assert findings[0]["plain_language"]["version"] == "plain-language-v1"
+        assert "not a grade for the code" in findings[0]["plain_language"]["priority"]["meaning"]
         modules = (await client.get("/api/modules")).json()
         assert len(modules) == 8
         core = next(item for item in modules if item["path"] == "pkg/core.py")
@@ -328,6 +330,8 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     assert findings.structuredContent["shown"] == 1
                     assert findings.structuredContent["total_matching"] >= 1
                     assert findings.structuredContent["items"][0]["actionability"]
+                    language = findings.structuredContent["items"][0]["plain_language"]
+                    assert language["version"] == "plain-language-v1"
 
 
 @pytest.mark.anyio

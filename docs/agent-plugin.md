@@ -103,7 +103,7 @@ project version under one contract. Validate and build the deterministic distrib
 ```bash
 uv run python scripts/check_agent_package.py
 uv run python scripts/build_agent_plugin.py \
-  --output dist/anaxigraph-agent-plugin-0.2.0.zip
+  --output dist/anaxigraph-agent-plugin-0.3.0.zip
 ```
 
 The pre-commit and release workflows run the same validation. The release workflow includes the

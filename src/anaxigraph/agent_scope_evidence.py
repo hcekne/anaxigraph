@@ -7,6 +7,7 @@ import sqlite3
 from typing import Any
 
 from anaxigraph.config import path_matches
+from anaxigraph.finding_language import normalize_finding_copy
 
 
 def _applicable_rules(
@@ -117,7 +118,7 @@ def _finding_value(row: Any) -> tuple[dict[str, Any], set[str]]:
     item = dict(row)
     affected = set(_json(item.pop("affected_artifacts_json", "[]")) or [])
     item["evidence"] = list(_json(item.pop("evidence_json", "[]")) or [])
-    return item, affected
+    return normalize_finding_copy(item), affected
 
 
 def _json(value: str) -> Any:

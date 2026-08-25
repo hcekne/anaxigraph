@@ -157,17 +157,18 @@ def _candidate(
         finding_type="possible_dead_code",
         severity=rule.severity,
         confidence=confidence,
-        summary=f"{path} may be unreachable",
+        summary=f"{path} may no longer be used",
         explanation=(
-            f"No incoming static relationship, configured/detected entry point, or registration "
-            f"was found, and the file has not changed for {days} days. Reflection, generated wiring, "
-            "and external configuration have not been disproven."
+            "No indexed code points to this file, the analyzer found no program entry or runtime "
+            f"registration, and Git shows no change for {days} days. Configuration or code that "
+            "loads files by name could still use it, so this is not proof that deletion is safe."
         ),
         affected_artifacts=(path,),
         evidence=evidence,
         recommended_action=(
-            "Check route, dependency-injection, event, serialization, template, configuration, "
-            "reflection, and runtime registrations before deletion."
+            "Before deleting it, search routes, events, templates, configuration, and runtime "
+            "registrations for the file name. Remove it only after tests and a normal application "
+            "start still work."
         ),
     )
 
