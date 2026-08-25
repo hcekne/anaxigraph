@@ -9,6 +9,8 @@ from typing import Any
 
 from anaxigraph.semantic_taxonomy_identity import stable_taxonomy_nodes
 
+_INTERNAL_GROUP_REFERENCE = re.compile(r"\b(?:cluster|group)-\d+\b", re.IGNORECASE)
+
 
 def normalize_taxonomy(
     connection: sqlite3.Connection,
@@ -23,6 +25,7 @@ def normalize_taxonomy(
     known_paths = set(eligible_paths)
     artifacts = _artifact_ids(connection, repository_id, known_paths)
     nodes, candidates, issues = _flatten(value, known_paths)
+    _plain_language_issues(nodes, candidates, issues)
     assignments = _primary_assignments(candidates, issues)
     _apply_locks(nodes, assignments, locked_memberships, known_paths, issues)
     _assign_missing(nodes, assignments, known_paths, issues)
@@ -100,6 +103,28 @@ def _node(
         "display_order": order,
         "locked": False,
     }
+
+
+def _plain_language_issues(
+    nodes: dict[str, dict[str, Any]],
+    memberships: list[dict[str, Any]],
+    issues: list[dict[str, Any]],
+) -> None:
+    for key, node in nodes.items():
+        for field in ("name", "description", "responsibility", "rationale"):
+            if _INTERNAL_GROUP_REFERENCE.search(str(node.get(field) or "")):
+                issues.append(
+                    _issue("unexplained_internal_group_reference", f"{key}.{field}", "warning")
+                )
+    for membership in memberships:
+        if _INTERNAL_GROUP_REFERENCE.search(str(membership.get("rationale") or "")):
+            issues.append(
+                _issue(
+                    "unexplained_internal_group_reference",
+                    f"{membership['path']}.rationale",
+                    "warning",
+                )
+            )
 
 
 def _primary_assignments(

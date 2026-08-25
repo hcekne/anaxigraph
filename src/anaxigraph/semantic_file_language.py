@@ -239,8 +239,13 @@ def _clear_text(value: Any) -> str:
             text,
             flags=re.IGNORECASE,
         )
-    text = re.sub(r"\.\.(?=\s|$)", ".", text)
-    return _define_unexplained_terms(text)
+    return explain_specialist_terms(re.sub(r"\.\.(?=\s|$)", ".", text))
+
+
+def explain_specialist_terms(value: Any) -> str:
+    """Keep one sentence self-contained when precise code language is necessary."""
+
+    return _define_unexplained_terms(str(value or "").strip())
 
 
 def _define_unexplained_terms(text: str) -> str:

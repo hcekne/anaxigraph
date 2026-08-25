@@ -129,7 +129,15 @@ def _score(item: dict[str, Any], semantic: dict[str, Any], terms: list[str]) -> 
     taxonomy = item.get("semantic_taxonomy") or {}
     haystack += " " + " ".join(
         str(taxonomy.get(key) or "")
-        for key in ("area", "area_name", "subsystem", "subsystem_name", "rationale")
+        for key in (
+            "area",
+            "area_name",
+            "area_label",
+            "subsystem",
+            "subsystem_name",
+            "subsystem_label",
+            "rationale",
+        )
     )
     lowered = haystack.lower()
     path = item["path"].lower()

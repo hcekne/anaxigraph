@@ -23,17 +23,24 @@ export function renderModuleFilters() {
     if (key === "architecture_subsystem") return architectureFor(item)?.subsystem;
     return item[key];
   }).filter(Boolean))].sort((left, right) => String(left).localeCompare(String(right)));
-  const populate = (id, values, label) => {
+  const populate = (id, values, label, display = humanize) => {
     const select = byId(id);
     const selected = select.value;
     select.innerHTML = `<option value="">All ${label}</option>${values.map((value) => (
-      `<option value="${escapeAttr(value)}">${escapeHtml(humanize(value))}</option>`
+      `<option value="${escapeAttr(value)}">${escapeHtml(display(value))}</option>`
     )).join("")}`;
     if (values.includes(selected)) select.value = selected;
   };
-  populate("module-area-filter", options("architecture_area"), "areas");
-  populate("module-subsystem-filter", options("architecture_subsystem"), "subsystems");
+  populate("module-area-filter", options("architecture_area"), "areas", (value) => architectureLabel("area", value));
+  populate("module-subsystem-filter", options("architecture_subsystem"), "subsystems", (value) => architectureLabel("subsystem", value));
   populate("module-language-filter", options("language"), "languages");
+}
+
+function architectureLabel(kind, value) {
+  const label = state.modules
+    .map((item) => architectureFor(item))
+    .find((placement) => placement?.[kind] === value)?.[`${kind}_label`];
+  return label || humanize(value);
 }
 
 function moduleValue(item, key) {
@@ -42,7 +49,10 @@ function moduleValue(item, key) {
     const score = item.evaluation?.attention_score;
     return score == null ? null : Number(score);
   }
-  if (key === "architecture_area") return architectureFor(item)?.area;
+  if (key === "architecture_area") {
+    const placement = architectureFor(item) || {};
+    return placement.area_label || placement.area;
+  }
   return item[key];
 }
 
@@ -60,6 +70,8 @@ function filteredModules() {
       item.summary,
       architecture.area,
       architecture.subsystem,
+      architecture.area_label,
+      architecture.subsystem_label,
       ...(item.responsibilities || []),
       ...(evaluation.pattern_candidates || []),
     ].join(" ").toLowerCase();
@@ -130,10 +142,12 @@ function coverageMarkup(lineCoverage) {
 }
 
 function architectureMarkup(placement) {
+  const area = placement.area_label || humanize(placement.area || "unclassified");
+  const subsystem = placement.subsystem_label || humanize(placement.subsystem || "");
   if (placement.subsystem) {
-    return `<strong>${escapeHtml(humanize(placement.area))}</strong><span>${escapeHtml(humanize(placement.subsystem))}</span>`;
+    return `<strong>${escapeHtml(area)}</strong><span>${escapeHtml(subsystem)}</span>`;
   }
-  return `<strong>${escapeHtml(humanize(placement.area || "unclassified"))}</strong><span>${escapeHtml(placement.source || state.mapLayer)}</span>`;
+  return `<strong>${escapeHtml(area)}</strong><span>${escapeHtml(placement.source || state.mapLayer)}</span>`;
 }
 
 function patternMarkup(candidates, semanticCandidates, evaluation) {

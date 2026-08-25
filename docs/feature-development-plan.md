@@ -1788,6 +1788,19 @@ summary as their primary `summary` value. The original AI sentence remains in th
 record for compatibility and search matching, but it can no longer bypass the readable contract in
 the first sentence shown to a person or supplied to an agent.
 
+AI-created repository areas now carry `semantic-taxonomy-explanation-v1` through the existing
+hierarchy response. Each area states its concrete job, what belongs there, why its files are grouped,
+and what its evidence-strength value means. The overview cards use an ordinary-language group name
+and those sentences as the main map, including when an older finalized map stored dense wording or
+an invisible partition label such as `Cluster-5`. New proposals and autonomous reviews must write
+every explanation for a smart twelve-year-old and another coding agent in the original field; a
+technical-details field is explicitly not an acceptable escape hatch. Deterministic validation
+flags hidden internal group numbers for the reviewer. File inventory and search records also carry
+readable area and smaller-group names plus a direct explanation of why the AI map placed the file
+there, so agents do not have to interpret the stored membership note. The extraction also removed
+the former `read_semantic_hierarchy` maintainability exception; no extra route, table, provider
+call, or semantic job was added.
+
 Graph completeness now follows the same no-jargon-drawer rule. Every overview and bounded graph
 response carries `graph-quality-explanation-v1`, which says how many likely links between files were
 checked, how many pointed to one file, how many were unclear or missing, what code structure the

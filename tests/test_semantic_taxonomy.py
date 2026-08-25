@@ -93,6 +93,7 @@ def test_taxonomy_validator_repairs_membership_and_bounds_shape(repository, data
         "confidence": 0.8,
         "evidence": paths[:3],
     }
+    candidate["areas"][0]["rationale"] = "Cluster-5 contains the delivery files."
     with database.transaction() as connection:
         normalized = normalize_taxonomy(
             connection,
@@ -124,6 +125,7 @@ def test_taxonomy_validator_repairs_membership_and_bounds_shape(repository, data
         "repaired_area_limit",
         "repaired_subsystem_limit",
         "applied_locked_membership",
+        "unexplained_internal_group_reference",
     } <= issue_kinds
     assert normalized["validation"]["status"] == "adjusted"
 

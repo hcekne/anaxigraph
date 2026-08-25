@@ -284,6 +284,7 @@ function renderGroupHierarchy(groups) {
 
 function groupMarkup(group, maximum, repositoryLoc) {
   const color = groupColor(group.name);
+  const copy = groupCopy(group);
   const direct = group.direct_files > 0 && group.children?.length ? [{
     name: `other-${group.name}`,
     label: `Other ${humanize(group.name)}`,
@@ -292,22 +293,56 @@ function groupMarkup(group, maximum, repositoryLoc) {
     description: "Files not assigned to a smaller group inside this area.",
   }] : [];
   const children = [...(group.children || []), ...direct];
-  const description = group.description || group.responsibility
-    || (children.length ? `This area contains ${children.length} smaller groups of related work.` : "A group of files with related work.");
+  const description = groupDescription(copy.language, group, children.length);
+  const nameMeaning = groupNameMeaning(copy.language, copy.label);
   const share = Number(group.lines_of_code || 0) / repositoryLoc * 100;
   const scale = Number(group.lines_of_code || 0) / maximum * 100;
   const childColor = (child) => child.name.startsWith("other-")
     ? mix(color, architectureMixTarget(), 0.22) : architectureColor(child.name);
   const segments = children.length ? children.map((child) => {
     const width = Number(child.lines_of_code || 0) / Math.max(Number(group.lines_of_code || 0), 1) * 100;
-    return `<span class="group-segment" style="width:${width}%;background:${childColor(child)}" title="${escapeAttr(child.label || childLabel(child.name, group.name))} · ${format.format(child.lines_of_code || 0)} code lines"></span>`;
+    return `<span class="group-segment" style="width:${width}%;background:${childColor(child)}" title="${escapeAttr(groupChildLabel(child, group.name))} · ${format.format(child.lines_of_code || 0)} code lines"></span>`;
   }).join("") : `<span class="group-segment" style="width:100%;background:${color}"></span>`;
   const childHtml = children.length ? `<div class="group-children">${children.map((child) => (
-    `<span class="group-child" style="--child-color:${childColor(child)}" title="${escapeAttr(child.description || child.responsibility || "Smaller group of related files")}"><i class="group-child-dot"></i>${escapeHtml(child.label || childLabel(child.name, group.name))}<em>${format.format(child.lines_of_code || 0)} code lines</em></span>`
+    `<span class="group-child" style="--child-color:${childColor(child)}" title="${escapeAttr(groupChildDescription(child))}"><i class="group-child-dot"></i>${escapeHtml(groupChildLabel(child, group.name))}<em>${format.format(child.lines_of_code || 0)} code lines</em></span>`
   )).join("")}</div>` : "";
   const badge = state.mapLayer === "semantic" ? "AI-created map"
     : children.length ? "includes smaller groups" : sourceLabel(group.source);
-  return `<article class="group-family" style="--group-color:${color}"><div class="group-family-header"><strong>${escapeHtml(humanize(group.name))}<span class="source-badge">${escapeHtml(badge)}</span></strong><span>${format.format(group.files)} files · ${format.format(group.lines_of_code)} code lines</span></div><p>${escapeHtml(description)}</p><div class="group-scale"><div class="bar-track"><div class="group-bar-fill" style="width:${Math.max(1, scale)}%">${segments}</div></div><span class="group-scale-label">${share.toFixed(1)}% of repository code lines</span></div>${childHtml}</article>`;
+  return `<article class="group-family" style="--group-color:${color}"><div class="group-family-header"><strong>${escapeHtml(copy.label)}<span class="source-badge">${escapeHtml(badge)}</span></strong><span>${format.format(group.files)} files · ${format.format(group.lines_of_code)} code lines</span></div>${nameMeaning}<p>${escapeHtml(description)}</p><div class="group-scale"><div class="bar-track"><div class="group-bar-fill" style="width:${Math.max(1, scale)}%">${segments}</div></div><span class="group-scale-label">${share.toFixed(1)}% of repository code lines</span></div>${childHtml}</article>`;
+}
+
+function groupCopy(group) {
+  const language = group.plain_language || {};
+  return {
+    label: language.display_name || group.label || humanize(group.name),
+    language,
+  };
+}
+
+function groupDescription(language, group, childCount) {
+  if (language.what_this_group_does) return language.what_this_group_does;
+  if (group.description || group.responsibility) return group.description || group.responsibility;
+  return childCount
+    ? `This area contains ${childCount} smaller groups of related work.`
+    : "A group of files with related work.";
+}
+
+function groupNameMeaning(language, label) {
+  if (!language.name_and_meaning || language.name_and_meaning === label) return "";
+  return `<p class="muted">${escapeHtml(language.name_and_meaning)}</p>`;
+}
+
+function groupChildDescription(child) {
+  return child.plain_language?.what_this_group_does
+    || child.description
+    || child.responsibility
+    || "Smaller group of related files";
+}
+
+function groupChildLabel(child, parent) {
+  return child.plain_language?.display_name
+    || child.label
+    || childLabel(child.name, parent);
 }
 
 function sourceLabel(source) {

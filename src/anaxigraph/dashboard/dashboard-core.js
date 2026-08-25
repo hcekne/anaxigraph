@@ -139,9 +139,12 @@ export function selectedRepository() {
 
 export function architectureFor(item, layer = state.mapLayer) {
   if (layer === "effective") {
+    const semantic = item.semantic_taxonomy || {};
     return {
       area: item.architecture_area,
       subsystem: item.architecture_subsystem || item.architecture_group,
+      area_label: semantic.area_label,
+      subsystem_label: semantic.subsystem_label,
       source: item.architecture_source,
     };
   }

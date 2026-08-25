@@ -6,6 +6,11 @@ import json
 import sqlite3
 from typing import Any
 
+from anaxigraph.semantic_taxonomy_language import (
+    semantic_taxonomy_assignment_explanation,
+    semantic_taxonomy_explanation,
+)
+
 
 def current_taxonomy(connection: sqlite3.Connection, snapshot_id: int) -> dict[str, Any] | None:
     row = connection.execute(
@@ -65,23 +70,28 @@ def taxonomy_assignments(
         """,
         (taxonomy["id"],),
     ).fetchall()
-    return {
-        int(row["artifact_id"]): {
-            "taxonomy_id": taxonomy["id"],
-            "area": row["area_key"] or row["subsystem_key"],
-            "area_name": row["area_name"] or row["subsystem_name"],
-            "subsystem": row["subsystem_key"],
-            "subsystem_name": row["subsystem_name"],
-            "confidence": row["confidence"],
-            "rationale": row["rationale"],
-            "evidence": json.loads(row["evidence_json"] or "[]"),
-            "alternatives": json.loads(row["alternatives_json"] or "[]"),
-            "locked": bool(row["locked"]),
-            "source": "AI-created map checked by a separate AI pass",
-            "freshness": taxonomy["updated_at"],
-        }
-        for row in rows
+    return {int(row["artifact_id"]): _taxonomy_assignment(row, taxonomy) for row in rows}
+
+
+def _taxonomy_assignment(row: sqlite3.Row, taxonomy: dict[str, Any]) -> dict[str, Any]:
+    assignment = {
+        "taxonomy_id": taxonomy["id"],
+        "area": row["area_key"] or row["subsystem_key"],
+        "area_name": row["area_name"] or row["subsystem_name"],
+        "subsystem": row["subsystem_key"],
+        "subsystem_name": row["subsystem_name"],
+        "confidence": row["confidence"],
+        "rationale": row["rationale"],
+        "evidence": json.loads(row["evidence_json"] or "[]"),
+        "alternatives": json.loads(row["alternatives_json"] or "[]"),
+        "locked": bool(row["locked"]),
+        "source": "AI-created map checked by a separate AI pass",
+        "freshness": taxonomy["updated_at"],
     }
+    assignment["plain_language"] = semantic_taxonomy_assignment_explanation(assignment)
+    assignment["area_label"] = assignment["plain_language"]["area_name"]
+    assignment["subsystem_label"] = assignment["plain_language"]["subsystem_name"]
+    return assignment
 
 
 def read_semantic_hierarchy(
@@ -118,22 +128,7 @@ def read_semantic_hierarchy(
     nodes = {}
     for row in rows:
         key = str(row["node_key"])
-        nodes[key] = {
-            "name": key,
-            "label": row["name"],
-            "level": row["level"],
-            "parent": row["parent_key"],
-            "source": "semantic",
-            "description": row["description"],
-            "responsibility": row["responsibility"],
-            "confidence": row["confidence"],
-            "rationale": row["rationale"],
-            "evidence": json.loads(row["evidence_json"] or "[]"),
-            "counter_evidence": json.loads(row["counter_evidence_json"] or "[]"),
-            "taxonomy_id": taxonomy["id"],
-            "freshness": taxonomy["updated_at"],
-            **stats.get(key, {"direct_files": 0, "direct_lines_of_code": 0}),
-        }
+        nodes[key] = _semantic_node(row, taxonomy, stats.get(key))
     children: dict[str, list[str]] = {key: [] for key in nodes}
     for key, node in nodes.items():
         if node["parent"] in children and node["parent"] != key:
@@ -143,6 +138,31 @@ def read_semantic_hierarchy(
         (_materialize(key, nodes, children) for key in roots),
         key=lambda item: (-int(item["lines_of_code"]), item["name"]),
     )
+
+
+def _semantic_node(
+    row: sqlite3.Row,
+    taxonomy: dict[str, Any],
+    stats: dict[str, int] | None,
+) -> dict[str, Any]:
+    node = {
+        "name": str(row["node_key"]),
+        "label": row["name"],
+        "level": row["level"],
+        "parent": row["parent_key"],
+        "source": "semantic",
+        "description": row["description"],
+        "responsibility": row["responsibility"],
+        "confidence": row["confidence"],
+        "rationale": row["rationale"],
+        "evidence": json.loads(row["evidence_json"] or "[]"),
+        "counter_evidence": json.loads(row["counter_evidence_json"] or "[]"),
+        "taxonomy_id": taxonomy["id"],
+        "freshness": taxonomy["updated_at"],
+        **(stats or {"direct_files": 0, "direct_lines_of_code": 0}),
+    }
+    node["plain_language"] = semantic_taxonomy_explanation(node)
+    return node
 
 
 def taxonomy_map_payload(connection: sqlite3.Connection, snapshot_id: int) -> dict[str, Any] | None:

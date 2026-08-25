@@ -3,6 +3,10 @@ from __future__ import annotations
 import json
 
 from anaxigraph.semantic_file_language import semantic_file_explanation
+from anaxigraph.semantic_taxonomy_language import (
+    semantic_taxonomy_assignment_explanation,
+    semantic_taxonomy_explanation,
+)
 
 
 def test_legacy_ai_templates_are_rewritten_as_the_main_explanation():
@@ -157,3 +161,43 @@ def test_missing_or_newer_semantic_copy_stays_honest():
     assert hosted_checks["role_in_repository"] == (
         "Automated checks that the code hosting service runs for the repository and before each release."
     )
+
+    group_language = semantic_taxonomy_explanation(
+        {
+            "label": "Persistence & Repository Projections",
+            "level": "area",
+            "description": "Persistence adapters and schema contracts.",
+            "responsibility": "Save and load repository facts.",
+            "rationale": "Cluster-5 is centered on one persistence lifecycle.",
+            "confidence": 0.8,
+        }
+    )
+    assert group_language["version"] == "semantic-taxonomy-explanation-v1"
+    assert group_language["display_name"] == "Saving repository facts and building useful views"
+    assert group_language["what_belongs_here"] == (
+        "Code that saves data, translates between storage and callers, and checks the shape of "
+        "saved data."
+    )
+    assert "Cluster-5" not in group_language["why_these_files_are_together"]
+    assert group_language["why_these_files_are_together"] == (
+        "These files are centered on one set of steps for saving and loading data."
+    )
+    assert "not a grade for the files" in group_language["evidence_strength"]["meaning"]
+
+    placement = semantic_taxonomy_assignment_explanation(
+        {
+            "area_name": "Repository Intelligence Core",
+            "subsystem_name": "Persistence & Repository Projections",
+            "confidence": 0.8,
+            "locked": False,
+        }
+    )
+    assert placement["conclusion"] == (
+        "The AI-created map places this file in Saving repository facts and building useful "
+        "views, inside Core code for understanding repositories."
+    )
+    assert "saved description and direct code links" in placement["why_this_file_is_here"]
+
+    generic_name = semantic_taxonomy_explanation({"label": "Persistence Boundary"})
+    assert generic_name["display_name"] == "Saved data handoff point"
+    assert "In this description" not in generic_name["conclusion"]

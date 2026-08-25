@@ -32,7 +32,6 @@
     "src/anaxigraph/persistence/module_read.py::_materialize_module": [55, 12],
     "src/anaxigraph/persistence/overview_read.py::read_overview": [71, 8],
     "src/anaxigraph/persistence/semantic_taxonomy_carry.py::carry_taxonomy": [91, 3],
-    "src/anaxigraph/persistence/semantic_taxonomy_read.py::read_semantic_hierarchy": [59, 14],
     "src/anaxigraph/registry.py::load_repository_registry": [55, 23],
     "src/anaxigraph/scanner.py::RepositoryScanner._scan": [151, 8],
     "src/anaxigraph/semantic.py::ClaudeSemanticProvider.analyze": [51, 11],

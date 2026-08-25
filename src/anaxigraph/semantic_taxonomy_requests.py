@@ -154,7 +154,10 @@ def _proposal_request(
             "on, and links between tests and source—not by folder names alone. Record work that "
             "cuts across several groups as an extra label instead of placing a file in several "
             "main groups. Use short stable keys and keep an old key when the group's job has not "
-            "meaningfully changed. Show uncertainty, but still complete the map."
+            "meaningfully changed. Write every name, description, responsibility, and reason so "
+            "a smart twelve-year-old and another coding agent understand it on the first reading. "
+            "Describe concrete behavior in the sentence itself; never move unexplained wording to "
+            "a technical-details field. Show uncertainty, but still complete the map."
         ),
         "schema_version": job["schema_version"],
         "analysis_kind": "taxonomy_proposal",
@@ -188,9 +191,11 @@ def _review_request(
             "large groups have a clear reason. Files in a group should share a real job. Explain "
             "how groups call one another, which tests cover them, where saved data or specially "
             "protected code sits, what supports each choice, and what evidence points elsewhere. "
-            "Rewrite labels and explanations that use expert terms without saying what the files "
-            "actually do. Keep useful names from the prior map. Complete the check without asking "
-            "a person to approve it."
+            "Rewrite every label, description, responsibility, reason, issue, and recommendation "
+            "that a smart twelve-year-old or another coding agent would not understand on the "
+            "first reading. State what the files actually do in that same sentence; moving dense "
+            "wording to a technical-details field does not fix it. Keep useful names from the "
+            "prior map. Complete the check without asking a person to approve it."
         ),
         "schema_version": job["schema_version"],
         "analysis_kind": "taxonomy_review",

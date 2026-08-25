@@ -49,6 +49,8 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
     assert core_module["summary_source"] == "command AI description using repository context"
     assert core_module["architecture_layer"] == "semantic"
     assert core_module["semantic_taxonomy"]["confidence"] == 0.85
+    assert core_module["semantic_taxonomy"]["plain_language"]["why_this_file_is_here"]
+    assert core_module["semantic_taxonomy"]["area_label"]
     assert core_module["semantic"]["plain_language"]["version"] == ("semantic-file-explanation-v4")
     assert (
         core_module["summary"] == core_module["semantic"]["plain_language"]["what_this_file_does"]
@@ -66,6 +68,10 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
     overview = database.overview(stats.repository_id)
     assert overview["map"]["default_layer"] == "semantic"
     assert overview["group_hierarchy"] == overview["group_hierarchies"]["semantic"]
+    group_language = overview["group_hierarchy"][0]["plain_language"]
+    assert group_language["version"] == "semantic-taxonomy-explanation-v1"
+    assert group_language["what_this_group_does"]
+    assert group_language["why_these_files_are_together"]
     scope = agent_scope(
         database,
         repository_id=stats.repository_id,
