@@ -8,6 +8,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 
 import anaxigraph.api_support as api_support
+from anaxigraph.config_authority import effective_semantic_policy, service_config_authority
 
 
 def repository_router(context: Any) -> APIRouter:
@@ -41,6 +42,7 @@ class RepositoryRoutes:
         target = self.context.target_for_path(Path(row["path"]))
         config = self.context.selected_config(row)
         first_target = self.context.targets[0] if self.context.targets else None
+        authority = service_config_authority(Path(row["path"]), target, config)
         return {
             **row,
             "scannable": target is not None,
@@ -52,6 +54,8 @@ class RepositoryRoutes:
                 (target.config_path if target else None) or config.config_path or ""
             ),
             "history_snapshots": target.history_snapshots if target else None,
+            "config_authority": authority,
+            "semantic_policy": effective_semantic_policy(config.semantic),
         }
 
     def glossary(self) -> dict[str, Any]:

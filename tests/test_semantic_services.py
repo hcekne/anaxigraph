@@ -55,6 +55,7 @@ def test_lease_service_persists_declared_claim_and_release_transitions(
     config = load_config(repository)
     stats = RepositoryScanner(database).scan(repository)
     engine = SemanticEngine(database)
+    engine.plan(stats.repository_id, repository, config)
 
     job = engine._claim_job(stats.repository_id, config.semantic, worker_id="service-test")
     assert job is not None

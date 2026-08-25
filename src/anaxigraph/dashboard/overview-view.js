@@ -145,7 +145,7 @@ function renderSemanticNotice(semantic) {
     : "";
   const statusCopy = agentFunded
     ? running ? "A connected coding agent has leased semantic work and is mapping the repository."
-      : `${format.format(current)} of ${format.format(total)} eligible modules have current dossiers. The remaining queue is ready for a connected coding agent through AnaxiMCP.`
+      : `${format.format(current)} of ${format.format(total)} eligible modules have current dossiers. The remaining queue is ready for the durable host executor; direct AnaxiMCP work is a bounded fallback.`
     : running ? "The semantic worker is reading stale modules and synthesizing architectural context."
       : worker.status === "failed"
         ? `The semantic worker stopped: ${worker.error || "unknown error"}`

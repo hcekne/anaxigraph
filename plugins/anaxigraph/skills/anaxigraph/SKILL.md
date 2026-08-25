@@ -54,7 +54,7 @@ lifetime of this chat session:
 
 1. Select the local executor from the current client or the user's instruction. Model and reasoning
    effort are per-run inputs: never bake either into repository policy or invent a model name. If
-   the user selected `gpt-5.6-terra` with medium effort, pass those exact values.
+   the user selected explicit runtime values, pass those exact values; otherwise omit both.
 2. Run `anaxigraph understand <repository> --executor <executor> --background --json`, adding
    `--model <model>` and, for Codex, `--reasoning-effort <effort>` when selected. Background mode
    implies the complete queue and survives this coding-agent session.

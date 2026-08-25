@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.8
+**Roadmap version:** 3.9
 
 **Updated:** 25 August 2026
 
@@ -1821,6 +1821,41 @@ Playwright container. The complete suite passes 389 tests at 90.31% coverage; ar
 maintainability, formatting, and deterministic self-analysis gates report no errors or regressions,
 with self-analysis at 39 governed findings, 129 non-blocking findings, and zero issues.
 
+## 6.9 Make repository-sized semantic bootstrap operational
+
+**Status:** IMPLEMENTED AND DETERMINISTICALLY VERIFIED on 25 August 2026; paid MaxOS acceptance is
+paused at the operator's direction while unrelated defects are addressed.
+
+The repository-sized path now uses a queue-first, stage-boundary lifecycle. Module planning carries
+canonical file-fact identities directly, claim atomically reclaims expired leases, and submission
+does not re-plan the repository. Semantic runtime, model, concurrency, lease, query, and display
+settings no longer participate in structural snapshot identity. The selected service exposes one
+non-secret effective semantic policy plus its registry/config provenance and remains authoritative
+for service-backed execution.
+
+Structural scan, semantic prepare, and model execution are separate operations. Service prepare
+works only against the current snapshot; an absent snapshot returns `scan_required`. The dashboard
+starts structural scans asynchronously, reports phase/file progress, and supports cooperative
+cancellation without replacing the prior snapshot. The primary repository-sized workflow is the
+model-agnostic detached host command, whose durable state now records heartbeat, stage, completed
+work, errors, exact index authority, and safe stalled-run recovery.
+
+Deterministic acceptance evidence:
+
+- a 2,000-module fixture plans with zero snapshot reconstructions in the live module path;
+- a 200-module lifecycle runs through a real Streamable HTTP MCP server, stops after 100 jobs,
+  tears down the service, starts a fresh server on the same index, reclaims an abandoned expired
+  lease, and reaches full coverage, ready taxonomy after two reviews, repository synthesis, and
+  finalized pattern review with no source writes or duplicate/running work;
+- all 15 pinned-container browser contracts pass, including durable-executor guidance;
+- complete Python coverage, Ruff, formatting, size, complexity, coupling, architecture,
+  self-analysis, Compose, container, first-user, and benchmark gates remain release requirements.
+
+The remaining release gate is the paid live MaxOS run from the P0 handoff: start without a model
+override, prove immediate durable handoff plus interruption/resume, finish the baseline, and record
+terminal counts, taxonomy, elapsed time, provenance, token use, failures, and retries. Do not start
+that run while the explicit semantic-indexing pause remains active.
+
 ## Phase 6 exit gate
 
 - The semantic system uses explicit composition and retains durable, session-independent progress.
@@ -2185,7 +2220,8 @@ queue and the document cannot drift apart.
 | 40 | **COMPLETE** — Ship and validate the declarative catalog of at least 120 patterns | §6.3 |
 | 41 | **COMPLETE** — Add sparse multi-level candidates, separate ratings, and independent agent critique | §6.4–6.6 |
 | 42 | **IN PROGRESS** — Finish goal-specific placement, consolidation/dead-code safety, live calibration, and bounded pattern handoff on the completed query surfaces | §6.7–6.8 |
-| 43 | Expand parser-backed core languages against the proven capability contract | Phase 4B |
+| 43 | **IMPLEMENTED; LIVE ACCEPTANCE PAUSED** — Make repository-sized semantic bootstrap linear, authoritative, nonblocking, resumable, and deterministically complete | §6.9 |
+| 44 | Expand parser-backed core languages against the proven capability contract | Phase 4B |
 
 Items 9 and 10 are the user-visible Phase 0 changes. The completed 0.1.0 publication is the narrow,
 recorded exception described in §0.6; the work that remains in these queue items is restricted to

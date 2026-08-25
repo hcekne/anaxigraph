@@ -15,6 +15,7 @@ from anaxigraph.cli_common import add_repository_arguments, emit_json
 from anaxigraph.local_runtime import local_database_path
 from anaxigraph.semantic_background import (
     launch_understand_background,
+    report_background_progress,
     semantic_background_status,
 )
 from anaxigraph.semantic_execution import add_semantic_execution_arguments
@@ -105,26 +106,53 @@ def _understand(args: argparse.Namespace) -> dict[str, Any]:
     if args.db is not None and args.service_url:
         raise ValueError("Choose either --db for a local index or --service-url for a service")
     repository = args.repository.expanduser().resolve()
-    config = cli_services.load_repository_config(repository, args.config)
-    if not config.semantic.enabled:
-        raise ValueError("Semantic analysis is disabled in .anaxigraph.yml")
-    execution_semantic, execution_mode = _understand_execution(args, config.semantic)
     service = (
         discover_semantic_service(repository, explicit_url=args.service_url)
-        if _service_discovery_enabled(args) and config.semantic.provider == "agent"
+        if _service_discovery_enabled(args)
         else None
     )
+    if service is not None:
+        return _understand_from_service(args, repository, service)
+    return _understand_from_local(args, repository)
+
+
+def _understand_from_service(
+    args: argparse.Namespace, repository: Path, service: Any
+) -> dict[str, Any]:
+    if args.config is not None:
+        raise ValueError(
+            "--config cannot override the matching service policy "
+            f"{service.config_label()}; use --db for an explicitly local index"
+        )
+    semantic = service.semantic_config()
+    if not semantic.enabled:
+        raise ValueError(
+            "Semantic analysis is disabled by authoritative service policy "
+            f"{service.config_label()}"
+        )
+    execution_semantic, execution_mode = _understand_execution(args, semantic)
     if args.background:
         return launch_understand_background(
             args, repository, execution_semantic, execution_mode, service
         )
-    if service is not None:
-        return _understand_service(
-            args,
-            config,
-            execution_semantic,
-            execution_mode,
-            service,
+    return _understand_service(
+        args,
+        semantic,
+        execution_semantic,
+        execution_mode,
+        service,
+    )
+
+
+def _understand_from_local(args: argparse.Namespace, repository: Path) -> dict[str, Any]:
+    config = cli_services.load_repository_config(repository, args.config)
+    if not config.semantic.enabled:
+        source = str(config.config_path or repository / ".anaxigraph.yml")
+        raise ValueError(f"Semantic analysis is disabled by local policy {source}")
+    execution_semantic, execution_mode = _understand_execution(args, config.semantic)
+    if args.background:
+        return launch_understand_background(
+            args, repository, execution_semantic, execution_mode, None
         )
     return _understand_local(
         args,
@@ -183,23 +211,21 @@ def _understand_local(
 
 def _understand_service(
     args: argparse.Namespace,
-    config: Any,
+    semantic: Any,
     execution_semantic: Any | None,
     execution_mode: str,
     service: Any,
 ) -> dict[str, Any]:
-    prepared = prepare_semantic_service(
-        service,
-        force=args.force,
-        retry_failed=args.retry_failed,
-    )
+    prepared = _prepare_service(args, service)
+    if prepared.get("status") == "scan_required":
+        return _scan_required_service_result(args, execution_mode, service, prepared)
     if execution_semantic is None:
         result = {key: value for key, value in prepared.items() if key not in {"status", "scan"}}
         result["semantic"] = service_semantic_status(service)
     else:
         result = execute_remote_semantics(
             service,
-            config.semantic,
+            semantic,
             execution_semantic,
             limit=args.limit,
             until_complete=args.until_complete,
@@ -228,6 +254,41 @@ def _understand_service(
         result["complete"] = ready
         _require_requested_completion(args, result)
     return {"scan": prepared.get("scan") or {}, **result}
+
+
+def _prepare_service(args: argparse.Namespace, service: Any) -> dict[str, Any]:
+    report_background_progress(stage="preparing", completed=0)
+    result = prepare_semantic_service(
+        service,
+        force=args.force,
+        retry_failed=args.retry_failed,
+    )
+    if result.get("status") != "scan_required":
+        report_background_progress(stage="executing", completed=0)
+    return result
+
+
+def _scan_required_service_result(
+    args: argparse.Namespace,
+    execution_mode: str,
+    service: Any,
+    prepared: dict[str, Any],
+) -> dict[str, Any]:
+    message = str(
+        prepared.get("recommended_action")
+        or "Run an explicit repository scan, then retry understand."
+    )
+    report_background_progress(stage="scan_required", last_error=message)
+    if args.until_complete:
+        raise RuntimeError(f"Semantic execution requires a current structural snapshot. {message}")
+    return {
+        "scan": {},
+        "status": "scan_required",
+        "complete": False,
+        "execution": {"mode": execution_mode},
+        "index": service.identity(),
+        "recommended_action": message,
+    }
 
 
 def _require_requested_completion(args: argparse.Namespace, result: dict[str, Any]) -> None:

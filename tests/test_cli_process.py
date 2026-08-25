@@ -65,7 +65,7 @@ def test_process_scan_scope_and_export_share_one_index(repository: Path, tmp_pat
     assert json.loads(scoped.stdout)["goal"] == "Change the calculator"
     assert json.loads(exported.stdout) == {"output": str(export_path), "status": "ok"}
     payload = json.loads(export_path.read_text(encoding="utf-8"))
-    assert payload["overview"]["files"] == 9
+    assert payload["overview"]["files"] == 8
     assert payload["graph"]["nodes"]
 
 

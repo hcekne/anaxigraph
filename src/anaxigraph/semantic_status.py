@@ -48,6 +48,42 @@ def semantic_status_payload(
         "repository_dossier": _repository_document(rows.repository_state),
         "taxonomy": _taxonomy_payload(rows.taxonomy, semantic, coverage),
         "patterns": _pattern_payload(rows, semantic),
+        "recommended_action": _recommended_action(rows, semantic, coverage),
+    }
+
+
+def _recommended_action(
+    rows: SemanticStatusRows,
+    semantic: SemanticConfig | None,
+    coverage: SemanticCoverage,
+) -> dict[str, Any]:
+    remaining = coverage.pending + coverage.pending_scopes
+    if not semantic or not semantic.enabled:
+        return {
+            "kind": "enable_semantics",
+            "message": "Enable semantic analysis in the authoritative repository policy.",
+        }
+    if coverage.semantically_ready:
+        return {"kind": "none", "message": "The semantic map is current."}
+    if rows.jobs.get("running_live", 0):
+        return {
+            "kind": "monitor",
+            "command": "anaxigraph semantic-status <repository>",
+            "message": "A live executor owns semantic work; monitor its durable progress.",
+        }
+    if remaining >= 50:
+        return {
+            "kind": "durable_host_executor",
+            "command": "anaxigraph understand <repository> --executor codex --background",
+            "status_command": "anaxigraph semantic-status <repository>",
+            "message": "Use a detached host executor for this repository-sized queue.",
+        }
+    return {
+        "kind": "bounded_mcp_fallback",
+        "message": (
+            "Use the durable host executor, or process this bounded queue with "
+            "ANAXIGRAPH_SEMANTIC_WORK and verify status afterward."
+        ),
     }
 
 

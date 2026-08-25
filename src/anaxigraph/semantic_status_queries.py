@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 
@@ -26,10 +26,11 @@ def read_semantic_status(
     connection: sqlite3.Connection,
     repository_id: int,
     snapshot_id: int,
+    timeout_seconds: int = 300,
 ) -> SemanticStatusRows:
     counts = _module_counts(connection, snapshot_id)
     scope_counts = _scope_counts(connection, snapshot_id)
-    jobs = _job_counts(connection, repository_id, snapshot_id)
+    jobs = _job_counts(connection, repository_id, snapshot_id, timeout_seconds)
     usage = dict(_usage(connection, repository_id))
     daily_spend, reserved_spend = _spend(connection, repository_id)
     return SemanticStatusRows(
@@ -75,6 +76,7 @@ def _job_counts(
     connection: sqlite3.Connection,
     repository_id: int,
     snapshot_id: int,
+    timeout_seconds: int,
 ) -> dict[str, int]:
     rows = connection.execute(
         """
@@ -83,7 +85,31 @@ def _job_counts(
         """,
         (repository_id, snapshot_id),
     ).fetchall()
-    return {str(row["status"]): int(row["count"]) for row in rows}
+    counts = {str(row["status"]): int(row["count"]) for row in rows}
+    live, expired = _running_counts(connection, repository_id, snapshot_id, timeout_seconds)
+    counts.update(running_live=live, running_expired=expired, reclaimable=expired)
+    return counts
+
+
+def _running_counts(
+    connection: sqlite3.Connection,
+    repository_id: int,
+    snapshot_id: int,
+    timeout_seconds: int,
+) -> tuple[int, int]:
+    now = datetime.now(UTC)
+    stale_before = (now - timedelta(seconds=max(90, timeout_seconds + 60))).isoformat()
+    row = connection.execute(
+        """
+        SELECT
+          SUM(CASE WHEN lease_expires_at >= ? THEN 1 ELSE 0 END) AS live,
+          SUM(CASE WHEN lease_expires_at < ? OR
+             (lease_expires_at IS NULL AND started_at < ?) THEN 1 ELSE 0 END) AS expired
+        FROM semantic_jobs WHERE repository_id = ? AND snapshot_id = ? AND status = 'running'
+        """,
+        (now.isoformat(), now.isoformat(), stale_before, repository_id, snapshot_id),
+    ).fetchone()
+    return int(row["live"] or 0), int(row["expired"] or 0)
 
 
 def _usage(connection: sqlite3.Connection, repository_id: int) -> sqlite3.Row:

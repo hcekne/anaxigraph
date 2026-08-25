@@ -1,10 +1,21 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
-from anaxigraph.config import load_config, path_matches
+from anaxigraph.config import (
+    AnaxiGraphConfig,
+    SemanticConfig,
+    load_config,
+    path_matches,
+    semantic_config_from_mapping,
+)
+from anaxigraph.config_authority import (
+    effective_semantic_policy,
+    service_config_authority,
+)
 
 
 def test_config_loads_groups_rules_and_ignore(repository):
@@ -133,6 +144,42 @@ def test_agent_funded_semantic_policy_needs_no_model_or_command(tmp_path: Path):
     assert semantic.timeout_seconds == 300
     assert semantic.taxonomy.enabled is True
     assert semantic.taxonomy.review_passes == 2
+
+
+def test_effective_semantic_policy_round_trips_limits_without_private_provider_fields():
+    semantic = SemanticConfig(
+        enabled=True,
+        provider="agent",
+        command=("private-provider",),
+        base_url="https://private.example",
+        api_key_env="PRIVATE_TOKEN",
+        max_parallel_jobs=12,
+        timeout_seconds=420,
+        reasoning_effort="medium",
+    )
+
+    policy = effective_semantic_policy(semantic)
+    transported = semantic_config_from_mapping(policy)
+
+    assert transported.max_parallel_jobs == 12
+    assert transported.timeout_seconds == 420
+    assert transported.reasoning_effort == "medium"
+    assert {"command", "base_url", "api_key_env"}.isdisjoint(policy)
+
+
+def test_service_config_authority_distinguishes_defaults_and_external_policy(tmp_path):
+    defaults = service_config_authority(tmp_path, None, AnaxiGraphConfig())
+    assert defaults["source_kind"] == "service_defaults"
+    assert defaults["sha256"] is None
+
+    external = tmp_path / "operator-policy.yml"
+    external.write_text("semantic:\n  enabled: true\n", encoding="utf-8")
+    target = SimpleNamespace(key="central", config_path=external)
+    authority = service_config_authority(tmp_path / "repository", target, AnaxiGraphConfig())
+
+    assert authority["source_kind"] == "external_registry_policy"
+    assert authority["registry_key"] == "central"
+    assert authority["sha256"]
 
 
 def test_finding_attention_and_diagnostic_policy_loads(tmp_path: Path):

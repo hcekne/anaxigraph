@@ -35,6 +35,12 @@ def create_anaxi_mcp_server(
         config_path,
         history_service,
     )
-    register_semantic_tools(server, database, context.select, context.config_for)
+    register_semantic_tools(
+        server,
+        database,
+        context.select,
+        context.config_for,
+        context.semantic_config_contract,
+    )
     register_finding_tools(server, database, context.select, context.config_for)
     return server

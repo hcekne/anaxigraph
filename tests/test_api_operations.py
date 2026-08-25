@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import threading
+
+import anyio
 import httpx
 import pytest
 from mcp import ClientSession
@@ -10,7 +13,7 @@ from anaxigraph.api_limits import MAX_REQUEST_BODY_BYTES
 from anaxigraph.api_operation_gate import RepositoryOperationGate
 from anaxigraph.bounded_export import _compact_taxonomy
 from anaxigraph.persistence.schema import SCHEMA_VERSION
-from anaxigraph.scanner import RepositoryScanner
+from anaxigraph.scanner import RepositoryScanner, ScanCancelled
 
 
 @pytest.mark.anyio
@@ -48,19 +51,62 @@ async def test_operational_api_bounds_inventory_export_and_request_bodies(reposi
 
 
 @pytest.mark.anyio
-async def test_scan_endpoint_rejects_immediate_repeat(repository, database):
+async def test_scan_endpoint_is_nonblocking_observable_and_cancellable(
+    repository, database, monkeypatch
+):
     RepositoryScanner(database).scan(repository)
+    entered = threading.Event()
+
+    def blocked_scan(_scanner, _path, *, progress, is_cancelled, **_kwargs):
+        progress(
+            {
+                "phase": "analyzing",
+                "completed": 3,
+                "total": 8,
+                "current_path": "pkg/core.py",
+                "analysis_run_id": 42,
+            }
+        )
+        entered.set()
+        while not is_cancelled():
+            threading.Event().wait(0.01)
+        raise ScanCancelled("cancelled by test")
+
+    monkeypatch.setattr("anaxigraph.api_scan.RepositoryScanner.scan", blocked_scan)
     app = create_app(database=database, repository=repository, enable_mcp=False)
 
-    async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
-    ) as client:
-        first = await client.post("/api/scan")
-        repeated = await client.post("/api/scan")
+    async with app.router.lifespan_context(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            first = await client.post("/api/scan")
+            assert entered.wait(timeout=1)
+            progress = (await client.get("/api/scan")).json()
+            repeated = await client.post("/api/scan")
+            cancelling = (await client.post("/api/scan/cancel")).json()
+            terminal = await _wait_for_scan(client, "cancelled")
+            health = (await client.get("/api/health")).json()
 
-    assert first.status_code == 200
-    assert repeated.status_code == 429
+    assert first.status_code == 202
+    assert first.json()["scan_id"]
+    assert progress["phase"] == "analyzing"
+    assert progress["completed"] == 3
+    assert progress["total"] == 8
+    assert progress["current_path"] == "pkg/core.py"
+    assert repeated.status_code == 409
     assert int(repeated.headers["retry-after"]) >= 1
+    assert cancelling["status"] == "cancelling"
+    assert terminal["active"] is False
+    assert health["pressure"]["http_operations"]["active_count"] == 0
+
+
+async def _wait_for_scan(client: httpx.AsyncClient, expected: str) -> dict:
+    for _ in range(100):
+        value = (await client.get("/api/scan")).json()
+        if value["status"] == expected:
+            return value
+        await anyio.sleep(0.01)
+    raise AssertionError(f"scan did not reach {expected}")
 
 
 def test_repository_operation_gate_reports_active_work_and_releases_it():
@@ -127,4 +173,4 @@ async def test_request_limit_preserves_combined_mcp_transport(repository, databa
                     overview = await session.call_tool("ANAXIGRAPH_OVERVIEW", arguments={})
 
     assert overview.isError is False
-    assert overview.structuredContent["files"] == 9
+    assert overview.structuredContent["files"] == 8

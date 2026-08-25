@@ -81,8 +81,7 @@ When an authenticated Codex or Claude CLI is available, one command can execute 
 `provider: agent` queue without an API key in AnaxiGraph:
 
 ```bash
-anaxigraph understand . --executor codex --model gpt-5.6-terra \
-  --reasoning-effort medium --background
+anaxigraph understand . --executor codex --background
 anaxigraph semantic-status .
 ```
 
@@ -90,16 +89,17 @@ anaxigraph semantic-status .
 executor is read-only and schema-constrained; AnaxiGraph records `provider: agent` plus the actual
 executor, model, and reasoning effort as provenance. `--background` owns the complete queue outside
 the invoking agent session and records its PID, log, index authority, and terminal result for
-handoff through `semantic-status`. The shown model is only a per-run example. Pass `--model` and
-`--reasoning-effort` to select current Codex runtime settings; executor, model, and effort are
-deliberately excluded from semantic freshness. `--executor mcp`
+handoff through `semantic-status`. The command omits a model so the executor uses its supported
+configured default. Pass `--model` and `--reasoning-effort` only for an explicit runtime override;
+executor, model, and effort are deliberately excluded from semantic freshness. `--executor mcp`
 deliberately performs planning only and returns an `agent_action_required` continuation contract
 instead of claiming semantic work completed.
 
 With no `--db`, the command first probes the configured/default loopback service and matches the
 repository by canonical Git remote (or exact path for a host-local service). A match makes that
-service the sole index authority: scanning/planning happen there, inference happens on the host,
-and write-back goes through AnaxiMCP. If the default endpoint refuses the connection or a reachable
+service the sole index authority: lightweight planning uses its current snapshot, inference happens
+on the host, and write-back goes through AnaxiMCP. Structural scanning remains an explicit service
+operation. If the default endpoint refuses the connection or a reachable
 service has no matching repository, the fallback is the stable per-checkout database used by
 `anaxigraph up`, not the old shared global SQLite path. A timeout or invalid service response fails
 closed because the sidecar may merely be busy; it never silently selects a second index. Results
@@ -224,7 +224,11 @@ coverage:
     - frontend/coverage/lcov.info
 ```
 
-Generate them with the repository's normal test or CI command, then choose **Refresh scan**.
+Generate them with the repository's normal test or CI command, then choose **Refresh scan**. The
+dashboard starts this structural refresh asynchronously, reports its current phase and file counts,
+and changes the button to **Cancel scan** while it is active. Closing the browser does not stop the
+scan; cancellation is cooperative at safe per-file and persistence checkpoints, so the previous
+current snapshot remains valid.
 
 ## History, refresh, and cancellation
 
@@ -246,6 +250,15 @@ Refresh on demand in the dashboard, or run the optional polling sidecar:
 
 ```bash
 docker compose -f compose.anaxigraph.yml --profile watch up -d
+```
+
+The equivalent service API is deliberately split from semantic execution:
+
+```text
+POST /api/scan          start a structural refresh and return a scan ID immediately
+GET  /api/scan          read phase, completed/total files, and terminal result
+POST /api/scan/cancel   request cancellation at the next safe checkpoint
+POST /api/semantic/prepare  reconcile semantic work against the current snapshot without scanning
 ```
 
 ## Back up and restore AnaxiIndex

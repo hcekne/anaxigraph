@@ -137,7 +137,7 @@ def test_local_application_scans_before_becoming_healthy(repository: Path, tmp_p
     with TestClient(app) as client:
         assert client.get("/healthz").json() == {"status": "ok"}
         overview = client.get("/api/overview").json()
-        assert overview["files"] == 9
+        assert overview["files"] == 8
         repositories = client.get("/api/repositories").json()
         assert repositories[0]["path"] == str(repository.resolve())
         assert repositories[0]["history_snapshots"] == 0

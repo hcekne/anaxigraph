@@ -78,13 +78,13 @@ codex
 ### 4. Ask it to build the semantic baseline
 
 > Use AnaxiGraph to build or resume the semantic baseline for this repository, using your own
-> model context and tokens. Do not edit source while mapping it; continue until no work remains.
+> model context and tokens. Launch the durable host executor, do not edit source while mapping,
+> and monitor it until semantic status reports ready.
 
-Or launch a complete queue worker that survives the invoking Codex session:
+The durable command survives the invoking Codex session:
 
 ```bash
-anaxigraph understand . --executor codex --model gpt-5.6-terra \
-  --reasoning-effort medium --background
+anaxigraph understand . --executor codex --background
 anaxigraph semantic-status .
 ```
 
@@ -95,9 +95,10 @@ should perform the MCP work loop itself; that mode returns `status: agent_action
 the agent has actually submitted every queued artifact. `--background` implies the complete queue,
 records a durable run handoff in user state, and keeps the host worker alive if the coding-agent
 session exits. `semantic-status` reports that worker's PID, log, terminal state, exact index
-authority, model, and reasoning effort. The model above is an example selected for that run, not a
-product default: `--model` and `--reasoning-effort` are runtime choices and changing either never
-makes a dossier stale.
+authority, model, and reasoning effort. The command deliberately omits a model so the executor can
+use its currently supported configured default. Only pass `--model` or `--reasoning-effort` for an
+explicit runtime override; changing either never makes a dossier stale. Direct MCP looping is a bounded
+fallback when no authenticated host executor is available, not the default full-baseline path.
 
 When the loopback dashboard is already running, `understand` matches the checkout to its service by
 Git remote identity and executes against that sidecar's AnaxiIndex—even when the container sees the
@@ -174,6 +175,10 @@ source + Git ── deterministic scan and hashes ──→ versioned AnaxiIndex
                                                        ▼
                                        versioned, validated dossiers
 ```
+
+Structural refresh and semantic execution are separate operations. A dashboard **Refresh scan**
+runs asynchronously with observable progress and safe cancellation; semantic prepare/resume uses
+the already-current snapshot and never hides a structural rescan inside the command.
 
 Three named surfaces share one index:
 

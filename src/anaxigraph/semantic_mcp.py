@@ -21,16 +21,25 @@ def register_semantic_tools(
     database: Any,
     context: Any,
     config_for: Any,
+    config_contract: Any,
 ) -> None:
-    SemanticMcpTools(server, database, context, config_for).register()
+    SemanticMcpTools(server, database, context, config_for, config_contract).register()
 
 
 class SemanticMcpTools:
-    def __init__(self, server: Any, database: Any, context: Any, config_for: Any) -> None:
+    def __init__(
+        self,
+        server: Any,
+        database: Any,
+        context: Any,
+        config_for: Any,
+        config_contract: Any,
+    ) -> None:
         self.server = server
         self.database = database
         self.context = context
         self.config_for = config_for
+        self.config_contract = config_contract
 
     def register(self) -> None:
         self._register_read_tools()
@@ -108,9 +117,10 @@ class SemanticMcpTools:
 
     def status(self, repository: str = "") -> dict[str, Any]:
         row, root = self.context(repository)
-        return current_semantic_status(
-            self.database, int(row["id"]), self.config_for(row, root).semantic
-        )
+        config = self.config_for(row, root)
+        result = current_semantic_status(self.database, int(row["id"]), config.semantic)
+        result.update(self.config_contract(row, root, config))
+        return result
 
     def taxonomy(self, repository: str = "") -> dict[str, Any]:
         row, _ = self.context(repository)

@@ -24,10 +24,19 @@ class SemanticReportingService:
                 "state": "not_indexed",
                 "semantically_ready": False,
                 "baseline_complete": False,
+                "recommended_action": {
+                    "kind": "scan_required",
+                    "message": "Run an explicit repository scan before semantic preparation.",
+                },
             }
         snapshot_id = int(snapshot["id"])
         with self._database.connect() as connection:
-            rows = read_semantic_status(connection, repository_id, snapshot_id)
+            rows = read_semantic_status(
+                connection,
+                repository_id,
+                snapshot_id,
+                semantic.timeout_seconds if semantic else 300,
+            )
         return semantic_status_payload(snapshot_id, semantic, rows)
 
     def dossier(

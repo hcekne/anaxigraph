@@ -8,6 +8,9 @@ from pathlib import Path
 
 import yaml
 
+from anaxigraph.semantic import SemanticResult
+from anaxigraph.semantic_service import SemanticServiceTarget
+
 
 def _semantic_config(repository: Path, provider: Path, log: Path, **overrides) -> None:
     config_path = repository / ".anaxigraph.yml"
@@ -23,6 +26,40 @@ def _semantic_config(repository: Path, provider: Path, log: Path, **overrides) -
         **overrides,
     }
     config_path.write_text(yaml.safe_dump(value, sort_keys=False), encoding="utf-8")
+
+
+def _enable_agent_semantics(repository: Path) -> None:
+    path = repository / ".anaxigraph.yml"
+    policy = yaml.safe_load(path.read_text(encoding="utf-8"))
+    policy["semantic"] = {
+        "enabled": True,
+        "provider": "agent",
+        "max_parallel_jobs": 16,
+        "agent_lease_seconds": 120,
+        "taxonomy": {"enabled": True, "review_passes": 2},
+    }
+    path.write_text(yaml.safe_dump(policy, sort_keys=False), encoding="utf-8")
+
+
+def _service_target(base_url: str, repository_id: int, repository: Path) -> SemanticServiceTarget:
+    return SemanticServiceTarget(
+        base_url,
+        repository_id,
+        "Large semantic fixture",
+        str(repository),
+    )
+
+
+class _DeterministicLifecycleProvider:
+    name = "deterministic-lifecycle"
+
+    def analyze(self, request):
+        value = _agent_dossier(request)
+        return SemanticResult(
+            value=value,
+            confidence=float(value.get("confidence") or 0.8),
+            evidence=tuple(value.get("evidence") or ()),
+        )
 
 
 def _fake_provider(tmp_path: Path, *, fail_path: str = "") -> Path:
@@ -243,7 +280,7 @@ def _agent_dossier(request: dict) -> dict:
             "confidence": 0.8,
             "evidence": ["Agent-funded taxonomy test"],
         }
-        if kind == "taxonomy_review":
+        if kind.startswith("taxonomy_review"):
             return {
                 "verdict": "approve",
                 "summary": "Reviewed the candidate taxonomy.",

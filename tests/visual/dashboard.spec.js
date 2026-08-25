@@ -211,7 +211,7 @@ test("semantic bootstrap progress and model-backed pattern advice are visible", 
   await expect(page.locator(".pattern-cell", { hasText: "Adapter pattern" })).toContainText("91/100");
 });
 
-test("agent-funded semantic mode explains the own-token MCP loop", async ({ page }) => {
+test("agent-funded semantic mode explains the durable host executor", async ({ page }) => {
   await page.route("**/api/semantic*", async (route) => {
     if (route.request().method() !== "GET") {
       await route.fulfill({ json: { status: "started" } });
@@ -241,7 +241,7 @@ test("agent-funded semantic mode explains the own-token MCP loop", async ({ page
   await openDashboard(page);
 
   await expect(page.locator("#semantic-notice")).toContainText(
-    "ready for a connected coding agent through AnaxiMCP",
+    "ready for the durable host executor",
   );
   await expect(page.locator("#semantic-notice")).toContainText(
     "uses its own model and tokens",
@@ -251,8 +251,9 @@ test("agent-funded semantic mode explains the own-token MCP loop", async ({ page
   );
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(page.locator("#settings-semantic-command")).toContainText(
-    "ANAXIGRAPH_SEMANTIC_SCHEMA",
+    "--executor codex --background",
   );
+  await expect(page.locator("#settings-semantic-command")).toContainText("semantic-status");
   await expect(page.locator("#settings-semantic-summary")).toContainText(
     "with its own model and tokens",
   );

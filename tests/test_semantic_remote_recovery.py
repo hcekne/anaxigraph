@@ -2,19 +2,21 @@
 
 from __future__ import annotations
 
+import asyncio
 import threading
 import time
 from types import SimpleNamespace
 
 import pytest
 
+import anaxigraph.semantic_remote_recovery as remote_recovery
 import anaxigraph.semantic_remote_worker as remote_worker
 from anaxigraph.config import SemanticConfig
 from anaxigraph.semantic_service import SemanticServiceTarget
 
 
 @pytest.mark.anyio
-async def test_until_complete_rescans_a_stranded_queue_and_resumes(monkeypatch):
+async def test_until_complete_prepares_a_stranded_queue_and_resumes(monkeypatch):
     waiting = {
         "status": "waiting",
         "semantic": {"snapshot_id": 7, "pending": 3, "jobs": {}},
@@ -48,7 +50,7 @@ async def test_until_complete_rescans_a_stranded_queue_and_resumes(monkeypatch):
 
     monkeypatch.setattr(remote_worker, "_claim_wave", claim)
     monkeypatch.setattr(remote_worker, "_execute_wave", execute)
-    monkeypatch.setattr(remote_worker, "prepare_semantic_service", prepare)
+    monkeypatch.setattr(remote_recovery, "prepare_semantic_service", prepare)
     monkeypatch.setattr(remote_worker.asyncio, "sleep", sleep)
     total = remote_worker._empty_result()
 
@@ -71,10 +73,10 @@ async def test_until_complete_rescans_a_stranded_queue_and_resumes(monkeypatch):
 
 @pytest.mark.anyio
 async def test_recovery_rejects_a_snapshot_that_remains_stranded(monkeypatch):
-    recovery = remote_worker._IdleRecovery(_target(), retry_failed=False)
+    recovery = remote_recovery.IdleRecovery(_target(), retry_failed=False)
     semantic = {"snapshot_id": 7, "pending": 3, "jobs": {}}
     monkeypatch.setattr(
-        remote_worker,
+        remote_recovery,
         "prepare_semantic_service",
         lambda *_args, **_kwargs: {"semantic": semantic},
     )
@@ -84,7 +86,7 @@ async def test_recovery_rejects_a_snapshot_that_remains_stranded(monkeypatch):
     assert await recovery.recover("waiting", semantic) is not None
     assert await recovery.recover("waiting", semantic) is None
     assert await recovery.recover("waiting", semantic) is None
-    with pytest.raises(RuntimeError, match="after a synchronous rescan"):
+    with pytest.raises(RuntimeError, match="after a synchronous prepare"):
         await recovery.recover("waiting", semantic)
 
 
@@ -132,3 +134,31 @@ async def test_wave_shares_parallel_budget_and_submits_fast_jobs_first(monkeypat
 
 def _target() -> SemanticServiceTarget:
     return SemanticServiceTarget("http://127.0.0.1:8765", 1, "AnaxiGraph", "/anaxigraph")
+
+
+@pytest.mark.anyio
+async def test_evidence_timeout_attempts_to_release_the_leased_packet(monkeypatch):
+    calls = []
+
+    class Session:
+        async def call_tool(self, name, *, arguments, read_timeout_seconds):
+            calls.append((name, arguments, read_timeout_seconds))
+            if name == "ANAXIGRAPH_SEMANTIC_EVIDENCE":
+                await asyncio.Event().wait()
+            return SimpleNamespace()
+
+    packet = {
+        "job": {"id": 7},
+        "lease": {"token": "lease"},
+        "analysis_request": {},
+        "evidence_manifest": {"page_count": 1},
+    }
+    monkeypatch.setattr(remote_worker, "_MCP_TOOL_TIMEOUT_SECONDS", 0.01)
+
+    with pytest.raises(RuntimeError, match="evidence read failed"):
+        await remote_worker._wave_requests(Session(), _target(), [packet])
+
+    assert [name for name, *_ in calls] == [
+        "ANAXIGRAPH_SEMANTIC_EVIDENCE",
+        "ANAXIGRAPH_SEMANTIC_RELEASE",
+    ]

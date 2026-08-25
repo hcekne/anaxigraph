@@ -1,0 +1,49 @@
+"""Structural scan progress, cancellation, and semantic separation contracts."""
+
+from __future__ import annotations
+
+import pytest
+import yaml
+
+from anaxigraph.scanner import RepositoryScanner, ScanCancelled
+from anaxigraph.understanding import SemanticEngine
+
+
+def test_scan_reports_per_file_progress_and_cancels_before_snapshot_commit(repository, database):
+    progress = []
+
+    def cancel_during_analysis() -> bool:
+        return any(item["phase"] == "analyzing" and item["completed"] >= 2 for item in progress)
+
+    with pytest.raises(ScanCancelled):
+        RepositoryScanner(database).scan(
+            repository,
+            progress=progress.append,
+            is_cancelled=cancel_during_analysis,
+        )
+
+    assert any(item["phase"] == "discovering" and item["total"] for item in progress)
+    assert any(item["phase"] == "analyzing" and item["completed"] == 2 for item in progress)
+    row = database.repository(repository)
+    assert row is not None
+    assert database.latest_snapshot(int(row["id"])) is None
+    with database.connect() as connection:
+        run = connection.execute(
+            "SELECT status FROM analysis_runs WHERE repository_id = ? ORDER BY id DESC LIMIT 1",
+            (row["id"],),
+        ).fetchone()
+    assert run["status"] == "cancelled"
+
+
+def test_structural_scan_does_not_implicitly_prepare_semantic_work(repository, database):
+    policy_path = repository / ".anaxigraph.yml"
+    policy = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
+    policy["semantic"] = {"enabled": True, "provider": "agent"}
+    policy_path.write_text(yaml.safe_dump(policy, sort_keys=False), encoding="utf-8")
+
+    stats = RepositoryScanner(database).scan(repository)
+    status = SemanticEngine(database).status(stats.repository_id)
+
+    assert sum(status["jobs"].values()) == 0
+    assert status["total_modules"] == 0
+    assert status["coverage"] is None

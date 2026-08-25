@@ -15,11 +15,8 @@ from anaxigraph.semantic_agent_protocol import agent_token_hash
 from anaxigraph.semantic_config_port import SemanticConfig
 from anaxigraph.semantic_contract import SEMANTIC_SCHEMA_VERSION
 from anaxigraph.semantic_index_port import SemanticIndex
-from anaxigraph.semantic_job_state import (
-    semantic_job_bulk_transition,
-    semantic_job_transition,
-)
-from anaxigraph.semantic_lease_claim import claim_next_job
+from anaxigraph.semantic_job_state import semantic_job_transition
+from anaxigraph.semantic_lease_claim import claim_next_job, reconcile_claimable_jobs
 from anaxigraph.semantic_ports import SemanticPersistencePort
 
 
@@ -176,32 +173,7 @@ class SemanticLeaseService:
         snapshot_id: int,
         semantic: SemanticConfig,
     ) -> None:
-        now = utc_now()
-        stale_before = (
-            datetime.now(UTC) - timedelta(seconds=max(90, semantic.timeout_seconds + 60))
-        ).isoformat()
-        retry = semantic_job_transition("running", "lease_expired")
-        superseded = semantic_job_bulk_transition(("pending", "retry", "running"), "supersede")
-        connection.execute(
-            """
-            UPDATE semantic_jobs SET status = ?, available_at = ?,
-                worker_id = NULL, lease_expires_at = NULL, lease_token_hash = NULL,
-                error = 'The previous worker lease expired; this job was safely requeued.'
-            WHERE repository_id = ? AND status = 'running'
-              AND (lease_expires_at < ? OR (lease_expires_at IS NULL AND started_at < ?))
-            """,
-            (retry, now, repository_id, now, stale_before),
-        )
-        connection.execute(
-            """
-            UPDATE semantic_jobs SET status = ?, completed_at = ?,
-                worker_id = NULL, lease_expires_at = NULL, lease_token_hash = NULL,
-                error = 'A newer repository snapshot replaced this job.'
-            WHERE repository_id = ? AND snapshot_id != ?
-              AND status IN ('pending', 'retry', 'running')
-            """,
-            (superseded, now, repository_id, snapshot_id),
-        )
+        reconcile_claimable_jobs(connection, repository_id, snapshot_id, semantic)
 
 
 def _validate_agent_lease(

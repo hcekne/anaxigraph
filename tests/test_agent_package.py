@@ -10,12 +10,23 @@ import yaml
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
+from anaxigraph.mcp_runtime import _INSTRUCTIONS
 from anaxigraph.mcp_server import create_anaxi_mcp_server
 from anaxigraph.scanner import RepositoryScanner
 from scripts.build_agent_plugin import build_agent_plugin
 from scripts.check_agent_package import validate_agent_package
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_mcp_instructions_lead_with_durable_semantic_execution():
+    opening = _INSTRUCTIONS[:512]
+
+    assert "durable host executor" in opening
+    assert "bounded/manual fallback" in opening
+    assert "semantically_ready: true" in opening
+    assert "Never edit source" in opening
+    assert "--model" not in opening
 
 
 def test_shared_agent_package_is_versioned_and_contract_complete():

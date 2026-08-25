@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
 import anaxigraph.api_support as api_support
+from anaxigraph.config_authority import effective_semantic_policy, service_config_authority
 
 
 def semantic_router(context: Any) -> APIRouter:
@@ -19,15 +21,57 @@ class SemanticRoutes:
         self.context = context
         self.router = APIRouter()
         self.router.add_api_route("/api/semantic", self.status, methods=["GET"])
+        self.router.add_api_route("/api/semantic/prepare", self.prepare, methods=["POST"])
         self.router.add_api_route("/api/semantic/refresh", self.refresh, methods=["POST"])
 
     def status(self, repository_id: int | None = None) -> dict[str, Any]:
         row = self.context.selected_repository(repository_id)
+        target = self.context.target_for_path(Path(row["path"]))
+        config = self.context.selected_config(row)
         result = api_support.SemanticEngine(self.context.database).status(
-            int(row["id"]), self.context.selected_config(row).semantic
+            int(row["id"]), config.semantic
         )
         result["worker"] = self.context.semantic_refresh.status_for(Path(row["path"]))
+        result["config_authority"] = service_config_authority(Path(row["path"]), target, config)
+        result["semantic_policy"] = effective_semantic_policy(config.semantic)
         return result
+
+    async def prepare(
+        self,
+        repository_id: int | None = None,
+        force: bool = False,
+        retry_failed: bool = False,
+    ) -> dict[str, Any]:
+        """Reconcile one semantic stage against the current snapshot without scanning source."""
+
+        row = self.context.selected_repository(repository_id)
+        target = self._semantic_target(row)
+        config = self.context.selected_config(row)
+        self._require_enabled(row, target, config)
+        if self.context.database.latest_snapshot(int(row["id"])) is None:
+            return {
+                "status": "scan_required",
+                "repository_id": int(row["id"]),
+                "recommended_action": "Run the explicit repository scan, then retry understand.",
+                **self._config_contract(row, target, config),
+            }
+        self.context.admit_operation(int(row["id"]), "semantic_prepare", hold=True)
+        try:
+            plan = await asyncio.to_thread(
+                api_support.SemanticEngine(self.context.database).plan,
+                int(row["id"]),
+                target.path,
+                config,
+                force=force,
+                retry_failed=retry_failed,
+            )
+        finally:
+            self.context.finish_operation(int(row["id"]), "semantic_prepare")
+        return {
+            "status": "prepared",
+            **plan.as_dict(),
+            **self._config_contract(row, target, config),
+        }
 
     def refresh(
         self,
@@ -37,22 +81,13 @@ class SemanticRoutes:
         wait: bool = False,
     ) -> dict[str, Any]:
         row = self.context.selected_repository(repository_id)
-        target = self.context.target_for_path(Path(row["path"]))
-        if target is None:
-            raise HTTPException(
-                status_code=403,
-                detail="This indexed repository is not mounted as a semantic-analysis target",
-            )
+        target = self._semantic_target(row)
         config = self.context.selected_config(row)
-        if not config.semantic.enabled:
-            raise HTTPException(
-                status_code=400,
-                detail="Semantic analysis is disabled in this repository's .anaxigraph.yml",
-            )
+        self._require_enabled(row, target, config)
         self.context.admit_operation(int(row["id"]), "semantic_refresh", hold=wait)
         if wait:
             try:
-                return self._prepare(target, config, force, retry_failed)
+                return self._refresh_current_snapshot(row, target, config, force, retry_failed)
             finally:
                 self.context.finish_operation(int(row["id"]), "semantic_refresh")
         started = self.context.semantic_refresh.start(
@@ -63,24 +98,56 @@ class SemanticRoutes:
             "repository_id": row["id"],
         }
 
-    def _prepare(
+    def _semantic_target(self, row: dict[str, Any]) -> Any:
+        target = self.context.target_for_path(Path(row["path"]))
+        if target is None:
+            raise HTTPException(
+                status_code=403,
+                detail="This indexed repository is not mounted as a semantic-analysis target",
+            )
+        return target
+
+    def _require_enabled(self, row: dict[str, Any], target: Any, config: Any) -> None:
+        if config.semantic.enabled:
+            return
+        authority = service_config_authority(Path(row["path"]), target, config)
+        source = authority["service_config_path"] or "service defaults"
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Semantic analysis is disabled by authoritative service policy {source} "
+                f"(registry key {authority['registry_key']!r})"
+            ),
+        )
+
+    @staticmethod
+    def _config_contract(row: dict[str, Any], target: Any, config: Any) -> dict[str, Any]:
+        return {
+            "config_authority": service_config_authority(Path(row["path"]), target, config),
+            "semantic_policy": effective_semantic_policy(config.semantic),
+        }
+
+    def _refresh_current_snapshot(
         self,
+        row: dict[str, Any],
         target: Any,
         config: Any,
         force: bool,
         retry_failed: bool,
     ) -> dict[str, Any]:
-        stats = api_support.RepositoryScanner(self.context.database).scan(
-            target.path,
-            config_path=target.config_path,
-            run_type="semantic_reconcile",
-        )
+        if self.context.database.latest_snapshot(int(row["id"])) is None:
+            return {
+                "status": "scan_required",
+                "repository_id": int(row["id"]),
+                "recommended_action": "Run the explicit repository scan, then retry understand.",
+                **self._config_contract(row, target, config),
+            }
         result = api_support.SemanticEngine(self.context.database).bootstrap(
-            stats.repository_id,
+            int(row["id"]),
             target.path,
             config,
             force=force,
             retry_failed=retry_failed,
             plan_only=True,
         )
-        return {"status": "prepared", "scan": stats.as_dict(), **result}
+        return {"status": "prepared", **result, **self._config_contract(row, target, config)}

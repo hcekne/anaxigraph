@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import pytest
 
 import anaxigraph.semantic_background as background
+import anaxigraph.semantic_background_progress as background_progress
 
 
 def _spec(repository: Path) -> background.SemanticBackgroundSpec:
@@ -144,11 +145,7 @@ def test_background_wrapper_records_terminal_result(repository, tmp_path, monkey
     record_path = Path(launched["record_path"])
     latest_path = record_path.parent / "latest.json"
     lock_path = record_path.parent / "active.lock"
-    monkeypatch.setattr(
-        background.subprocess,
-        "run",
-        lambda *_args, **_kwargs: SimpleNamespace(returncode=0),
-    )
+    monkeypatch.setattr(background, "_run_child", lambda *_args: 0)
 
     assert background._run_worker(record_path, latest_path, lock_path) == 0
 
@@ -262,7 +259,7 @@ def test_background_wrapper_records_execution_failures(
     def fail(*_args, **_kwargs):
         raise error
 
-    monkeypatch.setattr(background.subprocess, "run", fail)
+    monkeypatch.setattr(background, "_run_child", fail)
 
     assert background._run_worker(record_path, latest_path, lock_path) == expected_code
     status = background.semantic_background_status(repository)
@@ -302,6 +299,115 @@ def test_background_process_and_time_helpers_cover_failure_modes(monkeypatch):
     assert background._pid_exists(99) is True
     assert background._recent({}) is False
     assert background._recent({"started_at": datetime.now(UTC).isoformat()}) is True
+
+
+def test_background_status_marks_live_process_with_expired_heartbeat_stalled(
+    repository, tmp_path, monkeypatch
+):
+    monkeypatch.setattr(background, "local_state_root", lambda: tmp_path)
+    directory = background._run_directory(repository)
+    directory.mkdir(parents=True)
+    latest = directory / "latest.json"
+    latest.write_text(
+        json.dumps(
+            {
+                "run_id": "stalled-run",
+                "status": "running",
+                "pid": 123,
+                "worker_pid": 124,
+                "heartbeat_at": (datetime.now(UTC) - timedelta(minutes=5)).isoformat(),
+                "heartbeat_timeout_seconds": 60,
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(background, "_pid_exists", lambda _pid: True)
+    monkeypatch.setattr(background, "_process_state", lambda _pid: "S")
+
+    status = background.semantic_background_status(repository)
+
+    assert status["status"] == "stalled"
+    assert status["active"] is False
+
+
+def test_background_relaunch_terminates_stalled_process(repository, tmp_path, monkeypatch):
+    monkeypatch.setattr(background, "local_state_root", lambda: tmp_path)
+    directory = background._run_directory(repository)
+    directory.mkdir(parents=True)
+    (directory / "latest.json").write_text(
+        json.dumps(
+            {
+                "run_id": "old-run",
+                "status": "running",
+                "pid": 123,
+                "heartbeat_at": (datetime.now(UTC) - timedelta(minutes=5)).isoformat(),
+                "heartbeat_timeout_seconds": 60,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (directory / "active.lock").write_text("old-run", encoding="utf-8")
+    terminated = []
+    monkeypatch.setattr(background, "_pid_exists", lambda _pid: True)
+    monkeypatch.setattr(background, "_process_state", lambda _pid: "S")
+    monkeypatch.setattr(
+        background,
+        "_terminate_stalled_run",
+        lambda record: terminated.append(record) or True,
+    )
+    monkeypatch.setattr(background, "_spawn_wrapper", lambda *_args: SimpleNamespace(pid=4321))
+
+    relaunched = background.launch_semantic_background(_spec(repository))
+
+    assert terminated[0]["run_id"] == "old-run"
+    assert relaunched["status"] == "running"
+    assert relaunched["run_id"] != "old-run"
+
+
+def test_stalled_termination_requires_the_exact_background_wrapper(monkeypatch):
+    terminated = []
+    monkeypatch.setattr(background.os, "killpg", lambda *args: terminated.append(args))
+    monkeypatch.setattr(background, "_matches_background_wrapper", lambda _record: False)
+
+    assert not background._terminate_stalled_run({"pid": 123, "record_path": "/runs/old.json"})
+
+    assert terminated == []
+
+    monkeypatch.setattr(background, "_matches_background_wrapper", lambda _record: True)
+    assert background._terminate_stalled_run({"pid": 123, "record_path": "/runs/old.json"})
+
+    assert terminated == [(123, background.signal.SIGTERM)]
+
+
+def test_background_wrapper_identity_uses_module_and_record_path(monkeypatch):
+    class ProcCommandLine:
+        def read_bytes(self):
+            return (
+                b"python\0-m\0anaxigraph.semantic_background\0run\0"
+                b"/runs/current.json\0/runs/latest.json\0/runs/active.lock\0"
+            )
+
+    monkeypatch.setattr(background, "Path", lambda _value: ProcCommandLine())
+
+    assert background._matches_background_wrapper({"pid": 123, "record_path": "/runs/current.json"})
+    assert not background._matches_background_wrapper(
+        {"pid": 123, "record_path": "/runs/other.json"}
+    )
+
+
+def test_background_progress_heartbeat_records_stage_count_and_error(tmp_path, monkeypatch):
+    progress_path = tmp_path / "progress.json"
+    monkeypatch.setenv(background_progress.PROGRESS_PATH_ENV, str(progress_path))
+
+    background_progress.report_background_progress(
+        stage="context", completed=17, last_error="transient transport error"
+    )
+
+    value = background_progress.read_background_progress(progress_path)
+    assert value["stage"] == "context"
+    assert value["completed"] == 17
+    assert value["last_error"] == "transient transport error"
+    assert value["heartbeat_at"]
 
 
 def test_background_module_entrypoint_validates_and_dispatches(tmp_path, monkeypatch):

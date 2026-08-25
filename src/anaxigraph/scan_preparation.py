@@ -6,6 +6,7 @@ import dataclasses
 import hashlib
 import json
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -34,12 +35,14 @@ def prepare_files(
     registry: AnalyzerRegistry,
     *,
     analysis_version: int,
+    progress: Callable[[int, int, str], None] | None = None,
 ) -> list[PreparedFile]:
     """Analyze changed files and reconstruct unchanged analysis from immutable facts."""
 
     now = utc_now()
     prepared: list[PreparedFile] = []
-    for item in discovered:
+    total = len(discovered)
+    for completed, item in enumerate(discovered, start=1):
         prior = previous.get(item.path)
         analyzer = registry.for_language(item.language)
         if analyzer is None:
@@ -55,6 +58,7 @@ def prepare_files(
                     last_changed_at=prior["last_changed_at"],
                 )
             )
+            _report_progress(progress, completed, total, item.path)
             continue
         analysis = analyze_with_contract(
             analyzer,
@@ -71,7 +75,18 @@ def prepare_files(
                 last_changed_at=now,
             )
         )
+        _report_progress(progress, completed, total, item.path)
     return prepared
+
+
+def _report_progress(
+    progress: Callable[[int, int, str], None] | None,
+    completed: int,
+    total: int,
+    path: str,
+) -> None:
+    if progress is not None:
+        progress(completed, total, path)
 
 
 def analysis_counts(prepared: list[PreparedFile]) -> tuple[int, int, int]:
@@ -125,11 +140,17 @@ def content_fingerprint(
     return value.hexdigest()
 
 
-def analysis_signature(config: Any, *, analysis_version: int) -> str:
+def structural_analysis_signature(config: Any, *, analysis_version: int) -> str:
     value = hashlib.sha256()
     value.update(_version_prefix(analysis_version))
-    value.update(_config_json(config).encode())
+    value.update(_structural_config_json(config).encode())
     return value.hexdigest()
+
+
+def analysis_signature(config: Any, *, analysis_version: int) -> str:
+    """Compatibility name for the explicitly structural signature."""
+
+    return structural_analysis_signature(config, analysis_version=analysis_version)
 
 
 def _can_reuse(
@@ -161,10 +182,22 @@ def _version_prefix(analysis_version: int) -> bytes:
 
 
 def _config_json(config: Any) -> str:
-    config_value = dataclasses.asdict(config)
-    # Semantic settings govern a separate evidence/freshness pipeline. Executor, model,
-    # batching, timeout, and semantic-contract changes must never invalidate source analysis.
-    config_value.pop("semantic", None)
-    # Mount points differ between local and container runs; only policy content affects analysis.
-    config_value.pop("config_path", None)
-    return json.dumps(config_value, sort_keys=True, default=str)
+    return _structural_config_json(config)
+
+
+def structural_config_projection(config: Any) -> dict[str, Any]:
+    """Return only policy capable of changing deterministic repository facts."""
+
+    return {
+        "discovery": {
+            "ignore": list(config.ignore),
+            "include": list(config.include),
+            "max_file_bytes": config.max_file_bytes,
+        },
+        "resolution": {"aliases": dict(config.aliases)},
+        "placement": {"groups": [dataclasses.asdict(group) for group in config.groups]},
+    }
+
+
+def _structural_config_json(config: Any) -> str:
+    return json.dumps(structural_config_projection(config), sort_keys=True, default=str)

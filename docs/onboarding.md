@@ -66,36 +66,32 @@ target code.
 Use this sentence in the coding-agent chat:
 
 > Use AnaxiGraph to build or resume the semantic baseline for this repository, using your own
-> model context and tokens. Do not edit source while mapping it; continue until no semantic work
-> remains, and report completed, pending, and failed coverage.
+> model context and tokens. Launch the durable host executor, do not edit source while mapping,
+> and monitor it until semantic status reports ready.
 
-The agent receives one leased job at a time, fetches every bounded evidence page, submits a dossier
-or map artifact that must match the work packet's live response contract, and continues. After the
-module dossiers, AnaxiGraph automatically queues a repository taxonomy proposal and independent
-critic/revision passes. Deterministic validation then gives every eligible module exactly one
-primary subsystem, bounds area/subsystem counts, preserves low-confidence modules visibly, and
-stabilizes identities against the prior snapshot. No person has to approve this metadata map. If
-the session stops, a later session resumes the unfinished queue. Unchanged structural, interface,
-relationship, prompt-contract, and intent fingerprints reuse current dossiers and maps instead of
-paying to reread every module. Executor and model names are recorded as provenance, but do not
-participate in freshness.
-
-Codex can also drive the same durable queue from one detached host command:
+Codex drives the durable queue from one detached host command:
 
 ```bash
-anaxigraph understand . --executor codex --model gpt-5.6-terra \
-  --reasoning-effort medium --background
+anaxigraph understand . --executor codex --background
 anaxigraph semantic-status .
 ```
 
 Inside a Codex session the default `--executor auto` selects the authenticated Codex CLI. The
-shown model is a per-run example, never a repository or product default. Use `--model` and
-`--reasoning-effort` only when you want to select them for this run. `--background` starts a host
+command deliberately omits a model so Codex can use its currently supported configured default.
+Use `--model` and `--reasoning-effort` only when you explicitly select them for this run.
+`--background` starts a host
 worker that continues after the invoking coding-agent session exits; `semantic-status` reports its
-PID, log, exact index authority, progress, and terminal state. Pass `--executor mcp` to keep
-inference in the already-connected agent instead. MCP mode only prepares the queue and returns
-`agent_action_required`; the agent must continue WORK → optional EVIDENCE → SUBMIT until the
-terminal status before reporting success.
+PID, log, heartbeat, exact index/config authority, progress, and terminal state. A `stalled` run
+can be relaunched with the same command and resumes durable completed work. Use direct MCP work only
+as a bounded fallback when no authenticated host executor exists; MCP mode returns
+`agent_action_required` and is not completion.
+
+Each worker leases bounded evidence, submits a schema-validated dossier or map artifact, and
+continues through module context, taxonomy proposal, independent critic/revision passes, and
+repository synthesis. Deterministic validation gives every eligible module exactly one primary
+subsystem. No person has to approve this metadata map. Unchanged structural, relationship,
+prompt-contract, and intent fingerprints reuse current records; executor and model names are
+provenance and do not participate in freshness.
 
 If a matching loopback dashboard/sidecar is live, the command identifies it from the checkout's
 Git remote and uses its MCP queue and persistent AnaxiIndex. Container paths therefore do not

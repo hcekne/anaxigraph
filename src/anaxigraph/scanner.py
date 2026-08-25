@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import json
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from anaxigraph import __version__
 from anaxigraph.analyzers import AnalyzerRegistry, builtin_registry
 from anaxigraph.config import AnaxiGraphConfig, load_config
 from anaxigraph.history_discovery import (
@@ -19,13 +19,7 @@ from anaxigraph.history_discovery import (
     repository_metadata,
 )
 from anaxigraph.models import ScanStats
-from anaxigraph.scan_persistence import (
-    ingest_git_history,
-    insert_snapshot,
-    insert_versions,
-    upsert_artifacts,
-    upsert_groups,
-)
+from anaxigraph.scan_commit import commit_snapshot, refresh_existing_snapshot
 from anaxigraph.scan_preparation import (
     analysis_counts,
     content_fingerprint,
@@ -35,19 +29,17 @@ from anaxigraph.scan_preparation import (
 from anaxigraph.scan_preparation import (
     analysis_signature as _analysis_signature,
 )
-from anaxigraph.scan_snapshot import (
-    RelationshipBuildResult,
-    build_snapshot_graph,
-    clear_snapshot_staging,
-    previous_analysis_records,
-    refresh_snapshot_intelligence,
-    snapshot_artifacts,
-    snapshot_counts,
-)
-from anaxigraph.storage import AnaxiIndex, utc_now
-from anaxigraph.understanding import SemanticEngine
+from anaxigraph.scan_snapshot import RelationshipBuildResult, previous_analysis_records
+from anaxigraph.storage import AnaxiIndex
 
 ANALYSIS_VERSION = 4
+
+ScanProgress = Callable[[dict[str, Any]], None]
+CancelCheck = Callable[[], bool]
+
+
+class ScanCancelled(RuntimeError):
+    """Raised at a safe checkpoint when an asynchronous scan is cancelled."""
 
 
 class RepositoryScanner:
@@ -69,6 +61,8 @@ class RepositoryScanner:
         run_type: str = "scan",
         baseline_snapshot_id: int | None = None,
         previous_revision: str | None = None,
+        progress: ScanProgress | None = None,
+        is_cancelled: CancelCheck | None = None,
     ) -> ScanStats:
         with self.database.scan_lock():
             return self._scan(
@@ -78,6 +72,8 @@ class RepositoryScanner:
                 run_type=run_type,
                 baseline_snapshot_id=baseline_snapshot_id,
                 previous_revision=previous_revision,
+                progress=progress,
+                is_cancelled=is_cancelled,
             )
 
     def _scan(
@@ -89,8 +85,12 @@ class RepositoryScanner:
         run_type: str = "scan",
         baseline_snapshot_id: int | None = None,
         previous_revision: str | None = None,
+        progress: ScanProgress | None = None,
+        is_cancelled: CancelCheck | None = None,
     ) -> ScanStats:
         started = time.monotonic()
+        checkpoint = _scan_checkpoint(progress, is_cancelled)
+        checkpoint("starting", 0, None, None)
         root = Path(repository).expanduser().resolve()
         if not root.is_dir():
             raise ValueError(f"Repository does not exist or is not a directory: {root}")
@@ -103,6 +103,7 @@ class RepositoryScanner:
         )
         run_id = self.database.start_run(repository_id, run_type)
         try:
+            checkpoint("discovering", 0, None, None, run_id=run_id)
             signature = analysis_signature(config)
             discovered, previous, discovery, previous_snapshot_id = self._discover_frame(
                 repository_id,
@@ -112,7 +113,11 @@ class RepositoryScanner:
                 baseline_snapshot_id=baseline_snapshot_id,
                 previous_revision=previous_revision,
                 signature=signature,
+                progress=lambda completed, total, path: checkpoint(
+                    "discovering", completed, total, path, run_id=run_id
+                ),
             )
+            checkpoint("fingerprinting", 0, len(discovered), None, run_id=run_id)
             fingerprint = content_fingerprint(
                 discovered,
                 config,
@@ -122,125 +127,60 @@ class RepositoryScanner:
             )
             existing_snapshot = self.database.snapshot_by_fingerprint(repository_id, fingerprint)
             if existing_snapshot:
-                existing_id = int(existing_snapshot["id"])
-                snapshot_metadata = json.loads(existing_snapshot["metadata_json"] or "{}")
-                snapshot_metadata.update(
-                    {
-                        "anaxigraph_version": __version__,
-                        "analysis_version": ANALYSIS_VERSION,
-                        "analysis_signature": signature,
-                        "config_path": str(config.config_path) if config.config_path else None,
-                    }
-                )
-                with self.database.transaction() as connection:
-                    connection.execute(
-                        "UPDATE snapshots SET metadata_json = ? WHERE id = ?",
-                        (json.dumps(snapshot_metadata, sort_keys=True), existing_id),
-                    )
-                if revision is None:
-                    self._refresh_existing_snapshot(
-                        repository_id, existing_id, root, git_metadata, config
-                    )
-                with self.database.connect() as connection:
-                    counts = snapshot_counts(connection, existing_id)
-                duration = int((time.monotonic() - started) * 1_000)
-                self.database.finish_run(
+                checkpoint("refreshing", 0, 1, None, run_id=run_id)
+                return self._complete_unchanged_scan(
+                    repository_id,
                     run_id,
-                    snapshot_id=existing_id,
-                    status="unchanged",
-                    discovered=len(discovered),
-                    reused=len(discovered),
-                    metadata=_run_metadata(discovery, duration, revision),
+                    existing_snapshot,
+                    root,
+                    config,
+                    git_metadata,
+                    signature,
+                    revision,
+                    discovery,
+                    len(discovered),
+                    started,
+                    checkpoint,
                 )
-                stats = ScanStats(
-                    repository_id=repository_id,
-                    snapshot_id=existing_id,
-                    analysis_run_id=run_id,
-                    discovered=len(discovered),
-                    analyzed=0,
-                    reused=len(discovered),
-                    deleted=0,
-                    relationships=counts["relationships"],
-                    findings=counts["findings"],
-                    duration_ms=duration,
-                )
-                if revision is None and config.semantic.enabled:
-                    SemanticEngine(self.database).plan(repository_id, root, config)
-                return stats
+            checkpoint("analyzing", 0, len(discovered), None, run_id=run_id)
             prepared = prepare_files(
                 discovered,
                 previous,
                 config,
                 self.registry,
                 analysis_version=ANALYSIS_VERSION,
+                progress=lambda completed, total, path: checkpoint(
+                    "analyzing", completed, total, path, run_id=run_id
+                ),
             )
+            checkpoint("invalidating", 0, len(prepared), None, run_id=run_id)
             apply_invalidation_plan(prepared, previous)
+            checkpoint("git_history", 0, 1, None, run_id=run_id)
             git_changes = available_changes(root)
-            with self.database.transaction() as connection:
-                snapshot_id = insert_snapshot(
-                    connection,
-                    repository_id=repository_id,
-                    git_metadata=git_metadata,
-                    fingerprint=fingerprint,
-                    revision=revision,
-                    config=config,
-                    analysis_version=ANALYSIS_VERSION,
-                    signature=signature,
-                )
-                artifacts, deleted = upsert_artifacts(
-                    connection,
-                    repository_id=repository_id,
-                    prepared=prepared,
-                    commit_sha=git_metadata.commit_sha,
-                )
-                insert_versions(
-                    connection,
-                    snapshot_id=snapshot_id,
-                    prepared=prepared,
-                    artifacts=artifacts,
-                    config=config,
-                    analysis_version=ANALYSIS_VERSION,
-                )
-                relationship_build = build_snapshot_graph(
-                    connection,
-                    snapshot_id=snapshot_id,
-                    base_snapshot_id=previous_snapshot_id,
-                    prepared=prepared,
-                    artifacts=artifacts,
-                    config=config,
-                )
-                relationship_count = relationship_build.total
-                upsert_groups(
-                    connection,
-                    repository_id=repository_id,
-                    config=config,
-                )
-                ingest_git_history(
-                    connection,
-                    repository_id=repository_id,
-                    changes=git_changes,
-                )
-                findings, coverage_count = refresh_snapshot_intelligence(
-                    connection,
-                    repository_id=repository_id,
-                    snapshot_id=snapshot_id,
-                    config=config,
-                    manage_finding_lifecycle=revision is None,
-                    root=root if revision is None else None,
-                    artifacts=artifacts,
-                )
-                if revision is None:
-                    connection.execute(
-                        "UPDATE repositories SET current_snapshot_id = ?, updated_at = ? WHERE id = ?",
-                        (snapshot_id, utc_now(), repository_id),
-                    )
-                clear_snapshot_staging(connection)
-
+            persistence_steps = 7
+            checkpoint("persisting", 0, persistence_steps, None, run_id=run_id)
+            committed = commit_snapshot(
+                self.database,
+                repository_id=repository_id,
+                root=root,
+                config=config,
+                git_metadata=git_metadata,
+                fingerprint=fingerprint,
+                signature=signature,
+                revision=revision,
+                previous_snapshot_id=previous_snapshot_id,
+                prepared=prepared,
+                git_changes=git_changes,
+                progress=lambda completed: checkpoint(
+                    "persisting", completed, persistence_steps, None, run_id=run_id
+                ),
+                analysis_version=ANALYSIS_VERSION,
+            )
             analyzed, reused, errors = analysis_counts(prepared)
             duration = int((time.monotonic() - started) * 1_000)
             self.database.finish_run(
                 run_id,
-                snapshot_id=snapshot_id,
+                snapshot_id=committed.snapshot_id,
                 status="completed_with_errors" if errors else "completed",
                 discovered=len(discovered),
                 analyzed=analyzed,
@@ -250,28 +190,35 @@ class RepositoryScanner:
                     discovery,
                     duration,
                     revision,
-                    deleted=deleted,
-                    **_relationship_metadata(relationship_build),
-                    coverage_measurements=coverage_count,
-                    findings=len(findings),
+                    deleted=committed.deleted,
+                    **_relationship_metadata(committed.relationships),
+                    coverage_measurements=committed.coverage_count,
+                    findings=committed.finding_count,
                     invalidation_reasons=invalidation_counts(prepared),
                 ),
             )
             stats = ScanStats(
                 repository_id=repository_id,
-                snapshot_id=snapshot_id,
+                snapshot_id=committed.snapshot_id,
                 analysis_run_id=run_id,
                 discovered=len(discovered),
                 analyzed=analyzed,
                 reused=reused,
-                deleted=deleted,
-                relationships=relationship_count,
-                findings=len(findings),
+                deleted=committed.deleted,
+                relationships=committed.relationships.total,
+                findings=committed.finding_count,
                 duration_ms=duration,
             )
-            if revision is None and config.semantic.enabled:
-                SemanticEngine(self.database).plan(repository_id, root, config)
+            checkpoint("complete", len(discovered), len(discovered), None, run_id=run_id)
             return stats
+        except ScanCancelled:
+            self.database.finish_run(
+                run_id,
+                snapshot_id=None,
+                status="cancelled",
+                error="Scan cancelled by operator",
+            )
+            raise
         except Exception as exc:
             self.database.finish_run(
                 run_id,
@@ -281,43 +228,56 @@ class RepositoryScanner:
             )
             raise
 
-    def _refresh_existing_snapshot(
+    def _complete_unchanged_scan(
         self,
         repository_id: int,
-        snapshot_id: int,
+        run_id: int,
+        snapshot: dict[str, Any],
         root: Path,
-        git_metadata: Any,
         config: AnaxiGraphConfig,
-    ) -> None:
-        git_changes = available_changes(root)
-        self.database.set_current_snapshot(repository_id, snapshot_id)
-        with self.database.transaction() as connection:
-            ingest_git_history(
-                connection,
-                repository_id=repository_id,
-                changes=git_changes,
-            )
-            connection.execute("DELETE FROM metrics WHERE snapshot_id = ?", (snapshot_id,))
-            connection.execute(
-                "DELETE FROM coverage_measurements WHERE snapshot_id = ?", (snapshot_id,)
-            )
-            artifacts = snapshot_artifacts(connection, snapshot_id)
-            refresh_snapshot_intelligence(
-                connection,
-                repository_id=repository_id,
-                snapshot_id=snapshot_id,
-                manage_finding_lifecycle=True,
-                root=root,
-                config=config,
-                artifacts=artifacts,
-            )
-            connection.execute(
-                """
-                UPDATE snapshots SET snapshot_kind = 'working_tree', dirty = ?,
-                    branch = ?, analysis_timestamp = ? WHERE id = ?
-                """,
-                (int(git_metadata.dirty), git_metadata.branch, utc_now(), snapshot_id),
-            )
+        git_metadata: Any,
+        signature: str,
+        revision: str | None,
+        discovery: DiscoveryResult,
+        discovered: int,
+        started: float,
+        checkpoint: Callable[..., None],
+    ) -> ScanStats:
+        snapshot_id = int(snapshot["id"])
+        counts = refresh_existing_snapshot(
+            self.database,
+            repository_id=repository_id,
+            snapshot=snapshot,
+            root=root,
+            git_metadata=git_metadata,
+            config=config,
+            signature=signature,
+            revision=revision,
+            analysis_version=ANALYSIS_VERSION,
+        )
+        duration = int((time.monotonic() - started) * 1_000)
+        self.database.finish_run(
+            run_id,
+            snapshot_id=snapshot_id,
+            status="unchanged",
+            discovered=discovered,
+            reused=discovered,
+            metadata=_run_metadata(discovery, duration, revision),
+        )
+        stats = ScanStats(
+            repository_id=repository_id,
+            snapshot_id=snapshot_id,
+            analysis_run_id=run_id,
+            discovered=discovered,
+            analyzed=0,
+            reused=discovered,
+            deleted=0,
+            relationships=counts["relationships"],
+            findings=counts["findings"],
+            duration_ms=duration,
+        )
+        checkpoint("complete", discovered, discovered, None, run_id=run_id)
+        return stats
 
     def _discover_frame(
         self,
@@ -329,6 +289,7 @@ class RepositoryScanner:
         baseline_snapshot_id: int | None,
         previous_revision: str | None,
         signature: str,
+        progress: Callable[[int, int, str], None] | None = None,
     ) -> tuple[
         list[DiscoveredFile],
         dict[str, dict[str, Any]],
@@ -351,6 +312,7 @@ class RepositoryScanner:
             previous=previous,
             analysis_version=ANALYSIS_VERSION,
             allow_carry=self._snapshot_signature(previous_snapshot_id) == signature,
+            progress=progress,
         )
         return list(discovery.files), previous, discovery, previous_snapshot_id
 
@@ -391,3 +353,31 @@ def _run_metadata(
 
 def analysis_signature(config: AnaxiGraphConfig) -> str:
     return _analysis_signature(config, analysis_version=ANALYSIS_VERSION)
+
+
+def _scan_checkpoint(
+    progress: ScanProgress | None,
+    is_cancelled: CancelCheck | None,
+) -> Callable[..., None]:
+    def checkpoint(
+        phase: str,
+        completed: int,
+        total: int | None,
+        current_path: str | None,
+        *,
+        run_id: int | None = None,
+    ) -> None:
+        if phase != "complete" and is_cancelled is not None and is_cancelled():
+            raise ScanCancelled("Scan cancelled by operator")
+        if progress is not None:
+            progress(
+                {
+                    "phase": phase,
+                    "completed": completed,
+                    "total": total,
+                    "current_path": current_path,
+                    "analysis_run_id": run_id,
+                }
+            )
+
+    return checkpoint

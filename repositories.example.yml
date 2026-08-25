@@ -4,7 +4,7 @@
 repositories:
   maxos-agent:
     path: /repo
-    config: /config/policies/maxos-agent.anaxigraph.yml
+    config: /repo/.anaxigraph.yml
     # Size-aware sampling always includes init and HEAD and prioritizes architecture milestones.
     history_snapshots: auto
 

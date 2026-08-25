@@ -7,6 +7,7 @@ from typing import Any
 
 from anaxigraph.agent import agent_scope, branch_collisions, impact_analysis
 from anaxigraph.config import load_config
+from anaxigraph.config_authority import effective_semantic_policy, service_config_authority
 from anaxigraph.guidance import product_glossary
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic_mcp import current_semantic_status
@@ -49,6 +50,15 @@ class McpToolContext:
     def config_for(self, row: dict[str, Any], root: Path) -> Any:
         target = self.targets_by_path.get(str(root.resolve()))
         return load_config(root, target.config_path if target else self.config_path)
+
+    def semantic_config_contract(
+        self, row: dict[str, Any], root: Path, config: Any
+    ) -> dict[str, Any]:
+        target = self.targets_by_path.get(str(root.resolve()))
+        return {
+            "config_authority": service_config_authority(root, target, config),
+            "semantic_policy": effective_semantic_policy(config.semantic),
+        }
 
 
 class CoreMcpTools:
@@ -153,9 +163,10 @@ class CoreMcpTools:
     def overview(self, repository: str = "") -> dict[str, Any]:
         row, root = self.context.select(repository)
         result = self.database.overview(int(row["id"]))
-        result["semantic"] = current_semantic_status(
-            self.database, int(row["id"]), self.context.config_for(row, root).semantic
-        )
+        config = self.context.config_for(row, root)
+        semantic = current_semantic_status(self.database, int(row["id"]), config.semantic)
+        semantic.update(self.context.semantic_config_contract(row, root, config))
+        result["semantic"] = semantic
         return result
 
     def modules(

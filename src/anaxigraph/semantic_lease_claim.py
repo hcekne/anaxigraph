@@ -12,7 +12,7 @@ from typing import Any
 from anaxigraph.clock import utc_now
 from anaxigraph.semantic_config_port import SemanticConfig
 from anaxigraph.semantic_index_port import SemanticIndex
-from anaxigraph.semantic_job_state import semantic_job_transition
+from anaxigraph.semantic_job_state import semantic_job_bulk_transition, semantic_job_transition
 
 
 def claim_next_job(
@@ -33,6 +33,13 @@ def claim_next_job(
         if snapshot_id is None:
             return None
         now = utc_now()
+        reconcile_claimable_jobs(
+            connection,
+            repository_id,
+            snapshot_id,
+            semantic,
+            now=now,
+        )
         if _active_workers(connection, repository_id, now) >= semantic.max_parallel_jobs:
             return None
         spent = _reserved_daily_spend(connection, repository_id, semantic)
@@ -50,6 +57,44 @@ def claim_next_job(
             executor_id=executor_id,
             executor_model=executor_model,
         )
+
+
+def reconcile_claimable_jobs(
+    connection: sqlite3.Connection,
+    repository_id: int,
+    snapshot_id: int,
+    semantic: SemanticConfig,
+    *,
+    now: str | None = None,
+) -> None:
+    """Atomically heal expired work and retire jobs from older snapshots."""
+
+    current = now or utc_now()
+    stale_before = (
+        datetime.now(UTC) - timedelta(seconds=max(90, semantic.timeout_seconds + 60))
+    ).isoformat()
+    retry = semantic_job_transition("running", "lease_expired")
+    superseded = semantic_job_bulk_transition(("pending", "retry", "running"), "supersede")
+    connection.execute(
+        """
+        UPDATE semantic_jobs SET status = ?, available_at = ?,
+            worker_id = NULL, lease_expires_at = NULL, lease_token_hash = NULL,
+            error = 'The previous worker lease expired; this job was safely requeued.'
+        WHERE repository_id = ? AND status = 'running'
+          AND (lease_expires_at < ? OR (lease_expires_at IS NULL AND started_at < ?))
+        """,
+        (retry, current, repository_id, current, stale_before),
+    )
+    connection.execute(
+        """
+        UPDATE semantic_jobs SET status = ?, completed_at = ?,
+            worker_id = NULL, lease_expires_at = NULL, lease_token_hash = NULL,
+            error = 'A newer repository snapshot replaced this job.'
+        WHERE repository_id = ? AND snapshot_id != ?
+          AND status IN ('pending', 'retry', 'running')
+        """,
+        (superseded, current, repository_id, snapshot_id),
+    )
 
 
 def _current_snapshot_id(connection: sqlite3.Connection, repository_id: int) -> int | None:

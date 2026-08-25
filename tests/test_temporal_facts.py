@@ -47,7 +47,7 @@ def test_canonical_frames_reconstruct_and_deduplicate_facts(repository, database
 
     assert len(snapshots) == 2
     assert [int(snapshot["sequence"]) for snapshot in snapshots] == [0, 1]
-    assert frame_sizes == [9, 9]
+    assert frame_sizes == [8, 8]
     assert counts["file_facts"] < sum(frame_sizes)
     assert counts["snapshot_file_changes"] < sum(frame_sizes)
     assert compatibility_rows == 0

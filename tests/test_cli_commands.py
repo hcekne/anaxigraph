@@ -127,11 +127,17 @@ def test_semantic_handlers_plan_report_run_and_resume(
 def test_understand_routes_omitted_database_to_matching_service(
     repository: Path, capsys, monkeypatch
 ):
-    policy_path = repository / ".anaxigraph.yml"
-    policy = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
-    policy["semantic"] = {"enabled": True, "provider": "agent"}
-    policy_path.write_text(yaml.safe_dump(policy, sort_keys=False), encoding="utf-8")
-    target = SemanticServiceTarget("http://127.0.0.1:9999", 17, "Sample", "/repo")
+    target = SemanticServiceTarget(
+        "http://127.0.0.1:9999",
+        17,
+        "Sample",
+        "/repo",
+        config_authority={
+            "registry_key": "sample",
+            "service_config_path": "/repo/.anaxigraph.yml",
+        },
+        semantic_policy={"enabled": True, "provider": "agent"},
+    )
     monkeypatch.setattr(semantic_commands, "discover_semantic_service", lambda *_a, **_k: target)
     monkeypatch.setattr(
         semantic_commands,
@@ -162,11 +168,21 @@ def test_understand_routes_omitted_database_to_matching_service(
 
 
 def test_understand_background_passes_runtime_codex_settings(repository, capsys, monkeypatch):
-    policy_path = repository / ".anaxigraph.yml"
-    policy = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
-    policy["semantic"] = {"enabled": True, "provider": "agent"}
-    policy_path.write_text(yaml.safe_dump(policy, sort_keys=False), encoding="utf-8")
-    target = SemanticServiceTarget("http://127.0.0.1:9999", 17, "Sample", "/repo")
+    target = SemanticServiceTarget(
+        "http://127.0.0.1:9999",
+        17,
+        "Sample",
+        "/repo",
+        config_authority={
+            "registry_key": "sample",
+            "service_config_path": "/repo/.anaxigraph.yml",
+        },
+        semantic_policy={
+            "enabled": True,
+            "provider": "agent",
+            "max_parallel_jobs": 8,
+        },
+    )
     captured = {}
 
     def launch(args, selected_repository, execution, mode, service):
@@ -174,6 +190,7 @@ def test_understand_background_passes_runtime_codex_settings(repository, capsys,
             repository=selected_repository,
             model=execution.model,
             effort=execution.reasoning_effort,
+            parallel_jobs=execution.max_parallel_jobs,
             mode=mode,
             service=service,
         )
@@ -193,6 +210,8 @@ def test_understand_background_passes_runtime_codex_settings(repository, capsys,
             "gpt-5.6-terra",
             "--reasoning-effort",
             "medium",
+            "--parallel-jobs",
+            "30",
             "--background",
             "--json",
         ],
@@ -204,9 +223,65 @@ def test_understand_background_passes_runtime_codex_settings(repository, capsys,
         "repository": repository.resolve(),
         "model": "gpt-5.6-terra",
         "effort": "medium",
+        "parallel_jobs": 8,
         "mode": "codex",
         "service": target,
     }
+
+
+def test_understand_disabled_service_names_authoritative_policy(repository, capsys, monkeypatch):
+    target = SemanticServiceTarget(
+        "http://127.0.0.1:9999",
+        17,
+        "Sample",
+        "/repo",
+        config_authority={
+            "registry_key": "sample",
+            "service_config_path": "/config/policies/sample.yml",
+        },
+        semantic_policy={"enabled": False, "provider": "agent"},
+    )
+    monkeypatch.setattr(semantic_commands, "discover_semantic_service", lambda *_a, **_k: target)
+
+    with pytest.raises(SystemExit, match="2"):
+        main(["understand", str(repository), "--executor", "mcp", "--json"])
+
+    error = capsys.readouterr().err
+    assert "/config/policies/sample.yml" in error
+    assert "registry key 'sample'" in error
+
+
+def test_understand_reports_scan_required_without_opening_mcp(repository, capsys, monkeypatch):
+    target = SemanticServiceTarget(
+        "http://127.0.0.1:9999",
+        17,
+        "Sample",
+        "/repo",
+        semantic_policy={"enabled": True, "provider": "agent"},
+    )
+    monkeypatch.setattr(semantic_commands, "discover_semantic_service", lambda *_a, **_k: target)
+    monkeypatch.setattr(
+        semantic_commands,
+        "prepare_semantic_service",
+        lambda *_a, **_k: {
+            "status": "scan_required",
+            "recommended_action": "Run the explicit repository scan.",
+        },
+    )
+    monkeypatch.setattr(
+        semantic_commands,
+        "execute_remote_semantics",
+        lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("MCP execution started")),
+    )
+
+    result = _call(
+        ["understand", str(repository), "--executor", "mcp", "--json"],
+        capsys,
+    )
+
+    assert result["status"] == "scan_required"
+    assert result["complete"] is False
+    assert result["recommended_action"] == "Run the explicit repository scan."
 
 
 def test_pattern_query_uses_the_matching_authoritative_service(repository, capsys, monkeypatch):

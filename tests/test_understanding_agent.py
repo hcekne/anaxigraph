@@ -35,7 +35,7 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
     engine = SemanticEngine(database)
     prepared = engine.bootstrap(stats.repository_id, repository, config)
     assert prepared["processed"] == 0
-    assert prepared["semantic"]["pending"] == 9
+    assert prepared["semantic"]["pending"] == 8
 
     last_packet = None
     last_dossier = None
@@ -209,6 +209,7 @@ def test_semantic_evidence_and_work_identity_survive_checkpoint_rebuild(reposito
     config = load_config(repository)
     stats = RepositoryScanner(database).scan(repository)
     engine = SemanticEngine(database)
+    engine.plan(stats.repository_id, repository, config)
     with database.connect() as connection:
         evidence_before = semantic_inventory(connection, stats.snapshot_id)
         jobs_before = [

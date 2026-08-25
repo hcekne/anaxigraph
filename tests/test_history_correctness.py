@@ -403,9 +403,7 @@ def test_policy_and_analyzer_changes_force_visible_conservative_reads(
 
     config = root / ".anaxigraph.yml"
     config.write_text(
-        config.read_text(encoding="utf-8").replace(
-            "name: Temporal correctness fixture", "name: Changed temporal policy"
-        ),
+        config.read_text(encoding="utf-8").replace("paths: [src/**, lib/**]", "paths: [src/**]"),
         encoding="utf-8",
     )
     policy_commit = _commit(root, "change analysis policy")

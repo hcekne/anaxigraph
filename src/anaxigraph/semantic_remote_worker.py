@@ -7,6 +7,7 @@ import json
 import os
 import sys
 from dataclasses import replace
+from datetime import timedelta
 from typing import Any
 
 from mcp import ClientSession
@@ -15,10 +16,14 @@ from mcp.client.streamable_http import streamable_http_client
 from anaxigraph.config import SemanticConfig
 from anaxigraph.semantic import create_semantic_provider
 from anaxigraph.semantic_agent_protocol import rehydrate_agent_request
+from anaxigraph.semantic_background_progress import report_background_progress
+from anaxigraph.semantic_remote_recovery import IdleRecovery
 from anaxigraph.semantic_request_analysis import analyze_semantic_request
-from anaxigraph.semantic_service import SemanticServiceTarget, prepare_semantic_service
+from anaxigraph.semantic_service import SemanticServiceTarget
 
 _TERMINAL_STATES = frozenset({"complete", "complete_with_failures", "paused"})
+_MCP_INITIALIZE_TIMEOUT_SECONDS = 20
+_MCP_TOOL_TIMEOUT_SECONDS = 60
 
 
 def execute_remote_semantics(
@@ -32,8 +37,9 @@ def execute_remote_semantics(
 ) -> dict[str, Any]:
     """Execute a sidecar-owned queue with a model authenticated on this host."""
 
+    report_background_progress(stage="connecting", completed=0)
     try:
-        return asyncio.run(
+        result = asyncio.run(
             _execute(
                 target,
                 semantic,
@@ -43,9 +49,14 @@ def execute_remote_semantics(
                 retry_failed=retry_failed,
             )
         )
-    except (ValueError, RuntimeError, OSError):
+        stage = "complete" if result.get("semantic", {}).get("semantically_ready") else "idle"
+        report_background_progress(stage=stage, completed=int(result["completed"]))
+        return result
+    except (ValueError, RuntimeError, OSError) as exc:
+        report_background_progress(stage="failed", last_error=str(exc))
         raise
     except Exception as exc:
+        report_background_progress(stage="failed", last_error=str(exc))
         raise RuntimeError(f"Remote semantic execution failed: {exc}") from exc
 
 
@@ -64,11 +75,16 @@ async def _execute(
     async with streamable_http_client(
         target.mcp_url,
         http_client=http_client,
-        terminate_on_close=False,
+        terminate_on_close=True,
     ) as streams:
         read_stream, write_stream, _ = streams
-        async with ClientSession(read_stream, write_stream) as session:
-            await session.initialize()
+        async with ClientSession(
+            read_stream,
+            write_stream,
+            read_timeout_seconds=timedelta(seconds=_MCP_TOOL_TIMEOUT_SECONDS),
+        ) as session:
+            await asyncio.wait_for(session.initialize(), timeout=_MCP_INITIALIZE_TIMEOUT_SECONDS)
+            report_background_progress(stage="claiming", completed=0)
             latest_semantic = await _run_queue(
                 session,
                 target,
@@ -106,7 +122,7 @@ async def _run_queue(
 ) -> dict[str, Any]:
     latest: dict[str, Any] = {}
     consecutive_failures = 0
-    recovery = _IdleRecovery(target, retry_failed)
+    recovery = IdleRecovery(target, retry_failed)
     while maximum is None or total["processed"] < maximum:
         remaining = min(semantic.max_parallel_jobs, execution.max_parallel_jobs)
         if maximum is not None:
@@ -115,6 +131,10 @@ async def _run_queue(
         if terminal:
             latest = dict(terminal.get("semantic") or latest)
         if not packets:
+            report_background_progress(
+                stage=str((terminal or {}).get("status") or "waiting"),
+                completed=int(total["completed"]),
+            )
             should_stop, latest = await _wait_or_recover(recovery, terminal, latest, maximum, total)
             if should_stop:
                 break
@@ -135,7 +155,7 @@ async def _run_queue(
 
 
 async def _wait_or_recover(
-    recovery: _IdleRecovery,
+    recovery: IdleRecovery,
     terminal: dict[str, Any] | None,
     latest: dict[str, Any],
     maximum: int | None,
@@ -152,68 +172,6 @@ async def _wait_or_recover(
     return False, latest
 
 
-class _IdleRecovery:
-    """Rescan once when an until-complete queue is nonterminal but unclaimable."""
-
-    def __init__(self, target: SemanticServiceTarget, retry_failed: bool) -> None:
-        self.target = target
-        self.retry_failed = retry_failed
-        self.snapshot_id: int | None = None
-        self.polls = 0
-        self.refreshed: set[int] = set()
-
-    def reset(self) -> None:
-        self.snapshot_id = None
-        self.polls = 0
-
-    async def recover(self, state: str, semantic: dict[str, Any]) -> dict[str, Any] | None:
-        if not _stranded_queue(state, semantic):
-            self.reset()
-            return None
-        snapshot_id = int(semantic.get("snapshot_id") or 0)
-        if self.snapshot_id != snapshot_id:
-            self.snapshot_id = snapshot_id
-            self.polls = 0
-        self.polls += 1
-        if self.polls < 3:
-            return None
-        if snapshot_id in self.refreshed:
-            jobs = semantic.get("jobs") or {}
-            raise RuntimeError(
-                "Semantic queue remained nonterminal with no claimable work after a synchronous "
-                f"rescan (snapshot={snapshot_id}, pending={semantic.get('pending', 0)}, "
-                f"retry={jobs.get('retry', 0)}, running={jobs.get('running', 0)})."
-            )
-        try:
-            prepared = await asyncio.to_thread(
-                prepare_semantic_service,
-                self.target,
-                force=False,
-                retry_failed=self.retry_failed,
-            )
-        except (OSError, ValueError) as exc:
-            raise RuntimeError(f"Could not recover the stranded semantic queue: {exc}") from exc
-        self.refreshed.add(snapshot_id)
-        self.reset()
-        print(
-            f"Semantic queue was stranded at snapshot {snapshot_id}; rescanned and replanned.",
-            file=sys.stderr,
-            flush=True,
-        )
-        return prepared
-
-
-def _stranded_queue(state: str, semantic: dict[str, Any]) -> bool:
-    jobs = semantic.get("jobs") or {}
-    active = sum(int(jobs.get(key, 0)) for key in ("pending", "retry", "running"))
-    return bool(
-        state == "waiting"
-        and not semantic.get("semantically_ready")
-        and not (semantic.get("budget") or {}).get("paused")
-        and active == 0
-    )
-
-
 def _report_progress(total: dict[str, Any], semantic: dict[str, Any]) -> None:
     jobs = semantic.get("jobs") or {}
     print(
@@ -223,6 +181,10 @@ def _report_progress(total: dict[str, Any], semantic: dict[str, Any]) -> None:
         f"running={jobs.get('running', 0)}",
         file=sys.stderr,
         flush=True,
+    )
+    report_background_progress(
+        stage=str(total["stages"][-1] if total["stages"] else "executing"),
+        completed=int(total["completed"]),
     )
 
 
@@ -339,9 +301,10 @@ async def _claim_wave(
     packets = []
     terminal = None
     for _ in range(count):
-        result = await session.call_tool(
+        result = await _call_tool(
+            session,
             "ANAXIGRAPH_SEMANTIC_WORK",
-            arguments={
+            {
                 "agent_id": f"cli:{execution.provider}:{os.getpid()}",
                 "agent_model": execution.model,
                 "retry_failed": retry_failed,
@@ -364,9 +327,10 @@ async def _request_for_packet(
     manifest = packet.get("evidence_manifest") or {}
     pages = []
     for page in range(1, int(manifest.get("page_count") or 0) + 1):
-        result = await session.call_tool(
+        result = await _call_tool(
+            session,
             "ANAXIGRAPH_SEMANTIC_EVIDENCE",
-            arguments={
+            {
                 "job_id": int(packet["job"]["id"]),
                 "lease_token": str(packet["lease"]["token"]),
                 "page": page,
@@ -388,9 +352,10 @@ async def _submit(
     packet: dict[str, Any],
     result: Any,
 ) -> dict[str, Any]:
-    response = await session.call_tool(
+    response = await _call_tool(
+        session,
         "ANAXIGRAPH_SEMANTIC_SUBMIT",
-        arguments={
+        {
             "job_id": int(packet["job"]["id"]),
             "lease_token": str(packet["lease"]["token"]),
             "dossier": result.value,
@@ -408,24 +373,53 @@ async def _release_packets(
     packets: list[dict[str, Any]],
     reason: str,
 ) -> None:
-    for packet in packets:
-        await session.call_tool(
-            "ANAXIGRAPH_SEMANTIC_RELEASE",
-            arguments={
-                "job_id": int(packet["job"]["id"]),
-                "lease_token": str(packet["lease"]["token"]),
-                "reason": reason[:1_000],
-                "repository": str(target.repository_id),
-            },
-        )
+    await asyncio.gather(
+        *(_release_packet(session, target, packet, reason) for packet in packets),
+        return_exceptions=True,
+    )
+
+
+async def _release_packet(
+    session: ClientSession,
+    target: SemanticServiceTarget,
+    packet: dict[str, Any],
+    reason: str,
+) -> None:
+    await _call_tool(
+        session,
+        "ANAXIGRAPH_SEMANTIC_RELEASE",
+        {
+            "job_id": int(packet["job"]["id"]),
+            "lease_token": str(packet["lease"]["token"]),
+            "reason": reason[:1_000],
+            "repository": str(target.repository_id),
+        },
+    )
 
 
 async def _semantic_status(session: ClientSession, target: SemanticServiceTarget) -> dict[str, Any]:
-    result = await session.call_tool(
+    result = await _call_tool(
+        session,
         "ANAXIGRAPH_SEMANTIC_STATUS",
-        arguments={"repository": str(target.repository_id)},
+        {"repository": str(target.repository_id)},
     )
     return _tool_value(result, "read semantic status")
+
+
+async def _call_tool(session: ClientSession, name: str, arguments: dict[str, Any]) -> Any:
+    try:
+        return await asyncio.wait_for(
+            session.call_tool(
+                name,
+                arguments=arguments,
+                read_timeout_seconds=timedelta(seconds=_MCP_TOOL_TIMEOUT_SECONDS),
+            ),
+            timeout=_MCP_TOOL_TIMEOUT_SECONDS + 1,
+        )
+    except TimeoutError as exc:
+        raise RuntimeError(
+            f"AnaxiMCP tool {name} exceeded {_MCP_TOOL_TIMEOUT_SECONDS} seconds"
+        ) from exc
 
 
 def _tool_value(result: Any, action: str) -> dict[str, Any]:

@@ -133,7 +133,8 @@ uv run pytest --cov=src/anaxigraph --cov-report=xml:coverage.xml
 ## Keep all repositories current
 
 The main service scans every registry entry on startup. You can click **Refresh scan** for the
-selected repository, or enable registry-wide polling:
+selected repository, or enable registry-wide polling. Dashboard refreshes run in the background,
+show phase/file progress, and can be cancelled without discarding the previous current snapshot:
 
 ```bash
 docker compose --profile watch up --build -d
@@ -161,30 +162,28 @@ semantic:
     max_subsystems: 30
 ```
 
-The normal `anaxigraph` service is sufficient; no model API key or extra profile is needed. In the
-coding-agent chat, ask it to call `ANAXIGRAPH_SEMANTIC_SCHEMA` once and then repeat
-`ANAXIGRAPH_SEMANTIC_WORK` → optional `ANAXIGRAPH_SEMANTIC_EVIDENCE` pages →
-`ANAXIGRAPH_SEMANTIC_SUBMIT` until complete. Work packets name the required response artifact:
-module/group/repository dossiers, a taxonomy proposal, or a taxonomy review. Proposal and critic
-passes run without a human approval step; deterministic validation finalizes map metadata only.
-The queue survives container and agent-session restarts. Read the result with
-`ANAXIGRAPH_TAXONOMY` or the dashboard's map-layer selector.
-
-The host can launch a worker that drives this same volume-backed queue independently of the
-invoking coding-agent session:
+The normal `anaxigraph` service is sufficient; no model API key or extra profile is needed. Launch
+a host worker that drives the volume-backed queue independently of the invoking coding-agent
+session:
 
 ```bash
-anaxigraph understand . --executor codex --model gpt-5.6-terra \
-  --reasoning-effort medium --background
+anaxigraph understand . --executor codex --background
 anaxigraph semantic-status .
 ```
 
-It matches the host checkout to `/repo` by canonical Git remote identity, asks the sidecar to scan
-and prepare current work synchronously, then runs the authenticated host Codex/Claude executor and
-submits each validated result through AnaxiMCP. The shown model is a per-run example, not a baked-in
-default. `--model` and `--reasoning-effort` are runtime provenance only; `--background` persists the
-worker PID, log, exact authority, and terminal result outside the chat session. Pass
+It matches the host checkout to `/repo` by canonical Git remote identity, prepares semantic work
+against the sidecar's existing current snapshot without scanning source, then runs the authenticated
+host Codex/Claude executor and submits each validated result through AnaxiMCP. The command omits a
+model so the executor uses its supported configured default. `--background` persists the worker
+PID, heartbeat, log, exact authority, and terminal result outside the chat session. Pass
 `--service-url` for a non-default endpoint or `--db` only to intentionally bypass the sidecar.
+Structural refresh is a separate explicit scan operation.
+
+Use direct `SCHEMA → WORK → optional EVIDENCE → SUBMIT` calls only for bounded/manual fallback.
+Proposal and critic passes run without a human approval step; deterministic validation finalizes
+map metadata only. The queue survives process restarts. Read the result with
+`ANAXIGRAPH_TAXONOMY` or the dashboard's map-layer selector, and never report the baseline complete
+until `semantic-status` says `semantically_ready: true`.
 
 For unattended reconciliation instead, use `provider: openai` or `provider: anthropic`, set a
 model and `refresh: periodic`, export the matching key before creating the containers, then run:

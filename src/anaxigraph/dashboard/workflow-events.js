@@ -37,6 +37,8 @@ import {
   updateOnboarding,
 } from "/assets/repository-view.js";
 
+let activeScanId = null;
+
 export function setupWorkflowEvents() {
   setupNavigationEvents();
   setupFindingEvents();
@@ -119,14 +121,38 @@ function setupHistoryEvents() {
 
 function setupRefreshEvents() {
   byId("refresh-button").addEventListener("click", async (event) => {
+    if (activeScanId) {
+      try {
+        await request(api("/api/scan/cancel"), { method: "POST" });
+        toast("Scan cancellation requested. The current safe checkpoint will finish first.");
+      } catch (error) {
+        toast(error.message, true);
+      }
+      return;
+    }
     event.target.disabled = true;
     try {
-      const stats = await request(api("/api/scan"), { method: "POST" });
-      toast(`Scan complete: ${stats.analyzed} analyzed, ${stats.reused} reused`);
-      await state.reloadRepository?.();
+      const started = await request(api("/api/scan"), { method: "POST" });
+      activeScanId = started.scan_id;
+      event.target.disabled = false;
+      event.target.textContent = "Cancel scan";
+      toast("Structural scan started in the background.");
+      const terminal = await pollScan(event.target);
+      if (terminal.status === "complete") {
+        const stats = terminal.scan;
+        toast(`Scan complete: ${stats.analyzed} analyzed, ${stats.reused} reused`);
+        await state.reloadRepository?.();
+      } else if (terminal.status === "cancelled") {
+        toast("Scan cancelled; the previous current snapshot remains available.");
+      } else {
+        toast(terminal.error || "Scan failed.", true);
+      }
     } catch (error) {
       toast(error.message, true);
     } finally {
+      activeScanId = null;
+      event.target.textContent = "Refresh scan";
+      event.target.title = "";
       event.target.disabled = !selectedRepository()?.scannable;
     }
   });
@@ -135,9 +161,10 @@ function setupRefreshEvents() {
     if (!button) return;
     button.disabled = true;
     try {
-      const result = await request(api("/api/semantic/refresh"), { method: "POST" });
-      toast(result.status === "started"
-        ? "Repository understanding started." : "Repository understanding is already running.");
+      const result = await request(api("/api/semantic/prepare"), { method: "POST" });
+      toast(result.status === "prepared"
+        ? "Semantic queue prepared against the current snapshot."
+        : result.recommended_action || "A structural scan is required before semantic work.");
       state.semanticStatus = await request(api("/api/semantic"));
       renderOverview();
       scheduleSemanticPoll();
@@ -146,6 +173,16 @@ function setupRefreshEvents() {
       button.disabled = false;
     }
   });
+}
+
+async function pollScan(button) {
+  while (true) {
+    await new Promise((resolve) => window.setTimeout(resolve, 750));
+    const value = await request(api("/api/scan"));
+    const count = value.total ? ` ${value.completed}/${value.total}` : "";
+    button.title = `Scan ${value.phase || value.status}${count}`;
+    if (!value.active) return value;
+  }
 }
 
 function setupAgentEvents() {

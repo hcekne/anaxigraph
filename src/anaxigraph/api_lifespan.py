@@ -17,11 +17,14 @@ def application_lifespan(context: Any, *, scan_on_start: bool, mcp: Any):
         context.history_service.recover(context.targets)
         if scan_on_start:
             await _scan_targets(context)
-        if mcp is not None:
-            async with mcp.session_manager.run():
+        try:
+            if mcp is not None:
+                async with mcp.session_manager.run():
+                    yield
+            else:
                 yield
-        else:
-            yield
+        finally:
+            context.scan_coordinator.close()
 
     return lifespan
 

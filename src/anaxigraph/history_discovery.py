@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Protocol
@@ -53,6 +54,7 @@ def discover_files(
     previous: dict[str, dict[str, Any]],
     analysis_version: int,
     allow_carry: bool,
+    progress: Callable[[int, int, str], None] | None = None,
 ) -> DiscoveryResult:
     """Read a complete working tree or only changed blobs in a historical tree."""
 
@@ -67,6 +69,7 @@ def discover_files(
             analysis_version=analysis_version,
             delta=None,
             allow_carry=False,
+            progress=progress,
         )
     paths = git.files_at_revision(root, revision)
     delta = (
@@ -83,6 +86,7 @@ def discover_files(
         analysis_version=analysis_version,
         delta=delta,
         allow_carry=allow_carry,
+        progress=progress,
     )
 
 
@@ -241,6 +245,7 @@ def _materialize(
     analysis_version: int,
     delta: git.RevisionDelta | None,
     allow_carry: bool,
+    progress: Callable[[int, int, str], None] | None,
 ) -> DiscoveryResult:
     changed = delta.changed_current_paths if delta else frozenset()
     change_kinds = (
@@ -248,24 +253,24 @@ def _materialize(
         if delta
         else {}
     )
-    result = [
-        item
-        for raw_path in paths
-        if (
-            item := _materialize_path(
-                root,
-                config,
-                path=_normalized_path(raw_path),
-                revision=revision,
-                previous=previous,
-                analysis_version=analysis_version,
-                changed=changed,
-                change_kinds=change_kinds,
-                can_carry=delta is not None and allow_carry,
-            )
+    result = []
+    total = len(paths)
+    for completed, raw_path in enumerate(paths, start=1):
+        item = _materialize_path(
+            root,
+            config,
+            path=_normalized_path(raw_path),
+            revision=revision,
+            previous=previous,
+            analysis_version=analysis_version,
+            changed=changed,
+            change_kinds=change_kinds,
+            can_carry=delta is not None and allow_carry,
         )
-        is not None
-    ]
+        if item is not None:
+            result.append(item)
+        if progress is not None:
+            progress(completed, total, _normalized_path(raw_path))
     files = tuple(sorted(result, key=lambda value: value.path))
     reads = sum(item.source_read for item in files)
     return DiscoveryResult(files, reads, len(files) - reads, delta)

@@ -12,6 +12,7 @@ from typing import Any
 import yaml
 
 DEFAULT_IGNORE = (
+    ".anaxigraph.yml",
     ".git/**",
     ".hg/**",
     ".svn/**",
@@ -323,29 +324,12 @@ def _semantic_config(value: Any) -> SemanticConfig:
     output_cost = float(value.get("output_cost_per_million", 0.0))
     if input_cost < 0 or output_cost < 0:
         raise ValueError("semantic token costs cannot be negative")
-    taxonomy = value.get("taxonomy") or {}
-    if not isinstance(taxonomy, dict):
-        raise ValueError("semantic.taxonomy must be a mapping")
-    review_passes = int(taxonomy.get("review_passes", 2))
-    max_areas = int(taxonomy.get("max_areas", 6))
-    max_subsystems = int(taxonomy.get("max_subsystems", 30))
-    stability_bias = float(taxonomy.get("stability_bias", 0.8))
-    if review_passes < 1 or review_passes > 5:
-        raise ValueError("semantic.taxonomy.review_passes must be between 1 and 5")
-    if max_areas < 1 or max_areas > 50:
-        raise ValueError("semantic.taxonomy.max_areas must be between 1 and 50")
-    if max_subsystems < max_areas or max_subsystems > 250:
-        raise ValueError(
-            "semantic.taxonomy.max_subsystems must be at least max_areas and at most 250"
-        )
-    if not 0 <= stability_bias <= 1:
-        raise ValueError("semantic.taxonomy.stability_bias must be between 0 and 1")
-
     return SemanticConfig(
         enabled=bool(value.get("enabled", False)),
         provider=provider,
         command=_tuple_of_strings(value.get("command")),
         model=str(value.get("model", "")),
+        reasoning_effort=str(value.get("reasoning_effort", "")),
         prompt_version=str(value.get("prompt_version", "v1")),
         timeout_seconds=integer("timeout_seconds", 300, 1),
         refresh=refresh,
@@ -365,13 +349,40 @@ def _semantic_config(value: Any) -> SemanticConfig:
         api_key_env=str(value.get("api_key_env", "")),
         include=_tuple_of_strings(value.get("include")),
         exclude=_tuple_of_strings(value.get("exclude")) or SemanticConfig().exclude,
-        taxonomy=SemanticTaxonomyConfig(
-            enabled=bool(taxonomy.get("enabled", True)),
-            review_passes=review_passes,
-            max_areas=max_areas,
-            max_subsystems=max_subsystems,
-            stability_bias=stability_bias,
-        ),
+        taxonomy=_semantic_taxonomy_config(value.get("taxonomy")),
+    )
+
+
+def semantic_config_from_mapping(value: Any) -> SemanticConfig:
+    """Validate a semantic-policy transport payload with repository-policy rules."""
+
+    return _semantic_config(value)
+
+
+def _semantic_taxonomy_config(value: Any) -> SemanticTaxonomyConfig:
+    taxonomy = value or {}
+    if not isinstance(taxonomy, dict):
+        raise ValueError("semantic.taxonomy must be a mapping")
+    review_passes = int(taxonomy.get("review_passes", 2))
+    max_areas = int(taxonomy.get("max_areas", 6))
+    max_subsystems = int(taxonomy.get("max_subsystems", 30))
+    stability_bias = float(taxonomy.get("stability_bias", 0.8))
+    if not 1 <= review_passes <= 5:
+        raise ValueError("semantic.taxonomy.review_passes must be between 1 and 5")
+    if not 1 <= max_areas <= 50:
+        raise ValueError("semantic.taxonomy.max_areas must be between 1 and 50")
+    if not max_areas <= max_subsystems <= 250:
+        raise ValueError(
+            "semantic.taxonomy.max_subsystems must be at least max_areas and at most 250"
+        )
+    if not 0 <= stability_bias <= 1:
+        raise ValueError("semantic.taxonomy.stability_bias must be between 0 and 1")
+    return SemanticTaxonomyConfig(
+        enabled=bool(taxonomy.get("enabled", True)),
+        review_passes=review_passes,
+        max_areas=max_areas,
+        max_subsystems=max_subsystems,
+        stability_bias=stability_bias,
     )
 
 

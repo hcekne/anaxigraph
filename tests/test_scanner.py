@@ -17,16 +17,17 @@ from anaxigraph.scanner import RepositoryScanner
 def test_scan_persists_graph_metrics_coverage_and_findings(repository, database):
     stats = RepositoryScanner(database).scan(repository)
 
-    assert stats.discovered == 9
-    assert stats.analyzed == 9
+    assert stats.discovered == 8
+    assert stats.analyzed == 8
     assert stats.relationships >= 6
     overview = database.overview(stats.repository_id)
-    assert overview["files"] == 9
+    assert overview["files"] == 8
     assert overview["symbols"] >= 7
     assert overview["coverage"]["line_coverage"] == 0.5
     assert overview["coverage"]["measured_files"] == 1
     assert overview["graph_quality"]["resolution_rate"] == 1.0
     assert overview["graph_quality"]["resolved_internal"] >= 6
+    assert database.file_details(stats.repository_id, ".anaxigraph.yml") is None
     snapshot = database.snapshots(stats.repository_id)[0]
     assert snapshot["file_count"] == overview["files"]
     assert snapshot["lines_of_code"] == overview["lines_of_code"]
@@ -87,6 +88,18 @@ def test_scan_persists_graph_metrics_coverage_and_findings(repository, database)
     restored = analysis_from_stored(stored)
     assert validate_analysis(PythonAnalyzer(), "pkg/core.py", restored) == ()
     assert restored.resolver_context.configured_aliases == (("@/", "web/"),)
+
+
+def test_untracked_root_control_file_is_not_an_application_module(repository, database):
+    subprocess.run(
+        ["git", "-C", str(repository), "rm", "--cached", "-q", ".anaxigraph.yml"],
+        check=True,
+    )
+
+    stats = RepositoryScanner(database).scan(repository)
+
+    assert stats.discovered == 8
+    assert database.file_details(stats.repository_id, ".anaxigraph.yml") is None
 
 
 def test_scan_retains_ambiguous_unresolved_and_external_relationship_evidence(repository, database):

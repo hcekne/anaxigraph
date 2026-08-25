@@ -108,10 +108,11 @@ AGENT_WORKFLOW = {
     "semantic_memory": (
         "Call ANAXIGRAPH_SEMANTIC_STATUS to see whether model-backed repository understanding is "
         "current. ANAXIGRAPH_SCOPE includes compact pattern and placement advice for a coding "
-        "goal; ANAXIGRAPH_FILE exposes the complete versioned dossier and its provenance. When "
-        "the repository explicitly uses semantic.provider: agent, call "
-        "ANAXIGRAPH_SEMANTIC_SCHEMA once and repeat WORK, optional EVIDENCE pages, and SUBMIT to "
-        "build that memory with the connected coding agent's own model and tokens."
+        "goal; ANAXIGRAPH_FILE exposes the complete versioned dossier and its provenance. For a "
+        "full provider=agent baseline, launch `anaxigraph understand <repository> --executor "
+        "codex --background` and monitor `semantic-status`. Use SCHEMA, WORK, optional EVIDENCE "
+        "pages, and SUBMIT directly only as a bounded fallback. Never report completion until "
+        "semantically_ready is true."
     ),
 }
 

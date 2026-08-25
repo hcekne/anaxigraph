@@ -8,7 +8,6 @@ from typing import Any
 
 from anaxigraph.config import load_config
 from anaxigraph.registry import RepositoryTarget
-from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.storage import AnaxiIndex
 from anaxigraph.understanding import SemanticEngine
 
@@ -33,7 +32,8 @@ class SemanticRefreshCoordinator:
         repository = self.database.repository(target.path)
         if repository is not None:
             durable = SemanticEngine(self.database).status(int(repository["id"]), config.semantic)
-            if int(durable.get("jobs", {}).get("running", 0)) > 0:
+            jobs = durable.get("jobs", {})
+            if int(jobs.get("running_live", jobs.get("running", 0))) > 0:
                 return False
         with self.lock:
             if self.jobs.get(key, {}).get("status") in {"queued", "running"}:
@@ -62,19 +62,17 @@ class SemanticRefreshCoordinator:
             self.jobs[key] = {"status": "running"}
         try:
             config = load_config(target.path, target.config_path)
-            stats = RepositoryScanner(self.database).scan(
-                target.path,
-                config_path=target.config_path,
-                run_type="semantic_reconcile",
-            )
+            repository = self.database.repository(target.path)
+            if repository is None or self.database.latest_snapshot(int(repository["id"])) is None:
+                raise RuntimeError("A current structural snapshot is required")
             result = SemanticEngine(self.database).bootstrap(
-                stats.repository_id,
+                int(repository["id"]),
                 target.path,
                 config,
                 force=force,
                 retry_failed=retry_failed,
             )
-            status = {"status": "complete", "scan": stats.as_dict(), **result}
+            status = {"status": "complete", **result}
         except Exception as exc:  # Background failures are intentionally visible in the UI.
             status = {
                 "status": "failed",

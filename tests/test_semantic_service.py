@@ -37,6 +37,16 @@ def test_service_discovery_matches_git_identity_across_container_paths(repositor
                 "name": "Project",
                 "path": "/repo",
                 "remote_url": "https://github.com/example/project.git",
+                "config_authority": {
+                    "registry_key": "project",
+                    "service_config_path": "/repo/.anaxigraph.yml",
+                    "sha256": "abc123",
+                },
+                "semantic_policy": {
+                    "enabled": True,
+                    "provider": "agent",
+                    "max_parallel_jobs": 9,
+                },
             }
         ],
     )
@@ -48,8 +58,19 @@ def test_service_discovery_matches_git_identity_across_container_paths(repositor
         repository_id=7,
         repository_name="Project",
         repository_path="/repo",
+        config_authority={
+            "registry_key": "project",
+            "service_config_path": "/repo/.anaxigraph.yml",
+            "sha256": "abc123",
+        },
+        semantic_policy={
+            "enabled": True,
+            "provider": "agent",
+            "max_parallel_jobs": 9,
+        },
     )
     assert target.mcp_url == "http://127.0.0.1:9999/mcp"
+    assert target.semantic_config().max_parallel_jobs == 9
 
 
 def test_explicit_service_fails_when_it_indexes_another_repository(repository, monkeypatch):
@@ -96,7 +117,7 @@ def test_default_service_timeout_refuses_local_index_fallback(repository, monkey
     assert sleeps == [0.1, 0.2]
 
 
-def test_service_preparation_is_synchronous_and_targets_one_index(monkeypatch):
+def test_service_preparation_is_lightweight_and_targets_one_index(monkeypatch):
     calls = []
     monkeypatch.setattr(
         "anaxigraph.semantic_service._request_json",
@@ -105,11 +126,11 @@ def test_service_preparation_is_synchronous_and_targets_one_index(monkeypatch):
     target = SemanticServiceTarget("http://127.0.0.1:8765", 4, "Example", "/repo")
 
     assert prepare_semantic_service(target, force=True, retry_failed=True) == {"status": "prepared"}
-    assert "/api/semantic/refresh?" in calls[0][0]
+    assert "/api/semantic/prepare?" in calls[0][0]
     assert "repository_id=4" in calls[0][0]
     assert "force=true" in calls[0][0]
     assert "retry_failed=true" in calls[0][0]
-    assert "wait=true" in calls[0][0]
+    assert "wait=true" not in calls[0][0]
     assert calls[0][1]["method"] == "POST"
 
 

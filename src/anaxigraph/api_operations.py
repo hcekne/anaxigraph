@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import asyncio
 import sqlite3
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
-import anaxigraph.api_support as api_support
 from anaxigraph.bounded_export import bounded_export
 from anaxigraph.operational_health import operational_health
 
@@ -24,7 +22,9 @@ class OperationsRoutes:
         self.router = APIRouter()
         self.router.add_api_route("/healthz", self.healthz, methods=["GET"])
         self.router.add_api_route("/api/health", self.health, methods=["GET"])
-        self.router.add_api_route("/api/scan", self.scan, methods=["POST"])
+        self.router.add_api_route("/api/scan", self.scan_status, methods=["GET"])
+        self.router.add_api_route("/api/scan", self.start_scan, methods=["POST"], status_code=202)
+        self.router.add_api_route("/api/scan/cancel", self.cancel_scan, methods=["POST"])
         self.router.add_api_route("/api/export", self.export, methods=["GET"])
 
     def healthz(self) -> dict[str, str]:
@@ -41,7 +41,32 @@ class OperationsRoutes:
         except sqlite3.Error as exc:
             raise HTTPException(status_code=503, detail="AnaxiIndex unavailable") from exc
 
-    async def scan(self, repository_id: int | None = None) -> dict[str, Any]:
+    def scan_status(self, repository_id: int | None = None) -> dict[str, Any]:
+        row, target = self._scan_target(repository_id)
+        return self.context.scan_coordinator.status_for(target.path) | {
+            "repository_id": int(row["id"])
+        }
+
+    def start_scan(self, repository_id: int | None = None) -> dict[str, Any]:
+        row, target = self._scan_target(repository_id)
+        repository_id = int(row["id"])
+        self.context.admit_operation(repository_id, "scan", hold=True)
+        try:
+            return self.context.scan_coordinator.start(
+                target,
+                repository_id,
+                on_complete=lambda: self._after_scan(row, target),
+                on_terminal=lambda: self.context.finish_operation(repository_id, "scan"),
+            )
+        except Exception:
+            self.context.finish_operation(repository_id, "scan")
+            raise
+
+    def cancel_scan(self, repository_id: int | None = None) -> dict[str, Any]:
+        _row, target = self._scan_target(repository_id)
+        return self.context.scan_coordinator.cancel(target.path)
+
+    def _scan_target(self, repository_id: int | None) -> tuple[dict[str, Any], Any]:
         row = self.context.selected_repository(repository_id)
         target = self.context.target_for_path(Path(row["path"]))
         if target is None:
@@ -49,20 +74,12 @@ class OperationsRoutes:
                 status_code=403,
                 detail="This indexed repository is read-only in the current server process",
             )
-        repository_id = int(row["id"])
-        self.context.admit_operation(repository_id, "scan", hold=True)
-        try:
-            stats = await asyncio.to_thread(
-                api_support.RepositoryScanner(self.context.database).scan,
-                target.path,
-                config_path=target.config_path,
-            )
-        finally:
-            self.context.finish_operation(repository_id, "scan")
+        return row, target
+
+    def _after_scan(self, row: dict[str, Any], target: Any) -> None:
         config = self.context.selected_config(row)
         if config.semantic.enabled and config.semantic.refresh == "on_scan":
             self.context.semantic_refresh.start(target)
-        return stats.as_dict()
 
     def export(self, repository_id: int | None = None) -> dict[str, Any]:
         row = self.context.selected_repository(repository_id)

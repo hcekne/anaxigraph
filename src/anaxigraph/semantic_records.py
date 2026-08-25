@@ -124,6 +124,7 @@ def _ensure_job(
     estimated_input_tokens: int,
     metadata: dict[str, Any],
     retry_failed: bool,
+    file_fact_id: int | None = None,
     force_new: bool = False,
 ) -> tuple[str, bool, str | None]:
     _supersede_changed_jobs(
@@ -135,24 +136,18 @@ def _ensure_job(
         job_kind,
         input_hash,
     )
-    existing = connection.execute(
-        """
-        SELECT * FROM semantic_jobs
-        WHERE repository_id = ? AND snapshot_id = ? AND scope_type = ? AND scope_key = ?
-          AND job_kind = ? AND input_hash = ?
-        ORDER BY id DESC LIMIT 1
-        """,
-        (repository_id, snapshot_id, scope_type, scope_key, job_kind, input_hash),
-    ).fetchone()
-    if existing is not None:
-        status = str(existing["status"])
-        if status == "completed" and force_new:
-            existing = None
-        elif status == "failed" and retry_failed:
-            pending = _reset_failed_job(connection, int(existing["id"]))
-            return pending, False, None
-        else:
-            return status, False, str(existing["error"] or "") or None
+    existing = _existing_job(
+        connection,
+        repository_id,
+        snapshot_id,
+        scope_type,
+        scope_key,
+        job_kind,
+        input_hash,
+    )
+    reused = _reuse_job(connection, existing, retry_failed, force_new)
+    if reused is not None:
+        return reused
     _insert_job(
         connection,
         repository_id=repository_id,
@@ -161,6 +156,7 @@ def _ensure_job(
         scope_key=scope_key,
         artifact_id=artifact_id,
         artifact_version_id=artifact_version_id,
+        file_fact_id=file_fact_id,
         job_kind=job_kind,
         reason=reason,
         priority=priority,
@@ -170,6 +166,42 @@ def _ensure_job(
         metadata=metadata,
     )
     return "pending", True, None
+
+
+def _existing_job(
+    connection: sqlite3.Connection,
+    repository_id: int,
+    snapshot_id: int,
+    scope_type: str,
+    scope_key: str,
+    job_kind: str,
+    input_hash: str,
+) -> sqlite3.Row | None:
+    return connection.execute(
+        """
+        SELECT * FROM semantic_jobs
+        WHERE repository_id = ? AND snapshot_id = ? AND scope_type = ? AND scope_key = ?
+          AND job_kind = ? AND input_hash = ?
+        ORDER BY id DESC LIMIT 1
+        """,
+        (repository_id, snapshot_id, scope_type, scope_key, job_kind, input_hash),
+    ).fetchone()
+
+
+def _reuse_job(
+    connection: sqlite3.Connection,
+    existing: sqlite3.Row | None,
+    retry_failed: bool,
+    force_new: bool,
+) -> tuple[str, bool, str | None] | None:
+    if existing is None:
+        return None
+    status = str(existing["status"])
+    if status == "completed" and force_new:
+        return None
+    if status == "failed" and retry_failed:
+        return _reset_failed_job(connection, int(existing["id"])), False, None
+    return status, False, str(existing["error"] or "") or None
 
 
 def _reset_failed_job(connection: sqlite3.Connection, job_id: int) -> str:
@@ -224,6 +256,7 @@ def _insert_job(
     scope_key: str,
     artifact_id: int | None,
     artifact_version_id: int | None,
+    file_fact_id: int | None,
     job_kind: str,
     reason: str,
     priority: int,
@@ -241,7 +274,7 @@ def _insert_job(
             scope_key,
             artifact_id,
             artifact_version_id,
-            semantic_fact_id(connection, snapshot_id, artifact_id),
+            _resolved_fact_id(connection, snapshot_id, artifact_id, file_fact_id),
             job_kind,
             reason,
             priority,
@@ -292,6 +325,7 @@ def _upsert_state(
     reason: str,
     artifact_id: int | None = None,
     artifact_version_id: int | None = None,
+    file_fact_id: int | None = None,
     intrinsic_input_hash: str | None = None,
     context_input_hash: str | None = None,
     interface_hash: str | None = None,
@@ -300,7 +334,7 @@ def _upsert_state(
     intrinsic_document_id: int | None = None,
     context_document_id: int | None = None,
 ) -> None:
-    file_fact_id = semantic_fact_id(connection, snapshot_id, artifact_id)
+    resolved_fact_id = _resolved_fact_id(connection, snapshot_id, artifact_id, file_fact_id)
     connection.execute(
         _UPSERT_STATE_SQL,
         (
@@ -310,7 +344,7 @@ def _upsert_state(
             scope_key,
             artifact_id,
             artifact_version_id,
-            file_fact_id,
+            resolved_fact_id,
             status,
             reason,
             intrinsic_input_hash,
@@ -323,6 +357,19 @@ def _upsert_state(
             utc_now(),
         ),
     )
+
+
+def _resolved_fact_id(
+    connection: sqlite3.Connection,
+    snapshot_id: int,
+    artifact_id: int | None,
+    file_fact_id: int | None,
+) -> int | None:
+    if file_fact_id is not None or artifact_id is None:
+        return file_fact_id
+    # Compatibility fallback for non-inventory callers. Repository planning passes the
+    # canonical fact directly and therefore never reconstructs a snapshot per module.
+    return semantic_fact_id(connection, snapshot_id, artifact_id)
 
 
 def _states(

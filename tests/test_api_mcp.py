@@ -8,7 +8,9 @@ import pytest
 import yaml
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
+from semantic_support import _agent_dossier
 
+from anaxigraph import git
 from anaxigraph.api import create_app
 from anaxigraph.mcp_server import create_anaxi_mcp_server
 from anaxigraph.scanner import RepositoryScanner
@@ -46,6 +48,8 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert repositories[0]["scannable"] is True
         assert repositories[0]["history_snapshots"] == "auto"
         assert [row["path"] for row in repositories] == [str(repository.resolve())]
+        assert repositories[0]["config_authority"]["source_kind"] == "repository_policy"
+        assert repositories[0]["config_authority"]["sha256"]
         stale_row = database.repository(stale_repository)
         assert stale_row is not None
         stale_overview = await client.get(
@@ -56,7 +60,7 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert "persistent repository knowledge store" in glossary["product"]["anaxi_index"]
         assert glossary["findings"]["statuses"]["planned"]["label"] == "Planned for agent"
         overview = (await client.get("/api/overview")).json()
-        assert overview["files"] == 9
+        assert overview["files"] == 8
         assert overview["group_hierarchy"]
         assert overview["map"]["default_layer"] == "effective"
         assert "policy" in overview["map"]["available_layers"]
@@ -72,6 +76,9 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert overview["semantic"]["enabled"] is False
         semantic = (await client.get("/api/semantic")).json()
         assert semantic["state"] == "not_started"
+        assert semantic["recommended_action"]["kind"] == "enable_semantics"
+        assert semantic["semantic_policy"] == repositories[0]["semantic_policy"]
+        assert semantic["config_authority"] == repositories[0]["config_authority"]
         assert (await client.get("/api/taxonomy")).status_code == 404
         disabled_refresh = await client.post("/api/semantic/refresh")
         assert disabled_refresh.status_code == 400
@@ -85,7 +92,7 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert findings[0]["priority_reasons"]
         assert findings[0]["actionability"]["verification"]
         modules = (await client.get("/api/modules")).json()
-        assert len(modules) == 9
+        assert len(modules) == 8
         core = next(item for item in modules if item["path"] == "pkg/core.py")
         assert core["architecture_area"] == "domain"
         assert core["evaluation"]["monitored_by_default"] is True
@@ -193,7 +200,7 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     assert submit_tool.annotations.readOnlyHint is False
                     overview = await session.call_tool("ANAXIGRAPH_OVERVIEW", arguments={})
                     assert overview.isError is False
-                    assert overview.structuredContent["files"] == 9
+                    assert overview.structuredContent["files"] == 8
                     graph = await session.call_tool("ANAXIGRAPH_GRAPH", arguments={})
                     assert graph.isError is False
                     assert graph.structuredContent["contract_version"] == "graph-overview-v1"
@@ -268,6 +275,11 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     semantic = await session.call_tool("ANAXIGRAPH_SEMANTIC_STATUS", arguments={})
                     assert semantic.isError is False
                     assert semantic.structuredContent["enabled"] is False
+                    assert semantic.structuredContent["semantic_policy"]["enabled"] is False
+                    assert (
+                        semantic.structuredContent["config_authority"]["source_kind"]
+                        == "repository_policy"
+                    )
                     schema = await session.call_tool("ANAXIGRAPH_SEMANTIC_SCHEMA", arguments={})
                     assert schema.isError is False
                     assert (
@@ -319,27 +331,65 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
 
 
 @pytest.mark.anyio
-async def test_semantic_refresh_can_prepare_sidecar_work_synchronously(repository, database):
+async def test_semantic_prepare_reconciles_current_snapshot_without_scanning(
+    repository, database, monkeypatch
+):
     policy_path = repository / ".anaxigraph.yml"
     policy = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
     policy["semantic"] = {"enabled": True, "provider": "agent"}
     policy_path.write_text(yaml.safe_dump(policy, sort_keys=False), encoding="utf-8")
     RepositoryScanner(database).scan(repository)
+    monkeypatch.setattr(
+        "anaxigraph.api_semantic_routes.api_support.RepositoryScanner.scan",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("prepare scanned source")),
+    )
     app = create_app(database=database, repository=repository, enable_mcp=False)
 
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://testserver"
     ) as client:
         response = await client.post(
-            "/api/semantic/refresh",
-            params={"wait": True, "force": True, "retry_failed": True},
+            "/api/semantic/prepare",
+            params={"force": True, "retry_failed": True},
         )
 
     assert response.status_code == 200
     result = response.json()
     assert result["status"] == "prepared"
-    assert result["scan"]["discovered"] == 9
+    assert result["stage"] == "intrinsic"
+    assert "scan" not in result
     assert result["semantic"]["jobs"]["pending"] > 0
+
+
+@pytest.mark.anyio
+async def test_semantic_prepare_reports_scan_required_without_current_snapshot(
+    repository, database
+):
+    policy_path = repository / ".anaxigraph.yml"
+    policy = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
+    policy["semantic"] = {"enabled": True, "provider": "agent"}
+    policy_path.write_text(yaml.safe_dump(policy, sort_keys=False), encoding="utf-8")
+    repository_id = database.ensure_repository(
+        path=repository,
+        name="Unscanned fixture",
+        git=git.metadata(repository),
+    )
+    app = create_app(database=database, repository=repository, enable_mcp=False)
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        response = await client.post("/api/semantic/prepare")
+
+    assert response.status_code == 200
+    result = response.json()
+    assert result["status"] == "scan_required"
+    assert result["repository_id"] == repository_id
+    assert result["recommended_action"] == (
+        "Run the explicit repository scan, then retry understand."
+    )
+    assert result["semantic_policy"]["enabled"] is True
+    assert result["config_authority"]["sha256"]
 
 
 @pytest.mark.anyio
@@ -385,7 +435,7 @@ async def test_mcp_coding_agent_can_claim_and_submit_semantic_work(repository, d
                         arguments={
                             "job_id": packet["job"]["id"],
                             "lease_token": packet["lease"]["token"],
-                            "dossier": _mcp_dossier(packet["job"]["scope_key"]),
+                            "dossier": _agent_dossier(packet["analysis_request"]),
                         },
                     )
                     assert submit.isError is False
@@ -433,7 +483,7 @@ async def test_history_job_does_not_block_current_intelligence_and_can_cancel(
             await anyio.sleep(0.01)
         assert active["status"] == "importing"
         assert (await client.get("/api/modules")).status_code == 200
-        assert (await client.get("/api/overview")).json()["files"] == 9
+        assert (await client.get("/api/overview")).json()["files"] == 8
 
         cancellation = (await client.post("/api/history/cancel")).json()
         assert cancellation["cancelled"] is True
@@ -444,38 +494,3 @@ async def test_history_job_does_not_block_current_intelligence_and_can_cancel(
             await anyio.sleep(0.01)
         assert final["status"] == "cancelled"
         assert final["last_complete_snapshot_id"] is not None
-
-
-def _mcp_dossier(scope: str) -> dict:
-    return {
-        "summary": f"Agent understanding for {scope}",
-        "detailed_summary": f"Evidence-grounded dossier for {scope}.",
-        "responsibilities": [f"Own {scope}"],
-        "inputs": [],
-        "outputs": [],
-        "side_effects": [],
-        "public_contracts": [],
-        "invariants": [],
-        "architecture_role": "integration test role",
-        "domain_concepts": [],
-        "collaborators": [],
-        "overlaps": [],
-        "extension_points": [],
-        "similar_modules": [],
-        "pattern_opportunities": [],
-        "consolidation_assessment": {
-            "recommendation": "insufficient_evidence",
-            "score": 0,
-            "rationale": "",
-            "candidates": [],
-            "evidence": [],
-            "counter_evidence": [],
-        },
-        "dead_code_candidates": [],
-        "placement_guidance": "",
-        "testing_guidance": [],
-        "change_summary": "",
-        "risks": [],
-        "evidence": [scope],
-        "confidence": 0.9,
-    }

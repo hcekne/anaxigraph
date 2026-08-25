@@ -12,11 +12,12 @@ from mcp.server.fastmcp.server import Settings as FastMCPSettings
 from mcp.server.transport_security import TransportSecuritySettings
 
 _INSTRUCTIONS = (
-    "AnaxiMCP exposes the AnaxiIndex knowledge held by AnaxiGraph. "
-    "For an agent-funded semantic baseline, call ANAXIGRAPH_SEMANTIC_SCHEMA once, then "
-    "repeat WORK → optional EVIDENCE pages → SUBMIT until WORK returns complete. The "
-    "coding agent supplies the reasoning and tokens; submission writes only validated "
-    "interpretations to AnaxiIndex, never source files. Use these tools to understand "
+    "For a full semantic baseline or resume, use the durable host executor: anaxigraph "
+    "understand <repository> --executor codex --background, then monitor semantic-status. "
+    "Use direct MCP WORK → EVIDENCE → SUBMIT only as a bounded/manual fallback. Never report "
+    "completion until semantic status says semantically_ready: true. Never edit source while "
+    "mapping; semantic submission writes only validated interpretations to AnaxiIndex. "
+    "AnaxiMCP exposes the AnaxiIndex knowledge held by AnaxiGraph. Use these tools to understand "
     "repository architecture before editing. Prefer ANAXIGRAPH_SCOPE for a new goal, "
     "ANAXIGRAPH_IMPACT before changing a shared interface, and ANAXIGRAPH_FILE for the "
     "complete semantic dossier behind a module. Parser facts and LLM inferences are "

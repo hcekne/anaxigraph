@@ -94,6 +94,7 @@ class SemanticAgentContractService:
             "status": no_work_status,
             "message": message,
             "plan_stage": plan_stage,
+            "recommended_action": status.get("recommended_action"),
             "semantic": status,
         }
 
@@ -155,6 +156,7 @@ class SemanticAgentContractService:
             "job_id": int(job["id"]),
             "completed_scope": job["scope_key"],
             "next_plan_stage": plan_stage,
-            "next_action": "Call ANAXIGRAPH_SEMANTIC_WORK again until it returns complete.",
+            "next_action": status.get("recommended_action")
+            or "Call ANAXIGRAPH_SEMANTIC_WORK again until it returns complete.",
             "semantic": status,
         }

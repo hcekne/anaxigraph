@@ -38,15 +38,7 @@ def create_app(
         repository_history_snapshots,
     )
     default_repository = targets[0].path if targets else repository
-    context = ApiContext(
-        database=database,
-        targets=targets,
-        default_repository=default_repository,
-        history_service=api_support.HistoryJobService(database),
-        semantic_refresh=SemanticRefreshCoordinator(database),
-        config_loader=api_support.load_config,
-        operation_gate=RepositoryOperationGate(),
-    )
+    context = _api_context(database, targets, default_repository)
     mcp = (
         _mcp_server(
             context,
@@ -69,6 +61,21 @@ def create_app(
     if mcp is not None:
         app.mount("/", mcp.streamable_http_app())
     return app
+
+
+def _api_context(
+    database: AnaxiIndex, targets: tuple, default_repository: Path | None
+) -> ApiContext:
+    return ApiContext(
+        database=database,
+        targets=targets,
+        default_repository=default_repository,
+        history_service=api_support.HistoryJobService(database),
+        semantic_refresh=SemanticRefreshCoordinator(database),
+        scan_coordinator=api_support.ScanCoordinator(database),
+        config_loader=api_support.load_config,
+        operation_gate=RepositoryOperationGate(),
+    )
 
 
 def _mcp_server(

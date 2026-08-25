@@ -8,12 +8,12 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from anaxigraph import git
-from anaxigraph.config import load_config
+from anaxigraph.config import SemanticConfig, load_config, semantic_config_from_mapping
 from anaxigraph.onboarding_clients import validate_mcp_url
 from anaxigraph.pattern_candidate_query import PatternCandidateQuery
 from anaxigraph.pattern_query import PatternEvaluationQuery
@@ -27,6 +27,8 @@ class SemanticServiceTarget:
     repository_id: int
     repository_name: str
     repository_path: str
+    config_authority: dict[str, Any] = field(default_factory=dict)
+    semantic_policy: dict[str, Any] = field(default_factory=dict)
 
     @property
     def mcp_url(self) -> str:
@@ -40,7 +42,22 @@ class SemanticServiceTarget:
             "repository_id": self.repository_id,
             "repository_name": self.repository_name,
             "repository_path": self.repository_path,
+            "config_authority": self.config_authority,
+            "semantic_policy": self.semantic_policy,
         }
+
+    def semantic_config(self) -> SemanticConfig:
+        if not self.semantic_policy:
+            raise ValueError(
+                f"AnaxiGraph service at {self.base_url} did not expose its effective semantic "
+                "policy; upgrade or restart the service before running understand"
+            )
+        return semantic_config_from_mapping(self.semantic_policy)
+
+    def config_label(self) -> str:
+        path = self.config_authority.get("service_config_path") or "service defaults"
+        key = self.config_authority.get("registry_key")
+        return f"{path} (registry key {key!r})" if key else str(path)
 
 
 def discover_semantic_service(
@@ -94,6 +111,8 @@ def _matching_target(
             repository_id=int(row["id"]),
             repository_name=str(row.get("name") or ""),
             repository_path=str(row.get("path") or ""),
+            config_authority=dict(row.get("config_authority") or {}),
+            semantic_policy=dict(row.get("semantic_policy") or {}),
         )
     if len(matches) > 1:
         identifiers = ", ".join(str(row.get("id")) for row in matches)
@@ -124,18 +143,17 @@ def prepare_semantic_service(
     *,
     force: bool,
     retry_failed: bool,
-    timeout: float = 300,
+    timeout: float = 30,
 ) -> dict[str, Any]:
     query = urllib.parse.urlencode(
         {
             "repository_id": target.repository_id,
             "force": str(force).lower(),
             "retry_failed": str(retry_failed).lower(),
-            "wait": "true",
         }
     )
     value = _request_json_with_retries(
-        f"{target.base_url}/api/semantic/refresh?{query}",
+        f"{target.base_url}/api/semantic/prepare?{query}",
         method="POST",
         timeout=timeout,
     )

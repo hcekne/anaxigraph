@@ -21,16 +21,18 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
     config = load_config(repository)
 
     stats = RepositoryScanner(database).scan(repository)
-    queued = SemanticEngine(database).status(stats.repository_id, config.semantic)
-    assert queued["total_modules"] == 9
-    assert queued["pending"] == 9
+    engine = SemanticEngine(database)
+    engine.plan(stats.repository_id, repository, config)
+    queued = engine.status(stats.repository_id, config.semantic)
+    assert queued["total_modules"] == 8
+    assert queued["pending"] == 8
     assert queued["current"] == 0
 
-    result = SemanticEngine(database).bootstrap(stats.repository_id, repository, config)
+    result = engine.bootstrap(stats.repository_id, repository, config)
     status = result["semantic"]
     assert status["semantically_ready"] is True
     assert status["baseline_complete"] is True
-    assert status["current"] == status["eligible_modules"] == 9
+    assert status["current"] == status["eligible_modules"] == 8
     assert status["repository_dossier"]["value"]["summary"]
     assert status["taxonomy"]["ready"] is True
     assert status["taxonomy"]["current"]["review_passes"] == 2
@@ -43,11 +45,11 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
     assert core_module["architecture_layer"] == "semantic"
     assert core_module["semantic_taxonomy"]["confidence"] == 0.85
     semantic_map = database.semantic_taxonomy(stats.repository_id)
-    assert semantic_map["validation"]["assigned_modules"] == 9
+    assert semantic_map["validation"]["assigned_modules"] == 8
     assert semantic_map["review_passes"] == 2
     assert len(semantic_map["reviews"]) == 2
     assert all("issues_json" not in review for review in semantic_map["reviews"])
-    assert sum(group["files"] for group in semantic_map["hierarchy"]) == 9
+    assert sum(group["files"] for group in semantic_map["hierarchy"]) == 8
     overview = database.overview(stats.repository_id)
     assert overview["map"]["default_layer"] == "semantic"
     assert overview["group_hierarchy"] == overview["group_hierarchies"]["semantic"]
@@ -308,7 +310,7 @@ def test_daily_budget_pauses_before_claiming_an_estimated_job(repository, databa
     result = SemanticEngine(database).bootstrap(stats.repository_id, repository, config)
 
     assert result["processed"] == 0
-    assert result["semantic"]["pending"] == 9
+    assert result["semantic"]["pending"] == 8
     assert result["semantic"]["budget"]["paused"] is True
     assert _calls(log) == []
 
@@ -370,13 +372,13 @@ def test_forced_plan_survives_until_a_later_worker_run(repository, database, tmp
         plan_only=True,
     )
     assert planned["processed"] == 0
-    assert planned["planned"] == 9
-    assert planned["semantic"]["pending"] == 9
+    assert planned["planned"] == 8
+    assert planned["semantic"]["pending"] == 8
 
     resumed = engine.bootstrap(stats.repository_id, repository, config)
-    assert resumed["processed"] == 9
+    assert resumed["processed"] == 8
     assert resumed["semantic"]["semantically_ready"] is True
-    assert len(_calls(log)) == initial_calls + 9
+    assert len(_calls(log)) == initial_calls + 8
     assert {item["kind"] for item in _calls(log)[initial_calls:]} == {"intrinsic"}
 
 

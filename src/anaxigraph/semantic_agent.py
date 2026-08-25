@@ -49,41 +49,67 @@ class SemanticAgentService:
         semantic = self._contracts.semantic(config)
         executor_id, executor_model = self._contracts.identity(agent_id, agent_model)
         root = Path(repository).expanduser().resolve()
-
+        planned_stage = "queued"
+        planned = False
         for _ in range(3):
-            plan = self._planning.plan(
-                repository_id,
-                root,
-                config,
-                retry_failed=retry_failed,
-            )
-            token, token_hash, worker_id = self._contracts.lease_identity(executor_id)
-            job = self._leases.claim_job(
-                repository_id,
-                semantic,
-                worker_id=worker_id,
-                lease_seconds=semantic.agent_lease_seconds,
-                lease_token_hash=token_hash,
-                executor_id=executor_id,
-                executor_model=executor_model or None,
-            )
+            job, token = self._claim(repository_id, semantic, executor_id, executor_model)
             if job is None:
                 status = self._reporting.status(repository_id, semantic)
-                return self._contracts.no_work_response(status, plan.stage)
-            try:
-                request = self._evidence.job_request(job, root, semantic)
-            except SupersededSemanticJob as exc:
-                self._persistence.mark_superseded(int(job["id"]), str(exc))
+                if _queue_active(status) or planned:
+                    return self._contracts.no_work_response(status, planned_stage)
+                plan = self._planning.plan(
+                    repository_id,
+                    root,
+                    config,
+                    retry_failed=retry_failed,
+                )
+                planned_stage = plan.stage
+                planned = True
                 continue
-
-            bounded_request, manifest, _ = self._contracts.packetize(request, semantic)
-            status = self._reporting.status(repository_id, semantic)
-            return self._contracts.work_response(
-                job, token, bounded_request, request, manifest, semantic, status
-            )
+            packet = self._work_packet(repository_id, root, semantic, job, token)
+            if packet is not None:
+                return packet
 
         status = self._reporting.status(repository_id, semantic)
         return self._contracts.waiting_response(status)
+
+    def _claim(
+        self,
+        repository_id: int,
+        semantic: SemanticConfig,
+        executor_id: str,
+        executor_model: str,
+    ) -> tuple[dict[str, Any] | None, str]:
+        token, token_hash, worker_id = self._contracts.lease_identity(executor_id)
+        job = self._leases.claim_job(
+            repository_id,
+            semantic,
+            worker_id=worker_id,
+            lease_seconds=semantic.agent_lease_seconds,
+            lease_token_hash=token_hash,
+            executor_id=executor_id,
+            executor_model=executor_model or None,
+        )
+        return job, token
+
+    def _work_packet(
+        self,
+        repository_id: int,
+        root: Path,
+        semantic: SemanticConfig,
+        job: dict[str, Any],
+        token: str,
+    ) -> dict[str, Any] | None:
+        try:
+            request = self._evidence.job_request(job, root, semantic)
+        except SupersededSemanticJob as exc:
+            self._persistence.mark_superseded(int(job["id"]), str(exc))
+            return None
+        bounded_request, manifest, _ = self._contracts.packetize(request, semantic)
+        status = self._reporting.status(repository_id, semantic)
+        return self._contracts.work_response(
+            job, token, bounded_request, request, manifest, semantic, status
+        )
 
     def agent_evidence_page(
         self,
@@ -165,9 +191,8 @@ class SemanticAgentService:
             output_tokens=output_tokens,
         )
         self._persistence.complete_job(job, result, "agent", semantic)
-        plan = self._planning.plan(repository_id, repository, config)
         status = self._reporting.status(repository_id, semantic)
-        return self._contracts.completed_response(job, plan.stage, status)
+        return self._contracts.completed_response(job, "claim_next", status)
 
     def _already_completed(
         self, repository_id: int, semantic: SemanticConfig, job_id: int
@@ -202,3 +227,8 @@ class SemanticAgentService:
             "job_id": job_id,
             "semantic": self._reporting.status(repository_id, semantic),
         }
+
+
+def _queue_active(status: dict[str, Any]) -> bool:
+    jobs = status.get("jobs") or {}
+    return any(int(jobs.get(key, 0)) > 0 for key in ("pending", "retry", "running"))

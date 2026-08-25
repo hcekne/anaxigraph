@@ -3,6 +3,7 @@
 from anaxigraph.agent import agent_scope, branch_collisions, finding_context, impact_analysis
 from anaxigraph.api_coverage import coverage_diagnostics
 from anaxigraph.api_models import FindingStatusRequest, ImpactRequest, ScopeRequest
+from anaxigraph.api_scan import ScanCoordinator
 from anaxigraph.config import load_config
 from anaxigraph.finding_transport import collect_finding_ledger, query_findings
 from anaxigraph.guidance import product_glossary
@@ -17,6 +18,7 @@ __all__ = [
     "HistoryJobService",
     "ImpactRequest",
     "RepositoryScanner",
+    "ScanCoordinator",
     "RepositoryTarget",
     "SemanticEngine",
     "ScopeRequest",

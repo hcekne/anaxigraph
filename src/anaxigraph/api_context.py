@@ -16,6 +16,7 @@ class ApiContext:
     default_repository: Path | None
     history_service: Any
     semantic_refresh: Any
+    scan_coordinator: Any
     config_loader: Any
     operation_gate: Any
 
