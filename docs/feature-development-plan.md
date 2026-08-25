@@ -88,7 +88,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 357 tests passing at 89.90% coverage plus 15 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, and pattern-intelligence paths are regression-tested |
+| Test health | 383 tests passing at 90.11% coverage plus 15 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, and pattern-intelligence paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -1713,8 +1713,9 @@ verification commands, and post-change architecture facts to compare.
 
 ## 6.8 Expose pattern intelligence without multiplying product surfaces
 
-**Status:** IN PROGRESS — current evaluations and on-demand selected/skipped candidate explanations
-are delivered through all four product surfaces on 25 August 2026; calibration remains.
+**Status:** IN PROGRESS — current evaluations, on-demand selected/skipped candidate explanations,
+and versioned calibration are delivered on 25 August 2026; verified post-change outcome correlation
+remains coupled to §6.7 guidance and the temporal facts in Phase 7.
 
 Reuse the existing semantic queue, leases, evidence paging, provenance, taxonomy, and bounded query
 infrastructure. Add one narrow evaluation projection keyed by target, pattern, snapshot, and
@@ -1748,6 +1749,20 @@ Selection, exact target, level, paging, and opt-in signal/capability evidence ar
 `anaxigraph patterns --candidates`, `ANAXIGRAPH_PATTERNS(mode="candidates")`, and
 `GET /api/patterns/candidates`.
 
+`pattern-calibration-v1` defines bounded, catalog/score/review-versioned expectations without adding
+an approval gate. `anaxigraph patterns --calibrate MANIFEST` uses the same active-sidecar or local
+index authority and emits `pattern-calibration-report-v1`: candidate confusion/precision/recall,
+rating pass and range error, confidence Brier error, false-positive causes, critic verdict/issues,
+category breakdowns, incomplete cases, and provider/model/prompt/snapshot provenance remain
+separate. Thresholds are manifest data; runtime model names are never policy.
+
+The shipped synthetic and real-AnaxiGraph manifests each contain seven cases covering correct and
+incorrect abstractions, justified and low-cohesion modules, dynamic plugin/dead-code traps,
+consolidation false positives, and migration cost. The synthetic source fixture is 137 Python lines.
+Calibration reuses exact target/pattern queries and finalized critiques; it adds no persistence,
+provider, REST, MCP, dashboard, or vector-store surface. Calibration failure is regression evidence,
+not permission to edit source and not a blocker on autonomous map completion.
+
 `anaxigraph patterns` exposes that contract without creating a new scan. When `--db` is omitted it
 uses the same checkout/Git-identity discovery as semantic execution to select a matching active
 sidecar, falling back to the stable per-checkout local index only when no service matches. Explicit
@@ -1760,10 +1775,10 @@ responsive stylesheet modules render all nine scores, critique and provider/mode
 bounded filters and pagination, opt-in evidence, candidate decision reasons, and one-click pivots
 between finalized evaluations and skipped-target explanations.
 
-Twenty-eight focused candidate/query-contract cases, CLI authority handoff coverage,
+Forty focused candidate/query/calibration-contract cases, CLI authority handoff coverage,
 completed-semantic projection coverage, REST integration, and a real MCP SDK round trip cover the
 read model. The dashboard candidate workflow passes within all 15 browser contracts in the pinned
-Playwright container. The complete suite passes 371 tests at 90.02% coverage; architecture, size,
+Playwright container. The complete suite passes 383 tests at 90.11% coverage; architecture, size,
 maintainability, formatting, and deterministic self-analysis gates report no errors or regressions,
 with self-analysis at 43 governed findings, 132 non-blocking findings, and zero issues.
 

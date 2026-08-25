@@ -60,3 +60,24 @@ capability drop, no-new-privileges, and loopback binding:
 ```bash
 uv run python scripts/smoke_container_sidecar.py
 ```
+
+## Pattern-intelligence calibration
+
+Two versioned seven-case sets exercise correct and unnecessary abstractions, justified and
+low-cohesion modules, dynamic plugin/dead-code traps, consolidation lookalikes, and costly
+migrations. The synthetic source repository and labels are in
+`benchmarks/fixtures/pattern-calibration`; the real AnaxiGraph labels are in
+`benchmarks/pattern-calibration/anaxigraph.json`.
+
+After the corresponding repository has a current semantic and pattern map, run:
+
+```bash
+uv run anaxigraph patterns . \
+  --calibrate benchmarks/pattern-calibration/anaxigraph.json \
+  --json
+```
+
+With no explicit `--db`, the command selects the matching active sidecar and reports that index
+authority. The output is `pattern-calibration-report-v1`; automation should inspect `passed` and
+the individual failures. Runtime model and prompt versions are report provenance, not manifest
+policy, so changing models never requires editing or invalidating the calibration contract itself.

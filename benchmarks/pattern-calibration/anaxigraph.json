@@ -1,0 +1,97 @@
+{
+  "contract_version": "pattern-calibration-v1",
+  "name": "AnaxiGraph real-repository pattern calibration",
+  "catalog_version": "2026.08.2",
+  "score_contract_version": "pattern-scores-v1",
+  "review_contract_version": "pattern-review-v1",
+  "thresholds": {
+    "candidate_precision": 0.65,
+    "candidate_recall": 0.65,
+    "rating_pass_rate": 0.65,
+    "maximum_confidence_brier": 0.35,
+    "require_complete": true
+  },
+  "cases": [
+    {
+      "id": "semantic-provider-boundary",
+      "category": "correct_abstraction",
+      "pattern": "provider-abstraction",
+      "target": "module:src/anaxigraph/semantic.py",
+      "expected": {
+        "relevant": true,
+        "presence": ["present", "partial"],
+        "recommendations": ["retain", "improve_conformance", "no_action"],
+        "scores": {"suitability": [65, 100], "conformance": [55, 100]},
+        "review_verdicts": ["approve", "revise", "retain_competing"]
+      }
+    },
+    {
+      "id": "clock-needs-no-provider",
+      "category": "incorrect_abstraction",
+      "pattern": "provider-abstraction",
+      "target": "module:src/anaxigraph/clock.py",
+      "false_positive_cause": "single_stable_implementation",
+      "expected": {"relevant": false}
+    },
+    {
+      "id": "cohesive-target-identities",
+      "category": "justified_module",
+      "pattern": "cohesive-module",
+      "target": "module:src/anaxigraph/pattern_targets.py",
+      "expected": {
+        "relevant": true,
+        "presence": ["present"],
+        "recommendations": ["retain", "no_action"],
+        "scores": {"conformance": [65, 100], "opportunity": [0, 40]},
+        "review_verdicts": ["approve", "revise"]
+      }
+    },
+    {
+      "id": "semantic-agent-protocol-cohesion",
+      "category": "low_cohesion",
+      "pattern": "god-module",
+      "target": "module:src/anaxigraph/semantic_agent_protocol.py",
+      "expected": {
+        "relevant": true,
+        "presence": ["present", "partial"],
+        "recommendations": ["improve_conformance", "replace"],
+        "scores": {"applicability": [50, 100], "opportunity": [40, 100]},
+        "review_verdicts": ["approve", "revise", "retain_competing"]
+      }
+    },
+    {
+      "id": "dynamic-analyzer-registry",
+      "category": "dynamic_dead_code_trap",
+      "pattern": "plugin-architecture",
+      "target": "module:src/anaxigraph/analyzers/__init__.py",
+      "expected": {
+        "relevant": true,
+        "presence": ["present", "partial"],
+        "recommendations": ["retain", "improve_conformance", "no_action"],
+        "scores": {"conformance": [50, 100]},
+        "review_verdicts": ["approve", "revise", "retain_competing"]
+      }
+    },
+    {
+      "id": "pattern-route-is-not-strategy",
+      "category": "consolidation_false_positive",
+      "pattern": "strategy",
+      "target": "module:src/anaxigraph/api_patterns.py",
+      "false_positive_cause": "transport_methods_share_shape_not_policy",
+      "expected": {"relevant": false}
+    },
+    {
+      "id": "repository-branch-migration",
+      "category": "migration_cost",
+      "pattern": "branch-by-abstraction",
+      "target": "repository:root",
+      "expected": {
+        "relevant": true,
+        "presence": ["absent", "partial", "present"],
+        "recommendations": ["introduce", "improve_conformance", "retain", "no_action"],
+        "scores": {"migration_cost": [55, 100]},
+        "review_verdicts": ["approve", "revise", "retain_competing"]
+      }
+    }
+  ]
+}

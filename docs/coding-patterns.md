@@ -71,6 +71,26 @@ plan not yet ready. Optional details expose matched signals, capability gaps, mi
 the semantic questions associated with the card. The dashboard switches between finalized ratings
 and candidate explanations without mixing candidate priority with the nine independent scores.
 
+Run a repeatable calibration against the already-current map with the same CLI and index-authority
+selection:
+
+```text
+anaxigraph patterns . --calibrate benchmarks/pattern-calibration/anaxigraph.json --json
+```
+
+`pattern-calibration-v1` manifests bind expectations to the catalog, score, and review contract
+versions. Each case labels relevance and may define accepted presence, recommendation, score-range,
+and critic-verdict outcomes. The report keeps candidate precision/recall, rating pass rate, mean
+score-range error, confidence Brier score, false-positive causes, and critic disagreement separate,
+then groups them by scenario, runtime provider/model, prompt version, and snapshot. A manifest can
+set thresholds and require every expected finalized rating; inspect the report's `passed`, `status`,
+and per-case `failures` fields in automation.
+
+Calibration labels are regression evidence, not a human approval stage. Mapping and independent
+critique still finish autonomously, and a failed or incomplete calibration report does not mutate
+the target repository or rewrite its semantic map. The shipped synthetic and real-repository sets
+live under `benchmarks/fixtures/pattern-calibration` and `benchmarks/pattern-calibration`.
+
 Treat 40 logical lines per function and 500 source LOC per module as inspection signals. Prefer a
 cohesive module over forwarding layers. Add an abstraction only for multiple real implementations
 or a demonstrated bug class. Avoid hidden global state and circular dependencies. Changed behavior
