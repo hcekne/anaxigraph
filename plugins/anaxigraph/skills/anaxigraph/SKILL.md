@@ -39,9 +39,13 @@ model-derived interpretations visibly separate.
   approval; other active findings are observations, not an implementation request.
 - For history questions, use `ANAXIGRAPH_HISTORY_STATUS` and the dashboard timeline. Start or cancel
   an import only when the user requests that index operation.
-- After an implementation, call `ANAXIGRAPH_SCAN` when available, then repeat the relevant scope,
-  impact, finding, or module query. Report measured changes; do not claim a finding resolved before
-  the rescan confirms it.
+- Before an implementation, preserve
+  `architecture_decision.verification.post_change_baseline` from `ANAXIGRAPH_SCOPE`. After the
+  implementation, call `ANAXIGRAPH_SCAN` when available, then repeat `ANAXIGRAPH_SCOPE` with the
+  exact same goal and pass the preserved object as `verification_baseline`. Report the returned
+  `post_change_comparison` alongside focused test results. “No longer reported” is not proof that a
+  finding was fixed, and `changed` is not proof that the architecture improved. Repeat any other
+  relevant impact, finding, or module query needed to test the intended outcome.
 
 ## Build or resume semantic understanding
 
@@ -112,7 +116,8 @@ Return a compact plan containing:
 3. dependants, contracts, protected boundaries, and likely tests;
 4. relevant findings and semantic claims, labeled by provenance and confidence;
 5. the smallest viable change plus credible alternatives;
-6. verification commands and the AnaxiGraph rescan/query that proves the architectural outcome.
+6. verification commands, the saved `post_change_baseline`, and the AnaxiGraph rescan/same-goal
+   scope query that measures the architectural outcome.
 
 Prefer evidence-backed uncertainty over confident extrapolation. Do not recommend deleting a symbol
 or module solely because static analysis found no caller; dynamic loading, reflection, framework

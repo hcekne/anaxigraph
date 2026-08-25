@@ -96,12 +96,39 @@ live under `benchmarks/fixtures/pattern-calibration` and `benchmarks/pattern-cal
 The same finalized pattern projection contributes to `architecture-decision-v1` inside the normal
 agent scope. Placement guidance distinguishes patterns already worth reusing from genuine change
 opportunities and retains critic provenance, contracts, invariants, risks, focused tests, and the
-snapshot facts to compare after a rescan. Consolidation keeps supporting and contrary evidence.
-Dead-code advice is stricter: a semantic suggestion needs a same-granularity deterministic
-candidate, and deterministic module candidates require trusted graph resolution plus analyzer
-support for entry points and registrations. A `dead_code` rule may list repository-relative
-`entry_points` globs; configured, conventional, or detected entry points are suppressed. No result
-is presented as automatic permission to merge, split, or delete code.
+snapshot facts to compare after a rescan. Save the returned
+`architecture_decision.verification.post_change_baseline`, then pass it back with the same goal:
+
+```text
+ANAXIGRAPH_SCOPE(goal="Add provider fallback")
+ANAXIGRAPH_SCAN()
+ANAXIGRAPH_SCOPE(
+  goal="Add provider fallback",
+  verification_baseline=<the earlier post_change_baseline>
+)
+```
+
+The second response includes `architecture-verification-comparison-v1`. It uses
+`rescan_required`, `unchanged`, `changed`, or `incomparable` in ordinary language and lists the
+module, finding, and reviewed-pattern facts that differ. “No longer reported” does not mean
+“proved fixed,” and a changed score does not by itself mean the code is better. The focused tests
+and the intended outcome still decide that.
+
+The CLI accepts either that nested baseline or the whole earlier scope response:
+
+```bash
+anaxigraph scope . --goal "Add provider fallback" --json > before.json
+anaxigraph update . --json
+anaxigraph scope . --goal "Add provider fallback" \
+  --verification-baseline before.json --json
+```
+
+Consolidation keeps supporting and contrary evidence. Dead-code advice is stricter: a semantic
+suggestion needs a same-granularity deterministic candidate, and deterministic module candidates
+require trusted graph resolution plus analyzer support for entry points and registrations. A
+`dead_code` rule may list repository-relative `entry_points` globs; configured, conventional, or
+detected entry points are suppressed. No result is presented as automatic permission to merge,
+split, or delete code.
 
 Treat 40 logical lines per function and 500 source LOC per module as inspection signals. Prefer a
 cohesive module over forwarding layers. Add an abstraction only for multiple real implementations

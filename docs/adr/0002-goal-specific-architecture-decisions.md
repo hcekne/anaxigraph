@@ -30,8 +30,8 @@ ranked primary modules; the decision composes current evidence for those modules
 - consolidation advice with supporting evidence, counter-evidence, graph degree, responsibility,
   contracts, placement, and an explicit unavailable state for evidence not yet projected;
 - dead-code candidates with deterministic and semantic evidence kept distinct; and
-- focused tests, semantic test guidance, a tokenized rescan command, and exact post-change facts to
-  compare.
+- focused tests, semantic test guidance, a tokenized rescan command, exact post-change facts, and
+  an optional machine-readable comparison with an earlier baseline.
 
 This is an application projection over the current snapshot. It adds no database table, model
 call, semantic job, REST route, MCP tool, or dashboard state.
@@ -58,15 +58,27 @@ The packet preserves the product's fact/interpretation/recommendation boundary:
 ## Bounds and freshness
 
 The decision names its snapshot and preserves structural hashes and reviewed-pattern scores as the
-pre-change baseline. Normal scan and semantic fingerprints continue to own invalidation; this read
-model has no separate freshness mechanism. Exact target queries reuse the bounded pattern
-application service. If the scope payload exceeds its configured byte budget, detailed decision
-evidence is compacted while contract version, status, preferred path, and result counts remain.
+versioned `architecture-verification-baseline-v1` pre-change baseline. The baseline is bound to
+fingerprints of the repository and normalized coding goal. After a rescan, a client may pass that
+baseline back to the same scope request. The resulting
+`architecture-verification-comparison-v1` reports newly or no-longer tracked modules, structural,
+coupling, and placement changes, newly or no-longer reported findings, and reviewed-pattern score
+changes. It says “rescan required” when both packets use the same snapshot and refuses to compare a
+baseline from a different repository or goal. A legacy unversioned baseline remains readable with
+an explicit identity caveat.
+
+The comparison is observational: “no longer reported” is not mislabeled “resolved,” and any change
+is not mislabeled an improvement. Passing tests and a stated expected outcome are still required
+to make that judgment. Normal scan and semantic fingerprints continue to own invalidation; this
+read model has no separate freshness mechanism or stored state. Exact target queries reuse the
+bounded pattern application service. If the scope payload exceeds its configured byte budget,
+detailed decision evidence is compacted while contract version, status, preferred path, result
+counts, and the post-change comparison summary remain.
 
 ## Consequences
 
 Agents receive a consistent architecture recommendation as a normal consequence of semantic
 mapping, without a human review gate. Deterministic-only and partially semantic repositories still
-receive an honestly labeled packet. Post-change verification can compare the same facts after a
-rescan, while temporal outcome correlation remains a later evidence input rather than a fabricated
-signal.
+receive an honestly labeled packet. Post-change verification compares the same bounded facts after
+a rescan through the existing scope surface; longitudinal temporal outcome correlation remains a
+later evidence input rather than a fabricated signal.

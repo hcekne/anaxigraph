@@ -213,7 +213,9 @@ runtime wiring can still be invisible, so a missing edge is never presented as p
 - **Graph** moves between architecture regions and module-level relationships.
 - **Architecture** separates a bounded ranked attention queue from the complete diagnostics ledger.
 - **History** replays representative first-parent commits from repository initialization to HEAD.
-- **Agents** builds evidence-backed work scope and explains semantic progress.
+- **Agents** builds evidence-backed work scope, saves a versioned before-change baseline, compares
+  it after a rescan, and explains semantic progress without calling every difference an
+  improvement.
 - **Pattern intelligence** lets agents query finalized evaluations by target or catalog pattern
   in the **Patterns** view or through `anaxigraph patterns`, `ANAXIGRAPH_PATTERNS`, and the bounded
   `/api/patterns` endpoint.

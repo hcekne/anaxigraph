@@ -17,11 +17,14 @@ def architecture_decision(
     database: Any,
     *,
     repository_id: int,
+    repository_identity: str,
+    goal: str,
     snapshot_id: int,
     primary_files: list[dict[str, Any]],
     interfaces: list[dict[str, Any]],
     tests: list[str],
     findings: list[dict[str, Any]],
+    verification_baseline: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     patterns = _pattern_items(database, repository_id, snapshot_id, primary_files)
     return build_architecture_decision(
@@ -31,6 +34,9 @@ def architecture_decision(
         tests=tests,
         findings=findings,
         pattern_items=patterns,
+        repository_identity=repository_identity,
+        goal=goal,
+        verification_baseline=verification_baseline,
     )
 
 
@@ -42,6 +48,9 @@ def build_architecture_decision(
     tests: list[str],
     findings: list[dict[str, Any]],
     pattern_items: list[dict[str, Any]],
+    repository_identity: str = "",
+    goal: str = "",
+    verification_baseline: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     preferred = _preferred_file(primary_files)
     reviewed_patterns = _reviewed_patterns(pattern_items)
@@ -60,7 +69,14 @@ def build_architecture_decision(
         "consolidation": consolidation_advice(primary_files, reviewed_patterns),
         "dead_code": dead_code_advice(primary_files, findings),
         "verification": verification(
-            snapshot_id, primary_files, tests, findings, reviewed_patterns
+            snapshot_id,
+            primary_files,
+            tests,
+            findings,
+            reviewed_patterns,
+            repository_identity=repository_identity,
+            goal=goal,
+            previous_baseline=verification_baseline,
         ),
     }
 

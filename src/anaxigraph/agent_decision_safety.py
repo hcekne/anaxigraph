@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from anaxigraph.agent_decision_verification import (
+    compare_verification_baselines,
+    verification_baseline,
+)
+
 _CONSOLIDATION_PATTERNS = {
     "cohesive-module",
     "dependency-hub",
@@ -133,26 +138,24 @@ def verification(
     tests: list[str],
     findings: list[dict[str, Any]],
     patterns: list[dict[str, Any]],
+    *,
+    repository_identity: str = "",
+    goal: str = "",
+    previous_baseline: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    return {
+    current_baseline = verification_baseline(
+        repository_identity=repository_identity,
+        goal=goal,
+        snapshot_id=snapshot_id,
+        modules=primary_files,
+        findings=findings,
+        patterns=patterns,
+    )
+    result = {
         "focused_test_paths": tests[:20],
         "semantic_test_guidance": _semantic_test_guidance(primary_files),
         "rescan_argv": ["anaxigraph", "update", ".", "--json"],
-        "post_change_baseline": {
-            "snapshot_id": snapshot_id,
-            "modules": [_module_baseline(item) for item in primary_files[:8]],
-            "finding_keys": sorted(
-                str(item.get("stable_key") or item.get("id") or "") for item in findings
-            )[:20],
-            "patterns": [
-                {
-                    "target": item["target"],
-                    "key": item["key"],
-                    "scores": item["scores"],
-                }
-                for item in patterns
-            ],
-        },
+        "post_change_baseline": current_baseline,
         "compare": [
             "resolved and ambiguous dependency edges",
             "active finding keys and blast radius",
@@ -161,6 +164,11 @@ def verification(
             "focused test outcomes",
         ],
     }
+    if previous_baseline is not None:
+        result["post_change_comparison"] = compare_verification_baselines(
+            previous_baseline, current_baseline
+        )
+    return result
 
 
 def _semantic_test_guidance(primary_files: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -212,16 +220,6 @@ def _deterministic_dead_code(path: str, finding: dict[str, Any]) -> dict[str, An
             "Dynamic registration, reflection, configuration, and generated wiring remain caveats."
         ],
         "verification": _text(finding.get("recommended_action"), 800),
-    }
-
-
-def _module_baseline(item: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "path": str(item.get("path") or ""),
-        "structural_hash": str(item.get("structural_hash") or ""),
-        "fan_in": int(item.get("fan_in") or 0),
-        "fan_out": int(item.get("fan_out") or 0),
-        "group": item.get("declared_group") or item.get("inferred_group"),
     }
 
 

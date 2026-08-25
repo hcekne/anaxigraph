@@ -118,7 +118,8 @@ class CoreMcpTools:
             name="ANAXIGRAPH_SCOPE",
             description=(
                 "Build bounded task context plus an evidence-backed placement, reviewed-pattern, "
-                "safety, and verification decision for a coding goal."
+                "safety, and verification decision for a coding goal. After a rescan, pass the "
+                "earlier post_change_baseline to measure what changed."
             ),
         )
         self.server.add_tool(
@@ -215,7 +216,13 @@ class CoreMcpTools:
             raise ValueError(f"File is not present in the current snapshot: {path}")
         return result
 
-    def scope(self, goal: str, branch: str = "", repository: str = "") -> dict[str, Any]:
+    def scope(
+        self,
+        goal: str,
+        branch: str = "",
+        repository: str = "",
+        verification_baseline: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         row, root = self.context.select(repository)
         return agent_scope(
             self.database,
@@ -223,6 +230,7 @@ class CoreMcpTools:
             goal=goal,
             branch=branch or None,
             config=self.context.config_for(row, root),
+            verification_baseline=verification_baseline,
         )
 
     def impact(self, target: str, branch: str = "", repository: str = "") -> dict[str, Any]:

@@ -50,6 +50,40 @@ def test_impact_follows_reverse_edges_and_relevant_tests(repository, database):
     assert value["risk"] == "high"
 
 
+def test_agent_scope_compares_tracked_facts_after_a_rescan(repository, database):
+    first_scan = RepositoryScanner(database).scan(repository)
+    config = load_config(repository)
+    before = agent_scope(
+        database,
+        repository_id=first_scan.repository_id,
+        goal="Change the Calculator calculation behavior",
+        branch=None,
+        config=config,
+    )
+    baseline = before["architecture_decision"]["verification"]["post_change_baseline"]
+    core = repository / "pkg/core.py"
+    core.write_text(core.read_text(encoding="utf-8") + "\nNEW_DEFAULT = 1\n", encoding="utf-8")
+
+    second_scan = RepositoryScanner(database).scan(repository)
+    after = agent_scope(
+        database,
+        repository_id=second_scan.repository_id,
+        goal="Change the Calculator calculation behavior",
+        branch=None,
+        config=config,
+        verification_baseline=baseline,
+    )
+
+    comparison = after["architecture_decision"]["verification"]["post_change_comparison"]
+    assert comparison["status"] == "changed"
+    assert comparison["baseline_snapshot_id"] == first_scan.snapshot_id
+    assert comparison["current_snapshot_id"] == second_scan.snapshot_id
+    assert any(
+        item["path"] == "pkg/core.py" and item["source_structure_changed"]
+        for item in comparison["changes"]["modules"]["changed"]
+    )
+
+
 def test_agent_scope_trims_optional_context_to_the_configured_wire_budget(repository, database):
     for index in range(18):
         (repository / "pkg" / f"calculator_helper_{index}.py").write_text(
@@ -59,6 +93,14 @@ def test_agent_scope_trims_optional_context_to_the_configured_wire_budget(reposi
         )
     stats = RepositoryScanner(database).scan(repository)
     config = load_config(repository)
+    baseline_scope = agent_scope(
+        database,
+        repository_id=stats.repository_id,
+        goal="Change Calculator behavior and its web presentation dependencies",
+        branch=None,
+        config=replace(config, agent=replace(config.agent, payload_limit_bytes=100_000)),
+    )
+    baseline = baseline_scope["architecture_decision"]["verification"]["post_change_baseline"]
     config = replace(
         config,
         agent=replace(config.agent, payload_limit_bytes=4_000),
@@ -70,6 +112,7 @@ def test_agent_scope_trims_optional_context_to_the_configured_wire_budget(reposi
         goal="Change Calculator behavior and its web presentation dependencies",
         branch=None,
         config=config,
+        verification_baseline=baseline,
     )
     encoded_size = len(json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
 
@@ -78,3 +121,7 @@ def test_agent_scope_trims_optional_context_to_the_configured_wire_budget(reposi
     assert value["primary_files"]
     assert all(item["path"] for item in value["primary_files"])
     assert value["architecture_decision"]["contract_version"] == "architecture-decision-v1"
+    assert (
+        value["architecture_decision"]["verification"]["post_change_comparison"]["status"]
+        == "rescan_required"
+    )

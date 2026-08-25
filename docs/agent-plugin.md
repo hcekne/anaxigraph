@@ -66,8 +66,9 @@ routes the request through a bounded workflow:
 - feature and refactor planning uses search, scope, file, and impact evidence;
 - architecture review starts with the bounded attention queue and retrieves detailed finding
   context only for a selected signal;
-- post-change verification requests an allowed deterministic rescan and compares the relevant
-  facts; and
+- post-change verification preserves the scope packet's versioned baseline, requests an allowed
+  deterministic rescan, and passes that baseline back to the same-goal scope query for a bounded
+  module, finding, and reviewed-pattern comparison; and
 - semantic bootstrap follows the live server contract in the exact order
   `SCHEMA -> WORK -> every EVIDENCE page -> SUBMIT`, repeating until no work remains.
 

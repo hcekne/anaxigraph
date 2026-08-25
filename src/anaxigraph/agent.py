@@ -19,10 +19,11 @@ from anaxigraph.agent_graph import (
     _select_primary,
 )
 from anaxigraph.agent_payload import (
-    _bound_scope_payload,
     _branch_conflicts,
     _file_summary,
     _is_protected,
+    _scope_payload,
+    _ScopePayloadData,
     _sorted_ids,
 )
 from anaxigraph.config import AnaxiGraphConfig
@@ -37,6 +38,7 @@ def agent_scope(
     goal: str,
     branch: str | None,
     config: AnaxiGraphConfig,
+    verification_baseline: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     repository = database.repository(repository_id)
     if repository is None:
@@ -91,93 +93,67 @@ def agent_scope(
 
     conflicts = _scope_conflicts(repository, files, relevant_ids, branch)
     decision = _scope_decision(
-        database, repository_id, snapshot_id, files, primary_ids, interfaces, tests, findings
+        database,
+        repository_id,
+        str(repository.get("remote_url") or repository["path"]),
+        goal,
+        snapshot_id,
+        files,
+        primary_ids,
+        interfaces,
+        tests,
+        findings,
+        verification_baseline,
     )
-    primary = [_file_summary(files[item]) for item in primary_ids]
-    related_order = sorted(
-        related_ids,
-        key=lambda item: (
-            files[item]["artifact_type"] == "test",
-            -related_scores.get(item, 0),
-            files[item]["path"],
-        ),
+    return _scope_payload(
+        _ScopePayloadData(
+            goal=goal,
+            branch=branch,
+            repository_id=repository_id,
+            snapshot_id=snapshot_id,
+            files=files,
+            outgoing=outgoing,
+            incoming=incoming,
+            primary_ids=primary_ids,
+            related_ids=related_ids,
+            related_scores=related_scores,
+            protected_ids=protected_ids,
+            tests=tests,
+            interfaces=interfaces,
+            rules=rules,
+            findings=findings,
+            decision=decision,
+            conflicts=conflicts,
+            context_limit=config.agent.context_limit,
+            payload_limit_bytes=config.agent.payload_limit_bytes,
+        )
     )
-    related_sorted = [
-        _file_summary(files[item]) for item in related_order[: config.agent.context_limit]
-    ]
-    protected = [_file_summary(files[item]) for item in sorted(protected_ids)]
-    conflict_paths = {item["path"] for item in conflicts}
-    high_degree = any(len(outgoing[item]) + len(incoming[item]) >= 20 for item in primary_ids)
-    risk = "high" if protected or conflicts or high_degree else "medium" if related_ids else "low"
-    recommended = [item["path"] for item in primary]
-    production_budget = max(len(primary), (config.agent.context_limit * 2) // 3)
-    recommended.extend(
-        item["path"]
-        for item in related_sorted
-        if item["path"] not in recommended
-        and item["path"] not in tests
-        and len(recommended) < production_budget
-    )
-    recommended.extend(
-        path
-        for path in sorted(tests)
-        if path not in recommended and len(recommended) < config.agent.context_limit
-    )
-    payload = {
-        "goal": goal,
-        "branch": branch,
-        "repository_id": repository_id,
-        "snapshot_id": snapshot_id,
-        "primary_files": primary,
-        "related_files": related_sorted,
-        "protected_files": protected,
-        "tests": sorted(tests),
-        "interfaces": interfaces,
-        "architecture_rules": rules,
-        "known_findings": findings,
-        "architecture_decision": decision,
-        "active_branch_conflicts": conflicts,
-        "risk": risk,
-        "risk_reasons": [
-            reason
-            for reason, active in (
-                ("The task context reaches a protected architecture boundary.", bool(protected)),
-                ("Another branch changes a file in this task context.", bool(conflicts)),
-                ("A primary module is a high-coupling shared dependency.", high_degree),
-            )
-            if active
-        ],
-        "recommended_context": recommended,
-        "stats": {
-            "primary_files": len(primary),
-            "primary_loc": sum(item["lines_of_code"] for item in primary),
-            "related_files": len(related_ids),
-            "tests": len(tests),
-            "protected_files": len(protected),
-            "conflicting_files": len(conflict_paths),
-        },
-    }
-    return _bound_scope_payload(payload, config.agent.payload_limit_bytes)
 
 
 def _scope_decision(
     database: AnaxiIndex,
     repository_id: int,
+    repository_identity: str,
+    goal: str,
     snapshot_id: int,
     files: dict[int, dict[str, Any]],
     primary_ids: list[int],
     interfaces: list[dict[str, Any]],
     tests: set[str],
     findings: list[dict[str, Any]],
+    verification_baseline: dict[str, Any] | None,
 ) -> dict[str, Any]:
     return architecture_decision(
         database,
         repository_id=repository_id,
+        repository_identity=repository_identity,
+        goal=goal,
         snapshot_id=snapshot_id,
         primary_files=[files[item] for item in primary_ids],
         interfaces=interfaces,
         tests=sorted(tests),
         findings=findings,
+        verification_baseline=verification_baseline,
     )
 
 

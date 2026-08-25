@@ -164,9 +164,13 @@ Ask the connected agent to use AnaxiGraph before and after meaningful changes:
 
 The agent should use `ANAXIGRAPH_SCOPE` for a bounded work envelope and its
 `architecture-decision-v1` placement, reviewed patterns, constraints, safety advice, and
-post-change baseline. Use `ANAXIGRAPH_IMPACT` for blast radius and a planned finding's context for
-approved architecture work. A missing static edge is not proof that code is unused; dynamic
-runtime wiring remains an explicit blind spot.
+post-change baseline. After implementation, keep the goal text unchanged, rescan, and pass
+`architecture_decision.verification.post_change_baseline` back as `verification_baseline` in the
+next scope request. AnaxiGraph then reports exactly which tracked module, finding, and reviewed
+pattern facts changed. It deliberately does not call a difference an improvement without the
+expected outcome and passing tests. Use `ANAXIGRAPH_IMPACT` for blast radius and a planned finding's
+context for approved architecture work. A missing static edge is not proof that code is unused;
+dynamic runtime wiring remains an explicit blind spot.
 
 ## Understand findings
 

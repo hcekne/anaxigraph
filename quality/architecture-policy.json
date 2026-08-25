@@ -81,6 +81,7 @@
         "anaxigraph.agent",
         "anaxigraph.agent_decision",
         "anaxigraph.agent_decision_safety",
+        "anaxigraph.agent_decision_verification",
         "anaxigraph.agent_graph",
         "anaxigraph.agent_graph_read",
         "anaxigraph.agent_payload",

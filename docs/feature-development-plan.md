@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.9
+**Roadmap version:** 3.10
 
 **Updated:** 25 August 2026
 
@@ -88,15 +88,15 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 389 tests passing at 90.31% coverage plus 15 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, and architecture-decision paths are regression-tested |
+| Test health | 475 tests passing at 90.75% coverage plus 15 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
 | Semantic understanding | Durable `module-dossier-v4` records, fingerprint invalidation, leased agent work, provenance, budget controls, and explicit composed services | Differentiating foundation; semantic planning, leases, evidence, contracts, persistence, execution, and reporting now evolve behind a stable facade |
 | Parser depth | Python AST plus a regex-oriented JavaScript/TypeScript analyzer; long-tail languages use text heuristics | The product cannot yet make equally strong graph claims for most repositories |
 | History benchmark | Measured 3,000-file/eight-frame import: 69.566 seconds, 23,970 blob reads, 23,970 `file_versions` for 3,217 distinct artifact/raw versions, 47,896 relationship rows, and a 49.56 MB vacuumed index | Unchanged source is repeatedly read and snapshot-heavy facts/edges are repeatedly materialized |
-| Graph delivery | `/api/graph` can return the full graph in one response | Fine for small repositories, wasteful and eventually unusable for large graphs |
-| Installation | PyPI 0.2.0 provides one-command local startup, explicit agent connection, the dual-client plugin, generated hardened Compose, and a protected release workflow; a clean public `uvx anaxigraph up` journey and the registered OIDC publisher identity are verified | The first-run distribution barrier is closed and the next version can use the routine short-lived-identity release path |
+| Graph delivery | Versioned overview, page, neighborhood, and delta reads are bounded from SQLite through REST/MCP and the dashboard; a retained 50,000-node fixture stays within time, memory, and payload budgets | Large local indexes can be explored without a monolithic graph response |
+| Installation | PyPI and GitHub release 0.3.0 provide one-command local startup, explicit agent connection, the dual-client plugin, generated hardened Compose, and a protected OIDC release workflow; public `uvx --from anaxigraph==0.3.0 anaxigraph` and multi-architecture container artifacts are verified | The first-run distribution barrier is closed and subsequent versions can use the routine short-lived-identity release path |
 | Internal module size | Every first-party implementation module is at or below 500 physical lines; the exception list is empty | Phase 3b now locks in the completed dashboard/evaluator decomposition and adds deterministic self-analysis before further feature growth |
 
 The modules that were oversized when this roadmap was created were:
@@ -1698,9 +1698,9 @@ evidence, but absence of that feedback never blocks the semantic map or pattern 
 
 ## 6.7 Add consolidation, dead-code, and placement intelligence
 
-**Status:** IN PROGRESS — the additive goal-specific decision packet and conservative module-level
-dead-code gates are delivered on 25 August 2026; live-sidecar refresh and calibration evidence is
-being collected.
+**Status:** IN PROGRESS — the additive goal-specific decision packet, conservative module-level
+dead-code gates, and bounded post-change comparison are delivered on 25 August 2026; live-sidecar
+refresh and calibration evidence remains paused with the repository-sized semantic run.
 
 Repeated-responsibility and consolidation analysis combine structural similarity, semantic
 responsibility, public contracts, graph neighborhoods, architecture placement, and change coupling,
@@ -1740,20 +1740,31 @@ a reachable service with no matching repository may select the per-checkout loca
 and invalid responses fail closed. The former 438-line `mcp_server.py` is now a 40-line composition
 root over 64–268-line transport modules, with its function and self-analysis exceptions removed.
 
+Post-change verification now closes the gap between recording a baseline and actually reading it.
+`architecture-verification-baseline-v1` binds the bounded module, finding, and finalized-pattern
+facts to repository and normalized-goal fingerprints. The same CLI, REST, and `ANAXIGRAPH_SCOPE`
+surface accepts that baseline after a rescan and returns
+`architecture-verification-comparison-v1`. It refuses cross-repository or cross-goal comparisons,
+requires a newer snapshot for post-change evidence, preserves legacy baselines with an explicit
+identity caveat, and says only what changed. A no-longer-reported finding is not called resolved,
+and an observed difference is not called an improvement without the intended outcome and tests.
+
 ### 6.7 current evidence
 
 | Contract | Current evidence |
 |---|---|
 | Goal-specific decision | Existing REST and MCP scope integration returns `architecture-decision-v1`; focused contracts cover semantic placement, reviewed-pattern reuse/opportunity roles, provenance, constraints, balanced consolidation, exact verification baselines, payload compaction, and deterministic-only fallback |
+| Measured post-change handoff | The existing scope request accepts its earlier bounded baseline through CLI, REST, and MCP; same-snapshot, changed, unchanged, cross-goal, cross-repository, legacy, invalid-contract, and wire-budget behavior is versioned and tested without adding state or another product surface |
 | Removal safety | Python fixtures prove trusted module candidates, detected registration suppression, heuristic-language suppression, configured entry-point suppression, uncorroborated semantic suppression, and module/symbol granularity separation; `safe_to_remove` remains false |
 | Responsive authority | A blocking synchronous MCP tool no longer blocks the event loop; discovery tests prove connection-refused fallback, transient retry, and timeout refusal, while real SDK MCP and sidecar-preparation tests retain the work protocol |
-| Verification | The complete suite passes 389 tests at 90.31% coverage; all 15 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis reduced to 39 governed and 129 non-blocking findings |
+| Verification | The complete suite passes 475 tests at 90.75% coverage; all 15 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis reduced to 33 governed findings, 136 non-blocking findings, and zero issues |
 
 ## 6.8 Expose pattern intelligence without multiplying product surfaces
 
 **Status:** IN PROGRESS — current evaluations, on-demand selected/skipped candidate explanations,
-and versioned calibration are delivered on 25 August 2026; verified post-change outcome correlation
-remains coupled to §6.7 guidance and the temporal facts in Phase 7.
+versioned calibration, and deterministic same-goal post-change comparison are delivered on 25
+August 2026; longitudinal outcome correlation remains coupled to the temporal facts in Phase 7,
+and live calibration waits for the paused semantic baseline.
 
 Reuse the existing semantic queue, leases, evidence paging, provenance, taxonomy, and bounded query
 infrastructure. Add one narrow evaluation projection keyed by target, pattern, snapshot, and
@@ -1817,9 +1828,9 @@ between finalized evaluations and skipped-target explanations.
 Forty focused candidate/query/calibration-contract cases, CLI authority handoff coverage,
 completed-semantic projection coverage, REST integration, and a real MCP SDK round trip cover the
 read model. The dashboard candidate workflow passes within all 15 browser contracts in the pinned
-Playwright container. The complete suite passes 389 tests at 90.31% coverage; architecture, size,
+Playwright container. The complete suite passes 475 tests at 90.75% coverage; architecture, size,
 maintainability, formatting, and deterministic self-analysis gates report no errors or regressions,
-with self-analysis at 39 governed findings, 129 non-blocking findings, and zero issues.
+with self-analysis at 33 governed findings, 136 non-blocking findings, and zero issues.
 
 ## 6.9 Make repository-sized semantic bootstrap operational
 
@@ -2219,7 +2230,7 @@ queue and the document cannot drift apart.
 | 39 | **COMPLETE** — Replace semantic mixin composition while preserving the durable external work protocol | §6.1–6.2 |
 | 40 | **COMPLETE** — Ship and validate the declarative catalog of at least 120 patterns | §6.3 |
 | 41 | **COMPLETE** — Add sparse multi-level candidates, separate ratings, and independent agent critique | §6.4–6.6 |
-| 42 | **IN PROGRESS** — Finish goal-specific placement, consolidation/dead-code safety, live calibration, and bounded pattern handoff on the completed query surfaces | §6.7–6.8 |
+| 42 | **IN PROGRESS** — Goal-specific placement, consolidation/dead-code safety, bounded pattern handoff, calibration contracts, and post-change comparison are implemented; finish live calibration after the semantic-run pause is lifted | §6.7–6.8 |
 | 43 | **IMPLEMENTED; LIVE ACCEPTANCE PAUSED** — Make repository-sized semantic bootstrap linear, authoritative, nonblocking, resumable, and deterministically complete | §6.9 |
 | 44 | Expand parser-backed core languages against the proven capability contract | Phase 4B |
 

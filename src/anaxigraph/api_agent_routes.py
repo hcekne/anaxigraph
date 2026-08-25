@@ -104,6 +104,7 @@ class AgentRoutes:
                 goal=request.goal,
                 branch=request.branch,
                 config=self.context.selected_config(row),
+                verification_baseline=request.verification_baseline,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc

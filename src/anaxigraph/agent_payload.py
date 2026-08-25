@@ -4,11 +4,136 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from anaxigraph import git
 from anaxigraph.config import AnaxiGraphConfig, path_matches
+
+
+@dataclass(frozen=True, slots=True)
+class _ScopePayloadData:
+    goal: str
+    branch: str | None
+    repository_id: int
+    snapshot_id: int
+    files: dict[int, dict[str, Any]]
+    outgoing: dict[int, set[int]]
+    incoming: dict[int, set[int]]
+    primary_ids: list[int]
+    related_ids: set[int]
+    related_scores: dict[int, float]
+    protected_ids: set[int]
+    tests: set[str]
+    interfaces: list[dict[str, Any]]
+    rules: list[dict[str, Any]]
+    findings: list[dict[str, Any]]
+    decision: dict[str, Any]
+    conflicts: list[dict[str, str]]
+    context_limit: int
+    payload_limit_bytes: int
+
+
+def _scope_payload(data: _ScopePayloadData) -> dict[str, Any]:
+    """Assemble and bound the public task-scope response."""
+
+    primary = [_file_summary(data.files[item]) for item in data.primary_ids]
+    related_order = sorted(
+        data.related_ids,
+        key=lambda item: (
+            data.files[item]["artifact_type"] == "test",
+            -data.related_scores.get(item, 0),
+            data.files[item]["path"],
+        ),
+    )
+    related = [_file_summary(data.files[item]) for item in related_order[: data.context_limit]]
+    protected = [_file_summary(data.files[item]) for item in sorted(data.protected_ids)]
+    high_degree = any(
+        len(data.outgoing[item]) + len(data.incoming[item]) >= 20 for item in data.primary_ids
+    )
+    risk = _scope_risk(protected, data.conflicts, high_degree, data.related_ids)
+    payload = {
+        "goal": data.goal,
+        "branch": data.branch,
+        "repository_id": data.repository_id,
+        "snapshot_id": data.snapshot_id,
+        "primary_files": primary,
+        "related_files": related,
+        "protected_files": protected,
+        "tests": sorted(data.tests),
+        "interfaces": data.interfaces,
+        "architecture_rules": data.rules,
+        "known_findings": data.findings,
+        "architecture_decision": data.decision,
+        "active_branch_conflicts": data.conflicts,
+        "risk": risk,
+        "risk_reasons": _risk_reasons(protected, data.conflicts, high_degree),
+        "recommended_context": _recommended_context(
+            primary, related, data.tests, data.context_limit
+        ),
+        "stats": _scope_stats(data, primary, protected),
+    }
+    return _bound_scope_payload(payload, data.payload_limit_bytes)
+
+
+def _scope_risk(
+    protected: list[dict[str, Any]],
+    conflicts: list[dict[str, str]],
+    high_degree: bool,
+    related_ids: set[int],
+) -> str:
+    return "high" if protected or conflicts or high_degree else "medium" if related_ids else "low"
+
+
+def _risk_reasons(
+    protected: list[dict[str, Any]], conflicts: list[dict[str, str]], high_degree: bool
+) -> list[str]:
+    return [
+        reason
+        for reason, active in (
+            ("The task context reaches a protected architecture boundary.", bool(protected)),
+            ("Another branch changes a file in this task context.", bool(conflicts)),
+            ("A primary module is a high-coupling shared dependency.", high_degree),
+        )
+        if active
+    ]
+
+
+def _scope_stats(
+    data: _ScopePayloadData,
+    primary: list[dict[str, Any]],
+    protected: list[dict[str, Any]],
+) -> dict[str, int]:
+    return {
+        "primary_files": len(primary),
+        "primary_loc": sum(item["lines_of_code"] for item in primary),
+        "related_files": len(data.related_ids),
+        "tests": len(data.tests),
+        "protected_files": len(protected),
+        "conflicting_files": len({item["path"] for item in data.conflicts}),
+    }
+
+
+def _recommended_context(
+    primary: list[dict[str, Any]],
+    related: list[dict[str, Any]],
+    tests: set[str],
+    context_limit: int,
+) -> list[str]:
+    result = [item["path"] for item in primary]
+    production_limit = max(len(primary), (context_limit * 2) // 3)
+    result.extend(
+        item["path"]
+        for item in related
+        if item["path"] not in result
+        and item["path"] not in tests
+        and len(result) < production_limit
+    )
+    result.extend(
+        path for path in sorted(tests) if path not in result and len(result) < context_limit
+    )
+    return result
 
 
 def _bound_scope_payload(payload: dict[str, Any], limit_bytes: int) -> dict[str, Any]:
@@ -77,7 +202,7 @@ def _bound_scope_payload(payload: dict[str, Any], limit_bytes: int) -> dict[str,
 
 
 def _compact_decision(decision: dict[str, Any]) -> dict[str, Any]:
-    return {
+    result = {
         "contract_version": decision.get("contract_version"),
         "snapshot_id": decision.get("snapshot_id"),
         "status": decision.get("status"),
@@ -94,6 +219,22 @@ def _compact_decision(decision: dict[str, Any]) -> dict[str, Any]:
         ),
         "dead_code_candidate_count": (decision.get("dead_code") or {}).get("candidate_count", 0),
     }
+    comparison = (decision.get("verification") or {}).get("post_change_comparison") or {}
+    if comparison:
+        result["verification"] = {
+            "post_change_comparison": {
+                key: comparison.get(key)
+                for key in (
+                    "contract_version",
+                    "status",
+                    "summary",
+                    "baseline_snapshot_id",
+                    "current_snapshot_id",
+                    "interpretation",
+                )
+            }
+        }
+    return result
 
 
 def _maybe_compact_decision(
