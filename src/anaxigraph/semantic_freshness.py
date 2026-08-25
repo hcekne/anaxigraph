@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hmac
 from collections.abc import Mapping, Sequence
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from anaxigraph.semantic_graph import _canonical_hash
@@ -14,6 +15,9 @@ GROUP_SYNTHESIS_CONTRACT = "group-synthesis-v1"
 REPOSITORY_SYNTHESIS_CONTRACT = "repository-synthesis-v1"
 TAXONOMY_PROPOSAL_CONTRACT = "taxonomy-proposal-v1"
 TAXONOMY_REVIEW_CONTRACT = "taxonomy-review-v1"
+PATTERN_PLAN_CONTRACT = "pattern-plan-v1"
+PATTERN_ASSESSMENT_CONTRACT = "pattern-assessment-v1"
+PATTERN_REVIEW_CONTRACT = "pattern-independent-review-v1"
 
 # These response-envelope versions used the original flat input signature. Their module
 # dossier payload is compatible with the current contract, so unchanged evidence can be
@@ -35,6 +39,18 @@ def semantic_input_hash(
             "evidence": dict(evidence),
         }
     )
+
+
+def semantic_record_expired(created_at: str, max_age_days: int) -> bool:
+    if max_age_days <= 0:
+        return False
+    try:
+        created = datetime.fromisoformat(created_at)
+    except ValueError:
+        return True
+    if created.tzinfo is None:
+        created = created.replace(tzinfo=UTC)
+    return created < datetime.now(UTC) - timedelta(days=max_age_days)
 
 
 def legacy_input_matches(

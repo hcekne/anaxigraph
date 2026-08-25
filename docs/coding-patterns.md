@@ -23,6 +23,11 @@ The versioned declarative card format, 128-pattern bundled baseline, family cove
 contract are documented in [Pattern catalog](pattern-catalog.md). The shipped count is a baseline,
 not a ceiling.
 
+Only sparse, evidence-supported target/card pairs become semantic work. Each selected pair receives
+an independently evidenced assessment followed by a separate agent critique that returns the full
+corrected result. Both stages use the existing durable semantic queue and runtime-selected executor;
+an unchanged map creates no new pattern work.
+
 Treat 40 logical lines per function and 500 source LOC per module as inspection signals. Prefer a
 cohesive module over forwarding layers. Add an abstraction only for multiple real implementations
 or a demonstrated bug class. Avoid hidden global state and circular dependencies. Changed behavior

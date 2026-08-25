@@ -18,7 +18,11 @@ from anaxigraph.semantic_graph import _expired
 from anaxigraph.semantic_group_membership import synthesis_groups
 from anaxigraph.semantic_leases import SemanticLeaseService
 from anaxigraph.semantic_module_plan import SemanticModulePlanner
-from anaxigraph.semantic_ports import SemanticIndex, SemanticReportingPort
+from anaxigraph.semantic_ports import (
+    SemanticIndex,
+    SemanticPatternPlanningPort,
+    SemanticReportingPort,
+)
 from anaxigraph.semantic_records import (
     _ensure_job,
     _has_active_module_stage,
@@ -60,12 +64,14 @@ class SemanticPlanningService:
         leases: SemanticLeaseService,
         modules: SemanticModulePlanner,
         taxonomy: SemanticTaxonomyPlanner,
+        patterns: SemanticPatternPlanningPort,
     ) -> None:
         self._database = database
         self._reporting = reporting
         self._leases = leases
         self._modules = modules
         self._taxonomy = taxonomy
+        self._patterns = patterns
 
     def plan(
         self,
@@ -169,6 +175,28 @@ class SemanticPlanningService:
             if not taxonomy_current:
                 return taxonomy_jobs, "taxonomy"
             enqueued += taxonomy_jobs
+        aggregate_jobs, stage = self._plan_aggregates_and_patterns(
+            connection,
+            repository_id=repository_id,
+            snapshot_id=snapshot_id,
+            inventory=inventory,
+            config=config,
+            retry_failed=retry_failed,
+        )
+        return enqueued + aggregate_jobs, stage
+
+    def _plan_aggregates_and_patterns(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        repository_id: int,
+        snapshot_id: int,
+        inventory: dict[str, dict[str, Any]],
+        config: AnaxiGraphConfig,
+        retry_failed: bool,
+    ) -> tuple[int, str]:
+        semantic = config.semantic
+        enqueued = 0
         enqueued += self._plan_groups(
             connection,
             repository_id=repository_id,
@@ -188,7 +216,17 @@ class SemanticPlanningService:
             semantic=semantic,
             retry_failed=retry_failed,
         )
-        return enqueued, "repository"
+        if not _scope_is_current(connection, snapshot_id, "repository"):
+            return enqueued, "repository"
+        pattern_jobs, patterns_current = self._patterns.plan_patterns(
+            connection,
+            repository_id=repository_id,
+            snapshot_id=snapshot_id,
+            semantic=semantic,
+            retry_failed=retry_failed,
+        )
+        enqueued += pattern_jobs
+        return enqueued, "patterns" if not patterns_current else "complete"
 
     def _plan_groups(
         self,
@@ -417,3 +455,14 @@ def _group_synthesis_evidence(
         ],
         "missing": missing,
     }
+
+
+def _scope_is_current(connection: sqlite3.Connection, snapshot_id: int, scope_type: str) -> bool:
+    row = connection.execute(
+        """
+        SELECT status FROM semantic_scope_states
+        WHERE snapshot_id = ? AND scope_type = ? LIMIT 1
+        """,
+        (snapshot_id, scope_type),
+    ).fetchone()
+    return bool(row and row["status"] == "current")

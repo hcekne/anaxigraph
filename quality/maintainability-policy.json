@@ -45,7 +45,6 @@
     "src/anaxigraph/scanner.py::RepositoryScanner._scan": [200, 16],
     "src/anaxigraph/semantic.py::ClaudeSemanticProvider.analyze": [51, 11],
     "src/anaxigraph/semantic.py::OpenAISemanticProvider.analyze": [51, 16],
-    "src/anaxigraph/semantic_agent_protocol.py::packetize_agent_request": [52, 16],
     "src/anaxigraph/semantic_contract.py::validated_result": [56, 11],
     "src/anaxigraph/semantic_contract.py::_validate_schema": [41, 31],
     "src/anaxigraph/semantic_records.py::_ensure_job": [63, 8],

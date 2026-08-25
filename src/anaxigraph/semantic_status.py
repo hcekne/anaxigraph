@@ -14,6 +14,7 @@ _TERMINAL_FAILURES = (
     "failed_context",
     "failed_synthesis",
     "failed_taxonomy",
+    "failed_pattern",
 )
 
 
@@ -46,6 +47,7 @@ def semantic_status_payload(
         "budget": _budget_payload(rows, semantic, coverage),
         "repository_dossier": _repository_document(rows.repository_state),
         "taxonomy": _taxonomy_payload(rows.taxonomy, semantic, coverage),
+        "patterns": _pattern_payload(rows, semantic),
     }
 
 
@@ -254,4 +256,26 @@ def _taxonomy_payload(
             semantic.taxonomy.review_passes if semantic and coverage.taxonomy_enabled else 0
         ),
         "current": _taxonomy_document(row),
+    }
+
+
+def _pattern_payload(
+    rows: SemanticStatusRows,
+    semantic: SemanticConfig | None,
+) -> dict[str, Any]:
+    counts = rows.scope_counts.get("pattern", {})
+    plan_counts = rows.scope_counts.get("pattern_plan", {})
+    selected = sum(counts.values())
+    pending = _pending(counts)
+    failed = counts.get("failed_pattern", 0)
+    planned = bool(plan_counts.get("current"))
+    return {
+        "enabled": bool(semantic and semantic.enabled),
+        "planned": planned,
+        "ready": planned and pending == 0 and failed == 0,
+        "selected": selected,
+        "finalized": counts.get("current", 0),
+        "pending": pending,
+        "failed": failed,
+        "counts": counts,
     }

@@ -25,6 +25,7 @@
         "anaxigraph.pattern_catalog_models",
         "anaxigraph.pattern_catalog_parse",
         "anaxigraph.pattern_evidence",
+        "anaxigraph.pattern_evaluation_contract",
         "anaxigraph.pattern_targets",
         "anaxigraph.registry",
         "anaxigraph.relationships",
@@ -33,6 +34,7 @@
         "anaxigraph.semantic_freshness",
         "anaxigraph.semantic_graph",
         "anaxigraph.semantic_index_port",
+        "anaxigraph.semantic_pattern_identity",
         "anaxigraph.semantic_job_state"
       ],
       "may_import": ["foundation"]
@@ -96,6 +98,10 @@
         "anaxigraph.semantic_module_context",
         "anaxigraph.semantic_module_intrinsic",
         "anaxigraph.semantic_module_plan",
+        "anaxigraph.semantic_pattern_plan",
+        "anaxigraph.semantic_pattern_requests",
+        "anaxigraph.semantic_pattern_results",
+        "anaxigraph.semantic_pattern_state",
         "anaxigraph.semantic_ports",
         "anaxigraph.semantic_records",
         "anaxigraph.semantic_reporting",

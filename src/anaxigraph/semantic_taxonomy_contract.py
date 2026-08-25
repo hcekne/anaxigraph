@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from anaxigraph.pattern_evaluation_contract import (
+    pattern_response_name,
+    pattern_response_schema,
+    validated_pattern_response,
+)
 from anaxigraph.semantic_contract import (
     DOSSIER_SCHEMA,
     SemanticResult,
@@ -142,6 +147,9 @@ def taxonomy_analysis_kind(request: dict[str, Any]) -> bool:
 
 
 def response_schema(request: dict[str, Any]) -> dict[str, Any]:
+    pattern_schema = pattern_response_schema(request)
+    if pattern_schema is not None:
+        return pattern_schema
     kind = str(request.get("analysis_kind") or "")
     if kind.startswith("taxonomy_review"):
         return TAXONOMY_REVIEW_SCHEMA
@@ -151,6 +159,9 @@ def response_schema(request: dict[str, Any]) -> dict[str, Any]:
 
 
 def response_contract_name(request: dict[str, Any]) -> str:
+    pattern_name = pattern_response_name(request)
+    if pattern_name is not None:
+        return pattern_name
     kind = str(request.get("analysis_kind") or "")
     if kind.startswith("taxonomy_review"):
         return "taxonomy_review"
@@ -167,6 +178,13 @@ def validated_semantic_response(
     output_tokens: int = 0,
 ) -> SemanticResult:
     kind = str(request.get("analysis_kind") or "")
+    if pattern_response_schema(request) is not None:
+        return validated_pattern_response(
+            value,
+            request,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+        )
     if not kind.startswith("taxonomy_"):
         return validated_result(value, input_tokens=input_tokens, output_tokens=output_tokens)
     review = kind.startswith("taxonomy_review")

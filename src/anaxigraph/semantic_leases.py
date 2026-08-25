@@ -140,6 +140,8 @@ class SemanticLeaseService:
             "synthesis": "pending_synthesis",
             "taxonomy_proposal": "pending_taxonomy_proposal",
             "taxonomy_review": "pending_taxonomy_review",
+            "pattern_assessment": "pending_pattern_assessment",
+            "pattern_review": "pending_pattern_review",
         }[job["job_kind"]]
         now = utc_now()
         with self._database.transaction() as connection:

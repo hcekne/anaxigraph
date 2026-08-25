@@ -88,7 +88,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 326 tests passing at 89.79% coverage plus 14 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, and pattern-intelligence paths are regression-tested |
+| Test health | 341 tests passing at 89.89% coverage plus 14 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, and pattern-intelligence paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -1622,7 +1622,7 @@ lines, with no new model-provider pipeline or vector database.
 
 ## 6.4 Generate sparse multi-level candidates
 
-**Status:** IN PROGRESS
+**Status:** COMPLETE on 25 August 2026
 
 Evaluate function/method, type, module, subsystem, area, and repository targets. Deterministic
 features first select plausible pattern/target pairs; only those candidates receive semantic work.
@@ -1638,14 +1638,16 @@ capability gaps deterministically, retains explicit supporting/counter/missing e
 every candidate a target-input and catalog fingerprint. Default selection keeps at most four cards
 per target and 200 repository-wide, while reserving representation across all available hierarchy
 levels. Skipped pairs are summarized by reason and can be explained individually without storing
-the dense pattern-by-target matrix. No candidate creates agent work until the durable assessment
-and critique lifecycle in §6.6 is connected.
+the dense pattern-by-target matrix. Selected pairs enter the durable assessment and critique
+lifecycle in §6.6 only after the repository dossier and reviewed taxonomy are current.
 
 Nineteen focused candidate contracts cover all six levels, stable fingerprints, changed-target
 isolation, signal aliases and operators, capability gaps, counter-evidence, per-target/global
 bounds, per-level reservation, and individual explanations for selected and skipped pairs.
 
 ## 6.5 Score presence, fit, and opportunity separately
+
+**Status:** COMPLETE on 25 August 2026
 
 Every completed evaluation reports independent 0–100 values for:
 
@@ -1664,6 +1666,8 @@ misreported as a refactor opportunity.
 
 ## 6.6 Make independent agent critique part of mapping
 
+**Status:** COMPLETE on 25 August 2026
+
 The normal lifecycle is fully machine-operated:
 
 ```text
@@ -1678,6 +1682,19 @@ reasoning selection come from the connected agent/session configuration.
 
 Optional operator feedback can annotate or override a finalized result and becomes calibration
 evidence, but absence of that feedback never blocks the semantic map or pattern run.
+
+### 6.4–6.6 closure evidence
+
+| Contract | Retained evidence |
+|---|---|
+| Sparse work | `pattern-candidate-v1` selects at most four cards per target and 200 repository-wide while reserving all represented hierarchy levels; real-repository calibration reduced roughly 188,000 eligible pairs to the 200-work cap without persisting the dense matrix |
+| Independent ratings | `pattern-scores-v1` requires nine independently evidenced 0–100 dimensions, explicit presence and recommendation, counter-evidence, precedents, alternatives, prerequisites, risks, invariants, and invalidation conditions; validation rejects high-conformance false opportunities and contradictory introduce recommendations |
+| Autonomous critique | Every assessment transaction immediately creates a separate `pattern-review-v1` work item; critique returns a complete corrected evaluation, records scope/pattern/evidence/machinery issues, and can retain competing interpretations without an operator gate |
+| Existing durable protocol | Pattern work reuses `semantic_jobs`, `semantic_documents`, `semantic_scope_states`, leases, evidence paging, retries, budget admission, MCP submit/release, and provider execution; no second provider stack, vector store, or model name was added |
+| Incremental reuse | The plan is cached against current baseline document identities and catalog/contracts; unchanged reconciliation creates zero jobs, expired work is rebuilt, and a one-module implementation edit refreshes only that target plus conservatively affected hierarchy parents |
+| Provenance and handoff | Documents retain provider, model, executor, prompt, schema, token, cost, and evidence provenance; local executor handoff records retain selected reasoning effort, and runtime model/effort changes do not invalidate unchanged semantic or pattern understanding |
+| Compact implementation | Operational selection and lifecycle code remains about 1,490 physical lines, split into cohesive modules of 92–370 lines; every first-party implementation module remains below 500 lines and one obsolete complexity exception was removed |
+| Verification | 34 focused candidate/rating contracts plus command-provider and MCP-agent end-to-end lifecycle tests pass; the complete 341-test suite passes at 89.89% coverage, and deterministic self-analysis reports 43 governed findings, 132 non-blocking findings, and zero issues |
 
 ## 6.7 Add consolidation, dead-code, and placement intelligence
 
@@ -2074,7 +2091,7 @@ queue and the document cannot drift apart.
 | 38 | **COMPLETE** — Bound graph queries and operational work, then reduce `api.py` to a small composition root | Phase 5A |
 | 39 | **COMPLETE** — Replace semantic mixin composition while preserving the durable external work protocol | §6.1–6.2 |
 | 40 | **COMPLETE** — Ship and validate the declarative catalog of at least 120 patterns | §6.3 |
-| 41 | **IN PROGRESS** — Add sparse multi-level candidates, separate ratings, and independent agent critique | §6.4–6.6 |
+| 41 | **COMPLETE** — Add sparse multi-level candidates, separate ratings, and independent agent critique | §6.4–6.6 |
 | 42 | Expose target-centric and pattern-centric queries, incremental refresh, and calibration | §6.7–6.8 |
 | 43 | Expand parser-backed core languages against the proven capability contract | Phase 4B |
 

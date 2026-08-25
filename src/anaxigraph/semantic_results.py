@@ -14,6 +14,7 @@ from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION, SemanticResult
 from anaxigraph.semantic_graph import _cost, _intent_fingerprint
 from anaxigraph.semantic_index_port import SemanticIndex
 from anaxigraph.semantic_job_state import semantic_job_transition
+from anaxigraph.semantic_pattern_results import complete_pattern_job
 from anaxigraph.semantic_taxonomy_results import complete_taxonomy_job
 
 _DOCUMENT_SQL = """
@@ -69,6 +70,16 @@ class SemanticPersistenceService:
                     document_id=document_id,
                     provider=provider,
                     source=completion.source,
+                    semantic=semantic,
+                    now=completion.now,
+                )
+                return
+            if job["job_kind"] in {"pattern_assessment", "pattern_review"}:
+                complete_pattern_job(
+                    connection,
+                    job=job,
+                    result=result,
+                    document_id=document_id,
                     semantic=semantic,
                     now=completion.now,
                 )
@@ -177,6 +188,8 @@ class SemanticPersistenceService:
                 "synthesis": "pending_synthesis" if retry else "failed_synthesis",
                 "taxonomy_proposal": ("pending_taxonomy_proposal" if retry else "failed_taxonomy"),
                 "taxonomy_review": "pending_taxonomy_review" if retry else "failed_taxonomy",
+                "pattern_assessment": ("pending_pattern_assessment" if retry else "failed_pattern"),
+                "pattern_review": "pending_pattern_review" if retry else "failed_pattern",
             }[job["job_kind"]]
             connection.execute(
                 """

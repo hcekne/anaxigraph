@@ -91,7 +91,7 @@ def create_anaxi_mcp_server(
     @server.tool(
         name="ANAXIGRAPH_SEMANTIC_STATUS",
         description=(
-            "Report semantic-bootstrap coverage, freshness, pending/failed modules, token/cost "
+            "Report semantic and pattern-map coverage, freshness, pending/failed work, token/cost "
             "usage, and the current repository-level dossier."
         ),
     )
@@ -120,8 +120,8 @@ def create_anaxi_mcp_server(
         name="ANAXIGRAPH_SEMANTIC_SCHEMA",
         title="Read semantic dossier contract",
         description=(
-            "Read the strict dossier, taxonomy, and taxonomy-review schemas and reasoning rules "
-            "once before executing agent-funded semantic work."
+            "Read strict dossier, taxonomy, pattern-assessment, and independent-review schemas "
+            "and reasoning rules before executing agent-funded semantic work."
         ),
         annotations=ToolAnnotations(
             readOnlyHint=True,
@@ -198,9 +198,9 @@ def create_anaxi_mcp_server(
         name="ANAXIGRAPH_SEMANTIC_SUBMIT",
         title="Store a semantic mapping result",
         description=(
-            "Validate and store one completed coding-agent dossier, taxonomy, or taxonomy review "
-            "in AnaxiIndex. This index-only write never changes repository source. Repeating the "
-            "same completed submission is safe."
+            "Validate and store one completed coding-agent dossier, taxonomy, pattern assessment, "
+            "or independent review in AnaxiIndex. This index-only write never changes repository "
+            "source. Repeating the same completed submission is safe."
         ),
         annotations=ToolAnnotations(
             readOnlyHint=False,

@@ -127,5 +127,7 @@ self-relations, unknown related keys, mixed catalog versions, and oversized sour
 catalog uses a 300 KB source bound and currently occupies less than half of it.
 
 Candidate generation, scoring, independent agent critique, persistence, and target/pattern queries
-are separate phases of the pattern engine. Keeping those operations out of the catalog loader is
-intentional: cards describe evidence and judgment; the engine controls bounded execution.
+remain separate parts of the pattern engine. Sparse generation, strict ratings, durable assessment,
+and autonomous critique now run through the shared semantic queue. Keeping those operations out of
+the catalog loader is intentional: cards describe evidence and judgment; the engine controls
+bounded execution.

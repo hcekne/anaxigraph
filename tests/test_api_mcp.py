@@ -226,6 +226,8 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     )
                     assert schema.structuredContent["taxonomy_schema"]["type"] == "object"
                     assert schema.structuredContent["taxonomy_review_schema"]["type"] == "object"
+                    assert schema.structuredContent["pattern_evaluation_schema"]["type"] == "object"
+                    assert schema.structuredContent["pattern_review_schema"]["type"] == "object"
                     taxonomy = await session.call_tool("ANAXIGRAPH_TAXONOMY", arguments={})
                     assert taxonomy.isError is False
                     assert taxonomy.structuredContent["status"] == "not_ready"

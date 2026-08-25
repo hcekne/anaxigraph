@@ -9,6 +9,10 @@ import re
 from typing import Any
 
 from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
+from anaxigraph.pattern_evaluation_contract import (
+    PATTERN_EVALUATION_SCHEMA,
+    PATTERN_REVIEW_SCHEMA,
+)
 from anaxigraph.semantic_contract import DOSSIER_SCHEMA, SEMANTIC_SCHEMA_VERSION
 from anaxigraph.semantic_graph import _source_chunks
 from anaxigraph.semantic_taxonomy_contract import (
@@ -23,12 +27,16 @@ def semantic_agent_schema() -> dict[str, Any]:
         "dossier_schema": DOSSIER_SCHEMA,
         "taxonomy_schema": TAXONOMY_SCHEMA,
         "taxonomy_review_schema": TAXONOMY_REVIEW_SCHEMA,
+        "pattern_evaluation_schema": PATTERN_EVALUATION_SCHEMA,
+        "pattern_review_schema": PATTERN_REVIEW_SCHEMA,
         "instructions": (
             "Return the complete artifact named by each work packet's response_contract: a "
-            "dossier, taxonomy, or taxonomy review. Ground it only in supplied source, static "
-            "facts, and prior semantic records. Taxonomy reviews must critique and return a "
-            "corrected full map without requesting human approval. Treat missing edges as "
-            "uncertainty, not proof of dead code. Do not change repository files while mapping."
+            "dossier, taxonomy, taxonomy review, pattern evaluation, or pattern review. Ground "
+            "it only in supplied source, static facts, and prior semantic records. Reviews must "
+            "critique and return the corrected full artifact without requesting human approval. "
+            "Score pattern suitability independently from existing conformance and refactoring "
+            "opportunity. Treat missing edges as uncertainty, not proof of dead code. Do not "
+            "change repository files while mapping."
         ),
     }
 
@@ -70,39 +78,14 @@ def packetize_agent_request(
     kind = str(request.get("analysis_kind") or "")
     pages: list[dict[str, Any]] = []
     evidence_kinds: list[str] = []
-    if kind == "intrinsic" and isinstance(request.get("source"), str):
-        _page_source(bounded, request, pages, evidence_kinds, semantic.max_source_chars)
-    if kind == "context" and isinstance(request.get("neighbor_dossiers"), list):
-        _page_list_field(
-            bounded,
-            request,
-            "neighbor_dossiers",
-            pages,
-            evidence_kinds,
-            semantic.max_source_chars,
-        )
-    if kind == "synthesis" and isinstance(request.get("child_dossiers"), list):
-        _page_list_field(
-            bounded,
-            request,
-            "child_dossiers",
-            pages,
-            evidence_kinds,
-            semantic.max_source_chars,
-        )
-    if kind.startswith("taxonomy_"):
-        _page_taxonomy_request(bounded, request, pages, evidence_kinds, semantic.max_source_chars)
-    if _serialized_size(bounded) > semantic.max_source_chars and kind == "context":
-        _page_list_field(
-            bounded,
-            request,
-            "relationships",
-            pages,
-            evidence_kinds,
-            semantic.max_source_chars,
-        )
-    if _serialized_size(bounded) > semantic.max_source_chars and kind == "intrinsic":
-        _page_intrinsic_facts(bounded, request, pages, evidence_kinds, semantic.max_source_chars)
+    _page_oversized_request(
+        bounded,
+        request,
+        kind,
+        pages,
+        evidence_kinds,
+        semantic.max_source_chars,
+    )
     if not pages:
         return request, None, []
     manifest = {
@@ -113,6 +96,51 @@ def packetize_agent_request(
         "instruction": "Fetch and consider every page before submitting the response artifact.",
     }
     return bounded, manifest, pages
+
+
+def _page_oversized_request(
+    bounded: dict[str, Any],
+    request: dict[str, Any],
+    kind: str,
+    pages: list[dict[str, Any]],
+    evidence_kinds: list[str],
+    max_chars: int,
+) -> None:
+    if kind == "intrinsic" and isinstance(request.get("source"), str):
+        _page_source(bounded, request, pages, evidence_kinds, max_chars)
+    if kind == "context" and isinstance(request.get("neighbor_dossiers"), list):
+        _page_list_field(
+            bounded,
+            request,
+            "neighbor_dossiers",
+            pages,
+            evidence_kinds,
+            max_chars,
+        )
+    if kind == "synthesis" and isinstance(request.get("child_dossiers"), list):
+        _page_list_field(
+            bounded,
+            request,
+            "child_dossiers",
+            pages,
+            evidence_kinds,
+            max_chars,
+        )
+    if kind.startswith("taxonomy_"):
+        _page_taxonomy_request(bounded, request, pages, evidence_kinds, max_chars)
+    if kind.startswith("pattern_"):
+        _page_pattern_request(bounded, request, pages, evidence_kinds, max_chars)
+    if _serialized_size(bounded) > max_chars and kind == "context":
+        _page_list_field(
+            bounded,
+            request,
+            "relationships",
+            pages,
+            evidence_kinds,
+            max_chars,
+        )
+    if _serialized_size(bounded) > max_chars and kind == "intrinsic":
+        _page_intrinsic_facts(bounded, request, pages, evidence_kinds, max_chars)
 
 
 def _page_source(
@@ -175,6 +203,29 @@ def _page_taxonomy_request(
             validation,
             "deterministic_validation",
             "issues",
+            pages,
+            kinds,
+            max_chars,
+        )
+
+
+def _page_pattern_request(
+    bounded: dict[str, Any],
+    request: dict[str, Any],
+    pages: list[dict[str, Any]],
+    kinds: list[str],
+    max_chars: int,
+) -> None:
+    if isinstance(request.get("source"), str):
+        _page_source(bounded, request, pages, kinds, max_chars)
+    evidence = request.get("target_evidence")
+    if _serialized_size(bounded) > max_chars and isinstance(evidence, dict):
+        bounded["target_evidence"] = dict(evidence)
+        _page_nested_list_field(
+            bounded,
+            evidence,
+            "target_evidence",
+            "features",
             pages,
             kinds,
             max_chars,
@@ -305,7 +356,7 @@ def agent_no_work_status(status: dict[str, Any]) -> str:
 def agent_no_work_message(status: dict[str, Any]) -> str:
     state = agent_no_work_status(status)
     return {
-        "complete": "The semantic baseline is current; no model work is required.",
+        "complete": "The semantic and pattern map is current; no model work is required.",
         "busy": "All available work is currently leased to another coding agent.",
         "paused": "The configured semantic budget currently pauses new work claims.",
         "complete_with_failures": (

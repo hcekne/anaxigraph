@@ -34,6 +34,8 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
     assert status["repository_dossier"]["value"]["summary"]
     assert status["taxonomy"]["ready"] is True
     assert status["taxonomy"]["current"]["review_passes"] == 2
+    assert status["patterns"]["ready"] is True
+    assert status["patterns"]["selected"] == status["patterns"]["finalized"] > 0
     assert {"intrinsic", "context", "synthesis"} <= {item["kind"] for item in _calls(log)}
     modules = database.modules(stats.repository_id)
     core_module = next(item for item in modules if item["path"] == "pkg/core.py")
@@ -73,9 +75,17 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
     )
     changed = RepositoryScanner(database).scan(repository, run_type="update")
     refreshed = SemanticEngine(database).bootstrap(changed.repository_id, repository, config)
-    assert refreshed["processed"] == 1
+    assert refreshed["processed"] > 1
     new_calls = _calls(log)[first_call_count:]
-    assert new_calls == [{"path": "pkg/core.py", "kind": "intrinsic"}]
+    assert new_calls[0] == {"path": "pkg/core.py", "kind": "intrinsic"}
+    assert {item["kind"] for item in new_calls[1:]} == {
+        "pattern_assessment",
+        "pattern_review",
+    }
+    assert {item["path"] for item in new_calls[1:]} <= {"pkg/core.py", "scope"}
+    assert sum(item["kind"] == "pattern_assessment" for item in new_calls) == sum(
+        item["kind"] == "pattern_review" for item in new_calls
+    )
     carried_map = database.semantic_taxonomy(changed.repository_id)
     assert carried_map["source"] == "carried_semantic_taxonomy"
     assert [item["name"] for item in carried_map["hierarchy"]] == [
@@ -391,7 +401,13 @@ def test_age_expired_dossiers_are_rebuilt_instead_of_left_pending(repository, da
     assert rebuilt["semantic"]["semantically_ready"] is True
     new_calls = _calls(log)[initial_calls:]
     assert len(new_calls) == rebuilt["processed"]
-    assert {item["kind"] for item in new_calls} == {"intrinsic", "context", "synthesis"}
+    assert {item["kind"] for item in new_calls} == {
+        "intrinsic",
+        "context",
+        "synthesis",
+        "pattern_assessment",
+        "pattern_review",
+    }
 
 
 def test_large_scope_synthesis_is_chunked_and_reduced(database):

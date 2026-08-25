@@ -118,7 +118,54 @@ dossier = {
     "evidence": [f"{path}:1"],
     "confidence": 0.9,
 }
-if kind == "taxonomy_review":
+def pattern_evaluation():
+    candidate = request["candidate"]
+    target_key = candidate["target"]["key"]
+    pattern_key = candidate["pattern_key"]
+    values = {
+        "applicability": 75, "suitability": 70, "conformance": 20,
+        "opportunity": 65, "confidence": 80, "benefit": 70, "urgency": 40,
+        "execution_safety": 65, "migration_cost": 35,
+    }
+    return {
+        "score_contract_version": "pattern-scores-v1",
+        "candidate_fingerprint": candidate["input_fingerprint"],
+        "pattern_key": pattern_key,
+        "target_key": target_key,
+        "summary": f"{pattern_key} is a plausible repository-local option for {target_key}.",
+        "presence": "absent",
+        "recommendation": "introduce",
+        "scores": {name: {
+            "value": value,
+            "rationale": f"Supplied evidence supports the {name} score.",
+            "evidence": [target_key],
+        } for name, value in values.items()},
+        "rationale": "The sparse deterministic candidate has enough local evidence to assess.",
+        "evidence": [target_key],
+        "counter_evidence": list(candidate.get("capability_gaps") or []),
+        "affected_targets": [target_key],
+        "local_precedents": [],
+        "alternatives": list(request["pattern"]["relations"]["alternatives"]),
+        "prerequisites": ["Preserve existing behavior."],
+        "risks": ["The abstraction could cost more than it saves."],
+        "invariants": list(request["pattern"]["verification_invariants"]),
+        "invalidation_conditions": ["The supporting evidence no longer applies."],
+    }
+if kind == "pattern_assessment":
+    value = pattern_evaluation()
+elif kind == "pattern_review":
+    value = {
+        "review_contract_version": "pattern-review-v1",
+        "candidate_fingerprint": request["candidate"]["input_fingerprint"],
+        "verdict": "approve",
+        "summary": "The independent critique found the evidence and scores coherent.",
+        "issues": [],
+        "evaluation": request["assessment"],
+        "competing_interpretations": [],
+        "confidence": 80,
+        "evidence": [request["candidate"]["target"]["key"]],
+    }
+elif kind == "taxonomy_review":
     value = {
         "verdict": "approve",
         "summary": "The candidate is coherent for this sample.",
@@ -147,6 +194,9 @@ def _calls(log: Path) -> list[dict[str, str]]:
 def _agent_dossier(request: dict) -> dict:
     scope = str(request.get("path") or request.get("scope_key") or "repository")
     kind = str(request.get("analysis_kind") or "semantic")
+    if kind.startswith("pattern_"):
+        return _agent_pattern_response(request, kind)
+
     if kind.startswith("taxonomy_"):
         members = [
             {
@@ -234,4 +284,63 @@ def _agent_dossier(request: dict) -> dict:
         "risks": [],
         "evidence": [scope],
         "confidence": 0.9,
+    }
+
+
+def _agent_pattern_response(request: dict, kind: str) -> dict:
+    if kind == "pattern_assessment":
+        return _pattern_evaluation(request)
+    return {
+        "review_contract_version": "pattern-review-v1",
+        "candidate_fingerprint": request["candidate"]["input_fingerprint"],
+        "verdict": "approve",
+        "summary": "Independent agent critique found the assessment coherent.",
+        "issues": [],
+        "evaluation": request["assessment"],
+        "competing_interpretations": [],
+        "confidence": 80,
+        "evidence": [request["candidate"]["target"]["key"]],
+    }
+
+
+def _pattern_evaluation(request: dict) -> dict:
+    candidate = request["candidate"]
+    target_key = candidate["target"]["key"]
+    values = {
+        "applicability": 75,
+        "suitability": 70,
+        "conformance": 20,
+        "opportunity": 65,
+        "confidence": 80,
+        "benefit": 70,
+        "urgency": 40,
+        "execution_safety": 65,
+        "migration_cost": 35,
+    }
+    return {
+        "score_contract_version": "pattern-scores-v1",
+        "candidate_fingerprint": candidate["input_fingerprint"],
+        "pattern_key": candidate["pattern_key"],
+        "target_key": target_key,
+        "summary": "The selected pattern is a plausible repository-local option.",
+        "presence": "absent",
+        "recommendation": "introduce",
+        "scores": {
+            name: {
+                "value": value,
+                "rationale": f"Supplied evidence supports the {name} score.",
+                "evidence": [target_key],
+            }
+            for name, value in values.items()
+        },
+        "rationale": "The sparse deterministic candidate has enough local evidence to assess.",
+        "evidence": [target_key],
+        "counter_evidence": list(candidate.get("capability_gaps") or []),
+        "affected_targets": [target_key],
+        "local_precedents": [],
+        "alternatives": list(request["pattern"]["relations"]["alternatives"]),
+        "prerequisites": ["Preserve existing behavior."],
+        "risks": ["The abstraction could cost more than it saves."],
+        "invariants": list(request["pattern"]["verification_invariants"]),
+        "invalidation_conditions": ["The supporting evidence no longer applies."],
     }

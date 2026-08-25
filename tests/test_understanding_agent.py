@@ -39,7 +39,7 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
 
     last_packet = None
     last_dossier = None
-    for _ in range(100):
+    for _ in range(500):
         packet = engine.claim_agent_work(
             stats.repository_id,
             repository,
@@ -83,6 +83,8 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
     status = engine.status(stats.repository_id, config.semantic)
     assert status["semantically_ready"] is True
     assert status["execution_mode"] == "coding_agent"
+    assert status["patterns"]["ready"] is True
+    assert status["patterns"]["selected"] == status["patterns"]["finalized"] > 0
     assert status["usage"] == {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
     assert status["repository_dossier"]["executor_id"] == "codex-test"
     assert status["repository_dossier"]["executor_model"] == "test-model"
@@ -93,9 +95,21 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
             FROM semantic_documents
             """
         ).fetchall()
+        pattern_counts = dict(
+            connection.execute(
+                """
+                SELECT document_kind, COUNT(*) FROM semantic_documents
+                WHERE document_kind LIKE 'pattern_%' GROUP BY document_kind
+                """
+            ).fetchall()
+        )
     assert [tuple(row) for row in provenance] == [
         ("coding_agent", "agent", "codex-test", "test-model")
     ]
+    assert pattern_counts == {
+        "pattern_assessment": status["patterns"]["selected"],
+        "pattern_review": status["patterns"]["selected"],
+    }
     repeated = engine.submit_agent_work(
         stats.repository_id,
         repository,
@@ -165,9 +179,15 @@ def test_local_codex_executor_can_complete_an_agent_funded_queue(repository, dat
 
     assert completed["semantic"]["semantically_ready"] is True
     assert sleeps == [2]
-    assert {"intrinsic", "context", "taxonomy_proposal", "taxonomy_review", "synthesis"} <= set(
-        calls
-    )
+    assert {
+        "intrinsic",
+        "context",
+        "taxonomy_proposal",
+        "taxonomy_review",
+        "synthesis",
+        "pattern_assessment",
+        "pattern_review",
+    } <= set(calls)
     with database.connect() as connection:
         provenance = connection.execute(
             """

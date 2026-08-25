@@ -34,6 +34,10 @@ class SemanticEvidenceService:
             from anaxigraph.semantic_taxonomy_requests import taxonomy_request
 
             return taxonomy_request(self._database, job)
+        if job["job_kind"] in {"pattern_assessment", "pattern_review"}:
+            from anaxigraph.semantic_pattern_requests import pattern_request
+
+            return pattern_request(self._database, job, root, semantic)
         return self._synthesis_request(job)
 
     def _intrinsic_request(self, job: dict[str, Any], root: Path) -> dict[str, Any]:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -13,6 +14,7 @@ __all__ = [
     "SemanticEvidencePort",
     "SemanticIndex",
     "SemanticPersistencePort",
+    "SemanticPatternPlanningPort",
     "SemanticPlanningPort",
     "SemanticReportingPort",
 ]
@@ -34,6 +36,18 @@ class SemanticPlanningPort(Protocol):
         force: bool = False,
         retry_failed: bool = False,
     ) -> Any: ...
+
+
+class SemanticPatternPlanningPort(Protocol):
+    def plan_patterns(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        repository_id: int,
+        snapshot_id: int,
+        semantic: SemanticConfig,
+        retry_failed: bool,
+    ) -> tuple[int, bool]: ...
 
 
 class SemanticEvidencePort(Protocol):
