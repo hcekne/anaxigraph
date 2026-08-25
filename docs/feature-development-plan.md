@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.33
+**Roadmap version:** 3.34
 
 **Updated:** 25 August 2026
 
@@ -245,32 +245,41 @@ The point is that the decision is written down, not that it happens on a schedul
 
 ## Remaining feature re-evaluation
 
-The 25 August self-hosted check changed the active priority. AnaxiGraph's MCP service returned a
-working-tree snapshot several commits behind `main` and no semantic hierarchy while the checkout
-had continued to change. Deterministic fixtures were green, but the map an agent actually received
-was not demonstrably current. That is a failed core outcome, so authoritative map lifecycle work is
-reopened ahead of release acceptance.
+The 25 August self-hosted check found that the served map could lag the checkout and that an agent
+worker could stop before its durable queue was complete. Those were core defects. They have now
+been fixed and retained as regression gates; they are not reasons to keep expanding lifecycle,
+operations, or executor machinery.
 
-Only these outcomes remain in the active feature list, in this order:
+Only two unfinished product capabilities remain in the active feature list:
 
-| Priority | Outcome | Why it is essential | Boundary |
-|---:|---|---|---|
-| 1 | One authoritative, current map | Navigation and advice are unsafe when CLI, MCP, a watcher, and a sidecar can appear to describe different repository states | Reuse the repository registry, service discovery, scanner, and existing index; expose identity and lag instead of adding another index mode |
-| 2 | Semantic work that reliably reaches an explicit end state | An autonomous hierarchy cannot exist if a coding-agent session can stop with useful work still queued | Keep leases, retries, bounded parallel claims, and resumability; model and reasoning effort remain operator configuration, never hard-coded architecture identity |
-| 3 | A useful autonomous area → subsystem → module → symbol hierarchy | A flat directory list does not help an agent understand where responsibilities belong | Reuse deterministic facts, semantic dossiers, taxonomy proposal, and independent agent review; no default human taxonomy-edit gate and no second visualization |
-| 4 | Evidence-backed placement, pattern, decomposition, and change advice | This is how AnaxiGraph prevents misplaced code, tangles, sprawl, and giant files during real coding work | Reuse scope, impact, findings, the 120+ pattern catalog, and before/after comparison; improve calibration and language rather than creating another product surface |
-| 5 | Representative live proof | Fixture success is insufficient when the real persistent map can lag or a worker can exit early | Finish AnaxiGraph dogfooding now; retain the paused MaxOS run as the final large-repository acceptance after the operator resumes it |
+| Priority | Status | Capability | What must become better | Boundary |
+|---:|---|---|---|---|
+| 1 | **ACTIVE** | Autonomous responsibility hierarchy | A person or agent can move from area → subsystem → module → symbol and understand why code belongs together | Reuse deterministic facts, semantic dossiers, taxonomy proposal, and independent agent review; no default human taxonomy-edit gate and no second visualization |
+| 2 | **NEXT** | Useful architecture decisions in the coding loop | Placement, reverse impact, multi-level pattern fit, coherent large-file decomposition, and before/after structural advice are accurate enough to guide real AnaxiGraph changes | Reuse scope, impact, findings, the 120+ pattern catalog, and comparison contracts; fix demonstrated defects instead of adding another product surface |
 
-Supporting work is admitted only when one of those five outcomes cannot be correct, bounded, safe,
-or recoverable without it. Existing install, migration, backup/restore, source-egress, release,
-history, and bounded-API tests stay green, but they are not an open-ended feature queue.
+A code change belongs in the active roadmap only when it is required to complete one of those two
+capabilities or fixes a defect directly demonstrated while exercising them. One authoritative map,
+durable bounded semantic execution, the 500-line ceiling, focused regression tests, and the
+existing release pipeline are supporting gates. They remain green, but they do not create feature
+families of their own.
+
+The following are not active product work: broader parsers and adapters, more dashboards or API
+families, generic operational tooling, provider-specific orchestration, warning-cleanup campaigns,
+additional explanatory-language sweeps, ecosystem work, and release-process expansion. The paused
+MaxOS run is retained acceptance evidence, not a feature; it stays untouched until the operator
+explicitly resumes it. AnaxiGraph dogfooding remains required because it directly tests the two
+active capabilities.
 
 Warning cleanup is also not an automatic queue. Fix a warning when it blocks a hard gate, touches
 code already being changed for a core outcome, or describes a demonstrated product defect. A clean
 non-regression baseline is sufficient otherwise. In particular, do not create another explanatory
 module merely because an adjacent administrative response could be worded more elegantly.
 
-## Master delivery order
+## Historical delivery record
+
+The phases below explain how the current product was built and preserve their acceptance evidence.
+Completed phases are not a backlog. Phase 9 is the bounded dogfood-and-release wrapper around the
+two active capabilities above.
 
 | Order | Phase | Primary outcome | Must be complete before |
 |---:|---|---|---|
@@ -2344,7 +2353,7 @@ change also lowers the `evaluate_architecture` and finding-lifecycle maintainabi
 
 # Phase 9 — make the real core loop dependable, then prove it for 1.0
 
-**Status:** ACTIVE; AUTHORITATIVE MAP LIFECYCLE REOPENED on 25 August 2026
+**Status:** ACTIVE; SELF-HOSTED HIERARCHY AND DECISION DOGFOODING IN PROGRESS on 25 August 2026
 
 **Goal:** prove that the existing AnaxiGraph loop helps a person or coding agent place and change
 code without creating sprawl, tangled dependencies, misplaced responsibilities, or giant files.
@@ -2566,6 +2575,10 @@ concrete user evidence shows that it materially improves the core navigation-and
 - new release-governance infrastructure beyond the existing protected, attested pipeline;
 - guarantees for administrative/export endpoints that are not part of the coding loop;
 - uninstall automation or a second operations interface.
+- additional plain-language coverage outside the navigation and coding-decision outputs;
+- a generic warning-cleanup or self-analysis-debt campaign;
+- another provider, executor, scheduler, or orchestration framework beyond the existing bounded
+  resumable semantic path.
 
 Optional work still obeys provenance, safety, bounded-resource, module-size, test, and honest-support
 rules. Installing a parser or recognizing an extension never counts as supporting a language.
@@ -2655,8 +2668,10 @@ feature-admission rule.
 | 2 | **COMPLETE** | Prove bounded parallel executor mechanics preserve operator-selected settings, survive interruption, and reach durable `complete` without losing finished work | §9.0 |
 | 3 | **ACTIVE** | On the current AnaxiGraph index, form and independently review the autonomous hierarchy with complete module coverage and no default human edit step | §9.0 and §9.2 |
 | 4 | **NEXT** | Run real AnaxiGraph tasks for placement, impact, multi-level pattern fit, large-file decomposition, and before/after verification; fix only demonstrated core defects | §9.2 |
-| 5 | **PAUSED BY OPERATOR** | Resume and finish the retained live MaxOS acceptance only after the operator explicitly lifts the pause | §9.2 |
-| 6 | **WAITING ON 1–5** | Prepare the evidence-backed 1.0 release candidate with the existing one-path documentation and release pipeline | §9.3 and Phase 9 gate |
+
+That is the complete feature queue. A defect found by item 3 or 4 may be fixed immediately through
+the smallest existing path. The retained MaxOS run and the eventual release candidate are
+acceptance/release gates, not product features, and do not authorize adjacent implementation.
 
 No parser expansion, adapter family, plugin framework, new dashboard, website, media support,
 generic operations work, warning-cleanup campaign, or additional plain-language sweep may displace
