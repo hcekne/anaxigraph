@@ -78,7 +78,7 @@ async def test_two_hundred_module_mcp_lifecycle_resumes_and_finishes(tmp_path, m
     assert status["baseline_complete"] is True
     assert status["semantically_ready"] is True
     assert status["plain_language"]["conclusion"] == (
-        "The AI map is current for this repository snapshot."
+        "The AI map is up to date for this saved scan."
     )
     assert status["taxonomy"]["ready"] is True
     assert status["taxonomy"]["current"]["review_passes"] == 2

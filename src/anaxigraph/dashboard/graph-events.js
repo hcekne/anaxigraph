@@ -70,7 +70,7 @@ function toggleArea(event) {
   else state.hiddenGroups.add(input.dataset.graphArea);
   if (state.selectedNode && state.hiddenGroups.has(rootGroup(state.selectedNode))) {
     state.selectedNode = null;
-    byId("inspector").innerHTML = '<p class="eyebrow">Module inspector</p><h2>Select a node</h2><p class="muted">Click a graph node to inspect it.</p>';
+    byId("inspector").innerHTML = '<p class="eyebrow">File details</p><h2>Select a file</h2><p class="muted">Click a circle to inspect that file.</p>';
   }
   renderGraphAreaOptions();
   redrawLayout(true);

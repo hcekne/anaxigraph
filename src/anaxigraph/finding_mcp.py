@@ -1,4 +1,4 @@
-"""MCP registration for bounded finding review and agent handoff."""
+"""MCP registration for finding review and coding-agent handoff."""
 
 from __future__ import annotations
 
@@ -27,10 +27,11 @@ def _register_query_tool(
     @server.tool(
         name="ANAXIGRAPH_FINDINGS",
         description=(
-            "Read a bounded attention queue or the complete diagnostic ledger. Responses include "
-            "exact totals, stable cursors, omitted counts, and a plain-language account of what was "
-            "found, why it matters, the measured facts, uncertainty, and the next step. Use "
-            "status='planned' for selected work; active signals are not permission to refactor."
+            "Read a short list of findings worth checking first or the complete saved list. Each "
+            "response gives exact totals, a token for the next page, omitted counts, and ordinary "
+            "sentences explaining what AnaxiGraph saw, why it may matter, uncertainty, what to do, "
+            "and how to check the result. Use status='planned' for work already selected. A finding "
+            "does not order you to refactor."
         ),
     )
     def findings(
@@ -72,8 +73,9 @@ def _register_context_tool(
     @server.tool(
         name="ANAXIGRAPH_FINDING_CONTEXT",
         description=(
-            "Turn one finding into an actionable handoff with affected files, impact, tests, "
-            "protected paths, risk, and verification steps. Planned status means selected for work."
+            "Prepare one finding for a coding agent by listing affected files, what a change may "
+            "reach, relevant tests, files project rules mark for extra care, risks, and steps for "
+            "checking the result. Planned status means the finding was selected for work."
         ),
     )
     def finding_work(

@@ -5,9 +5,12 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-ARCHITECTURE_HANDOFF_LANGUAGE_VERSION = "architecture-handoff-explanation-v1"
-VERIFICATION_LANGUAGE_VERSION = "architecture-verification-explanation-v1"
-SEMANTIC_FILE_LANGUAGE_VERSION = "semantic-file-explanation-v1"
+from anaxigraph.semantic_file_language import (
+    semantic_file_explanation as semantic_file_explanation,
+)
+
+ARCHITECTURE_HANDOFF_LANGUAGE_VERSION = "architecture-handoff-explanation-v2"
+VERIFICATION_LANGUAGE_VERSION = "architecture-verification-explanation-v2"
 
 
 def decision_explanation(
@@ -20,8 +23,8 @@ def decision_explanation(
             selected_modules, semantic_modules, reviewed_patterns
         ),
         "what_to_do": (
-            "Use the placement recommendation as the starting point, preserve the listed "
-            "contracts and invariants, and follow the verification steps after a small change."
+            "Start with the suggested file. Keep the listed caller-visible behavior and other "
+            "must-stay-true rules. After a small change, run the listed checks."
         ),
         "limits": _decision_limits(status),
     }
@@ -36,26 +39,26 @@ def placement_explanation(placement: Mapping[str, Any]) -> dict[str, Any]:
         return {
             "version": ARCHITECTURE_HANDOFF_LANGUAGE_VERSION,
             "conclusion": "AnaxiGraph could not identify a file where this change should start.",
-            "why": "The selected scope contains no usable module placement evidence.",
-            "what_to_do": "Clarify the coding goal or inspect the ranked scope before editing code.",
-            "how_to_check": ["Confirm that the next scope request selects at least one module."],
+            "why": "The selected files contain no usable evidence about which file owns this job.",
+            "what_to_do": "Clarify the coding goal or inspect the ranked files before editing code.",
+            "how_to_check": ["Confirm that the next map request selects at least one file."],
         }
     return {
         "version": ARCHITECTURE_HANDOFF_LANGUAGE_VERSION,
         "conclusion": f"Start this change in {path}.",
         "why": guidance or role or "This is the highest-ranked file for the requested coding goal.",
         "what_to_do": guidance
-        or f"Make the smallest goal-specific change behind {path}'s public boundary.",
+        or f"Make the smallest change in {path} that completes the goal without changing unrelated behavior.",
         "examples_to_follow": precedents,
         "how_to_check": [
-            f"Confirm that callers and focused tests treat {path} as the right ownership boundary.",
-            "If the change needs unrelated modules, request a new scope instead of widening it silently.",
+            f"Confirm that callers and focused tests show {path} is responsible for the behavior you need to change.",
+            "If you must change unrelated files, request a new map for the wider goal instead of silently expanding the change.",
         ],
     }
 
 
 def constraint_item_explanation(item: Mapping[str, Any]) -> dict[str, Any]:
-    path = str(item.get("path") or "this module")
+    path = str(item.get("path") or "this file")
     contracts = _strings(item.get("public_contracts"), 6)
     invariants = _strings(item.get("invariants"), 6)
     risks = _strings(item.get("risks"), 6)
@@ -63,9 +66,9 @@ def constraint_item_explanation(item: Mapping[str, Any]) -> dict[str, Any]:
         "version": ARCHITECTURE_HANDOFF_LANGUAGE_VERSION,
         "conclusion": f"Keep the recorded behavior of {path} intact while making this change.",
         "what_must_stay_true": [*contracts, *invariants]
-        or ["No current semantic contract was recorded for this module."],
+        or ["The AI map did not record specific behavior that must stay true for this file."],
         "what_could_go_wrong": risks
-        or ["No specific semantic risk was recorded; normal caller and test checks still apply."],
+        or ["The AI map did not record a specific risk. Still check callers and focused tests."],
         "what_to_do": (
             f"Turn the listed behavior for {path} into focused checks before changing its structure."
         ),
@@ -76,19 +79,22 @@ def constraints_explanation(items: Sequence[Mapping[str, Any]]) -> dict[str, Any
     if not items:
         return {
             "version": ARCHITECTURE_HANDOFF_LANGUAGE_VERSION,
-            "conclusion": "No current semantic constraints were available for the selected code.",
+            "conclusion": (
+                "The AI map did not provide up-to-date, file-specific rules about behavior that "
+                "must stay true."
+            ),
             "what_to_do": (
-                "Do not assume there are no constraints. Check callers, tests, configuration, and "
-                "stored data before changing behavior."
+                "Do not assume any behavior is safe to change. Check callers, tests, configuration, "
+                "and stored data first."
             ),
         }
     paths = ", ".join(str(item.get("path") or "") for item in items[:4])
     return {
         "version": ARCHITECTURE_HANDOFF_LANGUAGE_VERSION,
-        "conclusion": f"Preserve the recorded contracts, invariants, and risks for {paths}.",
+        "conclusion": f"Keep the listed behavior true and watch for the listed risks in {paths}.",
         "what_to_do": (
-            "Use each module's explanation as a pre-change checklist and keep the relevant focused "
-            "tests passing."
+            "Treat each file's explanation as a checklist before changing it, and keep the relevant "
+            "focused tests passing."
         ),
     }
 
@@ -100,8 +106,8 @@ def verification_explanation(verification: Mapping[str, Any]) -> dict[str, Any]:
         conclusion = str(comparison.get("summary") or "The before/after comparison is available.")
     else:
         conclusion = (
-            "AnaxiGraph captured the before-change architecture facts but has not compared a new "
-            "scan yet."
+            "AnaxiGraph saved what the selected code looked like before the change, but it has not "
+            "compared a newer scan yet."
         )
     steps = []
     if tests:
@@ -109,7 +115,7 @@ def verification_explanation(verification: Mapping[str, Any]) -> dict[str, Any]:
     steps.extend(
         [
             "Run `anaxigraph update . --json` after the code change.",
-            "Send the saved post-change baseline with the same coding goal and compare the result.",
+            "Send the saved before-change record with the same coding goal and compare the result.",
         ]
     )
     return {
@@ -117,7 +123,8 @@ def verification_explanation(verification: Mapping[str, Any]) -> dict[str, Any]:
         "conclusion": conclusion,
         "what_to_do": steps,
         "what_the_result_can_prove": (
-            "It can show which tracked architecture facts changed between two scans."
+            "It can show which tracked facts about files, findings, and pattern ratings changed "
+            "between two scans."
         ),
         "what_it_cannot_prove": (
             "A changed score or disappeared finding does not by itself prove that the code improved. "
@@ -149,131 +156,101 @@ def compact_explanation(value: Any, *fields: str) -> dict[str, Any]:
     }
 
 
-def semantic_file_explanation(path: str, semantic: Mapping[str, Any]) -> dict[str, Any]:
-    status = str(semantic.get("status") or "not_available")
-    role = str(semantic.get("architecture_role") or "").strip()
-    placement = str(semantic.get("placement_guidance") or "").strip()
-    confidence = _confidence(semantic.get("confidence"))
-    return {
-        "version": SEMANTIC_FILE_LANGUAGE_VERSION,
-        "conclusion": _semantic_file_conclusion(path, status),
-        "what_this_file_does": role or "No current architecture role was recorded for this file.",
-        "where_related_work_belongs": (
-            placement or "No current semantic placement guidance was recorded for this file."
-        ),
-        "evidence_strength": {
-            "value": confidence,
-            "meaning": (
-                f"Support for this AI interpretation is {_confidence_strength(confidence)}. This "
-                "measures its evidence, not the quality of the code."
-            ),
-        },
-        "how_to_use_the_raw_fields": (
-            "The pattern, combine-or-separate, and possibly-unused values beside this explanation "
-            "are early AI notes, not instructions to change code. Before changing or deleting "
-            "code, use architecture_decision: it checks those notes against repository evidence "
-            "and explains the recommended action."
-        ),
-    }
-
-
 def _decision_conclusion(status: str, selected_modules: int) -> str:
     return {
         "semantic_and_reviewed": (
-            "This recommendation uses current module meaning and independently reviewed pattern "
-            "advice for the selected code."
+            "This advice uses up-to-date AI descriptions of the selected files and pattern results "
+            "that completed a separate AI check."
         ),
         "semantic_current": (
-            "This recommendation uses current module meaning, but no finalized pattern review was "
-            "available for the selected code."
+            "This advice uses up-to-date AI descriptions of the selected files, but no pattern "
+            "result had completed its separate AI check."
         ),
         "semantic_partial": (
-            "Some selected modules have current semantic understanding and some do not, so treat "
-            "the recommendation as incomplete."
+            "Some selected files have up-to-date AI descriptions and others do not, so this advice "
+            "may miss responsibilities or behavior that must stay true."
         ),
         "deterministic_only": (
-            "This recommendation uses source structure and repository facts only; current semantic "
-            "understanding was not available."
+            "This advice uses imports, file structure, Git history, and other facts AnaxiGraph read "
+            "directly. No up-to-date AI description of the selected files was available."
         ),
-    }.get(status, f"AnaxiGraph selected {selected_modules} module(s) for this coding goal.")
-
-
-def _semantic_file_conclusion(path: str, status: str) -> str:
-    if status in {"current", "intrinsic_current"}:
-        return f"AnaxiGraph has a current AI interpretation of {path}."
-    if status in {"pending", "stale", "intrinsic_pending", "context_pending"}:
-        return f"The AI interpretation of {path} is incomplete or waiting for refresh."
-    return f"No current AI interpretation is available for {path}."
-
-
-def _confidence(value: Any) -> float:
-    try:
-        return max(0.0, min(1.0, float(value or 0)))
-    except (TypeError, ValueError):
-        return 0.0
-
-
-def _confidence_strength(value: float) -> str:
-    if value >= 0.7:
-        return "strong"
-    if value >= 0.4:
-        return "mixed"
-    return "weak"
+    }.get(status, f"AnaxiGraph selected {_items(selected_modules, 'file', 'files')} for this goal.")
 
 
 def _decision_evidence(
     selected_modules: int, semantic_modules: int, reviewed_patterns: int
 ) -> list[str]:
     return [
-        f"{selected_modules} module(s) were selected for the coding goal.",
-        f"{semantic_modules} selected module(s) had current semantic understanding.",
-        f"{reviewed_patterns} independently reviewed pattern evaluation(s) were included.",
+        f"{_items(selected_modules, 'file was', 'files were')} selected for the coding goal.",
+        f"{_items(semantic_modules, 'selected file had', 'selected files had')} an up-to-date AI description.",
+        f"{_items(reviewed_patterns, 'pattern result had', 'pattern results had')} completed a separate AI check.",
     ]
 
 
 def _decision_limits(status: str) -> list[str]:
     if status == "semantic_and_reviewed":
         return [
-            "This is architecture advice, not permission to edit beyond the returned scope or skip tests."
+            "This advice says where the change may belong. It does not grant permission to edit "
+            "files outside the returned list or skip tests."
         ]
     return [
-        "Missing semantic or reviewed-pattern evidence can hide responsibilities and design constraints.",
-        "Use the deterministic scope as a starting point and verify the boundary before editing.",
+        "Without up-to-date AI descriptions or separate pattern checks, AnaxiGraph may miss what "
+        "files are responsible for or what behavior must stay true.",
+        "Start with the returned files, but inspect their callers and focused tests before editing.",
     ]
 
 
 def _comparison_observations(status: str, value: Any) -> list[str]:
     if status == "rescan_required":
-        return ["No newer snapshot was available, so no post-change comparison was possible."]
+        return ["No newer saved scan was available, so no after-change comparison was possible."]
     if status == "incomparable":
-        return ["The two packets did not describe the same repository and coding goal."]
+        return ["The two saved records did not describe the same repository and coding goal."]
     changes = value if isinstance(value, Mapping) else {}
     modules = changes.get("modules") if isinstance(changes.get("modules"), Mapping) else {}
     findings = changes.get("findings") if isinstance(changes.get("findings"), Mapping) else {}
     patterns = changes.get("patterns") if isinstance(changes.get("patterns"), Mapping) else {}
-    counts = {
-        "module": sum(len(item) for item in modules.values() if isinstance(item, list)),
-        "finding": sum(len(item) for item in findings.values() if isinstance(item, list)),
-        "reviewed pattern": sum(len(item) for item in patterns.values() if isinstance(item, list)),
-    }
-    if not any(counts.values()):
-        return ["The tracked module, finding, and reviewed-pattern facts did not change."]
+    counts = [
+        (
+            "file record",
+            "file records",
+            sum(len(item) for item in modules.values() if isinstance(item, list)),
+        ),
+        (
+            "finding",
+            "findings",
+            sum(len(item) for item in findings.values() if isinstance(item, list)),
+        ),
+        (
+            "AI-checked pattern result",
+            "AI-checked pattern results",
+            sum(len(item) for item in patterns.values() if isinstance(item, list)),
+        ),
+    ]
+    if not any(count for _, _, count in counts):
+        return ["The tracked files, findings, and AI-checked pattern results did not change."]
     return [
-        f"AnaxiGraph observed {count} {name} change(s)." for name, count in counts.items() if count
+        f"AnaxiGraph found {_items(count, singular, plural)} that changed."
+        for singular, plural, count in counts
+        if count
     ]
 
 
 def _comparison_action(status: str) -> str:
     return {
-        "rescan_required": "Run a new scan, then compare again with the same baseline and coding goal.",
-        "incomparable": "Capture and use a baseline for this repository and the same coding goal.",
+        "rescan_required": (
+            "Run a new scan, then compare again with the same saved before-change record and coding goal."
+        ),
+        "incomparable": (
+            "Save a before-change record for this repository and use the same coding goal."
+        ),
         "changed": (
-            "Read the changed modules and plain-language findings, then confirm the intended "
+            "Read the changed file records and plain-language findings, then confirm the intended "
             "behavior with focused tests before calling the change an improvement."
         ),
         "unchanged": (
-            "If architecture was expected to change, inspect the scan scope and evidence; otherwise "
-            "keep the result as confirmation that tracked facts stayed stable."
+            "If the code map was expected to change, inspect which files were scanned and what "
+            "evidence was available. Otherwise, keep this as confirmation that the tracked facts "
+            "stayed the same."
         ),
     }.get(status, "Read the evidence and focused test results before drawing a conclusion.")
 
@@ -282,3 +259,7 @@ def _strings(value: Any, limit: int) -> list[str]:
     if not isinstance(value, (list, tuple)):
         return []
     return [str(item)[:700] for item in value[:limit] if str(item or "").strip()]
+
+
+def _items(value: int, singular: str, plural: str) -> str:
+    return f"{value} {singular if value == 1 else plural}"

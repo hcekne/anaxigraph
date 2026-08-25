@@ -1,4 +1,4 @@
-"""Plain-language explanations for deterministic pattern candidate selection."""
+"""Plain-language explanations for pattern candidates selected from repeatable code checks."""
 
 from __future__ import annotations
 
@@ -6,14 +6,14 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-PATTERN_CANDIDATE_LANGUAGE_VERSION = "pattern-candidate-explanation-v1"
-PATTERN_CANDIDATE_DETAIL_LANGUAGE_VERSION = "pattern-candidate-detail-explanation-v1"
+PATTERN_CANDIDATE_LANGUAGE_VERSION = "pattern-candidate-explanation-v2"
+PATTERN_CANDIDATE_DETAIL_LANGUAGE_VERSION = "pattern-candidate-detail-explanation-v2"
 
 _SELECTION_REASON_COPY = {
     "problem_signal": "The code shows a problem that this pattern is designed to address.",
     "supporting_evidence": "Other repository evidence also supports checking this pattern here.",
     "semantic_question": (
-        "The deterministic evidence leaves an important design question that an agent can answer."
+        "The direct code checks leave an important design question that an AI can answer."
     ),
 }
 
@@ -28,18 +28,24 @@ _FEATURE_SOURCES = {
     "runtime": "the running system's",
     "test": "the tests'",
     "documentation": "the documentation's",
-    "modules": "the module collection's",
+    "modules": "the file collection's",
     "types": "the type collection's",
-    "symbols": "the symbol collection's",
-    "symbol": "the symbol collection's",
+    "symbols": "the collection of named code parts'",
+    "symbol": "the collection of named code parts'",
     "side_effects": "the side-effect analysis's",
 }
 
 _FEATURE_TERMS = {
-    "fan in": "incoming connections",
-    "fan out": "outgoing connections",
+    "complexity": "decision-branch count",
+    "fan in": "direct links from other files",
+    "fan out": "direct links to other files",
     "logical lines": "executable lines",
     "change count": "number of recent changes",
+    "provider boundary": "shared caller-facing interface for providers",
+    "single implementation": "only one implementation",
+    "inheritance": "class inheritance",
+    "dossier": "saved AI description of what the code does",
+    "semantic dossier": "saved AI description of what the code does",
 }
 
 
@@ -48,7 +54,7 @@ def candidate_explanation(
     pattern_name: str,
     observations: Sequence[Mapping[str, Any]] = (),
 ) -> dict[str, Any]:
-    """Explain why one target/pattern pair entered or missed the bounded work plan."""
+    """Explain why one code/pattern pair did or did not receive an AI task."""
 
     target = _target_name(item.get("target"))
     reason = str(item.get("reason") or "unknown")
@@ -92,7 +98,7 @@ def candidate_signal_explanation(value: Mapping[str, Any]) -> dict[str, Any]:
 def candidate_capability_explanation(value: Mapping[str, Any]) -> dict[str, Any]:
     """Explain whether analyzers supplied enough detail for one catalog check."""
 
-    fact = _plain_label(str(value.get("fact") or "required code information"))
+    fact = _plain_feature(str(value.get("fact") or "required code information"))
     minimum = str(value.get("minimum") or "unknown")
     best = str(value.get("best_level") or "unavailable")
     percent = round(_ratio(value.get("ratio")) * 100)
@@ -100,14 +106,14 @@ def candidate_capability_explanation(value: Mapping[str, Any]) -> dict[str, Any]
     return {
         "version": PATTERN_CANDIDATE_DETAIL_LANGUAGE_VERSION,
         "conclusion": (
-            f"The available analyzers supplied enough {fact} detail for this check."
+            f"AnaxiGraph's code readers supplied enough information about {fact} for this check."
             if complete
-            else f"The available analyzers did not supply enough {fact} detail for every part of this check."
+            else f"AnaxiGraph's code readers did not supply enough information about {fact} for every part of this check."
         ),
         "required_detail": _required_detail(fact, minimum),
         "available_detail": _available_detail(percent, best),
         "how_to_use_this": (
-            "This evidence was complete enough to use in candidate selection."
+            "This information was complete enough to use when selecting possible pattern matches."
             if complete
             else "Treat conclusions that depend on this information as incomplete."
         ),
@@ -127,7 +133,7 @@ def _target_name(value: Any) -> str:
 
 def _conclusion(pattern: str, target: str, reason: str, selected: bool) -> str:
     if selected:
-        return f"AnaxiGraph selected {pattern} for {target} for a full agent evaluation."
+        return f"AnaxiGraph selected {pattern} for {target} for a full AI pattern check."
     return {
         "no_positive_evidence": (
             f"AnaxiGraph skipped {pattern} for {target} because current evidence does not show "
@@ -139,13 +145,13 @@ def _conclusion(pattern: str, target: str, reason: str, selected: bool) -> str:
         ),
         "below_priority": (
             f"{pattern} may be relevant to {target}, but it did not rank high enough for the "
-            "bounded evaluation queue."
+            "limited set of AI pattern checks."
         ),
         "sparse_plan_bound": (
-            f"{pattern} qualified for {target}, but more relevant work filled the bounded queue."
+            f"{pattern} qualified for {target}, but higher-ranked work filled the available AI tasks."
         ),
         "plan_not_ready": (
-            f"{pattern} qualifies for {target}, but the current evaluation plan is not ready yet."
+            f"{pattern} qualifies for {target}, but AnaxiGraph has not finished choosing the AI tasks yet."
         ),
     }.get(reason, f"AnaxiGraph did not select {pattern} for {target} in the current plan.")
 
@@ -158,34 +164,37 @@ def _consideration_reasons(item: Mapping[str, Any], reason: str) -> list[str]:
     if _count(item.get("matched_signal_count")):
         return ["At least one repository observation supports checking this pattern here."]
     if reason == "counter_evidence":
-        return ["AnaxiGraph checked this pair because the catalog defines evidence against it."]
+        return [
+            "AnaxiGraph checked this possible match because the pattern library lists evidence against it."
+        ]
     return ["The pattern applies at this code level, so AnaxiGraph checked the available evidence."]
 
 
 def _reason_sentence(reason: str) -> str:
     return {
         "selected": (
-            "The pair passed the checks AnaxiGraph can do without AI and fit within the deliberately "
-            "limited work queue."
+            "The code and pattern passed the checks AnaxiGraph can do without AI and fit within "
+            "the configured number of AI tasks."
         ),
         "no_positive_evidence": (
             "No problem signal or supporting signal matched. This is not evidence that the pattern "
-            "is bad; it means there is no reason to spend an agent evaluation on it here."
+            "is bad; it means there is no reason to spend an AI pattern check on it here."
         ),
         "counter_evidence": (
             "Evidence against the pattern matched, while no stronger positive evidence justified a review."
         ),
         "below_priority": (
-            "Some evidence matched, but its deterministic queue rank was below the configured cutoff."
+            "Some evidence matched, but AnaxiGraph ranked other possible pattern matches higher."
         ),
         "sparse_plan_bound": (
-            "The pair passed the cutoff, but the queue keeps only the strongest bounded set instead "
-            "of evaluating every pattern against every target."
+            "The possible match passed the minimum score, but AnaxiGraph keeps only the strongest "
+            "configured number instead of asking AI to check every pattern against every piece of code."
         ),
         "plan_not_ready": (
-            "The pair passed deterministic checks, but selection is not final until the current plan is ready."
+            "The possible match passed direct code checks, but selection is not final until "
+            "AnaxiGraph finishes choosing the AI tasks."
         ),
-    }.get(reason, "The current selection policy did not place this pair in agent work.")
+    }.get(reason, "The current settings did not place this possible match in AI work.")
 
 
 def _evidence_summary(
@@ -211,7 +220,7 @@ def _evidence_summary(
 def _observation_sentence(value: Mapping[str, Any]) -> str:
     feature = _plain_feature(str(value.get("feature") or "repository evidence"))
     actual = _plain_value(value.get("actual"))
-    measured = f"AnaxiGraph found {feature}{f' = {actual}' if actual else ''}."
+    measured = f"AnaxiGraph recorded {feature}{f' as {actual}' if actual else ''}."
     role = str(value.get("role") or "supporting")
     consequence = {
         "problem": " This shows a problem that the pattern may address.",
@@ -247,7 +256,9 @@ def _signal_check(feature: str, operator: str, value: Mapping[str, Any]) -> str:
         "lt": f"whether {feature} was less than {expected}",
         "lte": f"whether {feature} was at most {expected}",
     }
-    check = checks.get(operator) or f"whether {feature} met this pattern's evidence rule"
+    check = (
+        checks.get(operator) or f"whether {feature} met the condition listed in the pattern library"
+    )
     return f"AnaxiGraph checked {check}."
 
 
@@ -255,16 +266,16 @@ def _signal_result(feature: str, outcome: str, actual: Any) -> str:
     found = _plain_value(actual)
     if outcome == "unknown":
         return f"AnaxiGraph had no usable value for {feature}, so this check remains unknown."
-    result = "met" if outcome == "matched" else "did not meet"
+    result = "passed" if outcome == "matched" else "did not pass"
     recorded = f" It recorded the value as {found}." if found else ""
-    return f"The observation {result} the pattern's evidence rule.{recorded}"
+    return f"The recorded value {result} this pattern-library check.{recorded}"
 
 
 def _signal_effect(role: str, outcome: str) -> str:
     if outcome == "unknown":
         return "This unknown observation did not support or oppose selecting the pattern."
     if outcome != "matched":
-        return "Because the observation did not match, it did not affect candidate selection."
+        return "Because the observation did not match, it did not affect whether an AI check was created."
     return {
         "problem": "This suggests the code has a problem that the pattern may address.",
         "supporting": "This supports checking the pattern for this code.",
@@ -299,22 +310,26 @@ def _strength(value: int) -> str:
 
 def _required_detail(fact: str, level: str) -> str:
     return {
+        "summary": f"This check needs a short explanation of what the code does to understand {fact}.",
         "heuristic": f"This check needs at least a rough estimate about {fact}.",
-        "lexical": f"This check needs names or code tokens that reveal {fact}.",
+        "lexical": f"This check needs names or code words that reveal {fact}.",
         "structural": f"This check needs parsed code structure that reveals {fact}.",
         "deep": f"This check needs detailed parsed relationships about {fact}.",
-    }.get(level, f"This pattern check needs at least {_plain_label(level)} detail about {fact}.")
+    }.get(
+        level,
+        f"This pattern check needs the '{_plain_label(level)}' amount of information about {fact}.",
+    )
 
 
 def _available_detail(percent: int, level: str) -> str:
     best = {
-        "unavailable": "No analyzer could provide usable information.",
+        "unavailable": "AnaxiGraph's code readers could not provide usable information.",
         "heuristic": "The best available information was a rough estimate.",
-        "lexical": "The best available information came from names and code tokens.",
+        "lexical": "The best available information came from names and code words.",
         "structural": "The best available information came from parsed code structure.",
         "deep": "The best available information included detailed parsed relationships.",
-    }.get(level, f"The best available detail level was {_plain_label(level)}.")
-    return f"{percent}% of the relevant analyzers could provide the required detail. {best}"
+    }.get(level, f"The best available information was labeled '{_plain_label(level)}'.")
+    return f"AnaxiGraph had the required information for {percent}% of the relevant code. {best}"
 
 
 def _missing_summary(item: Mapping[str, Any]) -> list[str]:
@@ -324,7 +339,7 @@ def _missing_summary(item: Mapping[str, Any]) -> list[str]:
     ]
     gaps = [_plain_gap(value) for value in _strings(item.get("capability_gaps"))]
     values = _unique([*missing, *gaps])
-    return values or ["No required evidence gap was recorded for this candidate decision."]
+    return values or ["AnaxiGraph had all information required for this code check."]
 
 
 def _plain_gap(value: str) -> str:
@@ -333,27 +348,27 @@ def _plain_gap(value: str) -> str:
         value,
     )
     if match is None:
-        return f"The analyzer reported an evidence gap: {_plain_feature(value)}."
+        return f"AnaxiGraph's code readers were missing this required information: {_plain_feature(value)}."
     fields = match.groupdict()
     return (
-        f"This check needs at least {fields['minimum']} detail for {_plain_feature(fields['fact'])}, "
+        f"This check needs {_detail_requirement(fields['minimum'])} for {_plain_feature(fields['fact'])}, "
         f"but only {fields['found']} of {fields['total']} relevant items met it; the best available "
-        f"detail was {fields['best']}."
+        f"information was {_detail_description(fields['best'])}."
     )
 
 
 def _next_step(pattern: str, target: str, reason: str, selected: bool) -> str:
     if selected:
         return (
-            f"An agent now assesses whether {pattern} fits {target}; a second agent critiques that "
-            "assessment before it becomes a finalized map result."
+            f"One AI pass now checks whether {pattern} fits {target}; a separate AI pass checks "
+            "that result before AnaxiGraph shows it as complete."
         )
     if reason == "plan_not_ready":
-        return "Wait for the current sparse plan to finish; no human approval is required."
+        return "Wait for AnaxiGraph to finish choosing the AI pattern tasks; no human approval is required."
     if reason == "sparse_plan_bound":
-        return "No agent work is created unless repository evidence or the bounded plan changes."
+        return "No AI pattern task is created unless the repository evidence or task limit changes."
     return (
-        "No agent work is created for this pair. A later repository change can make it eligible "
+        "No AI pattern task is created for this possible match. A later repository change can make it eligible "
         "without any manual override."
     )
 
@@ -362,11 +377,12 @@ def _queue_rank(item: Mapping[str, Any]) -> dict[str, Any]:
     reasons = _strings(item.get("selection_reasons"))
     value = _count(item.get("priority")) if reasons else None
     if value is None:
-        meaning = "No queue rank was assigned because the evidence did not create a candidate."
+        meaning = "No work-order score was assigned because the evidence did not create a possible pattern match."
     else:
         meaning = (
-            f"The internal queue rank is {value} out of 100. It only decides which candidates fit "
-            "in bounded agent work; it is not a grade, pattern rating, or recommendation."
+            f"AnaxiGraph gave this possible match a work-order score of {value} out of 100. The "
+            "score only decides which limited AI tasks run first; it is not a code grade, pattern "
+            "fit rating, or recommendation."
         )
     return {"value": value, "meaning": meaning}
 
@@ -389,11 +405,32 @@ def _plain_label(value: str) -> str:
 def _plain_feature(value: str) -> str:
     source, separator, name = value.partition(".")
     if not separator:
-        return _plain_label(value)
+        term = _plain_label(value)
+        return _FEATURE_TERMS.get(term, term)
     term = _plain_label(name)
     term = _FEATURE_TERMS.get(term, term)
     prefix = _FEATURE_SOURCES.get(source)
     return f"{prefix} {term}" if prefix else _plain_label(value)
+
+
+def _detail_requirement(level: str) -> str:
+    return {
+        "summary": "a short explanation of what the code does",
+        "heuristic": "a rough estimate",
+        "lexical": "names or code words",
+        "structural": "parsed code structure",
+        "deep": "detailed parsed relationships",
+    }.get(level, f"the '{_plain_label(level)}' amount of information")
+
+
+def _detail_description(level: str) -> str:
+    return {
+        "unavailable": "not available",
+        "heuristic": "only a rough estimate",
+        "lexical": "names and code words",
+        "structural": "parsed code structure",
+        "deep": "detailed parsed relationships",
+    }.get(level, _plain_label(level))
 
 
 def _strings(value: Any) -> list[str]:

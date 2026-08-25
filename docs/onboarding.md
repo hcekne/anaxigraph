@@ -5,14 +5,14 @@ facts in an external AnaxiIndex. The dashboard gives you the human view; AnaxiMC
 agent the same evidence.
 
 ```text
-repository (read-only) ──→ deterministic scan ──→ AnaxiIndex
+repository (read-only) ──→ facts read from code ──→ AnaxiIndex
                                                     ├── dashboard
                                                     └── AnaxiMCP ──→ coding agent
 ```
 
-The recommended semantic mode needs no model key in AnaxiGraph. Codex or Claude Code uses its own
-model context and token allowance to read bounded module evidence and write validated semantic
-dossiers back to AnaxiIndex.
+The recommended AI-mapping mode needs no model key in AnaxiGraph. Codex or Claude Code uses its own
+model context and token allowance to read a limited amount of evidence for each file and write a
+checked, structured code description back to AnaxiIndex.
 
 ## Four steps to a working architecture partner
 
@@ -25,7 +25,7 @@ and run:
 uvx anaxigraph up . --open --semantic agent --connect codex
 ```
 
-Use `--connect claude` for Claude Code. For a deterministic map without AI understanding, omit
+Use `--connect claude` for Claude Code. For a code-only map without AI descriptions, omit
 `--semantic agent --connect codex`.
 
 The command creates an idempotent `.anaxigraph.yml`, stores AnaxiIndex outside the target
@@ -41,8 +41,8 @@ Architecture pages.
 
 The first-run tour explains the main loop:
 
-1. inspect the architecture and module ledger;
-2. review the bounded attention queue rather than every diagnostic at once;
+1. inspect the repository areas and file list;
+2. review the short list of findings worth checking first rather than every saved observation;
 3. plan only the findings you deliberately want an agent to act on; and
 4. rescan after a change so measured findings can resolve or regress.
 
@@ -65,11 +65,11 @@ target code.
 
 Use this sentence in the coding-agent chat:
 
-> Use AnaxiGraph to build or resume the semantic baseline for this repository, using your own
-> model context and tokens. Launch the durable host executor, do not edit source while mapping,
-> and monitor it until semantic status reports ready.
+> Use AnaxiGraph to build or resume the AI-created code map for this repository, using your own
+> model context and tokens. Start the background coding-agent worker, do not edit source while
+> mapping, and monitor it until the status says the map is up to date.
 
-Codex drives the durable queue from one detached host command:
+Codex processes the saved AI task list from one background host command:
 
 ```bash
 anaxigraph understand . --executor codex --background
@@ -82,19 +82,19 @@ Use `--model` and `--reasoning-effort` only when you explicitly select them for 
 `--background` starts a host
 worker that continues after the invoking coding-agent session exits; `semantic-status` reports its
 PID, log, heartbeat, exact index/config authority, progress, and terminal state. A `stalled` run
-can be relaunched with the same command and resumes durable completed work. Use direct MCP work only
-as a bounded fallback when no authenticated host executor exists; MCP mode returns
-`agent_action_required` and is not completion.
+can be relaunched with the same command and resumes saved completed work. Use direct MCP work only
+as a one-task-at-a-time fallback when no authenticated host worker exists;
+`agent_action_required` means the connected agent must keep working and is not completion.
 
-Each worker leases bounded evidence, submits a schema-validated dossier or map artifact, and
-continues through module context, taxonomy proposal, independent critic/revision passes, and
-repository synthesis. Deterministic validation gives every eligible module exactly one primary
-subsystem. No person has to approve this metadata map. Unchanged structural, relationship,
-prompt-contract, and intent fingerprints reuse current records; executor and model names are
-provenance and do not participate in freshness.
+Each worker claims one task for a limited time, reads its evidence, and submits a result that must
+match the required JSON shape. It continues through file descriptions, an AI-created grouping of
+files, separate AI checks and revisions, and a whole-repository summary. Code checks give every
+included file exactly one main smaller group. No person has to approve this metadata map. Unchanged
+code, direct links, instructions, and intended job reuse current records; worker and model names
+record who created the result but do not decide whether it is stale.
 
 If a matching loopback dashboard/sidecar is live, the command identifies it from the checkout's
-Git remote and uses its MCP queue and persistent AnaxiIndex. Container paths therefore do not
+Git remote and uses its saved MCP task list and persistent AnaxiIndex. Container paths therefore do not
 create a second host-local baseline. A refused connection or a reachable service with no matching
 repository selects the same per-checkout user-state database as `anaxigraph up`; a timeout or
 invalid inventory fails closed because the sidecar may be busy. Use `--service-url` or
@@ -102,13 +102,13 @@ invalid inventory fails closed because the sidecar may be busy. Use `--service-u
 standalone local index. The JSON response always names the selected index authority.
 
 When `ANAXIGRAPH_SEMANTIC_STATUS` reports ready, call `ANAXIGRAPH_TAXONOMY` or select **Semantic
-map (AI)** in the dashboard. Configured policy and deterministic path inference remain available as
-comparison layers; they do not override the semantic default when a current taxonomy exists.
+map (AI)** in the dashboard. Project path settings and file-path guesses remain available for
+comparison; they do not replace the AI-created map when it is up to date.
 
 ## Recommended: install the agent workflow
 
 The repository ships one shared skill for Codex and Claude Code. It teaches the client repository
-selection, semantic resume/release behavior, bounded scope and impact analysis, finding handoff,
+selection, AI-task resume/release behavior, focused file and affected-caller analysis, finding handoff,
 and post-change verification.
 
 For Codex:
@@ -162,17 +162,17 @@ Ask the connected agent to use AnaxiGraph before and after meaningful changes:
 - “Compare these provider modules for repeated responsibilities and pattern opportunities.”
 - “Rescan and verify whether this change improved the relevant architecture evidence.”
 
-The agent should use `ANAXIGRAPH_SCOPE` for a bounded work envelope and its
+The agent should use `ANAXIGRAPH_SCOPE` for a small list of likely files and its
 `architecture-decision-v1` placement, reviewed patterns, constraints, safety advice, and
 post-change baseline. After implementation, keep the goal text unchanged, rescan, and pass
 `architecture_decision.verification.post_change_baseline` back as `verification_baseline` in the
-next scope request. AnaxiGraph then reports exactly which tracked module, finding, and reviewed
+next scope request. AnaxiGraph then reports exactly which tracked file, finding, and reviewed
 pattern facts changed. It deliberately does not call a difference an improvement without the
-expected outcome and passing tests. Use `ANAXIGRAPH_IMPACT` for blast radius and a planned finding's
+expected outcome and passing tests. Use `ANAXIGRAPH_IMPACT` to find code that may be affected and a planned finding's
 context for approved architecture work. A missing static edge is not proof that code is unused;
 dynamic runtime wiring remains an explicit blind spot.
 
-Each reviewed pattern inside the decision packet retains its bounded conclusion, observations,
+Each reviewed pattern inside the decision packet retains its concise conclusion, observations,
 reason, proposed action, caution, verification, and independent-review summary. A shared reading
 guide explains suitability, conformance, opportunity, and confidence once, so an agent can use the
 ratings without treating them as code-quality grades or permission to refactor.
@@ -198,7 +198,7 @@ available to tools, but they are not a substitute for that explanation.
 The **Patterns** page contains only evaluations that completed an independent agent critique. Each
 result states its conclusion, what AnaxiGraph saw, why the pattern may matter, the smallest sensible
 action, reasons not to change the code, and how to verify any change. The API, MCP tool, CLI, and
-dashboard share the same `pattern-explanation-v1` record.
+dashboard share the same `pattern-explanation-v2` record.
 
 The nine ratings are still separate and queryable, but the page groups them into five questions:
 does the problem exist and does the pattern fit, how much of the pattern already exists, would a
@@ -207,8 +207,8 @@ change help now, how difficult would the change be, and how strong is the eviden
 the code.
 
 Candidate explanations use the same rule. They say why AnaxiGraph considered one pattern/target
-pair, why it entered or missed the bounded evaluation queue, what evidence matched, what the
-analyzers could not check, and what happens next. The candidate queue rank only limits agent work;
+pair, why it was or was not selected for the limited set of AI checks, what evidence matched, what
+the code readers could not check, and what happens next. The internal selection order only limits agent work;
 it is not a pattern rating or advice to refactor.
 
 ## Check the setup

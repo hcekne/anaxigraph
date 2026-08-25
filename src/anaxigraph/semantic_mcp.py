@@ -51,25 +51,28 @@ class SemanticMcpTools:
             self.status,
             name="ANAXIGRAPH_SEMANTIC_STATUS",
             description=(
-                "Report semantic and pattern-map coverage, freshness, pending/failed work, "
-                "token/cost usage, and the current repository-level dossier."
+                "Report how much of the AI-created code map is up to date, which tasks are waiting "
+                "or failed, whether a worker is actually running, token and cost totals, and the "
+                "current whole-repository AI description."
             ),
         )
         self.server.add_tool(
             self.taxonomy,
             name="ANAXIGRAPH_TAXONOMY",
             description=(
-                "Return the current agent-proposed, agent-reviewed, deterministically validated "
-                "semantic area/subsystem map with provenance, confidence, facets, and issues."
+                "Return the current AI-created grouping of files into broad areas and smaller "
+                "groups. A separate AI pass checks the proposal, then AnaxiGraph verifies that "
+                "every included file appears exactly once. The result includes evidence strength, "
+                "extra cross-area labels, known problems, and who or what created it."
             ),
         )
         self.server.add_tool(
             self.schema,
             name="ANAXIGRAPH_SEMANTIC_SCHEMA",
-            title="Read semantic dossier contract",
+            title="Read the required AI-result shapes",
             description=(
-                "Read strict dossier, taxonomy, pattern-assessment, and independent-review "
-                "schemas before executing agent-funded semantic work."
+                "Read the exact JSON shapes for file descriptions, the AI-created code-area map, "
+                "pattern checks, and their separate AI reviews before processing mapping tasks."
             ),
             annotations=_read_annotations(),
         )
@@ -78,20 +81,20 @@ class SemanticMcpTools:
         self.server.add_tool(
             self.work,
             name="ANAXIGRAPH_SEMANTIC_WORK",
-            title="Claim semantic mapping work",
+            title="Claim one AI-mapping task",
             description=(
-                "Prepare and lease the next bounded semantic task to this coding agent. This "
-                "changes queue state but never writes the target repository."
+                "Give this coding agent the next saved AI-mapping task for a limited lease time. "
+                "Claiming changes task state in AnaxiGraph's index but never writes repository source."
             ),
             annotations=_write_annotations(idempotent=False),
         )
         self.server.add_tool(
             self.evidence,
             name="ANAXIGRAPH_SEMANTIC_EVIDENCE",
-            title="Read a semantic evidence page",
+            title="Read one evidence page for an AI task",
             description=(
-                "Read one overflow evidence page for a leased task. Fetch every named page "
-                "before submitting its dossier."
+                "Read one extra page of source or repository evidence for a claimed task. Fetch "
+                "every page named by the task before submitting the completed JSON result."
             ),
             annotations=_read_annotations(),
         )
@@ -100,18 +103,21 @@ class SemanticMcpTools:
         self.server.add_tool(
             self.submit,
             name="ANAXIGRAPH_SEMANTIC_SUBMIT",
-            title="Store a semantic mapping result",
+            title="Store one completed AI-mapping result",
             description=(
-                "Validate and store one completed dossier, taxonomy, pattern assessment, or "
-                "independent review in AnaxiIndex without changing repository source."
+                "Check and store one completed file description, code-area map, pattern result, or "
+                "separate AI review in AnaxiGraph's external index without changing repository source."
             ),
             annotations=_write_annotations(idempotent=True),
         )
         self.server.add_tool(
             self.release,
             name="ANAXIGRAPH_SEMANTIC_RELEASE",
-            title="Release semantic mapping work",
-            description="Return an unfinished leased task to the queue without consuming an attempt.",
+            title="Return an unfinished AI-mapping task",
+            description=(
+                "Put an unfinished claimed task back into the saved task list without counting "
+                "it as a failed attempt."
+            ),
             annotations=_write_annotations(idempotent=False),
         )
 
@@ -127,7 +133,7 @@ class SemanticMcpTools:
         result = self.database.semantic_taxonomy(int(row["id"]))
         return result or {
             "status": "not_ready",
-            "message": "No finalized semantic taxonomy exists for the current snapshot.",
+            "message": "The current saved scan does not have a completed AI-created code-area map.",
         }
 
     def schema(self) -> dict[str, Any]:

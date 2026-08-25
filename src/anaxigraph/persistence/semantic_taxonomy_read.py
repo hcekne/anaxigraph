@@ -77,7 +77,7 @@ def taxonomy_assignments(
             "evidence": json.loads(row["evidence_json"] or "[]"),
             "alternatives": json.loads(row["alternatives_json"] or "[]"),
             "locked": bool(row["locked"]),
-            "source": "agent-reviewed semantic taxonomy",
+            "source": "AI-created map checked by a separate AI pass",
             "freshness": taxonomy["updated_at"],
         }
         for row in rows

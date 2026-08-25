@@ -14,8 +14,8 @@ def add_semantic_execution_arguments(parser: Any) -> None:
         choices=("auto", "mcp", "codex", "claude"),
         default="auto",
         help=(
-            "How to execute provider=agent work: auto detects the invoking coding agent, "
-            "mcp queues work for the connected agent, and codex/claude run the local CLI"
+            "Who processes AI tasks: auto finds the current coding agent; mcp leaves one task "
+            "at a time for the connected agent; codex or claude starts that local command-line tool"
         ),
     )
     parser.add_argument(
@@ -30,18 +30,24 @@ def add_semantic_execution_arguments(parser: Any) -> None:
     parser.add_argument(
         "--parallel-jobs",
         type=int,
-        help="Maximum concurrent model calls for this run (bounded by repository policy)",
+        help="Most model calls to run at once, up to the maximum in repository settings",
     )
     parser.add_argument(
         "--timeout-seconds",
         type=int,
-        help="Per-model-call timeout for this run without changing semantic freshness",
+        help=(
+            "Seconds allowed for each model call; this runtime choice does not make saved AI "
+            "descriptions stale"
+        ),
     )
     parser.add_argument(
         "--background",
         "--detach",
         action="store_true",
-        help="Run the complete local Codex/Claude queue independently of this shell session",
+        help=(
+            "Run every required task in a background Codex or Claude process that continues "
+            "after this shell exits"
+        ),
     )
 
 

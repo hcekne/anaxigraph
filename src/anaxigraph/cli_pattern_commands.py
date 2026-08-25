@@ -1,4 +1,4 @@
-"""CLI query access to the authoritative pattern-intelligence index."""
+"""CLI access to saved coding-pattern results and their evidence."""
 
 from __future__ import annotations
 
@@ -15,46 +15,70 @@ from anaxigraph.local_runtime import local_database_path
 def configure_pattern_commands(commands: Any) -> None:
     parser = commands.add_parser(
         "patterns",
-        help="Query finalized evaluations or explain sparse pattern candidates",
+        help="Show completed pattern results or explain why code was selected or skipped",
     )
     add_repository_arguments(parser)
-    parser.add_argument("--snapshot-id", type=int)
-    parser.add_argument("--target", default="", help="Exact target key, path, or qualified name")
-    parser.add_argument("--pattern", default="", help="Exact pattern catalog key")
-    parser.add_argument("--level", default="", help="Target hierarchy level")
-    parser.add_argument("--recommendation", default="", help="Final recommendation filter")
-    parser.add_argument("--presence", default="", help="Current pattern presence filter")
-    parser.add_argument("--sort-by", default="opportunity", help="Score used for descending rank")
-    parser.add_argument("--minimum-score", type=int, default=0)
+    _add_pattern_filters(parser)
+    _add_pattern_modes(parser)
+    parser.set_defaults(handler=_patterns, db=None)
+
+
+def _add_pattern_filters(parser: Any) -> None:
+    parser.add_argument("--snapshot-id", type=int, help="Numeric id of a specific saved scan")
+    parser.add_argument(
+        "--target",
+        default="",
+        help="Exact machine key, file path, or code name such as Class.method",
+    )
+    parser.add_argument("--pattern", default="", help="Exact pattern library key")
+    parser.add_argument(
+        "--level", default="", help="Size of code to check, such as file or function"
+    )
+    parser.add_argument("--recommendation", default="", help="Suggested-action filter")
+    parser.add_argument(
+        "--presence", default="", help="Filter by whether the pattern is already present"
+    )
+    parser.add_argument(
+        "--sort-by", default="opportunity", help="Pattern question used to order results"
+    )
+    parser.add_argument(
+        "--minimum-score", type=int, default=0, help="Lowest 0-to-100 answer to include"
+    )
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument("--offset", type=int, default=0)
-    parser.add_argument("--include-evidence", action="store_true")
+    parser.add_argument(
+        "--include-evidence",
+        action="store_true",
+        help="Include the observations, cautions, and changes made by the second AI check",
+    )
+
+
+def _add_pattern_modes(parser: Any) -> None:
     parser.add_argument(
         "--calibrate",
         type=Path,
         metavar="MANIFEST",
-        help="Measure the current pattern map against a versioned calibration manifest",
+        help="Compare current pattern results with expected answers in a saved test-case file",
     )
     parser.add_argument(
         "--candidates",
         action="store_true",
-        help="Explain deterministic sparse-plan selection instead of finalized ratings",
+        help="Explain why code was selected or skipped before an AI pattern check",
     )
     parser.add_argument(
         "--selection",
         default="skipped",
-        help="Candidate explanations to return: skipped, selected, or all",
+        help="Possible matches to return: skipped, selected, or all",
     )
     parser.add_argument(
         "--service-url",
-        help="Authoritative dashboard/API root (auto-detected when --db is omitted)",
+        help="Dashboard/API that owns the saved index (found automatically when --db is omitted)",
     )
-    parser.set_defaults(handler=_patterns, db=None)
 
 
 def _patterns(args: argparse.Namespace) -> dict[str, Any]:
     if args.snapshot_id is not None and args.snapshot_id < 1:
-        raise ValueError("Pattern snapshot id must be positive")
+        raise ValueError("The saved-scan id for pattern results must be positive")
     if args.db is not None and args.service_url:
         raise ValueError("Choose either --db for a local index or --service-url for a service")
     if args.calibrate is not None and args.candidates:

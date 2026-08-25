@@ -9,6 +9,7 @@ from typing import Any
 
 from anaxigraph.persistence.semantic_taxonomy_read import taxonomy_assignments
 from anaxigraph.persistence.snapshot_projection import install_snapshot_projection
+from anaxigraph.semantic_file_language import semantic_file_explanation
 
 _MODULE_ROWS_SQL = """
 SELECT a.id AS artifact_id, a.artifact_type, a.canonical_path,
@@ -230,9 +231,9 @@ def _materialize_module(
         architecture_source=(
             assignment["source"]
             if assignment
-            else "configured policy"
+            else "project path rule"
             if policy_group
-            else "deterministic fallback"
+            else "file-path guess without AI"
         ),
         architecture_layer="semantic" if assignment else "effective",
         architecture_layers={
@@ -241,7 +242,7 @@ def _materialize_module(
                 {
                     "area": _architecture_area(str(policy_group), parents),
                     "subsystem": policy_group,
-                    "source": "configured policy",
+                    "source": "project path rule",
                 }
                 if policy_group
                 else None
@@ -249,13 +250,13 @@ def _materialize_module(
             "inferred": {
                 "area": inferred_group,
                 "subsystem": inferred_group,
-                "source": "deterministic fallback",
+                "source": "file-path guess without AI",
             },
         },
         semantic_taxonomy=assignment,
     )
     _apply_semantic_summary(item, claims.get(int(item["artifact_id"])))
-    item["semantic"] = _semantic_payload(semantic_states.get(item["path"]))
+    item["semantic"] = _semantic_payload(item["path"], semantic_states.get(item["path"]))
     active_findings = findings.get(item["path"], [])
     item["active_findings"] = active_findings
     item["evaluation"] = module_evaluation(item, active_findings)
@@ -275,19 +276,25 @@ def _apply_semantic_summary(item: dict[str, Any], claim: dict[str, Any] | None) 
     if claim:
         item["deterministic_summary"] = item["summary"]
         item["summary"] = claim["value"].get("summary") or item["summary"]
-        phase = "contextual" if claim["claim_type"] == "module_context" else "intrinsic"
-        item["summary_source"] = f"{claim['provider']} {phase} interpretation"
+        phase = (
+            "using repository context"
+            if claim["claim_type"] == "module_context"
+            else "of this file"
+        )
+        item["summary_source"] = f"{claim['provider']} AI description {phase}"
         item["summary_confidence"] = claim["confidence"]
     else:
-        item["summary_source"] = "deterministic"
+        item["summary_source"] = "read directly from the file without AI"
         item["summary_confidence"] = 1.0
 
 
-def _semantic_payload(state: dict[str, Any] | None) -> dict[str, Any]:
+def _semantic_payload(path: str, state: dict[str, Any] | None) -> dict[str, Any]:
     if state is None:
-        return {"status": "not_started", "reason": "Semantic bootstrap has not run"}
+        result = {"status": "not_started", "reason": "AI mapping has not described this file yet."}
+        result["plain_language"] = semantic_file_explanation(path, result)
+        return result
     value = json.loads(state.get("context_value_json") or "{}")
-    return {
+    result = {
         "status": state["status"],
         "reason": state["reason"],
         "intent_fingerprint": state["intrinsic_intent_fingerprint"],
@@ -307,19 +314,21 @@ def _semantic_payload(state: dict[str, Any] | None) -> dict[str, Any]:
         "placement_guidance": value.get("placement_guidance") or "",
         "change_summary": value.get("change_summary") or "",
     }
+    result["plain_language"] = semantic_file_explanation(path, result)
+    return result
 
 
 _PATTERN_REVIEWS = {
-    "architecture_drift": "Architecture-role review",
-    "architecture_violation": "Layer boundary or adapter review",
-    "dependency_cycle": "Dependency inversion or boundary review",
-    "high_fan_in": "Stable interface boundary review",
-    "high_fan_out": "Facade or orchestration boundary review",
-    "long_function": "Focused operation extraction review",
-    "module_complexity": "Module cohesion and extraction review",
-    "possible_dead_code": "Ownership or removal review",
-    "symbol_complexity": "Strategy or decision-table review",
-    "weak_test_coverage": "Test seam review",
+    "architecture_drift": "Move the file or update its repository-area rule",
+    "architecture_violation": "Reach the behavior through a file the project rule allows",
+    "dependency_cycle": "Reverse one code link or move shared behavior into a small file",
+    "high_fan_in": "Keep a stable caller-facing interface",
+    "high_fan_out": "Use a small coordinator or group calls by job",
+    "long_function": "Move one clearly named step into a helper",
+    "module_complexity": "Split the file only if it contains separate jobs",
+    "possible_dead_code": "Check runtime use before deleting",
+    "symbol_complexity": "Separate one decision or use a lookup table",
+    "weak_test_coverage": "Add focused tests for behavior that did not run",
 }
 
 
@@ -327,6 +336,38 @@ def module_evaluation(item: dict[str, Any], findings: list[dict[str, Any]]) -> d
     artifact_type = str(item.get("artifact_type") or "source")
     if artifact_type not in {"source", "test"}:
         return _reference_evaluation(artifact_type)
+    loc, complexity, coupling, changes, score = _attention_measures(item, findings)
+    candidates = _pattern_candidates(findings)
+    bounded_score = min(100, score)
+    attention_label = _attention_label(score)
+    return {
+        "monitored_by_default": True,
+        "monitoring_reason": (
+            "This file contains executable source or tests, so AnaxiGraph includes it when "
+            "deciding what to inspect first."
+        ),
+        "attention_score": bounded_score,
+        "attention_label": attention_label,
+        "attention_guidance": _attention_guidance(attention_label),
+        "attention_score_meaning": (
+            f"The sorting score is {bounded_score} out of 100. AnaxiGraph combines file size, "
+            "decision branches, direct file links, Git changes, and active findings to decide "
+            "which files to show first. It is not a grade for the code."
+        ),
+        "attention_reasons": _attention_reasons(loc, complexity, coupling, changes, findings),
+        "pattern_status": "candidate_review" if candidates else "not_evaluated",
+        "pattern_candidates": candidates,
+        "suitability_score": None,
+        "note": (
+            "These pattern ideas come from direct code checks. They are ideas to investigate, not "
+            "approved refactors. A full fit rating needs completed AI mapping and a separate AI check."
+        ),
+    }
+
+
+def _attention_measures(
+    item: dict[str, Any], findings: list[dict[str, Any]]
+) -> tuple[int, float, int, int, int]:
     loc = int(item.get("lines_of_code") or 0)
     complexity = float(item.get("complexity") or 0)
     coupling = int(item.get("fan_in") or 0) + int(item.get("fan_out") or 0)
@@ -343,27 +384,17 @@ def module_evaluation(item: dict[str, Any], findings: list[dict[str, Any]]) -> d
         + min(changes / 20, 1) * 15
         + pressure
     )
-    candidates = sorted(
+    return loc, complexity, coupling, changes, score
+
+
+def _pattern_candidates(findings: list[dict[str, Any]]) -> list[str]:
+    return sorted(
         {
             _PATTERN_REVIEWS[finding["finding_type"]]
             for finding in findings
             if finding.get("finding_type") in _PATTERN_REVIEWS
         }
     )
-    return {
-        "monitored_by_default": True,
-        "monitoring_reason": "Executable source or test module included in attention triage.",
-        "attention_score": min(100, score),
-        "attention_label": _attention_label(score),
-        "attention_reasons": _attention_reasons(loc, complexity, coupling, changes, findings),
-        "pattern_status": "candidate_review" if candidates else "not_evaluated",
-        "pattern_candidates": candidates,
-        "suitability_score": None,
-        "note": (
-            "Candidates are detector-grounded review prompts, not approved refactors. "
-            "Pattern suitability scoring requires the semantic pattern-evaluation pipeline."
-        ),
-    }
 
 
 def _reference_evaluation(artifact_type: str) -> dict[str, Any]:
@@ -374,16 +405,25 @@ def _reference_evaluation(artifact_type: str) -> dict[str, Any]:
     }.get(artifact_type, f"{artifact_type.capitalize()} artifact")
     return {
         "monitored_by_default": False,
-        "monitoring_reason": f"{kind}; retained in AnaxiIndex but excluded from source-code attention triage.",
+        "monitoring_reason": (
+            f"{kind}. AnaxiGraph keeps it searchable but does not rank it as source code to refactor."
+        ),
         "attention_score": None,
         "attention_label": "Reference",
-        "attention_reasons": [f"{kind}; size and churn are not source-module refactoring signals"],
+        "attention_guidance": "Keep searchable",
+        "attention_score_meaning": (
+            "AnaxiGraph does not give reference files a sorting score because their size and "
+            "change history do not show whether source code needs attention."
+        ),
+        "attention_reasons": [
+            f"{kind}. Its size and change history do not mean that source code should be refactored."
+        ],
         "pattern_status": "not_applicable",
         "pattern_candidates": [],
         "suitability_score": None,
         "note": (
-            "Reference artifacts remain searchable and visible on demand, but are not "
-            "ranked against executable modules."
+            "This reference file remains searchable and visible, but AnaxiGraph does not compare "
+            "its need for attention with executable source files."
         ),
     }
 
@@ -398,6 +438,15 @@ def _attention_label(score: int) -> str:
     return "Low"
 
 
+def _attention_guidance(label: str) -> str:
+    return {
+        "Priority": "Check first",
+        "Review": "Check soon",
+        "Watch": "Check when working here",
+        "Low": "Background",
+    }.get(label, "Use the reasons below")
+
+
 def _attention_reasons(
     loc: int,
     complexity: float,
@@ -407,13 +456,22 @@ def _attention_reasons(
 ) -> list[str]:
     reasons: list[str] = []
     if loc >= 500:
-        reasons.append(f"Large module ({loc:,} LOC)")
+        reasons.append(f"This file contains {loc:,} lines of code.")
     if complexity >= 25:
-        reasons.append(f"High detected decision complexity ({complexity:g})")
+        reasons.append(
+            f"Its file-wide branch score is {complexity:g}; this combines branches across all functions."
+        )
     if coupling >= 20:
-        reasons.append(f"Highly connected ({coupling} incoming + outgoing links)")
+        reasons.append(
+            f"AnaxiGraph found {coupling} direct incoming or outgoing code links for this file."
+        )
     if changes >= 10:
-        reasons.append(f"Frequently changed ({changes} indexed commits)")
+        reasons.append(f"{changes} indexed commits changed this file.")
     if findings:
-        reasons.append(f"{len(findings)} active architecture finding(s)")
-    return reasons or ["No threshold-level deterministic signal"]
+        count = len(findings)
+        reasons.append(
+            f"{count} active architecture {'finding' if count == 1 else 'findings'} point here."
+        )
+    return reasons or [
+        "No size, branching, code-link, change-history, or finding count crossed this project's review threshold."
+    ]

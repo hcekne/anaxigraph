@@ -19,6 +19,34 @@ const SCORE_ORDER = [
   "benefit", "urgency", "execution_safety", "migration_cost",
 ];
 
+const OPTION_LABELS = {
+  evaluations: "Completed pattern results",
+  candidates: "Why code was selected or skipped",
+  symbol: "Function or method",
+  type: "Class, interface, or type",
+  module: "File",
+  subsystem: "Smaller repository area",
+  area: "Broad repository area",
+  repository: "Whole repository",
+  present: "Clearly present",
+  partial: "Partly present",
+  absent: "Not present",
+  uncertain: "Not enough evidence",
+  retain: "Keep the current pattern",
+  introduce: "Consider adding the pattern",
+  improve_conformance: "Make the existing pattern more consistent",
+  replace: "Consider a different pattern",
+  avoid: "Do not use this pattern here",
+  no_action: "No change suggested",
+  insufficient_evidence: "Not enough evidence",
+  conformance: "How completely the code already follows it",
+  applicability: "Whether the pattern addresses this kind of problem",
+  suitability: "How well the pattern fits this code",
+  opportunity: "How useful a change may be",
+  execution_safety: "How safely the change can be made",
+  migration_cost: "Cost of changing the code",
+};
+
 let currentResult = null;
 let currentOffset = 0;
 let loadedRepositoryId = null;
@@ -64,15 +92,15 @@ function patternViewMarkup() {
   return `
     <article class="panel pattern-intro">
       <div>
-        <p class="eyebrow">Autonomous, evidence-backed design review</p>
-        <h2>Pattern intelligence</h2>
-        <p class="panel-copy">Explore current evaluations that completed independent agent
-          critique, or ask why an eligible target was selected or skipped before evaluation.
-          Query by target or pattern across the full code hierarchy.</p>
+        <p class="eyebrow">Pattern suggestions checked by a second AI pass</p>
+        <h2>Which coding patterns fit?</h2>
+        <p class="panel-copy">See completed pattern results, or ask why a file, function, class,
+          or repository area was selected or skipped before an AI checked it. Search by code or
+          pattern across every size of the repository.</p>
       </div>
-      <div class="pattern-contract-note"><strong>Nine separate scores</strong><span>Fit,
-        presence, value, safety, and cost remain distinct. A high-conformance example is not
-        mislabeled as a refactor opportunity.</span></div>
+      <div class="pattern-contract-note"><strong>Nine scores answer different questions</strong><span>A pattern
+        can fit well and already be fully present, which usually means the code should stay as it is.
+        That is different from finding a useful reason to refactor.</span></div>
     </article>
     ${patternQueryMarkup()}
     <div id="pattern-query-summary" class="notice pattern-query-summary"></div>
@@ -86,35 +114,35 @@ function patternQueryMarkup() {
   return `<article class="panel pattern-query-panel">
       <form id="patterns-query-form" class="pattern-query-grid">
         <label>View<select id="pattern-mode-filter">
-          <option value="evaluations">Finalized evaluations</option>
-          <option value="candidates">Candidate explanations</option></select></label>
-        <label>Candidate selection<select id="pattern-selection-filter" disabled>
+          <option value="evaluations">Completed pattern results</option>
+          <option value="candidates">Why code was selected or skipped</option></select></label>
+        <label>Show possible matches that were<select id="pattern-selection-filter" disabled>
           ${options(["skipped", "selected", "all"], "skipped")}</select></label>
-        <label class="pattern-query-wide">Target key, path, or qualified name
-          <input id="pattern-target-filter" placeholder="module:src/service.py or src/service.py" />
+        <label class="pattern-query-wide">File, function, class, or exact target key
+          <input id="pattern-target-filter" placeholder="src/service.py or WorkflowDefinition" />
         </label>
-        <label class="pattern-query-wide">Pattern catalog key <span id="pattern-key-requirement"></span>
+        <label class="pattern-query-wide">Pattern library key <span id="pattern-key-requirement"></span>
           <input id="pattern-key-filter" placeholder="strategy" />
         </label>
         <label>Level<select id="pattern-level-filter"><option value="">All levels</option>
           ${options(["symbol", "type", "module", "subsystem", "area", "repository"])}</select>
         </label>
-        <label data-evaluation-only>Presence<select id="pattern-presence-filter"><option value="">Any presence</option>
+        <label data-evaluation-only>Is the pattern present?<select id="pattern-presence-filter"><option value="">Any answer</option>
           ${options(["present", "partial", "absent", "uncertain"])}</select></label>
-        <label data-evaluation-only>Recommendation<select id="pattern-recommendation-filter">
-          <option value="">Any recommendation</option>${options([
+        <label data-evaluation-only>Suggested action<select id="pattern-recommendation-filter">
+          <option value="">Any suggested action</option>${options([
             "retain", "introduce", "improve_conformance", "replace", "avoid", "no_action",
             "insufficient_evidence",
           ])}</select></label>
-        <label data-evaluation-only>Rank by<select id="pattern-sort-filter">${options(SCORE_ORDER, "opportunity")}
+        <label data-evaluation-only>Order by<select id="pattern-sort-filter">${options(SCORE_ORDER, "opportunity")}
         </select></label>
-        <label data-evaluation-only>Minimum score<input id="pattern-minimum-score" type="number" min="0" max="100"
+        <label data-evaluation-only>Lowest 0–100 answer to include<input id="pattern-minimum-score" type="number" min="0" max="100"
           value="0" /></label>
         <label>Rows<select id="pattern-page-size">${options([20, 50, 100], 20)}</select></label>
         <label class="checkbox-label pattern-evidence-toggle"><input id="pattern-include-evidence"
-          type="checkbox" />Include detailed evidence &amp; critique</label>
+          type="checkbox" />Include detailed evidence and the second AI check</label>
         <div class="pattern-query-actions"><button id="pattern-query-submit" class="button"
-          type="submit">Query finalized evaluations</button><button id="pattern-query-reset" class="secondary-button"
+          type="submit">Show completed pattern results</button><button id="pattern-query-reset" class="secondary-button"
           type="button">Reset</button></div>
       </form>
     </article>`;
@@ -122,8 +150,12 @@ function patternQueryMarkup() {
 
 function options(values, selected = "") {
   return values.map((value) => (
-    `<option value="${escapeAttr(value)}" ${String(value) === String(selected) ? "selected" : ""}>${escapeHtml(humanize(value))}</option>`
+    `<option value="${escapeAttr(value)}" ${String(value) === String(selected) ? "selected" : ""}>${escapeHtml(optionLabel(value))}</option>`
   )).join("");
+}
+
+function optionLabel(value) {
+  return OPTION_LABELS[value] || humanize(value);
 }
 
 function bindPatternEvents(tab) {
@@ -161,8 +193,8 @@ async function loadPatterns() {
   const submit = byId("pattern-query-submit");
   submit.disabled = true;
   byId("pattern-query-summary").textContent = mode === "candidates"
-    ? "Explaining current sparse-plan candidate decisions…"
-    : "Reading current finalized evaluations…";
+    ? "Explaining why possible matches were selected or skipped…"
+    : "Reading completed pattern results…";
   try {
     const endpoint = mode === "candidates" ? "/api/patterns/candidates" : "/api/patterns";
     currentResult = await request(api(endpoint, queryParameters()));
@@ -201,7 +233,7 @@ function queryParameters() {
 
 function renderWaitingState() {
   if (!byId("pattern-query-summary")) return;
-  byId("pattern-query-summary").textContent = "Open this view to query current pattern intelligence.";
+  byId("pattern-query-summary").textContent = "Open this view to search the current pattern results.";
   byId("pattern-results").innerHTML = "";
   updatePagination();
 }
@@ -215,7 +247,7 @@ function renderPatternResults() {
   const start = result.returned ? result.offset + 1 : 0;
   const end = result.offset + result.returned;
   byId("pattern-query-summary").innerHTML = result.total
-    ? `<strong>${format.format(start)}–${format.format(end)}</strong> of <strong>${format.format(result.total)}</strong> current, independently critiqued evaluation(s). Ranked by ${escapeHtml(humanize(result.filters.sort_by))}.`
+    ? `<strong>${format.format(start)}–${format.format(end)}</strong> of <strong>${format.format(result.total)}</strong> current pattern results that completed a separate AI check. Ordered by ${escapeHtml(optionLabel(result.filters.sort_by))}.`
     : emptyResultMessage();
   byId("pattern-results").innerHTML = (result.items || [])
     .map((item) => renderEvaluationCard(item)).join("");
@@ -225,10 +257,10 @@ function renderPatternResults() {
 function renderCandidateResults(result) {
   const start = result.returned ? result.offset + 1 : 0;
   const end = result.offset + result.returned;
-  const selection = humanize(result.filters?.selection || "all");
+  const selection = optionLabel(result.filters?.selection || "all").toLowerCase();
   byId("pattern-query-summary").innerHTML = result.total
-    ? `<strong>${format.format(start)}–${format.format(end)}</strong> of <strong>${format.format(result.total)}</strong> ${escapeHtml(selection)} candidate explanation(s) for <strong>${escapeHtml(result.pattern?.name || result.pattern?.key)}</strong>. ${format.format(result.selected_count)} selected and ${format.format(result.skipped_count)} skipped across ${format.format(result.targets_considered)} eligible target(s).`
-    : `<strong>No ${escapeHtml(selection)} candidates match.</strong> The current plan considered ${format.format(result.targets_considered || 0)} eligible target(s).`;
+    ? `<strong>${format.format(start)}–${format.format(end)}</strong> of <strong>${format.format(result.total)}</strong> explanations for possible matches that were ${escapeHtml(selection)} for <strong>${escapeHtml(result.pattern?.name || result.pattern?.key)}</strong>. ${format.format(result.selected_count)} were selected and ${format.format(result.skipped_count)} were skipped across ${format.format(result.targets_considered)} pieces of code that had enough information to check.`
+    : `<strong>No possible matches that were ${escapeHtml(selection)} fit these filters.</strong> AnaxiGraph considered ${format.format(result.targets_considered || 0)} pieces of code that had enough information to check.`;
   byId("pattern-results").innerHTML = (result.items || [])
     .map((item) => renderCandidateCard(item, result.pattern || {})).join("");
   updatePagination();
@@ -238,9 +270,9 @@ function emptyResultMessage() {
   const patterns = state.semanticStatus?.patterns || {};
   if (!patterns.ready) {
     const pending = Number(patterns.pending || state.semanticStatus?.jobs?.pending || 0);
-    return `<strong>No finalized pattern evaluations yet.</strong> Semantic mapping${pending ? ` has ${format.format(pending)} queued job(s)` : " is not complete"}; assessments appear here only after independent critique.`;
+    return `<strong>No completed pattern results yet.</strong> AI mapping${pending ? ` has ${format.format(pending)} saved tasks waiting` : " is not complete"}; a result appears here only after a separate AI pass checks it.`;
   }
-  return "<strong>No current evaluation matches these filters.</strong> Clear a filter or lower the minimum score.";
+  return "<strong>No current pattern result matches these filters.</strong> Clear a filter or lower the minimum score.";
 }
 
 function movePage(direction) {
@@ -257,7 +289,7 @@ function updatePagination() {
   byId("pattern-previous").disabled = !result || currentOffset <= 0;
   byId("pattern-next").disabled = !result || result.next_offset == null;
   byId("pattern-page-label").textContent = result?.total
-    ? `Offset ${format.format(result.offset)} · ${format.format(result.returned)} shown`
+    ? `${format.format(result.returned)} shown · starting at result ${format.format(result.offset + 1)}`
     : "No page";
 }
 
@@ -308,12 +340,12 @@ function configureQueryMode() {
   byId("pattern-key-requirement").textContent = candidates ? "· required" : "";
   byId("pattern-key-filter").required = candidates;
   byId("pattern-query-submit").textContent = candidates
-    ? "Explain candidate selection" : "Query finalized evaluations";
+    ? "Explain why code was selected or skipped" : "Show completed pattern results";
 }
 
 function renderCandidatePrompt() {
   currentResult = null;
-  byId("pattern-query-summary").innerHTML = "<strong>Enter one exact pattern catalog key.</strong> Candidate explanations are computed on demand without storing a dense target-by-pattern matrix.";
+  byId("pattern-query-summary").innerHTML = "<strong>Enter one exact pattern library key.</strong> AnaxiGraph explains matching code only when you ask, so it does not save a score for every possible file-and-pattern pair.";
   byId("pattern-results").innerHTML = "";
   updatePagination();
 }

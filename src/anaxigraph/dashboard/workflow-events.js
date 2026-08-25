@@ -136,14 +136,14 @@ function setupRefreshEvents() {
       activeScanId = started.scan_id;
       event.target.disabled = false;
       event.target.textContent = "Cancel scan";
-      toast("Structural scan started in the background.");
+      toast("The read-only file scan started in the background.");
       const terminal = await pollScan(event.target);
       if (terminal.status === "complete") {
         const stats = terminal.scan;
         toast(`Scan complete: ${stats.analyzed} analyzed, ${stats.reused} reused`);
         await state.reloadRepository?.();
       } else if (terminal.status === "cancelled") {
-        toast("Scan cancelled; the previous current snapshot remains available.");
+        toast("Scan cancelled; the previous complete saved scan remains available.");
       } else {
         toast(terminal.error || "Scan failed.", true);
       }
@@ -163,8 +163,8 @@ function setupRefreshEvents() {
     try {
       const result = await request(api("/api/semantic/prepare"), { method: "POST" });
       toast(result.status === "prepared"
-        ? "Semantic queue prepared against the current snapshot."
-        : result.recommended_action || "A structural scan is required before semantic work.");
+        ? "AI mapping tasks were saved for the current scan."
+        : result.recommended_action || "Run a read-only file scan before preparing AI mapping tasks.");
       state.semanticStatus = await request(api("/api/semantic"));
       renderOverview();
       scheduleSemanticPoll();

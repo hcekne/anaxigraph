@@ -30,7 +30,7 @@ test("Constellation light is the default and theme choices persist", async ({ pa
   await expect(picker).toHaveValue("constellation-dark");
 });
 
-test("architecture cards have one LOC bar, segmented in place", async ({ page }) => {
+test("architecture cards have one code-line bar, segmented in place", async ({ page }) => {
   await openDashboard(page);
   const cards = page.locator(".group-family");
   expect(await cards.count()).toBeGreaterThan(5);
@@ -51,11 +51,11 @@ test("map layers update their hierarchy explanation", async ({ page }) => {
 
   await picker.selectOption("policy");
   await expect(page.locator("#map-layer-description")).toContainText(
-    "Repository-configured path groups only",
+    "code areas defined by path rules",
   );
   await picker.selectOption("inferred");
   await expect(page.locator("#map-layer-description")).toContainText(
-    "Deterministic path inference only",
+    "Guesses code areas from file paths",
   );
 });
 
@@ -117,7 +117,7 @@ test("durable history progress is actionable without blocking current views", as
   await expect(page.locator("#history-import-button")).toBeDisabled();
 
   await page.locator("#history-cancel-button").click();
-  await expect(page.locator("#history-help")).toContainText("Completed frames remain usable");
+  await expect(page.locator("#history-help")).toContainText("Completed code maps remain usable");
   await expect(page.locator("#history-import-button")).toHaveText("Retry / resume history");
   await expect(page.locator("#history-cancel-button")).toBeHidden();
 });
@@ -125,7 +125,7 @@ test("durable history progress is actionable without blocking current views", as
 test("relationship completeness and analyzer limits are visible", async ({ page }) => {
   await openDashboard(page);
   await expect(
-    page.locator(".metric", { hasText: "Internal link resolution" }).locator("strong"),
+    page.locator(".metric", { hasText: "Code links matched to files" }).locator("strong"),
   ).toContainText("%");
   const notice = page.locator("#graph-quality-notice");
   await expect(notice).toBeVisible();
@@ -207,37 +207,41 @@ test("graph area labels fit and deselecting an area rebuilds the viewport", asyn
   await expect(canvas).toHaveAttribute("data-region-count", String(initialRegions));
 });
 
-test("architecture overview opens one bounded graph region at a time", async ({ page }) => {
+test("architecture overview opens one graph region at a time", async ({ page }) => {
   await openDashboard(page);
   await page.getByRole("button", { name: "Graph", exact: true }).click();
   const browser = page.locator("#graph-region-browser");
   await expect(browser).toBeVisible();
-  await expect(browser).toContainText("Architecture-first explorer");
+  await expect(browser).toContainText("Browse one repository area at a time");
   const testing = browser.locator('[data-graph-region="testing"]');
-  await expect(testing).toContainText("modules");
+  await expect(testing).toContainText("files");
   await testing.click();
   await expect(browser.locator(".graph-region-summary strong")).toHaveText("Testing");
   await expect(testing).toHaveClass(/active/);
   await expect(page.locator("#graph-canvas")).toHaveAttribute("data-region-count", "1");
   await browser.locator('[data-graph-region=""]').click();
-  await expect(browser.locator(".graph-region-summary strong")).toHaveText("All Modules");
+  await expect(browser.locator(".graph-region-summary strong")).toHaveText("All Files");
 });
 
 test("reference artifacts are excluded by default and pattern review is visible", async ({ page }) => {
   await openDashboard(page);
-  await page.getByRole("button", { name: "Modules", exact: true }).click();
-  await expect(page.getByRole("columnheader", { name: "Pattern / rewrite" })).toBeVisible();
+  await page.getByRole("button", { name: "Files", exact: true }).click();
+  await expect(page.getByRole("columnheader", { name: "Pattern idea" })).toBeVisible();
   await page.locator("#module-search").fill("feedback-log.md");
-  await expect(page.locator("#module-table-body")).toContainText("No modules match");
+  await expect(page.locator("#module-table-body")).toContainText("No files match");
 
   await page.locator("#module-include-reference").check();
   await expect(page.locator("#module-table-body")).toContainText("feedback-log.md", { timeout: 10_000 });
   const feedback = page.locator(".module-row", { hasText: "feedback-log.md" });
-  await expect(feedback.locator(".attention-pill.reference")).toHaveText("—");
+  await expect(feedback.locator(".attention-pill.reference")).toHaveText("Reference");
   await expect(feedback.locator(".pattern-cell")).toHaveText("Not evaluated");
   await feedback.click();
+  await expect(page.locator(".module-detail-row")).toContainText("Reference file");
+  await expect(page.locator(".module-detail-row")).not.toContainText("attention triage");
   await page.locator('[data-module-graph="docs/feedback-log.md"]').click();
-  await expect(page.locator("#inspector")).toContainText("Frame reason");
+  await expect(page.locator("#inspector")).toContainText("Why this version was read");
+  await expect(page.locator("#inspector")).toContainText("Fingerprints identify");
+  await expect(page.locator("#inspector")).not.toContainText("Frame reason");
 });
 
 test("settings explains every connected repository and MCP handoff", async ({ page }) => {
@@ -245,7 +249,7 @@ test("settings explains every connected repository and MCP handoff", async ({ pa
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   expect(await page.locator(".settings-repository").count()).toBeGreaterThanOrEqual(1);
   await expect(page.locator(".settings-repository.current")).toHaveCount(1);
-  await expect(page.locator(".settings-repository.current")).toContainText("Auto");
+  await expect(page.locator(".settings-repository.current")).toContainText("Choose automatically");
   await expect(page.locator("#settings-mcp-url")).toHaveText(`${new URL(page.url()).origin}/mcp`);
   await expect(page.locator("#settings-init-command")).toContainText("anaxigraph init .");
   await expect(page.locator("#settings-codex-command")).toHaveText(
@@ -258,7 +262,7 @@ test("settings explains every connected repository and MCP handoff", async ({ pa
     "AI mapping is turned off for this repository",
   );
   await expect(page.locator("#view-settings")).toContainText(
-    "the connected coding agent can claim bounded evidence",
+    "the connected coding agent reads one saved task at a time",
   );
 });
 

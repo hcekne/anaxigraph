@@ -1,4 +1,4 @@
-"""Evidence-bounded requests for pattern assessment and independent critique."""
+"""Size-limited evidence for pattern assessment and a separate AI check."""
 
 from __future__ import annotations
 
@@ -46,18 +46,19 @@ def pattern_request(
 def _contract(kind: str) -> str:
     if kind == "pattern_assessment":
         return (
-            "Evaluate this one sparse pattern candidate against the supplied repository-local "
-            "evidence. Score every dimension independently. Distinguish a suitable pattern that "
-            "is already present from a worthwhile change. Return the complete strict pattern "
-            "evaluation; do not edit source or request operator approval."
+            "Evaluate this one possible pattern match against the supplied evidence from this "
+            "repository. Answer every score question separately. A pattern can fit well and "
+            "already be present, which usually means no code change is useful. Return every "
+            "required result field. Do not edit source or ask a person to approve the answer."
         )
     if kind == "pattern_review":
         return (
-            "Independently critique the supplied pattern assessment. Check scope, pattern "
-            "identity, alternatives, counter-evidence, score consistency, migration cost, and "
-            "whether the recommendation adds more machinery than value. Return a complete "
-            "corrected evaluation even when approving it. Preserve a supported competing "
-            "interpretation instead of fabricating consensus. Do not request operator approval."
+            "Independently check the supplied pattern result. Check whether it judged the right "
+            "piece of code and the right pattern, considered simpler alternatives and evidence "
+            "against the idea, used its scores consistently, counted the work and disruption of "
+            "changing code, and avoided adding more concepts than the problem needs. Return every "
+            "field of the corrected result even when the first result was right. Keep a different "
+            "explanation when evidence truly supports both. Do not ask a person to approve it."
         )
     raise ValueError(f"unsupported pattern job kind: {kind}")
 
@@ -76,6 +77,20 @@ def _constraints() -> dict[str, Any]:
             "execution_safety",
             "migration_cost",
         ],
+        "score_meanings": {
+            "applicability": "Does this pattern address the kind of problem found here?",
+            "suitability": "How well does this pattern fit this exact code and repository?",
+            "conformance": "How much of this pattern does the code already use?",
+            "opportunity": "How much evidence says changing the code would help?",
+            "confidence": "How strongly does the supplied evidence support this result?",
+            "benefit": "How much could the supported change improve the code?",
+            "urgency": "How soon, if at all, does this need attention?",
+            "execution_safety": "How safely could the change be made and checked in small steps?",
+            "migration_cost": (
+                "How much work and disruption would the change require? A higher score means "
+                "more cost, not a better result."
+            ),
+        },
         "high_conformance_rule": (
             "High suitability plus high conformance describes a retained example, not a high "
             "refactoring opportunity."
@@ -110,7 +125,7 @@ def _source_evidence(
         return {}
     candidate = (root / path).resolve()
     if not candidate.is_relative_to(root) or not candidate.is_file() or candidate.is_symlink():
-        raise SupersededSemanticJob("The pattern target module no longer exists")
+        raise SupersededSemanticJob("The file for this pattern check no longer exists")
     raw = candidate.read_bytes()
     with database.connect() as connection:
         version, symbols = module_facts(
@@ -150,7 +165,7 @@ def _bounded_source(
         return source, {"start_line": 1, "end_line": len(lines)}, False
     head = source[: limit // 2]
     tail = source[-(limit // 2) :]
-    marker = "\n# … source middle omitted by bounded pattern evidence …\n"
+    marker = "\n# … source middle omitted to keep this evidence page small …\n"
     return head + marker + tail, {"start_line": 1, "end_line": len(lines)}, True
 
 

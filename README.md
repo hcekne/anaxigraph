@@ -30,7 +30,7 @@ quietly become spaghetti code.
 
 AnaxiGraph turns a repository and its Git history into a living architecture record. It helps
 people and coding agents see how the system fits together, decide what deserves attention, plan a
-bounded change, and verify what the change actually did. Its job is not to hand out a magic
+small change, and verify what the change actually did. Its job is not to hand out a magic
 architecture score; it makes trade-offs visible, evidence-backed, and reviewable before entropy
 hardens into the design.
 
@@ -39,9 +39,9 @@ hardens into the design.
 | 🧹 **Entropy control** | Detect growing modules, cycles, boundary erosion, hotspots, and repeated responsibilities early. |
 | 🕸️ **System visibility** | Move from a bird's-eye architecture map to the dependencies, history, and evidence of one module. |
 | 🕰️ **Repository biography** | Replay representative real Git commits and inspect how the architecture grew. |
-| 🧭 **Auditability** | Keep deterministic facts, model interpretations, recommendations, and human decisions distinct. |
+| 🧭 **Auditability** | Keep facts read from code, AI explanations, recommendations, and recorded decisions distinct. |
 | 🏛️ **Design guidance** | Ground patterns, refactors, placement, and consolidation advice in the codebase that actually exists. |
-| 🤖 **Safer agent work** | Give a coding agent the smallest useful scope, blast radius, active risks, and verification plan. |
+| 🤖 **Safer agent work** | Give a coding agent the smallest useful file list, code that may be affected, active risks, and checks to run. |
 
 ## 🚀 Start in four steps
 
@@ -55,7 +55,7 @@ uvx anaxigraph up . --open --semantic agent --connect codex
 ```
 
 Use `--connect claude` for Claude Code. Omit `--semantic agent --connect codex` when you only want
-the deterministic map.
+the code-only map.
 
 This command creates or loads repository policy, stores AnaxiIndex outside the target, completes
 the current scan, starts the loopback dashboard and AnaxiMCP, and builds representative Git history
@@ -75,11 +75,11 @@ cd /path/to/your/repository
 codex
 ```
 
-### 4. Ask it to build the semantic baseline
+### 4. Ask it to build the AI-created code map
 
-> Use AnaxiGraph to build or resume the semantic baseline for this repository, using your own
-> model context and tokens. Launch the durable host executor, do not edit source while mapping,
-> and monitor it until semantic status reports ready.
+> Use AnaxiGraph to build or resume the AI-created code map for this repository, using your own
+> model context and tokens. Start the background coding-agent worker, do not edit source while
+> mapping, and monitor it until the status says the map is up to date.
 
 The durable command survives the invoking Codex session:
 
@@ -91,14 +91,17 @@ anaxigraph semantic-status .
 With `semantic.provider: agent`, `understand` auto-detects an invoking Codex or Claude session and
 uses that authenticated local CLI as a read-only semantic executor. Use `--executor codex` or
 `--executor claude` to select one explicitly. Use `--executor mcp` when the already-connected agent
-should perform the MCP work loop itself; that mode returns `status: agent_action_required` until
-the agent has actually submitted every queued artifact. `--background` implies the complete queue,
+should perform the MCP work loop itself; that mode returns `status: agent_action_required`—meaning
+the agent still has work to do—until it has submitted every task. `--background` includes the
+complete saved task list,
 records a durable run handoff in user state, and keeps the host worker alive if the coding-agent
-session exits. `semantic-status` reports that worker's PID, log, terminal state, exact index
-authority, model, and reasoning effort. The command deliberately omits a model so the executor can
+session exits. `semantic-status` reports whether that worker is really running, where its log is,
+whether it finished, which saved index it is using, and its model and reasoning effort. The command
+deliberately omits a model so the executor can
 use its currently supported configured default. Only pass `--model` or `--reasoning-effort` for an
-explicit runtime override; changing either never makes a dossier stale. Direct MCP looping is a bounded
-fallback when no authenticated host executor is available, not the default full-baseline path.
+explicit runtime choice; changing either never makes an existing AI description stale. Direct MCP
+looping handles one limited task at a time when no authenticated host worker is available; it is
+not the default way to build the complete map.
 
 When the loopback dashboard is already running, `understand` matches the checkout to its service by
 Git remote identity and executes against that sidecar's AnaxiIndex—even when the container sees the
@@ -109,13 +112,14 @@ selects a standalone index, and `--service-url` explicitly selects a service. Ev
 reports the chosen `index.authority` and physical/service identity for unambiguous handoff.
 
 That is the key cost model: **the connected coding agent does the reasoning with its own tokens**.
-AnaxiGraph needs no model key in `provider: agent` mode. It leases bounded evidence one module or
-scope at a time, validates returned dossiers, records provenance, and resumes unfinished work in a
-later session. Once module context is current, the same workflow automatically proposes a
+AnaxiGraph needs no model key in `provider: agent` mode. It gives the agent a limited page of
+evidence for one file or code area at a time, checks the returned structured description, records
+which worker and model created it, and resumes unfinished work in a later session. Once every file
+has a current description, the same workflow automatically proposes a
 responsibility-based area/subsystem map, runs independent AI critic/revision passes, and applies
-deterministic exact-membership and size checks. There is no human approval gate: the result is
+exact membership and size checks in code. There is no human approval gate: the result is
 versioned map metadata and never edits or controls the analyzed code. Unchanged fingerprints avoid
-rereading unchanged modules or rebuilding an unchanged taxonomy. View the result in the dashboard
+rereading unchanged files or rebuilding an unchanged file grouping. View the result in the dashboard
 Map selector or through `ANAXIGRAPH_TAXONOMY`.
 
 The complete [onboarding guide](docs/onboarding.md) explains the normal coding loop and setup
@@ -141,8 +145,8 @@ experimental multi-repository registry.
 ## 🔌 Install the guided agent workflow
 
 The shared plugin teaches Codex and Claude Code how to select the right indexed repository, build
-or resume semantic dossiers, inspect bounded scope and impact, hand off a planned finding, and
-verify a completed change.
+or resume the AI-created code map, find a small set of likely files and affected callers, hand off
+a planned finding, and verify a completed change.
 
 Codex:
 
@@ -165,15 +169,15 @@ plugin users may omit `--connect` from the start command. See the
 ## How it works
 
 ```text
-source + Git ── deterministic scan and hashes ──→ versioned AnaxiIndex
+source + Git ── facts read from code and file hashes ──→ versioned AnaxiIndex
                                                        │ changed/stale work only
                                                        ▼
-                                            semantic work queue
+                                             saved AI task list
                                                        │
                                               connected coding agent
                                                        │ own model + tokens
                                                        ▼
-                                       versioned, validated dossiers
+                                  versioned, checked code descriptions
 ```
 
 Structural refresh and semantic execution are separate operations. A dashboard **Refresh scan**
@@ -183,9 +187,10 @@ the already-current snapshot and never hides a structural rescan inside the comm
 Three named surfaces share one index:
 
 - **AnaxiGraph** is the scanner, dashboard, and overall project.
-- **AnaxiIndex** is the SQLite record of repositories, files, symbols, relationships, findings,
-  history, and semantic dossiers.
-- **AnaxiMCP** exposes bounded repository context and controlled index workflows to coding agents.
+- **AnaxiIndex** is the SQLite record of repositories, files, named code parts, direct code links,
+  findings, history, and AI-created descriptions.
+- **AnaxiMCP** gives coding agents size-limited repository evidence and controlled ways to update
+  the external index.
 
 AnaxiGraph does not execute target code and does not edit repository source. A generated sidecar
 mounts the target read-only. The target needs only optional `.anaxigraph.yml` policy; analysis
@@ -195,10 +200,11 @@ state stays external.
 
 AnaxiGraph deliberately separates:
 
-1. **deterministic facts**—hashes, syntax, symbols, references, Git changes, complexity, imported
-   coverage, and analyzer provenance;
-2. **interpretations**—purpose, responsibilities, architecture role, related behavior, and pattern
-   opportunities, each with model/prompt/evidence/confidence provenance; and
+1. **facts read directly from repository data**—hashes, code structure, named code parts, direct
+   links, Git changes, branch counts, imported test coverage, and which analyzer produced them;
+2. **AI explanations**—purpose, responsibilities, role in the repository, related behavior, and
+   pattern opportunities, each with the model, instructions, evidence, and evidence-strength
+   rating that produced it; and
 3. **recommendations**—reviewable proposals with evidence, counter-evidence, cost, safety, and
    lifecycle state.
 
@@ -208,21 +214,21 @@ runtime wiring can still be invisible, so a missing edge is never presented as p
 ### One index, several views
 
 - **Overview** summarizes areas, evidence completeness, history, and immediate attention.
-- **Modules** is a sortable/filterable ledger of purpose, placement, size, complexity, coupling,
-  Git activity, coverage state, findings, and pattern review.
-- **Graph** moves between architecture regions and module-level relationships.
+- **Files** is a sortable and filterable list of purpose, repository area, size, branch count,
+  direct code links, Git activity, test coverage, findings, and pattern review.
+- **Graph** moves between repository areas and direct links between files.
 - **Architecture** separates a short attention list from the complete finding record.
 - **History** replays representative first-parent commits from repository initialization to HEAD.
 - **Agents** builds evidence-backed work scope, saves a versioned before-change baseline, compares
   it after a rescan, and explains semantic progress without calling every difference an
-  improvement. Reviewed patterns keep their bounded plain-language explanation in this handoff;
+  improvement. Reviewed patterns keep their size-limited plain-language explanation in this handoff;
   agents do not receive unexplained suitability or opportunity numbers.
 - **Pattern intelligence** lets agents query finalized evaluations by target or catalog pattern
-  in the **Patterns** view or through `anaxigraph patterns`, `ANAXIGRAPH_PATTERNS`, and the bounded
+  in the **Patterns** view or through `anaxigraph patterns`, `ANAXIGRAPH_PATTERNS`, and the paged
   `/api/patterns` endpoint. Each result leads with a conclusion, evidence, action, cautions, and
   verification; its nine exact ratings are grouped and explained instead of shown as a number wall.
   Candidate results likewise explain why a pair was selected or skipped, what evidence is missing,
-  and why the bounded queue rank is not itself a pattern recommendation.
+  and why the internal selection order is not itself a pattern recommendation.
 
 ## 🎯 Findings are a workflow, not a wall
 
@@ -233,12 +239,13 @@ quiet the UI.
 Every finding says what AnaxiGraph saw, why it may matter, what to do, when the code may be fine as
 it is, and how to check the result. The dashboard, REST API, MCP tools, scope results, and copied
 agent prompt use the same wording. Exact rule IDs, evidence values, and ordering scores remain
-structured fields for automation instead of becoming a wall of labels. **Plan agent work** selects
+structured fields for automation, but each field has an adjacent ordinary-language meaning; they
+are never dumped into a jargon-filled “technical details” section. **Plan agent work** selects
 a finding for implementation; resolution and regression normally come from a later scan.
 
 ## Current support boundary
 
-The deepest deterministic analysis is currently Python-first. JavaScript and TypeScript use the
+The deepest code reading is currently Python-first. JavaScript and TypeScript use the
 built-in lexical analyzer; other recognized source and text formats have heuristic or inventory
 support. The roadmap deliberately does not call extension recognition “full language support.”
 Parser-backed JavaScript/TypeScript, Go, Rust, and Java are the next language-platform phase.
@@ -265,7 +272,7 @@ uv run pre-commit install --install-hooks
 uv run python scripts/run_quality_gate.py --base origin/main
 ```
 
-The quality gate includes a fresh deterministic AnaxiGraph scan of this repository. Its full report
+The quality gate includes a fresh, repeatable AnaxiGraph scan of this repository. Its full report
 is retained in CI and compared with
 [`quality/self-analysis-baseline.json`](quality/self-analysis-baseline.json); new or worsened
 warning/error findings fail while unchanged information-level diagnostics remain visible and

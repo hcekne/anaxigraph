@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.20
+**Roadmap version:** 3.21
 
 **Updated:** 25 August 2026
 
@@ -14,8 +14,8 @@ previous roadmap. AnaxiGraph now has three credible differentiators:
 
 1. a temporal architecture record rather than only a current-state graph;
 2. explicit provenance for resolved, ambiguous, unresolved, and external relationships; and
-3. agent-funded semantic understanding, where a connected coding agent uses its own context and
-   tokens and writes a validated dossier back to AnaxiIndex.
+3. AI-created code understanding, where a connected coding agent uses its own context and tokens
+   and writes a checked, structured description of the code back to AnaxiIndex.
 
 Those strengths will not matter if a first history import takes an hour, a repository's primary
 language falls through to a lexical fallback, or installation feels like a small deployment
@@ -95,7 +95,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 522 tests passing at 90.96% coverage plus 16 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
+| Test health | 526 tests passing at 91.07% coverage plus 16 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, and post-change comparison paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -1735,7 +1735,7 @@ test guidance, rescan arguments, and the exact snapshot/hash/finding/pattern bas
 together. Tight wire budgets compact the details while preserving contract, status, preferred
 path, and counts. This adds no table, provider call, queue kind, route, MCP tool, or dashboard state.
 
-The goal-specific packet now preserves the bounded `pattern-explanation-v1` conclusion,
+The goal-specific packet now preserves the size-limited `pattern-explanation-v2` conclusion,
 observations, reason, action, caution, verification, and independent-review summary for every
 included pattern. One shared reading guide explains reuse versus opportunity and the four retained
 ratings. Agents therefore receive the same meaning as the pattern query and dashboard instead of a
@@ -1752,8 +1752,8 @@ sentences instead of leading with scores and confidence percentages. Existing se
 are translated when read, so this change creates no semantic work and invalidates no completed
 dossier.
 
-The rest of the goal-specific packet now uses `architecture-handoff-explanation-v1` and
-`architecture-verification-explanation-v1` instead of asking an agent to interpret internal status
+The rest of the goal-specific packet now uses `architecture-handoff-explanation-v2` and
+`architecture-verification-explanation-v2` instead of asking an agent to interpret internal status
 names and raw deltas. The packet states why its evidence is complete or partial, where to start,
 what behavior must remain true, what could go wrong, how to rescan, what changed, and what that
 change does not prove. Same-snapshot comparisons explicitly say that no post-change observation was
@@ -1763,7 +1763,7 @@ over the existing facts and comparison contract, with no semantic work, persiste
 freshness input.
 
 Agent file summaries retain raw semantic pattern, consolidation, and possible-unused-code fields
-for compatibility, but `semantic-file-explanation-v1` now labels their freshness and evidence
+for compatibility, but `semantic-file-explanation-v2` now labels their freshness and evidence
 strength and says explicitly that they are early AI notes rather than instructions to refactor or
 delete code. Agents are directed to `architecture_decision`, where the map checks those notes
 against repository evidence and explains its recommendation. The dashboard Workbench renders that
@@ -1781,8 +1781,8 @@ stable counts and resolution states remain available for automation. The underly
 are also ordinary sentences, so opening or querying more detail never reveals a second layer of
 unexplained shorthand.
 
-Semantic-run status now follows it as well. `semantic-status-explanation-v1` tells both people and
-agents whether work is running **now**, whether an idle queue is safely saved but unable to finish
+Semantic-run status now follows it as well. `semantic-status-explanation-v2` tells both people and
+agents whether work is running **now**, whether an idle task list is safely saved but unable to finish
 by itself, how many included files have current self-and-repository descriptions, which file or
 whole-map work failed or remains, and the exact action that resumes it. Progress is explicitly a
 count of current file descriptions rather than a code-quality grade. Agent-backed status says that
@@ -1795,6 +1795,31 @@ contracts now live in a focused 177-line file, reducing the general dashboard co
 289 lines. Those contracts also pin the expired-lease case: saved work with zero live leases is
 shown as idle, the resume button stays enabled, and polling does not claim that the departed agent
 is still running.
+
+Plain-language output is now a product contract rather than a dashboard treatment. New and already
+stored architecture findings are read through `plain-language-v2`, so the old message “estimated
+complexity 17” becomes an explanation of a branch score: what adds to it, why more possible
+outcomes may be harder to test, why the function may still be correct, and the smallest useful
+check. The dashboard, CLI, REST, MCP, agent handoff, file detail, impact result, pattern result, and
+mapping status use the same ordinary sentences. No second “technical details” view is allowed to
+contain unexplained labels. Stable JSON names remain for integrations, but every status, score,
+confidence value, and source label has an adjacent meaning that says what it measures and what it
+does **not** prove.
+
+AI work requests now carry one shared writing rule and a dictionary for unavoidable machine terms.
+The worker must write short, concrete sentences for a smart twelve-year-old and another coding
+agent; state the observed fact, consequence, evidence, uncertainty, and useful next action; and
+define a necessary design term in the sentence where it appears. Pattern requests separately
+define all nine scores, including that a high change-cost score means more work rather than a
+better result. Independent AI review checks alternatives, contrary evidence, score consistency,
+and needless machinery without adding a human approval step.
+
+This writing-only hardening deliberately does not change the semantic freshness identity. It does
+not turn a completed code description stale, drop semantic coverage to zero, or create background
+work. New tasks and tasks refreshed because their code or evidence genuinely changed receive the
+new writing rules. Older saved AI prose remains evidence with its existing creation details until
+such a normal refresh; read-time explanations state its limits instead of pretending an old model
+sentence became clearer by moving it elsewhere. No live semantic run was started for this change.
 
 Deterministic dead-code candidates now require trusted relationship resolution, no resolved or
 ambiguous inbound path, configured and conventional entry-point exclusion, parser-backed support
@@ -1827,7 +1852,7 @@ and an observed difference is not called an improvement without the intended out
 | Removal safety | Python fixtures prove trusted module candidates, detected registration suppression, heuristic-language suppression, configured entry-point suppression, uncorroborated semantic suppression, and module/symbol granularity separation; `safe_to_remove` remains false |
 | Responsive authority | A blocking synchronous MCP tool no longer blocks the event loop; discovery tests prove connection-refused fallback, transient retry, and timeout refusal, while real SDK MCP and sidecar-preparation tests retain the work protocol |
 | Focused orchestration | Scope response assembly now lives behind a bounded payload service, reducing `agent_scope` from its 128-line/complexity-24 ratchet to 97/8; finding handoff and reverse-impact assembly moved out of their former 96/22 and 77/18 functions. `agent.py` is 233 lines, the focused finding and impact services are 164 and 143, and all three obsolete self-analysis findings are removed |
-| Verification | The complete suite passes 522 tests at 90.96% coverage; all 16 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis at 30 governed findings, 131 non-blocking findings, and zero issues |
+| Verification | The complete suite passes 526 tests at 91.07% coverage; all 16 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis at 27 governed findings, 130 non-blocking findings, and zero issues |
 
 ## 6.8 Expose pattern intelligence without multiplying product surfaces
 
@@ -1889,7 +1914,7 @@ stable per-checkout local index; timeouts and invalid inventories fail closed. E
 and service selectors are mutually exclusive, and every response identifies its index authority so
 a completed sidecar map cannot be mistaken for an empty host-local index.
 
-Every finalized evaluation now also carries `pattern-explanation-v1`. It turns the existing review
+Every finalized evaluation now also carries `pattern-explanation-v2`. It turns the existing review
 into one explicit conclusion, observed evidence, reason, proposed action, reasons not to change the
 code, verification steps, and an ordinary-language account of all nine ratings. The dashboard
 shows that complete explanation directly instead of leading with a nine-number grid. REST, MCP,
@@ -1903,7 +1928,7 @@ below-cutoff, bounded-out, and not-yet-final selections each state their reason 
 and opposing observations, missing feature evidence, analyzer capability gaps, the next machine
 step, and the internal queue rank are explained without turning that rank into a pattern rating or
 refactoring recommendation. Exact signal/operator/capability records remain available as optional
-machine evidence, but they are not a jargon escape hatch: `pattern-candidate-detail-explanation-v1`
+machine evidence, but they are not a jargon escape hatch: `pattern-candidate-detail-explanation-v2`
 now tells both people and agents what each rule checked, what value it found, how the observation
 affected selection, how strongly the observation is supported, what analyzer detail was required,
 and whether enough information was available. The dashboard presents those sentences under “How
@@ -1920,9 +1945,9 @@ reasons, and one-click pivots between finalized evaluations and skipped-target e
 Sixty focused candidate/query/calibration/language-contract cases, CLI authority handoff coverage,
 completed-semantic projection coverage, REST integration, and a real MCP SDK round trip cover the
 read model. The dashboard candidate workflow passes within all 16 browser contracts in the pinned
-Playwright container. The complete suite passes 522 tests at 90.96% coverage; architecture, size,
+Playwright container. The complete suite passes 526 tests at 91.07% coverage; architecture, size,
 maintainability, formatting, and deterministic self-analysis gates report no errors or regressions,
-with self-analysis at 30 governed findings, 131 non-blocking findings, and zero issues.
+with self-analysis at 27 governed findings, 130 non-blocking findings, and zero issues.
 
 ## 6.9 Make repository-sized semantic bootstrap operational
 

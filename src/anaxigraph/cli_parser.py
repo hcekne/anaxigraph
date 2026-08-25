@@ -17,7 +17,9 @@ from anaxigraph.onboarding_cli import configure_initialize_command
 def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="anaxigraph",
-        description="AnaxiGraph: temporal architecture intelligence for software repositories.",
+        description=(
+            "AnaxiGraph: a saved map of repository files, direct code links, findings, and Git history."
+        ),
     )
     parser.add_argument("--version", action="version", version=f"AnaxiGraph {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)

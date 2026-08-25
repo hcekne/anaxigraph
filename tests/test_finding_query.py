@@ -6,6 +6,7 @@ import pytest
 
 from anaxigraph.config import load_config
 from anaxigraph.finding_transport import collect_finding_ledger, query_findings
+from anaxigraph.persistence.finding_read import finding_priority
 from anaxigraph.scanner import RepositoryScanner
 
 
@@ -128,6 +129,33 @@ def test_finding_pages_explain_actionability_and_honor_agent_budget(repository, 
             cursor=page["next_cursor"],
             severities=("error",),
         )
+
+
+def test_priority_reasons_distinguish_file_wide_and_function_branch_scores():
+    result = finding_priority(
+        {
+            "finding_type": "symbol_complexity",
+            "severity": "warning",
+            "confidence": 1.0,
+            "status": "new",
+            "affected_artifacts": ["pkg/core.py"],
+            "evidence": ["estimated_cyclomatic_complexity=17"],
+        },
+        {
+            "pkg/core.py": {
+                "change_count": 9,
+                "fan_in": 20,
+                "fan_out": 4,
+                "complexity": 92,
+            }
+        },
+    )
+
+    reasons = " ".join(result["plain_language"]["priority"]["reasons"])
+    assert "file-wide branch score of 92" in reasons
+    assert "combines branches across its functions" in reasons
+    assert "separate from any one function's score" in reasons
+    assert "has a measured branch score of 92" not in reasons
 
 
 def test_later_scans_resolve_and_regress_the_same_finding(repository, database):

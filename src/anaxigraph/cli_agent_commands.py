@@ -1,4 +1,4 @@
-"""CLI registration and handlers for bounded coding-agent context."""
+"""CLI registration and handlers for focused coding-agent context."""
 
 from __future__ import annotations
 
@@ -12,24 +12,30 @@ from anaxigraph.cli_common import add_repository_arguments, ensure_current
 
 
 def configure_agent_commands(commands: Any) -> None:
-    scope = commands.add_parser("scope", help="Return bounded task context for a coding goal")
+    scope = commands.add_parser(
+        "scope", help="Find likely files, relevant tests, risks, and checks for a coding goal"
+    )
     add_repository_arguments(scope)
     scope.add_argument("--goal", required=True, help="The coding goal")
-    scope.add_argument("--branch", help="Feature branch used for collision analysis")
+    scope.add_argument("--branch", help="Branch to check for files also changed elsewhere")
     scope.add_argument(
         "--verification-baseline",
         type=Path,
-        help="JSON baseline from an earlier scope response to compare after a rescan",
+        help="Saved before-change JSON from an earlier scope response to compare after a new scan",
     )
     scope.set_defaults(handler=_scope)
 
-    impact = commands.add_parser("impact", help="Analyze reverse-dependency impact")
+    impact = commands.add_parser(
+        "impact", help="Find code and tests that may be affected by changing a file or symbol"
+    )
     add_repository_arguments(impact)
     impact.add_argument("--target", required=True, help="Repository path or unique symbol")
-    impact.add_argument("--branch", help="Feature branch used for collision analysis")
+    impact.add_argument("--branch", help="Branch to check for files also changed elsewhere")
     impact.set_defaults(handler=_impact)
 
-    collisions = commands.add_parser("collisions", help="Compare active branch change surfaces")
+    collisions = commands.add_parser(
+        "collisions", help="Find files changed by more than one active branch"
+    )
     add_repository_arguments(collisions)
     collisions.set_defaults(handler=_collisions)
 

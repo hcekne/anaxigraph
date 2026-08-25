@@ -109,7 +109,7 @@ def _module_size_finding(rule: RuleConfig, item: dict[str, Any], maximum: int) -
         evidence=(f"lines_of_code={item['lines_of_code']}",),
         action=(
             "Name the file's main jobs. If two jobs can change for different reasons, move the "
-            "smaller one into a clearly named module. If the file has one clear job, keep it together."
+            "smaller one into a clearly named file. If the file has one clear job, keep it together."
         ),
     )
 
@@ -215,9 +215,9 @@ def _dependency_finding(
     finding_type: str,
 ) -> Finding:
     summary = (
-        f"{item['path']} directly uses {count} modules; this project reviews files above {maximum} modules"
+        f"{item['path']} directly uses {count} other files; this project reviews files above {maximum} direct file links"
         if direction == "outgoing"
-        else f"{count} modules directly use {item['path']}; this project reviews files above {maximum} modules"
+        else f"{count} files directly use {item['path']}; this project reviews files above {maximum} direct file links"
     )
     return _finding(
         rule,
@@ -249,17 +249,18 @@ def _cycle_finding(rule: RuleConfig, paths: tuple[str, ...]) -> Finding:
         rule,
         suffix="|".join(paths),
         finding_type="dependency_cycle",
-        summary=f"{len(paths)} modules depend on one another in a loop",
+        summary=f"{len(paths)} files depend on one another in a loop",
         explanation=(
-            "Following the imports or references eventually leads back to the starting module. "
-            "This can make the modules harder to understand and test separately, but it does not "
+            "Following the imports or references eventually leads back to the starting file. "
+            "This can make the files harder to understand and test separately, but it does not "
             "mean the application is broken."
         ),
         paths=paths,
         evidence=paths,
         action=(
-            "Find the smallest link that can point the other way. Move the shared idea into a small "
-            "interface or module, then make the remaining dependencies flow in one direction."
+            "Find the smallest link that can point the other way. If both files need the same "
+            "behavior, move that behavior into a small file they can both use. Then make the "
+            "remaining code links flow in one direction."
         ),
     )
 
@@ -316,7 +317,7 @@ def _drift_finding(rule: RuleConfig, item: dict[str, Any]) -> Finding:
         finding_type="architecture_drift",
         summary=f"{item['path']} no longer fits its declared area",
         explanation=(
-            f"The project places it in {item['declared_group']}, but its path and dependencies make "
+            f"The project places it in {item['declared_group']}, but its path and direct code links make "
             f"it behave more like part of {item['inferred_group']}. Either the map is out of date "
             "or the file has started doing work that belongs elsewhere."
         ),
@@ -327,8 +328,8 @@ def _drift_finding(rule: RuleConfig, item: dict[str, Any]) -> Finding:
         ),
         action=(
             "Choose which description is true. If the file belongs in the declared area, move the "
-            "unrelated work or dependencies out. If it belongs in the suggested area, update its "
-            "location or architecture rule."
+            "unrelated work or code links out. If it belongs in the suggested area, update its "
+            "location or file-placement rule."
         ),
     )
 
@@ -406,25 +407,28 @@ def _dependency_explanation(direction: str) -> str:
 def _dependency_action(direction: str) -> str:
     if direction == "outgoing":
         return (
-            "Group the dependencies by the job they support. If one group belongs to a separate "
-            "job, move that job behind a small, clearly named interface."
+            "Group the direct file links by the job they support. If one group belongs to a separate "
+            "job, move that job into a small file with one clear way for callers to use it."
         )
     return (
-        "Treat its public behavior as a shared promise. Find its callers and tests before changing "
-        "it. Split it only when callers use clearly unrelated parts."
+        "Many callers rely on this file's public behavior. Find those callers and their tests "
+        "before changing it. Split the file only when callers use clearly unrelated parts."
     )
 
 
 def _boundary_explanation(description: str) -> str:
     base = (
-        "The repository's architecture rules say these parts should stay separate. Direct use "
-        "makes that separation harder to protect."
+        "The project's repository-area rules say these files should not use one another directly. "
+        "This code link breaks that rule and makes the intended separation harder to keep."
     )
     return f"{base} Project note: {description}" if description else base
 
 
 def _boundary_action(recommendation: Any) -> str:
-    base = "Change the source file so it reaches the needed behavior through an allowed module."
+    base = (
+        "Change the source file so it reaches the needed behavior through a file the project "
+        "rule allows."
+    )
     return f"{base} Project guidance: {recommendation}" if recommendation else base
 
 

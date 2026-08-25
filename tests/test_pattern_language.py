@@ -66,7 +66,7 @@ def test_pattern_explanation_makes_the_decision_and_all_nine_ratings_readable():
         "pattern_fit": 91,
     }
     assert "not code quality" in result["score_meanings"][-1]["meaning"]
-    assert "A second agent checked" in result["independent_review"]
+    assert "A separate AI pass checked" in result["independent_review"]
 
 
 def test_pattern_explanation_keeps_counter_evidence_and_verification_in_the_main_contract():

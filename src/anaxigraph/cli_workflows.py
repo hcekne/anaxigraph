@@ -24,7 +24,9 @@ __all__ = [
 
 
 def configure_finding_command(commands: Any, handler: Any, default_db: Path) -> None:
-    finding = commands.add_parser("finding", help="Change a finding lifecycle status")
+    finding = commands.add_parser(
+        "finding", help="Mark a saved finding as reviewed, planned, accepted, or not actionable"
+    )
     finding.add_argument("finding_id", type=int)
     finding.add_argument(
         "status",

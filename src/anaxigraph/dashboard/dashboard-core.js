@@ -150,7 +150,7 @@ export function architectureFor(item, layer = state.mapLayer) {
   return {
     area: "unconfigured",
     subsystem: "unconfigured",
-    source: "not present in configured policy",
+    source: "no project path rule places this file",
   };
 }
 

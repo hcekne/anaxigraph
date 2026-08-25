@@ -4,6 +4,27 @@ from __future__ import annotations
 
 from typing import Any
 
+FILE_MEASUREMENT_MEANINGS = {
+    "lines_of_code": "The number of code lines AnaxiGraph counted in the selected saved scan.",
+    "complexity": (
+        "A file-wide branch score that combines decisions such as if-statements, loops, cases, "
+        "and exception handlers across the file. It is not a code-quality grade."
+    ),
+    "fan_in": "How many indexed files directly use this file.",
+    "fan_out": "How many indexed files this file directly uses.",
+    "line_coverage": (
+        "The share of this file's lines run by the imported test report. Missing means no matching "
+        "test report, not zero coverage."
+    ),
+    "change_count": "How many indexed Git commits changed this file.",
+    "attention_score": (
+        "A sorting score that combines size, branches, direct file links, Git changes, and active "
+        "findings. It only decides which files appear first; it is not a grade for the code."
+    ),
+    "raw_hash": "An identifier for the exact file contents in this saved scan, not a score.",
+    "structural_hash": "An identifier for the parsed code structure, not a score.",
+}
+
 FINDING_STATUSES = {
     "new": {
         "label": "New",
@@ -22,7 +43,7 @@ FINDING_STATUSES = {
     },
     "planned": {
         "label": "Planned for agent",
-        "meaning": "This was selected as engineering work; agents can query the planned queue.",
+        "meaning": "This was selected as engineering work; agents can query the planned work list.",
         "next": ["acknowledged", "accepted", "dismissed"],
     },
     "dismissed": {
@@ -36,129 +57,157 @@ FINDING_STATUSES = {
         "next": [],
     },
     "regressed": {
-        "label": "Regressed",
-        "meaning": "A condition that had resolved was detected again.",
+        "label": "Returned",
+        "meaning": "A later scan stopped finding this condition, but a newer scan found it again.",
         "next": ["acknowledged", "planned", "dismissed"],
     },
 }
 
 FINDING_VIEWS = {
     "attention": (
-        "A bounded queue of qualifying new, reviewed, planned, and regressed signals. Planned "
-        "and regressed work remains visible; routine information-level long-function diagnostics "
-        "are excluded unless repository policy opts in."
+        "A short list of findings worth checking first. It includes new findings, findings already "
+        "selected for work, and problems that returned. Small informational notes about long "
+        "functions stay out unless the project's settings ask to include them."
     ),
     "diagnostics": (
-        "The complete finding ledger with filters, exact totals, and cursor pagination. Selecting "
-        "this view changes presentation only; it does not create or delete evidence."
+        "The complete saved list of findings. Filters narrow what you see, exact totals say how "
+        "many match, and pages keep a large list manageable. Changing views does not create or "
+        "delete a finding."
     ),
 }
 
 OVERLAYS = {
     "architecture": (
-        "Color shows the effective architecture group. Configured path rules win; path/runtime "
-        "inference is used only as a fallback. Translucent regions are parent architecture areas "
-        "and can stay visible beneath any metric overlay."
+        "Color shows which repository area each file belongs to. A project setting can place files "
+        "by path. When no setting matches, AnaxiGraph makes a best guess from the file path and "
+        "how the code runs. The large faint boxes show broader areas."
     ),
     "coupling": (
-        "Hotter modules have more incoming and outgoing dependencies. High coupling means a "
-        "change may reach more of the repository; it is not automatically bad."
+        "Hotter-colored files have more direct code links: they use more files, more files use "
+        "them, or both. A change there may affect more code, but many links are not automatically bad."
     ),
     "complexity": (
-        "Hotter modules contain more detected decision branches. Use this to find inspection "
-        "targets, then judge cohesion and tests before refactoring."
+        "Hotter-colored files contain more decisions such as if, match, and loop branches. Use "
+        "this to choose files to inspect; the number alone does not prove that a refactor would help."
     ),
     "coverage": (
-        "Green modules have higher imported line coverage; red modules have lower coverage. Grey "
-        "means no matching coverage artifact was imported, not zero coverage."
+        "Green files had more of their lines run by the imported test report; red files had fewer. "
+        "Grey means no test report matched the file. It does not mean tests ran zero lines."
     ),
     "change": (
-        "Hotter modules appear in more recent Git history records and may be active change "
-        "hotspots."
+        "Hotter-colored files changed in more of the Git commits AnaxiGraph indexed. This can show "
+        "where work happens often; it is not a quality grade."
     ),
     "dead-code": (
-        "Amber modules have no resolved or ambiguous incoming path, are old enough to inspect, "
-        "are not configured or detected entry points, and have parser-backed registration checks. "
-        "Dynamic runtime use has still not been ruled out."
+        "Amber files may be unused. AnaxiGraph found no other indexed file that clearly or possibly "
+        "points to them, they have not changed recently, and they are not known starting files or "
+        "registered handlers. Code can still reach them while the program runs, so inspect before deleting."
     ),
     "agent": (
-        "After planning a task, green is recommended context, amber is a protected boundary, and "
-        "red is also changed by another branch. Before a task is planned this overlay is neutral."
+        "After you describe a coding task, green files are useful to read, amber files are marked "
+        "by project rules as needing extra care, and red files also changed on another branch. "
+        "Before a task is described, every file uses a neutral color."
     ),
     "drift": (
-        "Red means the configured architecture group differs from the path/runtime fallback. It "
-        "asks whether policy, placement, or responsibility is stale; it does not prove a defect."
+        "Red means a project setting places the file in one area while its path and runtime style "
+        "suggest another. Check whether the setting, file location, or file's job is out of date. "
+        "The mismatch does not prove a defect."
     ),
 }
 
 AGENT_WORKFLOW = {
     "scope": (
-        "Describe a coding goal to find a bounded set of likely implementation files, connected "
-        "modules, tests, protected boundaries, applicable rules, known findings, and an "
-        "evidence-backed architecture decision with a post-change baseline."
+        "Describe a coding goal to get a small list of likely implementation files, directly "
+        "related files, tests, files that project rules mark for extra care, relevant rules, known "
+        "findings, advice about where to start, and a saved before-change record for comparison."
     ),
     "impact": (
         "Name a file or symbol before changing it to find direct and indirect code that depends on "
-        "it, relevant tests, migrations, protected paths, and branch collisions."
+        "it, relevant tests, possible database changes, files marked for extra care, and files also "
+        "changed on another branch."
     ),
     "planned_queue": (
-        "A person or agent selects a finding for work. The coding agent calls ANAXIGRAPH_FINDINGS "
-        "with status='planned', then ANAXIGRAPH_FINDING_CONTEXT before editing."
+        "When a finding is selected for work, the coding agent calls ANAXIGRAPH_FINDINGS with "
+        "status='planned', then ANAXIGRAPH_FINDING_CONTEXT before editing."
     ),
     "semantic_memory": (
-        "Call ANAXIGRAPH_SEMANTIC_STATUS to see whether model-backed repository understanding is "
-        "current. ANAXIGRAPH_SCOPE includes compact pattern and placement advice for a coding "
-        "goal; ANAXIGRAPH_FILE exposes the complete versioned dossier and its provenance. For a "
-        "full provider=agent baseline, launch `anaxigraph understand <repository> --executor "
-        "codex --background` and monitor `semantic-status`. Use SCHEMA, WORK, optional EVIDENCE "
-        "pages, and SUBMIT directly only as a bounded fallback. Never report completion until "
-        "semantically_ready is true."
+        "Call ANAXIGRAPH_SEMANTIC_STATUS to see whether the AI-created code map is up to date. "
+        "ANAXIGRAPH_SCOPE gives short pattern and file-placement advice for a coding goal. "
+        "ANAXIGRAPH_FILE gives the full saved AI description, its evidence, and who or what created "
+        "it. To build the complete map with a coding agent, run `anaxigraph understand "
+        "<repository> --executor codex --background` and watch `semantic-status`. Direct SCHEMA, "
+        "WORK, EVIDENCE, and SUBMIT calls are a fallback for processing one saved task at a time. "
+        "Do not report completion until semantically_ready is true."
     ),
 }
 
 
 def product_glossary() -> dict[str, Any]:
     return {
-        "product": {
-            "anaxigraph": "The dashboard, analysis engine, and overall open-source project.",
-            "anaxi_index": (
-                "The persistent repository knowledge store for modules, relationships, intent, "
-                "findings, and history."
-            ),
-            "anaxi_mcp": "The MCP interface that gives coding agents scoped access to AnaxiIndex.",
-        },
-        "architecture": {
-            "hierarchy": ["repository", "area", "subsystem", "module", "symbol"],
-            "declared_group": (
-                "A repository-policy path rule assigned this module to a named responsibility."
-            ),
-            "inferred_group": (
-                "A lower-confidence fallback derived from path and runtime conventions when no "
-                "configured group matched."
-            ),
-            "group_rollup": (
-                "Child groups remain separate for dependency rules but are totalled under their "
-                "parent area in the overview."
-            ),
-        },
-        "findings": {
-            "definition": (
-                "A saved observation produced by a repository rule. It explains what AnaxiGraph "
-                "saw and why it may matter; it is not proof that code must change."
-            ),
-            "confidence": (
-                "Confidence describes how directly the detector observed the condition; it does "
-                "not measure severity or the chance that a refactor is worthwhile."
-            ),
-            "statuses": FINDING_STATUSES,
-            "views": FINDING_VIEWS,
-        },
+        "product": _product_terms(),
+        "architecture": _architecture_terms(),
+        "findings": _finding_terms(),
         "overlays": OVERLAYS,
+        "file_measurements": FILE_MEASUREMENT_MEANINGS,
         "agents": AGENT_WORKFLOW,
         "coverage": {
             "missing": (
-                "No configured coverage.xml or lcov.info matched this snapshot. Missing coverage "
+                "No configured coverage.xml or lcov.info matched this saved scan. Missing coverage "
                 "input is kept distinct from measured 0% coverage."
             )
         },
+    }
+
+
+def _product_terms() -> dict[str, str]:
+    return {
+        "anaxigraph": "The dashboard, analysis engine, and overall open-source project.",
+        "anaxi_index": (
+            "The saved index that lets AnaxiGraph remember files, direct code links, what the "
+            "code does, findings, and Git history between sessions."
+        ),
+        "anaxi_mcp": (
+            "The tool server that lets coding agents read goal-specific facts from AnaxiIndex."
+        ),
+    }
+
+
+def _architecture_terms() -> dict[str, Any]:
+    return {
+        "hierarchy": [
+            "repository — the whole codebase",
+            "area — a broad kind of work",
+            "subsystem — a smaller group of related work inside an area",
+            "module — the stable machine name for one file",
+            (
+                "symbol — the stable machine name for a named code part such as a function, "
+                "method, or class"
+            ),
+        ],
+        "declared_group": (
+            "A project setting placed this file in a named area because its path matched a rule."
+        ),
+        "inferred_group": (
+            "When no project setting matched, AnaxiGraph guessed the file's area from its path "
+            "and how that kind of code normally runs."
+        ),
+        "group_rollup": (
+            "Smaller groups stay separate when checking code-link rules, but the overview also "
+            "adds their file and line counts under one broader area."
+        ),
+    }
+
+
+def _finding_terms() -> dict[str, Any]:
+    return {
+        "definition": (
+            "A saved observation produced by a repository rule. It explains what AnaxiGraph saw "
+            "and why it may matter; it is not proof that code must change."
+        ),
+        "confidence": (
+            "Confidence describes how directly the detector observed the condition; it does not "
+            "measure severity or the chance that a refactor is worthwhile."
+        ),
+        "statuses": FINDING_STATUSES,
+        "views": FINDING_VIEWS,
     }

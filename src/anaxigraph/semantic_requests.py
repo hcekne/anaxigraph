@@ -13,7 +13,12 @@ from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION
 from anaxigraph.semantic_graph import SupersededSemanticJob
 from anaxigraph.semantic_index_port import SemanticIndex
 from anaxigraph.semantic_records import _document_by_id
-from anaxigraph.semantic_request_support import compact_dossier
+from anaxigraph.semantic_request_support import (
+    INPUT_TERM_MEANINGS,
+    PLAIN_LANGUAGE_CONTRACT_VERSION,
+    PLAIN_LANGUAGE_REQUIREMENTS,
+    compact_dossier,
+)
 
 
 class SemanticEvidenceService:
@@ -26,19 +31,25 @@ class SemanticEvidenceService:
         root: Path,
         semantic: SemanticConfig,
     ) -> dict[str, Any]:
+        request: dict[str, Any]
         if job["job_kind"] == "intrinsic":
-            return self._intrinsic_request(job, root)
-        if job["job_kind"] == "context":
-            return self._context_request(job, semantic)
-        if job["job_kind"] in {"taxonomy_proposal", "taxonomy_review"}:
+            request = self._intrinsic_request(job, root)
+        elif job["job_kind"] == "context":
+            request = self._context_request(job, semantic)
+        elif job["job_kind"] in {"taxonomy_proposal", "taxonomy_review"}:
             from anaxigraph.semantic_taxonomy_requests import taxonomy_request
 
-            return taxonomy_request(self._database, job)
-        if job["job_kind"] in {"pattern_assessment", "pattern_review"}:
+            request = taxonomy_request(self._database, job)
+        elif job["job_kind"] in {"pattern_assessment", "pattern_review"}:
             from anaxigraph.semantic_pattern_requests import pattern_request
 
-            return pattern_request(self._database, job, root, semantic)
-        return self._synthesis_request(job)
+            request = pattern_request(self._database, job, root, semantic)
+        else:
+            request = self._synthesis_request(job)
+        request["writing_contract_version"] = PLAIN_LANGUAGE_CONTRACT_VERSION
+        request["writing_requirements"] = PLAIN_LANGUAGE_REQUIREMENTS
+        request["input_term_meanings"] = INPUT_TERM_MEANINGS
+        return request
 
     def _intrinsic_request(self, job: dict[str, Any], root: Path) -> dict[str, Any]:
         path = str(job["scope_key"])
@@ -79,10 +90,10 @@ class SemanticEvidenceService:
             )
         return {
             "contract": (
-                "Describe this module's intrinsic meaning. Ground claims in supplied source, "
-                "symbols, and deterministic relationships. Describe contracts and extension "
-                "seams, but leave cross-module pattern, consolidation, placement, and deletion "
-                "judgments empty until the contextual pass."
+                "Describe what this file does using only its supplied source, named code parts, "
+                "and direct links to other files. Explain behavior callers rely on and places "
+                "intentionally designed for adding behavior. Leave repository-wide pattern, "
+                "combine-or-separate, placement, and deletion judgments empty until the next pass."
             ),
             "schema_version": SEMANTIC_SCHEMA_VERSION,
             "analysis_kind": "intrinsic",
@@ -109,27 +120,7 @@ class SemanticEvidenceService:
             relations = relationships_for_artifact(
                 connection, int(job["snapshot_id"]), int(job["artifact_id"])
             )
-            neighbors = []
-            for path in job["metadata"].get("neighbors", [])[: semantic.max_context_modules]:
-                state = connection.execute(
-                    """
-                    SELECT * FROM semantic_scope_states
-                    WHERE snapshot_id = ? AND scope_type = 'module' AND scope_key = ?
-                    """,
-                    (job["snapshot_id"], path),
-                ).fetchone()
-                if state is None:
-                    continue
-                document_id = state["context_document_id"] or state["intrinsic_document_id"]
-                if document_id:
-                    document = _document_by_id(connection, int(document_id))
-                    neighbors.append(
-                        {
-                            "path": path,
-                            "confidence": document["confidence"],
-                            "dossier": compact_dossier(document["value"]),
-                        }
-                    )
+            neighbors = self._neighbor_dossiers(connection, job, semantic)
             previous = (
                 _document_by_id(connection, int(job["metadata"]["previous_document_id"]))
                 if job["metadata"].get("previous_document_id")
@@ -137,17 +128,16 @@ class SemanticEvidenceService:
             )
         return {
             "contract": (
-                "Explain this module's architectural role and how it collaborates, overlaps, or "
-                "acts as an extension point. Identify similar modules, locally appropriate design "
-                "patterns, consolidation or split opportunities, and where adjacent functionality "
-                "should be placed. Score pattern fit from 0 to 100 using local precedent, expected "
-                "benefit, coupling, change cost, and counter-evidence; reserve scores above 80 for "
-                "strong repository-specific evidence. The consolidation score represents the "
-                "strength of its recommendation, not generic code quality. List a dead-code "
-                "candidate only when supplied reachability "
-                "evidence supports it, and state uncertainty in the candidate text. Use only "
-                "supplied dossiers and graph evidence; absence of a static edge is not proof of "
-                "runtime unreachability."
+                "Explain this file's job in the repository, which files it works with, and where "
+                "work is duplicated. Identify similar files, patterns that fit this repository, "
+                "possible combinations or splits, and where nearby behavior should be added. "
+                "Score pattern fit from 0 to 100 using examples already in this repository, likely "
+                "benefit, direct code links, change cost, and evidence against the idea. Use scores "
+                "above 80 only when the repository itself gives strong support. A combine-or-split "
+                "score says how strongly the evidence supports that advice; it is not a code-quality "
+                "grade. Say code may be unused only when the supplied link evidence supports that "
+                "possibility, and state what may make the conclusion wrong. A missing source-code "
+                "link does not prove that running code never reaches it."
             ),
             "schema_version": SEMANTIC_SCHEMA_VERSION,
             "analysis_kind": "context",
@@ -157,6 +147,33 @@ class SemanticEvidenceService:
             "neighbor_dossiers": neighbors,
             "previous_dossier": previous["value"] if previous else None,
         }
+
+    def _neighbor_dossiers(
+        self, connection: Any, job: dict[str, Any], semantic: SemanticConfig
+    ) -> list[dict[str, Any]]:
+        result = []
+        paths = job["metadata"].get("neighbors", [])[: semantic.max_context_modules]
+        for path in paths:
+            state = connection.execute(
+                """
+                SELECT * FROM semantic_scope_states
+                WHERE snapshot_id = ? AND scope_type = 'module' AND scope_key = ?
+                """,
+                (job["snapshot_id"], path),
+            ).fetchone()
+            if state is None:
+                continue
+            document_id = state["context_document_id"] or state["intrinsic_document_id"]
+            if document_id:
+                document = _document_by_id(connection, int(document_id))
+                result.append(
+                    {
+                        "path": path,
+                        "confidence": document["confidence"],
+                        "dossier": compact_dossier(document["value"]),
+                    }
+                )
+        return result
 
     def _synthesis_request(self, job: dict[str, Any]) -> dict[str, Any]:
         with self._database.connect() as connection:
@@ -171,11 +188,12 @@ class SemanticEvidenceService:
             )
         return {
             "contract": (
-                "Synthesize the supplied child dossiers into a coherent architectural description "
-                "of this scope. Preserve important differences, identify shared responsibilities, "
-                "and summarize evidence-backed patterns, consolidation opportunities, placement "
-                "guidance, and counter-evidence without turning uncertainty into fact. Pattern "
-                "scores must reflect local fit and migration cost, not textbook popularity."
+                "Combine the supplied descriptions into one clear explanation of this repository "
+                "area. Keep important differences between files, identify work they share, and "
+                "summarize supported pattern ideas, combine-or-separate advice, and where new work "
+                "belongs. Include evidence against each idea and do not state uncertainty as fact. "
+                "Pattern scores must reflect fit in this repository and the cost of changing it, "
+                "not how popular a pattern is in textbooks."
             ),
             "schema_version": SEMANTIC_SCHEMA_VERSION,
             "analysis_kind": "synthesis",

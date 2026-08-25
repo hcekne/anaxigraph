@@ -29,20 +29,25 @@ def _configure_scans(commands: Any) -> None:
     add_repository_arguments(scan)
     scan.set_defaults(handler=_scan, run_type="scan")
 
-    update = commands.add_parser("update", help="Incrementally analyze changed artifacts")
+    update = commands.add_parser("update", help="Update the saved code map for changed files")
     add_repository_arguments(update)
     update.set_defaults(handler=_scan, run_type="update")
 
 
 def _configure_review(commands: Any) -> None:
-    review = commands.add_parser("review", help="Refresh and show architecture review findings")
+    review = commands.add_parser(
+        "review",
+        help="Scan the repository and explain code-structure findings in ordinary language",
+    )
     add_repository_arguments(review)
     review.add_argument("--status", default="active", choices=["active", "all", "new", "resolved"])
     review.set_defaults(handler=_review)
 
 
 def _configure_watch(commands: Any) -> None:
-    watch = commands.add_parser("watch", help="Poll for changes and update incrementally")
+    watch = commands.add_parser(
+        "watch", help="Check for changed files at intervals and update their saved code map"
+    )
     add_repository_arguments(watch)
     watch.add_argument("--registry", type=Path, help="Watch every target in a repository registry")
     watch.add_argument("--interval", type=float, default=2.0, help="Polling interval in seconds")
@@ -51,7 +56,7 @@ def _configure_watch(commands: Any) -> None:
 
 def _configure_export(commands: Any) -> None:
     export = commands.add_parser(
-        "export", help="Export graph, findings, overview, and history as JSON"
+        "export", help="Export files, direct code links, findings, overview, and history as JSON"
     )
     add_repository_arguments(export)
     export.add_argument("--output", type=Path, help="Write JSON to this path instead of stdout")

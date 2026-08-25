@@ -50,8 +50,8 @@ test("agent workbench shows the readable architecture recommendation", async ({ 
   }, scope);
 
   const result = page.locator("#agent-result");
-  await expect(result).toContainText("Architecture recommendation");
-  await expect(result).toContainText("What this recommendation uses");
+  await expect(result).toContainText("Where to make the change and how to check it");
+  await expect(result).toContainText("What this advice uses");
   await expect(result).toContainText("Where to start");
   await expect(result).toContainText("What to preserve");
   await expect(result).toContainText("How to verify it");

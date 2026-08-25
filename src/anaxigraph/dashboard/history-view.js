@@ -33,22 +33,22 @@ function historyHelp(info, snapshots, job) {
       ? ` ${format.format(job.completed_frames || 0)}/${format.format(job.total_frames)}`
       : "";
     const commit = job.current_commit_subject
-      ? ` Current frame: ${job.current_commit_subject}.`
+      ? ` Current commit: ${job.current_commit_subject}.`
       : "";
-    return `${phaseLabel(job.status)}${progress} graph frames.${commit} Current modules, findings, and agent tools remain available.`;
+    return `${phaseLabel(job.status)}${progress} saved code maps.${commit} Current files, findings, and coding-agent tools remain available.`;
   }
   if (["failed", "cancelled"].includes(job.status)) {
     const reason = job.error ? ` ${job.error}` : "";
-    return `History import ${job.status}.${reason} Completed frames remain usable; retry resumes without reprocessing them.`;
+    return `History import ${job.status}.${reason} Completed code maps remain usable; retry continues without reading them again.`;
   }
   if (info.total_commits > 0 && snapshots.length > 1) {
     const sampling = info.total_commits > info.analyzed_commits
-      ? `${info.analyzed_commits} representative graph frames across all ${info.total_commits} first-parent commits`
-      : `${info.analyzed_commits} commit graph frames`;
-    return `${sampling}, spanning the initial commit through HEAD. Scrub the timeline or replay the architecture biography.${workSummary(job.work)}`;
+      ? `${info.analyzed_commits} representative code maps across ${info.total_commits} commits in the repository's main Git history`
+      : `${info.analyzed_commits} saved commit code maps`;
+    return `${sampling}, from the first commit through the current commit. Move the timeline slider or replay how the map changed.${workSummary(job.work)}`;
   }
   if (info.total_commits > 0) {
-    return `Git contains ${info.total_commits} first-parent commits. Import its architecture biography to replay from the initial commit.`;
+    return `Git contains ${info.total_commits} commits in its main history. Import them to replay how the code map changed from the first commit.`;
   }
   return "This mounted directory has no Git commit history, so only its current working tree can be shown.";
 }
@@ -68,30 +68,30 @@ function jobDetails(job) {
   }
   if (job.current_commit_date) details.push(["Commit date", new Date(job.current_commit_date).toLocaleString()]);
   details.push(
-    ["Source reads", format.format(job.changed_files ?? work.source_reads ?? 0)],
-    ["Analyzed", format.format(job.analyzed_files ?? work.analyzed_files ?? 0)],
-    ["Re-resolved", format.format(job.re_resolved_files ?? work.relationship_sources_resolved ?? 0)],
-    ["Reused", format.format(job.reused_files ?? work.carried_forward ?? 0)],
-    ["Rows added", format.format(job.rows_added || 0)],
-    ["Index growth", bytes(job.bytes_added || 0)],
+    ["Changed files read", format.format(job.changed_files ?? work.source_reads ?? 0)],
+    ["Files examined", format.format(job.analyzed_files ?? work.analyzed_files ?? 0)],
+    ["Files whose links were checked again", format.format(job.re_resolved_files ?? work.relationship_sources_resolved ?? 0)],
+    ["Files reused from an earlier map", format.format(job.reused_files ?? work.carried_forward ?? 0)],
+    ["New facts saved in AnaxiIndex", format.format(job.rows_added || 0)],
+    ["Saved index grew by", bytes(job.bytes_added || 0)],
   );
   if (job.last_complete_snapshot_id) {
-    details.push(["Last usable snapshot", `#${job.last_complete_snapshot_id}`]);
+    details.push(["Last usable saved scan", `#${job.last_complete_snapshot_id}`]);
   }
   return details;
 }
 
 function workSummary(work) {
   if (!Number.isFinite(work?.source_reads)) return "";
-  return ` Last import: ${format.format(work.source_reads)} source reads, ${format.format(work.carried_forward || 0)} carried files, ${format.format(work.relationship_sources_reused || 0)} relationship sources reused, and ${format.format(work.relationship_sources_resolved || 0)} re-resolved.`;
+  return ` Last import read ${format.format(work.source_reads)} changed files, reused ${format.format(work.carried_forward || 0)} unchanged files, reused direct-link results for ${format.format(work.relationship_sources_reused || 0)} files, and checked links again for ${format.format(work.relationship_sources_resolved || 0)} files.`;
 }
 
 function phaseLabel(status) {
   const labels = {
-    queued: "Queued",
-    enumerating: "Enumerating Git history",
-    importing: "Importing Git history",
-    finalizing: "Finalizing current snapshot",
+    queued: "Waiting to start",
+    enumerating: "Listing commits in Git history",
+    importing: "Building code maps from Git history",
+    finalizing: "Finishing the current saved scan",
     complete: "Complete",
     failed: "Failed",
     cancelled: "Cancelled",

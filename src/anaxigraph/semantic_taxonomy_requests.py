@@ -148,13 +148,13 @@ def _proposal_request(
     settings = job["metadata"].get("taxonomy_settings") or {}
     return {
         "contract": (
-            "Create a two-level responsibility taxonomy for this repository: areas containing "
-            "subsystems. Assign every supplied module to exactly one primary subsystem. Base "
-            "boundaries on shared responsibility, graph cohesion, contracts, and test-to-code "
-            "relationships rather than directory names alone. Keep cross-cutting capabilities "
-            "as facets instead of duplicate memberships. Use concise stable keys and preserve "
-            "prior keys when responsibilities remain materially the same. Low confidence must "
-            "stay visible; it must not block creation of the map."
+            "Create a two-level map of what the repository does: broad areas containing smaller "
+            "groups of related work. Put every supplied file in exactly one main group. Group "
+            "files by the job they share, how they call one another, behavior other code relies "
+            "on, and links between tests and source—not by folder names alone. Record work that "
+            "cuts across several groups as an extra label instead of placing a file in several "
+            "main groups. Use short stable keys and keep an old key when the group's job has not "
+            "meaningfully changed. Show uncertainty, but still complete the map."
         ),
         "schema_version": job["schema_version"],
         "analysis_kind": "taxonomy_proposal",
@@ -182,12 +182,13 @@ def _review_request(
         candidate_value = candidate_value["taxonomy"]
     return {
         "contract": (
-            "Act as an independent architecture-map critic. Review and revise the candidate, "
-            "then return the complete corrected taxonomy. Check exact primary membership, "
-            "bounded group counts, catchalls, unjustified tiny or huge groups, responsibility "
-            "cohesion, understandable cross-boundary contracts, test relationships, visible "
-            "persistence/protected boundaries, evidence and counter-evidence, and stability "
-            "against the prior map. Do not request human approval."
+            "Independently check and revise the proposed code map, then return the complete "
+            "corrected map. Check that every file has one main group, the number of groups stays "
+            "within the supplied limits, vague 'other' groups are avoided, and very small or very "
+            "large groups have a clear reason. Files in a group should share a real job. Explain "
+            "how groups call one another, which tests cover them, where saved data or specially "
+            "protected code sits, what supports each choice, and what evidence points elsewhere. "
+            "Keep useful names from the prior map. Complete the check without asking a person to approve it."
         ),
         "schema_version": job["schema_version"],
         "analysis_kind": "taxonomy_review",

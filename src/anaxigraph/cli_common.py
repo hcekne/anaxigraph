@@ -18,7 +18,12 @@ def add_repository_arguments(parser: argparse.ArgumentParser) -> None:
         type=Path,
         help="Configuration file (defaults to .anaxigraph.yml)",
     )
-    parser.add_argument("--db", type=Path, default=default_db(), help="External SQLite database")
+    parser.add_argument(
+        "--db",
+        type=Path,
+        default=default_db(),
+        help="SQLite file where AnaxiGraph saves its index outside the repository",
+    )
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
 
 

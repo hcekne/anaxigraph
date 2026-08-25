@@ -1,4 +1,4 @@
-"""One bounded graph query tool for architecture-first agent exploration."""
+"""One size-limited code-map query for coding-agent exploration."""
 
 from __future__ import annotations
 
@@ -22,12 +22,12 @@ class GraphTool:
     def register(self) -> None:
         self.server.tool(
             name="ANAXIGRAPH_GRAPH",
-            title="Query a bounded architecture graph",
+            title="Read files and direct code links",
             description=(
-                "Read architecture aggregates, a cursor page, a depth-capped neighborhood, or "
-                "a snapshot delta. "
-                "Overview is the default and smallest response; follow page cursors only when "
-                "the task needs broader module-level evidence."
+                "Read a summary of repository areas, one page of files and direct code links, "
+                "nearby files up to a chosen number of steps, or what changed between two saved "
+                "scans. Overview is the smallest default response. Request later pages only when "
+                "the task needs more file-level evidence."
             ),
             annotations=ToolAnnotations(
                 readOnlyHint=True,
@@ -199,7 +199,9 @@ class GraphTool:
         edge_limit: int,
     ) -> dict[str, Any]:
         if baseline_snapshot_id < 1:
-            raise ValueError("delta mode requires baseline_snapshot_id")
+            raise ValueError(
+                "delta mode requires baseline_snapshot_id, the numeric id of the earlier saved scan"
+            )
         return self.database.graph_delta(
             int(row["id"]),
             baseline_snapshot_id,

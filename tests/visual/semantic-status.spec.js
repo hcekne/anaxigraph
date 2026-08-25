@@ -8,7 +8,7 @@ async function openDashboard(page) {
 
 function idleSemanticLanguage(agent = false) {
   return {
-    version: "semantic-status-explanation-v1",
+    version: "semantic-status-explanation-v2",
     conclusion: "AI mapping is incomplete, and no worker is running right now.",
     progress: "5 of 20 included files have a current AI description of both the file itself and its role in this repository.",
     work_state: "No worker is processing the queue right now. Unfinished work is safely saved and can be resumed, but it will not finish until a worker starts.",
@@ -103,7 +103,7 @@ test("semantic progress and model-backed pattern advice use direct language", as
   });
 
   await openDashboard(page);
-  await expect(page.locator(".metric", { hasText: "AI understanding" }).locator("strong"))
+  await expect(page.locator(".metric", { hasText: "Files with current AI descriptions" }).locator("strong"))
     .toHaveText("25.0%");
   const notice = page.locator("#semantic-notice");
   await expect(notice).toContainText("no worker is running right now");
@@ -125,13 +125,13 @@ test("semantic progress and model-backed pattern advice use direct language", as
     "Do not delete src/legacy.py from this result alone",
   );
 
-  await page.getByRole("button", { name: "Modules", exact: true }).click();
+  await page.getByRole("button", { name: "Files", exact: true }).click();
   await page.locator("#module-search").fill(semanticPath);
   await expect(page.locator(".pattern-cell", { hasText: "Adapter pattern" })).toContainText("AI");
   await expect(page.locator(".pattern-cell", { hasText: "Adapter pattern" })).not.toContainText("91/100");
 });
 
-test("an idle coding-agent queue says that saved work will not finish by itself", async ({ page }) => {
+test("an idle coding-agent task list says saved work will not finish by itself", async ({ page }) => {
   await page.route("**/api/semantic*", async (route) => {
     if (route.request().method() !== "GET") {
       await route.fulfill({ json: { status: "started" } });
@@ -164,7 +164,7 @@ test("an idle coding-agent queue says that saved work will not finish by itself"
   const notice = page.locator("#semantic-notice");
   await expect(notice).toContainText("No worker is processing the queue right now");
   await expect(notice).toContainText("it will not finish until a worker starts");
-  await expect(notice.locator("[data-semantic-refresh]")).toHaveText("Prepare semantic work");
+  await expect(notice.locator("[data-semantic-refresh]")).toHaveText("Prepare AI tasks");
   await expect(notice.locator("[data-semantic-refresh]")).toBeEnabled();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(page.locator("#settings-semantic-command")).toContainText(

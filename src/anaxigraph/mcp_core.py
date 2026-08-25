@@ -8,7 +8,7 @@ from typing import Any
 from anaxigraph.agent import agent_scope, branch_collisions, impact_analysis
 from anaxigraph.config import load_config
 from anaxigraph.config_authority import effective_semantic_policy, service_config_authority
-from anaxigraph.guidance import product_glossary
+from anaxigraph.guidance import FILE_MEASUREMENT_MEANINGS, product_glossary
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic_mcp import current_semantic_status
 
@@ -77,8 +77,8 @@ class CoreMcpTools:
                 self.scan,
                 name="ANAXIGRAPH_SCAN",
                 description=(
-                    "Refresh the configured repository snapshot. The target is read-only; only "
-                    "AnaxiIndex changes."
+                    "Read the configured repository again and save a new code map. Repository "
+                    "files stay read-only; only AnaxiGraph's external index changes."
                 ),
             )
 
@@ -92,22 +92,22 @@ class CoreMcpTools:
             (
                 self.overview,
                 "ANAXIGRAPH_OVERVIEW",
-                "Return repository size, languages, groups, coverage, and finding counts.",
+                "Summarize repository size, languages, code areas, test coverage, and finding counts.",
             ),
             (
                 self.modules,
                 "ANAXIGRAPH_MODULES",
-                "List and filter modules with placement, coupling, coverage, and review signals.",
+                "List and filter files with their repository area, direct code-link counts, test coverage, and reasons they may deserve attention.",
             ),
             (
                 self.search,
                 "ANAXIGRAPH_SEARCH",
-                "Find the most relevant modules and symbols for a codebase concept or feature.",
+                "Find files and named code parts that are most relevant to a concept or feature.",
             ),
             (
                 self.file_details,
                 "ANAXIGRAPH_FILE",
-                "Inspect one module's graph, history, symbols, semantics, and provenance.",
+                "Inspect one file: what it does, direct links to other files, Git history, named code parts, saved AI description, evidence, and who or what created that description.",
             ),
         ):
             self.server.add_tool(handler, name=name, description=description)
@@ -117,17 +117,19 @@ class CoreMcpTools:
             self.scope,
             name="ANAXIGRAPH_SCOPE",
             description=(
-                "Build bounded task context plus an evidence-backed placement, reviewed-pattern, "
-                "safety, and verification decision for a coding goal. After a rescan, pass the "
-                "earlier post_change_baseline to measure what changed."
+                "For a coding goal, return a small list of likely files, advice about where to "
+                "start, AI-checked pattern results, risks, and steps for checking the change. Save "
+                "the returned before-change record; after a new scan, pass it as "
+                "verification_baseline to see which tracked facts changed."
             ),
         )
         self.server.add_tool(
             self.impact,
             name="ANAXIGRAPH_IMPACT",
             description=(
-                "Traverse reverse dependencies before changing a file or symbol and return "
-                "dependants, tests, migrations, protected paths, and risk."
+                "Before changing a file or named code part, find code that uses it directly or "
+                "indirectly, relevant tests, possible database changes, files marked for extra "
+                "care, and reasons the change may be risky."
             ),
         )
         self.server.add_tool(
@@ -141,8 +143,8 @@ class CoreMcpTools:
             self.guide,
             name="ANAXIGRAPH_GUIDE",
             description=(
-                "Explain architecture groups, graph overlays, finding states, confidence, and "
-                "agent workflows in plain language."
+                "Explain repository areas, graph color views, finding states, evidence strength, "
+                "and coding-agent workflows in ordinary language."
             ),
         )
 
@@ -199,7 +201,18 @@ class CoreMcpTools:
             key=lambda item: (item.get(sort_key) is None, item.get(sort_key) or ""),
             reverse=descending,
         )
-        return {"total": len(items), "modules": items[: max(1, min(limit, 1_000))]}
+        shown = items[: max(1, min(limit, 1_000))]
+        return {
+            "total": len(items),
+            "modules": shown,
+            "plain_language": {
+                "what": f"{len(shown)} of {len(items)} matching files are included in this response.",
+                "machine_key_note": (
+                    "The stable JSON key 'modules' means repository files in this response."
+                ),
+                "measurement_meanings": FILE_MEASUREMENT_MEANINGS,
+            },
+        }
 
     def search(self, query: str, limit: int = 20, repository: str = "") -> dict[str, Any]:
         row, _ = self.context.select(repository)
@@ -213,7 +226,7 @@ class CoreMcpTools:
         row, _ = self.context.select(repository)
         result = self.database.file_details(int(row["id"]), _safe_relative_path(path))
         if result is None:
-            raise ValueError(f"File is not present in the current snapshot: {path}")
+            raise ValueError(f"File is not present in the current saved scan: {path}")
         return result
 
     def scope(

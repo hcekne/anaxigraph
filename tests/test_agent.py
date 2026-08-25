@@ -24,6 +24,8 @@ def test_agent_scope_is_bounded_and_includes_tests_protection_and_rules(reposito
     assert "tests/test_core.py" in value["tests"]
     assert any(item["path"] == "pkg/core.py" for item in value["protected_files"])
     assert value["risk"] == "high"
+    assert "does not mean the code is broken" in value["plain_language"]["risk"]["meaning"]
+    assert "not a code-quality grade" in value["plain_language"]["file_measurements"]["complexity"]
     assert len(value["recommended_context"]) <= 12
     encoded_size = len(json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
     assert encoded_size <= value["payload_budget"]["limit_bytes"]
@@ -38,8 +40,8 @@ def test_agent_scope_is_bounded_and_includes_tests_protection_and_rules(reposito
     assert value["architecture_decision"]["contract_version"] == "architecture-decision-v1"
     assert value["architecture_decision"]["status"] == "deterministic_only"
     assert (
-        "source structure and repository facts only"
-        in (value["architecture_decision"]["plain_language"]["conclusion"])
+        "facts AnaxiGraph read directly"
+        in value["architecture_decision"]["plain_language"]["conclusion"]
     )
 
 
@@ -58,6 +60,9 @@ def test_impact_follows_reverse_edges_and_relevant_tests(repository, database):
     assert "tests/test_core.py" in paths
     assert "tests/test_core.py" in value["tests_relevant"]
     assert value["risk"] == "high"
+    assert value["risk_reasons"]
+    assert "possible follow-on effects" in value["plain_language"]["how_to_use_this"]
+    assert "runtime registration" in value["plain_language"]["limits"]
 
 
 def test_impact_reports_an_unknown_repository_or_target(repository, database):

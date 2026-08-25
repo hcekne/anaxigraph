@@ -36,7 +36,7 @@ export async function loadGraphRegion(region = "", cursor = "") {
   renderGraphAreaOptions();
   layoutGraph(true);
   drawGraph();
-  byId("inspector").innerHTML = '<p class="eyebrow">Module inspector</p><h2>Select a node</h2><p class="muted">Click a graph node to inspect it.</p>';
+  byId("inspector").innerHTML = '<p class="eyebrow">File details</p><h2>Select a file</h2><p class="muted">Click a circle to inspect that file.</p>';
 }
 
 export function graphRequestParams(snapshotId, region = state.graphRegion, cursor = "") {
@@ -59,19 +59,19 @@ export function renderGraphRegionBrowser() {
     return;
   }
   browser.hidden = false;
-  const current = state.graphRegion || "all modules";
+  const current = state.graphRegion || "all files";
   const shownNodes = Number(counts.page_internal_nodes || 0);
   const matchingNodes = Number(counts.matching_nodes || 0);
   const shownEdges = Number(counts.page_edges || 0);
   const matchingEdges = Number(counts.matching_edges || 0);
   browser.innerHTML = `
     <div class="graph-region-summary">
-      <div><span>Architecture-first explorer</span><strong>${escapeHtml(humanize(current))}</strong></div>
-      <p>${format.format(shownNodes)} of ${format.format(matchingNodes)} modules · ${format.format(shownEdges)} of ${format.format(matchingEdges)} relationships</p>
-      ${state.graph?.next_cursor ? '<button class="secondary-button" type="button" data-graph-next>Next bounded page</button>' : ""}
+      <div><span>Browse one repository area at a time</span><strong>${escapeHtml(humanize(current))}</strong></div>
+      <p>Showing ${format.format(shownNodes)} of ${format.format(matchingNodes)} files and ${format.format(shownEdges)} of ${format.format(matchingEdges)} direct code links in this area</p>
+      ${state.graph?.next_cursor ? '<button class="secondary-button" type="button" data-graph-next>Show the next page</button>' : ""}
     </div>
     <div class="graph-region-list">
-      <button class="graph-region ${state.graphRegion ? "" : "active"}" type="button" data-graph-region=""><span>All modules</span><em>bounded page</em></button>
+      <button class="graph-region ${state.graphRegion ? "" : "active"}" type="button" data-graph-region=""><span>All files</span><em>one page at a time</em></button>
       ${regions.map((region) => regionButton(region)).join("")}
     </div>`;
 }
@@ -79,7 +79,7 @@ export function renderGraphRegionBrowser() {
 function regionButton(region) {
   const name = String(region.name || "ungrouped");
   const active = name === state.graphRegion ? "active" : "";
-  return `<button class="graph-region ${active}" type="button" data-graph-region="${escapeAttr(name)}"><span>${escapeHtml(humanize(name))}</span><em>${format.format(region.files || 0)} modules</em></button>`;
+  return `<button class="graph-region ${active}" type="button" data-graph-region="${escapeAttr(name)}"><span>${escapeHtml(humanize(name))}</span><em>${format.format(region.files || 0)} files</em></button>`;
 }
 
 function graphRegionBrowser() {

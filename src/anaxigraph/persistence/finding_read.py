@@ -372,18 +372,22 @@ def _priority_reasons(
         )
     if changes:
         reasons.append(
-            f"The most active affected file changed {changes} times in indexed Git history."
+            f"The most active affected file changed {changes} times in indexed Git history, so "
+            "this finding may concern code that changes often."
         )
     if degree:
         reasons.append(
-            f"The most connected affected file has {degree} incoming and outgoing links in total."
+            f"AnaxiGraph found {degree} direct incoming or outgoing code links for the most "
+            "connected affected file. A change there may reach more code."
         )
     if changes and complexity >= 10:
         reasons.append(
-            f"An affected file both changes often and has a measured branch score of {complexity:g}."
+            f"An affected file both changes often and has a file-wide branch score of "
+            f"{complexity:g}. This whole-file total combines branches across its functions; it is "
+            "separate from any one function's score."
         )
     if len(paths) > 1:
-        reasons.append(f"The finding covers {len(paths)} modules.")
+        reasons.append(f"The finding covers {len(paths)} files.")
     if coverage:
         reasons.append(
             f"Tests ran only {min(coverage):.0%} of the least-covered affected file's lines."

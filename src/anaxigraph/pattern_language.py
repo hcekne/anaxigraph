@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-PATTERN_LANGUAGE_VERSION = "pattern-explanation-v1"
+PATTERN_LANGUAGE_VERSION = "pattern-explanation-v2"
 
 
 def pattern_explanation(
@@ -52,7 +52,7 @@ def _conclusion(name: str, target: str, recommendation: str) -> str:
         "introduce": f"Consider adding {name} to {target}.",
         "improve_conformance": (
             f"{target} partly follows {name}; make the existing design more consistent before "
-            "adding another abstraction."
+            "adding another layer of code."
         ),
         "replace": f"Consider replacing the current approach in {target} with {name}.",
         "avoid": f"Do not add {name} to {target} unless the evidence changes.",
@@ -79,8 +79,8 @@ def _reason(evaluation: Mapping[str, Any]) -> str:
         rationale
         or summary
         or (
-            "The available code, dependency, history, and semantic evidence made this pattern worth "
-            "checking."
+            "The available code, direct links between files, Git history, and AI descriptions made "
+            "this pattern worth checking."
         )
     )
 
@@ -93,7 +93,8 @@ def _action(name: str, target: str, recommendation: str) -> str:
         ),
         "introduce": (
             f"Sketch the smallest way {name} could solve the observed problem in {target}. Add it "
-            "only if it removes more complexity than it creates."
+            "only if it makes the code easier to follow by more than the extra files, names, and "
+            "steps make it harder."
         ),
         "improve_conformance": (
             f"Name the parts of {name} that {target} already uses, then fix the smallest confusing "
@@ -101,7 +102,7 @@ def _action(name: str, target: str, recommendation: str) -> str:
         ),
         "replace": (
             f"Compare the current approach with {name}, preserve callers and stored data, and "
-            "replace one safe boundary at a time."
+            "replace one small caller-visible part at a time."
         ),
         "avoid": (
             f"Leave {name} out of {target}. Use the simplest local design that meets the current "
@@ -129,7 +130,7 @@ def _reasons_for_caution(evaluation: Mapping[str, Any], recommendation: str) -> 
     if recommendation in {"retain", "avoid", "no_action", "insufficient_evidence"}:
         return ["The current recommendation does not require a structural code change."]
     return [
-        "Do not make the change if it adds more concepts, files, or moving parts than the problem needs."
+        "Do not make the change if it adds more ideas, files, or moving parts than the problem needs."
     ]
 
 
@@ -261,12 +262,12 @@ def _safety(value: int) -> str:
 def _review_sentence(review: Mapping[str, Any]) -> str:
     verdict = str(review.get("verdict") or "complete")
     prefix = {
-        "approve": "A second agent checked the evaluation and did not require a correction.",
-        "revise": "A second agent corrected the evaluation before this result was saved.",
+        "approve": "A separate AI pass checked the result and did not require a correction.",
+        "revise": "A separate AI pass corrected the result before it was saved.",
         "retain_competing": (
-            "A second agent found another reasonable explanation, so the disagreement is preserved."
+            "A separate AI pass found another reasonable explanation, so the result keeps the disagreement."
         ),
-    }.get(verdict, "A second agent completed an independent check of this evaluation.")
+    }.get(verdict, "A separate AI pass completed its check of this result.")
     summary = str(review.get("summary") or "").strip()
     return f"{prefix} {summary}".strip()
 

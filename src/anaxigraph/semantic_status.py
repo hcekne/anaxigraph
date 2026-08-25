@@ -1,4 +1,4 @@
-"""Project semantic coverage, readiness, provenance, and budget status."""
+"""Status of the saved AI-created code map, its remaining work, and its usage limits."""
 
 from __future__ import annotations
 
@@ -64,28 +64,28 @@ def _recommended_action(
     if not semantic or not semantic.enabled:
         return {
             "kind": "enable_semantics",
-            "message": "Enable semantic analysis in the authoritative repository policy.",
+            "message": "Turn on AI mapping in the settings file used by this repository's scans.",
         }
     if coverage.semantically_ready:
-        return {"kind": "none", "message": "The semantic map is current."}
+        return {"kind": "none", "message": "The AI-created code map is up to date."}
     if rows.jobs.get("running_live", 0):
         return {
             "kind": "monitor",
             "command": "anaxigraph semantic-status <repository>",
-            "message": "A live executor owns semantic work; monitor its durable progress.",
+            "message": "An AI worker is running now; watch the saved progress until it finishes.",
         }
     if remaining >= 50:
         return {
             "kind": "durable_host_executor",
             "command": "anaxigraph understand <repository> --executor codex --background",
             "status_command": "anaxigraph semantic-status <repository>",
-            "message": "Use a detached host executor for this repository-sized queue.",
+            "message": "Use a background coding-agent worker for this repository-sized set of tasks.",
         }
     return {
         "kind": "bounded_mcp_fallback",
         "message": (
-            "Use the durable host executor, or process this bounded queue with "
-            "ANAXIGRAPH_SEMANTIC_WORK and verify status afterward."
+            "Use the background coding-agent worker, or process each saved task with "
+            "ANAXIGRAPH_SEMANTIC_WORK and check the status afterward."
         ),
     }
 

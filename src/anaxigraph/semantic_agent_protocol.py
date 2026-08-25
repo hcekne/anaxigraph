@@ -15,6 +15,11 @@ from anaxigraph.pattern_evaluation_contract import (
 )
 from anaxigraph.semantic_agent_paging import packetize_agent_request as packetize_agent_request
 from anaxigraph.semantic_contract import DOSSIER_SCHEMA, SEMANTIC_SCHEMA_VERSION
+from anaxigraph.semantic_request_support import (
+    INPUT_TERM_MEANINGS,
+    PLAIN_LANGUAGE_CONTRACT_VERSION,
+    PLAIN_LANGUAGE_REQUIREMENTS,
+)
 from anaxigraph.semantic_taxonomy_contract import (
     TAXONOMY_REVIEW_SCHEMA,
     TAXONOMY_SCHEMA,
@@ -29,14 +34,18 @@ def semantic_agent_schema() -> dict[str, Any]:
         "taxonomy_review_schema": TAXONOMY_REVIEW_SCHEMA,
         "pattern_evaluation_schema": PATTERN_EVALUATION_SCHEMA,
         "pattern_review_schema": PATTERN_REVIEW_SCHEMA,
+        "writing_contract_version": PLAIN_LANGUAGE_CONTRACT_VERSION,
+        "writing_requirements": PLAIN_LANGUAGE_REQUIREMENTS,
+        "input_term_meanings": INPUT_TERM_MEANINGS,
         "instructions": (
-            "Return the complete artifact named by each work packet's response_contract: a "
-            "dossier, taxonomy, taxonomy review, pattern evaluation, or pattern review. Ground "
-            "it only in supplied source, static facts, and prior semantic records. Reviews must "
-            "critique and return the corrected full artifact without requesting human approval. "
-            "Score pattern suitability independently from existing conformance and refactoring "
-            "opportunity. Treat missing edges as uncertainty, not proof of dead code. Do not "
-            "change repository files while mapping."
+            "Return the complete JSON result named by each work packet's response_contract. The "
+            "machine may call it a dossier, taxonomy, taxonomy review, pattern evaluation, or "
+            "pattern review; these mean a file description, code-area map, check of that map, "
+            "pattern result, or check of that pattern result. Use only supplied source, facts read "
+            "from code, and prior AI descriptions. A review must return the full corrected result "
+            "without asking a person to approve it. Score how well a pattern fits separately from "
+            "how much of it already exists and whether changing code would help. A missing direct "
+            "code link does not prove code is unused. Do not change repository files while mapping."
         ),
     }
 
@@ -176,11 +185,15 @@ def agent_no_work_status(status: dict[str, Any]) -> str:
 def agent_no_work_message(status: dict[str, Any]) -> str:
     state = agent_no_work_status(status)
     return {
-        "complete": "The semantic and pattern map is current; no model work is required.",
-        "busy": "All available work is currently leased to another coding agent.",
-        "paused": "The configured semantic budget currently pauses new work claims.",
+        "complete": "The AI-created code map and pattern results are up to date. No AI task remains.",
+        "busy": "Another coding agent is already working on every AI task that is ready.",
+        "paused": "The configured AI-work limit is pausing new tasks.",
         "complete_with_failures": (
-            "The baseline has terminal failures. Call again with retry_failed=true to retry them."
+            "Some required AI tasks failed too many times. Call again with retry_failed=true to "
+            "give those tasks another try."
         ),
-        "waiting": "No work is claimable yet; call again after active jobs or planning complete.",
+        "waiting": (
+            "No AI task is ready yet. Call again after active tasks finish or AnaxiGraph finishes "
+            "deciding what work remains."
+        ),
     }[state]

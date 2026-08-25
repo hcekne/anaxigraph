@@ -49,14 +49,14 @@ DEFAULT_RULES = (
         rule_id="fan-out",
         rule_type="max_fan_out",
         severity="warning",
-        description="A file that uses many modules may be coordinating too many jobs.",
+        description="A file that directly uses many other files may be coordinating too many jobs.",
         params={"max": 12},
     ),
     RuleConfig(
         rule_id="dependency-cycles",
         rule_type="no_cycles",
         severity="warning",
-        description="Modules that depend on one another in a loop are harder to change separately.",
+        description="Files that depend on one another in a loop are harder to change separately.",
     ),
     RuleConfig(
         rule_id="stale-unreferenced-source",

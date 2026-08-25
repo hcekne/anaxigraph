@@ -19,13 +19,13 @@ from scripts.check_agent_package import validate_agent_package
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_mcp_instructions_lead_with_durable_semantic_execution():
+def test_mcp_instructions_lead_with_persistent_plain_language_ai_mapping():
     opening = _INSTRUCTIONS[:512]
 
-    assert "durable host executor" in opening
-    assert "bounded/manual fallback" in opening
+    assert "complete AI-created code map" in opening
+    assert "one saved task at a time" in opening
     assert "semantically_ready: true" in opening
-    assert "Never edit source" in opening
+    assert "Never edit repository source" in opening
     assert "--model" not in opening
 
 

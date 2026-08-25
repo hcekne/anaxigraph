@@ -73,9 +73,9 @@ def read_overview(
                 if hierarchy
             ],
             "source": (
-                "agent-reviewed semantic taxonomy"
+                "AI-created file grouping checked by a separate AI pass"
                 if semantic_hierarchy
-                else "configured policy with deterministic fallback"
+                else "project path rules, with file-path guesses when no rule matches"
             ),
         },
         "coverage": coverage,

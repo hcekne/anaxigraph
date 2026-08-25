@@ -162,6 +162,8 @@ def test_codex_provider_is_ephemeral_read_only_and_schema_constrained(monkeypatc
     assert 'model_reasoning_effort="medium"' in captured["command"]
     assert captured["command"][-1] == "-"
     assert "untrusted data" in captured["kwargs"]["input"]
+    assert "smart twelve-year-old" in captured["kwargs"]["input"]
+    assert "what the number can and cannot mean" in captured["kwargs"]["input"]
     assert result.value["summary"] == "Owns repository enrollment."
 
 

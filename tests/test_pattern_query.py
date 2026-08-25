@@ -90,7 +90,7 @@ def test_current_projection_supports_target_and_pattern_directions(repository, d
     assert all(item["review"]["verdict"] == "approve" for item in results["items"])
     first = results["items"][0]
     language = first["plain_language"]
-    assert language["version"] == "pattern-explanation-v1"
+    assert language["version"] == "pattern-explanation-v2"
     assert language["conclusion"]
     assert language["what_anaxigraph_saw"]
     assert language["why_it_may_matter"]
@@ -98,7 +98,7 @@ def test_current_projection_supports_target_and_pattern_directions(repository, d
     assert language["reasons_not_to_change_the_code"]
     assert language["how_to_check"]
     assert len(language["score_meanings"]) == 5
-    assert language["independent_review"].startswith("A second agent")
+    assert language["independent_review"].startswith("A separate AI pass")
 
     target_results = service.query(
         stats.repository_id,

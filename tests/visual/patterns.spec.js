@@ -31,26 +31,26 @@ function patternItem(includeEvidence) {
     candidate: { priority: 81, selection_reasons: ["supporting_evidence"] },
     presence: "partial",
     recommendation: "improve_conformance",
-    summary: "The provider boundary already resembles Strategy but its selection policy leaks.",
-    rationale: "Multiple implementations share a stable behavioral boundary.",
+    summary: "The providers already resemble Strategy, but choosing one provider follows an inconsistent rule.",
+    rationale: "Several implementations provide the same caller-visible behavior through one shared interface.",
     scores,
     evidence_count: 2,
     counter_evidence_count: 1,
     review: {
       verdict: "approve",
-      summary: "Independent critique found the scope and evidence proportionate.",
+      summary: "The second AI pass found that the chosen code and evidence support the result.",
       confidence: 89,
       issue_counts: {},
       competing_interpretation_count: 0,
     },
     plain_language: {
-      version: "pattern-explanation-v1",
+      version: "pattern-explanation-v2",
       conclusion: "storage.py partly follows Strategy; make the existing design more consistent before adding another abstraction.",
       what_anaxigraph_saw: [
         "storage.py shows some, but not all, of Strategy.",
         "Three providers implement the same execution contract.",
       ],
-      why_it_may_matter: "Multiple implementations share one stable behavior boundary.",
+      why_it_may_matter: "Several implementations provide the same caller-visible behavior.",
       what_to_do: "Fix the smallest inconsistent part without building a second system beside it.",
       reasons_not_to_change_the_code: [
         "An extra abstraction could hide simple policy.",
@@ -66,7 +66,7 @@ function patternItem(includeEvidence) {
         { label: "Difficulty of changing it", scores: { execution_safety: 73, migration_cost: 37 }, meaning: "The change looks reasonably safe with weak migration cost." },
         { label: "Strength of evidence", scores: { evidence_strength: 86 }, meaning: "Evidence is strong; this is not a code-quality grade." },
       ],
-      independent_review: "A second agent checked the evaluation and did not require a correction.",
+      independent_review: "A separate AI pass checked the result and did not require a correction.",
     },
     provenance: {
       provider: "agent",
@@ -105,24 +105,24 @@ function candidateItem(includeEvidence) {
     matched_signal_count: 3,
     counter_signal_count: 0,
     plain_language: {
-      version: "pattern-candidate-explanation-v1",
-      conclusion: "Strategy qualified for provider.py, but more relevant work filled the bounded queue.",
+      version: "pattern-candidate-explanation-v2",
+      conclusion: "Strategy qualified for provider.py, but higher-ranked work filled the available AI tasks.",
       why_this_pair_was_considered: [
         "The code shows a problem that this pattern is designed to address.",
         "Other repository evidence also supports checking this pattern here.",
       ],
-      why_it_was_selected_or_skipped: "The pair passed the cutoff, but the queue keeps only the strongest bounded set.",
+      why_it_was_selected_or_skipped: "The possible match passed the minimum score, but AnaxiGraph keeps only the strongest configured number of AI tasks.",
       what_anaxigraph_found: [
-        "AnaxiGraph found semantic provider boundary = yes. This supports checking the pattern here.",
-        "AnaxiGraph found graph fan out = 12. This shows a problem that the pattern may address.",
+        "AnaxiGraph recorded that several providers share one caller-facing interface. This supports checking the pattern here.",
+        "AnaxiGraph found 12 direct links from this file to other files. This may be a problem the pattern can address.",
       ],
       what_anaxigraph_could_not_check: [
-        "No required evidence gap was recorded for this candidate decision.",
+        "AnaxiGraph had all information required for this code check.",
       ],
-      what_happens_next: "No agent work is created unless repository evidence or the bounded plan changes.",
+      what_happens_next: "No AI pattern task is created unless the repository evidence or task limit changes.",
       queue_rank: {
         value: 76,
-        meaning: "The internal queue rank is 76 out of 100. It selects bounded work; it is not a pattern rating or recommendation.",
+        meaning: "AnaxiGraph gave this possible match a work-order score of 76 out of 100. It only chooses which limited AI tasks run first; it is not a code grade, pattern fit rating, or recommendation.",
       },
     },
   };
@@ -136,9 +136,9 @@ function candidateItem(includeEvidence) {
         confidence: 0.88,
         evidence: ["Provider implementations share one behavior boundary."],
         plain_language: {
-          version: "pattern-candidate-detail-explanation-v1",
-          what_was_checked: "AnaxiGraph checked whether a provider boundary was present.",
-          what_was_found: "The observation met the pattern's evidence rule.",
+          version: "pattern-candidate-detail-explanation-v2",
+          what_was_checked: "AnaxiGraph checked whether several providers share one caller-facing interface.",
+          what_was_found: "The recorded value passed this pattern-library check.",
           how_it_affected_selection: "This supports checking Strategy for this code.",
           evidence_strength: {
             value: 88,
@@ -153,9 +153,9 @@ function candidateItem(includeEvidence) {
         ratio: 1,
         complete: true,
         plain_language: {
-          version: "pattern-candidate-detail-explanation-v1",
-          conclusion: "The available analyzers supplied enough semantic summary detail for this check.",
-          required_detail: "This pattern check needs at least summary detail about the code's purpose.",
+          version: "pattern-candidate-detail-explanation-v2",
+          conclusion: "AnaxiGraph's code readers supplied enough information about what this code does.",
+          required_detail: "This check needs a short explanation of the code's purpose.",
           available_detail: "All relevant code information met that requirement.",
           how_to_use_this: "This evidence was complete enough to use in candidate selection.",
         },
@@ -172,7 +172,7 @@ async function openDashboard(page) {
   await expect(page.locator(".group-family").first()).toBeVisible();
 }
 
-test("pattern intelligence explores finalized results in both directions", async ({ page }) => {
+test("plain-language pattern results can be explored in both directions", async ({ page }) => {
   const requests = [];
   await page.route("**/api/patterns**", async (route) => {
     const url = new URL(route.request().url());
@@ -232,21 +232,21 @@ test("pattern intelligence explores finalized results in both directions", async
 
   await expect(page.locator("#view-patterns")).toBeVisible();
   await expect(page.locator(".pattern-result-card")).toContainText("Strategy");
-  await expect(page.locator(".pattern-result-card")).toContainText("Independent critique");
+  await expect(page.locator(".pattern-result-card")).toContainText("Second AI check");
   await expect(page.locator(".pattern-conclusion")).toContainText("partly follows Strategy");
   await expect(page.locator(".pattern-story-grid")).toContainText("What AnaxiGraph saw");
   await expect(page.locator(".pattern-story-grid")).toContainText("Reasons not to change the code");
   await expect(page.locator(".pattern-story-grid")).toContainText("How to check the result");
   await expect(page.locator(".pattern-score-story section")).toHaveCount(5);
-  await expect(page.locator(".pattern-score-story")).toContainText("Problem Match 82/100");
+  await expect(page.locator(".pattern-score-story")).toContainText("Evidence that the problem exists 82 out of 100");
   await expect(page.locator(".pattern-result-card .pattern-score")).toHaveCount(0);
   await expect(page.locator("#pattern-query-summary")).toContainText(
-    "current, independently critiqued",
+    "current pattern results that completed a separate AI check",
   );
 
   await page.locator("#pattern-target-filter").fill("src/anaxigraph/storage.py");
   await page.locator("#patterns-query-form").getByRole("button", {
-    name: "Query finalized evaluations",
+    name: "Show completed pattern results",
   }).click();
   await expect.poll(() => requests.at(-1).params.get("target")).toBe(
     "src/anaxigraph/storage.py",
@@ -259,9 +259,9 @@ test("pattern intelligence explores finalized results in both directions", async
 
   await page.locator("#pattern-include-evidence").check();
   await page.locator("#patterns-query-form").getByRole("button", {
-    name: "Query finalized evaluations",
+    name: "Show completed pattern results",
   }).click();
-  await expect(page.locator(".pattern-details")).toContainText("Detailed evidence and critique");
+  await expect(page.locator(".pattern-details")).toContainText("Detailed evidence and changes made by the second AI check");
   await expect(page.locator(".pattern-details")).toContainText(
     "Three providers implement the same execution contract",
   );
@@ -271,9 +271,9 @@ test("pattern intelligence explores finalized results in both directions", async
   await expect(page.locator("#pattern-presence-filter")).toBeDisabled();
   await expect.poll(() => requests.at(-1).path).toBe("/api/patterns/candidates");
   await expect.poll(() => requests.at(-1).params.get("selection")).toBe("skipped");
-  await expect(page.locator(".candidate-result-card")).toContainText("Sparse Plan Bound");
+  await expect(page.locator(".candidate-result-card")).toContainText("Available AI tasks were filled");
   await expect(page.locator(".candidate-result-card .pattern-conclusion")).toContainText(
-    "more relevant work filled the bounded queue",
+    "higher-ranked work filled the available AI tasks",
   );
   await expect(page.locator(".candidate-result-card")).toContainText(
     "Why AnaxiGraph considered this pair",
@@ -282,7 +282,7 @@ test("pattern intelligence explores finalized results in both directions", async
     "What AnaxiGraph could not check",
   );
   await expect(page.locator(".candidate-result-card .pattern-candidate-rank")).toContainText(
-    "not a pattern rating or recommendation",
+    "not a code grade, pattern fit rating, or recommendation",
   );
   await expect(page.locator(".candidate-result-card .pattern-details")).toContainText(
     "Does selection policy vary independently from execution",
@@ -295,7 +295,7 @@ test("pattern intelligence explores finalized results in both directions", async
   );
   await expect(page.locator(".candidate-result-card .pattern-details")).not.toContainText("/100");
 
-  await page.getByRole("button", { name: "Look for finalized evaluation" }).click();
+  await page.getByRole("button", { name: "Look for a completed pattern result" }).click();
   await expect(page.locator("#pattern-mode-filter")).toHaveValue("evaluations");
   await expect.poll(() => requests.at(-1).path).toBe("/api/patterns");
   await expect.poll(() => requests.at(-1).params.get("target")).toBe(

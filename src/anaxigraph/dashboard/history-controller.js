@@ -76,12 +76,12 @@ export function showHistoryIndex(index) {
   const trend = state.trends.find((item) => Number(item.snapshot_id) === Number(snapshot.id));
   const metrics = trend?.metrics || {};
   const values = [
-    ["LOC", metrics.total_loc ?? snapshot.lines_of_code],
-    ["Artifacts", metrics.artifact_count ?? snapshot.file_count],
-    ["Dependencies", metrics.dependency_count ?? snapshot.relationship_count],
-    ["Cycles", metrics.cycle_count],
-    ["Average degree", metrics.average_degree == null ? null : Number(metrics.average_degree).toFixed(1)],
-    ["Violations", metrics.architecture_violation_count],
+    ["Code lines", metrics.total_loc ?? snapshot.lines_of_code],
+    ["Files", metrics.artifact_count ?? snapshot.file_count],
+    ["Direct code links", metrics.dependency_count ?? snapshot.relationship_count],
+    ["Circular link groups", metrics.cycle_count],
+    ["Average links per file", metrics.average_degree == null ? null : Number(metrics.average_degree).toFixed(1)],
+    ["Broken repository-area rules", metrics.architecture_violation_count],
   ];
   byId("trend-grid").innerHTML = values.map(([label, value]) => (
     `<div class="metric"><span>${escapeHtml(label)}</span><strong>${value == null ? "—" : format.format(value)}</strong></div>`
@@ -108,7 +108,7 @@ export async function toggleHistoryPlayback() {
     return;
   }
   if (state.snapshots.length < 2) {
-    toast("Import at least two historical snapshots before replaying.", true);
+    toast("Import at least two earlier saved code maps before replaying.", true);
     return;
   }
   state.historyPlaying = true;

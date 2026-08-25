@@ -43,8 +43,8 @@ def _register_status(
         name="ANAXIGRAPH_HISTORY_STATUS",
         title="Read Git history import status",
         description=(
-            "Read durable timeline-import progress, work counters, ETA, and the last complete "
-            "usable snapshot. Current repository intelligence remains usable during import."
+            "Read saved progress, work counts, estimated time remaining, and the last complete "
+            "code map from Git history. The current code map remains usable during import."
         ),
         annotations=ToolAnnotations(
             readOnlyHint=True,
@@ -68,8 +68,9 @@ def _register_import(
         name="ANAXIGRAPH_HISTORY_IMPORT",
         title="Start or resume Git history import",
         description=(
-            "Start a durable background first-parent history import, or resume from its last "
-            "complete frame after interruption. Writes only AnaxiIndex, never repository source."
+            "Build code maps in the background from commits in the repository's main Git history, "
+            "or continue after an interruption from the last complete map. This writes only to "
+            "AnaxiGraph's external index, never to repository source."
         ),
         annotations=ToolAnnotations(
             readOnlyHint=False,
@@ -92,8 +93,8 @@ def _register_cancel(
         name="ANAXIGRAPH_HISTORY_CANCEL",
         title="Cancel Git history import",
         description=(
-            "Request cancellation after the current atomic frame. Completed frames remain usable "
-            "and a later import resumes without repeating them."
+            "Ask the import to stop after it finishes the current commit's code map. Completed "
+            "maps remain usable, and a later import continues without repeating them."
         ),
         annotations=ToolAnnotations(
             readOnlyHint=False,

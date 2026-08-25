@@ -6,9 +6,11 @@ import json
 import sqlite3
 from typing import Any
 
+from anaxigraph.guidance import FILE_MEASUREMENT_MEANINGS
 from anaxigraph.persistence.graph_read import decode_relationship
 from anaxigraph.persistence.row_decoding import decode_json_columns
 from anaxigraph.persistence.snapshot_projection import install_snapshot_projection
+from anaxigraph.semantic_file_language import semantic_file_explanation
 
 
 def read_file_details(
@@ -33,8 +35,39 @@ def read_file_details(
         "semantic_claims": [decode_json_columns(dict(row)) for row in claims],
         "semantic_state": dict(semantic_state) if semantic_state else None,
         "semantic_dossiers": semantic_documents,
+        "semantic_plain_language": _semantic_language(path, semantic_state, semantic_documents),
+        "plain_language": {
+            "what": f"These are saved facts and AI descriptions for {path}.",
+            "how_to_read_code_links": (
+                "Relationships list files this file directly uses. Dependants list files that "
+                "directly use it. Missing links can still exist through configuration or runtime behavior."
+            ),
+            "measurement_meanings": FILE_MEASUREMENT_MEANINGS,
+            "machine_key_note": (
+                "The stable JSON key 'semantic_dossiers' means structured AI descriptions of "
+                "what this file does."
+            ),
+        },
         "reconstruction": projection.as_dict(),
     }
+
+
+def _semantic_language(
+    path: str,
+    state: sqlite3.Row | None,
+    documents: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    document = documents.get("context") or documents.get("intrinsic") or {}
+    value = document.get("value") if isinstance(document.get("value"), dict) else {}
+    return semantic_file_explanation(
+        path,
+        {
+            "status": state["status"] if state is not None else "not_started",
+            "confidence": document.get("confidence"),
+            "architecture_role": value.get("architecture_role"),
+            "placement_guidance": value.get("placement_guidance"),
+        },
+    )
 
 
 def _file_version(connection: sqlite3.Connection, path: str) -> sqlite3.Row | None:

@@ -57,7 +57,7 @@ def _pattern(*, opportunity=20, conformance=84, recommendation="retain"):
             "confidence": 88,
         },
         "plain_language": {
-            "version": "pattern-explanation-v1",
+            "version": "pattern-explanation-v2",
             "conclusion": "Keep Cohesive Module in src/service.py; it fits this code.",
             "what_anaxigraph_saw": [
                 "src/service.py already shows the main parts of Cohesive Module."
@@ -68,7 +68,7 @@ def _pattern(*, opportunity=20, conformance=84, recommendation="retain"):
                 "Splitting the module would separate code that changes together."
             ],
             "how_to_check": ["Keep existing callers and focused tests passing."],
-            "independent_review": "A second agent checked the evaluation.",
+            "independent_review": "A separate AI pass checked the result.",
         },
         "details": {
             "local_precedents": ["src/peer_service.py"],
@@ -98,8 +98,8 @@ def test_architecture_decision_combines_placement_patterns_and_balanced_consolid
     )
 
     assert result["status"] == "semantic_and_reviewed"
-    assert result["plain_language"]["version"] == "architecture-handoff-explanation-v1"
-    assert "current module meaning" in result["plain_language"]["conclusion"]
+    assert result["plain_language"]["version"] == "architecture-handoff-explanation-v2"
+    assert "up-to-date AI descriptions" in result["plain_language"]["conclusion"]
     assert result["placement"]["preferred_path"] == "src/service.py"
     assert result["placement"]["local_precedents"] == ["src/peer_service.py"]
     assert result["placement"]["plain_language"]["conclusion"] == (
@@ -109,10 +109,10 @@ def test_architecture_decision_combines_placement_patterns_and_balanced_consolid
     assert constraints["status"] == "semantic"
     assert constraints["items"][0]["invariants"]
     assert constraints["items"][0]["plain_language"]["what_must_stay_true"]
-    assert constraints["plain_language"]["conclusion"].startswith("Preserve the recorded")
+    assert constraints["plain_language"]["conclusion"].startswith("Keep the listed behavior true")
     reviewed = result["patterns"]["items"][0]
     assert reviewed["role"] == "reuse"
-    assert reviewed["plain_language"]["version"] == "pattern-explanation-v1"
+    assert reviewed["plain_language"]["version"] == "pattern-explanation-v2"
     assert reviewed["plain_language"]["conclusion"].startswith("Keep Cohesive Module")
     assert reviewed["plain_language"]["reasons_not_to_change_the_code"]
     assert reviewed["review"] == {"verdict": "approve", "confidence": 91}
@@ -133,7 +133,7 @@ def test_architecture_decision_combines_placement_patterns_and_balanced_consolid
     assert baseline["finding_keys"] == ["finding-3"]
     assert result["verification"]["focused_test_paths"] == ["tests/test_service.py"]
     assert result["verification"]["semantic_test_guidance"][0]["guidance"]
-    assert "has not compared a new scan" in result["verification"]["plain_language"]["conclusion"]
+    assert "has not compared a newer scan" in result["verification"]["plain_language"]["conclusion"]
 
 
 def test_architecture_decision_suppresses_uncorroborated_dead_code_and_weak_merge_advice():
@@ -241,11 +241,11 @@ def test_architecture_decision_compares_a_previous_baseline_after_a_rescan():
     assert score_changes["conformance"]["change"] == 6
     assert score_changes["opportunity"]["change"] == -10
     assert "does not call the change better or worse" in comparison["interpretation"]
-    assert comparison["plain_language"]["version"] == "architecture-verification-explanation-v1"
+    assert comparison["plain_language"]["version"] == "architecture-verification-explanation-v2"
     assert comparison["plain_language"]["what_anaxigraph_saw"] == [
-        "AnaxiGraph observed 1 module change(s).",
-        "AnaxiGraph observed 2 finding change(s).",
-        "AnaxiGraph observed 1 reviewed pattern change(s).",
+        "AnaxiGraph found 1 file record that changed.",
+        "AnaxiGraph found 2 findings that changed.",
+        "AnaxiGraph found 1 AI-checked pattern result that changed.",
     ]
 
 

@@ -89,17 +89,17 @@ def rule_evidence():
         (
             RuleConfig("uses-many", "max_fan_out", params={"max": 12}),
             "high_fan_out",
-            "src/a.py directly uses 18 modules; this project reviews files above 12 modules",
+            "src/a.py directly uses 18 other files; this project reviews files above 12 direct file links",
         ),
         (
             RuleConfig("used-by-many", "max_fan_in", params={"max": 12}),
             "high_fan_in",
-            "18 modules directly use src/b.py; this project reviews files above 12 modules",
+            "18 files directly use src/b.py; this project reviews files above 12 direct file links",
         ),
         (
             RuleConfig("dependency-loop", "no_cycles"),
             "dependency_cycle",
-            "2 modules depend on one another in a loop",
+            "2 files depend on one another in a loop",
         ),
         (
             RuleConfig(

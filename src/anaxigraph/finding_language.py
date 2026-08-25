@@ -13,10 +13,10 @@ _CHECK_LABELS = {
     "module_complexity": "File has many lines",
     "long_function": "Function has many lines",
     "symbol_complexity": "Function has many branches",
-    "high_fan_out": "File directly uses many modules",
-    "high_fan_in": "Many modules directly use this file",
-    "dependency_cycle": "Modules depend on one another in a loop",
-    "architecture_violation": "Project boundary crossed",
+    "high_fan_out": "File directly uses many other files",
+    "high_fan_in": "Many files directly use this file",
+    "dependency_cycle": "Files depend on one another in a loop",
+    "architecture_violation": "A direct code link breaks a project rule",
     "architecture_drift": "File does not match its declared area",
     "weak_test_coverage": "Tests miss part of a file",
     "possible_dead_code": "File may no longer be used",
@@ -36,12 +36,12 @@ _COMMON_CAVEATS = {
         "Splitting it would force closely related code to jump between files.",
     ],
     "high_fan_out": [
-        "The file intentionally coordinates the listed modules for one clear workflow.",
-        "Every dependency supports the same job rather than a separate responsibility.",
+        "The file intentionally coordinates the listed files for one clear workflow.",
+        "Every direct code link supports the same job rather than a separate responsibility.",
     ],
     "high_fan_in": [
-        "The file is a stable shared promise that many callers are expected to use.",
-        "Its public behavior changes rarely and has broad tests.",
+        "The file intentionally offers behavior that many callers are expected to use.",
+        "Tests cover that caller-visible behavior, and it changes rarely.",
     ],
     "architecture_drift": [
         "The path-based guess placed the file in the wrong architecture area.",
@@ -49,7 +49,7 @@ _COMMON_CAVEATS = {
     ],
     "architecture_violation": [
         "The repository rule is out of date or was written too broadly.",
-        "The reference exists only for building or type checking, or points to the wrong module.",
+        "The code link exists only for building or type checking, or points to the wrong file.",
     ],
 }
 
@@ -87,7 +87,7 @@ def finding_caveats(finding_type: str) -> list[str]:
             finding_type,
             [
                 "The repository intentionally allows this structure.",
-                "Missing or unclear dependency data changes what the finding means.",
+                "Missing or unclear code-link data changes what the finding means.",
             ],
         )
     )
@@ -149,7 +149,7 @@ def _machine_context(
             "label": label,
             "guidance": _priority_guidance(label),
             "meaning": (
-                f"The internal queue score is {score} out of 100. It only decides which finding "
+                f"The sorting score is {score} out of 100. It only decides which finding "
                 "AnaxiGraph shows first; it is not a grade for the code."
             ),
             "reasons": reasons,
@@ -238,18 +238,18 @@ def _dependency_facts(
     if not count:
         return []
     facts = [
-        f"This module is directly used by {count} other modules."
+        f"This file is directly used by {count} other files."
         if incoming
-        else f"This module directly uses {count} other modules."
+        else f"This file directly uses {count} other files."
     ]
     if limit := values.get("review_limit_dependencies"):
-        facts.append(f"This project asks for a closer look above {limit} modules.")
+        facts.append(f"This project asks for a closer look above {limit} direct file links.")
     return facts
 
 
 def _cycle_facts(_values: Mapping[str, str], finding: Mapping[str, Any]) -> list[str]:
     paths = [str(path) for path in finding.get("affected_artifacts") or ()]
-    return [f"The dependency loop contains {', '.join(paths)}."] if paths else []
+    return [f"The loop of files that use one another contains {', '.join(paths)}."] if paths else []
 
 
 def _boundary_facts(_values: Mapping[str, str], finding: Mapping[str, Any]) -> list[str]:
@@ -264,7 +264,7 @@ def _drift_facts(values: Mapping[str, str], _finding: Mapping[str, Any]) -> list
         return []
     return [
         f"The project places this file in {declared}.",
-        f"Its path and dependencies make it behave more like part of {inferred}.",
+        f"Its path and direct code links make it behave more like part of {inferred}.",
     ]
 
 
@@ -294,7 +294,7 @@ def _measurement(prefix: str, value: str, unit: str, values: Mapping[str, str]) 
         return [sentence, f"The project's coverage goal is {_percent(limit)}."]
     limit_unit = {
         "review_limit_lines": " lines",
-        "review_limit_dependencies": " modules",
+        "review_limit_dependencies": " direct file links",
         "review_limit_decision_score": "",
     }.get(key, "")
     return [sentence, f"This project asks for a closer look above {limit}{limit_unit}."]
@@ -332,9 +332,7 @@ def _source_meaning(source: str) -> str:
             "exists; it does not decide whether the design is good or bad."
         )
     if source in {"semantic", "llm", "coding_agent"}:
-        return (
-            "An AI suggested this from the indexed semantic evidence; verify it against the code."
-        )
+        return "An AI suggested this from saved descriptions of what the code does; verify it against the code."
     return f"AnaxiGraph received this finding from the source named {source}."
 
 

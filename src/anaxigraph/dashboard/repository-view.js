@@ -49,12 +49,12 @@ export function renderOnboarding() {
       copy: indexed
         ? `${format.format(state.overview.files || 0)} files are mapped. ${historyCopy}`
         : "The first read-only scan is still building AnaxiIndex.",
-      action: '<button class="secondary-button" type="button" data-onboarding-view="modules">Browse modules</button>',
+      action: '<button class="secondary-button" type="button" data-onboarding-view="modules">Browse files</button>',
     },
     {
       complete: progress.explored,
       title: "See the system",
-      copy: "Explore the autonomous semantic hierarchy and dependency paths, or replay Git history.",
+      copy: "Explore AI-created code areas and direct links between files, or replay the Git history.",
       action: '<button class="secondary-button" type="button" data-onboarding-view="graph">Open architecture graph</button>',
     },
     {
@@ -98,11 +98,11 @@ export function renderSettings() {
   const selectedId = Number(state.repositoryId);
   byId("settings-repositories").innerHTML = state.repositories.map((item) => {
     const current = Number(item.id) === selectedId;
-    const scanState = item.scannable ? "Mounted read-only · refresh enabled" : "Indexed only";
+    const scanState = item.scannable ? "Source available read-only · refresh enabled" : "Saved index only";
     const authority = item.config_authority || {};
     const policyPath = authority.service_config_path || item.config_path || "service defaults";
-    const policyHash = authority.sha256 ? authority.sha256.slice(0, 12) : "no policy file";
-    return `<article class="settings-repository ${current ? "current" : ""}"><div><strong>${escapeHtml(item.name)}</strong>${current ? "<span>current</span>" : ""}</div><dl><dt>Registry key</dt><dd><code>${escapeHtml(item.registry_key || "not registered")}</code></dd><dt>Container path</dt><dd><code>${escapeHtml(item.path)}</code></dd><dt>Policy authority</dt><dd><code>${escapeHtml(policyPath)}</code> · ${escapeHtml(authority.source_kind || "automatic discovery")} · <code>${escapeHtml(policyHash)}</code></dd><dt>Git frames</dt><dd>${item.history_snapshots === "auto" ? "Auto" : item.history_snapshots == null ? "—" : format.format(item.history_snapshots)}</dd><dt>Access</dt><dd>${escapeHtml(scanState)}</dd></dl></article>`;
+    const policyHash = authority.sha256 ? authority.sha256.slice(0, 12) : "no settings file";
+    return `<article class="settings-repository ${current ? "current" : ""}"><div><strong>${escapeHtml(item.name)}</strong>${current ? "<span>current</span>" : ""}</div><dl><dt>Saved repository key</dt><dd><code>${escapeHtml(item.registry_key || "not registered")}</code></dd><dt>Source path</dt><dd><code>${escapeHtml(item.path)}</code></dd><dt>Settings used for scans</dt><dd><code>${escapeHtml(policyPath)}</code> · ${escapeHtml(authority.source_kind || "found automatically")} · version <code>${escapeHtml(policyHash)}</code></dd><dt>Git history maps to keep</dt><dd>${item.history_snapshots === "auto" ? "Choose automatically" : item.history_snapshots == null ? "—" : format.format(item.history_snapshots)}</dd><dt>Source access</dt><dd>${escapeHtml(scanState)}</dd></dl></article>`;
   }).join("");
   const mcpUrl = `${window.location.origin}/mcp`;
   byId("settings-mcp-url").textContent = mcpUrl;
@@ -116,7 +116,7 @@ function semanticSettingsSummary(semantic) {
   const language = semantic.plain_language || {};
   if (language.conclusion) return semanticSettingsLanguageSummary(semantic, language);
   if (!semantic.enabled) {
-    return "AI mapping is off for this repository. The non-AI code and dependency map still works. Enable semantic.provider: agent to use the connected coding agent without giving AnaxiGraph a separate model key, or configure a hosted worker.";
+    return "AI mapping is off for this repository. The non-AI file and direct-link map still works. Set semantic.provider to agent to use the connected coding agent without giving AnaxiGraph a separate model key, or configure a separate AI worker.";
   }
   return semanticSettingsFallbackSummary(semantic);
 }
@@ -174,7 +174,7 @@ function semanticSettingsCommand(semantic) {
 
 export function displaySnapshot(snapshot, historical = false) {
   if (!snapshot) {
-    byId("snapshot-label").textContent = "No snapshot";
+    byId("snapshot-label").textContent = "No saved scan";
     return;
   }
   const branch = snapshot.branch || "unknown";

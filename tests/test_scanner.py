@@ -45,12 +45,18 @@ def test_scan_persists_graph_metrics_coverage_and_findings(repository, database)
     assert modules["pkg/core.py"]["architecture_area"] == "domain"
     assert modules["pkg/core.py"]["summary"] == "Public calculation service."
     assert modules["pkg/core.py"]["evaluation"]["attention_score"] >= 0
+    assert (
+        "not a grade for the code"
+        in modules["pkg/core.py"]["evaluation"]["attention_score_meaning"]
+    )
+    assert modules["pkg/core.py"]["evaluation"]["attention_guidance"]
     assert modules["pkg/core.py"]["evaluation"]["monitored_by_default"] is True
     assert modules["pkg/core.py"]["evaluation"]["suitability_score"] is None
     documentation = modules["docs/architecture.md"]["evaluation"]
     assert documentation["monitored_by_default"] is False
     assert documentation["attention_score"] is None
     assert documentation["attention_label"] == "Reference"
+    assert "does not give reference files" in documentation["attention_score_meaning"]
     internal = {
         (
             next(item["path"] for item in graph["nodes"] if item["id"] == edge["source"]),
@@ -118,6 +124,10 @@ def test_scan_retains_ambiguous_unresolved_and_external_relationship_evidence(re
     stats = RepositoryScanner(database).scan(repository)
     detail = database.file_details(stats.repository_id, "pkg/evidence.py")
     assert detail is not None
+    assert "saved facts and AI descriptions" in detail["plain_language"]["what"]
+    assert (
+        "not a code-quality grade" in detail["plain_language"]["measurement_meanings"]["complexity"]
+    )
     by_target = {item["target_external"]: item for item in detail["relationships"]}
 
     assert by_target["shared"]["resolution_status"] == "ambiguous_internal"

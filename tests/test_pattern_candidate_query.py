@@ -101,8 +101,8 @@ def test_candidate_query_distinguishes_selected_work_from_sparse_bound_omissions
         "sparse_plan_bound",
     ]
     selected = result["items"][0]["plain_language"]
-    assert selected["version"] == "pattern-candidate-explanation-v1"
-    assert "full agent evaluation" in selected["conclusion"]
+    assert selected["version"] == "pattern-candidate-explanation-v2"
+    assert "full AI pattern check" in selected["conclusion"]
     assert selected["why_this_pair_was_considered"]
     assert selected["why_it_was_selected_or_skipped"]
     assert selected["what_anaxigraph_found"]

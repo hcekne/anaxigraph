@@ -10,7 +10,7 @@ def test_primary_onboarding_leads_with_the_four_step_agent_funded_path():
         "uvx anaxigraph up . --open --semantic agent --connect codex",
         "http://127.0.0.1:8765",
         "own",
-        "build or resume the semantic baseline",
+        "build or resume the AI-created code map",
     )
 
     assert readme.index("## 🚀 Start in four steps") < readme.index("## 🐳 Durable Docker sidecar")

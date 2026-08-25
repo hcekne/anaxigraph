@@ -1,4 +1,4 @@
-"""CLI registration and handlers for semantic analysis work."""
+"""CLI registration and handlers for the AI-created code map."""
 
 from __future__ import annotations
 
@@ -37,47 +37,57 @@ def configure_semantic_commands(commands: Any) -> None:
 def _configure_understand(commands: Any) -> None:
     understand = commands.add_parser(
         "understand",
-        help="Build or refresh the repository's versioned semantic dossiers",
+        help="Build or refresh AI descriptions of files, code areas, and coding-pattern matches",
     )
     add_repository_arguments(understand)
     budget = understand.add_mutually_exclusive_group()
     budget.add_argument(
         "--limit",
         type=int,
-        help="Maximum semantic jobs to execute in this run (defaults to repository policy)",
+        help="Maximum AI tasks to run now (defaults to the repository setting)",
     )
     budget.add_argument(
         "--until-complete",
         action="store_true",
-        help="Continue through module, taxonomy, and synthesis stages until no work remains",
+        help=(
+            "Continue until every required file description, code-area grouping, repository "
+            "summary, and pattern result is complete"
+        ),
     )
     understand.add_argument(
         "--force",
         action="store_true",
-        help="Reread every eligible module even when its current dossier is reusable",
+        help="Ask the AI to reread every eligible file even when its saved description is current",
     )
     understand.add_argument(
-        "--retry-failed", action="store_true", help="Retry terminally failed semantic jobs"
+        "--retry-failed", action="store_true", help="Give failed AI tasks another try"
     )
     understand.add_argument(
-        "--plan-only", action="store_true", help="Queue stale work without invoking a model"
+        "--plan-only", action="store_true", help="Prepare needed AI tasks without starting a model"
     )
     add_semantic_execution_arguments(understand)
     understand.add_argument(
         "--service-url",
-        help="Authoritative dashboard/API root (auto-detected on loopback when --db is omitted)",
+        help=(
+            "Dashboard/API that owns the saved index (found automatically on this machine when "
+            "--db is omitted)"
+        ),
     )
     understand.set_defaults(handler=_understand, db=None)
 
 
 def _configure_status(commands: Any) -> None:
     status = commands.add_parser(
-        "semantic-status", help="Show semantic coverage, freshness, failures, and usage"
+        "semantic-status",
+        help="Show how much of the AI-created code map is current and what work remains",
     )
     add_repository_arguments(status)
     status.add_argument(
         "--service-url",
-        help="Authoritative dashboard/API root (auto-detected on loopback when --db is omitted)",
+        help=(
+            "Dashboard/API that owns the saved index (found automatically on this machine when "
+            "--db is omitted)"
+        ),
     )
     status.set_defaults(handler=_semantic_status, db=None)
 
@@ -85,7 +95,7 @@ def _configure_status(commands: Any) -> None:
 def _configure_worker(commands: Any) -> None:
     worker = commands.add_parser(
         "semantic-worker",
-        help="Continuously scan, reconcile hashes, and process semantic jobs",
+        help="Keep repository scans and AI-created descriptions up to date",
     )
     add_repository_arguments(worker)
     worker.add_argument(
@@ -94,7 +104,7 @@ def _configure_worker(commands: Any) -> None:
     worker.add_argument(
         "--interval",
         type=float,
-        help="Seconds between full-ledger reconciliations (defaults to repository policy)",
+        help="Seconds between checks of the full saved AI-task list (defaults to repository settings)",
     )
     worker.add_argument("--once", action="store_true", help="Run one reconciliation cycle and exit")
     worker.set_defaults(handler=_semantic_worker)
@@ -280,7 +290,7 @@ def _scan_required_service_result(
     )
     report_background_progress(stage="scan_required", last_error=message)
     if args.until_complete:
-        raise RuntimeError(f"Semantic execution requires a current structural snapshot. {message}")
+        raise RuntimeError(f"AI mapping requires a current saved repository scan. {message}")
     return {
         "scan": {},
         "status": "scan_required",
@@ -297,7 +307,7 @@ def _require_requested_completion(args: argparse.Namespace, result: dict[str, An
     semantic = result.get("semantic") or {}
     jobs = semantic.get("jobs") or {}
     raise RuntimeError(
-        "Semantic completion was requested but the queue is not current "
+        "Complete AI mapping was requested, but work still remains "
         f"(pending={jobs.get('pending', 0)}, retry={jobs.get('retry', 0)}, "
         f"running={jobs.get('running', 0)}, failed={jobs.get('failed', 0)})."
     )
@@ -313,8 +323,9 @@ def _mcp_continuation(
         "kind": "connected_agent_semantic_loop",
         "repository": str(repository.expanduser().resolve()),
         "instruction": (
-            "Semantic inference has not run. The connected coding agent must not report this "
-            "command as complete; it must execute the MCP work loop until a terminal status."
+            "The AI-created code map has not been built. The connected coding agent must keep "
+            "requesting, reading, and submitting the saved AI tasks. It must not report this "
+            "command as complete until ANAXIGRAPH_SEMANTIC_WORK returns status='complete'."
         ),
         "sequence": [
             "ANAXIGRAPH_SEMANTIC_SCHEMA once",

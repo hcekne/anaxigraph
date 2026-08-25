@@ -24,12 +24,12 @@ class PatternTool:
     def register(self) -> None:
         self.server.tool(
             name="ANAXIGRAPH_PATTERNS",
-            title="Query coding-pattern intelligence",
+            title="Read coding-pattern results",
             description=(
-                "Read independently critiqued evaluations in either direction. Use mode "
-                "'candidates' with an exact pattern key to explain which eligible targets were "
-                "selected or skipped by deterministic sparse planning and why. Both modes are "
-                "current-snapshot only, paginated, and compact unless evidence is requested."
+                "Read pattern results that completed a separate AI check. Use mode='candidates' "
+                "with an exact pattern-library key to explain why a file, function, class, or code "
+                "area was selected or skipped before AI work. Both modes use one saved scan, "
+                "return one page at a time, and keep responses short unless evidence is requested."
             ),
             annotations=ToolAnnotations(
                 readOnlyHint=True,

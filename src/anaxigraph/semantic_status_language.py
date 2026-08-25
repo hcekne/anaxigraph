@@ -1,15 +1,15 @@
-"""Plain-language semantic-run status for people and coding agents."""
+"""Plain-language AI-mapping status for people and coding agents."""
 
 from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any
 
-SEMANTIC_STATUS_LANGUAGE_VERSION = "semantic-status-explanation-v1"
+SEMANTIC_STATUS_LANGUAGE_VERSION = "semantic-status-explanation-v2"
 
 
 def semantic_status_explanation(status: Mapping[str, Any]) -> dict[str, Any]:
-    """Explain semantic progress without exposing workflow-state vocabulary as the answer."""
+    """Explain AI-mapping progress without making workflow-state names the answer."""
 
     enabled = bool(status.get("enabled"))
     ready = bool(status.get("semantically_ready"))
@@ -44,23 +44,23 @@ def _conclusion(
 ) -> str:
     state = str(status.get("state") or "not_started")
     if state == "not_indexed":
-        return "AI mapping cannot start because this repository has not been scanned yet."
+        return "AI mapping cannot start because this repository has not completed a read-only file scan yet."
     if not enabled:
         return "AI mapping is turned off for this repository."
     if ready:
-        return "The AI map is current for this repository snapshot."
+        return "The AI map is up to date for this saved scan."
     if running:
         return "AI mapping is running now and still has work left."
     if failed + failed_map:
         return "AI mapping has unfinished failures and is not current."
     if state == "not_started":
-        return "AI mapping has not been prepared for this repository snapshot."
+        return "AI mapping has not been prepared for this saved scan."
     return "AI mapping is incomplete, and no worker is running right now."
 
 
 def _progress(enabled: bool, total: int, current: int, excluded: int) -> str:
     if not enabled:
-        return "The non-AI code and dependency map remains available."
+        return "The non-AI file and direct-link map remains available."
     if not total:
         return "No included files have been prepared for AI description yet."
     result = (
@@ -76,12 +76,12 @@ def _work_state(enabled: bool, ready: bool, running: bool, pending: int, failed:
     if not enabled:
         return "No AI worker is needed while this feature is off."
     if ready:
-        return "No AI-mapping work remains for the current snapshot."
+        return "No AI-mapping work remains for the current saved scan."
     if running:
         return "A worker is processing saved work now; each completed result is stored immediately."
     if pending:
         return (
-            "No worker is processing the queue right now. Unfinished work is safely saved and can "
+            "No worker is processing the task list right now. Unfinished work is safely saved and can "
             "be resumed, but it will not finish until a worker starts."
         )
     if failed:
@@ -99,7 +99,7 @@ def _remaining_work(
         )
     if pending_map:
         values.append(
-            f"{_items(pending_map, 'repository-wide task is', 'repository-wide tasks are')} unfinished. These can include hierarchy, repository summary, and pattern checks."
+            f"{_items(pending_map, 'repository-wide task is', 'repository-wide tasks are')} unfinished. These can include grouping files by their jobs, describing the whole repository, and checking patterns."
         )
     if failed:
         values.append(
@@ -111,10 +111,10 @@ def _remaining_work(
         )
     taxonomy = _mapping(status.get("taxonomy"))
     if taxonomy.get("enabled") and not taxonomy.get("ready"):
-        values.append("The AI-created code hierarchy has not finished its automatic checks yet.")
+        values.append("The AI-created grouping of files has not finished its automatic checks yet.")
     if _mapping(status.get("budget")).get("paused"):
         values.append(
-            "Hosted-model work is paused because the next call would exceed today's budget."
+            "AI work using a separate paid model is paused because the next call would exceed today's budget."
         )
     return values or ["No unfinished AI-mapping work is reported."]
 
@@ -136,7 +136,7 @@ def _actions(status: Mapping[str, Any], enabled: bool, ready: bool, running: boo
         return _durable_worker_actions(command, status_command)
     if kind == "bounded_mcp_fallback":
         return [
-            "For a small queue, a connected coding agent can repeatedly request and submit one piece "
+            "For a small task list, a connected coding agent can repeatedly request and submit one piece "
             "of saved work at a time until the tool reports that the map is complete."
         ]
     message = str(action.get("message") or "").strip()
@@ -168,10 +168,10 @@ def _reading_guide(status: Mapping[str, Any], total: int) -> list[str]:
     snapshot = status.get("snapshot_id")
     values = [
         (
-            f"Current means the saved AI descriptions match snapshot {snapshot} and the current "
-            "analysis rules."
+            f"Up to date means the saved AI descriptions match saved scan {snapshot} and the current "
+            "code-reading rules."
             if snapshot is not None
-            else "Current means the saved AI descriptions match the selected repository snapshot and analysis rules."
+            else "Up to date means the saved AI descriptions match the selected saved scan and current code-reading rules."
         ),
         (
             f"Progress measures how many of the {total} included files have complete current "

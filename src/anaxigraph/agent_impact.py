@@ -1,4 +1,4 @@
-"""Bounded reverse-dependency impact analysis for coding agents."""
+"""Size-limited analysis of code that may be affected by a change."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from anaxigraph.agent_payload import (
     _branch_conflicts,
     _file_summary,
     _is_protected,
+    _risk_explanation,
     _sorted_ids,
 )
 from anaxigraph.persistence.snapshot_projection import resolve_projected_target
@@ -104,6 +105,7 @@ def _impact_response(
     conflicts = _branch_conflicts(Path(graph.repository["path"]), paths, branch)
     degree = len(graph.outgoing[graph.target_id]) + len(graph.incoming[graph.target_id])
     risk = _impact_risk(evidence, conflicts, degree)
+    risk_reasons = _impact_risk_reasons(evidence, conflicts, degree)
     second_only = evidence.second - evidence.direct
     return {
         "repository_id": repository_id,
@@ -125,13 +127,48 @@ def _impact_response(
         "database_migrations_possibly_affected": evidence.migrations,
         "active_feature_branches_affected": conflicts,
         "risk": risk,
-        "metrics": {
-            "direct_dependants": len(evidence.direct),
-            "second_order_dependants": len(second_only),
-            "transitive_dependants": len(evidence.transitive),
-            "tests": len(evidence.tests),
-            "degree": degree,
-        },
+        "risk_reasons": risk_reasons,
+        "plain_language": _impact_language(graph, evidence, risk, risk_reasons),
+        "metrics": _impact_metrics(evidence, second_only, degree),
+    }
+
+
+def _impact_language(
+    graph: _ImpactGraph,
+    evidence: _ImpactEvidence,
+    risk: str,
+    risk_reasons: list[str],
+) -> dict[str, Any]:
+    count = len(evidence.transitive)
+    return {
+        "conclusion": (
+            f"Changing {graph.files[graph.target_id]['path']} may affect {count} other indexed "
+            f"{'file' if count == 1 else 'files'} through direct or indirect code links."
+        ),
+        "how_to_use_this": (
+            "Check direct users and focused tests first. Indirect users are possible follow-on "
+            "effects, not a list of files that must change."
+        ),
+        "risk": _risk_explanation(risk, risk_reasons),
+        "limits": (
+            "The result uses saved source-code links. Configuration, frameworks, generated "
+            "names, and runtime registration can connect code that the map cannot see."
+        ),
+        "machine_key_note": (
+            "snapshot_id identifies the saved scan used for this answer; it is not a score."
+        ),
+    }
+
+
+def _impact_metrics(
+    evidence: _ImpactEvidence, second_only: set[int], degree: int
+) -> dict[str, int]:
+    return {
+        "direct_dependants": len(evidence.direct),
+        "second_order_dependants": len(second_only),
+        "transitive_dependants": len(evidence.transitive),
+        "tests": len(evidence.tests),
+        "degree": degree,
     }
 
 
@@ -141,3 +178,24 @@ def _impact_risk(evidence: _ImpactEvidence, conflicts: list[dict[str, str]], deg
     if evidence.direct or evidence.migrations:
         return "medium"
     return "low"
+
+
+def _impact_risk_reasons(
+    evidence: _ImpactEvidence, conflicts: list[dict[str, str]], degree: int
+) -> list[str]:
+    reasons = []
+    if evidence.protected:
+        reasons.append("A project rule marks at least one possibly affected file for extra care.")
+    if conflicts:
+        reasons.append("Another branch also changes at least one possibly affected file.")
+    if len(evidence.transitive) >= 25:
+        reasons.append(
+            f"At least {len(evidence.transitive)} files may be affected through one or more code links."
+        )
+    if degree >= 20:
+        reasons.append(f"The target has {degree} direct incoming or outgoing code links.")
+    if evidence.direct and not reasons:
+        reasons.append(f"{len(evidence.direct)} files directly use the target.")
+    if evidence.migrations:
+        reasons.append("A possibly affected file appears to change stored database data.")
+    return reasons or ["No indexed condition raised the change above low risk."]

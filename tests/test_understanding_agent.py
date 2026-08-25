@@ -51,6 +51,13 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
             break
         assert packet["status"] == "work"
         assert packet["response_contract"]["schema_version"] == "repository-understanding-v5"
+        writing = packet["analysis_request"]["writing_requirements"]
+        assert packet["analysis_request"]["writing_contract_version"] == "plain-language-v2"
+        assert "smart twelve-year-old" in writing["audience"]
+        assert "what the number can and cannot mean" in writing["score_rule"]
+        terms = packet["analysis_request"]["input_term_meanings"]
+        assert "one repository file" in terms["module"]
+        assert "not a code-quality grade" in terms["complexity"]
         manifest = packet["evidence_manifest"]
         if manifest:
             pages = [

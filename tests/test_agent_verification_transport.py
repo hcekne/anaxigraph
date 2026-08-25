@@ -34,7 +34,7 @@ async def test_rest_scope_accepts_its_previous_verification_baseline(repository,
     comparison = second.json()["architecture_decision"]["verification"]["post_change_comparison"]
     assert comparison["status"] == "rescan_required"
     assert comparison["plain_language"]["what_anaxigraph_saw"] == [
-        "No newer snapshot was available, so no post-change comparison was possible."
+        "No newer saved scan was available, so no after-change comparison was possible."
     ]
 
 

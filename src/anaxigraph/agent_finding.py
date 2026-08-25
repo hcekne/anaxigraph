@@ -28,7 +28,7 @@ def build_finding_context(
     scope_builder: AgentOperation,
     impact_builder: AgentOperation,
 ) -> dict[str, Any]:
-    """Turn one finding into a bounded, source-editing handoff."""
+    """Turn one finding into a size-limited, source-editing handoff."""
 
     repository, finding = _finding(database, repository_id, finding_id)
     affected = [str(path) for path in finding.get("affected_artifacts") or []]
@@ -146,9 +146,9 @@ def _response(
         "scope": scope,
         "primary_impact": impact,
         "verification": [
-            "Run focused tests for the affected behavior and dependency boundary.",
+            "Run focused tests for the affected behavior and the project rule about which files may use one another.",
             str(finding["plain_language"]["how_to_check"]),
-            "Review any new error-severity findings introduced by the change.",
+            "Check whether the next scan reports a new finding that the project marks as an error.",
         ],
         "agent_prompt": _agent_prompt(repository, finding, finding_id),
     }
@@ -183,7 +183,7 @@ def _agent_prompt(repository: dict[str, Any], finding: dict[str, Any], finding_i
             f"1. Call ANAXIGRAPH_FINDING_CONTEXT with finding_id={finding_id}.",
             "2. Inspect the recommended files with ANAXIGRAPH_FILE.",
             "3. Call ANAXIGRAPH_IMPACT before changing a shared interface.",
-            "4. Make the smallest cohesive change and run the listed relevant tests.",
-            "5. Refresh AnaxiGraph and confirm the finding disappears without new errors.",
+            "4. Make the smallest change that keeps each file focused on one clear job, then run the listed tests.",
+            "5. Scan the repository again and confirm the finding disappears without a new error-level finding.",
         ]
     )

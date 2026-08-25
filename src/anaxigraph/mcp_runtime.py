@@ -12,17 +12,16 @@ from mcp.server.fastmcp.server import Settings as FastMCPSettings
 from mcp.server.transport_security import TransportSecuritySettings
 
 _INSTRUCTIONS = (
-    "For a full semantic baseline or resume, use the durable host executor: anaxigraph "
-    "understand <repository> --executor codex --background, then monitor semantic-status. "
-    "Use direct MCP WORK → EVIDENCE → SUBMIT only as a bounded/manual fallback. Never report "
-    "completion until semantic status says semantically_ready: true. Never edit source while "
-    "mapping; semantic submission writes only validated interpretations to AnaxiIndex. "
-    "AnaxiMCP exposes the AnaxiIndex knowledge held by AnaxiGraph. Use these tools to understand "
-    "repository architecture before editing. Prefer ANAXIGRAPH_SCOPE for a new goal, "
-    "ANAXIGRAPH_IMPACT before changing a shared interface, and ANAXIGRAPH_FILE for the "
-    "complete semantic dossier behind a module. Parser facts and LLM inferences are "
-    "labeled separately. Findings and pattern advice are recommendations, not permission "
-    "to refactor."
+    "To build or resume the complete AI-created code map, run `anaxigraph understand "
+    "<repository> --executor codex --background`, then watch `anaxigraph semantic-status "
+    "<repository>`. Direct MCP WORK → EVIDENCE → SUBMIT calls process one saved task at a time "
+    "and are a fallback. Do not report completion until semantic status says "
+    "semantically_ready: true. Never edit repository source while mapping; submission writes only "
+    "checked AI descriptions to AnaxiGraph's external index. Use ANAXIGRAPH_SCOPE for a new coding "
+    "goal, ANAXIGRAPH_IMPACT before changing caller-visible behavior, and ANAXIGRAPH_FILE for the "
+    "full saved description of one file. The results distinguish facts read directly from code "
+    "from AI explanations. Findings and pattern advice explain what to check; they do not order "
+    "you to refactor."
 )
 
 

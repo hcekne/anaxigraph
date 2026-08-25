@@ -108,8 +108,8 @@ def test_legacy_complexity_copy_becomes_a_complete_plain_language_contract():
             "The module exceeds the configured 12 outgoing-dependency signal.",
             ["outgoing_dependencies=18"],
             (
-                "src/anaxigraph/config.py directly uses 18 modules; this project reviews files "
-                "above 12 modules"
+                "src/anaxigraph/config.py directly uses 18 other files; this project reviews "
+                "files above 12 direct file links"
             ),
         ),
         (
@@ -118,8 +118,8 @@ def test_legacy_complexity_copy_becomes_a_complete_plain_language_contract():
             "The module exceeds the configured 12 incoming-dependency signal.",
             ["incoming_dependencies=18"],
             (
-                "18 modules directly use src/anaxigraph/config.py; this project reviews files "
-                "above 12 modules"
+                "18 files directly use src/anaxigraph/config.py; this project reviews files "
+                "above 12 direct file links"
             ),
         ),
         (
@@ -127,7 +127,7 @@ def test_legacy_complexity_copy_becomes_a_complete_plain_language_contract():
             "Dependency cycle spans 2 modules",
             "The modules participate in a strongly connected dependency component.",
             ["src/anaxigraph/config.py", "src/anaxigraph/cli.py"],
-            "2 modules depend on one another in a loop",
+            "2 files depend on one another in a loop",
         ),
         (
             "architecture_violation",
@@ -214,7 +214,7 @@ def test_known_legacy_findings_are_upgraded_without_a_rescan(
             "src/anaxigraph/config.py reaches into many other modules",
             "It directly uses 18 modules. This project starts a closer review above 12.",
             ["outgoing_dependencies=18"],
-            "directly uses 18 modules; this project reviews files above 12 modules",
+            "directly uses 18 other files; this project reviews files above 12 direct file links",
         ),
         (
             "weak_test_coverage",
@@ -278,19 +278,19 @@ def test_version_030_finding_copy_is_upgraded_without_waiting_for_a_rescan(
             "high_fan_out",
             ["outgoing_dependencies=18", "review_limit_dependencies=12"],
             None,
-            "This module directly uses 18 other modules.",
+            "This file directly uses 18 other files.",
         ),
         (
             "high_fan_in",
             ["incoming_dependencies=18"],
             None,
-            "This module is directly used by 18 other modules.",
+            "This file is directly used by 18 other files.",
         ),
         (
             "dependency_cycle",
             ["src/a.py", "src/b.py"],
             ["src/a.py", "src/b.py"],
-            "The dependency loop contains src/a.py, src/b.py.",
+            "The loop of files that use one another contains src/a.py, src/b.py.",
         ),
         (
             "architecture_violation",

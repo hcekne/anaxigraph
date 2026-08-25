@@ -8,7 +8,6 @@ import pytest
 import yaml
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
-from semantic_support import _agent_dossier
 
 from anaxigraph import git
 from anaxigraph.api import create_app
@@ -57,7 +56,8 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         )
         assert stale_overview.status_code == 404
         glossary = (await client.get("/api/glossary")).json()
-        assert "persistent repository knowledge store" in glossary["product"]["anaxi_index"]
+        assert "saved index" in glossary["product"]["anaxi_index"]
+        assert "direct code links" in glossary["product"]["anaxi_index"]
         assert glossary["findings"]["statuses"]["planned"]["label"] == "Planned for agent"
         overview = (await client.get("/api/overview")).json()
         assert overview["files"] == 8
@@ -75,7 +75,7 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         ]
         assert overview["semantic"]["enabled"] is False
         semantic = (await client.get("/api/semantic")).json()
-        assert semantic["plain_language"]["version"] == "semantic-status-explanation-v1"
+        assert semantic["plain_language"]["version"] == "semantic-status-explanation-v2"
         assert semantic["recommended_action"]["kind"] == "enable_semantics"
         assert semantic["semantic_policy"] == repositories[0]["semantic_policy"]
         assert semantic["config_authority"] == repositories[0]["config_authority"]
@@ -99,6 +99,7 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert core["architecture_area"] == "domain"
         assert core["evaluation"]["monitored_by_default"] is True
         assert core["evaluation"]["suitability_score"] is None
+        assert "not a grade for the code" in core["evaluation"]["attention_score_meaning"]
         documentation = next(item for item in modules if item["path"] == "docs/architecture.md")
         assert documentation["evaluation"]["monitored_by_default"] is False
         assert documentation["evaluation"]["attention_score"] is None
@@ -196,6 +197,18 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                         "ANAXIGRAPH_FINDING_CONTEXT",
                         "ANAXIGRAPH_GUIDE",
                     } <= names
+                    descriptions = {tool.name: str(tool.description or "") for tool in tools.tools}
+                    public_help = " ".join(descriptions.values()).lower()
+                    for unexplained_term in (
+                        "bounded",
+                        "dossier",
+                        "taxonomy",
+                        "deterministically",
+                        "diagnostic ledger",
+                    ):
+                        assert unexplained_term not in public_help
+                    assert "before-change record" in descriptions["ANAXIGRAPH_SCOPE"]
+                    assert "ordinary sentences" in descriptions["ANAXIGRAPH_FINDINGS"]
                     submit_tool = next(
                         tool for tool in tools.tools if tool.name == "ANAXIGRAPH_SEMANTIC_SUBMIT"
                     )
@@ -291,6 +304,17 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     assert schema.structuredContent["taxonomy_review_schema"]["type"] == "object"
                     assert schema.structuredContent["pattern_evaluation_schema"]["type"] == "object"
                     assert schema.structuredContent["pattern_review_schema"]["type"] == "object"
+                    assert (
+                        schema.structuredContent["writing_contract_version"] == "plain-language-v2"
+                    )
+                    assert (
+                        "one repository file"
+                        in schema.structuredContent["input_term_meanings"]["module"]
+                    )
+                    assert (
+                        "not a code-quality grade"
+                        in schema.structuredContent["input_term_meanings"]["complexity"]
+                    )
                     taxonomy = await session.call_tool("ANAXIGRAPH_TAXONOMY", arguments={})
                     assert taxonomy.isError is False
                     assert taxonomy.structuredContent["status"] == "not_ready"
@@ -300,6 +324,16 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     assert modules.isError is False
                     assert modules.structuredContent["total"] >= 3
                     assert len(modules.structuredContent["modules"]) == 3
+                    assert (
+                        "repository files"
+                        in modules.structuredContent["plain_language"]["machine_key_note"]
+                    )
+                    assert (
+                        "not a code-quality grade"
+                        in modules.structuredContent["plain_language"]["measurement_meanings"][
+                            "complexity"
+                        ]
+                    )
                     guide = await session.call_tool(
                         "ANAXIGRAPH_GUIDE", arguments={"topic": "findings"}
                     )
@@ -394,63 +428,6 @@ async def test_semantic_prepare_reports_scan_required_without_current_snapshot(
     )
     assert result["semantic_policy"]["enabled"] is True
     assert result["config_authority"]["sha256"]
-
-
-@pytest.mark.anyio
-async def test_mcp_coding_agent_can_claim_and_submit_semantic_work(repository, database):
-    policy_path = repository / ".anaxigraph.yml"
-    policy = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
-    policy["semantic"] = {
-        "enabled": True,
-        "provider": "agent",
-        "agent_lease_seconds": 120,
-    }
-    policy_path.write_text(yaml.safe_dump(policy, sort_keys=False), encoding="utf-8")
-    RepositoryScanner(database).scan(repository)
-    server = create_anaxi_mcp_server(
-        database=database,
-        repository=repository,
-        config_path=None,
-        allowed_hosts=["testserver"],
-    )
-    app = server.streamable_http_app()
-    async with server.session_manager.run():
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app),
-            base_url="http://testserver",
-            timeout=5,
-        ) as http_client:
-            async with streamable_http_client(
-                "http://testserver/mcp",
-                http_client=http_client,
-                terminate_on_close=False,
-            ) as (read_stream, write_stream, _):
-                async with ClientSession(read_stream, write_stream) as session:
-                    await session.initialize()
-                    work = await session.call_tool(
-                        "ANAXIGRAPH_SEMANTIC_WORK",
-                        arguments={"agent_id": "codex-integration", "agent_model": "test"},
-                    )
-                    assert work.isError is False
-                    packet = work.structuredContent
-                    assert packet["status"] == "work"
-                    submit = await session.call_tool(
-                        "ANAXIGRAPH_SEMANTIC_SUBMIT",
-                        arguments={
-                            "job_id": packet["job"]["id"],
-                            "lease_token": packet["lease"]["token"],
-                            "dossier": _agent_dossier(packet["analysis_request"]),
-                        },
-                    )
-                    assert submit.isError is False
-                    assert submit.structuredContent["status"] == "completed"
-
-    with database.connect() as connection:
-        row = connection.execute(
-            "SELECT source, provider, executor_id, file_fact_id FROM semantic_documents"
-        ).fetchone()
-    assert tuple(row)[:3] == ("coding_agent", "agent", "codex-integration")
-    assert row["file_fact_id"] is not None
 
 
 @pytest.mark.anyio

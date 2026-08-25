@@ -22,7 +22,6 @@
   "legacy_functions": {
     "src/anaxigraph/agent.py::agent_scope": [97, 8],
     "src/anaxigraph/agent_graph.py::_rank_files": [69, 22],
-    "src/anaxigraph/agent_payload.py::_bound_scope_payload": [63, 21],
     "src/anaxigraph/analyzers/javascript.py::_strip_comments": [52, 21],
     "src/anaxigraph/analyzers/text.py::_jsonc_to_json": [37, 18],
     "src/anaxigraph/architecture.py::evaluate_architecture": [69, 14],
@@ -42,7 +41,6 @@
     "src/anaxigraph/semantic_contract.py::_validate_schema": [41, 31],
     "src/anaxigraph/semantic_records.py::_ensure_job": [59, 2],
     "src/anaxigraph/semantic_requests.py::SemanticEvidenceService._intrinsic_request": [62, 10],
-    "src/anaxigraph/semantic_requests.py::SemanticEvidenceService._context_request": [54, 7],
     "src/anaxigraph/semantic_runner.py::SemanticRunnerService.bootstrap": [54, 12],
     "src/anaxigraph/semantic_scope_plan.py::SemanticPlanningService.plan": [74, 6],
     "src/anaxigraph/semantic_scope_plan.py::SemanticPlanningService._plan_groups": [108, 13],

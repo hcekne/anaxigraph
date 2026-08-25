@@ -24,7 +24,7 @@ def _item(reason: str = "selected", *, selected: bool = True) -> dict:
     }
 
 
-def test_selected_candidate_explains_the_bounded_machine_workflow():
+def test_selected_candidate_explains_the_limited_ai_workflow():
     result = candidate_explanation(
         _item(),
         "Strategy",
@@ -37,20 +37,22 @@ def test_selected_candidate_explains_the_bounded_machine_workflow():
 
     assert result["version"] == PATTERN_CANDIDATE_LANGUAGE_VERSION
     assert result["conclusion"] == (
-        "AnaxiGraph selected Strategy for src/anaxigraph/provider.py for a full agent evaluation."
+        "AnaxiGraph selected Strategy for src/anaxigraph/provider.py for a full AI pattern check."
     )
     assert result["why_this_pair_was_considered"] == [
         "The code shows a problem that this pattern is designed to address.",
         "Other repository evidence also supports checking this pattern here.",
     ]
     assert result["what_anaxigraph_found"] == [
-        "AnaxiGraph found the code's complexity = 14. This shows a problem that the pattern may address.",
-        "AnaxiGraph found the AI description's provider boundary = yes. This supports checking the pattern here.",
-        "AnaxiGraph found the parsed code's single implementation = no. This points against using the pattern here.",
+        "AnaxiGraph recorded the code's decision-branch count as 14. This shows a problem that the pattern may address.",
+        "AnaxiGraph recorded the AI description's shared caller-facing interface for providers as yes. This supports checking the pattern here.",
+        "AnaxiGraph recorded the parsed code's only one implementation as no. This points against using the pattern here.",
     ]
-    assert "a second agent critiques" in result["what_happens_next"]
+    assert "a separate AI pass checks" in result["what_happens_next"]
     assert result["queue_rank"]["value"] == 76
-    assert "not a grade, pattern rating, or recommendation" in result["queue_rank"]["meaning"]
+    assert (
+        "not a code grade, pattern fit rating, or recommendation" in result["queue_rank"]["meaning"]
+    )
 
 
 @pytest.mark.parametrize(
@@ -59,8 +61,8 @@ def test_selected_candidate_explains_the_bounded_machine_workflow():
         ("no_positive_evidence", "does not show the problem"),
         ("counter_evidence", "currently points away"),
         ("below_priority", "did not rank high enough"),
-        ("sparse_plan_bound", "more relevant work filled"),
-        ("plan_not_ready", "evaluation plan is not ready"),
+        ("sparse_plan_bound", "higher-ranked work filled"),
+        ("plan_not_ready", "has not finished choosing"),
     ],
 )
 def test_each_skip_reason_has_a_direct_conclusion(reason, expected):
@@ -81,12 +83,12 @@ def test_capability_gap_explains_what_the_analyzer_could_not_check():
 
     assert result["what_anaxigraph_could_not_check"] == [
         (
-            "AnaxiGraph has no usable information about the AI description's provider boundary "
+            "AnaxiGraph has no usable information about the AI description's shared caller-facing interface for providers "
             "for this target."
         ),
         (
-            "This check needs at least summary detail for the parsed code's inheritance, but only "
-            "0 of 2 relevant items met it; the best available detail was unavailable."
+            "This check needs a short explanation of what the code does for the parsed code's class inheritance, but only "
+            "0 of 2 relevant items met it; the best available information was not available."
         ),
     ]
 
@@ -100,9 +102,9 @@ def test_non_candidate_has_no_fake_zero_rank_or_refactoring_instruction():
 
     assert result["queue_rank"] == {
         "value": None,
-        "meaning": "No queue rank was assigned because the evidence did not create a candidate.",
+        "meaning": "No work-order score was assigned because the evidence did not create a possible pattern match.",
     }
-    assert result["what_happens_next"].startswith("No agent work is created")
+    assert result["what_happens_next"].startswith("No AI pattern task is created")
 
 
 def test_signal_detail_explains_the_check_effect_and_confidence_scale():
@@ -119,10 +121,10 @@ def test_signal_detail_explains_the_check_effect_and_confidence_scale():
     )
 
     assert result["what_was_checked"] == (
-        "AnaxiGraph checked whether the code's complexity was at least 10."
+        "AnaxiGraph checked whether the code's decision-branch count was at least 10."
     )
     assert result["what_was_found"] == (
-        "The observation met the pattern's evidence rule. It recorded the value as 14."
+        "The recorded value passed this pattern-library check. It recorded the value as 14."
     )
     assert "problem that the pattern may address" in result["how_it_affected_selection"]
     assert result["evidence_strength"] == {
@@ -145,12 +147,15 @@ def test_capability_detail_explains_what_coverage_and_levels_mean():
         }
     )
 
-    assert "did not supply enough syntax inheritance detail" in result["conclusion"]
+    assert (
+        "did not supply enough information about the parsed code's class inheritance"
+        in result["conclusion"]
+    )
     assert result["required_detail"] == (
-        "This pattern check needs at least summary detail about syntax inheritance."
+        "This check needs a short explanation of what the code does to understand the parsed code's class inheritance."
     )
     assert result["available_detail"] == (
-        "50% of the relevant analyzers could provide the required detail. The best available "
+        "AnaxiGraph had the required information for 50% of the relevant code. The best available "
         "information came from parsed code structure."
     )
     assert result["how_to_use_this"] == (

@@ -255,7 +255,7 @@ def graph_node(
                 {
                     "area": root_group(str(policy), parents),
                     "subsystem": policy,
-                    "source": "configured policy",
+                    "source": "project path rule",
                 }
                 if policy
                 else None
@@ -263,7 +263,7 @@ def graph_node(
             "inferred": {
                 "area": inferred,
                 "subsystem": inferred,
-                "source": "deterministic fallback",
+                "source": "file-path guess without AI",
             },
         },
         "analysis_status": file["analysis_status"],

@@ -14,7 +14,10 @@ from anaxigraph.onboarding_clients import CLIENTS, CONNECTION_SCOPES, configure_
 def configure_initialize_command(commands: Any) -> None:
     initialize = commands.add_parser(
         "init",
-        help="Create policy, sidecar, semantics, and an optional MCP client connection",
+        help=(
+            "Create repository settings, an optional read-only Docker service, AI mapping, "
+            "and a coding-agent connection"
+        ),
         description=(
             "Detect repository areas and generate a reviewable AnaxiGraph policy plus an "
             "optional read-only Docker sidecar. Client configuration changes require an explicit "

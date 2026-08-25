@@ -33,7 +33,7 @@ export function patternOpportunityExplanation(item) {
 }
 
 export function patternOpportunityList(
-  values = [], empty = "No contextual pattern opportunity recorded",
+  values = [], empty = "The AI map did not record a pattern idea for this code",
 ) {
   return detailList((values || []).map(patternOpportunityExplanation), empty);
 }
@@ -41,14 +41,14 @@ export function patternOpportunityList(
 export function consolidationMarkup(value) {
   if (!value || typeof value !== "object") {
     return value
-      ? `<h3>Merge or split assessment</h3><p>${escapeHtml(String(value))}</p>`
+      ? `<h3>Should this code be combined or separated?</h3><p>${escapeHtml(String(value))}</p>`
       : "";
   }
   if (value.recommendation === "insufficient_evidence" && !value.rationale) return "";
   const language = value.plain_language || {};
   const conclusion = language.conclusion || consolidationConclusion(value);
   const reason = language.why_it_may_matter || value.rationale
-    || "The analysis did not supply a clear reason for changing this boundary.";
+    || "The AI result did not give a clear reason for changing how this code is divided.";
   const action = language.what_to_do || consolidationAction(value);
   return `<h3>Should this code be merged or split?</h3><p><strong>${escapeHtml(sentence(conclusion))}</strong> ${escapeHtml(sentence(reason))} ${escapeHtml(sentence(action))}</p>`;
 }
@@ -92,7 +92,7 @@ function consolidationConclusion(value) {
 
 function consolidationAction(value) {
   if (!["merge", "split"].includes(value.recommendation)) {
-    return "Leave the current boundary alone unless stronger code, history, and test evidence changes the result.";
+    return "Leave the code divided as it is unless stronger evidence from code, Git history, and tests changes the result.";
   }
   return "Check responsibilities, public behavior, callers, and focused tests before moving any code.";
 }
@@ -117,17 +117,17 @@ export function formatDate(value) {
 }
 
 export function mapLayerLabel(layer) {
-  if (layer === "semantic") return "Semantic map (AI)";
-  if (layer === "policy") return "Configured policy";
-  if (layer === "inferred") return "Path inference";
+  if (layer === "semantic") return "AI-created map";
+  if (layer === "policy") return "Project settings";
+  if (layer === "inferred") return "File-path guesses";
   return humanize(layer);
 }
 
 export function mapLayerDescription(layer, source = "configured and inferred evidence") {
   if (layer === "semantic") {
-    return "Proposed from module meaning, critiqued by an agent, and deterministically validated.";
+    return "Created from AI descriptions of what files do, checked by a separate AI pass, then checked against the indexed file list.";
   }
-  if (layer === "policy") return "Repository-configured path groups only.";
-  if (layer === "inferred") return "Deterministic path inference only.";
-  return `Best available map · ${source}.`;
+  if (layer === "policy") return "Shows only the code areas defined by path rules in this project's settings.";
+  if (layer === "inferred") return "Guesses code areas from file paths and common runtime conventions; no AI is used.";
+  return `Shows the best map currently available. Source: ${source}.`;
 }

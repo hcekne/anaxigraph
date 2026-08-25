@@ -37,17 +37,17 @@ export function renderOverview() {
   const metrics = [
     ["Files", value.files],
     ["Lines of code", value.lines_of_code],
-    ["Symbols", value.symbols],
-    ["Dependencies", value.relationships],
-    ["Internal link resolution", graphQuality.resolution_rate == null
+    ["Named code parts", value.symbols],
+    ["Direct code links", value.relationships],
+    ["Code links matched to files", graphQuality.resolution_rate == null
       ? "No internal refs" : `${(graphQuality.resolution_rate * 100).toFixed(1)}%`],
-    ["Avg complexity", Number(value.average_complexity || 0).toFixed(1)],
+    ["Decision branches per file (average)", Number(value.average_complexity || 0).toFixed(1)],
     ["Active findings", findingCount],
-    ["AI understanding", semantic.enabled === false ? "Off"
+    ["Files with current AI descriptions", semantic.enabled === false ? "Off"
       : semantic.coverage == null ? "Not started" : `${(semantic.coverage * 100).toFixed(1)}%`],
     ["Line coverage", value.coverage?.line_coverage == null
       ? "No report" : `${(value.coverage.line_coverage * 100).toFixed(1)}%`],
-    ["Test-linked dependencies", value.coverage?.relationship_coverage == null
+    ["Code links covered by tests", value.coverage?.relationship_coverage == null
       ? "No links" : `${(value.coverage.relationship_coverage * 100).toFixed(1)}%`],
   ];
   byId("metric-grid").innerHTML = metrics.map(([label, metric]) => (
@@ -101,10 +101,10 @@ function graphQualityFallback(graphQuality, ambiguous, unresolved, fallback, par
     conclusion: `The map may miss connections because ${reasons.join("; ")}.`,
     what_was_checked: `AnaxiGraph checked ${countLabel(internal, "likely link", "likely links")} between files. ${format.format(resolved)} pointed to exactly one indexed file.`,
     what_this_limits: [
-      "Dependency, change-impact, and unused-code advice may be incomplete.",
+      "Direct code-link, change-impact, and unused-code advice may be incomplete.",
       "Connections created only while the program runs may not appear in a source-code map.",
     ],
-    what_to_do: ["Inspect unclear or missing links before acting on dependency or deletion advice."],
+    what_to_do: ["Inspect unclear or missing links before acting on code-link or deletion advice."],
   };
 }
 
@@ -123,7 +123,7 @@ function renderCoverageNotice(coverage) {
     `<li><code>${escapeHtml(item.path)}</code><span>${item.exists ? "found" : "missing"}</span></li>`
   )).join("");
   const reason = coverage.state === "unmatched"
-    ? "A configured report exists, but none of its file paths matched modules in this snapshot."
+    ? "A configured report exists, but none of its file paths matched files in this saved scan."
     : "The selected repository has not generated any configured coverage report. AnaxiGraph deliberately does not execute target code during a scan.";
   notice.innerHTML = `<strong>Required line coverage is unavailable.</strong><p>${escapeHtml(reason)}</p><details><summary>Coverage inputs · ${found}/${inputs.length} found</summary><ul class="coverage-inputs">${rows || "<li>No coverage paths are configured.</li>"}</ul></details><p class="coverage-next">Run the repository's own test or CI command first. <strong>Refresh scan</strong> only imports a report that already exists.</p>`;
 }
@@ -137,11 +137,11 @@ function renderRepositoryIntelligence(semantic) {
     panel.innerHTML = "";
     return;
   }
-  panel.innerHTML = `<div class="panel-heading"><div><p class="eyebrow">Repository-level AI synthesis</p><h2>Architectural understanding</h2><p class="panel-copy">${escapeHtml(value.summary || "No repository summary recorded.")}</p><p class="inspector-provenance">${escapeHtml(semanticProviderLabel(document))} · AI-generated interpretation; check its evidence before changing code.</p></div></div><div class="repository-intelligence-grid"><div><h3>Architecture role</h3><p>${escapeHtml(value.architecture_role || value.detailed_summary || "No architecture role recorded.")}</p><h3>Where new work belongs</h3><p>${escapeHtml(value.placement_guidance || "No repository-level placement guidance recorded.")}</p></div><div><h3>Pattern opportunities</h3>${patternOpportunityList(value.pattern_opportunities || [])}${consolidationMarkup(value.consolidation_assessment)}</div><div><h3>Code that may no longer be used</h3>${deadCodeList(value.dead_code_candidates || [])}<h3>Risks and uncertainty</h3>${detailList(value.risks || [], "No repository-level semantic risk recorded")}</div></div>`;
+  panel.innerHTML = `<div class="panel-heading"><div><p class="eyebrow">Whole-repository AI description</p><h2>What this repository does</h2><p class="panel-copy">${escapeHtml(value.summary || "The AI map did not record a repository summary.")}</p><p class="inspector-provenance">Created by ${escapeHtml(semanticProviderLabel(document))}. This is an AI explanation based on indexed evidence; check that evidence before changing code.</p></div></div><div class="repository-intelligence-grid"><div><h3>Role of this repository</h3><p>${escapeHtml(value.architecture_role || value.detailed_summary || "The AI map did not record the repository's role.")}</p><h3>Where new work belongs</h3><p>${escapeHtml(value.placement_guidance || "The AI map did not record where new repository-wide work belongs.")}</p></div><div><h3>Patterns that may fit</h3>${patternOpportunityList(value.pattern_opportunities || [])}${consolidationMarkup(value.consolidation_assessment)}</div><div><h3>Code that may no longer be used</h3>${deadCodeList(value.dead_code_candidates || [])}<h3>Risks and uncertainty</h3>${detailList(value.risks || [], "The AI map did not record a repository-wide risk")}</div></div>`;
 }
 
 export function semanticProviderLabel(document = {}) {
-  const provider = document.provider || "semantic provider";
+  const provider = document.provider || "the configured AI worker";
   if (document.executor_id) {
     return `${provider} via ${document.executor_id}${document.executor_model ? ` · ${document.executor_model}` : ""}`;
   }
@@ -161,7 +161,7 @@ function renderSemanticNotice(semantic) {
   const current = Number(semantic.current || 0);
   const language = semantic.plain_language || semanticStatusFallback(semantic, running);
   const action = repository?.scannable && semantic.enabled
-    ? `<button class="secondary-button" type="button" data-semantic-refresh ${running ? "disabled" : ""}>${agentFunded ? running ? "Agent is mapping…" : "Prepare semantic work" : running ? "Understanding repository…" : current ? "Resume understanding" : "Understand repository"}</button>`
+    ? `<button class="secondary-button" type="button" data-semantic-refresh ${running ? "disabled" : ""}>${agentFunded ? running ? "Agent is mapping…" : "Prepare AI tasks" : running ? "Mapping repository…" : current ? "Resume AI mapping" : "Build AI map"}</button>`
     : "";
   notice.innerHTML = `<div class="semantic-notice-heading"><div>
     <strong>${escapeHtml(language.conclusion)}</strong>
@@ -184,7 +184,7 @@ function semanticStatusFallback(semantic, running) {
         : "AI mapping is incomplete, and no worker is running right now.",
     progress: enabled
       ? `${format.format(current)} of ${format.format(total)} included files have a current AI description.`
-      : "The non-AI code and dependency map remains available.",
+      : "The non-AI file and direct-link map remains available.",
     work_state: running
       ? "A worker is processing saved work now; each completed result is stored immediately."
       : "Unfinished work is safely saved, but it will not finish until a worker starts.",
@@ -257,7 +257,7 @@ function renderBars(id, items) {
   const maximum = Math.max(...items.map((item) => Number(item.lines_of_code || item.files || 0)), 1);
   byId(id).innerHTML = items.slice(0, 12).map((item) => {
     const value = Number(item.lines_of_code || item.files || 0);
-    return `<div class="bar-row"><span>${escapeHtml(item.language || item.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.max(2, value / maximum * 100)}%"></div></div><span class="bar-value">${format.format(value)} LOC</span></div>`;
+    return `<div class="bar-row"><span>${escapeHtml(item.language || item.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.max(2, value / maximum * 100)}%"></div></div><span class="bar-value">${format.format(value)} code lines</span></div>`;
   }).join("") || '<p class="muted">No data yet.</p>';
 }
 
@@ -281,29 +281,29 @@ function groupMarkup(group, maximum, repositoryLoc) {
     label: `Other ${humanize(group.name)}`,
     files: group.direct_files,
     lines_of_code: group.direct_lines_of_code,
-    description: "Files not assigned to a more specific subsystem.",
+    description: "Files not assigned to a smaller group inside this area.",
   }] : [];
   const children = [...(group.children || []), ...direct];
   const description = group.description || group.responsibility
-    || (children.length ? `Roll-up of ${children.length} architecture subgroups.` : "Architecture group.");
+    || (children.length ? `This area contains ${children.length} smaller groups of related work.` : "A group of files with related work.");
   const share = Number(group.lines_of_code || 0) / repositoryLoc * 100;
   const scale = Number(group.lines_of_code || 0) / maximum * 100;
   const childColor = (child) => child.name.startsWith("other-")
     ? mix(color, architectureMixTarget(), 0.22) : architectureColor(child.name);
   const segments = children.length ? children.map((child) => {
     const width = Number(child.lines_of_code || 0) / Math.max(Number(group.lines_of_code || 0), 1) * 100;
-    return `<span class="group-segment" style="width:${width}%;background:${childColor(child)}" title="${escapeAttr(child.label || childLabel(child.name, group.name))} · ${format.format(child.lines_of_code || 0)} LOC"></span>`;
+    return `<span class="group-segment" style="width:${width}%;background:${childColor(child)}" title="${escapeAttr(child.label || childLabel(child.name, group.name))} · ${format.format(child.lines_of_code || 0)} code lines"></span>`;
   }).join("") : `<span class="group-segment" style="width:100%;background:${color}"></span>`;
   const childHtml = children.length ? `<div class="group-children">${children.map((child) => (
-    `<span class="group-child" style="--child-color:${childColor(child)}" title="${escapeAttr(child.description || child.responsibility || "Architecture subgroup")}"><i class="group-child-dot"></i>${escapeHtml(child.label || childLabel(child.name, group.name))}<em>${format.format(child.lines_of_code || 0)} LOC</em></span>`
+    `<span class="group-child" style="--child-color:${childColor(child)}" title="${escapeAttr(child.description || child.responsibility || "Smaller group of related files")}"><i class="group-child-dot"></i>${escapeHtml(child.label || childLabel(child.name, group.name))}<em>${format.format(child.lines_of_code || 0)} code lines</em></span>`
   )).join("")}</div>` : "";
-  const badge = state.mapLayer === "semantic" ? "AI taxonomy"
-    : children.length ? "area roll-up" : sourceLabel(group.source);
-  return `<article class="group-family" style="--group-color:${color}"><div class="group-family-header"><strong>${escapeHtml(humanize(group.name))}<span class="source-badge">${escapeHtml(badge)}</span></strong><span>${format.format(group.files)} files · ${format.format(group.lines_of_code)} LOC</span></div><p>${escapeHtml(description)}</p><div class="group-scale"><div class="bar-track"><div class="group-bar-fill" style="width:${Math.max(1, scale)}%">${segments}</div></div><span class="group-scale-label">${share.toFixed(1)}% of repo LOC</span></div>${childHtml}</article>`;
+  const badge = state.mapLayer === "semantic" ? "AI-created map"
+    : children.length ? "includes smaller groups" : sourceLabel(group.source);
+  return `<article class="group-family" style="--group-color:${color}"><div class="group-family-header"><strong>${escapeHtml(humanize(group.name))}<span class="source-badge">${escapeHtml(badge)}</span></strong><span>${format.format(group.files)} files · ${format.format(group.lines_of_code)} code lines</span></div><p>${escapeHtml(description)}</p><div class="group-scale"><div class="bar-track"><div class="group-bar-fill" style="width:${Math.max(1, scale)}%">${segments}</div></div><span class="group-scale-label">${share.toFixed(1)}% of repository code lines</span></div>${childHtml}</article>`;
 }
 
 function sourceLabel(source) {
-  return ({ declared: "configured", inferred: "inferred fallback", mixed: "configured + fallback", derived: "area roll-up", semantic: "AI taxonomy" })[source] || source || "group";
+  return ({ declared: "project setting", inferred: "file-path guess", mixed: "setting + guess", derived: "includes smaller groups", semantic: "AI-created map" })[source] || source || "code area";
 }
 
 function childLabel(name, parent) {

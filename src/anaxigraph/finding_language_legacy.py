@@ -152,7 +152,7 @@ def _module_copy(path: str, count: str, limit: str) -> dict[str, str]:
         ),
         "recommended_action": (
             "Name the file's main jobs. If two jobs can change for different reasons, move the "
-            "smaller one into a clearly named module. If the file has one clear job, keep it together."
+            "smaller one into a clearly named file. If the file has one clear job, keep it together."
         ),
     }
 
@@ -201,10 +201,10 @@ def _dependency_copy(path: str, count: str, limit: str, direction: str) -> dict[
 
 
 def _outgoing_copy(path: str, count: str, limit: str) -> dict[str, str]:
-    review_point = _with_unit(limit, "modules")
+    review_point = _with_unit(limit, "direct file links")
     return {
         "summary": (
-            f"{path} directly uses {count} modules; this project reviews files above {review_point}"
+            f"{path} directly uses {count} other files; this project reviews files above {review_point}"
         ),
         "explanation": (
             "A file that reaches into many parts of the project can mix several jobs and become "
@@ -212,25 +212,25 @@ def _outgoing_copy(path: str, count: str, limit: str) -> dict[str, str]:
             "for one clear workflow."
         ),
         "recommended_action": (
-            "Group the dependencies by the job they support. If one group belongs to a separate "
-            "job, move that job behind a small, clearly named interface."
+            "Group the direct file links by the job they support. If one group belongs to a separate "
+            "job, move that job into a small file with one clear way for callers to use it."
         ),
     }
 
 
 def _incoming_copy(path: str, count: str, limit: str) -> dict[str, str]:
-    review_point = _with_unit(limit, "modules")
+    review_point = _with_unit(limit, "direct file links")
     return {
         "summary": (
-            f"{count} modules directly use {path}; this project reviews files above {review_point}"
+            f"{count} files directly use {path}; this project reviews files above {review_point}"
         ),
         "explanation": (
-            "A behavior change here can affect many callers. That is normal when this file is a "
-            "stable shared promise with broad tests."
+            "A behavior change here can affect many callers. That is normal when this file "
+            "intentionally offers behavior that many callers use and tests cover."
         ),
         "recommended_action": (
-            "Treat its public behavior as a shared promise. Find its callers and tests before "
-            "changing it. Split it only when callers use clearly unrelated parts."
+            "Find the callers that rely on this file's public behavior and run their tests before "
+            "changing it. Split the file only when callers use clearly unrelated parts."
         ),
     }
 
@@ -253,16 +253,17 @@ def _dead_code_copy(path: str, days: str) -> dict[str, str]:
 
 def _cycle_copy(count: str) -> dict[str, str]:
     return {
-        "summary": f"{count} modules depend on one another in a loop",
+        "summary": f"{count} files depend on one another in a loop",
         "explanation": (
-            "Following the imports or references eventually leads back to the starting module. A "
-            "change in one module can therefore force changes in the others, which makes them "
+            "Following the imports or references eventually leads back to the starting file. A "
+            "change in one file can therefore force changes in the others, which makes them "
             "harder to understand and test separately. The loop does not automatically mean the "
             "application is broken."
         ),
         "recommended_action": (
-            "Find the smallest link that can point the other way. Move the shared idea into a small "
-            "interface or module, then make the remaining dependencies flow in one direction."
+            "Find the smallest link that can point the other way. If both files need the same "
+            "behavior, move that behavior into a small file they can both use. Then make the "
+            "remaining code links flow in one direction."
         ),
     }
 
@@ -270,15 +271,18 @@ def _cycle_copy(count: str) -> dict[str, str]:
 def _boundary_copy(item: Mapping[str, Any]) -> dict[str, str]:
     paths = [str(path) for path in item.get("affected_artifacts") or ()]
     source = paths[0] if paths else "The source file"
-    target = paths[1] if len(paths) > 1 else "the blocked module"
+    target = paths[1] if len(paths) > 1 else "the file blocked by the project rule"
     explanation = (
-        "The repository's architecture rules say these parts should stay separate. Direct use "
-        "makes that separation harder to protect."
+        "The project's repository-area rules say these files should not use one another directly. "
+        "This code link breaks that rule and makes the intended separation harder to keep."
     )
     old_explanation = str(item.get("explanation") or "").strip()
     if old_explanation and "declared architecture boundary" not in old_explanation:
         explanation += f" Project note: {old_explanation}"
-    action = "Change the source file so it reaches the needed behavior through an allowed module."
+    action = (
+        "Change the source file so it reaches the needed behavior through a file the project "
+        "rule allows."
+    )
     old_action = str(item.get("recommended_action") or "").strip()
     if old_action and old_action != "Depend on an allowed boundary or interface.":
         action += f" Project guidance: {old_action}"
@@ -295,14 +299,14 @@ def _drift_copy(path: str, evidence: Mapping[str, str]) -> dict[str, str]:
     return {
         "summary": f"{path} no longer fits its declared area",
         "explanation": (
-            f"The project places it in {declared}, but its path and dependencies make it behave "
+            f"The project places it in {declared}, but its path and direct code links make it behave "
             f"more like part of {inferred}. Either the map is out of date or the file has started "
             "doing work that belongs elsewhere."
         ),
         "recommended_action": (
             "Choose which description is true. If the file belongs in the declared area, move the "
-            "unrelated work or dependencies out. If it belongs in the suggested area, update its "
-            "location or architecture rule."
+            "unrelated work or code links out. If it belongs in the suggested area, update its "
+            "location or file-placement rule."
         ),
     }
 

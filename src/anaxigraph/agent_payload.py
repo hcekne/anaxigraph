@@ -10,11 +10,10 @@ from pathlib import Path
 from typing import Any
 
 from anaxigraph import git
-from anaxigraph.agent_decision_handoff_language import (
-    compact_explanation,
-    semantic_file_explanation,
-)
+from anaxigraph.agent_decision_handoff_language import compact_explanation
 from anaxigraph.config import AnaxiGraphConfig, path_matches
+from anaxigraph.guidance import FILE_MEASUREMENT_MEANINGS
+from anaxigraph.semantic_file_language import semantic_file_explanation
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,6 +57,7 @@ def _scope_payload(data: _ScopePayloadData) -> dict[str, Any]:
         len(data.outgoing[item]) + len(data.incoming[item]) >= 20 for item in data.primary_ids
     )
     risk = _scope_risk(protected, data.conflicts, high_degree, data.related_ids)
+    risk_reasons = _risk_reasons(protected, data.conflicts, high_degree)
     payload = {
         "goal": data.goal,
         "branch": data.branch,
@@ -73,13 +73,64 @@ def _scope_payload(data: _ScopePayloadData) -> dict[str, Any]:
         "architecture_decision": data.decision,
         "active_branch_conflicts": data.conflicts,
         "risk": risk,
-        "risk_reasons": _risk_reasons(protected, data.conflicts, high_degree),
+        "risk_reasons": risk_reasons,
+        "plain_language": _scope_explanation(
+            data.goal,
+            len(primary),
+            len(data.related_ids),
+            risk,
+            risk_reasons,
+        ),
         "recommended_context": _recommended_context(
             primary, related, data.tests, data.context_limit
         ),
         "stats": _scope_stats(data, primary, protected),
     }
     return _bound_scope_payload(payload, data.payload_limit_bytes)
+
+
+def _scope_explanation(
+    goal: str,
+    primary_count: int,
+    related_count: int,
+    risk: str,
+    reasons: list[str],
+) -> dict[str, Any]:
+    return {
+        "conclusion": (
+            f"For '{goal}', AnaxiGraph selected {primary_count} likely starting "
+            f"{'file' if primary_count == 1 else 'files'} and found {related_count} related "
+            f"{'file' if related_count == 1 else 'files'} worth reading."
+        ),
+        "how_to_use_this": (
+            "Start with the likely files. Read related files for context; do not edit every listed file."
+        ),
+        "risk": _risk_explanation(risk, reasons),
+        "machine_key_note": (
+            "snapshot_id identifies the saved scan used for this answer; it is not a score."
+        ),
+        "file_measurements": {
+            key: FILE_MEASUREMENT_MEANINGS[key] for key in ("lines_of_code", "complexity")
+        },
+    }
+
+
+def _risk_explanation(risk: str, reasons: list[str]) -> dict[str, Any]:
+    meaning = {
+        "high": (
+            "Check the listed risks before editing. High means AnaxiGraph found an extra-care "
+            "file, a branch conflict, or many direct code links; it does not mean the code is broken."
+        ),
+        "medium": (
+            "Read the related files before editing because the change may affect nearby code. "
+            "This is not a code-quality grade."
+        ),
+        "low": (
+            "AnaxiGraph did not find an extra-care file, branch conflict, or unusually connected "
+            "starting file. Missing or runtime-only links can still hide effects."
+        ),
+    }.get(risk, "Read the listed evidence before deciding how carefully to proceed.")
+    return {"value": risk, "meaning": meaning, "reasons": reasons}
 
 
 def _scope_risk(
@@ -97,9 +148,15 @@ def _risk_reasons(
     return [
         reason
         for reason, active in (
-            ("The task context reaches a protected architecture boundary.", bool(protected)),
+            (
+                "The task includes a file that project rules mark as needing extra care.",
+                bool(protected),
+            ),
             ("Another branch changes a file in this task context.", bool(conflicts)),
-            ("A primary module is a high-coupling shared dependency.", high_degree),
+            (
+                "A likely implementation file has at least 20 direct incoming or outgoing code links, so a change may reach many files.",
+                high_degree,
+            ),
         )
         if active
     ]
@@ -154,34 +211,49 @@ def _bound_scope_payload(payload: dict[str, Any], limit_bytes: int) -> dict[str,
     }
 
     def size() -> int:
-        return len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+        return _scope_payload_size(payload)
 
-    while size() > limit and payload["related_files"]:
-        payload["related_files"].pop()
-        omitted["related_files"] += 1
-    while size() > limit and payload["known_findings"]:
-        payload["known_findings"].pop()
-        omitted["known_findings"] += 1
-    while size() > limit and payload["interfaces"]:
-        payload["interfaces"].pop()
-        omitted["interfaces"] += 1
+    _trim_scope_collections(payload, size, limit, omitted)
+    _compact_optional_scope(payload, size, limit, omitted)
+    _compact_scope_file_details(payload, size, limit, omitted)
+    payload["payload_budget"]["truncated"] = any(omitted.values())
+    payload["payload_budget"]["estimated_bytes"] = size()
+    # Updating the byte count can change its own digit width. A second pass makes the estimate exact.
+    payload["payload_budget"]["estimated_bytes"] = size()
+    return payload
+
+
+def _scope_payload_size(payload: dict[str, Any]) -> int:
+    return len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+
+
+def _trim_scope_collections(
+    payload: dict[str, Any], size: Callable[[], int], limit: int, omitted: dict[str, int]
+) -> None:
+    for key in ("related_files", "known_findings", "interfaces"):
+        while size() > limit and payload[key]:
+            payload[key].pop()
+            omitted[key] += 1
     if size() > limit:
         for rule in payload["architecture_rules"]:
-            removed = 0
-            removed += int(rule.pop("description", None) is not None)
-            removed += int(rule.pop("parameters", None) is not None)
-            omitted["rule_details"] += removed
+            omitted["rule_details"] += int(rule.pop("description", None) is not None)
+            omitted["rule_details"] += int(rule.pop("parameters", None) is not None)
     while size() > limit and payload["active_branch_conflicts"]:
         payload["active_branch_conflicts"].pop()
         omitted["branch_conflicts"] += 1
-    if size() > limit:
-        for collection in (payload["primary_files"], payload["protected_files"]):
-            for item in collection:
-                summary = str(item.get("summary") or "")
-                if len(summary) > 120:
-                    item["summary"] = summary[:117].rstrip() + "..."
-                    omitted["summaries_compacted"] += 1
-    _compact_optional_scope(payload, size, limit, omitted)
+    if size() <= limit:
+        return
+    for collection in (payload["primary_files"], payload["protected_files"]):
+        for item in collection:
+            summary = str(item.get("summary") or "")
+            if len(summary) > 120:
+                item["summary"] = summary[:117].rstrip() + "..."
+                omitted["summaries_compacted"] += 1
+
+
+def _compact_scope_file_details(
+    payload: dict[str, Any], size: Callable[[], int], limit: int, omitted: dict[str, int]
+) -> None:
     if size() > limit:
         omitted["protected_file_details"] = len(payload["protected_files"])
         payload["protected_files"] = [
@@ -191,19 +263,11 @@ def _bound_scope_payload(payload: dict[str, Any], limit_bytes: int) -> dict[str,
     if size() > limit:
         omitted["primary_file_details"] = len(payload["primary_files"])
         payload["primary_files"] = [
-            {
-                "path": item["path"],
-                "summary": str(item.get("summary") or "")[:80],
-                "group": item.get("group"),
-            }
-            for item in payload["primary_files"]
+            {"path": item["path"], "group": item.get("group")} for item in payload["primary_files"]
         ]
-
-    payload["payload_budget"]["truncated"] = any(omitted.values())
-    payload["payload_budget"]["estimated_bytes"] = size()
-    # Updating the byte count can change its own digit width. A second pass makes the estimate exact.
-    payload["payload_budget"]["estimated_bytes"] = size()
-    return payload
+    if size() > limit and payload["risk_reasons"]:
+        omitted["risk_reasons"] = len(payload["risk_reasons"])
+        payload["risk_reasons"] = []
 
 
 def _compact_decision(decision: dict[str, Any]) -> dict[str, Any]:
@@ -270,6 +334,21 @@ def _compact_optional_scope(
     while size() > limit and payload["recommended_context"]:
         payload["recommended_context"].pop()
         omitted["recommended_context"] += 1
+    if size() > limit:
+        language = payload.get("plain_language") or {}
+        risk = language.get("risk") or {}
+        payload["plain_language"] = {
+            "how_to_use_this": language.get("how_to_use_this"),
+            "risk": {"value": risk.get("value"), "meaning": risk.get("meaning")},
+            "measurement_note": (
+                "lines_of_code counts code lines. complexity is a file-wide branch score, not a "
+                "code-quality grade. snapshot_id identifies the saved scan; it is not a score."
+            ),
+        }
+        omitted["plain_language_details"] = 1
+    if size() > limit and payload.get("stats"):
+        omitted["stats"] = len(payload["stats"])
+        payload.pop("stats")
 
 
 def _scope_omissions() -> dict[str, int]:
@@ -286,6 +365,9 @@ def _scope_omissions() -> dict[str, int]:
             "primary_file_details",
             "architecture_decision_details",
             "recommended_context",
+            "plain_language_details",
+            "risk_reasons",
+            "stats",
         )
     }
 

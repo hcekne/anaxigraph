@@ -18,7 +18,7 @@ from anaxigraph.cli_common import add_repository_arguments, default_db
 
 
 def configure_server_commands(commands: Any) -> None:
-    history = commands.add_parser("history", help="Build temporal snapshots from Git commits")
+    history = commands.add_parser("history", help="Build saved code maps from earlier Git commits")
     add_repository_arguments(history)
     cli_workflows.configure_operational_commands(
         commands,
@@ -53,7 +53,7 @@ def _serve_arguments(parser: argparse.ArgumentParser) -> None:
         "--history-snapshots",
         type=repository_registry.parse_history_snapshots,
         default="auto",
-        help="Git history frame policy for a single target (default: auto)",
+        help="How many earlier Git versions to map for one repository (default: auto)",
     )
     parser.add_argument("--allow-agent-scan", action="store_true")
     parser.add_argument(

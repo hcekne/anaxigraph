@@ -300,7 +300,7 @@ function estimateLabelWidth(value) {
 
 function regionLabelLines(region) {
   const name = humanize(region.root);
-  const count = `${format.format(region.nodeCount)} module${region.nodeCount === 1 ? "" : "s"}`;
+  const count = `${format.format(region.nodeCount)} file${region.nodeCount === 1 ? "" : "s"}`;
   const available = Math.max(40, region.width - 20);
   if (estimateLabelWidth(`${name} · ${format.format(region.nodeCount)}`) <= available) {
     return [`${name} · ${format.format(region.nodeCount)}`];

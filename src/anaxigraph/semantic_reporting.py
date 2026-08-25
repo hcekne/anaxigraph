@@ -1,4 +1,4 @@
-"""Semantic coverage, budget, and dossier reporting."""
+"""Report whether the saved AI-created code map is complete and current."""
 
 from __future__ import annotations
 
@@ -27,7 +27,10 @@ class SemanticReportingService:
                 "baseline_complete": False,
                 "recommended_action": {
                     "kind": "scan_required",
-                    "message": "Run an explicit repository scan before semantic preparation.",
+                    "message": (
+                        "Scan the repository first so AnaxiGraph has files and direct code links "
+                        "for the AI to describe."
+                    ),
                 },
             }
             result["plain_language"] = semantic_status_explanation(result)
