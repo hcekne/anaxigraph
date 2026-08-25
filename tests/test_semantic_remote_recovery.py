@@ -170,6 +170,44 @@ async def test_wave_runs_thirty_model_calls_without_the_default_thread_cap(monke
     assert total["processed"] == total["completed"] == 30
 
 
+@pytest.mark.anyio
+async def test_submission_retries_transient_sidecar_writer_contention(monkeypatch):
+    responses = iter(
+        [
+            SimpleNamespace(
+                isError=True,
+                content=[SimpleNamespace(text="database is locked")],
+                structuredContent=None,
+            ),
+            SimpleNamespace(
+                isError=False,
+                content=[],
+                structuredContent={"status": "completed"},
+            ),
+        ]
+    )
+    calls = []
+    sleeps = []
+
+    async def sleep(seconds):
+        sleeps.append(seconds)
+
+    class Session:
+        async def call_tool(self, name, *, arguments, read_timeout_seconds):
+            calls.append((name, arguments, read_timeout_seconds))
+            return next(responses)
+
+    monkeypatch.setattr(remote_worker.asyncio, "sleep", sleep)
+    packet = {"job": {"id": 7}, "lease": {"token": "lease"}}
+    result = SimpleNamespace(value={"summary": "done"}, input_tokens=10, output_tokens=5)
+
+    submitted = await remote_worker._submit(Session(), _target(), packet, result)
+
+    assert submitted == {"status": "completed"}
+    assert len(calls) == 2
+    assert sleeps == [1]
+
+
 def _target() -> SemanticServiceTarget:
     return SemanticServiceTarget("http://127.0.0.1:8765", 1, "AnaxiGraph", "/anaxigraph")
 

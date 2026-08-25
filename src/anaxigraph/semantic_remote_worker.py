@@ -25,6 +25,7 @@ from anaxigraph.semantic_service import SemanticServiceTarget
 _TERMINAL_STATES = frozenset({"complete", "complete_with_failures", "paused"})
 _MCP_INITIALIZE_TIMEOUT_SECONDS = 20
 _MCP_TOOL_TIMEOUT_SECONDS = 60
+_SUBMIT_ATTEMPTS = 6
 
 
 def execute_remote_semantics(
@@ -359,19 +360,26 @@ async def _submit(
     packet: dict[str, Any],
     result: Any,
 ) -> dict[str, Any]:
-    response = await _call_tool(
-        session,
-        "ANAXIGRAPH_SEMANTIC_SUBMIT",
-        {
-            "job_id": int(packet["job"]["id"]),
-            "lease_token": str(packet["lease"]["token"]),
-            "dossier": result.value,
-            "input_tokens": result.input_tokens,
-            "output_tokens": result.output_tokens,
-            "repository": str(target.repository_id),
-        },
-    )
-    return _tool_value(response, "submit semantic work")
+    for attempt in range(_SUBMIT_ATTEMPTS):
+        try:
+            response = await _call_tool(
+                session,
+                "ANAXIGRAPH_SEMANTIC_SUBMIT",
+                {
+                    "job_id": int(packet["job"]["id"]),
+                    "lease_token": str(packet["lease"]["token"]),
+                    "dossier": result.value,
+                    "input_tokens": result.input_tokens,
+                    "output_tokens": result.output_tokens,
+                    "repository": str(target.repository_id),
+                },
+            )
+            return _tool_value(response, "submit semantic work")
+        except RuntimeError as exc:
+            if "database is locked" not in str(exc).lower() or attempt == _SUBMIT_ATTEMPTS - 1:
+                raise
+            await asyncio.sleep(2**attempt)
+    raise RuntimeError("Unreachable semantic submission retry state")
 
 
 async def _release_packets(
