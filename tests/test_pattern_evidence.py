@@ -51,13 +51,32 @@ def test_projection_exposes_reusable_evidence_at_all_six_levels(repository, data
 
 
 def test_exact_leaf_projection_matches_full_evidence_without_building_other_files(
-    repository, database
+    repository, database, monkeypatch
 ):
     stats = RepositoryScanner(database).scan(repository)
     module_key = target_key("module", path="pkg/core.py")
 
     with database.connect() as connection:
         full = read_pattern_evidence(connection, stats.repository_id, stats.snapshot_id)
+        install_calls = 0
+        real_install = read_pattern_evidence.__globals__["install_snapshot_projection"]
+
+        def counted_install(*args, **kwargs):
+            nonlocal install_calls
+            install_calls += 1
+            return real_install(*args, **kwargs)
+
+        def unexpected_install(*_args, **_kwargs):
+            raise AssertionError("focused evidence rebuilt the snapshot projection")
+
+        monkeypatch.setattr(
+            "anaxigraph.persistence.pattern_evidence_read.install_snapshot_projection",
+            counted_install,
+        )
+        monkeypatch.setattr(
+            "anaxigraph.persistence.module_read.install_snapshot_projection",
+            unexpected_install,
+        )
         focused = read_pattern_evidence(
             connection,
             stats.repository_id,
@@ -70,6 +89,7 @@ def test_exact_leaf_projection_matches_full_evidence_without_building_other_file
     }
     actual = {item.target.key: item.as_dict() for item in focused.items}
     assert actual == expected
+    assert install_calls == 1
     assert module_key in actual
     assert len(focused.items) < len(full.items)
 

@@ -68,8 +68,10 @@ def read_modules(
     *,
     limit: int | None = None,
     offset: int = 0,
+    _projection_installed: bool = False,
 ) -> list[dict[str, Any]]:
-    install_snapshot_projection(connection, snapshot_id, include_symbols=False)
+    if not _projection_installed:
+        install_snapshot_projection(connection, snapshot_id, include_symbols=False)
     rows = _module_rows(
         connection,
         repository_id,

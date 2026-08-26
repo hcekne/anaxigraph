@@ -85,6 +85,7 @@ def _leaf_projection(
     snapshot_id: int,
     target: str,
 ) -> PatternEvidenceProjection | None:
+    install_snapshot_projection(connection, snapshot_id)
     path = _leaf_target_path(connection, snapshot_id, target)
     if path is None:
         return None
@@ -93,10 +94,16 @@ def _leaf_projection(
             "SELECT COUNT(*) FROM projected_file_versions WHERE path < ?", (path,)
         ).fetchone()[0]
     )
-    modules = read_modules(connection, repository_id, snapshot_id, limit=1, offset=offset)
+    modules = read_modules(
+        connection,
+        repository_id,
+        snapshot_id,
+        limit=1,
+        offset=offset,
+        _projection_installed=True,
+    )
     if not modules or str(modules[0]["path"]) != path:
         return None
-    install_snapshot_projection(connection, snapshot_id)
     raw = {
         int(row["artifact_id"]): dict(row)
         for row in connection.execute(
@@ -104,7 +111,7 @@ def _leaf_projection(
         ).fetchall()
     }
     symbols = [dict(row) for row in connection.execute(_SYMBOL_FOR_PATH_SQL, (path,)).fetchall()]
-    semantic = semantic_documents(connection, snapshot_id)
+    semantic = semantic_documents(connection, snapshot_id, scope_key=path)
     contracts = capability_contracts(raw.values())
     facts = facts_by_artifact(raw.values())
     _areas, _subsystems, targets = _architecture_targets(modules)
@@ -125,7 +132,6 @@ def _leaf_target_path(
     snapshot_id: int,
     target: str,
 ) -> str | None:
-    install_snapshot_projection(connection, snapshot_id)
     candidate = target
     for prefix in ("module:", "type:", "symbol:"):
         if target.startswith(prefix):

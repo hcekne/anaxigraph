@@ -58,18 +58,22 @@ def parse_status(raw: dict[str, Any]) -> str:
 def semantic_documents(
     connection: sqlite3.Connection,
     snapshot_id: int,
+    *,
+    scope_key: str = "",
 ) -> dict[str, dict[str, Any]]:
-    rows = connection.execute(
-        """
+    sql = """
         SELECT ss.scope_key, sd.id AS document_id, sd.value_json, sd.confidence
         FROM semantic_scope_states ss
         LEFT JOIN semantic_documents sd
           ON sd.id = COALESCE(ss.context_document_id, ss.intrinsic_document_id)
         WHERE ss.snapshot_id = ? AND ss.scope_type = 'module'
           AND ss.status IN ('current', 'intrinsic_current') AND sd.id IS NOT NULL
-        """,
-        (snapshot_id,),
-    ).fetchall()
+        """
+    parameters: tuple[Any, ...] = (snapshot_id,)
+    if scope_key:
+        sql += " AND ss.scope_key = ?"
+        parameters = (*parameters, scope_key)
+    rows = connection.execute(sql, parameters).fetchall()
     result = {}
     for row in rows:
         value = json.loads(row["value_json"] or "{}")
