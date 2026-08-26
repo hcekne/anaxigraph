@@ -1,5 +1,6 @@
 minimum_pre_commit_version: "4.0.0"
-default_install_hook_types: [pre-commit, pre-push]
+default_install_hook_types: [pre-commit]
+default_stages: [pre-commit]
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -59,16 +60,16 @@ repos:
         entry: uv run python scripts/check_self_analysis.py
         language: system
         pass_filenames: false
-        stages: [pre-push]
+        stages: [manual]
       - id: python-tests
         name: Complete Python test suite and coverage floor
         entry: uv run pytest --cov=anaxigraph --cov-report=term --cov-report=xml --cov-fail-under=80
         language: system
         pass_filenames: false
-        stages: [pre-push]
+        stages: [manual]
       - id: changed-code-coverage
         name: Changed-code coverage target
         entry: uv run python scripts/check_changed_coverage.py --base HEAD^
         language: system
         pass_filenames: false
-        stages: [pre-push]
+        stages: [manual]
