@@ -19,6 +19,9 @@ from typing import Any
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
+MCP_REPOSITORY_TIMEOUT_SECONDS = 120.0
+MCP_REPOSITORY_POLL_SECONDS = 0.25
+
 
 def smoke_container_sidecar(root: Path, *, image: str, build: bool = True) -> dict[str, Any]:
     started = time.monotonic()
@@ -108,10 +111,7 @@ def _wait_for_health(port: int, compose: list[str], cwd: Path) -> dict[str, Any]
 async def _mcp_evidence(url: str) -> dict[str, Any]:
     async with streamable_http_client(url, terminate_on_close=False) as streams:
         async with ClientSession(streams[0], streams[1]) as session:
-            result = await session.call_tool("ANAXIGRAPH_REPOSITORIES", arguments={})
-            if result.isError:
-                raise RuntimeError("container MCP repository query failed")
-            repositories = result.structuredContent["repositories"]
+            repositories = await _wait_for_mcp_repository(session)
             overview = await session.call_tool(
                 "ANAXIGRAPH_OVERVIEW",
                 arguments={"repository": str(repositories[0]["id"])},
@@ -119,6 +119,30 @@ async def _mcp_evidence(url: str) -> dict[str, Any]:
             if overview.isError:
                 raise RuntimeError("container MCP overview query failed")
             return {"repositories": repositories, "overview": overview.structuredContent}
+
+
+async def _wait_for_mcp_repository(
+    session: Any,
+    *,
+    timeout_seconds: float = MCP_REPOSITORY_TIMEOUT_SECONDS,
+    poll_seconds: float = MCP_REPOSITORY_POLL_SECONDS,
+) -> list[dict[str, Any]]:
+    """Wait until startup scanning makes the configured repository queryable."""
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        result = await session.call_tool("ANAXIGRAPH_REPOSITORIES", arguments={})
+        if result.isError:
+            raise RuntimeError("container MCP repository query failed")
+        content = result.structuredContent or {}
+        repositories = content.get("repositories") or []
+        if repositories:
+            return repositories
+        if time.monotonic() >= deadline:
+            raise RuntimeError(
+                "container became healthy, but its startup scan did not expose a repository "
+                f"within {timeout_seconds:g} seconds"
+            )
+        await asyncio.sleep(poll_seconds)
 
 
 def _inspect_hardening(container_id: str) -> dict[str, Any]:
