@@ -11,7 +11,6 @@ from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic_agent_protocol import packetize_agent_request
 from anaxigraph.semantic_contract import SemanticAnalysisError, SemanticResult
 from anaxigraph.semantic_freshness import legacy_input_matches
-from anaxigraph.semantic_taxonomy_clusters import cluster_inventory
 from anaxigraph.semantic_taxonomy_contract import (
     taxonomy_analysis_kind,
     validated_agent_semantic_response,
@@ -315,31 +314,55 @@ def test_partition_reconciliation_distributes_overflow_clusters():
         }
         for index in range(60)
     ]
-    chunks = []
-    for index, module in enumerate(modules):
-        chunks.append(
-            {
-                "modules": [module],
-                "taxonomy": {
-                    "areas": [
-                        _node(
-                            f"area-{index}",
-                            [_node(f"job-{index}", [_member(module["path"], 0.8)])],
-                            level="area",
-                        )
-                    ]
-                },
-            }
-        )
+    calls = []
 
-    clustered = cluster_inventory(chunks, modules, maximum=10)
-    expansion = clustered["expansion"]
+    class Provider:
+        def analyze(self, request):
+            calls.append(request)
+            requested = list(request.get("modules") or [])
+            if request["analysis_kind"] == "taxonomy_inventory_chunk":
+                areas = [
+                    _node(
+                        f"area-{index}",
+                        [_node(f"job-{index}", [_member(module["path"], 0.8)])],
+                        level="area",
+                    )
+                    for index, module in enumerate(requested)
+                ]
+                taxonomy = {
+                    "summary": "Every local responsibility remains separate.",
+                    "areas": areas,
+                    "facets": [],
+                    "confidence": 0.8,
+                    "evidence": [],
+                }
+            else:
+                taxonomy = _taxonomy_for_modules(requested)
+            return SemanticResult(taxonomy, 0.8, ())
 
-    assert len(expansion) == 10
-    assert {member["path"] for members in expansion.values() for member in members} == {
-        module["path"] for module in modules
+    request = {
+        "contract": "Build the complete responsibility map.",
+        "schema_version": "repository-understanding-v5",
+        "analysis_kind": "taxonomy_proposal",
+        "scope_type": "repository",
+        "scope_key": "1",
+        "constraints": {"max_areas": 4, "max_subsystems": 10},
+        "hints": [],
+        "locked_memberships": {},
+        "modules": modules,
+        "relationships": [],
+        "previous_taxonomy": None,
     }
-    assert max(len(members) for members in expansion.values()) <= 12
+    proposal = analyze_taxonomy_proposal(
+        Provider(),
+        request,
+        SemanticConfig(max_source_chars=100_000, max_output_tokens=1_800),
+    )
+    final_request = calls[-1]
+
+    assert _taxonomy_paths(proposal.value) == {module["path"] for module in modules}
+    assert len(final_request["modules"]) == 10
+    assert max(item["dossier"]["member_count"] for item in final_request["modules"]) <= 12
 
 
 def test_large_agent_taxonomy_review_pages_candidate_memberships():
