@@ -245,6 +245,10 @@ def _telemetry_payload(rows: SemanticStatusRows, snapshot_id: int) -> dict[str, 
                 "Total task time adds the time spent by every AI job. Jobs can run together, so "
                 "it can be larger than the real clock time for one semantic run."
             ),
+            "token_note": (
+                "Token totals include only jobs whose executor reported usage. A completed job "
+                "with missing token counts means unknown usage, not a free model call."
+            ),
         },
         "architecture": {
             "lifetime": {
@@ -295,17 +299,23 @@ def _architecture_action(item: dict[str, Any]) -> dict[str, Any]:
 
 
 def _action_totals(actions: list[dict[str, Any]], count_key: str) -> dict[str, Any]:
-    return {
-        count_key: sum(int(item.get(count_key) or 0) for item in actions),
-        "completed": sum(int(item.get("completed") or 0) for item in actions),
-        "failed": sum(int(item.get("failed") or 0) for item in actions),
-        "input_tokens": sum(int(item.get("input_tokens") or 0) for item in actions),
-        "output_tokens": sum(int(item.get("output_tokens") or 0) for item in actions),
-        "cost_usd": round(sum(float(item.get("cost_usd") or 0) for item in actions), 6),
-        "total_duration_ms": round(
-            sum(float(item.get("total_duration_ms") or 0) for item in actions), 3
-        ),
+    totals: dict[str, int | float] = {
+        count_key: 0,
+        "completed": 0,
+        "failed": 0,
+        "token_counts_reported": 0,
+        "token_counts_missing": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cost_usd": 0.0,
+        "total_duration_ms": 0.0,
     }
+    for item in actions:
+        for key in totals:
+            totals[key] += item.get(key) or 0
+    totals["cost_usd"] = round(float(totals["cost_usd"]), 6)
+    totals["total_duration_ms"] = round(float(totals["total_duration_ms"]), 3)
+    return totals
 
 
 def _budget_payload(

@@ -126,6 +126,27 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
                         AND status = 'completed' ORDER BY id LIMIT 1)
             """
         )
+        connection.executemany(
+            """
+            INSERT INTO analysis_runs(
+                repository_id, run_type, status, started_at, completed_at
+            ) VALUES (?, 'watch', ?, ?, ?)
+            """,
+            (
+                (
+                    stats.repository_id,
+                    "unchanged",
+                    "2026-08-26T10:00:00+00:00",
+                    "2026-08-26T10:00:01+00:00",
+                ),
+                (
+                    stats.repository_id,
+                    "interrupted",
+                    "2026-08-20T10:00:00+00:00",
+                    "2026-08-26T10:00:00+00:00",
+                ),
+            ),
+        )
     metered = engine.status(stats.repository_id, config.semantic)
     intrinsic = next(
         item
@@ -141,6 +162,16 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
     assert intrinsic["output_tokens"] == 30
     assert intrinsic["cost_usd"] == 0.012
     assert intrinsic["models"] == ["test-model"]
+    assert intrinsic["token_counts_reported"] == 1
+    assert intrinsic["token_counts_missing"] == intrinsic["completed"] - 1
+    watch = next(
+        item
+        for item in metered["telemetry"]["architecture"]["lifetime"]["actions"]
+        if item["run_type"] == "watch"
+    )
+    assert watch["completed"] == 1
+    assert watch["interrupted"] == 1
+    assert watch["total_duration_ms"] == pytest.approx(1_000, abs=0.1)
     with database.connect() as connection:
         provenance = connection.execute(
             """

@@ -88,30 +88,10 @@ class CodexSemanticProvider:
         try:
             with tempfile.TemporaryDirectory(prefix="anaxigraph-codex-") as directory:
                 schema_path = Path(directory) / "semantic.schema.json"
+                message_path = Path(directory) / "semantic-result.json"
                 schema_path.write_text(json.dumps(response_schema(request)), encoding="utf-8")
-                command = [
-                    "codex",
-                    "exec",
-                    "--ephemeral",
-                    "--sandbox",
-                    "read-only",
-                    "--skip-git-repo-check",
-                    "--ignore-user-config",
-                    "--ignore-rules",
-                    "--color",
-                    "never",
-                    "--output-schema",
-                    str(schema_path),
-                ]
-                if self.config.model:
-                    command.extend(("--model", self.config.model))
-                if self.config.reasoning_effort:
-                    command.extend(
-                        ("--config", f'model_reasoning_effort="{self.config.reasoning_effort}"')
-                    )
-                command.append("-")
                 completed = subprocess.run(
-                    command,
+                    _codex_command(self.config, schema_path, message_path),
                     input=prompt,
                     text=True,
                     capture_output=True,
@@ -119,13 +99,63 @@ class CodexSemanticProvider:
                     timeout=self.config.timeout_seconds,
                     check=False,
                 )
+                message = (
+                    message_path.read_text(encoding="utf-8") if completed.returncode == 0 else ""
+                )
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise SemanticAnalysisError(f"Codex semantic run failed: {exc}") from exc
         if completed.returncode != 0:
             raise SemanticAnalysisError(
                 f"Codex exited with {completed.returncode}: {completed.stderr.strip()[:1_000]}"
             )
-        return _result_from_json(completed.stdout, request=request)
+        input_tokens, output_tokens = _codex_usage(completed.stdout)
+        return _result_from_json(
+            message,
+            request=request,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+        )
+
+
+def _codex_command(config: SemanticConfig, schema_path: Path, message_path: Path) -> list[str]:
+    command = [
+        "codex",
+        "exec",
+        "--ephemeral",
+        "--sandbox",
+        "read-only",
+        "--skip-git-repo-check",
+        "--ignore-user-config",
+        "--ignore-rules",
+        "--color",
+        "never",
+        "--json",
+        "--output-schema",
+        str(schema_path),
+        "--output-last-message",
+        str(message_path),
+    ]
+    if config.model:
+        command.extend(("--model", config.model))
+    if config.reasoning_effort:
+        command.extend(("--config", f'model_reasoning_effort="{config.reasoning_effort}"'))
+    command.append("-")
+    return command
+
+
+def _codex_usage(events: str) -> tuple[int, int]:
+    usage: dict[str, Any] = {}
+    for line in events.splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(event, dict) and isinstance(event.get("usage"), dict):
+            usage = event["usage"]
+    return (
+        int(usage.get("input_tokens") or usage.get("total_input_tokens") or 0),
+        int(usage.get("output_tokens") or usage.get("total_output_tokens") or 0),
+    )
 
 
 class ClaudeSemanticProvider:

@@ -66,7 +66,8 @@ semantic baseline only when no current baseline exists. For each coherent task:
 
 Read `telemetry` from scope, impact, and semantic status. Compare server duration and reply size for
 deterministic reads; compare time, tokens, model, failures, and cost by semantic action. Remember
-that summed AI job time can exceed wall time when jobs run in parallel.
+that summed AI job time can exceed wall time when jobs run in parallel, and that a missing token
+report means unknown usage rather than a free call.
 
 ## Build or resume semantic understanding
 

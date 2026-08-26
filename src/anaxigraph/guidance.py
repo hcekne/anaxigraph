@@ -224,7 +224,7 @@ CODING_LOOP_CONTRACT = {
     "telemetry": {
         "semantic_status": (
             "telemetry groups current-snapshot and lifetime AI jobs by action, with task time, "
-            "tokens, model names, failures, and cost."
+            "tokens, missing token reports, model names, failures, and cost."
         ),
         "scope_and_impact": (
             "telemetry reports server time, serialized reply size, and zero model tokens for each "

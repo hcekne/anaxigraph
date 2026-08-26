@@ -173,7 +173,23 @@ def test_codex_provider_is_ephemeral_read_only_and_schema_constrained(monkeypatc
         captured.update(command=command, kwargs=kwargs)
         schema_path = Path(command[command.index("--output-schema") + 1])
         assert json.loads(schema_path.read_text(encoding="utf-8"))["additionalProperties"] is False
-        return SimpleNamespace(returncode=0, stdout=json.dumps(_dossier()), stderr="")
+        message_path = Path(command[command.index("--output-last-message") + 1])
+        message_path.write_text(json.dumps(_dossier()), encoding="utf-8")
+        return SimpleNamespace(
+            returncode=0,
+            stdout="\n".join(
+                (
+                    json.dumps({"type": "thread.started", "thread_id": "test"}),
+                    json.dumps(
+                        {
+                            "type": "turn.completed",
+                            "usage": {"input_tokens": 120, "output_tokens": 30},
+                        }
+                    ),
+                )
+            ),
+            stderr="",
+        )
 
     monkeypatch.setattr("anaxigraph.semantic.subprocess.run", run)
     result = CodexSemanticProvider(
@@ -187,6 +203,7 @@ def test_codex_provider_is_ephemeral_read_only_and_schema_constrained(monkeypatc
 
     assert captured["command"][:2] == ["codex", "exec"]
     assert "--ephemeral" in captured["command"]
+    assert "--json" in captured["command"]
     assert captured["command"][captured["command"].index("--sandbox") + 1] == "read-only"
     assert captured["command"][captured["command"].index("--model") + 1] == "gpt-test"
     assert 'model_reasoning_effort="medium"' in captured["command"]
@@ -196,6 +213,8 @@ def test_codex_provider_is_ephemeral_read_only_and_schema_constrained(monkeypatc
     assert "what the number can and cannot mean" in captured["kwargs"]["input"]
     assert "reread every sentence" in captured["kwargs"]["input"]
     assert result.value["summary"] == "Owns repository enrollment."
+    assert result.input_tokens == 120
+    assert result.output_tokens == 30
 
 
 def test_claude_provider_is_non_persistent_tool_free_and_schema_constrained(monkeypatch):

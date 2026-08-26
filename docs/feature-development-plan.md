@@ -2626,7 +2626,11 @@ system. Scope, impact, and graph reads report server duration, reply bytes, and 
 Semantic status groups current-snapshot and lifetime work by action with model names, completions,
 failures, task duration, input/output tokens, and cost. Structural scans remain grouped by run type,
 and detached semantic records expose elapsed wall time. Summed parallel-job time is explicitly
-distinguished from real elapsed time. Sixty-five focused taxonomy, coding-loop, queue, API/MCP,
+distinguished from real elapsed time. Successful unchanged scans and completed history jobs count
+as finished actions, interrupted offline time is excluded, and missing executor token reports are
+shown as unknown usage instead of zero-cost work. The Codex executor reads its JSONL completion
+usage while keeping the schema-constrained final answer separate. Focused taxonomy, provider,
+coding-loop, queue, API/MCP,
 documentation, and telemetry tests pass.
 
 ## Phase 9 exit gate

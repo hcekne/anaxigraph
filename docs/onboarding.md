@@ -186,6 +186,7 @@ first; wait for `semantically_ready` only when the next decision needs a complet
 Use the returned telemetry to tune the loop: scope and impact replies report server time, payload
 size, and model-token use; semantic status groups AI work by action with current-snapshot and
 lifetime time/token totals; scan results and detached semantic runs report wall-clock duration.
+Missing executor token reports are counted separately and mean unknown usage, not a free call.
 
 The comparison says what changed in the bounded file, finding, and reviewed-pattern evidence. It
 does not call a difference an improvement unless the expected outcome and tests support that

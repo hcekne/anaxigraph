@@ -161,7 +161,9 @@ structural comparison does not need to wait for that background refresh; wait fo
 
 Each scope and impact reply now includes server time, payload size, and model-token use. Semantic
 status groups AI jobs by action with current-snapshot and lifetime time/token totals, while scan
-results and detached execution records show wall-clock duration.
+results and detached execution records show wall-clock duration. A completed job whose executor did
+not report token counts is labeled unknown; zero is never presented as proof that the model call was
+free.
 
 A difference is not automatically an improvement. The expected behavior, focused tests, and
 before/after architecture evidence must agree. The [onboarding guide](docs/onboarding.md#use-one-coding-loop)

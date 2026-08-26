@@ -219,6 +219,10 @@ def _semantic_actions(
                SUM(status = 'retry') AS retry,
                SUM(status = 'failed') AS failed,
                SUM(status = 'superseded') AS superseded,
+               SUM(status = 'completed' AND (input_tokens > 0 OR output_tokens > 0))
+                   AS token_counts_reported,
+               SUM(status = 'completed' AND input_tokens = 0 AND output_tokens = 0)
+                   AS token_counts_missing,
                COALESCE(SUM(CASE WHEN status = 'completed' THEN input_tokens ELSE 0 END), 0)
                    AS input_tokens,
                COALESCE(SUM(CASE WHEN status = 'completed' THEN output_tokens ELSE 0 END), 0)
@@ -258,6 +262,8 @@ def _semantic_action_row(row: sqlite3.Row) -> dict[str, Any]:
         "retry": int(row["retry"] or 0),
         "failed": int(row["failed"] or 0),
         "superseded": int(row["superseded"] or 0),
+        "token_counts_reported": int(row["token_counts_reported"] or 0),
+        "token_counts_missing": int(row["token_counts_missing"] or 0),
         "input_tokens": int(row["input_tokens"] or 0),
         "output_tokens": int(row["output_tokens"] or 0),
         "cost_usd": round(float(row["cost_usd"] or 0), 6),
@@ -277,21 +283,23 @@ def _architecture_actions(
         """
         SELECT run_type,
                COUNT(*) AS runs,
-               SUM(status = 'completed') AS completed,
+               SUM(status IN ('complete', 'completed', 'completed_with_errors', 'unchanged'))
+                   AS completed,
                SUM(status = 'running') AS running,
                SUM(status = 'failed') AS failed,
                SUM(status = 'interrupted') AS interrupted,
+               SUM(status = 'cancelled') AS cancelled,
                SUM(discovered_count) AS discovered,
                SUM(analyzed_count) AS analyzed,
                SUM(reused_count) AS reused,
                SUM(error_count) AS errors,
-               COALESCE(SUM(CASE WHEN completed_at IS NOT NULL
+               COALESCE(SUM(CASE WHEN completed_at IS NOT NULL AND status != 'interrupted'
                    THEN (julianday(completed_at) - julianday(started_at)) * 86400000
                    ELSE 0 END), 0) AS total_duration_ms,
-               AVG(CASE WHEN completed_at IS NOT NULL
+               AVG(CASE WHEN completed_at IS NOT NULL AND status != 'interrupted'
                    THEN (julianday(completed_at) - julianday(started_at)) * 86400000 END)
                    AS average_duration_ms,
-               MAX(CASE WHEN completed_at IS NOT NULL
+               MAX(CASE WHEN completed_at IS NOT NULL AND status != 'interrupted'
                    THEN (julianday(completed_at) - julianday(started_at)) * 86400000 END)
                    AS maximum_duration_ms,
                MIN(started_at) AS first_started_at,
@@ -312,6 +320,7 @@ def _architecture_action_row(row: sqlite3.Row) -> dict[str, Any]:
         "running": int(row["running"] or 0),
         "failed": int(row["failed"] or 0),
         "interrupted": int(row["interrupted"] or 0),
+        "cancelled": int(row["cancelled"] or 0),
         "discovered": int(row["discovered"] or 0),
         "analyzed": int(row["analyzed"] or 0),
         "reused": int(row["reused"] or 0),
