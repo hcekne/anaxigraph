@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from anaxigraph.agent_lexicon import GOAL_STOPWORDS, WORD_PATTERN, split_camel
+from anaxigraph.agent_lexicon import goal_artifact_type, goal_terms
 
 TASK_PATH_VERSION = "task-path-v1"
 
@@ -174,6 +174,8 @@ def _task_module(
     primary_files: list[dict[str, Any]],
     symbols: list[dict[str, Any]],
 ) -> dict[str, Any]:
+    if str(preferred.get("artifact_type") or "") == goal_artifact_type(goal):
+        return preferred
     terms = _terms(goal)
     scores: dict[str, int] = {}
     for symbol in symbols:
@@ -315,13 +317,7 @@ def _route_only(packet: dict[str, Any]) -> dict[str, Any]:
 
 
 def _terms(value: str) -> set[str]:
-    words = {
-        word.lower().replace("-", "_")
-        for word in WORD_PATTERN.findall(split_camel(value))
-        if word.lower() not in GOAL_STOPWORDS and len(word) > 1
-    }
-    words.update(word[:-1] for word in tuple(words) if word.endswith("s") and len(word) > 4)
-    return words
+    return goal_terms(value)
 
 
 def _strings(value: Any, limit: int) -> list[str]:

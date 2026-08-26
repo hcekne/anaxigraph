@@ -19,7 +19,7 @@ from anaxigraph.agent_graph_read import (
 )
 from anaxigraph.agent_graph_read import _public_interfaces as _public_interfaces
 from anaxigraph.agent_graph_read import _symbols as _symbols
-from anaxigraph.agent_lexicon import GOAL_STOPWORDS, WORD_PATTERN, split_camel
+from anaxigraph.agent_lexicon import WORD_PATTERN, goal_artifact_type, goal_terms, split_camel
 from anaxigraph.agent_scope_evidence import (
     _applicable_findings as _applicable_findings,
 )
@@ -35,6 +35,7 @@ def _rank_files(
     goal: str,
 ) -> list[tuple[float, int]]:
     words, normalized_goal = _goal_terms(goal)
+    preferred_artifact_type = goal_artifact_type(goal)
     documents = _ranking_documents(connection, snapshot_id, files)
     document_frequency = {
         word: sum(1 for values in documents.values() if word in " ".join(values)) for word in words
@@ -47,7 +48,9 @@ def _rank_files(
                 document_frequency,
                 normalized_goal,
                 len(files),
-                is_test=item["artifact_type"] == "test",
+                artifact_weight=_artifact_weight(
+                    str(item["artifact_type"]), preferred_artifact_type
+                ),
             ),
             artifact_id,
         )
@@ -60,12 +63,7 @@ def _rank_files(
 
 
 def _goal_terms(goal: str) -> tuple[set[str], str]:
-    words = {
-        word.lower().replace("-", "_")
-        for word in WORD_PATTERN.findall(split_camel(goal))
-        if word.lower() not in GOAL_STOPWORDS and len(word) > 1
-    }
-    words.update(word[:-1] for word in tuple(words) if word.endswith("s") and len(word) > 4)
+    words = goal_terms(goal)
     normalized = "_".join(
         word.lower() for word in WORD_PATTERN.findall(split_camel(goal)) if len(word) > 2
     )
@@ -120,20 +118,26 @@ def _document_score(
     normalized_goal: str,
     file_count: int,
     *,
-    is_test: bool,
+    artifact_weight: float,
 ) -> float:
     path, basename, summary, symbol_text, semantic_text = document
     score = 0.0
     for word in words:
         inverse_frequency = 1 + log((file_count + 1) / (document_frequency[word] + 1))
-        score += path.count(word) * 7 * inverse_frequency
-        score += basename.count(word) * 8 * inverse_frequency
-        score += summary.count(word) * 3 * inverse_frequency
-        score += symbol_text.count(word) * 4 * inverse_frequency
-        score += semantic_text.count(word) * 2.5 * inverse_frequency
+        score += int(word in path) * 7 * inverse_frequency
+        score += int(word in basename) * 8 * inverse_frequency
+        score += int(word in summary) * 3 * inverse_frequency
+        score += int(word in symbol_text) * 4 * inverse_frequency
+        score += int(word in semantic_text) * 2.5 * inverse_frequency
     if normalized_goal and normalized_goal in path.replace("/", "_"):
         score += 30
-    return score * 0.45 if is_test else score
+    return score * artifact_weight
+
+
+def _artifact_weight(artifact_type: str, preferred_artifact_type: str | None) -> float:
+    if artifact_type == preferred_artifact_type:
+        return 2.0
+    return 0.45 if artifact_type == "test" else 1.0
 
 
 def _select_primary(

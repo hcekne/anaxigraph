@@ -91,6 +91,63 @@ def test_agent_scope_follows_a_declared_area_and_subsystem(repository, database)
     assert path["subsystem"]["responsibility"] == "Core domain behavior."
 
 
+def test_agent_scope_prefers_the_roadmap_document_for_a_roadmap_goal(repository, database):
+    roadmap = repository / "docs" / "feature-development-plan.md"
+    roadmap.write_text(
+        "# Feature development plan\n\n"
+        "This roadmap records the remaining product work and the proof needed to finish it.\n",
+        encoding="utf-8",
+    )
+    noisy_source = repository / "pkg" / "pattern_evidence_features.py"
+    noisy_source.write_text(
+        "\n".join(
+            [
+                '"""Build code features for coding agents."""',
+                *[
+                    f"def module_feature_{index}():\n    return 'code feature {index}'"
+                    for index in range(20)
+                ],
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    stats = RepositoryScanner(database).scan(repository)
+
+    value = agent_scope(
+        database,
+        repository_id=stats.repository_id,
+        goal="Narrow the remaining roadmap to core features in the development plan",
+        branch=None,
+        config=load_config(repository),
+    )
+
+    expected = "docs/feature-development-plan.md"
+    assert value["primary_files"][0]["path"] == expected
+    decision = value["architecture_decision"]
+    assert decision["placement"]["preferred_path"] == expected
+    assert decision["task_path"]["module"]["path"] == expected
+    assert decision["task_path"]["symbols"] == []
+
+
+def test_agent_scope_prefers_a_test_for_an_explicit_test_goal(repository, database):
+    stats = RepositoryScanner(database).scan(repository)
+
+    value = agent_scope(
+        database,
+        repository_id=stats.repository_id,
+        goal="Change the Calculator test behavior",
+        branch=None,
+        config=load_config(repository),
+    )
+
+    expected = "tests/test_core.py"
+    assert value["primary_files"][0]["path"] == expected
+    decision = value["architecture_decision"]
+    assert decision["placement"]["preferred_path"] == expected
+    assert decision["task_path"]["module"]["path"] == expected
+
+
 def test_impact_follows_reverse_edges_and_relevant_tests(repository, database):
     stats = RepositoryScanner(database).scan(repository)
     value = impact_analysis(

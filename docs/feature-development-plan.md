@@ -1,8 +1,8 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.34
+**Roadmap version:** 3.35
 
-**Updated:** 25 August 2026
+**Updated:** 26 August 2026
 
 **Execution rule:** one phase is active at a time; the next phase does not begin until the current
 phase's exit gate is met.
@@ -111,7 +111,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 561 tests passing plus 17 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, post-change comparison, and three-size core-loop paths are regression-tested |
+| Test health | 574 tests passing plus 17 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, post-change comparison, and three-size core-loop paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -254,8 +254,8 @@ Only two unfinished product capabilities remain in the active feature list:
 
 | Priority | Status | Capability | What must become better | Boundary |
 |---:|---|---|---|---|
-| 1 | **ACTIVE** | Autonomous responsibility hierarchy | A person or agent can move from area → subsystem → module → symbol and understand why code belongs together | Reuse deterministic facts, semantic dossiers, taxonomy proposal, and independent agent review; no default human taxonomy-edit gate and no second visualization |
-| 2 | **NEXT** | Useful architecture decisions in the coding loop | Placement, reverse impact, multi-level pattern fit, coherent large-file decomposition, and before/after structural advice are accurate enough to guide real AnaxiGraph changes | Reuse scope, impact, findings, the 120+ pattern catalog, and comparison contracts; fix demonstrated defects instead of adding another product surface |
+| 1 | **COMPLETE** | Autonomous responsibility hierarchy | A person or agent can move from area → subsystem → module → symbol and understand why code belongs together | Reuse deterministic facts, semantic dossiers, taxonomy proposal, and independent agent review; no default human taxonomy-edit gate and no second visualization |
+| 2 | **ACTIVE** | Useful architecture decisions in the coding loop | Placement, reverse impact, multi-level pattern fit, coherent large-file decomposition, and before/after structural advice are accurate enough to guide real AnaxiGraph changes | Reuse scope, impact, findings, the 120+ pattern catalog, and comparison contracts; fix demonstrated defects instead of adding another product surface |
 
 A code change belongs in the active roadmap only when it is required to complete one of those two
 capabilities or fixes a defect directly demonstrated while exercising them. One authoritative map,
@@ -2353,7 +2353,7 @@ change also lowers the `evaluate_architecture` and finding-lifecycle maintainabi
 
 # Phase 9 — make the real core loop dependable, then prove it for 1.0
 
-**Status:** ACTIVE; SELF-HOSTED HIERARCHY AND DECISION DOGFOODING IN PROGRESS on 25 August 2026
+**Status:** ACTIVE; HIERARCHY COMPLETE AND CORE DECISION DOGFOODING IN PROGRESS on 26 August 2026
 
 **Goal:** prove that the existing AnaxiGraph loop helps a person or coding agent place and change
 code without creating sprawl, tangled dependencies, misplaced responsibilities, or giant files.
@@ -2372,8 +2372,7 @@ when that change touches the code or cannot pass a hard quality gate without it.
 
 ## 9.0 Make the served map authoritative and current
 
-**Status:** AUTHORITATIVE MAP AND SEMANTIC EXECUTOR COMPLETE; SELF-HOSTED HIERARCHY ACTIVE on
-25 August 2026
+**Status:** COMPLETE on 26 August 2026
 
 The active AnaxiGraph MCP service returned snapshot 221 at commit `80a44a7`, with an empty semantic
 hierarchy, while the repository's `main` branch had advanced. The response was internally valid but
@@ -2436,6 +2435,16 @@ The complete 568-test suite passed at 91.70% coverage before the final direct pr
 assertion raised changed executable coverage for this slice to 100%; formatting, size, complexity,
 dependency, package-contract, and deterministic self-analysis gates are clean.
 
+Self-hosted semantic acceptance then completed against authoritative sidecar snapshot 239 at commit
+`6318bae`, including the existing dirty-tree fingerprint. Run
+`99b08683-9345-40bb-a344-c75c76ca4e1e` used operator-selected `gpt-5.6-terra`, medium reasoning,
+30 parallel calls, and exited zero after 417 jobs. All 465 module descriptions, 21 area/subsystem
+summaries, and the repository summary are current. Two autonomous reviews produced a valid
+hierarchy of five areas and 16 subsystems with all 465 files assigned, zero repairs, and no
+unclassified or shared-runtime catch-all. The sparse plan finalized all 200 selected pattern
+evaluations with zero pending, failed, expired, or reclaimable work. The durable wrapper ended
+`complete`; it did not stop at an intermediate “still running” message.
+
 ## 9.1 Protect the smallest agent-facing contract
 
 **Status:** COMPLETE on 25 August 2026
@@ -2462,8 +2471,8 @@ module size, code quality, architecture, Ruff, and focused REST/MCP tests also p
 
 ## 9.2 Prove architecture decisions at representative sizes
 
-**Status:** DETERMINISTIC SCALE ACCEPTANCE COMPLETE on 25 August 2026; current self-hosted
-acceptance reopened and paid live semantic acceptance paused
+**Status:** SELF-HOSTED HIERARCHY ACCEPTANCE COMPLETE; CORE DECISION DOGFOODING ACTIVE on
+26 August 2026; paid MaxOS semantic acceptance paused
 
 Run the same coding tasks against small, medium, and large Python-first repositories. Record only
 measurements that decide whether the map is useful:
@@ -2518,6 +2527,17 @@ add product evidence. Remaining §9.2 evidence is the current self-hosted task s
 retained live MaxOS semantic acceptance after the operator lifts its pause. The complete Python
 suite passes with 559 tests at 91.63% coverage; Ruff, module-size, code-quality, architecture, and
 self-analysis gates also pass.
+
+The first current-map placement task exposed a core defect instead of being counted as a success.
+A roadmap-only goal ranked `pattern_evidence_features.py` above the actual development plan because
+every repeated generic word in a long semantic description increased its score, and a later symbol
+match could displace a more relevant document. Goal terms now contribute at most once per evidence
+field, a small alias connects “roadmap” with “plan,” and explicit documentation or test intent gets
+a bounded artifact-kind preference. A matching document also survives the later symbol step. On
+the same snapshot and goal, the preferred file and task path are now both
+`docs/feature-development-plan.md`; focused tests include a deliberately noisy feature module, an
+explicit test-edit goal, and the existing 120/1,000/3,000-file precision fixtures. Reverse impact,
+multi-level pattern fit, large-file decomposition, and before/after dogfood tasks remain active.
 
 ## 9.3 Keep one documented coding loop
 
@@ -2666,8 +2686,8 @@ feature-admission rule.
 |---:|---|---|---|
 | 1 | **COMPLETE** | Reproduce why the self-hosted MCP map lagged the checkout, then make CLI/MCP/watcher/sidecar identity and currentness explicit and consistent | §9.0 |
 | 2 | **COMPLETE** | Prove bounded parallel executor mechanics preserve operator-selected settings, survive interruption, and reach durable `complete` without losing finished work | §9.0 |
-| 3 | **ACTIVE** | On the current AnaxiGraph index, form and independently review the autonomous hierarchy with complete module coverage and no default human edit step | §9.0 and §9.2 |
-| 4 | **NEXT** | Run real AnaxiGraph tasks for placement, impact, multi-level pattern fit, large-file decomposition, and before/after verification; fix only demonstrated core defects | §9.2 |
+| 3 | **COMPLETE** | On the current AnaxiGraph index, form and independently review the autonomous hierarchy with complete module coverage and no default human edit step | §9.0 and §9.2 |
+| 4 | **ACTIVE** | Run real AnaxiGraph tasks for placement, impact, multi-level pattern fit, large-file decomposition, and before/after verification; fix only demonstrated core defects | §9.2 |
 
 That is the complete feature queue. A defect found by item 3 or 4 may be fixed immediately through
 the smallest existing path. The retained MaxOS run and the eventual release candidate are
