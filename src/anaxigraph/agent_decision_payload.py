@@ -83,7 +83,7 @@ def _compact_verification(value: Any) -> dict[str, Any]:
     verification = value if isinstance(value, dict) else {}
     result: dict[str, Any] = {}
     if baseline := verification.get("post_change_baseline"):
-        result["post_change_baseline"] = baseline
+        result["post_change_baseline"] = _compact_baseline(baseline)
     comparison = verification.get("post_change_comparison") or {}
     if not comparison:
         return result
@@ -104,6 +104,29 @@ def _compact_verification(value: Any) -> dict[str, Any]:
     if effect_changes or compact_effects["omitted_count"]:
         compact["changes"] = {"structural_effects": compact_effects}
     result["post_change_comparison"] = compact
+    return result
+
+
+def _compact_baseline(value: Any) -> dict[str, Any]:
+    """Keep comparison facts while removing prose the validator can restore safely."""
+
+    baseline = dict(value) if isinstance(value, dict) else {}
+    findings = baseline.get("findings")
+    if not isinstance(findings, list):
+        return baseline
+    baseline["findings"] = [
+        _compact_baseline_finding(item) for item in findings if isinstance(item, dict)
+    ]
+    return baseline
+
+
+def _compact_baseline_finding(item: dict[str, Any]) -> dict[str, Any]:
+    keys = ("key", "type", "severity", "paths", "observation")
+    result = {key: item.get(key) for key in keys}
+    result["observation"] = str(result.get("observation") or "")[:300]
+    caveats = item.get("when_no_change_may_be_needed")
+    if isinstance(caveats, list) and caveats:
+        result["when_no_change_may_be_needed"] = [str(caveats[0])[:240]]
     return result
 
 

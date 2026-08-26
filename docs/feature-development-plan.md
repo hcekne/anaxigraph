@@ -259,15 +259,23 @@ large combined status cannot hide stalled work:
 | 2 | **COMPLETE** | Place a change in the right code | A real self-hosted goal returns the intended document/module, local precedent, extension point, contracts, and focused tests without unrelated primary files |
 | 3 | **COMPLETE** | See the change's likely impact before editing | A real self-hosted module returns its exact direct dependants, bounded transitive impact, and relevant tests with relationship evidence and caveats |
 | 4 | **COMPLETE** | Judge pattern fit at the level where the design decision lives | Sparse bounded selection covers genuinely different patterns across repository, area, subsystem, module, type, and symbol levels; obvious candidates are not crowded out by generic patterns; advice includes fit, counter-evidence, and verification |
-| 5 | **ACTIVE** | Split a genuinely mixed large file without fragmenting a cohesive one | A self-hosted mixed-responsibility file gets bounded extraction slices with contracts, callers, tests, and move order, while a cohesive large file is explicitly left intact |
-| 6 | **NEXT** | Verify whether a change improved structure | A real before/after task correctly distinguishes introduced, worsened, improved, resolved, and unchanged effects for boundaries, coupling, cycles, size, complexity, and responsibility placement |
+| 5 | **COMPLETE** | Split a genuinely mixed large file without fragmenting a cohesive one | A controlled mixed-responsibility file gets bounded extraction slices with contracts, callers, tests, and move order, while a self-hosted cohesive near-limit file is explicitly left intact |
+| 6 | **COMPLETE** | Verify whether a change improved structure | A real before/after task distinguishes introduced, worsened, improved, resolved, and unchanged or pre-existing effects for boundaries, coupling, cycles, size, complexity, and responsibility placement |
 
 The live pattern run completed 200 bounded reviews across 91 distinct patterns and retained specific
 provider-abstraction advice without letting generic patterns occupy the queue. Large-file dogfooding
 then exposed a fragmentation defect: a 169-line file could receive a three-part extraction plan.
 Large-file decomposition now starts only when a file breaches or reaches 80% of its configured size
-limit. The remaining Phase 5 acceptance is the rebuilt live MCP result, including the explicit
-keep-together case.
+limit. The rebuilt MCP response kept the 445-line module reader together, excluded the 169-line file
+from this workflow, and retained the controlled 620-line mixed-file extraction contract.
+
+The self-hosted before/after check then exposed a wire-budget defect: the 19.8 KB verification
+baseline was removed and the final response used only 5.5 KB of its 20 KB allowance. The existing
+decision compactor now removes repeated finding prose while retaining module measurements, finding
+identities, pattern facts, repository and goal identity, and enough explanation to rebuild readable
+defaults. The same live scope is 17.0 KB with its 11.8 KB baseline intact. Comparing snapshots 263
+and 269 then reported the target file's size and branch growth separately from reduced incoming and
+outgoing coupling, while stating that those directions are not an overall code-quality verdict.
 
 A code change belongs in the active roadmap only when it closes the current decision, prepares the
 next listed decision without implementing it early, or fixes a defect directly demonstrated by the
