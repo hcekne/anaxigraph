@@ -123,6 +123,7 @@ def test_background_launch_pins_authority_model_and_effort(repository, tmp_path,
     assert launched["reasoning_effort"] == "medium"
     assert launched["parallel_jobs"] == 30
     assert launched["timeout_seconds"] == 420
+    assert launched["elapsed_ms"] >= 0
     assert "--service-url" in record["command"]
     assert "http://127.0.0.1:8765" in record["command"]
     assert record["command"][record["command"].index("--model") + 1] == "gpt-5.6-terra"
@@ -153,6 +154,7 @@ def test_background_wrapper_records_terminal_result(repository, tmp_path, monkey
     assert status["status"] == "completed"
     assert status["active"] is False
     assert status["exit_code"] == 0
+    assert status["elapsed_ms"] >= 0
     assert not lock_path.exists()
 
 

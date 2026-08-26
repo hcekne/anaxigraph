@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,7 @@ from anaxigraph.agent_payload import (
     _risk_explanation,
     _sorted_ids,
 )
+from anaxigraph.graph_contract import _with_response_telemetry
 from anaxigraph.operational_health import served_map_status
 from anaxigraph.persistence.snapshot_projection import resolve_projected_target
 
@@ -48,9 +50,14 @@ def build_impact_analysis(
     branch: str | None,
     config: Any,
 ) -> dict[str, Any]:
+    started = time.perf_counter()
     graph = _impact_graph(database, repository_id, target)
     evidence = _impact_evidence(graph, target, config)
-    return _impact_response(repository_id, branch, graph, evidence)
+    return _with_response_telemetry(
+        _impact_response(repository_id, branch, graph, evidence),
+        started,
+        action="impact",
+    )
 
 
 def _impact_graph(database: Any, repository_id: int, target: str) -> _ImpactGraph:

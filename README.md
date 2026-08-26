@@ -126,11 +126,16 @@ The complete [onboarding guide](docs/onboarding.md) explains the normal coding l
 diagnostics.
 
 Connected agents can call `ANAXIGRAPH_GUIDE` with `topic="coding_loop"` to read the
-`coding-loop-contract-v1` required command, route, tool, and response-version names. It is a small
+`coding-loop-contract-v2` required cadence, command, route, tool, telemetry, and response-version
+names. It is a small
 compatibility subset for this workflow, not a promise that every administrative field will remain
 unchanged.
 
 ## 🔁 Use one coding loop
+
+Keep one persistent sidecar and structural watcher running throughout the coding session. Build the
+complete AI map once at the start when needed; ordinary saves should update cheap structural facts,
+not trigger another model-backed repository pass.
 
 Give the connected agent one concrete goal:
 
@@ -148,6 +153,15 @@ The agent follows one sequence:
 4. **Verify** — request `ANAXIGRAPH_SCAN`, then call `ANAXIGRAPH_SCOPE` with the same goal and pass
    the saved object as `verification_baseline`. Read `post_change_comparison` beside the test
    results.
+
+After a coherent task or commit, run `anaxigraph understand . --executor codex --background`
+once if changed AI descriptions matter. It queues only stale scopes and reuses unchanged work. The
+structural comparison does not need to wait for that background refresh; wait for
+`semantically_ready` only before a decision that needs the fully current AI map.
+
+Each scope and impact reply now includes server time, payload size, and model-token use. Semantic
+status groups AI jobs by action with current-snapshot and lifetime time/token totals, while scan
+results and detached execution records show wall-clock duration.
 
 A difference is not automatically an improvement. The expected behavior, focused tests, and
 before/after architecture evidence must agree. The [onboarding guide](docs/onboarding.md#use-one-coding-loop)

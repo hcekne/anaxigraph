@@ -47,7 +47,12 @@ def test_coding_loop_contract_freezes_required_cli_rest_and_result_versions(repo
         for method in path_item
     }
 
-    assert contract["version"] == "coding-loop-contract-v1"
+    assert contract["version"] == "coding-loop-contract-v2"
+    assert (
+        "Do not rebuild the AI map after every save"
+        in contract["development_cadence"]["during_edits"]
+    )
+    assert "only changed AI scopes" in contract["development_cadence"]["after_a_coherent_change"][2]
     assert set(contract["cli_commands"]) <= set(subparsers.choices)
     assert set(contract["rest_operations"]) <= operations
     assert contract["versioned_results"] == {
@@ -68,4 +73,7 @@ def test_coding_loop_contract_freezes_required_cli_rest_and_result_versions(repo
         "finding_context.finding_history.contract_version": "finding-history-v1",
         "semantic_schema.schema_version": "repository-understanding-v5",
         "semantic_schema.writing_contract_version": "plain-language-v2",
+        "scope.telemetry.contract_version": "action-telemetry-v1",
+        "impact.telemetry.contract_version": "action-telemetry-v1",
+        "semantic_status.telemetry.contract_version": "action-telemetry-v1",
     }

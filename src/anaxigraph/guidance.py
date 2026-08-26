@@ -142,7 +142,7 @@ AGENT_WORKFLOW = {
 }
 
 CODING_LOOP_CONTRACT = {
-    "version": "coding-loop-contract-v1",
+    "version": "coding-loop-contract-v2",
     "purpose": (
         "These are the existing names an agent can rely on to understand a repository, choose "
         "where a change belongs, inspect its likely effects, and compare the result after a new "
@@ -197,6 +197,41 @@ CODING_LOOP_CONTRACT = {
         "ANAXIGRAPH_SEMANTIC_SUBMIT",
         "ANAXIGRAPH_SEMANTIC_RELEASE",
     ],
+    "development_cadence": {
+        "cold_start": (
+            "Start one persistent sidecar and structural watcher. Build the complete AI map once "
+            "when no current baseline exists."
+        ),
+        "before_each_task": [
+            "Call ANAXIGRAPH_SCOPE with one exact goal and save post_change_baseline.",
+            "Call ANAXIGRAPH_IMPACT before changing a shared file or named code part.",
+        ],
+        "during_edits": (
+            "Let the watcher update cheap structural facts and run focused repository tests. Do "
+            "not rebuild the AI map after every save."
+        ),
+        "after_a_coherent_change": [
+            "Call ANAXIGRAPH_SCAN so verification uses the finished working tree.",
+            "Repeat ANAXIGRAPH_SCOPE with the exact same goal and saved verification_baseline.",
+            "Run understand in the background once to refresh only changed AI scopes; unchanged "
+            "descriptions are reused.",
+        ],
+        "readiness_rule": (
+            "Structural comparison can finish before the background AI refresh. Wait for "
+            "semantically_ready only when the next decision depends on a completely current AI map."
+        ),
+    },
+    "telemetry": {
+        "semantic_status": (
+            "telemetry groups current-snapshot and lifetime AI jobs by action, with task time, "
+            "tokens, model names, failures, and cost."
+        ),
+        "scope_and_impact": (
+            "telemetry reports server time, serialized reply size, and zero model tokens for each "
+            "deterministic architecture read."
+        ),
+        "scan": "Scan results and semantic execution records report wall-clock duration.",
+    },
     "versioned_results": {
         "scope.architecture_decision.contract_version": "architecture-decision-v1",
         "scope.architecture_decision.verification.post_change_baseline.contract_version": (
@@ -215,6 +250,9 @@ CODING_LOOP_CONTRACT = {
         "finding_context.finding_history.contract_version": "finding-history-v1",
         "semantic_schema.schema_version": "repository-understanding-v5",
         "semantic_schema.writing_contract_version": "plain-language-v2",
+        "scope.telemetry.contract_version": "action-telemetry-v1",
+        "impact.telemetry.contract_version": "action-telemetry-v1",
+        "semantic_status.telemetry.contract_version": "action-telemetry-v1",
     },
 }
 

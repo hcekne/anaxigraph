@@ -181,9 +181,21 @@ def _normalized(values: tuple[str, ...]) -> tuple[str, ...]:
 def with_graph_telemetry(response: dict[str, Any], started: float) -> dict[str, Any]:
     """Attach stable serialized-byte and server-time evidence to a graph response."""
 
+    return _with_response_telemetry(response, started, action="graph_query")
+
+
+def _with_response_telemetry(
+    response: dict[str, Any], started: float, *, action: str
+) -> dict[str, Any]:
+    """Attach small, stable timing and size evidence to an indexed read response."""
+
     response["telemetry"] = {
+        "contract_version": "action-telemetry-v1",
+        "action": action,
         "duration_ms": round((time.perf_counter() - started) * 1_000, 3),
         "payload_bytes": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
     }
     for _attempt in range(4):
         size = len(json.dumps(response, separators=(",", ":"), default=str).encode())

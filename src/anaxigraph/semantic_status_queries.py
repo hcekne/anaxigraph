@@ -20,6 +20,9 @@ class SemanticStatusRows:
     last_checked: str | None
     repository_state: dict[str, Any] | None
     taxonomy: dict[str, Any] | None
+    current_semantic_actions: list[dict[str, Any]]
+    lifetime_semantic_actions: list[dict[str, Any]]
+    architecture_actions: list[dict[str, Any]]
 
 
 def read_semantic_status(
@@ -44,6 +47,9 @@ def read_semantic_status(
         last_checked=_last_checked(connection, snapshot_id),
         repository_state=_repository_state(connection, snapshot_id),
         taxonomy=_taxonomy(connection, snapshot_id),
+        current_semantic_actions=_semantic_actions(connection, repository_id, snapshot_id),
+        lifetime_semantic_actions=_semantic_actions(connection, repository_id),
+        architecture_actions=_architecture_actions(connection, repository_id),
     )
 
 
@@ -194,3 +200,132 @@ def _taxonomy(connection: sqlite3.Connection, snapshot_id: int) -> dict[str, Any
         (snapshot_id,),
     ).fetchone()
     return dict(row) if row else None
+
+
+def _semantic_actions(
+    connection: sqlite3.Connection,
+    repository_id: int,
+    snapshot_id: int | None = None,
+) -> list[dict[str, Any]]:
+    snapshot_filter = " AND snapshot_id = ?" if snapshot_id is not None else ""
+    parameters = (repository_id, snapshot_id) if snapshot_id is not None else (repository_id,)
+    rows = connection.execute(
+        f"""
+        SELECT scope_type, job_kind,
+               COUNT(*) AS jobs,
+               SUM(status = 'completed') AS completed,
+               SUM(status = 'running') AS running,
+               SUM(status = 'pending') AS pending,
+               SUM(status = 'retry') AS retry,
+               SUM(status = 'failed') AS failed,
+               SUM(status = 'superseded') AS superseded,
+               COALESCE(SUM(CASE WHEN status = 'completed' THEN input_tokens ELSE 0 END), 0)
+                   AS input_tokens,
+               COALESCE(SUM(CASE WHEN status = 'completed' THEN output_tokens ELSE 0 END), 0)
+                   AS output_tokens,
+               COALESCE(SUM(CASE WHEN status = 'completed'
+                   THEN COALESCE(actual_cost_usd, estimated_cost_usd, 0) ELSE 0 END), 0)
+                   AS cost_usd,
+               COALESCE(SUM(CASE WHEN started_at IS NOT NULL AND completed_at IS NOT NULL
+                   THEN (julianday(completed_at) - julianday(started_at)) * 86400000
+                   ELSE 0 END), 0) AS total_duration_ms,
+               AVG(CASE WHEN started_at IS NOT NULL AND completed_at IS NOT NULL
+                   THEN (julianday(completed_at) - julianday(started_at)) * 86400000 END)
+                   AS average_duration_ms,
+               MAX(CASE WHEN started_at IS NOT NULL AND completed_at IS NOT NULL
+                   THEN (julianday(completed_at) - julianday(started_at)) * 86400000 END)
+                   AS maximum_duration_ms,
+               GROUP_CONCAT(DISTINCT COALESCE(NULLIF(executor_model, ''), NULLIF(model, ''),
+                   'unspecified')) AS models,
+               MIN(started_at) AS first_started_at,
+               MAX(completed_at) AS last_completed_at
+        FROM semantic_jobs WHERE repository_id = ?{snapshot_filter}
+        GROUP BY scope_type, job_kind ORDER BY scope_type, job_kind
+        """,
+        parameters,
+    ).fetchall()
+    return [_semantic_action_row(row) for row in rows]
+
+
+def _semantic_action_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "scope_type": str(row["scope_type"]),
+        "job_kind": str(row["job_kind"]),
+        "jobs": int(row["jobs"]),
+        "completed": int(row["completed"] or 0),
+        "running": int(row["running"] or 0),
+        "pending": int(row["pending"] or 0),
+        "retry": int(row["retry"] or 0),
+        "failed": int(row["failed"] or 0),
+        "superseded": int(row["superseded"] or 0),
+        "input_tokens": int(row["input_tokens"] or 0),
+        "output_tokens": int(row["output_tokens"] or 0),
+        "cost_usd": round(float(row["cost_usd"] or 0), 6),
+        "total_duration_ms": round(max(0.0, float(row["total_duration_ms"] or 0)), 3),
+        "average_duration_ms": _duration(row["average_duration_ms"]),
+        "maximum_duration_ms": _duration(row["maximum_duration_ms"]),
+        "models": sorted(str(row["models"] or "").split(",")) if row["models"] else [],
+        "first_started_at": row["first_started_at"],
+        "last_completed_at": row["last_completed_at"],
+    }
+
+
+def _architecture_actions(
+    connection: sqlite3.Connection, repository_id: int
+) -> list[dict[str, Any]]:
+    rows = connection.execute(
+        """
+        SELECT run_type,
+               COUNT(*) AS runs,
+               SUM(status = 'completed') AS completed,
+               SUM(status = 'running') AS running,
+               SUM(status = 'failed') AS failed,
+               SUM(status = 'interrupted') AS interrupted,
+               SUM(discovered_count) AS discovered,
+               SUM(analyzed_count) AS analyzed,
+               SUM(reused_count) AS reused,
+               SUM(error_count) AS errors,
+               COALESCE(SUM(CASE WHEN completed_at IS NOT NULL
+                   THEN (julianday(completed_at) - julianday(started_at)) * 86400000
+                   ELSE 0 END), 0) AS total_duration_ms,
+               AVG(CASE WHEN completed_at IS NOT NULL
+                   THEN (julianday(completed_at) - julianday(started_at)) * 86400000 END)
+                   AS average_duration_ms,
+               MAX(CASE WHEN completed_at IS NOT NULL
+                   THEN (julianday(completed_at) - julianday(started_at)) * 86400000 END)
+                   AS maximum_duration_ms,
+               MIN(started_at) AS first_started_at,
+               MAX(completed_at) AS last_completed_at
+        FROM analysis_runs WHERE repository_id = ?
+        GROUP BY run_type ORDER BY run_type
+        """,
+        (repository_id,),
+    ).fetchall()
+    return [_architecture_action_row(row) for row in rows]
+
+
+def _architecture_action_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "run_type": str(row["run_type"]),
+        "runs": int(row["runs"]),
+        "completed": int(row["completed"] or 0),
+        "running": int(row["running"] or 0),
+        "failed": int(row["failed"] or 0),
+        "interrupted": int(row["interrupted"] or 0),
+        "discovered": int(row["discovered"] or 0),
+        "analyzed": int(row["analyzed"] or 0),
+        "reused": int(row["reused"] or 0),
+        "errors": int(row["errors"] or 0),
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cost_usd": 0.0,
+        "total_duration_ms": round(max(0.0, float(row["total_duration_ms"] or 0)), 3),
+        "average_duration_ms": _duration(row["average_duration_ms"]),
+        "maximum_duration_ms": _duration(row["maximum_duration_ms"]),
+        "first_started_at": row["first_started_at"],
+        "last_completed_at": row["last_completed_at"],
+    }
+
+
+def _duration(value: Any) -> float | None:
+    return round(max(0.0, float(value)), 3) if value is not None else None

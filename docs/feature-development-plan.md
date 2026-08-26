@@ -268,8 +268,8 @@ The remaining active list is intentionally short:
 
 | Priority | Status | Core question | Smallest acceptable evidence |
 |---:|---|---|---|
-| 1 | **IN PROGRESS** | Can a normal concept-level goal find the responsible implementation without already naming its file? | The self-hosted architecture-verification goal must select `agent_decision_verification.py`, its comparison symbols, and its reviewed hierarchy instead of release or relationship code |
-| 2 | **NEXT ACCEPTANCE PROBE** | Is the returned primary working set small enough that an agent can trust what it should actually read? | Measure unnecessary primary files on the same self-hosted goal, then change the existing ranker only if unrelated files remain material; do not add search infrastructure |
+| 1 | **IN PROGRESS — LIVE RECHECK PENDING** | Can a normal concept-level goal find the responsible implementation without already naming its file? | The self-hosted architecture-verification goal must select `agent_decision_verification.py`, its comparison symbols, and a meaningful reviewed hierarchy instead of release, relationship, or generic overflow code |
+| 2 | **COMPLETE on 26 August 2026** | Is the returned primary working set small enough that an agent can trust what it should actually read? | The same live goal returned five coherent verification/change-decision files, chose the verification module and comparison symbols, and included no release or unrelated primary file |
 | 3 | **NEXT ACCEPTANCE PROBE** | When adding a responsibility, does the map make extend-existing versus create-new clear enough to prevent file sprawl? | One self-hosted goal must return an existing responsibility and extension point when one exists, while a controlled fixture permits a new sibling only when no honest home exists |
 
 Impact traversal, pattern fit, large-file decomposition, and before/after verification remain hard
@@ -303,6 +303,14 @@ warning-cleanup campaigns, additional explanatory-language sweeps, ecosystem wor
 release-process expansion. The paused MaxOS run is optional external evidence, not a feature or a
 release blocker; it stays untouched until the operator explicitly resumes it. AnaxiGraph
 dogfooding remains required because it directly tests the need-to-have decisions.
+
+The concept-level live probe now selects the intended five-file verification/change-decision set
+and the exact comparison symbols. It also exposed a separate hierarchy defect: when an AI proposal
+contained seven useful areas under a six-area limit, deterministic validation deliberately replaced
+the smallest areas with `Other responsibilities`. The validator now retains all six allowed
+meaningful areas and merges only excess areas into the closest retained responsibility using the
+group descriptions and member paths. A focused fixture proves the merge and rejects the generic
+overflow area; the authoritative sidecar recheck remains the only unfinished part of this probe.
 
 Warning cleanup is also not an automatic queue. Fix a warning when it blocks a hard gate, touches
 code already being changed for a core outcome, or describes a demonstrated product defect. A clean
@@ -1983,7 +1991,7 @@ code-quality verdict without the intended outcome and focused tests.
 | Removal safety | Python fixtures prove trusted module candidates, detected registration suppression, heuristic-language suppression, configured entry-point suppression, uncorroborated semantic suppression, and module/symbol granularity separation; `safe_to_remove` remains false |
 | Readable evidence at every depth | Main and expanded decision fields translate older AI shorthand in place; every one of the 128 bundled patterns defines specialist words next to “what this pattern means,” and legacy dashboard fallbacks use the same ordinary-language rule rather than exposing a jargon drawer |
 | Responsive authority | A blocking synchronous MCP tool no longer blocks the event loop; discovery tests prove connection-refused fallback, transient retry, and timeout refusal, while real SDK MCP and sidecar-preparation tests retain the work protocol |
-| Focused orchestration | Scope response assembly now lives behind a bounded payload service, reducing `agent_scope` from its 128-line/complexity-24 ratchet to 97/8; finding handoff and reverse-impact assembly moved out of their former 96/22 and 77/18 functions. `agent.py` is 233 lines, the focused finding and impact services are 164 and 143, and all three obsolete self-analysis findings are removed |
+| Focused orchestration | Scope response assembly now lives behind a bounded payload service, reducing `agent_scope` from its 128-line/complexity-24 ratchet to 91/6; finding handoff and reverse-impact assembly moved out of their former 96/22 and 77/18 functions. All three obsolete self-analysis findings are removed |
 | Verification | The complete suite passes 536 tests; all 16 contracts pass in the pinned Playwright container; Ruff, architecture, size, maintainability, and deterministic self-analysis pass, with self-analysis at 26 governed findings, 132 non-blocking findings, and zero issues |
 
 ## 6.8 Expose pattern intelligence without multiplying product surfaces
@@ -2492,10 +2500,13 @@ Use characterization tests around the existing CLI, REST, and MCP paths. The con
 subset, not a freeze on every administrative command or every response field. New API versions,
 compatibility frameworks, transports, and duplicated workflow endpoints are outside this slice.
 
-`coding-loop-contract-v1` is now returned by the existing REST glossary and
+`coding-loop-contract-v2` is now returned by the existing REST glossary and
 `ANAXIGRAPH_GUIDE(topic="coding_loop")`. It names ten CLI commands, fifteen REST method/path pairs,
-eighteen MCP tools, and eleven versioned result locations as required subsets. Parser, generated
-OpenAPI, live MCP, and implementation-version characterization tests fail on an accidental removal,
+eighteen MCP tools, and fourteen versioned result locations as required subsets. It also defines
+the development cadence: one persistent structural watcher, scope and impact before editing,
+ordinary focused-test work without model calls after every save, one explicit scan and same-goal
+comparison at a coherent checkpoint, and one changed-scope semantic refresh afterward when needed.
+Parser, generated OpenAPI, live MCP, and implementation-version characterization tests fail on an accidental removal,
 rename, or incompatible version change. This added no endpoint, database state, provider path, UI,
 or compatibility framework. The complete Python suite passes with 555 tests at 91.60% coverage;
 module size, code quality, architecture, Ruff, and focused REST/MCP tests also pass.
@@ -2542,7 +2553,7 @@ before-change baseline, so an agent could not perform the promised later compari
 packets now retain `architecture-verification-baseline-v2`. An explicitly tiny 4 KB policy still
 stays inside its configured limit, but reports plainly that the baseline was omitted and tells the
 agent to request a larger limit before editing. The fitting logic lives in the existing
-architecture-decision compactor; `agent_payload.py` remains below the 400-line review threshold.
+architecture-decision compactor; `agent_payload.py` remains below the 500-line hard limit.
 
 | Files | One-frame map | Vacuumed index | Scope | Scope bytes | Expected / unrelated primary files |
 |---:|---:|---:|---:|---:|---:|
@@ -2588,7 +2599,7 @@ precision question; it is not hidden by a correct first result.
 
 ## 9.3 Keep one documented coding loop
 
-**Status:** COMPLETE on 25 August 2026
+**Status:** COMPLETE; CONTINUOUS CADENCE AND TELEMETRY ADDED on 26 August 2026
 
 The primary documentation shows one path: start AnaxiGraph, understand the map, ask where a change
 belongs, inspect impact, make the change, update the map, and verify architecture effects. Existing
@@ -2601,6 +2612,22 @@ comparison sequence. Both name the saved `post_change_baseline`, the returned
 existing agent plugin already executes that sequence. `tests/test_onboarding_docs.py` protects its
 order while advanced and operator modes remain linked outside the primary path. The complete Python
 suite passes with 560 tests at 91.63% coverage.
+
+The same primary docs, machine-readable guide, and agent skill now state how to use the loop for a
+whole coding session. A persistent watcher keeps deterministic source facts current. A full AI map
+is a cold-start operation; during normal edits no model-backed work runs on every save. The agent
+does one explicit structural verification at a coherent task boundary, then may run one durable
+background `understand` command that reuses unchanged semantic scopes. A structural comparison may
+finish before that background refresh; only a decision that needs a completely current AI map waits
+for `semantically_ready`.
+
+`action-telemetry-v1` uses existing responses and stored run/job rows instead of a new monitoring
+system. Scope, impact, and graph reads report server duration, reply bytes, and zero model tokens.
+Semantic status groups current-snapshot and lifetime work by action with model names, completions,
+failures, task duration, input/output tokens, and cost. Structural scans remain grouped by run type,
+and detached semantic records expose elapsed wall time. Summed parallel-job time is explicitly
+distinguished from real elapsed time. Sixty-five focused taxonomy, coding-loop, queue, API/MCP,
+documentation, and telemetry tests pass.
 
 ## Phase 9 exit gate
 
@@ -2707,7 +2734,7 @@ Every phase must satisfy all applicable gates below, not only its own feature te
 | Can users trust the graph? | Analyzer mix, unique/ambiguous/unresolved relationship rate, parse errors, dynamic-wiring caveats |
 | Is the attention queue useful? | Queue size, top-20 action rate, dismissal reason, recurrence, time to resolution |
 | Is architecture advice useful? | Independent-agent agreement, optional operator correction rate, false-positive category, score calibration, verified improvement/regression |
-| Is semantic cost controlled? | Current/stale/failed/excluded coverage, input/output tokens, cost, reuse rate, jobs per changed module |
+| Is semantic cost controlled? | Current/stale/failed/excluded coverage plus per-action task time, input/output tokens, cost, model, reuse rate, jobs per changed module, and detached-run wall time |
 | Does history improve today's decision? | Co-change precision, introduction/resolution lookup time, and incremental work per changed file |
 | Is AnaxiGraph staying clean? | Modules over 400/500 lines, cycles, layer violations, complexity, changed-code coverage, and finding recurrence |
 | Do product surfaces stay bounded? | Scope, overview, expanded-region, comparison, and evidence payload bytes/time plus peak browser memory |
@@ -2731,14 +2758,8 @@ feature-admission rule.
 
 | # | Status | Outcome and acceptance | Specified in |
 |---:|---|---|---|
-| 1 | **COMPLETE** | Reproduce why the self-hosted MCP map lagged the checkout, then make CLI/MCP/watcher/sidecar identity and currentness explicit and consistent | §9.0 |
-| 2 | **COMPLETE** | Prove bounded parallel executor mechanics preserve operator-selected settings, survive interruption, and reach durable `complete` without losing finished work | §9.0 |
-| 3 | **COMPLETE** | On the current AnaxiGraph index, form and independently review the autonomous hierarchy with complete module coverage and no default human edit step | §9.0 and §9.2 |
-| 4 | **COMPLETE** | Prove a real self-hosted placement task identifies the right code and excludes irrelevant primary files | §9.2 |
-| 5 | **COMPLETE** | Prove reverse impact on a real self-hosted module returns the exact direct dependants and relevant tests | §9.2 |
-| 6 | **ACTIVE** | Complete and live-validate diverse multi-level pattern selection and directly useful fit advice without increasing the 200-pair bound | §6.3–§6.8 and §9.2 |
-| 7 | **NEXT** | Prove coherent decomposition on one mixed and one cohesive self-hosted large-file case; fix only a demonstrated decision defect | §7.3 and §9.2 |
-| 8 | **NEXT** | Prove the focused before/after comparison on a real self-hosted change and fix only a demonstrated classification defect | §7.2 and §9.2 |
+| 1 | **ACTIVE** | Rebuild the authoritative self-hosted map with the meaningful area-limit repair, then repeat the concept-level verification goal and require the correct module, comparison symbols, coherent primary set, and non-generic area/subsystem path | §9.2 |
+| 2 | **NEXT** | Prove one extend-existing versus create-new decision: select an honest existing responsibility and extension point when present, and permit a new sibling only when the controlled fixture has no suitable home | §9.2 |
 
 That is the complete feature queue. A defect found while executing the active item may be fixed
 immediately through the smallest existing path. The retained MaxOS run and the eventual release

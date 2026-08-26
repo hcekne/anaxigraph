@@ -20,7 +20,7 @@
     "removal": "Lower each baseline in the same change that reduces it; remove it once within limits. Remaining analyzer debt belongs to Phase 4B, agent and semantic-taxonomy orchestration debt is retired during Phase 6, and temporal/dashboard debt belongs to Phase 7. Every other legacy entry remains a continuous exact no-growth ratchet."
   },
   "legacy_functions": {
-    "src/anaxigraph/agent.py::agent_scope": [95, 8],
+    "src/anaxigraph/agent.py::agent_scope": [91, 6],
     "src/anaxigraph/analyzers/javascript.py::_strip_comments": [52, 21],
     "src/anaxigraph/analyzers/text.py::_jsonc_to_json": [37, 18],
     "src/anaxigraph/architecture.py::evaluate_architecture": [64, 13],

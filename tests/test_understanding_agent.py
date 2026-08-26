@@ -94,8 +94,53 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
     assert status["patterns"]["ready"] is True
     assert status["patterns"]["selected"] == status["patterns"]["finalized"] > 0
     assert status["usage"] == {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
+    telemetry = status["telemetry"]
+    assert telemetry["contract_version"] == "action-telemetry-v1"
+    current_actions = telemetry["semantic"]["current_snapshot"]["actions"]
+    assert {item["job_kind"] for item in current_actions} >= {
+        "intrinsic",
+        "context",
+        "synthesis",
+        "taxonomy_proposal",
+        "taxonomy_review",
+        "pattern_assessment",
+        "pattern_review",
+    }
+    assert all(item["total_duration_ms"] >= 0 for item in current_actions)
+    assert telemetry["semantic"]["current_snapshot"]["totals"]["jobs"] > 0
+    scan_action = next(
+        item
+        for item in telemetry["architecture"]["lifetime"]["actions"]
+        if item["run_type"] == "scan"
+    )
+    assert scan_action["completed"] == 1
+    assert scan_action["input_tokens"] == 0
     assert status["repository_dossier"]["executor_id"] == "codex-test"
     assert status["repository_dossier"]["executor_model"] == "test-model"
+    with database.transaction() as connection:
+        connection.execute(
+            """
+            UPDATE semantic_jobs SET input_tokens = 120, output_tokens = 30,
+                actual_cost_usd = 0.012
+            WHERE id = (SELECT id FROM semantic_jobs WHERE job_kind = 'intrinsic'
+                        AND status = 'completed' ORDER BY id LIMIT 1)
+            """
+        )
+    metered = engine.status(stats.repository_id, config.semantic)
+    intrinsic = next(
+        item
+        for item in metered["telemetry"]["semantic"]["current_snapshot"]["actions"]
+        if item["job_kind"] == "intrinsic"
+    )
+    assert metered["usage"] == {
+        "input_tokens": 120,
+        "output_tokens": 30,
+        "cost_usd": 0.012,
+    }
+    assert intrinsic["input_tokens"] == 120
+    assert intrinsic["output_tokens"] == 30
+    assert intrinsic["cost_usd"] == 0.012
+    assert intrinsic["models"] == ["test-model"]
     with database.connect() as connection:
         provenance = connection.execute(
             """

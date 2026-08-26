@@ -130,6 +130,59 @@ def test_taxonomy_validator_repairs_membership_and_bounds_shape(repository, data
     assert normalized["validation"]["status"] == "adjusted"
 
 
+def test_area_limit_merges_into_the_closest_meaningful_area(repository, database):
+    stats = RepositoryScanner(database).scan(repository)
+    paths = sorted(item["path"] for item in database.modules(stats.repository_id))
+    candidate = {
+        "summary": "One small billing area should merge into the larger billing area.",
+        "areas": [
+            _node(
+                "billing-operations",
+                [_node("billing-invoices", [_member(path, 0.9) for path in paths[:2]])],
+                level="area",
+            ),
+            _node(
+                "customer-access",
+                [_node("access-control", [_member(path, 0.9) for path in paths[2:4]])],
+                level="area",
+            ),
+            _node(
+                "billing-reports",
+                [_node("billing-summaries", [_member(paths[4], 0.8)])],
+                level="area",
+            ),
+        ],
+        "facets": [],
+        "confidence": 0.8,
+        "evidence": [],
+    }
+
+    with database.transaction() as connection:
+        normalized = normalize_taxonomy(
+            connection,
+            repository_id=stats.repository_id,
+            snapshot_id=stats.snapshot_id,
+            value=candidate,
+            eligible_paths=paths,
+            settings={"max_areas": 2, "max_subsystems": 10, "stability_bias": 0.8},
+            locked_memberships={},
+        )
+
+    areas = [item for item in normalized["nodes"] if item["level"] == "area"]
+    summaries = next(
+        item for item in normalized["nodes"] if item["temp_key"] == "billing-summaries"
+    )
+    billing = next(item for item in areas if item["temp_key"] == "billing-operations")
+    assert len(areas) == 2
+    assert "other-responsibilities" not in {item["temp_key"] for item in areas}
+    assert summaries["parent_key"] == billing["node_key"]
+    assert "billing-reports->billing-operations" in next(
+        item["scope"]
+        for item in normalized["validation"]["issues"]
+        if item["kind"] == "repaired_area_limit"
+    )
+
+
 def test_taxonomy_agent_contract_rejects_incomplete_proposals_and_reviews():
     proposal = {"analysis_kind": "taxonomy_proposal"}
     with pytest.raises(SemanticAnalysisError, match="missing required fields"):

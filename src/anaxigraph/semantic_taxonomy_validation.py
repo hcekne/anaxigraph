@@ -10,6 +10,26 @@ from typing import Any
 from anaxigraph.semantic_taxonomy_identity import stable_taxonomy_nodes
 
 _INTERNAL_GROUP_REFERENCE = re.compile(r"\b(?:cluster|group)-\d+\b", re.IGNORECASE)
+_TAXONOMY_STOP_WORDS = {
+    "and",
+    "anaxigraph",
+    "code",
+    "file",
+    "files",
+    "for",
+    "from",
+    "into",
+    "module",
+    "modules",
+    "repository",
+    "src",
+    "that",
+    "the",
+    "these",
+    "this",
+    "with",
+    "work",
+}
 
 
 def normalize_taxonomy(
@@ -235,17 +255,67 @@ def _bound_areas(
         area: sum(counts[key] for key, node in nodes.items() if node["parent_temp_key"] == area)
         for area in areas
     }
-    keep_count = max(0, maximum - 1)
-    kept = set(sorted(areas, key=lambda key: (-area_sizes[key], key))[:keep_count])
-    overflow = _unique_key("other-responsibilities", set(nodes))
-    nodes[overflow] = _fallback_node(overflow, "Other responsibilities", "area", None)
-    for node in nodes.values():
-        if node["level"] == "subsystem" and node["parent_temp_key"] not in kept:
-            node["parent_temp_key"] = overflow
-    for area in areas:
-        if area not in kept:
-            del nodes[area]
-    issues.append(_issue("repaired_area_limit", str(len(areas)), "warning"))
+    ordered = sorted(areas, key=lambda key: (-area_sizes[key], key))
+    kept = set(ordered[: max(1, maximum)])
+    merges = []
+    for area in ordered:
+        if area in kept:
+            continue
+        target = _closest_area(area, kept, nodes, assignments, area_sizes)
+        for node in nodes.values():
+            if node["level"] == "subsystem" and node["parent_temp_key"] == area:
+                node["parent_temp_key"] = target
+        merges.append(f"{area}->{target}")
+        del nodes[area]
+    issues.append(
+        _issue("repaired_area_limit", f"{len(areas)} areas; " + ", ".join(merges), "warning")
+    )
+
+
+def _closest_area(
+    source: str,
+    candidates: set[str],
+    nodes: dict[str, dict[str, Any]],
+    assignments: dict[str, dict[str, Any]],
+    area_sizes: dict[str, int],
+) -> str:
+    source_terms = _area_terms(source, nodes, assignments)
+
+    def rank(candidate: str) -> tuple[float, int, int, str]:
+        candidate_terms = _area_terms(candidate, nodes, assignments)
+        shared = len(source_terms & candidate_terms)
+        union = len(source_terms | candidate_terms)
+        similarity = shared / union if union else 0.0
+        return (-similarity, -shared, area_sizes[candidate], candidate)
+
+    return min(candidates, key=rank)
+
+
+def _area_terms(
+    area: str,
+    nodes: dict[str, dict[str, Any]],
+    assignments: dict[str, dict[str, Any]],
+) -> set[str]:
+    subsystems = {
+        key
+        for key, node in nodes.items()
+        if node["level"] == "subsystem" and node["parent_temp_key"] == area
+    }
+    values = [area]
+    for key in {area, *subsystems}:
+        node = nodes[key]
+        values.extend(
+            str(node.get(field) or "")
+            for field in ("name", "description", "responsibility", "rationale")
+        )
+    values.extend(
+        path for path, assignment in assignments.items() if assignment["node_key"] in subsystems
+    )
+    return {
+        token
+        for token in re.findall(r"[a-z0-9]+", " ".join(values).lower())
+        if len(token) > 2 and token not in _TAXONOMY_STOP_WORDS
+    }
 
 
 def _bound_subsystems(

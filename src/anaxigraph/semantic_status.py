@@ -46,6 +46,7 @@ def semantic_status_payload(
         **_identity_payload(snapshot_id, semantic, coverage),
         **_coverage_payload(rows, coverage),
         "usage": _usage_payload(rows),
+        "telemetry": _telemetry_payload(rows, snapshot_id),
         "budget": _budget_payload(rows, semantic, coverage),
         "repository_dossier": _repository_document(rows.repository_state),
         "taxonomy": _taxonomy_payload(rows.taxonomy, semantic, coverage),
@@ -221,6 +222,89 @@ def _usage_payload(rows: SemanticStatusRows) -> dict[str, Any]:
         "input_tokens": int(rows.usage["input_tokens"]),
         "output_tokens": int(rows.usage["output_tokens"]),
         "cost_usd": round(float(rows.usage["cost"]), 6),
+    }
+
+
+def _telemetry_payload(rows: SemanticStatusRows, snapshot_id: int) -> dict[str, Any]:
+    current = [_semantic_action(item) for item in rows.current_semantic_actions]
+    lifetime = [_semantic_action(item) for item in rows.lifetime_semantic_actions]
+    architecture = [_architecture_action(item) for item in rows.architecture_actions]
+    return {
+        "contract_version": "action-telemetry-v1",
+        "semantic": {
+            "current_snapshot": {
+                "snapshot_id": snapshot_id,
+                "totals": _action_totals(current, "jobs"),
+                "actions": current,
+            },
+            "lifetime": {
+                "totals": _action_totals(lifetime, "jobs"),
+                "actions": lifetime,
+            },
+            "duration_note": (
+                "Total task time adds the time spent by every AI job. Jobs can run together, so "
+                "it can be larger than the real clock time for one semantic run."
+            ),
+        },
+        "architecture": {
+            "lifetime": {
+                "totals": _action_totals(architecture, "runs"),
+                "actions": architecture,
+            },
+            "token_note": (
+                "Repository scans and history runs read saved code facts without calling an AI "
+                "model, so their token counts are zero."
+            ),
+        },
+    }
+
+
+def _semantic_action(item: dict[str, Any]) -> dict[str, Any]:
+    kind = str(item["job_kind"])
+    scope = str(item["scope_type"])
+    labels = {
+        "intrinsic": "Read one file on its own",
+        "context": "Review one file with its code neighbors",
+        "taxonomy_proposal": "Propose the responsibility map",
+        "taxonomy_review": "Review the responsibility map",
+        "pattern_assessment": "Assess one code pattern",
+        "pattern_review": "Review one pattern assessment",
+    }
+    if kind == "synthesis":
+        label = {
+            "subsystem": "Summarize one subsystem",
+            "area": "Summarize one repository area",
+            "repository": "Summarize the whole repository",
+        }.get(scope, f"Summarize one {scope.replace('_', ' ')}")
+    else:
+        label = labels.get(kind, kind.replace("_", " ").capitalize())
+    return {"action": label, **item}
+
+
+def _architecture_action(item: dict[str, Any]) -> dict[str, Any]:
+    labels = {
+        "scan": "Scan the current repository",
+        "history": "Build one saved history frame",
+        "history_import": "Import repository history",
+    }
+    run_type = str(item["run_type"])
+    return {
+        "action": labels.get(run_type, run_type.replace("_", " ").capitalize()),
+        **item,
+    }
+
+
+def _action_totals(actions: list[dict[str, Any]], count_key: str) -> dict[str, Any]:
+    return {
+        count_key: sum(int(item.get(count_key) or 0) for item in actions),
+        "completed": sum(int(item.get("completed") or 0) for item in actions),
+        "failed": sum(int(item.get("failed") or 0) for item in actions),
+        "input_tokens": sum(int(item.get("input_tokens") or 0) for item in actions),
+        "output_tokens": sum(int(item.get("output_tokens") or 0) for item in actions),
+        "cost_usd": round(sum(float(item.get("cost_usd") or 0) for item in actions), 6),
+        "total_duration_ms": round(
+            sum(float(item.get("total_duration_ms") or 0) for item in actions), 3
+        ),
     }
 
 

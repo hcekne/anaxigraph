@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 from typing import Any
 
@@ -40,13 +41,8 @@ def agent_scope(
     config: AnaxiGraphConfig,
     verification_baseline: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    repository = database.repository(repository_id)
-    if repository is None:
-        raise ValueError("Repository not found")
-    snapshot = database.latest_snapshot(repository_id)
-    if snapshot is None:
-        raise ValueError("Repository has not been scanned")
-    snapshot_id = int(snapshot["id"])
+    started = time.perf_counter()
+    repository, snapshot, snapshot_id = _scope_state(database, repository_id)
     with database.connect() as connection:
         files, outgoing, incoming, hierarchy = _scope_graph(connection, repository_id, snapshot_id)
         ranked = _rank_files(connection, snapshot_id, files, goal)
@@ -124,8 +120,21 @@ def agent_scope(
             conflicts=conflicts,
             context_limit=config.agent.context_limit,
             payload_limit_bytes=config.agent.payload_limit_bytes,
+            started_at=started,
         )
     )
+
+
+def _scope_state(
+    database: AnaxiIndex, repository_id: int
+) -> tuple[dict[str, Any], dict[str, Any], int]:
+    repository = database.repository(repository_id)
+    if repository is None:
+        raise ValueError("Repository not found")
+    snapshot = database.latest_snapshot(repository_id)
+    if snapshot is None:
+        raise ValueError("Repository has not been scanned")
+    return repository, snapshot, int(snapshot["id"])
 
 
 def _scope_graph(

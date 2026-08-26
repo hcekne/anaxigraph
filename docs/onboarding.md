@@ -153,6 +153,10 @@ See [Docker operation](docker.md) for container lifecycle and the generated secu
 
 ## Use one coding loop
 
+Keep one persistent sidecar and its structural watcher running for the whole coding session. Build
+the complete AI map once when no current baseline exists. Saving a file should refresh cheap source
+facts; it should not start another model-backed repository pass.
+
 Give the connected agent one concrete goal:
 
 > Use AnaxiGraph to plan and verify “add saved prompt exports.” Find the smallest relevant file
@@ -173,6 +177,15 @@ The agent should follow this sequence for a feature, fix, or refactor:
 4. **Verify.** Request `ANAXIGRAPH_SCAN`, then repeat `ANAXIGRAPH_SCOPE` with the exact same goal and
    pass the saved object as `verification_baseline`. Read `post_change_comparison` beside the test
    results.
+
+At the end of a coherent task or commit, run
+`anaxigraph understand . --executor codex --background` if the changed AI descriptions matter.
+It refreshes stale scopes and reuses unchanged descriptions. The structural comparison can finish
+first; wait for `semantically_ready` only when the next decision needs a completely current AI map.
+
+Use the returned telemetry to tune the loop: scope and impact replies report server time, payload
+size, and model-token use; semantic status groups AI work by action with current-snapshot and
+lifetime time/token totals; scan results and detached semantic runs report wall-clock duration.
 
 The comparison says what changed in the bounded file, finding, and reviewed-pattern evidence. It
 does not call a difference an improvement unless the expected outcome and tests support that

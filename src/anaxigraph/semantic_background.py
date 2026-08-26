@@ -386,7 +386,18 @@ def _finish_launch_failure(
 
 
 def _public_record(record: dict[str, Any]) -> dict[str, Any]:
-    return {key: value for key, value in record.items() if key != "command"}
+    result = {key: value for key, value in record.items() if key != "command"}
+    try:
+        started = datetime.fromisoformat(str(record["started_at"]))
+        finished = (
+            datetime.fromisoformat(str(record["finished_at"]))
+            if record.get("finished_at")
+            else datetime.now(UTC)
+        )
+        result["elapsed_ms"] = round(max(0.0, (finished - started).total_seconds() * 1_000), 3)
+    except (KeyError, TypeError, ValueError):
+        result["elapsed_ms"] = None
+    return result
 
 
 def _run_directory(repository: Path) -> Path:

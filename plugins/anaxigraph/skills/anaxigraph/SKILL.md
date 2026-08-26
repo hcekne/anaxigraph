@@ -49,6 +49,25 @@ model-derived interpretations visibly separate.
   finding was fixed, and `changed` is not proof that the architecture improved. Repeat any other
   relevant impact, finding, or module query needed to test the intended outcome.
 
+## Work continuously during development
+
+Keep one persistent AnaxiGraph service and structural watcher for the coding session. Build a full
+semantic baseline only when no current baseline exists. For each coherent task:
+
+1. Call `ANAXIGRAPH_SCOPE` once before editing, preserve the exact goal and baseline, and call
+   `ANAXIGRAPH_IMPACT` for shared targets.
+2. During edits, let the watcher update deterministic source facts and run focused tests normally.
+   Do not start model-backed semantic work after every save.
+3. At the verification checkpoint, call `ANAXIGRAPH_SCAN`, then repeat the same scope request with
+   the saved baseline.
+4. After the coherent task or commit, start one background `understand` run if changed semantic
+   descriptions matter. It must reuse unchanged scopes. Wait for `semantically_ready` only when the
+   next decision requires a fully current semantic map.
+
+Read `telemetry` from scope, impact, and semantic status. Compare server duration and reply size for
+deterministic reads; compare time, tokens, model, failures, and cost by semantic action. Remember
+that summed AI job time can exceed wall time when jobs run in parallel.
+
 ## Build or resume semantic understanding
 
 This workflow writes interpretations only to AnaxiIndex. Do not edit repository source while

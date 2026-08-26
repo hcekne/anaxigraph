@@ -16,6 +16,7 @@ from anaxigraph.agent_decision_payload import (
 )
 from anaxigraph.agent_task_path import compact_task_path
 from anaxigraph.config import AnaxiGraphConfig, path_matches
+from anaxigraph.graph_contract import _with_response_telemetry
 from anaxigraph.guidance import FILE_MEASUREMENT_MEANINGS
 from anaxigraph.operational_health import served_map_status
 
@@ -42,6 +43,7 @@ class _ScopePayloadData:
     conflicts: list[dict[str, str]]
     context_limit: int
     payload_limit_bytes: int
+    started_at: float
 
 
 def _scope_payload(data: _ScopePayloadData) -> dict[str, Any]:
@@ -92,6 +94,7 @@ def _scope_payload(data: _ScopePayloadData) -> dict[str, Any]:
         ),
         "stats": _scope_stats(data, primary, protected),
     }
+    _with_response_telemetry(payload, data.started_at, action="scope")
     return _bound_scope_payload(payload, data.payload_limit_bytes)
 
 
@@ -227,9 +230,16 @@ def _bound_scope_payload(payload: dict[str, Any], limit_bytes: int) -> dict[str,
     for key, count in fit_verification_to_budget(decision, current_size=size, limit=limit).items():
         omitted[key] += count
     payload["payload_budget"]["truncated"] = any(omitted.values())
-    payload["payload_budget"]["estimated_bytes"] = size()
-    # Updating the byte count can change its own digit width. A second pass makes the estimate exact.
-    payload["payload_budget"]["estimated_bytes"] = size()
+    for _attempt in range(4):
+        measured = size()
+        telemetry = payload.get("telemetry")
+        previous = payload["payload_budget"]["estimated_bytes"]
+        previous_telemetry = telemetry["payload_bytes"] if telemetry else measured
+        payload["payload_budget"]["estimated_bytes"] = measured
+        if telemetry:
+            telemetry["payload_bytes"] = measured
+        if previous == measured and previous_telemetry == measured:
+            break
     return payload
 
 
@@ -306,6 +316,8 @@ def _compact_optional_scope(
     while size() > limit and payload["recommended_context"]:
         payload["recommended_context"].pop()
         omitted["recommended_context"] += 1
+    if size() > limit:
+        payload.pop("telemetry", None)
     if size() > limit:
         language = payload.get("plain_language") or {}
         risk = language.get("risk") or {}

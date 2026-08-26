@@ -32,6 +32,11 @@ def test_agent_scope_is_bounded_and_includes_tests_protection_and_rules(reposito
     encoded_size = len(json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
     assert encoded_size <= value["payload_budget"]["limit_bytes"]
     assert encoded_size == value["payload_budget"]["estimated_bytes"]
+    assert value["telemetry"]["contract_version"] == "action-telemetry-v1"
+    assert value["telemetry"]["action"] == "scope"
+    assert value["telemetry"]["duration_ms"] >= 0
+    assert value["telemetry"]["payload_bytes"] == encoded_size
+    assert value["telemetry"]["input_tokens"] == 0
     assert len(value["known_findings"]) <= 12
     assert all("priority_score" in item for item in value["known_findings"])
     assert all(
@@ -247,6 +252,12 @@ def test_impact_follows_reverse_edges_and_relevant_tests(repository, database):
         in value["plain_language"]["limits"]
     )
     assert "runtime registration" not in value["plain_language"]["limits"]
+    assert value["telemetry"]["contract_version"] == "action-telemetry-v1"
+    assert value["telemetry"]["action"] == "impact"
+    assert value["telemetry"]["duration_ms"] >= 0
+    assert value["telemetry"]["payload_bytes"] == len(
+        json.dumps(value, separators=(",", ":"), default=str).encode()
+    )
 
 
 def test_impact_reports_an_unknown_repository_or_target(repository, database):

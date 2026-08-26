@@ -351,7 +351,7 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     )
                     assert loop_guide.isError is False
                     contract = loop_guide.structuredContent["coding_loop"]
-                    assert contract["version"] == "coding-loop-contract-v1"
+                    assert contract["version"] == "coding-loop-contract-v2"
                     assert set(contract["mcp_tools"]) <= names
                     scope = await session.call_tool(
                         "ANAXIGRAPH_SCOPE",
