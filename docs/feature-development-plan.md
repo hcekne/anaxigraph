@@ -268,9 +268,9 @@ The remaining active list is intentionally short:
 
 | Priority | Status | Core question | Smallest acceptable evidence |
 |---:|---|---|---|
-| 1 | **IN PROGRESS — LIVE RECHECK PENDING** | Can a normal concept-level goal find the responsible implementation without already naming its file? | The self-hosted architecture-verification goal must select `agent_decision_verification.py`, its comparison symbols, and a meaningful reviewed hierarchy instead of release, relationship, or generic overflow code |
+| 1 | **COMPLETE on 26 August 2026** | Can a normal concept-level goal find the responsible implementation without already naming its file? | The self-hosted architecture-verification goal selects `agent_decision_verification.py`, its comparison symbols, and a meaningful reviewed hierarchy instead of release, relationship, or generic overflow code |
 | 2 | **COMPLETE on 26 August 2026** | Is the returned primary working set small enough that an agent can trust what it should actually read? | The same live goal returned five coherent verification/change-decision files, chose the verification module and comparison symbols, and included no release or unrelated primary file |
-| 3 | **NEXT ACCEPTANCE PROBE** | When adding a responsibility, does the map make extend-existing versus create-new clear enough to prevent file sprawl? | One self-hosted goal must return an existing responsibility and extension point when one exists, while a controlled fixture permits a new sibling only when no honest home exists |
+| 3 | **COMPLETE on 26 August 2026** | When adding a responsibility, does the map make extend-existing versus create-new clear enough to prevent file sprawl? | A self-hosted goal returns an existing responsibility and extension point when one exists, while a controlled fixture permits a new sibling only when no honest home exists |
 
 Impact traversal, pattern fit, large-file decomposition, and before/after verification remain hard
 regression gates. They do not become new feature phases unless a concrete coding task demonstrates
@@ -304,13 +304,30 @@ release-process expansion. The paused MaxOS run is optional external evidence, n
 release blocker; it stays untouched until the operator explicitly resumes it. AnaxiGraph
 dogfooding remains required because it directly tests the need-to-have decisions.
 
-The concept-level live probe now selects the intended five-file verification/change-decision set
+The concept-level live probe selects the intended five-file verification/change-decision set
 and the exact comparison symbols. It also exposed a separate hierarchy defect: when an AI proposal
 contained seven useful areas under a six-area limit, deterministic validation deliberately replaced
 the smallest areas with `Other responsibilities`. The validator now retains all six allowed
 meaningful areas and merges only excess areas into the closest retained responsibility using the
 group descriptions and member paths. A focused fixture proves the merge and rejects the generic
-overflow area; the authoritative sidecar recheck remains the only unfinished part of this probe.
+overflow area.
+
+The authoritative sidecar recheck completed on snapshot 316 in semantic run
+`9c7dbdf7-ffb1-4286-83f3-45c9fd293c3c`, using `gpt-5.6-terra` at medium reasoning with up to 30
+parallel calls. The two-pass reviewed map assigns all 470 modules to six meaningful areas and 22
+subsystems with no validation issue or repair. The ordinary concept goal selected
+`agent_decision_verification.py`, `compare_verification_baselines`, `verification_baseline`, and
+`_comparison_status`; its five primary files were all part of change-decision verification. Its
+reviewed route is `Prepare change help and AI code reports` →
+`Choose files and explain a requested change`, not a path-derived or generic overflow group.
+
+The live extend-existing probe, “Add another saved query for semantic job token telemetry,” selected
+`semantic_status_queries.py`. It returned the module's saved-query responsibility, the
+`SemanticStatusRows` and `read_semantic_status` contracts, and the existing extension point for
+adding one small query and wiring it through `read_semantic_status`. The large-file decomposition
+contract already prefers a supplied matching module; a focused paired fixture now proves that it
+returns `new_file_candidate` only when no supplied destination matches the separate job, while
+retaining the caller-facing responsibility in the original file.
 
 Warning cleanup is also not an automatic queue. Fix a warning when it blocks a hard gate, touches
 code already being changed for a core outcome, or describes a demonstrated product defect. A clean
@@ -2775,13 +2792,14 @@ feature-admission rule.
 
 | # | Status | Outcome and acceptance | Specified in |
 |---:|---|---|---|
-| 1 | **ACTIVE** | Rebuild the authoritative self-hosted map with the meaningful area-limit repair, then repeat the concept-level verification goal and require the correct module, comparison symbols, coherent primary set, and non-generic area/subsystem path | §9.2 |
-| 2 | **NEXT** | Prove one extend-existing versus create-new decision: select an honest existing responsibility and extension point when present, and permit a new sibling only when the controlled fixture has no suitable home | §9.2 |
+| 1 | **COMPLETE on 26 August 2026** | Rebuild the authoritative self-hosted map with the meaningful area-limit repair, then repeat the concept-level verification goal and require the correct module, comparison symbols, coherent primary set, and non-generic area/subsystem path | §9.2 |
+| 2 | **COMPLETE on 26 August 2026** | Prove one extend-existing versus create-new decision: select an honest existing responsibility and extension point when present, and permit a new sibling only when the controlled fixture has no suitable home | §9.2 |
 
-That is the complete feature queue. A defect found while executing the active item may be fixed
-immediately through the smallest existing path. The retained MaxOS run and the eventual release
-candidate are acceptance/release gates, not product features, and do not authorize adjacent
-implementation.
+That is the complete feature queue, and it has no unfinished item. The retained MaxOS run and the
+eventual release candidate are acceptance/release gates, not product features, and do not authorize
+adjacent implementation. A new feature enters only after a concrete coding task demonstrates a core
+navigation, placement, impact, structure, pattern, or verification failure and passes the admission
+rule above.
 
 No parser expansion, adapter family, plugin framework, new dashboard, website, media support,
 generic operations work, warning-cleanup campaign, or additional plain-language sweep may displace

@@ -114,6 +114,36 @@ def test_mixed_responsibility_file_gets_a_bounded_extraction_map():
     ]
 
 
+def test_decomposition_permits_a_new_sibling_only_without_an_existing_home():
+    module = _module(
+        responsibilities=[
+            "Load and validate configuration through load_config and parse_config",
+            "Publish audit events through publish_audit_event",
+        ]
+    )
+    module["semantic"]["public_contracts"] = ["load_config returns validated settings"]
+    symbols = [
+        _symbol("load_config", 10, 45),
+        _symbol("parse_config", 47, 75),
+        _symbol("publish_audit_event", 80, 105),
+    ]
+
+    result = decomposition_advice([module], symbols, [], [_finding()], [])
+
+    item = result["items"][0]
+    candidate = item["slices"][0]
+    assert [symbol["name"] for symbol in candidate["symbols"]] == ["publish_audit_event"]
+    assert candidate["destination"] == {
+        "status": "new_file_candidate",
+        "path": "",
+        "reason": (
+            "No supplied existing module matches this job. Create a focused sibling file only "
+            "after checking the architecture map for an honest extension point."
+        ),
+    }
+    assert item["slices"][1]["destination"]["status"] == "remain_in_file"
+
+
 def test_near_limit_mixed_file_gets_a_plan_before_it_breaks_the_rule():
     result = decomposition_advice(
         [_module(lines_of_code=445)],
