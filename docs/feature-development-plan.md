@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.35
+**Roadmap version:** 3.36
 
 **Updated:** 26 August 2026
 
@@ -250,25 +250,30 @@ worker could stop before its durable queue was complete. Those were core defects
 been fixed and retained as regression gates; they are not reasons to keep expanding lifecycle,
 operations, or executor machinery.
 
-Only two unfinished product capabilities remain in the active feature list:
+The need-to-have list is the six coding decisions below. Each decision closes independently so a
+large combined status cannot hide stalled work:
 
-| Priority | Status | Capability | What must become better | Boundary |
-|---:|---|---|---|---|
-| 1 | **COMPLETE** | Autonomous responsibility hierarchy | A person or agent can move from area → subsystem → module → symbol and understand why code belongs together | Reuse deterministic facts, semantic dossiers, taxonomy proposal, and independent agent review; no default human taxonomy-edit gate and no second visualization |
-| 2 | **ACTIVE** | Useful architecture decisions in the coding loop | Placement, reverse impact, multi-level pattern fit, coherent large-file decomposition, and before/after structural advice are accurate enough to guide real AnaxiGraph changes | Reuse scope, impact, findings, the 120+ pattern catalog, and comparison contracts; fix demonstrated defects instead of adding another product surface |
+| Priority | Status | Need-to-have decision | Exit evidence |
+|---:|---|---|---|
+| 1 | **COMPLETE** | Navigate the responsibility hierarchy | Move from area → subsystem → module → symbol with complete module assignment, an ordinary-language explanation of each group, and no generic catch-all |
+| 2 | **COMPLETE** | Place a change in the right code | A real self-hosted goal returns the intended document/module, local precedent, extension point, contracts, and focused tests without unrelated primary files |
+| 3 | **COMPLETE** | See the change's likely impact before editing | A real self-hosted module returns its exact direct dependants, bounded transitive impact, and relevant tests with relationship evidence and caveats |
+| 4 | **ACTIVE** | Judge pattern fit at the level where the design decision lives | Sparse bounded selection covers genuinely different patterns across repository, area, subsystem, module, type, and symbol levels; obvious candidates are not crowded out by generic patterns; advice includes fit, counter-evidence, and verification |
+| 5 | **NEXT** | Split a genuinely mixed large file without fragmenting a cohesive one | A self-hosted mixed-responsibility file gets bounded extraction slices with contracts, callers, tests, and move order, while a cohesive large file is explicitly left intact |
+| 6 | **NEXT** | Verify whether a change improved structure | A real before/after task correctly distinguishes introduced, worsened, improved, resolved, and unchanged effects for boundaries, coupling, cycles, size, complexity, and responsibility placement |
 
-A code change belongs in the active roadmap only when it is required to complete one of those two
-capabilities or fixes a defect directly demonstrated while exercising them. One authoritative map,
-durable bounded semantic execution, the 500-line ceiling, focused regression tests, and the
-existing release pipeline are supporting gates. They remain green, but they do not create feature
-families of their own.
+A code change belongs in the active roadmap only when it closes the current decision, prepares the
+next listed decision without implementing it early, or fixes a defect directly demonstrated by the
+current decision. One authoritative map, durable bounded semantic execution, the 500-line ceiling,
+focused regression tests, and the existing release pipeline are supporting gates. They may be
+repaired when they block a core decision, but they do not create feature families of their own.
 
-The following are not active product work: broader parsers and adapters, more dashboards or API
-families, generic operational tooling, provider-specific orchestration, warning-cleanup campaigns,
-additional explanatory-language sweeps, ecosystem work, and release-process expansion. The paused
-MaxOS run is retained acceptance evidence, not a feature; it stays untouched until the operator
-explicitly resumes it. AnaxiGraph dogfooding remains required because it directly tests the two
-active capabilities.
+The following are nice-to-have, not active product work: broader parsers and adapters, more
+dashboards or API families, generic operational tooling, provider-specific orchestration,
+warning-cleanup campaigns, additional explanatory-language sweeps, ecosystem work, and
+release-process expansion. The paused MaxOS run is retained acceptance evidence, not a feature; it
+stays untouched until the operator explicitly resumes it. AnaxiGraph dogfooding remains required
+because it directly tests the need-to-have decisions.
 
 Warning cleanup is also not an automatic queue. Fix a warning when it blocks a hard gate, touches
 code already being changed for a core outcome, or describes a demonstrated product defect. A clean
@@ -279,7 +284,7 @@ module merely because an adjacent administrative response could be worded more e
 
 The phases below explain how the current product was built and preserve their acceptance evidence.
 Completed phases are not a backlog. Phase 9 is the bounded dogfood-and-release wrapper around the
-two active capabilities above.
+need-to-have decisions above.
 
 | Order | Phase | Primary outcome | Must be complete before |
 |---:|---|---|---|
@@ -2353,7 +2358,8 @@ change also lowers the `evaluate_architecture` and finding-lifecycle maintainabi
 
 # Phase 9 — make the real core loop dependable, then prove it for 1.0
 
-**Status:** ACTIVE; HIERARCHY COMPLETE AND CORE DECISION DOGFOODING IN PROGRESS on 26 August 2026
+**Status:** ACTIVE; HIERARCHY, PLACEMENT, AND IMPACT COMPLETE; PATTERN-FIT DOGFOODING IN
+PROGRESS on 26 August 2026
 
 **Goal:** prove that the existing AnaxiGraph loop helps a person or coding agent place and change
 code without creating sprawl, tangled dependencies, misplaced responsibilities, or giant files.
@@ -2471,8 +2477,8 @@ module size, code quality, architecture, Ruff, and focused REST/MCP tests also p
 
 ## 9.2 Prove architecture decisions at representative sizes
 
-**Status:** SELF-HOSTED HIERARCHY ACCEPTANCE COMPLETE; CORE DECISION DOGFOODING ACTIVE on
-26 August 2026; paid MaxOS semantic acceptance paused
+**Status:** SELF-HOSTED HIERARCHY, PLACEMENT, AND IMPACT ACCEPTANCE COMPLETE; PATTERN-FIT
+DOGFOODING ACTIVE on 26 August 2026; paid MaxOS semantic acceptance paused
 
 Run the same coding tasks against small, medium, and large Python-first repositories. Record only
 measurements that decide whether the map is useful:
@@ -2536,8 +2542,12 @@ field, a small alias connects “roadmap” with “plan,” and explicit docume
 a bounded artifact-kind preference. A matching document also survives the later symbol step. On
 the same snapshot and goal, the preferred file and task path are now both
 `docs/feature-development-plan.md`; focused tests include a deliberately noisy feature module, an
-explicit test-edit goal, and the existing 120/1,000/3,000-file precision fixtures. Reverse impact,
-multi-level pattern fit, large-file decomposition, and before/after dogfood tasks remain active.
+explicit test-edit goal, and the existing 120/1,000/3,000-file precision fixtures.
+
+Reverse impact then passed against `src/anaxigraph/semantic_ports.py`. It returned the exact four
+direct dependants, a bounded 64-file transitive set, 30 relevant tests, and no migration paths; the
+direct edges were independently checked against source imports. Multi-level pattern fit is now the
+only active decision. Large-file decomposition and before/after verification follow in that order.
 
 ## 9.3 Keep one documented coding loop
 
@@ -2576,7 +2586,7 @@ suite passes with 560 tests at 91.63% coverage.
 
 ---
 
-# Parked ideas — not an implementation queue
+# Nice-to-have ideas — not an implementation queue
 
 These are recorded only so they are not repeatedly rediscovered and mistaken for active work. They
 do not block 1.0 and are not implementation tasks. The owner must explicitly reopen one after
@@ -2687,11 +2697,16 @@ feature-admission rule.
 | 1 | **COMPLETE** | Reproduce why the self-hosted MCP map lagged the checkout, then make CLI/MCP/watcher/sidecar identity and currentness explicit and consistent | §9.0 |
 | 2 | **COMPLETE** | Prove bounded parallel executor mechanics preserve operator-selected settings, survive interruption, and reach durable `complete` without losing finished work | §9.0 |
 | 3 | **COMPLETE** | On the current AnaxiGraph index, form and independently review the autonomous hierarchy with complete module coverage and no default human edit step | §9.0 and §9.2 |
-| 4 | **ACTIVE** | Run real AnaxiGraph tasks for placement, impact, multi-level pattern fit, large-file decomposition, and before/after verification; fix only demonstrated core defects | §9.2 |
+| 4 | **COMPLETE** | Prove a real self-hosted placement task identifies the right code and excludes irrelevant primary files | §9.2 |
+| 5 | **COMPLETE** | Prove reverse impact on a real self-hosted module returns the exact direct dependants and relevant tests | §9.2 |
+| 6 | **ACTIVE** | Complete and live-validate diverse multi-level pattern selection and directly useful fit advice without increasing the 200-pair bound | §6.3–§6.8 and §9.2 |
+| 7 | **NEXT** | Prove coherent decomposition on one mixed and one cohesive self-hosted large-file case; fix only a demonstrated decision defect | §7.3 and §9.2 |
+| 8 | **NEXT** | Prove the focused before/after comparison on a real self-hosted change and fix only a demonstrated classification defect | §7.2 and §9.2 |
 
-That is the complete feature queue. A defect found by item 3 or 4 may be fixed immediately through
-the smallest existing path. The retained MaxOS run and the eventual release candidate are
-acceptance/release gates, not product features, and do not authorize adjacent implementation.
+That is the complete feature queue. A defect found while executing the active item may be fixed
+immediately through the smallest existing path. The retained MaxOS run and the eventual release
+candidate are acceptance/release gates, not product features, and do not authorize adjacent
+implementation.
 
 No parser expansion, adapter family, plugin framework, new dashboard, website, media support,
 generic operations work, warning-cleanup campaign, or additional plain-language sweep may displace
