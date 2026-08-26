@@ -106,6 +106,9 @@ class SemanticEngine:
     def release_agent_work(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         return self._services.agent.release_agent_work(*args, **kwargs)
 
+    def fail_agent_work(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._services.agent.fail_agent_work(*args, **kwargs)
+
     def _analyze_request(
         self,
         provider: Any,

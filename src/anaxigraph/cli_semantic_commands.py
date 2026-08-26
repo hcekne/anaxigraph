@@ -180,6 +180,7 @@ def _understand_local(
     execution_semantic: Any | None,
     execution_mode: str,
 ) -> dict[str, Any]:
+    started = time.perf_counter()
     database_path = local_database_path(repository, explicit=args.db)
     database = cli_services.open_index(database_path)
     stats = cli_services.scanner(database).scan(
@@ -204,6 +205,7 @@ def _understand_local(
         "reasoning_effort": (execution_semantic.reasoning_effort if execution_semantic else None),
         "parallel_jobs": (execution_semantic.max_parallel_jobs if execution_semantic else None),
         "timeout_seconds": (execution_semantic.timeout_seconds if execution_semantic else None),
+        "elapsed_ms": round((time.perf_counter() - started) * 1_000, 3),
     }
     result["index"] = {"authority": "local", "database": str(database_path)}
     if config.semantic.provider == "agent" and execution_semantic is None:
@@ -226,6 +228,7 @@ def _understand_service(
     execution_mode: str,
     service: Any,
 ) -> dict[str, Any]:
+    started = time.perf_counter()
     prepared = _prepare_service(args, service)
     if prepared.get("status") == "scan_required":
         return _scan_required_service_result(args, execution_mode, service, prepared)
@@ -247,6 +250,7 @@ def _understand_service(
         "reasoning_effort": (execution_semantic.reasoning_effort if execution_semantic else None),
         "parallel_jobs": (execution_semantic.max_parallel_jobs if execution_semantic else None),
         "timeout_seconds": (execution_semantic.timeout_seconds if execution_semantic else None),
+        "elapsed_ms": round((time.perf_counter() - started) * 1_000, 3),
     }
     result["index"] = service.identity()
     if execution_semantic is None:

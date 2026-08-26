@@ -192,6 +192,7 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                         "ANAXIGRAPH_SEMANTIC_EVIDENCE",
                         "ANAXIGRAPH_SEMANTIC_SUBMIT",
                         "ANAXIGRAPH_SEMANTIC_RELEASE",
+                        "ANAXIGRAPH_SEMANTIC_FAIL",
                         "ANAXIGRAPH_MODULES",
                         "ANAXIGRAPH_GRAPH",
                         "ANAXIGRAPH_PATTERNS",

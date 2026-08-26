@@ -2502,7 +2502,7 @@ compatibility frameworks, transports, and duplicated workflow endpoints are outs
 
 `coding-loop-contract-v2` is now returned by the existing REST glossary and
 `ANAXIGRAPH_GUIDE(topic="coding_loop")`. It names ten CLI commands, fifteen REST method/path pairs,
-eighteen MCP tools, and fourteen versioned result locations as required subsets. It also defines
+nineteen MCP tools, and fourteen versioned result locations as required subsets. It also defines
 the development cadence: one persistent structural watcher, scope and impact before editing,
 ordinary focused-test work without model calls after every save, one explicit scan and same-goal
 comparison at a coherent checkpoint, and one changed-scope semantic refresh afterward when needed.
@@ -2628,10 +2628,23 @@ failures, task duration, input/output tokens, and cost. Structural scans remain 
 and detached semantic records expose elapsed wall time. Summed parallel-job time is explicitly
 distinguished from real elapsed time. Successful unchanged scans and completed history jobs count
 as finished actions, interrupted offline time is excluded, and missing executor token reports are
-shown as unknown usage instead of zero-cost work. The Codex executor reads its JSONL completion
-usage while keeping the schema-constrained final answer separate. Focused taxonomy, provider,
+shown as unknown usage instead of zero-cost work. Failed model attempts record executor-reported
+tokens and retry only their own job; interruption before model work releases a lease without
+counting a failed attempt. The Codex executor reads its JSONL completion usage while keeping the
+schema-constrained final answer separate. Focused taxonomy, provider,
 coding-loop, queue, API/MCP,
 documentation, and telemetry tests pass.
+
+Self-hosted calibration used the authoritative sidecar rather than a second host database. A full
+Terra/medium run completed 466 current modules and 200 reviewed pattern decisions with 12,527,575
+input tokens, 909,458 output/reasoning tokens, 16,885,106 ms of summed parallel task time, and about
+45 minutes of real elapsed time. The continuous-loop probes then returned the telemetry-placement
+goal in 1.94 seconds wall time (752 ms server time, 16,902 bytes) and the architecture-verification
+goal in 1.63 seconds (590 ms server time, 17,403 bytes), down from a profiled 76-second scope path.
+Both ordinary CLI calls selected the matching sidecar automatically. The profile showed repeated
+decoding of all 200 saved pattern results as the main delay; the read path now filters the requested
+module in SQLite before decoding. These measurements are calibration evidence, not fixed performance
+promises across machines or repositories.
 
 ## Phase 9 exit gate
 

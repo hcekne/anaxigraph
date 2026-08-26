@@ -32,6 +32,7 @@ class SemanticCoverage:
     failed_scopes: int
     taxonomy_enabled: bool
     taxonomy_ready: bool
+    patterns_ready: bool
     baseline_complete: bool
     semantically_ready: bool
 
@@ -103,7 +104,8 @@ def _coverage(rows: SemanticStatusRows, semantic: SemanticConfig | None) -> Sema
     repository_ready = bool(rows.repository_state and rows.repository_state["status"] == "current")
     taxonomy_enabled = bool(semantic and semantic.enabled and semantic.taxonomy.enabled)
     taxonomy_ready = bool(rows.taxonomy and rows.taxonomy["status"] == "current")
-    baseline_complete = total > 0 and pending == 0 and pending_scopes == 0
+    patterns_ready = _patterns_ready(rows, semantic)
+    baseline_complete = total > 0 and pending == 0 and pending_scopes == 0 and patterns_ready
     ready = _is_ready(
         eligible,
         current,
@@ -112,6 +114,8 @@ def _coverage(rows: SemanticStatusRows, semantic: SemanticConfig | None) -> Sema
         repository_ready,
         taxonomy_enabled,
         taxonomy_ready,
+        pending_scopes,
+        patterns_ready,
     )
     return SemanticCoverage(
         excluded,
@@ -124,6 +128,7 @@ def _coverage(rows: SemanticStatusRows, semantic: SemanticConfig | None) -> Sema
         failed_scopes,
         taxonomy_enabled,
         taxonomy_ready,
+        patterns_ready,
         baseline_complete,
         ready,
     )
@@ -148,6 +153,8 @@ def _is_ready(
     repository_ready: bool,
     taxonomy_enabled: bool,
     taxonomy_ready: bool,
+    pending_scopes: int,
+    patterns_ready: bool,
 ) -> bool:
     taxonomy_complete = taxonomy_ready or not taxonomy_enabled
     return all(
@@ -158,7 +165,24 @@ def _is_ready(
             failed_scopes == 0,
             repository_ready,
             taxonomy_complete,
+            pending_scopes == 0,
+            patterns_ready,
         )
+    )
+
+
+def _patterns_ready(
+    rows: SemanticStatusRows,
+    semantic: SemanticConfig | None,
+) -> bool:
+    if not semantic or not semantic.enabled:
+        return False
+    counts = rows.scope_counts.get("pattern", {})
+    plan_counts = rows.scope_counts.get("pattern_plan", {})
+    return (
+        bool(plan_counts.get("current"))
+        and _pending(counts) == 0
+        and not counts.get("failed_pattern", 0)
     )
 
 
@@ -246,8 +270,9 @@ def _telemetry_payload(rows: SemanticStatusRows, snapshot_id: int) -> dict[str, 
                 "it can be larger than the real clock time for one semantic run."
             ),
             "token_note": (
-                "Token totals include only jobs whose executor reported usage. A completed job "
-                "with missing token counts means unknown usage, not a free model call."
+                "Token totals include successful and failed attempts when their executor reported "
+                "usage. A completed job with missing token counts means unknown usage, not a free "
+                "model call; a killed process may also end before it reports its final count."
             ),
         },
         "architecture": {
@@ -417,7 +442,7 @@ def _pattern_payload(
     return {
         "enabled": bool(semantic and semantic.enabled),
         "planned": planned,
-        "ready": planned and pending == 0 and failed == 0,
+        "ready": _patterns_ready(rows, semantic),
         "selected": selected,
         "finalized": counts.get("current", 0),
         "pending": pending,

@@ -32,7 +32,6 @@ LEFT JOIN artifacts a ON a.id = ss.artifact_id
 WHERE ss.repository_id = ? AND ss.snapshot_id = ?
   AND ss.scope_type = 'pattern' AND ss.status = 'current'
   AND sd.document_kind = 'pattern_review'
-ORDER BY ss.scope_key
 """
 _TEXT_LIMIT = 2_000
 _LIST_LIMIT = 100
@@ -44,7 +43,7 @@ def read_pattern_evaluations(
     snapshot_id: int,
     query: PatternEvaluationQuery,
 ) -> dict[str, Any]:
-    rows = connection.execute(_CURRENT_EVALUATIONS_SQL, (repository_id, snapshot_id)).fetchall()
+    rows = _evaluation_rows(connection, repository_id, snapshot_id, query.target)
     cards = {card.stable_key: card for card in bundled_pattern_catalog().cards}
     items = []
     for row in rows:
@@ -67,6 +66,31 @@ def read_pattern_evaluations(
         "omitted": max(0, total - len(page)),
         "items": page,
     }
+
+
+def _evaluation_rows(
+    connection: sqlite3.Connection,
+    repository_id: int,
+    snapshot_id: int,
+    target: str,
+) -> list[sqlite3.Row]:
+    """Avoid decoding every saved pattern result for one requested module."""
+
+    path = _module_target_path(target)
+    filter_sql = " AND a.canonical_path = ?" if path else ""
+    parameters: tuple[Any, ...] = (
+        (repository_id, snapshot_id, path) if path else (repository_id, snapshot_id)
+    )
+    return connection.execute(
+        f"{_CURRENT_EVALUATIONS_SQL}{filter_sql} ORDER BY ss.scope_key",
+        parameters,
+    ).fetchall()
+
+
+def _module_target_path(target: str) -> str:
+    if target.startswith("module:"):
+        return target.removeprefix("module:")
+    return target if target and ":" not in target and "/" in target else ""
 
 
 def empty_pattern_evaluations(repository_id: int, query: PatternEvaluationQuery) -> dict[str, Any]:

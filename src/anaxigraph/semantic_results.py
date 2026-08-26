@@ -162,7 +162,14 @@ class SemanticPersistenceService:
             ),
         )
 
-    def fail_job(self, job: dict[str, Any], exc: Exception) -> bool:
+    def fail_job(
+        self,
+        job: dict[str, Any],
+        exc: Exception,
+        *,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+    ) -> bool:
         error = f"{type(exc).__name__}: {exc}"[:4_000]
         retry = int(job["attempts"]) < int(job["max_attempts"])
         status = semantic_job_transition(str(job["status"]), "retry" if retry else "fail")
@@ -170,8 +177,9 @@ class SemanticPersistenceService:
         with self._database.transaction() as connection:
             connection.execute(
                 """
-                UPDATE semantic_jobs SET status = ?, available_at = ?, completed_at = ?, error = ?
-                    , worker_id = NULL, lease_expires_at = NULL, lease_token_hash = NULL
+                UPDATE semantic_jobs SET status = ?, available_at = ?, completed_at = ?, error = ?,
+                    input_tokens = input_tokens + ?, output_tokens = output_tokens + ?,
+                    worker_id = NULL, lease_expires_at = NULL, lease_token_hash = NULL
                 WHERE id = ?
                 """,
                 (
@@ -179,6 +187,8 @@ class SemanticPersistenceService:
                     available.isoformat(),
                     None if retry else utc_now(),
                     error,
+                    max(0, int(input_tokens)),
+                    max(0, int(output_tokens)),
                     job["id"],
                 ),
             )
@@ -299,7 +309,7 @@ def _finish_job(
     connection.execute(
         """
         UPDATE semantic_jobs SET status = ?, completed_at = ?,
-            input_tokens = ?, output_tokens = ?, estimated_cost_usd = ?,
+            input_tokens = input_tokens + ?, output_tokens = output_tokens + ?, estimated_cost_usd = ?,
             actual_cost_usd = ?, worker_id = NULL, lease_expires_at = NULL,
             error = NULL WHERE id = ?
         """,

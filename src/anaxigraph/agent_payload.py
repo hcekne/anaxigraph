@@ -317,8 +317,6 @@ def _compact_optional_scope(
         payload["recommended_context"].pop()
         omitted["recommended_context"] += 1
     if size() > limit:
-        payload.pop("telemetry", None)
-    if size() > limit:
         language = payload.get("plain_language") or {}
         risk = language.get("risk") or {}
         payload["plain_language"] = {
@@ -335,6 +333,8 @@ def _compact_optional_scope(
         payload.pop("stats")
     if size() > limit and payload.get("branch") is None:
         payload.pop("branch")
+    if size() > limit and limit <= 4_000:
+        payload.pop("telemetry", None)
 
 
 def _compact_map_status(

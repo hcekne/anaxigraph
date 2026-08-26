@@ -187,6 +187,71 @@ def service_semantic_status(
     return value
 
 
+def service_agent_scope(
+    target: SemanticServiceTarget,
+    *,
+    goal: str,
+    branch: str | None,
+    verification_baseline: dict[str, Any] | None,
+    timeout: float = 30,
+) -> dict[str, Any]:
+    return _service_agent_request(
+        target,
+        "/api/agent-scope",
+        {
+            "goal": goal,
+            "branch": branch,
+            "repository_id": target.repository_id,
+            "verification_baseline": verification_baseline,
+        },
+        timeout=timeout,
+    )
+
+
+def service_impact(
+    target: SemanticServiceTarget,
+    *,
+    requested_target: str,
+    branch: str | None,
+    timeout: float = 30,
+) -> dict[str, Any]:
+    return _service_agent_request(
+        target,
+        "/api/impact",
+        {
+            "target": requested_target,
+            "branch": branch,
+            "repository_id": target.repository_id,
+        },
+        timeout=timeout,
+    )
+
+
+def service_branch_collisions(
+    target: SemanticServiceTarget,
+    *,
+    timeout: float = 10,
+) -> dict[str, Any]:
+    query = urllib.parse.urlencode({"repository_id": target.repository_id})
+    value = _request_json(f"{target.base_url}/api/branch-collisions?{query}", timeout=timeout)
+    if not isinstance(value, dict):
+        raise ValueError("AnaxiGraph service returned an invalid branch-collision result")
+    return value
+
+
+def _service_agent_request(
+    target: SemanticServiceTarget,
+    path: str,
+    body: dict[str, Any],
+    *,
+    timeout: float,
+) -> dict[str, Any]:
+    value = _request_json(f"{target.base_url}{path}", method="POST", timeout=timeout, body=body)
+    if not isinstance(value, dict):
+        raise ValueError("AnaxiGraph service returned an invalid coding-context result")
+    return value
+
+
 def service_pattern_evaluations(
     target: SemanticServiceTarget,
     request: PatternEvaluationQuery,
@@ -299,11 +364,18 @@ def _request_json(
     *,
     method: str = "GET",
     timeout: float = 10,
+    body: dict[str, Any] | None = None,
 ) -> Any:
+    data = json.dumps(body).encode("utf-8") if body is not None else None
+    if method == "POST" and data is None:
+        data = b""
     request = urllib.request.Request(
         url,
-        data=b"" if method == "POST" else None,
-        headers={"Accept": "application/json"},
+        data=data,
+        headers={
+            "Accept": "application/json",
+            **({"Content-Type": "application/json"} if body is not None else {}),
+        },
         method=method,
     )
     try:

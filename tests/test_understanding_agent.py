@@ -432,3 +432,31 @@ def test_agent_semantic_writeback_rejects_bad_tokens_and_invalid_dossiers(reposi
         reason="test release",
     )
     assert released["status"] == "released"
+
+    retry_packet = engine.claim_agent_work(
+        stats.repository_id,
+        repository,
+        config,
+        agent_id="codex-test",
+    )
+    failed = engine.fail_agent_work(
+        stats.repository_id,
+        config,
+        job_id=retry_packet["job"]["id"],
+        lease_token=retry_packet["lease"]["token"],
+        reason="model returned malformed JSON",
+        input_tokens=120,
+        output_tokens=30,
+    )
+
+    assert failed["status"] == "retry"
+    status = engine.status(stats.repository_id, config.semantic)
+    assert status["usage"]["input_tokens"] == 120
+    assert status["usage"]["output_tokens"] == 30
+    action = next(
+        item
+        for item in status["telemetry"]["semantic"]["current_snapshot"]["actions"]
+        if item["job_kind"] == retry_packet["job"]["kind"]
+    )
+    assert action["input_tokens"] == 120
+    assert action["output_tokens"] == 30

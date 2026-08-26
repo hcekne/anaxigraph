@@ -21,6 +21,7 @@ from anaxigraph.semantic_service import (
     SemanticServiceTarget,
     discover_semantic_service,
     prepare_semantic_service,
+    service_agent_scope,
 )
 
 
@@ -157,6 +158,38 @@ def test_service_preparation_retries_transient_writer_contention(monkeypatch):
         "status": "prepared"
     }
     assert sleeps == [0.25]
+
+
+def test_service_scope_sends_the_repository_identity_and_goal(monkeypatch):
+    captured = {}
+
+    def request(url, **options):
+        captured.update(url=url, **options)
+        return {"snapshot_id": 12, "primary_files": []}
+
+    monkeypatch.setattr("anaxigraph.semantic_service._request_json", request)
+    target = SemanticServiceTarget("http://127.0.0.1:8765", 4, "Example", "/repo")
+
+    result = service_agent_scope(
+        target,
+        goal="Measure semantic work",
+        branch="main",
+        verification_baseline={"snapshot_id": 11},
+        timeout=9,
+    )
+
+    assert result["snapshot_id"] == 12
+    assert captured == {
+        "url": "http://127.0.0.1:8765/api/agent-scope",
+        "method": "POST",
+        "timeout": 9,
+        "body": {
+            "goal": "Measure semantic work",
+            "branch": "main",
+            "repository_id": 4,
+            "verification_baseline": {"snapshot_id": 11},
+        },
+    }
 
 
 def test_agent_evidence_pages_reassemble_source_without_changing_bytes():

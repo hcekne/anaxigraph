@@ -12,6 +12,7 @@ import pytest
 import anaxigraph.semantic_remote_recovery as remote_recovery
 import anaxigraph.semantic_remote_worker as remote_worker
 from anaxigraph.config import SemanticConfig
+from anaxigraph.semantic_contract import SemanticAnalysisError
 from anaxigraph.semantic_service import SemanticServiceTarget
 
 
@@ -168,6 +169,53 @@ async def test_wave_runs_thirty_model_calls_without_the_default_thread_cap(monke
     )
 
     assert total["processed"] == total["completed"] == 30
+
+
+@pytest.mark.anyio
+async def test_one_model_failure_does_not_unwind_successful_peer_jobs(monkeypatch):
+    packets = [
+        {"job": {"id": index, "kind": "context"}, "lease": {"token": str(index)}}
+        for index in range(1, 4)
+    ]
+    submitted = []
+    failures = []
+
+    async def request(_session, _target, packet):
+        return {"index": packet["job"]["id"]}
+
+    def analyze(request_value, _execution):
+        if request_value["index"] == 2:
+            raise SemanticAnalysisError("invalid JSON", input_tokens=120, output_tokens=30)
+        return SimpleNamespace(value={}, input_tokens=1, output_tokens=1)
+
+    async def submit(_session, _target, packet, _result):
+        submitted.append(packet["job"]["id"])
+        return {"status": "completed", "semantic": {"jobs": {}}}
+
+    async def fail(_session, _target, packet, error):
+        failures.append((packet["job"]["id"], error.input_tokens, error.output_tokens))
+        return {"status": "retry", "semantic": {"jobs": {"retry": 1}}}
+
+    monkeypatch.setattr(remote_worker, "_request_for_packet", request)
+    monkeypatch.setattr(remote_worker, "_analyze", analyze)
+    monkeypatch.setattr(remote_worker, "_submit", submit)
+    monkeypatch.setattr(remote_worker, "_fail_packet", fail)
+    total = remote_worker._empty_result()
+
+    await remote_worker._execute_wave(
+        object(),
+        _target(),
+        SemanticConfig(provider="codex", max_parallel_jobs=3),
+        packets,
+        total,
+        {},
+    )
+
+    assert sorted(submitted) == [1, 3]
+    assert failures == [(2, 120, 30)]
+    assert total["processed"] == 3
+    assert total["completed"] == 2
+    assert total["retry"] == 1
 
 
 @pytest.mark.anyio

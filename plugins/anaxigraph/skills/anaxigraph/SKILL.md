@@ -121,9 +121,13 @@ explicitly selected `--executor mcp`. If `anaxigraph understand` returns
    `status: completed` or `status: already_completed`.
 7. Call `ANAXIGRAPH_SEMANTIC_WORK` again and repeat until it returns a terminal/no-work state. This
    naturally resumes a partial baseline because only stale or unfinished work is leased.
-8. If required evidence cannot be read, the user interrupts, or the task cannot be completed before
-   lease expiry, call `ANAXIGRAPH_SEMANTIC_RELEASE` with a concise reason. If a lease is already
-   expired or superseded, discard its token and claim fresh work; never submit stale reasoning.
+8. If the model ran but timed out, returned malformed JSON, or produced a result that fails the live
+   schema, call `ANAXIGRAPH_SEMANTIC_FAIL` for that job with a concise reason and the input/output
+   token counts reported by the executor. This consumes one bounded attempt and leaves other leased
+   jobs untouched. If required evidence cannot be read, the user interrupts before model work, or
+   the task cannot start before lease expiry, call `ANAXIGRAPH_SEMANTIC_RELEASE` instead; releasing
+   does not count as a failed attempt. If a lease is already expired or superseded, discard its token
+   and claim fresh work; never submit stale reasoning.
 
 At the end, call `ANAXIGRAPH_SEMANTIC_STATUS` and `ANAXIGRAPH_TAXONOMY`. Report completed coverage,
 pending/running/failed work, taxonomy validation/critic passes, and whether repository synthesis is

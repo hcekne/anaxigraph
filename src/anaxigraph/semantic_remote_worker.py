@@ -213,8 +213,14 @@ async def _execute_wave(
         for completed in asyncio.as_completed(tasks):
             index, result = await completed
             if isinstance(result, BaseException):
-                await _abort_wave(session, target, packets, tasks, remaining, str(result))
-                raise RuntimeError(f"Semantic model execution failed: {result}") from result
+                try:
+                    latest = await _record_model_failure(
+                        session, target, packets, remaining, index, result, total, latest
+                    )
+                except Exception as exc:
+                    await _abort_wave(session, target, packets, tasks, remaining, str(exc))
+                    raise RuntimeError(f"Semantic failure reporting failed: {exc}") from exc
+                continue
             latest = await _submit_wave_result(
                 session,
                 target,
@@ -227,6 +233,24 @@ async def _execute_wave(
                 latest,
             )
     return latest
+
+
+async def _record_model_failure(
+    session: ClientSession,
+    target: SemanticServiceTarget,
+    packets: list[dict[str, Any]],
+    remaining: set[int],
+    index: int,
+    error: BaseException,
+    total: dict[str, Any],
+    latest: dict[str, Any],
+) -> dict[str, Any]:
+    failed = await _fail_packet(session, target, packets[index], error)
+    remaining.remove(index)
+    total["processed"] += 1
+    total["retry"] += int(failed.get("status") == "retry")
+    total["failed"] += int(failed.get("status") == "failed")
+    return dict(failed.get("semantic") or latest)
 
 
 async def _wave_requests(
@@ -392,6 +416,27 @@ async def _release_packets(
         *(_release_packet(session, target, packet, reason) for packet in packets),
         return_exceptions=True,
     )
+
+
+async def _fail_packet(
+    session: ClientSession,
+    target: SemanticServiceTarget,
+    packet: dict[str, Any],
+    error: BaseException,
+) -> dict[str, Any]:
+    response = await _call_tool(
+        session,
+        "ANAXIGRAPH_SEMANTIC_FAIL",
+        {
+            "job_id": int(packet["job"]["id"]),
+            "lease_token": str(packet["lease"]["token"]),
+            "reason": str(error)[:1_000],
+            "input_tokens": int(getattr(error, "input_tokens", 0)),
+            "output_tokens": int(getattr(error, "output_tokens", 0)),
+            "repository": str(target.repository_id),
+        },
+    )
+    return _tool_value(response, "record failed semantic work")
 
 
 async def _release_packet(

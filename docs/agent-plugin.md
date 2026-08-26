@@ -73,9 +73,11 @@ routes the request through a bounded workflow:
   `SCHEMA -> WORK -> every EVIDENCE page -> SUBMIT`, repeating until no work remains.
 
 Semantic work is considered stored only when AnaxiMCP returns `status: completed` or
-`status: already_completed`. If the agent is interrupted or cannot finish within its lease, the
-skill releases the job with a reason. A later session asks for work again and naturally resumes
-the unfinished baseline. It never submits with an expired or superseded lease token.
+`status: already_completed`. If a model call ran but timed out or returned an invalid result, the
+skill reports that one failed attempt with any executor-reported token use; other jobs in the wave
+continue. If the agent is interrupted before model work starts, it releases the job without
+counting a failure. A later session asks for work again and naturally resumes the unfinished
+baseline. It never submits with an expired or superseded lease token.
 
 Static graph evidence is deliberately conservative. A missing edge is not proof of dead code,
 and a finding or model dossier is not automatic permission to refactor or delete source. The

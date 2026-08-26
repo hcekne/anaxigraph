@@ -7,6 +7,7 @@ from typing import Any
 
 from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
 from anaxigraph.semantic_agent_contracts import SemanticAgentContractService
+from anaxigraph.semantic_contract import SemanticAnalysisError
 from anaxigraph.semantic_graph import SupersededSemanticJob
 from anaxigraph.semantic_leases import SemanticLeaseService
 from anaxigraph.semantic_ports import (
@@ -224,6 +225,39 @@ class SemanticAgentService:
         self._leases.release_agent_job(job, reason)
         return {
             "status": "released",
+            "job_id": job_id,
+            "semantic": self._reporting.status(repository_id, semantic),
+        }
+
+    def fail_agent_work(
+        self,
+        repository_id: int,
+        config: AnaxiGraphConfig,
+        *,
+        job_id: int,
+        lease_token: str,
+        reason: str,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+    ) -> dict[str, Any]:
+        semantic = self._contracts.semantic(config)
+        job = self._leases.leased_agent_job(
+            job_id,
+            lease_token,
+            repository_id=repository_id,
+            allow_completed=True,
+        )
+        if job["status"] == "completed":
+            return {"status": "already_completed", "job_id": job_id}
+        self._leases.validate_current_agent_job(job, repository_id, semantic)
+        retry = self._persistence.fail_job(
+            job,
+            SemanticAnalysisError(reason.strip() or "Coding agent model execution failed"),
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+        )
+        return {
+            "status": "retry" if retry else "failed",
             "job_id": job_id,
             "semantic": self._reporting.status(repository_id, semantic),
         }

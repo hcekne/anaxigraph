@@ -121,6 +121,16 @@ class SemanticMcpTools:
             ),
             annotations=_write_annotations(idempotent=False),
         )
+        self.server.add_tool(
+            self.fail,
+            name="ANAXIGRAPH_SEMANTIC_FAIL",
+            title="Report one failed AI-mapping attempt",
+            description=(
+                "Record a model or result failure for one claimed task, including reported token "
+                "use, then retry it only while its saved attempt limit allows."
+            ),
+            annotations=_write_annotations(idempotent=False),
+        )
 
     def status(self, repository: str = "") -> dict[str, Any]:
         row, root = self.context(repository)
@@ -219,6 +229,26 @@ class SemanticMcpTools:
             job_id=job_id,
             lease_token=lease_token,
             reason=reason,
+        )
+
+    def fail(
+        self,
+        job_id: int,
+        lease_token: str,
+        reason: str,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+        repository: str = "",
+    ) -> dict[str, Any]:
+        row, root = self.context(repository)
+        return SemanticEngine(self.database).fail_agent_work(
+            int(row["id"]),
+            self.config_for(row, root),
+            job_id=job_id,
+            lease_token=lease_token,
+            reason=reason,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
         )
 
     def _map_status(self, row: dict[str, Any], root: Any) -> dict[str, Any]:

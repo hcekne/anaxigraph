@@ -123,8 +123,10 @@ def _usage(connection: sqlite3.Connection, repository_id: int) -> sqlite3.Row:
         """
         SELECT COALESCE(SUM(input_tokens), 0) AS input_tokens,
                COALESCE(SUM(output_tokens), 0) AS output_tokens,
-               COALESCE(SUM(COALESCE(actual_cost_usd, estimated_cost_usd, 0)), 0) AS cost
-        FROM semantic_jobs WHERE repository_id = ? AND status = 'completed'
+               COALESCE(SUM(CASE WHEN status = 'completed'
+                   THEN COALESCE(actual_cost_usd, estimated_cost_usd, 0)
+                   ELSE COALESCE(actual_cost_usd, 0) END), 0) AS cost
+        FROM semantic_jobs WHERE repository_id = ?
         """,
         (repository_id,),
     ).fetchone()
@@ -219,14 +221,12 @@ def _semantic_actions(
                SUM(status = 'retry') AS retry,
                SUM(status = 'failed') AS failed,
                SUM(status = 'superseded') AS superseded,
-               SUM(status = 'completed' AND (input_tokens > 0 OR output_tokens > 0))
+               SUM(input_tokens > 0 OR output_tokens > 0)
                    AS token_counts_reported,
                SUM(status = 'completed' AND input_tokens = 0 AND output_tokens = 0)
                    AS token_counts_missing,
-               COALESCE(SUM(CASE WHEN status = 'completed' THEN input_tokens ELSE 0 END), 0)
-                   AS input_tokens,
-               COALESCE(SUM(CASE WHEN status = 'completed' THEN output_tokens ELSE 0 END), 0)
-                   AS output_tokens,
+               COALESCE(SUM(input_tokens), 0) AS input_tokens,
+               COALESCE(SUM(output_tokens), 0) AS output_tokens,
                COALESCE(SUM(CASE WHEN status = 'completed'
                    THEN COALESCE(actual_cost_usd, estimated_cost_usd, 0) ELSE 0 END), 0)
                    AS cost_usd,

@@ -196,6 +196,7 @@ CODING_LOOP_CONTRACT = {
         "ANAXIGRAPH_SEMANTIC_EVIDENCE",
         "ANAXIGRAPH_SEMANTIC_SUBMIT",
         "ANAXIGRAPH_SEMANTIC_RELEASE",
+        "ANAXIGRAPH_SEMANTIC_FAIL",
     ],
     "development_cadence": {
         "cold_start": (

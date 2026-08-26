@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import anaxigraph.cli_services as cli_services
+from anaxigraph.local_runtime import local_database_path
 
 
 def add_repository_arguments(parser: argparse.ArgumentParser) -> None:
@@ -36,13 +37,14 @@ def default_db() -> Path:
 
 
 def ensure_current(args: argparse.Namespace) -> tuple[Any, int, Any]:
-    database = cli_services.open_index(args.db)
+    repository = args.repository.expanduser().resolve()
+    database = cli_services.open_index(local_database_path(repository, explicit=args.db))
     stats = cli_services.scanner(database).scan(
-        args.repository,
+        repository,
         config_path=args.config,
         run_type="agent_context",
     )
-    config = cli_services.load_repository_config(args.repository.resolve(), args.config)
+    config = cli_services.load_repository_config(repository, args.config)
     return database, stats.repository_id, config
 
 

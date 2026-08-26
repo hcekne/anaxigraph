@@ -129,18 +129,25 @@ async def _wait_for_mcp_repository(
 ) -> list[dict[str, Any]]:
     """Wait until startup scanning makes the configured repository queryable."""
     deadline = time.monotonic() + timeout_seconds
+    last_error = ""
     while True:
         result = await session.call_tool("ANAXIGRAPH_REPOSITORIES", arguments={})
         if result.isError:
-            raise RuntimeError("container MCP repository query failed")
-        content = result.structuredContent or {}
-        repositories = content.get("repositories") or []
-        if repositories:
-            return repositories
+            last_error = " ".join(
+                str(getattr(item, "text", ""))
+                for item in (getattr(result, "content", None) or [])
+                if getattr(item, "text", "")
+            )[:1_000]
+        else:
+            content = result.structuredContent or {}
+            repositories = content.get("repositories") or []
+            if repositories:
+                return repositories
         if time.monotonic() >= deadline:
+            detail = f" Last repository-list error: {last_error}" if last_error else ""
             raise RuntimeError(
                 "container became healthy, but its startup scan did not expose a repository "
-                f"within {timeout_seconds:g} seconds"
+                f"within {timeout_seconds:g} seconds.{detail}"
             )
         await asyncio.sleep(poll_seconds)
 

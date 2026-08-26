@@ -42,6 +42,22 @@ GOAL_TERM_GROUPS = (
     frozenset({"better", "improve", "improved", "improvement"}),
     frozenset({"large", "larger", "oversized", "size"}),
     frozenset({"coupling", "cycle", "dependency", "tangle", "tangled"}),
+    frozenset(
+        {
+            "cost",
+            "duration",
+            "elapsed",
+            "measurement",
+            "metric",
+            "report",
+            "spend",
+            "status",
+            "telemetry",
+            "timing",
+            "token",
+            "usage",
+        }
+    ),
 )
 
 DOCUMENTATION_INTENT_TERMS = frozenset(

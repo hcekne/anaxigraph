@@ -102,11 +102,21 @@ class CodexSemanticProvider:
                 message = (
                     message_path.read_text(encoding="utf-8") if completed.returncode == 0 else ""
                 )
-        except (OSError, subprocess.TimeoutExpired) as exc:
+        except subprocess.TimeoutExpired as exc:
+            input_tokens, output_tokens = _codex_usage(_text_output(exc.stdout))
+            raise SemanticAnalysisError(
+                f"Codex semantic run failed: {exc}",
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+            ) from exc
+        except OSError as exc:
             raise SemanticAnalysisError(f"Codex semantic run failed: {exc}") from exc
         if completed.returncode != 0:
+            input_tokens, output_tokens = _codex_usage(completed.stdout)
             raise SemanticAnalysisError(
-                f"Codex exited with {completed.returncode}: {completed.stderr.strip()[:1_000]}"
+                f"Codex exited with {completed.returncode}: {completed.stderr.strip()[:1_000]}",
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
             )
         input_tokens, output_tokens = _codex_usage(completed.stdout)
         return _result_from_json(
@@ -156,6 +166,12 @@ def _codex_usage(events: str) -> tuple[int, int]:
         int(usage.get("input_tokens") or usage.get("total_input_tokens") or 0),
         int(usage.get("output_tokens") or usage.get("total_output_tokens") or 0),
     )
+
+
+def _text_output(value: str | bytes | None) -> str:
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return value or ""
 
 
 class ClaudeSemanticProvider:
@@ -389,20 +405,48 @@ def _result_from_json(
     try:
         value = json.loads(text.strip())
     except json.JSONDecodeError as exc:
-        raise SemanticAnalysisError("Semantic provider did not return valid JSON") from exc
-    if isinstance(value, dict) and "dossier" in value and isinstance(value["dossier"], dict):
-        usage = value.get("usage") or {}
-        input_tokens = int(usage.get("input_tokens") or input_tokens)
-        output_tokens = int(usage.get("output_tokens") or output_tokens)
-        value = value["dossier"]
-    elif isinstance(value, dict) and "result" in value and isinstance(value["result"], dict):
-        usage = value.get("usage") or {}
-        input_tokens = int(usage.get("input_tokens") or input_tokens)
-        output_tokens = int(usage.get("output_tokens") or output_tokens)
-        value = value["result"]
-    return validated_semantic_response(
-        value,
-        request or {},
-        input_tokens=input_tokens,
-        output_tokens=output_tokens,
+        raise SemanticAnalysisError(
+            "Semantic provider did not return valid JSON",
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+        ) from exc
+    value, input_tokens, output_tokens = _result_envelope(value, input_tokens, output_tokens)
+    return _validated_with_usage(value, request or {}, input_tokens, output_tokens)
+
+
+def _result_envelope(value: Any, input_tokens: int, output_tokens: int) -> tuple[Any, int, int]:
+    if not isinstance(value, dict):
+        return value, input_tokens, output_tokens
+    key = next(
+        (name for name in ("dossier", "result") if isinstance(value.get(name), dict)),
+        None,
     )
+    if key is None:
+        return value, input_tokens, output_tokens
+    usage = value.get("usage") or {}
+    return (
+        value[key],
+        int(usage.get("input_tokens") or input_tokens),
+        int(usage.get("output_tokens") or output_tokens),
+    )
+
+
+def _validated_with_usage(
+    value: Any,
+    request: dict[str, Any],
+    input_tokens: int,
+    output_tokens: int,
+) -> SemanticResult:
+    try:
+        return validated_semantic_response(
+            value,
+            request,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+        )
+    except SemanticAnalysisError as exc:
+        if exc.input_tokens or exc.output_tokens:
+            raise
+        raise SemanticAnalysisError(
+            str(exc), input_tokens=input_tokens, output_tokens=output_tokens
+        ) from exc

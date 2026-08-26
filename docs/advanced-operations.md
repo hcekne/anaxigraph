@@ -201,6 +201,9 @@ records:
 
 Repeated reconciliation of an unchanged repository creates no new source-reading jobs. Durable
 jobs, attempts, leases, failures, token counts, and costs allow interrupted work to resume.
+Successful and failed model attempts contribute token totals when the executor reports usage. A
+process killed before it emits usage remains explicitly unreported rather than being recorded as a
+zero-token call.
 
 The semantic `include` and `exclude` patterns are source-egress controls as well as scheduling
 rules. `max_jobs_per_run`, `max_parallel_jobs`, and `daily_budget_usd` bound work. Configure

@@ -140,6 +140,17 @@ DOSSIER_SCHEMA: dict[str, Any] = {
 class SemanticAnalysisError(RuntimeError):
     """The configured semantic provider could not return a valid dossier."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+    ) -> None:
+        super().__init__(message)
+        self.input_tokens = max(0, int(input_tokens))
+        self.output_tokens = max(0, int(output_tokens))
+
 
 @dataclass(frozen=True, slots=True)
 class SemanticResult:

@@ -7,8 +7,15 @@ import pytest
 
 from anaxigraph.agent import agent_scope, impact_analysis
 from anaxigraph.agent_graph import _select_primary
+from anaxigraph.agent_lexicon import goal_terms
 from anaxigraph.config import load_config
 from anaxigraph.scanner import RepositoryScanner
+
+
+def test_token_usage_goals_include_status_and_telemetry_vocabulary():
+    terms = goal_terms("Show how many model tokens these actions use")
+
+    assert {"token", "usage", "cost", "status", "telemetry", "duration"} <= terms
 
 
 def test_agent_scope_is_bounded_and_includes_tests_protection_and_rules(repository, database):

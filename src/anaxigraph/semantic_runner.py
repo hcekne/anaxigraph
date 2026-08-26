@@ -247,7 +247,12 @@ class SemanticRunnerService:
             self._persistence.mark_superseded(int(job["id"]), str(exc))
             return "superseded"
         except Exception as exc:
-            retry = self._persistence.fail_job(job, exc)
+            retry = self._persistence.fail_job(
+                job,
+                exc,
+                input_tokens=max(0, int(getattr(exc, "input_tokens", 0))),
+                output_tokens=max(0, int(getattr(exc, "output_tokens", 0))),
+            )
             return "retry" if retry else "failed"
 
     def analyze_request(

@@ -65,6 +65,13 @@ class SemanticPersistencePort(Protocol):
         semantic: SemanticConfig,
     ) -> None: ...
 
-    def fail_job(self, job: dict[str, Any], exc: Exception) -> bool: ...
+    def fail_job(
+        self,
+        job: dict[str, Any],
+        exc: Exception,
+        *,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+    ) -> bool: ...
 
     def mark_superseded(self, job_id: int, reason: str) -> None: ...
