@@ -182,10 +182,7 @@ def _task_module(
     for symbol in symbols:
         path = str(symbol.get("path") or "")
         matches = len(
-            terms
-            & _terms(
-                " ".join(str(symbol.get(key) or "") for key in ("name", "signature", "summary"))
-            )
+            terms & _terms(" ".join(str(symbol.get(key) or "") for key in ("name", "summary")))
         )
         scores[path] = max(scores.get(path, 0), matches)
     candidates = [item for item in primary_files if scores.get(str(item.get("path") or ""), 0)]

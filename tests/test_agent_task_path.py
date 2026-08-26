@@ -132,7 +132,7 @@ def test_project_rule_path_does_not_invent_a_matching_symbol():
     assert result["module"]["path"] in result["plain_language"]["conclusion"]
 
 
-def test_task_path_does_not_replace_a_matching_preferred_file_with_a_symbol_heavy_file():
+def test_task_path_does_not_replace_a_matching_preferred_file_with_a_signature_heavy_file():
     preferred = _module()
     preferred["path"] = "src/architecture_verification.py"
     alternative = _module()
@@ -147,16 +147,18 @@ def test_task_path_does_not_replace_a_matching_preferred_file_with_a_symbol_heav
         },
         {
             "path": alternative["path"],
-            "name": "dependency_degree",
+            "name": "build_architecture_decision",
             "symbol_type": "function",
-            "signature": "dependency_degree(files)",
+            "signature": (
+                "build_architecture_decision(verification_baseline, structural_dependency_cycle)"
+            ),
             "start_line": 10,
         },
         {
             "path": alternative["path"],
-            "name": "cycle_finding",
+            "name": "missing_change_coupling",
             "symbol_type": "function",
-            "signature": "cycle_finding(files)",
+            "signature": "missing_change_coupling(verification_baseline)",
             "start_line": 20,
         },
     ]
