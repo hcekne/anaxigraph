@@ -4,10 +4,10 @@ from anaxigraph.agent_decision import build_architecture_decision
 from anaxigraph.agent_decomposition import compact_decomposition, decomposition_advice
 
 
-def _module(*, recommendation="split", status="current", responsibilities=None):
+def _module(*, recommendation="split", status="current", responsibilities=None, lines_of_code=620):
     return {
         "path": "src/config.py",
-        "lines_of_code": 620,
+        "lines_of_code": lines_of_code,
         "incoming_paths": ["src/cli.py", "tests/test_config.py"],
         "outgoing_paths": ["src/models.py"],
         "semantic": {
@@ -65,6 +65,15 @@ def _finding():
     }
 
 
+def _rules():
+    return [
+        {
+            "type": "max_module_loc",
+            "parameters": {"max": 500, "paths": ["src/**"]},
+        }
+    ]
+
+
 def test_mixed_responsibility_file_gets_a_bounded_extraction_map():
     result = decomposition_advice(
         [_module()],
@@ -105,18 +114,50 @@ def test_mixed_responsibility_file_gets_a_bounded_extraction_map():
     ]
 
 
+def test_near_limit_mixed_file_gets_a_plan_before_it_breaks_the_rule():
+    result = decomposition_advice(
+        [_module(lines_of_code=445)],
+        _symbols(),
+        ["tests/test_config.py"],
+        [],
+        [],
+        _rules(),
+    )
+
+    assert result["candidate_count"] == 1
+    assert result["items"][0]["trigger"]["size_rule_active"] is False
+    assert result["items"][0]["trigger"]["review_starts_at_lines"] == 400
+
+
 def test_large_cohesive_file_is_explicitly_kept_together():
     module = _module(
         recommendation="keep",
+        lines_of_code=445,
         responsibilities=["Load and validate all configuration through load_config"],
     )
 
-    result = decomposition_advice([module], _symbols(), [], [_finding()], [])
+    result = decomposition_advice([module], _symbols(), [], [], [], _rules())
 
     item = result["items"][0]
     assert item["status"] == "keep_together"
     assert item["slices"] == []
     assert "size alone" in item["plain_language"]["conclusion"]
+    assert item["trigger"]["configured_maximum_lines"] == 500
+    assert item["trigger"]["review_starts_at_lines"] == 400
+
+
+def test_small_semantic_split_does_not_create_large_file_fragments():
+    result = decomposition_advice(
+        [_module(lines_of_code=169)],
+        _symbols(),
+        [],
+        [],
+        [],
+        _rules(),
+    )
+
+    assert result["items"] == []
+    assert result["candidate_count"] == 0
 
 
 def test_stale_or_unmapped_semantic_evidence_cannot_invent_a_split():

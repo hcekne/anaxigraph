@@ -99,7 +99,7 @@ def agent_scope(
         symbols,
         hierarchy,
         tests,
-        findings,
+        (findings, rules),
         verification_baseline,
     )
     return _scope_payload(
@@ -155,9 +155,10 @@ def _scope_decision(
     symbols: list[dict[str, Any]],
     hierarchy: list[dict[str, Any]],
     tests: set[str],
-    findings: list[dict[str, Any]],
+    evidence: tuple[list[dict[str, Any]], list[dict[str, Any]]],
     verification_baseline: dict[str, Any] | None,
 ) -> dict[str, Any]:
+    findings, rules = evidence
     return architecture_decision(
         database,
         repository_id=repository_id,
@@ -170,6 +171,7 @@ def _scope_decision(
         hierarchy=hierarchy,
         tests=sorted(tests),
         findings=findings,
+        rules=rules,
         verification_baseline=verification_baseline,
     )
 

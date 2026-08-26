@@ -35,6 +35,7 @@ def architecture_decision(
     hierarchy: list[dict[str, Any]],
     tests: list[str],
     findings: list[dict[str, Any]],
+    rules: list[dict[str, Any]],
     verification_baseline: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     patterns = _pattern_items(database, repository_id, snapshot_id, primary_files)
@@ -52,6 +53,7 @@ def architecture_decision(
         hierarchy=hierarchy,
         tests=tests,
         findings=findings,
+        rules=rules,
         pattern_items=patterns,
         repository_identity=repository_identity,
         goal=goal,
@@ -68,6 +70,7 @@ def build_architecture_decision(
     tests: list[str],
     findings: list[dict[str, Any]],
     pattern_items: list[dict[str, Any]],
+    rules: list[dict[str, Any]] | None = None,
     repository_identity: str = "",
     goal: str = "",
     verification_baseline: dict[str, Any] | None = None,
@@ -78,14 +81,12 @@ def build_architecture_decision(
     preferred = _preferred_file(primary_files)
     reviewed_patterns = _reviewed_patterns(pattern_items)
     semantic_current = sum(_semantic_current(item) for item in primary_files)
-    status = _decision_status(primary_files, semantic_current, reviewed_patterns)
-    language = _decision_language(status, primary_files, semantic_current, reviewed_patterns)
+    state = _decision_state(primary_files, semantic_current, reviewed_patterns)
     route = task_path(goal, preferred, primary_files, symbols or [], tests, hierarchy or [])
     return {
         "contract_version": ARCHITECTURE_DECISION_VERSION,
         "snapshot_id": snapshot_id,
-        "status": status,
-        "plain_language": language,
+        **state,
         "task_path": route,
         "placement": _placement(preferred, interfaces, reviewed_patterns),
         "change_constraints": _change_constraints(primary_files),
@@ -97,6 +98,7 @@ def build_architecture_decision(
             symbols or [],
             tests,
             findings,
+            rules or [],
         ),
         "dead_code": dead_code_advice(primary_files, findings),
         "verification": verification(
@@ -112,6 +114,20 @@ def build_architecture_decision(
     }
 
 
+def _decision_state(
+    primary_files: list[dict[str, Any]],
+    semantic_current: int,
+    reviewed_patterns: list[dict[str, Any]],
+) -> dict[str, Any]:
+    status = _decision_status(primary_files, semantic_current, reviewed_patterns)
+    return {
+        "status": status,
+        "plain_language": _decision_language(
+            status, primary_files, semantic_current, reviewed_patterns
+        ),
+    }
+
+
 def _structural_advice(
     primary_files: list[dict[str, Any]],
     patterns: list[dict[str, Any]],
@@ -119,6 +135,7 @@ def _structural_advice(
     symbols: list[dict[str, Any]],
     tests: list[str],
     findings: list[dict[str, Any]],
+    rules: list[dict[str, Any]],
 ) -> dict[str, Any]:
     return {
         "history_evidence": {"change_coupling": change_coupling or _missing_change_coupling()},
@@ -133,6 +150,7 @@ def _structural_advice(
             tests,
             findings,
             patterns,
+            rules,
         ),
     }
 
