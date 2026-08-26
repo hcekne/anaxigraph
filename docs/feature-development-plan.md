@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.37
+**Roadmap version:** 3.38
 
 **Updated:** 26 August 2026
 
@@ -111,7 +111,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 574 tests passing plus 17 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, post-change comparison, and three-size core-loop paths are regression-tested |
+| Test health | 601 tests passing plus 17 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, post-change comparison, and three-size core-loop paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -2408,8 +2408,7 @@ change also lowers the `evaluate_architecture` and finding-lifecycle maintainabi
 
 # Phase 9 — make the real core loop dependable, then prove it for 1.0
 
-**Status:** ACTIVE; ORIGINAL CORE DECISIONS COMPLETE; CONCEPT-LEVEL PLACEMENT PRECISION REOPENED
-on 26 August 2026
+**Status:** COMPLETE on 26 August 2026; optional external MaxOS evidence remains paused
 
 **Goal:** prove that the existing AnaxiGraph loop helps a person or coding agent place and change
 code without creating sprawl, tangled dependencies, misplaced responsibilities, or giant files.
@@ -2530,8 +2529,7 @@ module size, code quality, architecture, Ruff, and focused REST/MCP tests also p
 
 ## 9.2 Prove architecture decisions at representative sizes
 
-**Status:** SELF-HOSTED CORE-DECISION ACCEPTANCE COMPLETE; CONCEPT-LEVEL PLACEMENT PRECISION
-ACTIVE on 26 August 2026; external MaxOS evidence optional and paused
+**Status:** COMPLETE on 26 August 2026; external MaxOS evidence is optional and paused
 
 Run the same coding tasks against small, medium, and large Python-first repositories. Record only
 measurements that decide whether the map is useful:
@@ -2583,8 +2581,8 @@ presence, and one-file incremental work are the contracts. The exact environment
 retained in `benchmarks/results/core-loop-scale-2026-08-25.json`. Mixed-versus-cohesive large-file
 decisions and all five structural-effect classes remain covered by focused bounded fixtures after
 scope selection; multiplying irrelevant modules inside those already-local calculations would not
-add product evidence. Remaining §9.2 work is the current self-hosted precision task set above; the
-paused MaxOS run is optional external evidence. The complete Python suite passes with 559 tests at
+add product evidence. The self-hosted precision task set is complete; the paused MaxOS run is
+optional external evidence. The complete Python suite passes with 559 tests at
 91.63% coverage; Ruff, module-size, code-quality, architecture, and self-analysis gates also pass.
 
 The first current-map placement task exposed a core defect instead of being counted as a success.
@@ -2607,12 +2605,20 @@ A broader self-hosted goal then proved that placement was still too dependent on
 looking like a filename. “Verify whether a code change improved the repository structure without
 making files larger or dependencies more tangled” selected `scripts/verify_release_artifacts.py`
 and routed the hierarchy through `relationship_builder.py`, even though
-`agent_decision_verification.py` owns that behavior. The active fix stays inside the existing
-lexical ranker: normalize snake-case names, ignore generic goal filler, and expand only a few core
-product concepts such as structure/architecture, verify/compare, size/large, and
-dependency/coupling. The acceptance result must select the verification module and its comparison
-symbols on the current semantic map. Unrelated-primary-file rate is measured next as a separate
-precision question; it is not hidden by a correct first result.
+`agent_decision_verification.py` owns that behavior. The fix stays inside the existing lexical
+ranker: normalize snake-case names, ignore generic goal filler, and expand only a few core product
+concepts such as structure/architecture, verify/compare, size/large, and dependency/coupling.
+
+Authoritative snapshot 316 closed the acceptance. The same goal returned a five-file primary set
+centered on `agent_decision_verification.py`, selected `compare_verification_baselines`,
+`verification_baseline`, and `_comparison_status`, and placed them under the reviewed area “Prepare
+change help and AI code reports” and subsystem “Choose files and explain a requested change.” No
+release or unrelated file entered the primary set. A separate telemetry-placement goal selected
+the existing `semantic_status_queries.py` responsibility and named `SemanticStatusRows`,
+`read_semantic_status`, and `_usage` as extension points. The paired controlled fixture permits a
+new sibling only when no supplied destination honestly owns the responsibility. Together these
+results close both concept-level precision and extend-existing-versus-create-new acceptance without
+adding another planning path.
 
 ## 9.3 Keep one documented coding loop
 
