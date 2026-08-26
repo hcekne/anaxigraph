@@ -6,6 +6,7 @@ from dataclasses import replace
 import pytest
 
 from anaxigraph.agent import agent_scope, impact_analysis
+from anaxigraph.agent_graph import _select_primary
 from anaxigraph.config import load_config
 from anaxigraph.scanner import RepositoryScanner
 
@@ -146,6 +147,81 @@ def test_agent_scope_prefers_a_test_for_an_explicit_test_goal(repository, databa
     decision = value["architecture_decision"]
     assert decision["placement"]["preferred_path"] == expected
     assert decision["task_path"]["module"]["path"] == expected
+
+
+def test_agent_scope_places_a_concept_level_architecture_verification_goal(repository, database):
+    implementation = repository / "src" / "product" / "agent_decision_verification.py"
+    implementation.parent.mkdir(parents=True)
+    implementation.write_text(
+        '"""Save architecture baselines and compare repository structure after a change."""\n\n'
+        "def verification_baseline():\n    return {}\n\n"
+        "def compare_verification_baselines():\n    return {}\n",
+        encoding="utf-8",
+    )
+    effects = repository / "src" / "product" / "agent_change_effects.py"
+    effects.write_text(
+        '"""Classify structural changes as worse, better, new, fixed, or unchanged."""\n\n'
+        "def structural_effects():\n    return []\n",
+        encoding="utf-8",
+    )
+    release_check = repository / "scripts" / "verify_release_artifacts.py"
+    release_check.parent.mkdir()
+    release_check.write_text(
+        '"""Verify repository release files before publishing."""\n\n'
+        "def verify_distribution():\n    return True\n",
+        encoding="utf-8",
+    )
+    stats = RepositoryScanner(database).scan(repository)
+
+    value = agent_scope(
+        database,
+        repository_id=stats.repository_id,
+        goal=(
+            "Verify whether a code change improved the repository structure without making "
+            "files larger or dependencies more tangled"
+        ),
+        branch=None,
+        config=load_config(repository),
+    )
+
+    expected = "src/product/agent_decision_verification.py"
+    assert value["primary_files"][0]["path"] == expected
+    decision = value["architecture_decision"]
+    assert decision["placement"]["preferred_path"] == expected
+    assert decision["task_path"]["module"]["path"] == expected
+    assert "verification_baseline" in {
+        symbol["name"] for symbol in decision["task_path"]["symbols"]
+    }
+
+
+def test_primary_scope_uses_the_reviewed_responsibility_instead_of_unrelated_matches():
+    def module(path, area, subsystem):
+        return {
+            "path": path,
+            "declared_group": None,
+            "inferred_group": "sample",
+            "semantic_taxonomy": {"area": area, "subsystem": subsystem},
+            "architecture_placement": {
+                "area": area,
+                "subsystem": subsystem,
+                "source": "AI-created map checked by a separate AI pass",
+            },
+        }
+
+    files = {
+        1: module("src/architecture_verification.py", "change-help", "verification"),
+        2: module("scripts/verify_release.py", "release", "packages"),
+        3: module("src/verification_contract.py", "change-help", "verification"),
+        4: module("src/change_effects.py", "change-help", "verification"),
+        5: module("src/architecture_rules.py", "change-help", "findings"),
+        6: module("src/generic_change_helper.py", "change-help", "verification"),
+    }
+
+    assert _select_primary(
+        [(100.0, 1), (95.0, 2), (90.0, 3), (85.0, 4), (80.0, 5), (20.0, 6)],
+        files,
+        limit=8,
+    ) == [1, 3, 4]
 
 
 def test_impact_follows_reverse_edges_and_relevant_tests(repository, database):

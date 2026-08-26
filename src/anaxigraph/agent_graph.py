@@ -27,6 +27,8 @@ from anaxigraph.agent_scope_evidence import (
     _applicable_rules as _applicable_rules,
 )
 
+_SEMANTIC_PRIMARY_SCORE_RATIO = 0.35
+
 
 def _rank_files(
     connection: sqlite3.Connection,
@@ -146,6 +148,9 @@ def _select_primary(
     *,
     limit: int,
 ) -> list[int]:
+    focused = _semantic_primary(ranked, files, limit=limit)
+    if focused:
+        return focused
     selected: list[int] = []
     per_directory: dict[str, int] = defaultdict(int)
     per_group: dict[str, int] = defaultdict(int)
@@ -166,6 +171,34 @@ def _select_primary(
             if len(selected) == limit:
                 break
     return selected
+
+
+def _semantic_primary(
+    ranked: list[tuple[float, int]], files: dict[int, dict[str, Any]], *, limit: int
+) -> list[int]:
+    """Keep a current AI-reviewed working set inside the best matching responsibility."""
+
+    if not ranked:
+        return []
+    top_score, top_id = ranked[0]
+    focus = _semantic_placement(files[top_id])
+    if focus is None:
+        return []
+    score_floor = top_score * _SEMANTIC_PRIMARY_SCORE_RATIO
+    return [
+        artifact_id
+        for score, artifact_id in ranked
+        if score >= score_floor and _semantic_placement(files[artifact_id]) == focus
+    ][:limit]
+
+
+def _semantic_placement(item: dict[str, Any]) -> tuple[str, str] | None:
+    if not item.get("semantic_taxonomy"):
+        return None
+    placement = item.get("architecture_placement") or {}
+    area = str(placement.get("area") or "")
+    subsystem = str(placement.get("subsystem") or "")
+    return (area, subsystem) if area and subsystem else None
 
 
 def _expand_relevant(

@@ -1,6 +1,6 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.36
+**Roadmap version:** 3.37
 
 **Updated:** 26 August 2026
 
@@ -250,8 +250,10 @@ worker could stop before its durable queue was complete. Those were core defects
 been fixed and retained as regression gates; they are not reasons to keep expanding lifecycle,
 operations, or executor machinery.
 
-The need-to-have list is the six coding decisions below. Each decision closes independently so a
-large combined status cannot hide stalled work:
+The original six coding decisions below are delivered foundations, not a claim that placement and
+scope precision can no longer fail. Self-hosted dogfooding remains part of the product loop: a
+normal goal that reaches the wrong implementation reopens that decision without reopening the
+completed feature families around it.
 
 | Priority | Status | Need-to-have decision | Exit evidence |
 |---:|---|---|---|
@@ -261,6 +263,18 @@ large combined status cannot hide stalled work:
 | 4 | **COMPLETE** | Judge pattern fit at the level where the design decision lives | Sparse bounded selection covers genuinely different patterns across repository, area, subsystem, module, type, and symbol levels; obvious candidates are not crowded out by generic patterns; advice includes fit, counter-evidence, and verification |
 | 5 | **COMPLETE** | Split a genuinely mixed large file without fragmenting a cohesive one | A controlled mixed-responsibility file gets bounded extraction slices with contracts, callers, tests, and move order, while a self-hosted cohesive near-limit file is explicitly left intact |
 | 6 | **COMPLETE** | Verify whether a change improved structure | A real before/after task distinguishes introduced, worsened, improved, resolved, and unchanged or pre-existing effects for boundaries, coupling, cycles, size, complexity, and responsibility placement |
+
+The remaining active list is intentionally short:
+
+| Priority | Status | Core question | Smallest acceptable evidence |
+|---:|---|---|---|
+| 1 | **IN PROGRESS** | Can a normal concept-level goal find the responsible implementation without already naming its file? | The self-hosted architecture-verification goal must select `agent_decision_verification.py`, its comparison symbols, and its reviewed hierarchy instead of release or relationship code |
+| 2 | **NEXT ACCEPTANCE PROBE** | Is the returned primary working set small enough that an agent can trust what it should actually read? | Measure unnecessary primary files on the same self-hosted goal, then change the existing ranker only if unrelated files remain material; do not add search infrastructure |
+| 3 | **NEXT ACCEPTANCE PROBE** | When adding a responsibility, does the map make extend-existing versus create-new clear enough to prevent file sprawl? | One self-hosted goal must return an existing responsibility and extension point when one exists, while a controlled fixture permits a new sibling only when no honest home exists |
+
+Impact traversal, pattern fit, large-file decomposition, and before/after verification remain hard
+regression gates. They do not become new feature phases unless a concrete coding task demonstrates
+that their current answer is wrong or unusable.
 
 The live pattern run completed 200 bounded reviews across 91 distinct patterns and retained specific
 provider-abstraction advice without letting generic patterns occupy the queue. Large-file dogfooding
@@ -286,9 +300,9 @@ repaired when they block a core decision, but they do not create feature familie
 The following are nice-to-have, not active product work: broader parsers and adapters, more
 dashboards or API families, generic operational tooling, provider-specific orchestration,
 warning-cleanup campaigns, additional explanatory-language sweeps, ecosystem work, and
-release-process expansion. The paused MaxOS run is retained acceptance evidence, not a feature; it
-stays untouched until the operator explicitly resumes it. AnaxiGraph dogfooding remains required
-because it directly tests the need-to-have decisions.
+release-process expansion. The paused MaxOS run is optional external evidence, not a feature or a
+release blocker; it stays untouched until the operator explicitly resumes it. AnaxiGraph
+dogfooding remains required because it directly tests the need-to-have decisions.
 
 Warning cleanup is also not an automatic queue. Fix a warning when it blocks a hard gate, touches
 code already being changed for a core outcome, or describes a demonstrated product defect. A clean
@@ -1616,12 +1630,11 @@ execute SQL or semantic state transitions.
 
 # Phase 6 — architect-grade semantic and pattern intelligence
 
-**Status:** CORE IMPLEMENTATION COMPLETE on 25 August 2026; live calibration and paid MaxOS
-acceptance remain deferred while the operator's semantic-run pause is active.
+**Status:** COMPLETE on 26 August 2026; self-hosted calibration passed and optional external MaxOS
+evidence remains paused.
 
-The deterministic exit gate is met. Under the non-convergence rule, the paused live acceptance is
-retained as release evidence rather than allowed to block unrelated core-mission work. It must be
-run before a release claims real-repository calibration, but no parser, provider, or adjacent
+The deterministic and self-hosted exit gates are met. The paused external run may add independent
+evidence later, but it does not block the core roadmap. No parser, provider, or adjacent
 plain-language work is opened merely to keep this phase busy.
 
 **Goal:** turn the current semantic map into a compact, evidence-backed pattern intelligence system
@@ -1780,10 +1793,10 @@ evidence, but absence of that feedback never blocks the semantic map or pattern 
 
 ## 6.7 Add consolidation, dead-code, and placement intelligence
 
-**Status:** IMPLEMENTED; LIVE CALIBRATION PAUSED — goal-specific placement, consolidation and
-unused-code safety, change constraints, post-change comparison, and the human-and-agent-readable
-main and expanded evidence contracts are complete on 25 August 2026. The only remaining §6.7
-evidence is live-sidecar calibration after the operator lifts the semantic-run pause.
+**Status:** COMPLETE on 26 August 2026 — goal-specific placement, consolidation and unused-code
+safety, change constraints, post-change comparison, and the human-and-agent-readable main and
+expanded evidence contracts are implemented and self-hosted. The paused external calibration is
+optional evidence, not unfinished §6.7 product work.
 
 Repeated-responsibility and consolidation analysis combine structural similarity, semantic
 responsibility, public contracts, graph neighborhoods, architecture placement, and change coupling,
@@ -1975,12 +1988,11 @@ code-quality verdict without the intended outcome and focused tests.
 
 ## 6.8 Expose pattern intelligence without multiplying product surfaces
 
-**Status:** IMPLEMENTED; LIVE CALIBRATION PAUSED — target- and pattern-centric queries, selected and
-skipped candidate explanations, all 128 pattern-name meanings, readable main and expanded evidence,
-versioned calibration, and deterministic same-goal comparison are complete on 25 August 2026. The
-only remaining §6.8 evidence is running the real-repository calibration after the operator lifts the
-semantic-run pause. Longitudinal outcome correlation is explicitly deferred to Phase 7 and is not a
-§6.8 closure item.
+**Status:** COMPLETE on 26 August 2026 — target- and pattern-centric queries, selected and skipped
+candidate explanations, all 128 pattern-name meanings, readable main and expanded evidence,
+versioned calibration, and deterministic same-goal comparison are implemented and self-hosted. The
+paused external calibration is optional evidence, not unfinished §6.8 product work. Longitudinal
+outcome correlation was delivered through Phase 7 and is not a §6.8 closure item.
 
 Reuse the existing semantic queue, leases, evidence paging, provenance, taxonomy, and bounded query
 infrastructure. Add one narrow evaluation projection keyed by target, pattern, snapshot, and
@@ -2072,8 +2084,8 @@ with self-analysis at 26 governed findings, 132 non-blocking findings, and zero 
 
 ## 6.9 Make repository-sized semantic bootstrap operational
 
-**Status:** IMPLEMENTED AND DETERMINISTICALLY VERIFIED on 25 August 2026; Phase 9 self-hosted
-authority acceptance reopened and paid MaxOS acceptance paused.
+**Status:** COMPLETE on 26 August 2026; authoritative self-hosted execution is verified and the
+paused MaxOS run is optional external evidence.
 
 The repository-sized path now uses a queue-first, stage-boundary lifecycle. Module planning carries
 canonical file-fact identities directly, claim atomically reclaims expired leases, and submission
@@ -2100,13 +2112,11 @@ Deterministic acceptance evidence:
 - complete Python coverage, Ruff, formatting, size, complexity, coupling, architecture,
   self-analysis, Compose, container, first-user, and benchmark gates remain release requirements.
 
-The implementation claim remains bounded to deterministic evidence. A later self-hosted check found
-that the served AnaxiGraph snapshot lagged the checkout and exposed no semantic hierarchy, so Phase
-9.0 reopened authoritative current-map acceptance before the paid run. After that is fixed, the
-remaining external gate is the MaxOS run from the P0 handoff: start without a model override, prove
-immediate durable handoff plus interruption/resume, finish the baseline, and record terminal counts,
-taxonomy, elapsed time, provenance, token use, failures, and retries. Do not start that run while the
-explicit semantic-indexing pause remains active.
+The implementation claim is supported by deterministic scale evidence and the authoritative
+self-hosted run recorded in Phase 9.0. The MaxOS run from the P0 handoff can later add independent
+external evidence for handoff, interruption/resume, terminal counts, taxonomy, elapsed time,
+provenance, token use, failures, and retries. It does not block the core roadmap and must not start
+while the explicit semantic-indexing pause remains active.
 
 ## Phase 6 exit gate
 
@@ -2373,8 +2383,8 @@ change also lowers the `evaluate_architecture` and finding-lifecycle maintainabi
 
 # Phase 9 — make the real core loop dependable, then prove it for 1.0
 
-**Status:** ACTIVE; HIERARCHY, PLACEMENT, AND IMPACT COMPLETE; PATTERN-FIT DOGFOODING IN
-PROGRESS on 26 August 2026
+**Status:** ACTIVE; ORIGINAL CORE DECISIONS COMPLETE; CONCEPT-LEVEL PLACEMENT PRECISION REOPENED
+on 26 August 2026
 
 **Goal:** prove that the existing AnaxiGraph loop helps a person or coding agent place and change
 code without creating sprawl, tangled dependencies, misplaced responsibilities, or giant files.
@@ -2492,8 +2502,8 @@ module size, code quality, architecture, Ruff, and focused REST/MCP tests also p
 
 ## 9.2 Prove architecture decisions at representative sizes
 
-**Status:** SELF-HOSTED HIERARCHY, PLACEMENT, AND IMPACT ACCEPTANCE COMPLETE; PATTERN-FIT
-DOGFOODING ACTIVE on 26 August 2026; paid MaxOS semantic acceptance paused
+**Status:** SELF-HOSTED CORE-DECISION ACCEPTANCE COMPLETE; CONCEPT-LEVEL PLACEMENT PRECISION
+ACTIVE on 26 August 2026; external MaxOS evidence optional and paused
 
 Run the same coding tasks against small, medium, and large Python-first repositories. Record only
 measurements that decide whether the map is useful:
@@ -2515,8 +2525,9 @@ comparison. Record whether the first recommendation was useful, which files were
 whether its explanation was directly actionable. Fix demonstrated defects through existing paths;
 do not widen the product to improve a benchmark score.
 
-The paid live MaxOS semantic acceptance remains paused at the operator's request. Do not resume it,
-replace its missing evidence with adjacent features, or claim the phase complete while it is paused.
+The live MaxOS semantic run remains paused at the operator's request. Do not resume it or replace it
+with adjacent features. It is optional external evidence and does not decide whether this phase's
+self-hosted core loop is complete.
 
 `tests/test_core_loop_scale.py` now repeats one coding task at 120, 1,000, and 3,000 files. Every
 size returns the same eight expected primary files and no unrelated primary file, chooses
@@ -2544,10 +2555,9 @@ presence, and one-file incremental work are the contracts. The exact environment
 retained in `benchmarks/results/core-loop-scale-2026-08-25.json`. Mixed-versus-cohesive large-file
 decisions and all five structural-effect classes remain covered by focused bounded fixtures after
 scope selection; multiplying irrelevant modules inside those already-local calculations would not
-add product evidence. Remaining §9.2 evidence is the current self-hosted task set above and the
-retained live MaxOS semantic acceptance after the operator lifts its pause. The complete Python
-suite passes with 559 tests at 91.63% coverage; Ruff, module-size, code-quality, architecture, and
-self-analysis gates also pass.
+add product evidence. Remaining §9.2 work is the current self-hosted precision task set above; the
+paused MaxOS run is optional external evidence. The complete Python suite passes with 559 tests at
+91.63% coverage; Ruff, module-size, code-quality, architecture, and self-analysis gates also pass.
 
 The first current-map placement task exposed a core defect instead of being counted as a success.
 A roadmap-only goal ranked `pattern_evidence_features.py` above the actual development plan because
@@ -2561,8 +2571,20 @@ explicit test-edit goal, and the existing 120/1,000/3,000-file precision fixture
 
 Reverse impact then passed against `src/anaxigraph/semantic_ports.py`. It returned the exact four
 direct dependants, a bounded 64-file transitive set, 30 relevant tests, and no migration paths; the
-direct edges were independently checked against source imports. Multi-level pattern fit is now the
-only active decision. Large-file decomposition and before/after verification follow in that order.
+direct edges were independently checked against source imports. Multi-level pattern fit,
+mixed-versus-cohesive large-file decomposition, and a real before/after architecture comparison all
+subsequently passed and are recorded in the active re-evaluation above.
+
+A broader self-hosted goal then proved that placement was still too dependent on the user's words
+looking like a filename. “Verify whether a code change improved the repository structure without
+making files larger or dependencies more tangled” selected `scripts/verify_release_artifacts.py`
+and routed the hierarchy through `relationship_builder.py`, even though
+`agent_decision_verification.py` owns that behavior. The active fix stays inside the existing
+lexical ranker: normalize snake-case names, ignore generic goal filler, and expand only a few core
+product concepts such as structure/architecture, verify/compare, size/large, and
+dependency/coupling. The acceptance result must select the verification module and its comparison
+symbols on the current semantic map. Unrelated-primary-file rate is measured next as a separate
+precision question; it is not hidden by a correct first result.
 
 ## 9.3 Keep one documented coding loop
 
@@ -2591,8 +2613,8 @@ suite passes with 560 tests at 91.63% coverage.
 - The complete before/after coding loop passes the same decision fixtures at small, medium, and
   large scales within the declared Python-first support boundary, then gives useful placement,
   impact, pattern, decomposition, and verification advice on the current AnaxiGraph map.
-- After the operator lifts the pause, the retained live MaxOS acceptance run reaches explicit
-  completion against its authoritative index.
+- Optional external repository runs use the same authoritative-index and explicit-completion
+  contracts when the operator chooses to run them; they do not block the self-hosted core loop.
 - Existing install, migration, backup/restore, container, and release-integrity gates remain green.
 - No first-party implementation module exceeds 500 lines and no temporary architecture waiver
   remains.

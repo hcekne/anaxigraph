@@ -8,6 +8,7 @@ from typing import Any
 from anaxigraph.agent_lexicon import goal_artifact_type, goal_terms
 
 TASK_PATH_VERSION = "task-path-v1"
+_TASK_MODULE_SWITCH_RATIO = 1.5
 
 
 def task_path(
@@ -180,21 +181,29 @@ def _task_module(
     scores: dict[str, int] = {}
     for symbol in symbols:
         path = str(symbol.get("path") or "")
-        scores[path] = scores.get(path, 0) + len(
+        matches = len(
             terms
             & _terms(
                 " ".join(str(symbol.get(key) or "") for key in ("name", "signature", "summary"))
             )
         )
+        scores[path] = max(scores.get(path, 0), matches)
     candidates = [item for item in primary_files if scores.get(str(item.get("path") or ""), 0)]
     if not candidates:
         return preferred
-    return max(
+    selected = max(
         candidates,
         key=lambda item: (
             scores[str(item.get("path") or "")],
             -primary_files.index(item),
         ),
+    )
+    preferred_score = scores.get(str(preferred.get("path") or ""), 0)
+    selected_score = scores[str(selected.get("path") or "")]
+    return (
+        preferred
+        if preferred_score and selected_score < preferred_score * _TASK_MODULE_SWITCH_RATIO
+        else selected
     )
 
 

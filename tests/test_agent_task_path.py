@@ -132,6 +132,48 @@ def test_project_rule_path_does_not_invent_a_matching_symbol():
     assert result["module"]["path"] in result["plain_language"]["conclusion"]
 
 
+def test_task_path_does_not_replace_a_matching_preferred_file_with_a_symbol_heavy_file():
+    preferred = _module()
+    preferred["path"] = "src/architecture_verification.py"
+    alternative = _module()
+    alternative["path"] = "src/architecture_rules.py"
+    symbols = [
+        {
+            "path": preferred["path"],
+            "name": "compare_verification_baselines",
+            "symbol_type": "function",
+            "signature": "compare_verification_baselines(before, after)",
+            "start_line": 10,
+        },
+        {
+            "path": alternative["path"],
+            "name": "dependency_degree",
+            "symbol_type": "function",
+            "signature": "dependency_degree(files)",
+            "start_line": 10,
+        },
+        {
+            "path": alternative["path"],
+            "name": "cycle_finding",
+            "symbol_type": "function",
+            "signature": "cycle_finding(files)",
+            "start_line": 20,
+        },
+    ]
+
+    result = task_path(
+        ("Verify whether a change improved structure without making dependencies more tangled"),
+        preferred,
+        [preferred, alternative],
+        symbols,
+        [],
+        _hierarchy(),
+    )
+
+    assert result["module"]["path"] == preferred["path"]
+    assert [item["name"] for item in result["symbols"]] == ["compare_verification_baselines"]
+
+
 def test_task_path_refuses_to_invent_a_route_without_a_starting_file():
     result = task_path("Add invoice behavior", {}, [], [], [], [])
 

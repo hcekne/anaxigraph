@@ -11,25 +11,38 @@ GOAL_STOPWORDS = frozenset(
         "add",
         "and",
         "change",
+        "code",
         "create",
+        "file",
         "for",
         "from",
         "implement",
         "in",
+        "make",
+        "making",
+        "more",
         "of",
         "on",
         "only",
+        "repository",
         "that",
         "the",
         "to",
         "update",
+        "whether",
         "with",
+        "without",
     }
 )
 
-GOAL_TERM_ALIASES = {
-    "roadmap": frozenset({"plan"}),
-}
+GOAL_TERM_GROUPS = (
+    frozenset({"plan", "roadmap"}),
+    frozenset({"architecture", "structure", "structural"}),
+    frozenset({"compare", "comparison", "verification", "verify"}),
+    frozenset({"better", "improve", "improved", "improvement"}),
+    frozenset({"large", "larger", "oversized", "size"}),
+    frozenset({"coupling", "cycle", "dependency", "tangle", "tangled"}),
+)
 
 DOCUMENTATION_INTENT_TERMS = frozenset(
     {"changelog", "docs", "document", "documentation", "guide", "manual", "readme", "roadmap"}
@@ -38,7 +51,8 @@ TEST_INTENT_TERMS = frozenset({"test", "testing"})
 
 
 def split_camel(value: str) -> str:
-    return re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", value)
+    words = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", value)
+    return re.sub(r"[_-]+", " ", words)
 
 
 def goal_terms(value: str) -> set[str]:
@@ -49,8 +63,9 @@ def goal_terms(value: str) -> set[str]:
         word = _singular_goal_word(raw.lower().replace("-", "_"))
         if word not in GOAL_STOPWORDS and len(word) > 1:
             terms.add(word)
-    for word in tuple(terms):
-        terms.update(GOAL_TERM_ALIASES.get(word, ()))
+    for group in GOAL_TERM_GROUPS:
+        if terms & group:
+            terms.update(group)
     return terms
 
 
