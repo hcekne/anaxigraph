@@ -56,7 +56,7 @@ class PatternIntelligenceService:
         if snapshot is None:
             return empty_pattern_candidates(repository_id, request)
         selected, plan_ready, projection = self._candidate_inputs(
-            repository_id, int(snapshot["id"]), request.pattern
+            repository_id, int(snapshot["id"]), request.pattern, request.target
         )
         return query_pattern_candidates(
             catalog,
@@ -90,9 +90,18 @@ class PatternIntelligenceService:
         return items
 
     def _candidate_inputs(
-        self, repository_id: int, snapshot_id: int, pattern_key: str
+        self,
+        repository_id: int,
+        snapshot_id: int,
+        pattern_key: str,
+        target: str,
     ) -> tuple[set[str], bool, Any]:
         with self.database.connect() as connection:
             selected, plan_ready = pattern_selection_state(connection, snapshot_id, pattern_key)
-            projection = read_pattern_evidence(connection, repository_id, snapshot_id)
+            projection = read_pattern_evidence(
+                connection,
+                repository_id,
+                snapshot_id,
+                target=target,
+            )
         return selected, plan_ready, projection

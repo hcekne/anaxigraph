@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -20,6 +21,42 @@ from anaxigraph.pattern_signals import (
     capability_coverage,
     observe_signal,
     semantic_evidence_available,
+)
+
+_AFFINITY_WORD = re.compile(r"[a-z0-9]+")
+_AFFINITY_IGNORED = frozenset(
+    {
+        "architecture",
+        "class",
+        "code",
+        "data",
+        "feature",
+        "function",
+        "interface",
+        "layer",
+        "method",
+        "module",
+        "object",
+        "package",
+        "pattern",
+        "public",
+        "repository",
+        "service",
+        "shared",
+        "stable",
+        "state",
+    }
+)
+_AFFINITY_FEATURES = frozenset(
+    {
+        "documentation.summary",
+        "interfaces.public",
+        "responsibilities.deterministic",
+        "semantic.architecture_role",
+        "semantic.extension_points",
+        "semantic.public_contracts",
+        "semantic.responsibilities",
+    }
 )
 
 
@@ -78,7 +115,7 @@ def candidate_decision(
         return CandidateDecision(None, "counter_evidence", observed)
     if not reasons:
         return CandidateDecision(None, "no_positive_evidence", observed)
-    priority = _priority(card, observed)
+    priority = _priority(card, observed, evidence)
     if priority < policy.minimum_priority:
         return CandidateDecision(None, "below_priority", observed)
     return CandidateDecision(
@@ -170,7 +207,11 @@ def _selection_reasons(
     return tuple(reasons)
 
 
-def _priority(card: PatternCard, observed: CandidateEvidence) -> int:
+def _priority(
+    card: PatternCard,
+    observed: CandidateEvidence,
+    evidence: TargetEvidence,
+) -> int:
     score = _signal_score(card.problem_signals, observed.problem, 28)
     score += _signal_score(card.supporting_evidence, observed.supporting, 14)
     score -= _signal_score(card.counter_evidence, observed.counter, 24)
@@ -178,7 +219,21 @@ def _priority(card: PatternCard, observed: CandidateEvidence) -> int:
         score += 15 * sum(item.ratio for item in observed.capabilities) / len(observed.capabilities)
     if observed.semantic_reason:
         score += 10
+    score += _semantic_affinity(card, evidence)
     return max(0, min(100, round(score)))
+
+
+def _semantic_affinity(card: PatternCard, evidence: TargetEvidence) -> int:
+    pattern_terms = {
+        term
+        for term in card.stable_key.split("-")
+        if len(term) >= 4 and term not in _AFFINITY_IGNORED
+    }
+    if not pattern_terms:
+        return 0
+    values = [feature.value for feature in evidence.features if feature.name in _AFFINITY_FEATURES]
+    words = set(_AFFINITY_WORD.findall(json.dumps(values, default=str).casefold()))
+    return min(12, 6 * len(pattern_terms & words))
 
 
 def _signal_score(

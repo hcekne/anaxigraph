@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections import Counter
+from collections import Counter, defaultdict
+from dataclasses import dataclass, field
 from typing import Any
 
 from anaxigraph.pattern_candidate_models import (
@@ -25,14 +26,16 @@ def build_pattern_candidate_plan(
 ) -> PatternCandidatePlan:
     """Apply cheap deterministic filters and retain only bounded semantic work candidates."""
 
-    selected: list[PatternCandidate] = []
+    preferred: list[PatternCandidate] = []
+    pattern_options: dict[str, list[PatternCandidate]] = defaultdict(list)
+    qualified_by_pattern: Counter[str] = Counter()
     skipped: Counter[str] = Counter()
     eligible_pairs = 0
     omitted = 0
     policy = policy or PatternCandidatePolicy()
     catalog_fingerprint = catalog.fingerprint
     for target_evidence in _targets_parent_first(evidence.items):
-        retained, target_pairs, target_skips, per_target_omitted = _target_selection(
+        retained, qualified, target_pairs, target_skips, per_target_omitted = _target_selection(
             catalog,
             target_evidence,
             evidence,
@@ -42,8 +45,14 @@ def build_pattern_candidate_plan(
         eligible_pairs += target_pairs
         skipped.update(target_skips)
         omitted += per_target_omitted
-        selected.extend(retained)
-    selected, global_omitted = _bounded_selection(selected, policy)
+        preferred.extend(retained)
+        for candidate in qualified:
+            qualified_by_pattern[candidate.pattern_key] += 1
+            _retain_pattern_option(pattern_options[candidate.pattern_key], candidate, policy)
+    pool = _candidate_pool(preferred, pattern_options)
+    selection_limit = min(policy.total_limit, len(preferred))
+    selected = _bounded_selection(pool, policy, qualified_by_pattern, selection_limit)
+    global_omitted = max(0, len(preferred) - len(selected))
     if global_omitted:
         skipped["total_limit"] += global_omitted
         omitted += global_omitted
@@ -67,7 +76,7 @@ def _target_selection(
     projection: PatternEvidenceProjection,
     catalog_fingerprint: str,
     policy: PatternCandidatePolicy,
-) -> tuple[list[PatternCandidate], int, Counter[str], int]:
+) -> tuple[list[PatternCandidate], list[PatternCandidate], int, Counter[str], int]:
     candidates = []
     skipped: Counter[str] = Counter()
     eligible = 0
@@ -91,7 +100,29 @@ def _target_selection(
     omitted = len(candidates) - len(retained)
     if omitted:
         skipped["per_target_limit"] += omitted
-    return retained, eligible, skipped, omitted
+    return retained, candidates, eligible, skipped, omitted
+
+
+def _retain_pattern_option(
+    options: list[PatternCandidate],
+    candidate: PatternCandidate,
+    policy: PatternCandidatePolicy,
+) -> None:
+    limit = min(policy.total_limit, policy.per_target_limit + policy.per_pattern_reserve)
+    options.append(candidate)
+    options.sort(key=lambda item: (-item.priority, *_candidate_order(item)))
+    del options[limit:]
+
+
+def _candidate_pool(
+    preferred: list[PatternCandidate],
+    pattern_options: dict[str, list[PatternCandidate]],
+) -> list[PatternCandidate]:
+    by_identity = {(item.target.key, item.pattern_key): item for item in preferred}
+    for options in pattern_options.values():
+        for item in options:
+            by_identity[(item.target.key, item.pattern_key)] = item
+    return list(by_identity.values())
 
 
 def explain_pattern_candidate(
@@ -164,31 +195,128 @@ def _targets_parent_first(items: tuple[TargetEvidence, ...]) -> list[TargetEvide
 def _bounded_selection(
     candidates: list[PatternCandidate],
     policy: PatternCandidatePolicy,
-) -> tuple[list[PatternCandidate], int]:
-    if len(candidates) <= policy.total_limit:
-        return candidates, 0
+    qualified_by_pattern: Counter[str],
+    limit: int,
+) -> list[PatternCandidate]:
+    if not candidates or limit <= 0:
+        return []
     ranked = sorted(candidates, key=lambda item: (-item.priority, *_candidate_order(item)))
-    by_level = {
+    by_level = _group_by_level(ranked)
+    by_pattern = _group_by_pattern(ranked)
+    state = _SelectionState(limit, policy.per_target_limit)
+    _reserve_levels(by_level, policy.per_level_reserve, state)
+    _reserve_patterns(by_pattern, qualified_by_pattern, policy.per_pattern_reserve, state)
+    _fill_remaining(ranked, state)
+    return state.retained
+
+
+@dataclass
+class _SelectionState:
+    limit: int
+    per_target_limit: int
+    retained: list[PatternCandidate] = field(default_factory=list)
+    identities: set[tuple[str, str]] = field(default_factory=set)
+    target_counts: Counter[str] = field(default_factory=Counter)
+    pattern_counts: Counter[str] = field(default_factory=Counter)
+
+    @property
+    def full(self) -> bool:
+        return len(self.retained) >= self.limit
+
+    def add(self, candidate: PatternCandidate) -> bool:
+        identity = (candidate.target.key, candidate.pattern_key)
+        if (
+            self.full
+            or identity in self.identities
+            or self.target_counts[candidate.target.key] >= self.per_target_limit
+        ):
+            return False
+        self.retained.append(candidate)
+        self.identities.add(identity)
+        self.target_counts[candidate.target.key] += 1
+        self.pattern_counts[candidate.pattern_key] += 1
+        return True
+
+
+def _group_by_level(
+    ranked: list[PatternCandidate],
+) -> dict[str, list[PatternCandidate]]:
+    return {
         level: [item for item in ranked if item.target.level == level]
         for level in PATTERN_TARGET_LEVELS
     }
-    retained = []
-    identities = set()
-    for index in range(policy.per_level_reserve):
-        for level in PATTERN_TARGET_LEVELS:
-            if len(retained) >= policy.total_limit or index >= len(by_level[level]):
-                continue
-            candidate = by_level[level][index]
-            retained.append(candidate)
-            identities.add((candidate.target.key, candidate.pattern_key))
+
+
+def _group_by_pattern(
+    ranked: list[PatternCandidate],
+) -> dict[str, list[PatternCandidate]]:
+    grouped: dict[str, list[PatternCandidate]] = defaultdict(list)
     for candidate in ranked:
-        identity = (candidate.target.key, candidate.pattern_key)
-        if len(retained) >= policy.total_limit:
+        grouped[candidate.pattern_key].append(candidate)
+    return grouped
+
+
+def _reserve_levels(
+    by_level: dict[str, list[PatternCandidate]],
+    reserve: int,
+    state: _SelectionState,
+) -> None:
+    for level in PATTERN_TARGET_LEVELS:
+        if not reserve:
             break
-        if identity not in identities:
-            retained.append(candidate)
-            identities.add(identity)
-    return retained, len(candidates) - len(retained)
+        added = 0
+        for candidate in by_level[level]:
+            if state.add(candidate):
+                added += 1
+            if added >= reserve or state.full:
+                break
+
+
+def _reserve_patterns(
+    by_pattern: dict[str, list[PatternCandidate]],
+    qualified_by_pattern: Counter[str],
+    reserve: int,
+    state: _SelectionState,
+) -> None:
+    pattern_order = sorted(
+        by_pattern,
+        key=lambda key: (-by_pattern[key][0].priority, qualified_by_pattern[key], key),
+    )
+    for reserve_index in range(reserve):
+        for pattern_key in pattern_order:
+            if state.pattern_counts[pattern_key] > reserve_index or state.full:
+                continue
+            candidate = _best_available(by_pattern[pattern_key], state)
+            if candidate is not None:
+                state.add(candidate)
+
+
+def _best_available(
+    candidates: list[PatternCandidate], state: _SelectionState
+) -> PatternCandidate | None:
+    available = [
+        item
+        for item in candidates
+        if (item.target.key, item.pattern_key) not in state.identities
+        and state.target_counts[item.target.key] < state.per_target_limit
+    ]
+    if not available:
+        return None
+    return min(
+        available,
+        key=lambda item: (
+            -item.priority,
+            state.target_counts[item.target.key],
+            *_candidate_order(item),
+        ),
+    )
+
+
+def _fill_remaining(ranked: list[PatternCandidate], state: _SelectionState) -> None:
+    for candidate in ranked:
+        if state.full:
+            break
+        state.add(candidate)
 
 
 def _candidate_order(item: PatternCandidate) -> tuple[int, str, int, str]:

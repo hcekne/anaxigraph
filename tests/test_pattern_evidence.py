@@ -6,6 +6,7 @@ from anaxigraph.analyzers.python import PythonAnalyzer
 from anaxigraph.config import load_config
 from anaxigraph.pattern_evidence import PATTERN_EVIDENCE_VERSION
 from anaxigraph.pattern_targets import target_key
+from anaxigraph.persistence.pattern_evidence_read import read_pattern_evidence
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.understanding import SemanticEngine
 
@@ -47,6 +48,30 @@ def test_projection_exposes_reusable_evidence_at_all_six_levels(repository, data
     assert module_features["semantic.dossier"]["availability"] == "unavailable"
     assert module["capability_fingerprints"] == [PythonAnalyzer.capabilities.fingerprint]
     assert all(len(item["input_fingerprint"]) == 64 for item in projection["items"])
+
+
+def test_exact_leaf_projection_matches_full_evidence_without_building_other_files(
+    repository, database
+):
+    stats = RepositoryScanner(database).scan(repository)
+    module_key = target_key("module", path="pkg/core.py")
+
+    with database.connect() as connection:
+        full = read_pattern_evidence(connection, stats.repository_id, stats.snapshot_id)
+        focused = read_pattern_evidence(
+            connection,
+            stats.repository_id,
+            stats.snapshot_id,
+            target=module_key,
+        )
+
+    expected = {
+        item.target.key: item.as_dict() for item in full.items if item.target.path == "pkg/core.py"
+    }
+    actual = {item.target.key: item.as_dict() for item in focused.items}
+    assert actual == expected
+    assert module_key in actual
+    assert len(focused.items) < len(full.items)
 
 
 def test_projection_fingerprints_invalidate_only_changed_targets_and_parents(repository, database):

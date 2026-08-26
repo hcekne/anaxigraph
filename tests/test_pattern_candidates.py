@@ -141,6 +141,7 @@ def test_sparse_plan_produces_stable_candidates_at_all_six_levels():
     value = first.as_dict()
 
     assert first.fingerprint == second.fingerprint
+    assert value["selection_version"] == "pattern-candidate-selection-v2"
     assert [item.input_fingerprint for item in first.candidates] == [
         item.input_fingerprint for item in second.candidates
     ]
@@ -207,6 +208,57 @@ def test_global_bound_reserves_candidate_work_for_every_available_level():
         "repository",
     }
     assert dict(plan.skipped_by_reason)["total_limit"] > 0
+
+
+def test_global_bound_reserves_distinct_patterns_before_repeating_generic_ones():
+    first = _six_level_evidence()[2]
+    second = _evidence(
+        module_target("src/other.py", subsystem_key="subsystem:runtime"),
+        *first.features,
+        fingerprint="d" * 64,
+    )
+
+    plan = build_pattern_candidate_plan(
+        bundled_pattern_catalog(),
+        _projection(first, second),
+        policy=PatternCandidatePolicy(
+            per_target_limit=4,
+            total_limit=8,
+            per_level_reserve=0,
+            per_pattern_reserve=1,
+        ),
+    )
+
+    assert len(plan.candidates) == 8
+    assert len({item.pattern_key for item in plan.candidates}) == 8
+    assert all(
+        sum(item.target.key == target.target.key for item in plan.candidates) == 4
+        for target in (first, second)
+    )
+
+
+def test_semantic_responsibility_breaks_generic_signal_ties_for_provider_work():
+    module = _evidence(
+        module_target("src/providers.py", subsystem_key="subsystem:runtime"),
+        _feature("syntax.constructors", {"count": 5, "values": ["__init__"]}),
+        _feature("types.count", 5),
+        _feature("semantic.responsibilities", ["Choose interchangeable provider implementations"]),
+    )
+
+    plan = build_pattern_candidate_plan(
+        bundled_pattern_catalog(),
+        _projection(module),
+        policy=PatternCandidatePolicy(
+            per_target_limit=4,
+            total_limit=4,
+            per_level_reserve=0,
+            per_pattern_reserve=2,
+        ),
+    )
+
+    provider = next(item for item in plan.candidates if item.pattern_key == "provider-abstraction")
+    assert provider.priority == 49
+    assert "identity-map" not in {item.pattern_key for item in plan.candidates}
 
 
 def test_skipped_pair_explains_missing_evidence_without_persisting_dense_records():
@@ -354,6 +406,7 @@ def test_only_changed_target_changes_candidate_input_fingerprints():
         {"total_limit": 0},
         {"minimum_priority": 101},
         {"per_level_reserve": -1},
+        {"per_pattern_reserve": -1},
     ],
 )
 def test_candidate_policy_rejects_unbounded_or_invalid_values(values):

@@ -39,7 +39,13 @@ def read_pattern_evidence(
     connection: sqlite3.Connection,
     repository_id: int,
     snapshot_id: int,
+    *,
+    target: str = "",
 ) -> PatternEvidenceProjection:
+    if target:
+        leaf_projection = _leaf_projection(connection, repository_id, snapshot_id, target)
+        if leaf_projection is not None:
+            return leaf_projection
     repository_name = _repository_name(connection, repository_id, snapshot_id)
     modules, raw, symbols, semantic = _snapshot_inputs(connection, repository_id, snapshot_id)
     contracts = capability_contracts(raw.values())
@@ -70,6 +76,83 @@ def read_pattern_evidence(
             key=lambda item: (PATTERN_TARGET_LEVELS.index(item.target.level), item.target.key),
         )
     )
+    return _projection(repository_id, snapshot_id, contracts, items)
+
+
+def _leaf_projection(
+    connection: sqlite3.Connection,
+    repository_id: int,
+    snapshot_id: int,
+    target: str,
+) -> PatternEvidenceProjection | None:
+    path = _leaf_target_path(connection, snapshot_id, target)
+    if path is None:
+        return None
+    offset = int(
+        connection.execute(
+            "SELECT COUNT(*) FROM projected_file_versions WHERE path < ?", (path,)
+        ).fetchone()[0]
+    )
+    modules = read_modules(connection, repository_id, snapshot_id, limit=1, offset=offset)
+    if not modules or str(modules[0]["path"]) != path:
+        return None
+    install_snapshot_projection(connection, snapshot_id)
+    raw = {
+        int(row["artifact_id"]): dict(row)
+        for row in connection.execute(
+            "SELECT * FROM projected_file_versions WHERE path = ?", (path,)
+        ).fetchall()
+    }
+    symbols = [dict(row) for row in connection.execute(_SYMBOL_FOR_PATH_SQL, (path,)).fetchall()]
+    semantic = semantic_documents(connection, snapshot_id)
+    contracts = capability_contracts(raw.values())
+    facts = facts_by_artifact(raw.values())
+    _areas, _subsystems, targets = _architecture_targets(modules)
+    module_items, symbol_items = _leaf_items(
+        modules, raw, symbols, semantic, facts, targets, snapshot_id
+    )
+    items = tuple(
+        sorted(
+            (*symbol_items, *module_items.values()),
+            key=lambda item: (PATTERN_TARGET_LEVELS.index(item.target.level), item.target.key),
+        )
+    )
+    return _projection(repository_id, snapshot_id, contracts, items)
+
+
+def _leaf_target_path(
+    connection: sqlite3.Connection,
+    snapshot_id: int,
+    target: str,
+) -> str | None:
+    install_snapshot_projection(connection, snapshot_id)
+    candidate = target
+    for prefix in ("module:", "type:", "symbol:"):
+        if target.startswith(prefix):
+            candidate = target.removeprefix(prefix).split("#", 1)[0]
+            break
+    row = connection.execute(
+        "SELECT path FROM projected_file_versions WHERE path = ?", (candidate,)
+    ).fetchone()
+    if row is not None:
+        return str(row["path"])
+    rows = connection.execute(
+        """
+        SELECT DISTINCT fv.path FROM projected_symbols s
+        JOIN projected_file_versions fv ON fv.id = s.artifact_version_id
+        WHERE s.qualified_name = ?
+        """,
+        (target,),
+    ).fetchall()
+    return str(rows[0]["path"]) if len(rows) == 1 else None
+
+
+def _projection(
+    repository_id: int,
+    snapshot_id: int,
+    contracts: dict[str, dict[str, Any]],
+    items: tuple[TargetEvidence, ...],
+) -> PatternEvidenceProjection:
     fingerprint = _digest(
         {
             "version": PATTERN_EVIDENCE_VERSION,
@@ -225,6 +308,14 @@ _SYMBOL_SQL = """
 SELECT s.*, fv.artifact_id, fv.path
 FROM projected_symbols s
 JOIN projected_file_versions fv ON fv.id = s.artifact_version_id
+ORDER BY fv.path, s.qualified_name, s.start_line
+"""
+
+_SYMBOL_FOR_PATH_SQL = """
+SELECT s.*, fv.artifact_id, fv.path
+FROM projected_symbols s
+JOIN projected_file_versions fv ON fv.id = s.artifact_version_id
+WHERE fv.path = ?
 ORDER BY fv.path, s.qualified_name, s.start_line
 """
 

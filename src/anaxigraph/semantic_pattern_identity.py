@@ -6,7 +6,10 @@ import hashlib
 import json
 from typing import Any
 
-from anaxigraph.pattern_candidate_models import PATTERN_CANDIDATE_CONTRACT_VERSION
+from anaxigraph.pattern_candidate_models import (
+    PATTERN_CANDIDATE_CONTRACT_VERSION,
+    PATTERN_CANDIDATE_SELECTION_VERSION,
+)
 from anaxigraph.pattern_evaluation_contract import (
     PATTERN_REVIEW_CONTRACT_VERSION,
     PATTERN_SCORE_CONTRACT_VERSION,
@@ -42,6 +45,7 @@ def pattern_plan_input_hash(
             "snapshot_id": snapshot_id,
             "catalog_fingerprint": catalog_fingerprint,
             "candidate_contract": PATTERN_CANDIDATE_CONTRACT_VERSION,
+            "candidate_selection": PATTERN_CANDIDATE_SELECTION_VERSION,
             "evidence_contract": PATTERN_EVIDENCE_VERSION,
             "score_contract": PATTERN_SCORE_CONTRACT_VERSION,
             "review_contract": PATTERN_REVIEW_CONTRACT_VERSION,

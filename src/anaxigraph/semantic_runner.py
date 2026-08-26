@@ -46,7 +46,7 @@ def _stop_bootstrap(plan_only: bool, plan: Any, remaining: int | None) -> bool:
 
 
 def _bootstrap_passes(until_complete: bool, semantic: SemanticConfig) -> Any:
-    return itertools.count() if until_complete else range(10 + semantic.taxonomy.review_passes)
+    return itertools.count() if until_complete else range(12 + semantic.taxonomy.review_passes)
 
 
 def _validate_job_execution(

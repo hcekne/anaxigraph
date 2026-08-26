@@ -10,6 +10,7 @@ from typing import Any
 from anaxigraph.pattern_targets import PATTERN_TARGET_LEVELS, PatternTarget
 
 PATTERN_CANDIDATE_CONTRACT_VERSION = "pattern-candidate-v1"
+PATTERN_CANDIDATE_SELECTION_VERSION = "pattern-candidate-selection-v2"
 PATTERN_SIGNAL_OUTCOMES = frozenset({"matched", "not_matched", "unknown"})
 PATTERN_SIGNAL_ROLES = frozenset({"problem", "supporting", "counter"})
 
@@ -20,6 +21,7 @@ class PatternCandidatePolicy:
     total_limit: int = 200
     minimum_priority: int = 25
     per_level_reserve: int = 4
+    per_pattern_reserve: int = 2
 
     def __post_init__(self) -> None:
         if not 1 <= self.per_target_limit <= 100:
@@ -30,6 +32,8 @@ class PatternCandidatePolicy:
             raise ValueError("pattern candidate minimum priority must be between zero and 100")
         if not 0 <= self.per_level_reserve <= 100:
             raise ValueError("pattern candidate per-level reserve must be between zero and 100")
+        if not 0 <= self.per_pattern_reserve <= 100:
+            raise ValueError("pattern candidate per-pattern reserve must be between zero and 100")
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,6 +132,7 @@ class PatternCandidatePlan:
     def fingerprint(self) -> str:
         value = {
             "contract_version": self.contract_version,
+            "selection_version": PATTERN_CANDIDATE_SELECTION_VERSION,
             "repository_id": self.repository_id,
             "snapshot_id": self.snapshot_id,
             "evidence_fingerprint": self.evidence_fingerprint,
@@ -142,6 +147,7 @@ class PatternCandidatePlan:
     def as_dict(self) -> dict[str, Any]:
         return {
             "contract_version": self.contract_version,
+            "selection_version": PATTERN_CANDIDATE_SELECTION_VERSION,
             "repository_id": self.repository_id,
             "snapshot_id": self.snapshot_id,
             "evidence_fingerprint": self.evidence_fingerprint,
