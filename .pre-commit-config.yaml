@@ -41,7 +41,7 @@ repos:
         language: system
         pass_filenames: false
       - id: maintainability-ratchets
-        name: Function complexity, coupling, and interface ratchets
+        name: Production size, function complexity, coupling, and interface ratchets
         entry: uv run python scripts/check_code_quality.py --staged
         language: system
         pass_filenames: false

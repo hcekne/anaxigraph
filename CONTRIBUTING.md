@@ -51,10 +51,11 @@ Playwright dependencies are already installed locally. Skip flags are diagnostic
 do not satisfy the complete pull-request/release gate.
 
 The baselines in `quality/module-size-policy.json` and
-`quality/maintainability-policy.json` are shrinking ratchets, not permanent allowances. When a
+`quality/maintainability-policy.json` are shrinking ratchets, not permanent allowances. The latter
+also records the combined production Python/dashboard line budget. When production source or a
 legacy module, function, or coupling value decreases, lower its recorded baseline in the same
-change. Once it is within the normal limit, remove the exception. If an AnaxiIndex contains
-current semantic dossiers, maintainers can also produce a non-authorizing cohesion review with:
+change. Once an exception is within the normal limit, remove it. If an AnaxiIndex contains current
+semantic dossiers, maintainers can also produce a non-authorizing cohesion review with:
 
 ```bash
 uv run python scripts/check_semantic_cohesion.py --database /path/to/anaxi-index.db

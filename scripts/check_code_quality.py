@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Enforce function-complexity and package-coupling ratchets."""
+"""Enforce production-size, function-complexity, and package-coupling ratchets."""
 
 from __future__ import annotations
 
@@ -48,7 +48,8 @@ def check_quality(
     root = root.resolve()
     policy = json.loads((root / policy_path).read_text(encoding="utf-8"))
     metrics = scan_functions(root, policy)
-    issues = _function_issues(metrics, policy)
+    issues = _production_source_issues(root, policy)
+    issues.extend(_function_issues(metrics, policy))
     graph = dependency_graph(
         root,
         source_root=Path(policy["source_root"]),
@@ -59,6 +60,37 @@ def check_quality(
         paths = changed_paths if changed_paths is not None else _changed_paths(root, baseline)
         issues.extend(_interface_changes(root, baseline, paths, policy))
     return sorted(issues, key=lambda item: (item.level != "error", item.path, item.issue_type))
+
+
+def _production_source_issues(root: Path, policy: dict[str, Any]) -> list[QualityIssue]:
+    budget = policy.get("production_source_budget")
+    if not budget:
+        return []
+    source_root = root / str(budget["root"])
+    extensions = frozenset(str(item) for item in budget["extensions"])
+    paths = sorted(
+        path for path in source_root.rglob("*") if path.is_file() and path.suffix in extensions
+    )
+    current = sum(_physical_lines(path) for path in paths)
+    baseline = int(budget["baseline_lines"])
+    if current == baseline:
+        return []
+    issue_type = "production_source_growth" if current > baseline else "stale_source_baseline"
+    direction = "grew above" if current > baseline else "fell below"
+    return [
+        QualityIssue(
+            "error",
+            issue_type,
+            str(budget["root"]),
+            f"production source is {current} lines and {direction} the {baseline}-line ratchet; "
+            f"{'remove or simplify code' if current > baseline else f'lower baseline_lines to {current}'}",
+        )
+    ]
+
+
+def _physical_lines(path: Path) -> int:
+    with path.open(encoding="utf-8") as handle:
+        return sum(1 for _line in handle)
 
 
 def _function_issues(metrics: list[FunctionMetric], policy: dict[str, Any]) -> list[QualityIssue]:

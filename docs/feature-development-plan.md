@@ -2952,17 +2952,19 @@ contract, and prevents continued growth while deeper semantic and projection wor
 
 ## 10.2 Consolidate the implementation without hiding complexity
 
+**Status:** IN PROGRESS from 30 August 2026
+
 Work through the deletion map one coherent vertical slice at a time. Preserve characterization
 tests first, then remove duplicated transformations, obsolete compatibility, one-use forwarding
 layers, repeated response language, and unnecessary orchestration. Merge tiny fragments only when
 they change for the same reason; shrink near-ceiling modules by simplifying behavior, not by moving
 the same lines into another file.
 
-The immediate package budget is the measured 53,907 production Python/dashboard lines. Add it to
-the existing maintainability ratchet so it cannot grow unnoticed, lower it after every successful
-consolidation, and target at least a ten-percent reduction to 48,500 or fewer lines. This target
-does not authorize code golf, lost tests, wider modules, generated opacity, or collapsed boundaries.
-If evidence shows the target would require those regressions, stop and revise the target explicitly
+The original package budget is the measured 53,907 production Python/dashboard lines. Add it to the
+existing maintainability ratchet so it cannot grow unnoticed, lower it after every successful
+consolidation, and target at least a ten-percent reduction to 48,500 or fewer lines. This target does
+not authorize code golf, lost tests, wider modules, generated opacity, or collapsed boundaries. If
+evidence shows the target would require those regressions, stop and revise the target explicitly
 instead of gaming it.
 
 Priority order:
@@ -2981,6 +2983,29 @@ Acceptance:
   green;
 - every retained service has one sentence explaining its responsibility and one obvious caller;
 - source compatibility is kept only when a real released consumer or migration requires it.
+
+### 10.2 delivery record: bounded watcher history and source ratchet
+
+The first vertical slice preserves every explicit scan plus changed, failed, cancelled, and
+interrupted watcher outcome, while retaining only the latest unchanged watcher poll for each
+repository. The cleanup runs transactionally when the next watcher poll starts, so an existing index
+with tens of thousands of no-op rows becomes logically compact without a migration, startup pause,
+or automatic `VACUUM`. SQLite may keep freed pages in the database file for reuse; physical file
+shrinking remains an explicit operator maintenance decision.
+
+Characterization proves that a changed watcher run and the latest no-op remain, an older no-op is
+removed, explicit unchanged scans are not removed, and abandoned running work is still marked
+interrupted. The implementation introduced no table, migration, module, command, route, or public
+tool. Replacing its long list of persistence symbol imports with the existing facade namespace also
+made that dependency explicit and reduced `storage.py` from 498 to 488 physical lines without
+removing the released `initialize()` method or `SCHEMA_VERSION` export.
+
+The existing maintainability pre-commit gate now counts all first-party `.py`, dashboard
+JavaScript/TypeScript, CSS, and HTML beneath `src/anaxigraph`. Its exact shrinking baseline is
+**53,897 lines** after the watcher slice. Growth fails with removal/simplification guidance; a lower
+count also fails until the contributor lowers the recorded baseline in the same change. Tests and
+tooling do not count toward that production budget and cannot be used to offset production growth.
+The next consolidation slice begins with the semantic-job read-path audit recorded in §10.1.
 
 ## 10.3 Make human understanding the primary dashboard journey
 

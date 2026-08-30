@@ -68,3 +68,31 @@ def test_new_scan_marks_abandoned_structural_run_interrupted(repository, databas
     assert abandoned["completed_at"]
     assert abandoned["error"] == "Previous scan process ended before completion"
     assert latest["status"] == "unchanged"
+
+
+def test_watch_retains_only_latest_unchanged_poll(repository, database):
+    scanner = RepositoryScanner(database)
+    first = scanner.scan(repository)
+    explicit_unchanged = scanner.scan(repository)
+
+    changed_path = repository / "pkg" / "util.py"
+    changed_path.write_text(changed_path.read_text(encoding="utf-8") + "\nVALUE = 1\n")
+    changed_watch = scanner.scan(repository, run_type="watch")
+    old_unchanged = scanner.scan(repository, run_type="watch")
+    latest_unchanged = scanner.scan(repository, run_type="watch")
+
+    with database.connect() as connection:
+        rows = connection.execute(
+            "SELECT id, run_type, status FROM analysis_runs WHERE repository_id = ? ORDER BY id",
+            (first.repository_id,),
+        ).fetchall()
+
+    assert [(row["id"], row["status"]) for row in rows if row["run_type"] == "scan"] == [
+        (first.analysis_run_id, "completed"),
+        (explicit_unchanged.analysis_run_id, "unchanged"),
+    ]
+    assert [(row["id"], row["status"]) for row in rows if row["run_type"] == "watch"] == [
+        (changed_watch.analysis_run_id, "completed"),
+        (latest_unchanged.analysis_run_id, "unchanged"),
+    ]
+    assert old_unchanged.analysis_run_id != latest_unchanged.analysis_run_id

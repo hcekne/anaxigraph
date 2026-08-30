@@ -12,32 +12,10 @@ from typing import Any
 
 from filelock import FileLock
 
+import anaxigraph.persistence.index_facade as persistence
 from anaxigraph.models import GitMetadata
-from anaxigraph.persistence.index_facade import (
-    SCHEMA,
-    SCHEMA_VERSION,
-    FindingPageQuery,
-    empty_pattern_evidence,
-    index_graph_delta,
-    index_graph_neighborhood,
-    index_graph_overview,
-    index_graph_page,
-    index_modules,
-    initialize_index,
-    install_snapshot_projection,
-    read_file_details,
-    read_finding,
-    read_finding_page,
-    read_findings,
-    read_group_hierarchy,
-    read_overview,
-    read_pattern_evidence,
-    read_snapshots,
-    read_timeline,
-    resolve_snapshot,
-    search_modules,
-    taxonomy_map_payload,
-)
+
+SCHEMA_VERSION = persistence.SCHEMA_VERSION
 
 
 def utc_now() -> str:
@@ -61,11 +39,11 @@ class AnaxiIndex:
         return connection
 
     def initialize(self) -> None:
-        initialize_index(
+        persistence.initialize_index(
             self.path,
             self.connect,
-            schema=SCHEMA,
-            target_version=SCHEMA_VERSION,
+            schema=persistence.SCHEMA,
+            target_version=persistence.SCHEMA_VERSION,
         )
 
     @contextlib.contextmanager
@@ -217,13 +195,13 @@ class AnaxiIndex:
 
     def snapshots(self, repository_id: int, *, limit: int = 100) -> list[dict[str, Any]]:
         with self.connect() as connection:
-            return read_snapshots(connection, repository_id, limit=limit)
+            return persistence.read_snapshots(connection, repository_id, limit=limit)
 
     def timeline_snapshots(self, repository_id: int, *, limit: int = 250) -> list[dict[str, Any]]:
         """Return Git commit frames plus the current working tree, without scan-run duplicates."""
 
         with self.connect() as connection:
-            return read_timeline(connection, repository_id, limit=limit)
+            return persistence.read_timeline(connection, repository_id, limit=limit)
 
     def start_run(self, repository_id: int, run_type: str) -> int:
         with self.transaction() as connection:
@@ -237,6 +215,12 @@ class AnaxiIndex:
                 "VALUES (?, ?, 'running', ?)",
                 (repository_id, run_type, utc_now()),
             )
+            if run_type == "watch":
+                connection.execute(
+                    "DELETE FROM analysis_runs WHERE repository_id = ? AND run_type = 'watch' "
+                    "AND status = 'unchanged'",
+                    (repository_id,),
+                )
             return int(cursor.lastrowid)
 
     def finish_run(
@@ -279,7 +263,7 @@ class AnaxiIndex:
         if snapshot is None:
             return {"repository_id": repository_id, "snapshot": None}
         with self.connect() as connection:
-            return read_overview(connection, repository_id, snapshot)
+            return persistence.read_overview(connection, repository_id, snapshot)
 
     def group_hierarchy(
         self,
@@ -294,8 +278,10 @@ class AnaxiIndex:
         if snapshot is None:
             return []
         with self.connect() as connection:
-            install_snapshot_projection(connection, int(snapshot["id"]), include_symbols=False)
-            return read_group_hierarchy(
+            persistence.install_snapshot_projection(
+                connection, int(snapshot["id"]), include_symbols=False
+            )
+            return persistence.read_group_hierarchy(
                 connection,
                 repository_id,
                 int(snapshot["id"]),
@@ -309,8 +295,10 @@ class AnaxiIndex:
         if snapshot is None:
             return None
         with self.connect() as connection:
-            install_snapshot_projection(connection, int(snapshot["id"]), include_symbols=False)
-            return taxonomy_map_payload(connection, int(snapshot["id"]))
+            persistence.install_snapshot_projection(
+                connection, int(snapshot["id"]), include_symbols=False
+            )
+            return persistence.taxonomy_map_payload(connection, int(snapshot["id"]))
 
     def modules(
         self,
@@ -321,7 +309,9 @@ class AnaxiIndex:
         offset: int = 0,
     ) -> list[dict[str, Any]]:
         """Return the file-level intelligence ledger for inventory views and agents."""
-        return index_modules(self, repository_id, snapshot_id, limit=limit, offset=offset)
+        return persistence.index_modules(
+            self, repository_id, snapshot_id, limit=limit, offset=offset
+        )
 
     def pattern_evidence(
         self,
@@ -332,9 +322,9 @@ class AnaxiIndex:
 
         snapshot = self._resolve_snapshot(repository_id, snapshot_id)
         if snapshot is None:
-            return empty_pattern_evidence(repository_id)
+            return persistence.empty_pattern_evidence(repository_id)
         with self.connect() as connection:
-            return read_pattern_evidence(
+            return persistence.read_pattern_evidence(
                 connection,
                 repository_id,
                 int(snapshot["id"]),
@@ -342,7 +332,7 @@ class AnaxiIndex:
 
     def _resolve_snapshot(self, repository_id: int, snapshot_id: int | None) -> sqlite3.Row | None:
         with self.connect() as connection:
-            return resolve_snapshot(connection, repository_id, snapshot_id)
+            return persistence.resolve_snapshot(connection, repository_id, snapshot_id)
 
     def graph(
         self,
@@ -352,7 +342,7 @@ class AnaxiIndex:
         include_external: bool = False,
         query: Any | None = None,
     ) -> dict[str, Any]:
-        return index_graph_page(
+        return persistence.index_graph_page(
             self,
             repository_id,
             snapshot_id,
@@ -370,7 +360,7 @@ class AnaxiIndex:
         edge_limit: int,
         include_external: bool = False,
     ) -> dict[str, Any]:
-        return index_graph_overview(
+        return persistence.index_graph_overview(
             self,
             repository_id,
             snapshot_id,
@@ -387,7 +377,7 @@ class AnaxiIndex:
         *,
         query: Any,
     ) -> dict[str, Any]:
-        return index_graph_neighborhood(self, repository_id, snapshot_id, query=query)
+        return persistence.index_graph_neighborhood(self, repository_id, snapshot_id, query=query)
 
     def graph_delta(
         self,
@@ -398,7 +388,7 @@ class AnaxiIndex:
         node_limit: int,
         edge_limit: int,
     ) -> dict[str, Any]:
-        return index_graph_delta(
+        return persistence.index_graph_delta(
             self,
             repository_id,
             baseline_snapshot_id,
@@ -414,7 +404,7 @@ class AnaxiIndex:
         if snapshot is None:
             return None
         with self.connect() as connection:
-            return read_file_details(
+            return persistence.read_file_details(
                 connection,
                 repository_id,
                 path,
@@ -426,7 +416,7 @@ class AnaxiIndex:
         if snapshot is None:
             return []
         with self.connect() as connection:
-            return search_modules(connection, int(snapshot["id"]), query, limit=limit)
+            return persistence.search_modules(connection, int(snapshot["id"]), query, limit=limit)
 
     def findings(
         self,
@@ -438,7 +428,7 @@ class AnaxiIndex:
         snapshot = self._resolve_snapshot(repository_id, None)
         snapshot_id = int(snapshot["id"]) if snapshot is not None else None
         with self.connect() as connection:
-            return read_findings(
+            return persistence.read_findings(
                 connection,
                 repository_id,
                 snapshot_id,
@@ -450,7 +440,7 @@ class AnaxiIndex:
         self,
         repository_id: int,
         *,
-        query: FindingPageQuery,
+        query: persistence.FindingPageQuery,
         policy: Any,
     ) -> dict[str, Any]:
         """Return a bounded attention or diagnostic page with exact ledger totals."""
@@ -458,7 +448,7 @@ class AnaxiIndex:
         snapshot = self._resolve_snapshot(repository_id, None)
         snapshot_id = int(snapshot["id"]) if snapshot is not None else None
         with self.connect() as connection:
-            return read_finding_page(
+            return persistence.read_finding_page(
                 connection,
                 repository_id,
                 snapshot_id,
@@ -470,7 +460,7 @@ class AnaxiIndex:
         snapshot = self._resolve_snapshot(repository_id, None)
         snapshot_id = int(snapshot["id"]) if snapshot is not None else None
         with self.connect() as connection:
-            return read_finding(connection, repository_id, finding_id, snapshot_id)
+            return persistence.read_finding(connection, repository_id, finding_id, snapshot_id)
 
     def update_finding_status(self, repository_id: int, finding_id: int, status: str) -> bool:
         allowed = {

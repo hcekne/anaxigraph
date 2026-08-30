@@ -3,6 +3,12 @@
   "source_root": "src",
   "package": "anaxigraph",
   "exclude": [],
+  "production_source_budget": {
+    "root": "src/anaxigraph",
+    "extensions": [".py", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".css", ".html"],
+    "baseline_lines": 53897,
+    "target_lines": 48500
+  },
   "function_limits": {
     "warning_lines": 40,
     "hard_lines": 50,
@@ -16,6 +22,7 @@
   "policy_notes": {
     "function_identity": "path::qualified_name maps to [physical lines, cyclomatic complexity]",
     "coupling_identity": "module maps to [fan-in, fan-out]",
+    "production_source_budget": "Combined first-party Python and dashboard source. Lower baseline_lines whenever a consolidation reduces it; growth fails the gate.",
     "owner": "maintainers",
     "removal": "Lower each baseline in the same change that reduces it; remove it once within limits. Remaining analyzer debt belongs to Phase 4B, agent and semantic-taxonomy orchestration debt is retired during Phase 6, and temporal/dashboard debt belongs to Phase 7. Every other legacy entry remains a continuous exact no-growth ratchet."
   },

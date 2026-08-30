@@ -315,6 +315,35 @@ def test_function_budget_rejects_new_growth_and_ratchets_legacy(tmp_path):
     assert any(item.issue_type == "function_growth" for item in growth)
 
 
+def test_production_source_budget_is_an_exact_shrinking_ratchet(tmp_path):
+    package = tmp_path / "src" / "sample"
+    package.mkdir(parents=True)
+    module = package / "service.py"
+    asset = package / "dashboard.js"
+    module.write_text("VALUE = 1\nVALUE = 2\n", encoding="utf-8")
+    asset.write_text("const value = 1;\n", encoding="utf-8")
+    policy = _maintainability_policy(
+        tmp_path,
+        production_source_budget={
+            "root": "src/sample",
+            "extensions": [".py", ".js"],
+            "baseline_lines": 3,
+        },
+    )
+
+    assert check_quality(tmp_path, policy_path=policy) == []
+
+    asset.write_text("const value = 1;\nconst other = 2;\n", encoding="utf-8")
+    growth = check_quality(tmp_path, policy_path=policy)
+    assert any(item.issue_type == "production_source_growth" for item in growth)
+
+    module.write_text("VALUE = 1\n", encoding="utf-8")
+    asset.write_text("", encoding="utf-8")
+    reduced = check_quality(tmp_path, policy_path=policy)
+    assert any(item.issue_type == "stale_source_baseline" for item in reduced)
+    assert "lower baseline_lines to 1" in reduced[0].message
+
+
 def test_coupling_budget_ratchets_high_fan_in(tmp_path):
     package = tmp_path / "src" / "sample"
     package.mkdir(parents=True)
