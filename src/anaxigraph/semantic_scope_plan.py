@@ -12,12 +12,13 @@ from anaxigraph.persistence.semantic_evidence import semantic_inventory
 from anaxigraph.semantic_freshness import (
     GROUP_SYNTHESIS_CONTRACT,
     REPOSITORY_SYNTHESIS_CONTRACT,
+    is_expired,
     semantic_input_hash,
 )
-from anaxigraph.semantic_graph import _expired
 from anaxigraph.semantic_group_membership import synthesis_groups
 from anaxigraph.semantic_leases import SemanticLeaseService
-from anaxigraph.semantic_module_plan import SemanticModulePlanner
+from anaxigraph.semantic_module_context import plan_context_modules
+from anaxigraph.semantic_module_intrinsic import plan_intrinsic_modules
 from anaxigraph.semantic_ports import (
     SemanticIndex,
     SemanticPatternPlanningPort,
@@ -62,14 +63,12 @@ class SemanticPlanningService:
         database: SemanticIndex,
         reporting: SemanticReportingPort,
         leases: SemanticLeaseService,
-        modules: SemanticModulePlanner,
         taxonomy: SemanticTaxonomyPlanner,
         patterns: SemanticPatternPlanningPort,
     ) -> None:
         self._database = database
         self._reporting = reporting
         self._leases = leases
-        self._modules = modules
         self._taxonomy = taxonomy
         self._patterns = patterns
 
@@ -97,7 +96,7 @@ class SemanticPlanningService:
         with self._database.transaction() as connection:
             self._leases.reconcile(connection, repository_id, snapshot_id, semantic)
             inventory, relationships = semantic_inventory(connection, snapshot_id)
-            enqueued = self._modules.plan_intrinsic(
+            enqueued = plan_intrinsic_modules(
                 connection,
                 repository_id=repository_id,
                 snapshot_id=snapshot_id,
@@ -108,7 +107,7 @@ class SemanticPlanningService:
                 retry_failed=retry_failed,
             )
             intrinsic_active = _has_active_module_stage(connection, snapshot_id, "intrinsic")
-            enqueued += self._modules.plan_context(
+            enqueued += plan_context_modules(
                 connection,
                 repository_id=repository_id,
                 snapshot_id=snapshot_id,
@@ -275,7 +274,7 @@ class SemanticPlanningService:
                 semantic,
                 legacy_evidence=evidence,
             )
-            expired = document is not None and _expired(
+            expired = document is not None and is_expired(
                 document["created_at"], semantic.max_age_days
             )
             if document is not None and not expired:
@@ -377,7 +376,7 @@ class SemanticPlanningService:
             semantic,
             legacy_evidence=evidence,
         )
-        expired = document is not None and _expired(document["created_at"], semantic.max_age_days)
+        expired = document is not None and is_expired(document["created_at"], semantic.max_age_days)
         if document is not None and not expired:
             _upsert_state(
                 connection,

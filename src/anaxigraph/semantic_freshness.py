@@ -41,7 +41,7 @@ def semantic_input_hash(
     )
 
 
-def semantic_record_expired(created_at: str, max_age_days: int) -> bool:
+def is_expired(created_at: str, max_age_days: int) -> bool:
     if max_age_days <= 0:
         return False
     try:

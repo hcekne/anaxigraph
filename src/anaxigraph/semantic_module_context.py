@@ -7,8 +7,12 @@ from dataclasses import dataclass
 from typing import Any
 
 from anaxigraph.semantic_config_port import SemanticConfig
-from anaxigraph.semantic_freshness import MODULE_CONTEXT_CONTRACT, semantic_input_hash
-from anaxigraph.semantic_graph import _expired, _module_priority
+from anaxigraph.semantic_freshness import (
+    MODULE_CONTEXT_CONTRACT,
+    is_expired,
+    semantic_input_hash,
+)
+from anaxigraph.semantic_graph import _module_priority
 from anaxigraph.semantic_records import (
     _ensure_job,
     _latest_document,
@@ -118,7 +122,9 @@ def _plan_module(plan: _ContextPlan, item: _ContextModule) -> int:
         plan.semantic,
         legacy_evidence=item.evidence,
     )
-    expired = document is not None and _expired(document["created_at"], plan.semantic.max_age_days)
+    expired = document is not None and is_expired(
+        document["created_at"], plan.semantic.max_age_days
+    )
     if document is not None and not expired:
         _supersede_duplicate_jobs(plan.connection, plan.snapshot_id, "module", item.path, "context")
         _record(plan, item, "current", _CURRENT_REASON, int(document["id"]))

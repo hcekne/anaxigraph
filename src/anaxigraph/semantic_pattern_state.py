@@ -7,7 +7,7 @@ import sqlite3
 from typing import Any
 
 from anaxigraph.clock import utc_now
-from anaxigraph.semantic_freshness import semantic_record_expired
+from anaxigraph.semantic_freshness import is_expired
 from anaxigraph.semantic_job_state import semantic_job_bulk_transition
 from anaxigraph.semantic_records import _reset_failed_job, _upsert_state
 
@@ -66,7 +66,7 @@ def _has_expired_result(
         """,
         (snapshot_id,),
     ).fetchall()
-    return any(semantic_record_expired(str(row["created_at"]), max_age_days) for row in rows)
+    return any(is_expired(str(row["created_at"]), max_age_days) for row in rows)
 
 
 def patterns_complete(connection: sqlite3.Connection, snapshot_id: int, expected: int) -> bool:

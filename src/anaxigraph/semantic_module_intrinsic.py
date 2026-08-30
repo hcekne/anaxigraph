@@ -7,8 +7,12 @@ from dataclasses import dataclass
 from typing import Any
 
 from anaxigraph.semantic_config_port import SemanticConfig
-from anaxigraph.semantic_freshness import MODULE_INTRINSIC_CONTRACT, semantic_input_hash
-from anaxigraph.semantic_graph import _canonical_hash, _expired, _interface_hash, _module_priority
+from anaxigraph.semantic_freshness import (
+    MODULE_INTRINSIC_CONTRACT,
+    is_expired,
+    semantic_input_hash,
+)
+from anaxigraph.semantic_graph import _canonical_hash, _interface_hash, _module_priority
 from anaxigraph.semantic_records import (
     _active_job,
     _ensure_job,
@@ -128,7 +132,7 @@ def _reuse_existing(context: _IntrinsicContext, item: _IntrinsicModule) -> tuple
         context.semantic,
         legacy_evidence=item.evidence,
     )
-    expired = document is not None and _expired(
+    expired = document is not None and is_expired(
         document["created_at"], context.semantic.max_age_days
     )
     if document is None or expired or context.force:

@@ -3078,6 +3078,32 @@ the canonical digest was exact, reconstruction stayed within the 16-delta budget
 endpoint stayed healthy, and `anaxigraph doctor` reported no blockers. The next ordered slice is
 item 5: converge semantic projections and composition without creating another semantic model.
 
+### 10.2 delivery record: one semantic planner and one freshness rule
+
+The first item-5 slice removes two small but real parallel representations. First,
+`SemanticModulePlanner` was a stateless 56-line class whose only behavior was forwarding intrinsic
+and contextual calls to their existing planning functions. Its only production consumer now calls
+those two cohesive planners directly; the extraction algorithms remain separate, while the extra
+facade, constructor field, composition-root allocation, and Python module disappear.
+
+Second, semantic age was evaluated by two byte-for-byte equivalent functions in
+`semantic_graph.py` and `semantic_freshness.py`. Module, group, repository, pattern-plan, and
+pattern-cache decisions now share `semantic_freshness.is_expired`. Provider/model-independent input
+identity and age policy therefore have one owner, while graph evidence no longer owns a competing
+readiness rule.
+
+The Python module count falls from 243 to **242**, and the exact production source ratchet falls
+from 53,878 to **53,815 lines**. Existing intrinsic/context planning, age-expiry rebuild, semantic
+identity, taxonomy, queue, pattern, and end-to-end understanding contracts characterize the
+surviving behavior. Item 5 remains in progress; the next slice must find another measured duplicate
+projection or one-use composition boundary rather than expanding the semantic subsystem.
+
+The exact self-hosted image then scanned the 470-module tree and exercised the ordinary semantic
+prepare endpoint against snapshot 372. The shared planner preserved 313 current module dossiers,
+identified 103 reusable intrinsic descriptions, enqueued exactly 54 missing intrinsic jobs, reported
+zero failures, and returned the expected durable `intrinsic` stage with 54 active jobs. This is a
+live composition-path check, not an AI execution claim; no model tokens were spent by preparation.
+
 ## 10.3 Make human understanding the primary dashboard journey
 
 Use the existing semantic repository dossier, reviewed taxonomy, graph, file detail, and history to

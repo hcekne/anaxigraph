@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from anaxigraph.config import SemanticConfig
@@ -100,18 +99,6 @@ def _intent_fingerprint(value: dict[str, Any]) -> str:
 def _canonical_hash(value: Any) -> str:
     payload = json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
-
-
-def _expired(created_at: str, max_age_days: int) -> bool:
-    if max_age_days <= 0:
-        return False
-    try:
-        created = datetime.fromisoformat(created_at)
-    except ValueError:
-        return True
-    if created.tzinfo is None:
-        created = created.replace(tzinfo=UTC)
-    return created < datetime.now(UTC) - timedelta(days=max_age_days)
 
 
 def _cost(input_tokens: int, output_tokens: int, semantic: SemanticConfig) -> float:

@@ -10,7 +10,7 @@ from anaxigraph.pattern_candidates import build_pattern_candidate_plan
 from anaxigraph.pattern_catalog import bundled_pattern_catalog
 from anaxigraph.persistence.pattern_evidence_read import read_pattern_evidence
 from anaxigraph.semantic_config_port import SemanticConfig
-from anaxigraph.semantic_freshness import semantic_record_expired
+from anaxigraph.semantic_freshness import is_expired
 from anaxigraph.semantic_pattern_identity import (
     pattern_assessment_input_hash,
     pattern_plan_input_hash,
@@ -350,8 +350,7 @@ def _document_status(
         connection, repository_id, "pattern", scope_key, kind, input_hash, semantic
     )
     expired = bool(
-        document is not None
-        and semantic_record_expired(document["created_at"], semantic.max_age_days)
+        document is not None and is_expired(document["created_at"], semantic.max_age_days)
     )
     return (None if expired else document), expired
 
