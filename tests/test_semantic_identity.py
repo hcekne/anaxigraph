@@ -7,7 +7,8 @@ from semantic_support import _calls, _fake_provider, _semantic_config
 from anaxigraph.config import load_config
 from anaxigraph.persistence.semantic_evidence import semantic_inventory
 from anaxigraph.scanner import RepositoryScanner
-from anaxigraph.semantic_graph import _canonical_hash, _interface_hash
+from anaxigraph.semantic_freshness import semantic_digest
+from anaxigraph.semantic_graph import _interface_hash
 from anaxigraph.semantic_taxonomy_plan import _taxonomy_evidence, _taxonomy_settings
 from anaxigraph.understanding import SemanticEngine
 
@@ -36,7 +37,7 @@ def test_executor_and_model_changes_do_not_invalidate_semantic_documents(
             "structural_hash": module["structural_hash"],
             "interface_hash": _interface_hash(module),
         }
-        legacy_hash = _canonical_hash(
+        legacy_hash = semantic_digest(
             {
                 "schema": "module-dossier-v4",
                 "prompt": config.semantic.prompt_version,
@@ -77,7 +78,7 @@ def test_executor_and_model_changes_do_not_invalidate_semantic_documents(
             hints=config.map.hints,
             locks=config.map.locked_memberships,
         )
-        legacy_taxonomy_hash = _canonical_hash(
+        legacy_taxonomy_hash = semantic_digest(
             {
                 "schema": "repository-understanding-v5",
                 "prompt": config.semantic.prompt_version,

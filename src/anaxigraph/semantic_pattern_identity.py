@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from typing import Any
 
 from anaxigraph.pattern_candidate_models import (
@@ -19,6 +17,7 @@ from anaxigraph.semantic_freshness import (
     PATTERN_ASSESSMENT_CONTRACT,
     PATTERN_PLAN_CONTRACT,
     PATTERN_REVIEW_CONTRACT,
+    semantic_digest,
     semantic_input_hash,
 )
 
@@ -75,13 +74,8 @@ def pattern_review_input_hash(
         prompt_version,
         {
             "candidate_fingerprint": candidate["input_fingerprint"],
-            "assessment_fingerprint": _digest(assessment),
+            "assessment_fingerprint": semantic_digest(assessment),
             "score_contract": PATTERN_SCORE_CONTRACT_VERSION,
             "review_contract": PATTERN_REVIEW_CONTRACT_VERSION,
         },
     )
-
-
-def _digest(value: Any) -> str:
-    encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), default=str).encode()
-    return hashlib.sha256(encoded).hexdigest()

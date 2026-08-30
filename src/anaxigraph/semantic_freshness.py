@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
 import hmac
+import json
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
-
-from anaxigraph.semantic_graph import _canonical_hash
 
 MODULE_INTRINSIC_CONTRACT = "module-intrinsic-v1"
 MODULE_CONTEXT_CONTRACT = "module-context-v1"
@@ -32,13 +32,18 @@ def semantic_input_hash(
 ) -> str:
     """Hash semantic evidence and its stage contract, never its executor."""
 
-    return _canonical_hash(
+    return semantic_digest(
         {
             "input_contract": contract,
             "prompt": prompt_version,
             "evidence": dict(evidence),
         }
     )
+
+
+def semantic_digest(value: Any) -> str:
+    encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), default=str).encode()
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def is_expired(created_at: str, max_age_days: int) -> bool:
@@ -67,7 +72,7 @@ def legacy_input_matches(
         return False
     variants = (evidence,) if isinstance(evidence, Mapping) else evidence
     for variant in variants:
-        expected = _canonical_hash(
+        expected = semantic_digest(
             {
                 "schema": record.get("schema_version"),
                 "prompt": record.get("prompt_version"),

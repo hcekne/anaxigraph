@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from typing import Any
 
 from anaxigraph.config import SemanticConfig
+from anaxigraph.semantic_freshness import semantic_digest
 
 
 class SupersededSemanticJob(RuntimeError):
@@ -14,7 +13,7 @@ class SupersededSemanticJob(RuntimeError):
 
 
 def _interface_hash(module: dict[str, Any]) -> str:
-    return _canonical_hash(
+    return semantic_digest(
         {
             "public_interfaces": module.get("public_interfaces", []),
             "symbols": [
@@ -75,7 +74,7 @@ def _intent_fingerprint(value: dict[str, Any]) -> str:
         }
         return sorted(terms)
 
-    return _canonical_hash(
+    return semantic_digest(
         {
             key: normalized_terms(key)
             for key in (
@@ -94,11 +93,6 @@ def _intent_fingerprint(value: dict[str, Any]) -> str:
             ).casefold()
         }
     )
-
-
-def _canonical_hash(value: Any) -> str:
-    payload = json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def _cost(input_tokens: int, output_tokens: int, semantic: SemanticConfig) -> float:

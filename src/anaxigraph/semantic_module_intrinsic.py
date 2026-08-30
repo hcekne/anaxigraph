@@ -10,9 +10,10 @@ from anaxigraph.semantic_config_port import SemanticConfig
 from anaxigraph.semantic_freshness import (
     MODULE_INTRINSIC_CONTRACT,
     is_expired,
+    semantic_digest,
     semantic_input_hash,
 )
-from anaxigraph.semantic_graph import _canonical_hash, _interface_hash, _module_priority
+from anaxigraph.semantic_graph import _interface_hash, _module_priority
 from anaxigraph.semantic_records import (
     _active_job,
     _ensure_job,
@@ -86,7 +87,7 @@ def _module_inputs(
         path=path,
         module=module,
         interface_hash=interface_hash,
-        relationship_hash=_canonical_hash(relationships.get(path, [])),
+        relationship_hash=semantic_digest(relationships.get(path, [])),
         evidence=evidence,
         input_hash=semantic_input_hash(
             MODULE_INTRINSIC_CONTRACT,

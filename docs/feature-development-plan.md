@@ -3104,6 +3104,38 @@ identified 103 reusable intrinsic descriptions, enqueued exactly 54 missing intr
 zero failures, and returned the expected durable `intrinsic` stage with 54 active jobs. This is a
 live composition-path check, not an AI execution claim; no model tokens were spent by preparation.
 
+### 10.2 delivery record: one semantic identity and workflow composition root
+
+The second item-5 slice removes two more representations without merging the semantic algorithms.
+Stable JSON identity had separate implementations in `semantic_graph.py` and
+`semantic_pattern_identity.py`, even though module, taxonomy, and pattern freshness all depend on
+the same deterministic serialization rule. `semantic_freshness.semantic_digest` now owns that rule.
+Module interface and intent fingerprints, intrinsic relationship fingerprints, legacy identity
+checks, and pattern-review assessment fingerprints all use it. This changes neither the serialized
+shape nor any stored hash; identity tests characterize legacy reuse across executor and model
+changes.
+
+`SemanticWorkflowServices` was also a one-use three-field container constructed by a dedicated
+51-line module and immediately projected back into `SemanticServices`. The existing composition
+root now owns those three explicit workflow fields and constructs them once. Database-facing core
+services remain behind `SemanticCoreServices`, and planning, runner, agent, taxonomy, and pattern
+implementations remain separate cohesive services. The change therefore removes an indirection and
+one Python module without turning the composition root into an algorithm or a high-coupling god
+object.
+
+The Python module count falls from 242 to **241**, and the exact production source ratchet falls
+from 53,815 to **53,774 lines**. Semantic identity, service construction, intrinsic/context
+planning, pattern evaluation, and end-to-end understanding tests characterize the surviving path.
+Item 5 remains in progress: the next slice must characterize duplicated evidence/readiness
+projections before choosing a deletion, rather than combining differently scoped semantic facts.
+
+The full suite remains green with **605 tests**, every pre-commit gate passes, and the exact rebuilt
+Docker image remains healthy. That image scanned the 469-module working tree in 1.333 seconds while
+reusing every analysis, returned 4,419 relationships and 154 findings, and then exercised semantic
+preparation through the normal REST route. The unified identity/composition path preserved 309
+current contextual dossiers and 104 current intrinsic descriptions, enqueued 56 missing intrinsic
+jobs, reported zero failures, and spent no model tokens during preparation.
+
 ## 10.3 Make human understanding the primary dashboard journey
 
 Use the existing semantic repository dossier, reviewed taxonomy, graph, file detail, and history to
