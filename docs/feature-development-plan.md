@@ -1,23 +1,27 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 3.38
+**Roadmap version:** 4.0
 
-**Updated:** 26 August 2026
+**Updated:** 30 August 2026
 
 **Execution rule:** one phase is active at a time; the next phase does not begin until the current
 phase's exit gate is met.
 
 ## Executive decision
 
-AnaxiGraph exists to help people and coding agents navigate and change large codebases without
-creating code sprawl, tangled dependencies, misplaced responsibilities, or giant files. That is
-the admission test for every unfinished feature. Breadth, presentation, and ecosystem work no
-longer get priority merely because they could make the product look more complete.
+> **AnaxiGraph is the shared architecture intelligence layer for humans and AI agents. It explains
+> what a software system does and how its parts work together, while guiding future changes toward
+> a cleaner, more coherent design.**
+
+The product has three promises: **understand the system, guide the agent, and keep the architecture
+coherent**. That is the admission test for every unfinished feature. Breadth, presentation, and
+ecosystem work do not get priority merely because they could make the product look more complete.
 
 The shipped temporal index, relationship provenance, semantic map, pattern catalog, and bounded
-agent scope are foundations, not separate products. Remaining work must turn them into a simpler
-change loop: understand the hierarchy, choose where code belongs, see what a change may affect,
-detect structural damage introduced by the change, and explain how to correct it.
+agent scope are foundations, not separate products. The dashboard and AnaxiMCP are two consumers
+of one shared architecture model, not separate interpretations of the repository. Remaining work
+must make that model easier for a person to explore and easier for an agent to act on while making
+the implementation materially smaller.
 
 The roadmap follows these refinements:
 
@@ -58,8 +62,20 @@ unfinished work is now arranged around explicit dependencies and measurable exit
 
 ## Product outcome
 
-AnaxiGraph should be the persistent engineering memory and architecture advisor for a repository.
-It should help a person or coding agent answer:
+### One product, three promises
+
+| Promise | Human outcome | Coding-agent outcome | Existing product surfaces |
+|---|---|---|---|
+| **Understand the system** | Explain what the software does and move from capabilities and architecture areas to subsystems, files, symbols, relationships, and history. | Reuse a current repository-wide memory instead of rediscovering the system in every task. | Overview, Files, Graph, History, taxonomy, dossiers, file detail |
+| **Guide the agent** | Show where a requested change belongs, what already exists, what may be reused, which patterns may fit, and what could be affected. | Receive a bounded working set, extension points, constraints, related tests, evidence, counter-evidence, and verification plan. | Search, scope, impact, pattern evidence, task path |
+| **Keep the architecture coherent** | See whether rapid development is introducing sprawl, duplication, weak boundaries, oversized responsibilities, or possible dead code. | Refresh changed facts, compare the same goal after editing, and receive an independent architecture assessment beside test results. | Scan/watch, findings, before/after comparison, history |
+
+AnaxiIndex, extractors, semantic jobs, history jobs, SQLite tables, REST routes, CLI commands, and
+MCP queue primitives are enabling machinery. They do not become independent product families,
+navigation destinations, or roadmap themes. New work should normally strengthen an existing row
+of this map through an existing surface.
+
+AnaxiGraph should help a person or coding agent answer:
 
 1. **What is this system?** See its areas, modules, contracts, relationships, history, and module
    meanings from a repository view down to a symbol.
@@ -74,16 +90,16 @@ It should help a person or coding agent answer:
 5. **Did the change help?** Rescan, compare the relevant architecture facts, resolve or regress
    findings, and retain the decision in repository history.
 
-The product loop remains:
+The product loop is:
 
 ```text
-observe -> explain -> decide -> plan -> implement -> rescan -> verify -> remember
+understand -> guide -> change -> refresh -> learn
 ```
 
-The promise is not “draw a pretty code graph.” It is:
+The promise is not “draw a pretty code graph” or “make another AI reviewer.” It is:
 
-> Keep AI-accelerated codebases understandable, auditable, and architecturally sound as they
-> evolve—without presenting uncertain static or model-derived evidence as fact.
+> Give people and coding agents one living, inspectable understanding of the software, then use it
+> to make the next change fit the system better than an isolated prompt would.
 
 ## Feature admission rule
 
@@ -93,15 +109,20 @@ recoverable without it. Everything else is **optional** and does not block the a
 
 Before opening implementation, the feature must answer all of these in one short paragraph:
 
-1. Which navigation, placement, structure, or change-safety decision becomes easier?
-2. Which existing CLI, MCP, REST, dashboard, graph, semantic, or finding path will it reuse?
-3. What is the smallest end-to-end fixture that can prove the improvement?
-4. What new persistent state, provider path, product surface, or abstraction is avoided?
+1. Which of the three promises does it strengthen?
+2. What concrete human or coding-agent decision becomes easier?
+3. Which existing AnaxiIndex fact, interpretation, or recommendation will it reuse?
+4. Which existing CLI, MCP, REST, dashboard, graph, semantic, or finding path will deliver it?
+5. What can be removed, merged, or replaced as part of the change?
+6. What is the smallest end-to-end fixture that can prove the improvement?
+7. What new persistent state, provider path, public surface, or abstraction is avoided?
 
 A feature that needs a second analysis platform, another model pipeline, a parallel graph, a broad
 plugin framework, or a new primary dashboard screen fails this test unless the existing product
-cannot deliver the decision without it. Optional work is reconsidered only after the core roadmap
-is complete or concrete user evidence changes the ranking.
+cannot deliver the decision without it. During the convergence phase, an accepted feature must be
+production-line neutral or negative unless it fixes security, corruption, or demonstrated
+correctness. Optional work is reconsidered only after the core roadmap is complete or concrete user
+evidence changes the ranking.
 
 ## Current baseline
 
@@ -121,6 +142,9 @@ regression thresholds.
 | Graph delivery | Versioned overview, page, neighborhood, and delta reads are bounded from SQLite through REST/MCP and the dashboard; a retained 50,000-node fixture stays within time, memory, and payload budgets | Large local indexes can be explored without a monolithic graph response |
 | Installation | PyPI and GitHub release 0.3.0 provide one-command local startup, explicit agent connection, the dual-client plugin, generated hardened Compose, and a protected OIDC release workflow; public `uvx --from anaxigraph==0.3.0 anaxigraph` and multi-architecture container artifacts are verified | The first-run distribution barrier is closed and subsequent versions can use the routine short-lived-identity release path |
 | Internal module size | Every first-party implementation module is at or below 500 physical lines; the exception list is empty | Phase 3b now locks in the completed dashboard/evaluator decomposition and adds deterministic self-analysis before further feature growth |
+| Global implementation size | 76,893 first-party source, dashboard, test, benchmark, and quality-script lines; production contains 48,522 Python lines across 245 modules plus 5,385 dashboard HTML/CSS/JavaScript lines | Local 500-line compliance has not prevented global growth or fragmentation; tests are not the reduction target, but production code now requires a subtraction phase |
+| Concentration and warning pressure | Semantic code spans 57 modules/13,038 lines, persistence spans 51 modules/9,364 lines, 23 Python modules plus two dashboard assets are at least 400 lines, and the clean quality gate still reports 126 function and 20 coupling warnings | Both near-ceiling packing and small-file fragmentation are visible; another round of mechanical extraction would make the system harder to understand rather than leaner |
+| Public surface | The server exposes 25 MCP tools, the CLI declares 19 command parsers, the schema contains 35 current/temporal tables, and the dashboard presents seven top-level tabs | Operator primitives and user journeys are too easy to experience as one flat product; normal human and agent workflows need a smaller default surface while advanced operations remain available deliberately |
 
 The modules that were oversized when this roadmap was created were:
 
@@ -204,6 +228,23 @@ every unchanged file in every selected frame.
 - Storage, analysis, transport, and presentation must communicate through narrow models rather
   than reach through each other's internals.
 - Performance and correctness changes begin with a reproducible characterization test.
+
+### Global simplicity matters more than local limit compliance
+
+- Passing a per-file ceiling does not prove the product is lean. Production lines, module count,
+  public concepts, default tools, commands, tables, and navigation destinations are tracked too.
+- Do not split a cohesive file merely to stay below 500 lines. First remove duplication, obsolete
+  compatibility, repeated projections, pass-through layers, and unnecessary branches.
+- Tests, evidence fixtures, and migrations that protect real compatibility are not deleted to make
+  a line chart look better. The primary reduction target is production machinery and duplicated
+  product surface.
+- No new primary dashboard destination, default MCP tool, CLI command family, database table,
+  provider path, or background coordinator is added during convergence without removing or
+  consolidating an equivalent concept.
+- A refactor is successful only when behavior remains covered and the resulting responsibility
+  map is easier to explain. Fewer lines produced by code golf or larger monoliths are regressions.
+- Each pull request records its production-line delta, public-surface delta, and which of the three
+  product promises it advances.
 
 ## Consecutive execution protocol
 
@@ -2690,6 +2731,189 @@ promises across machines or repositories.
 
 ---
 
+# Phase 10 — converge on shared architecture intelligence
+
+**Status:** IN PROGRESS from 30 August 2026
+
+**Goal:** make AnaxiGraph simpler to understand, operate, and maintain while sharpening the one
+thing it exists to do: give people and coding agents the same living understanding of a software
+system and use that understanding to guide cleaner changes.
+
+This is a subtraction and convergence phase, not a new feature family. The existing scanner,
+AnaxiIndex, semantic dossiers, taxonomy, pattern evidence, history, dashboard, and AnaxiMCP already
+contain most of the required capability. The work is to remove competing concepts, join the useful
+parts into three obvious journeys, and prove those journeys with humans and ordinary coding agents.
+
+## 10.0 Make the mission an operating rule
+
+**Status:** COMPLETE on 30 August 2026
+
+The README, product brief, architecture description, package metadata, dashboard onboarding, agent
+plugin, contributor guidance, and this roadmap use one position:
+
+> **AnaxiGraph is the shared architecture intelligence layer for humans and AI agents. It explains
+> what a software system does and how its parts work together, while guiding future changes toward
+> a cleaner, more coherent design.**
+
+The concise product language is:
+
+> **Understand the system. Guide the agent. Keep the architecture coherent.**
+
+Pull requests must identify which promise and user decision they advance, what existing surface
+they reuse, and what they remove or replace. This turns positioning into an admission gate rather
+than a paragraph that implementation can ignore.
+
+## 10.1 Inventory the product surface and write the deletion map
+
+**Status:** NEXT
+
+Before changing architecture, trace every top-level dashboard journey, default MCP tool, CLI command
+family, REST route family, database table family, and major module cluster to one of:
+
+1. a direct **Understand**, **Guide**, or **Keep coherent** user decision;
+2. shared enabling infrastructure required by those decisions;
+3. an advanced operator or semantic-executor mechanism that should be hidden from normal use;
+4. duplicated, legacy, pass-through, or speculative machinery that should be consolidated or
+   removed.
+
+Record call sites, stored state, compatibility obligations, tests, and public consumers before
+marking anything removable. Give special attention to the 57 semantic modules, 51 persistence
+modules, 25 MCP tools, and repeated language/projection layers. The result is one ordered deletion
+map, not another permanent inventory subsystem.
+
+Documentation is part of the same surface. This active roadmap now exceeds 3,000 lines and the
+original product brief exceeds 2,000; completed detail should be collapsed into a short delivery
+record rather than copied to another tracked archive. Git already preserves the full history.
+
+Acceptance:
+
+- every public surface and major code cluster has one owner and one reason to exist;
+- ordinary user journeys are separated from operator/executor primitives;
+- removal candidates name the behavior and test that must survive;
+- README, product brief, architecture document, and active roadmap have distinct non-repeating jobs;
+- no feature implementation, new table, new tool, or new dashboard destination lands during the
+  inventory.
+
+## 10.2 Consolidate the implementation without hiding complexity
+
+Work through the deletion map one coherent vertical slice at a time. Preserve characterization
+tests first, then remove duplicated transformations, obsolete compatibility, one-use forwarding
+layers, repeated response language, and unnecessary orchestration. Merge tiny fragments only when
+they change for the same reason; shrink near-ceiling modules by simplifying behavior, not by moving
+the same lines into another file.
+
+The immediate package budget is the measured 53,907 production Python/dashboard lines. Add it to
+the existing maintainability ratchet so it cannot grow unnoticed, lower it after every successful
+consolidation, and target at least a ten-percent reduction to 48,500 or fewer lines. This target
+does not authorize code golf, lost tests, wider modules, generated opacity, or collapsed boundaries.
+If evidence shows the target would require those regressions, stop and revise the target explicitly
+instead of gaming it.
+
+Priority order:
+
+1. semantic planning, execution, taxonomy, status, and repeated language projections;
+2. persistence query/projection fragments and compatibility code;
+3. agent decision/payload composition and duplicated transport shapes;
+4. dashboard controllers and repeated rendering/state handling;
+5. CLI/API/MCP adapters after the underlying services converge.
+
+Acceptance:
+
+- production LOC follows a shrinking, tracked package-level ratchet;
+- production module and public-surface counts decrease without creating a new oversized module;
+- the 500-line, complexity, coupling, layer, changed-coverage, migration, and browser gates remain
+  green;
+- every retained service has one sentence explaining its responsibility and one obvious caller;
+- source compatibility is kept only when a real released consumer or migration requires it.
+
+## 10.3 Make human understanding the primary dashboard journey
+
+Use the existing semantic repository dossier, reviewed taxonomy, graph, file detail, and history to
+provide progressive disclosure:
+
+```text
+program purpose -> user capability -> architecture area -> subsystem -> file -> symbol
+```
+
+At every level answer: what does this do, why does it exist, how does it serve the program, what
+does it depend on, what depends on it, how confident is the explanation, when did it change, and
+what deserves attention? Beginners receive ordinary-language consequences first; experts can open
+the exact facts, edges, hashes, provenance, and caveats behind them.
+
+Do not add another primary screen. Converge the seven current tabs toward at most five human
+journeys—**Understand**, **Improve**, **History**, **Workbench**, and **Settings**—with Files and
+Graph as complementary ways of exploring the same selected system concept. A selected capability,
+subsystem, or module should remain selected while switching representation.
+
+Acceptance is task-based. A new professional developer and a person who does not read code can,
+without documentation beside them:
+
+- explain the program's main responsibilities;
+- trace one user-facing capability to the modules that implement it;
+- explain one module's purpose, role, callers, dependencies, and recent change;
+- distinguish a parser fact, an AI interpretation, and a recommendation;
+- ask the coding agent to investigate a visible opportunity without manually copying raw graph
+  payloads.
+
+## 10.4 Make agent guidance one obvious workflow
+
+The normal coding agent should not need to understand leases, queue schemas, history jobs, REST
+routes, or twenty-five flat MCP tools. Publish a default coding profile of no more than ten tools
+covering repository selection, system understanding, search/file evidence, planning/scope, impact,
+refresh, and status. Keep low-level semantic executor and operator controls in explicit advanced
+profiles; retain wire compatibility only where a released client actually depends on it.
+
+The primary goal-driven response must compose existing evidence into one answer:
+
+- where the change belongs and why;
+- what already performs the same or adjacent responsibility;
+- whether to extend, consolidate, or create something new;
+- relevant patterns with counter-evidence and migration cost;
+- direct and bounded transitive impact;
+- protected contracts, focused tests, and a saved comparison baseline.
+
+Test the workflow with ordinary medium-capability Codex and Claude configurations, not only with a
+carefully prompted frontier model. A repository-sized semantic baseline must be one durable action;
+an ordinary agent must never be expected to manually shepherd thousands of queue operations.
+
+## 10.5 Close the continuous coherence loop
+
+After a coherent edit or commit, hashes and deterministic analysis identify changed modules. Only
+stale semantic scopes and affected aggregates are refreshed. The dashboard and coding agent then
+receive the same explanation of what changed in responsibility, placement, dependencies,
+complexity, duplication, pattern fit, and possible dead code.
+
+The response must separate:
+
+- observed change;
+- architectural consequence;
+- recommendation and confidence;
+- reasons to leave the code alone;
+- smallest safe follow-up and verification.
+
+This is immediate guidance for the next decision, not merely a historical audit. History remains
+valuable because it supplies evidence about churn, co-change, introduction, and recurrence; it is
+not the center of the product promise.
+
+## Phase 10 exit gate
+
+- The three product promises are visible in onboarding, navigation, agent guidance, contribution
+  review, and roadmap admission.
+- One current AnaxiIndex produces the hierarchy and explanations consumed by both dashboard and
+  coding-agent workflows; neither maintains a competing semantic model.
+- The normal dashboard has at most five task-centered journeys and the normal MCP profile has at
+  most ten tools; advanced operations remain intentionally accessible.
+- A professional and a non-programmer complete the human-understanding tasks in §10.3, with their
+  confusion and corrections recorded as product evidence.
+- An ordinary coding agent completes system explanation, change placement, impact inspection, and
+  before/after review without manual semantic-queue orchestration.
+- The package-level production budget is ratcheted downward from 53,907 lines, with 48,500 as the
+  convergence target and no loss of tested behavior, coverage, safety, or bounded performance.
+- No new product family, primary dashboard destination, database, provider pipeline, or parallel
+  architecture model was introduced to achieve the phase.
+
+---
+
 # Nice-to-have ideas — not an implementation queue
 
 These are recorded only so they are not repeatedly rediscovered and mistaken for active work. They
@@ -2798,15 +3022,14 @@ feature-admission rule.
 
 | # | Status | Outcome and acceptance | Specified in |
 |---:|---|---|---|
-| 1 | **COMPLETE on 26 August 2026** | Rebuild the authoritative self-hosted map with the meaningful area-limit repair, then repeat the concept-level verification goal and require the correct module, comparison symbols, coherent primary set, and non-generic area/subsystem path | §9.2 |
-| 2 | **COMPLETE on 26 August 2026** | Prove one extend-existing versus create-new decision: select an honest existing responsibility and extension point when present, and permit a new sibling only when the controlled fixture has no suitable home | §9.2 |
+| 1 | **NEXT** | Inventory every public surface and major code cluster against Understand, Guide, Keep coherent, enabling infrastructure, advanced operations, or removal; produce the ordered deletion map without implementing features | §10.1 |
+| 2 | **PENDING** | Add the package-level non-growth ratchet and consolidate one characterized vertical slice at a time, beginning with semantic and persistence machinery | §10.2 |
+| 3 | **PENDING** | Converge the existing dashboard into the progressive program → capability → area → subsystem → file → symbol understanding journey, with no new primary screen | §10.3 |
+| 4 | **PENDING** | Reduce the normal coding-agent surface to at most ten obvious tools and prove the complete guidance workflow with ordinary agent configurations | §10.4 |
+| 5 | **PENDING** | Make changed-scope refresh return one shared, plain-language architecture consequence to the dashboard and agent, then satisfy the Phase 10 human, agent, and reduction gates | §10.5 |
 
-That is the complete feature queue, and it has no unfinished item. The retained MaxOS run and the
-eventual release candidate are acceptance/release gates, not product features, and do not authorize
-adjacent implementation. A new feature enters only after a concrete coding task demonstrates a core
-navigation, placement, impact, structure, pattern, or verification failure and passes the admission
-rule above.
-
-No parser expansion, adapter family, plugin framework, new dashboard, website, media support,
-generic operations work, warning-cleanup campaign, or additional plain-language sweep may displace
-this queue.
+Only item 1 may begin now. Later items remain pending until the preceding acceptance is recorded.
+The retained MaxOS run and a future release candidate are evidence/release gates, not independent
+product features. No parser expansion, adapter family, plugin framework, website, media support,
+generic operations work, warning-cleanup campaign, or additional dashboard family may displace this
+queue.

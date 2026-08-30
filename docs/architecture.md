@@ -1,9 +1,13 @@
 # Architecture
 
-AnaxiGraph is one process with deliberately boring boundaries. The CLI, REST API, dashboard, and
-AnaxiMCP all call the same application functions. Extraction adapters return provider-neutral
-records; the scanner resolves those records into AnaxiIndex, a temporal SQLite graph;
-architecture and agent services query that index.
+AnaxiGraph is the shared architecture intelligence layer for humans and AI agents. Its dashboard
+and agent interfaces expose the same living model of what a software system does, how its parts
+work together, and how a proposed or completed change affects that design.
+
+The implementation is one process with deliberately boring boundaries. The CLI, REST API,
+dashboard, and AnaxiMCP call the same application functions. Extraction adapters return
+provider-neutral records; the scanner resolves those records into AnaxiIndex, a temporal SQLite
+graph; architecture and agent services query that index.
 
 ```text
 target Git repository (read-only)

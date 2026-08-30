@@ -5,8 +5,8 @@
 <h1 align="center">AnaxiGraph</h1>
 
 <p align="center">
-  <strong>Keep AI-accelerated codebases coherent as they grow.</strong><br />
-  See the system behind the source, control entropy, and give coding agents grounded context.
+  <strong>Understand the system. Guide the agent. Keep the architecture coherent.</strong><br />
+  Shared architecture intelligence for people and AI coding agents.
 </p>
 
 <p align="center">
@@ -28,20 +28,20 @@ AI makes it easy to add code faster than a team can understand the architecture 
 Hidden coupling, duplicated responsibilities, inconsistent abstractions, and one-off agent changes
 quietly become spaghetti code.
 
-AnaxiGraph turns a repository and its Git history into a living architecture record. It helps
-people and coding agents see how the system fits together, decide what deserves attention, plan a
-small change, and verify what the change actually did. Its job is not to hand out a magic
-architecture score; it makes trade-offs visible, evidence-backed, and reviewable before entropy
-hardens into the design.
+AnaxiGraph is the shared architecture intelligence layer for humans and AI agents. It turns a
+repository and its Git history into a living model of what the software does, how its parts work
+together, why they exist, and how the design is changing. A person can explore that model in the
+dashboard; a coding agent can use the same evidence through AnaxiMCP before and after it edits code.
 
-| | What it gives you |
-|---|---|
-| 🧹 **Entropy control** | Detect growing modules, cycles, boundary erosion, hotspots, and repeated responsibilities early. |
-| 🕸️ **System visibility** | Move from a bird's-eye architecture map to the dependencies, history, and evidence of one module. |
-| 🕰️ **Repository biography** | Replay representative real Git commits and inspect how the architecture grew. |
-| 🧭 **Auditability** | Keep facts read from code, AI explanations, recommendations, and recorded decisions distinct. |
-| 🏛️ **Design guidance** | Ground patterns, refactors, placement, and consolidation advice in the codebase that actually exists. |
-| 🤖 **Safer agent work** | Give a coding agent the smallest useful file list, code that may be affected, active risks, and checks to run. |
+| Promise | For a person | For a coding agent |
+|---|---|---|
+| 🕸️ **Understand the system** | Move from product responsibilities and architecture areas to subsystems, files, named code parts, dependencies, and history. | Reuse a current repository-wide memory instead of rediscovering the architecture in every session. |
+| 🧭 **Guide the agent** | See where a change belongs, what already exists, which patterns may fit, and what could be affected. | Receive a bounded working set, extension points, constraints, relevant tests, evidence, and counter-evidence. |
+| 🧹 **Keep the architecture coherent** | Catch growing modules, repeated responsibilities, boundary erosion, cycles, and possible dead code before they harden into the design. | Rescan and compare the same goal after a change instead of treating passing tests as proof of good architecture. |
+
+AnaxiGraph does not hand out a magic architecture score and does not edit the analyzed repository.
+It keeps facts read from code, AI-created interpretations, and recommendations distinct so that
+beginners can read a plain-language conclusion and experts can inspect the evidence behind it.
 
 ## 🚀 Start in four steps
 
@@ -214,15 +214,20 @@ plugin users may omit `--connect` from the start command. See the
 ## How it works
 
 ```text
-source + Git ── facts read from code and file hashes ──→ versioned AnaxiIndex
-                                                       │ changed/stale work only
+source + Git ── facts, hashes, relationships, history ──→ versioned AnaxiIndex
+                                                               │
+                                  ┌────────────────────────────┴──────────────────────┐
+                                  ▼                                                   ▼
+                         human dashboard                                      AnaxiMCP for agents
+                    understand and investigate                         plan, inspect impact, verify
+                                  │                                                   │
+                                  └────────────────────┬──────────────────────────────┘
                                                        ▼
-                                             saved AI task list
+                                             better shared decisions
+
+changed or stale modules ── bounded evidence ──→ connected agent using its own tokens
                                                        │
-                                              connected coding agent
-                                                       │ own model + tokens
-                                                       ▼
-                                  versioned, checked code descriptions
+                                                       └──→ checked descriptions in AnaxiIndex
 ```
 
 Structural refresh and semantic execution are separate operations. A dashboard **Refresh scan**

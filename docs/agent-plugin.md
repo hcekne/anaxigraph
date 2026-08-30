@@ -1,8 +1,9 @@
 # AnaxiGraph agent plugin
 
-The AnaxiGraph agent plugin gives Codex and Claude Code the same evidence-grounded architecture
-workflow. It packages a shared `anaxigraph` skill and a loopback AnaxiMCP connection; the analysis
-engine and durable index remain in the AnaxiGraph service.
+AnaxiGraph is the shared architecture intelligence layer for humans and AI agents. The agent plugin
+lets Codex and Claude Code use the same living system model that a person explores in the dashboard.
+It packages a shared `anaxigraph` skill and a loopback AnaxiMCP connection; the analysis engine and
+durable index remain in the AnaxiGraph service.
 
 The plugin does not duplicate scanning logic, bundle a model, or require an AnaxiGraph API key.
 When the skill builds semantic dossiers, the connected coding agent reads bounded evidence with

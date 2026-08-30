@@ -1,25 +1,26 @@
-# AnaxiGraph — Repository Architecture Observatory
+# AnaxiGraph — Shared Architecture Intelligence
 
 ## Working concept
 
-A standalone, reusable architecture system that continuously maps, interprets, monitors, and explains a software repository.
+A standalone, reusable system that continuously maps, interprets, monitors, and explains a software
+repository for both people and coding agents.
 
-The system combines:
+> **AnaxiGraph is the shared architecture intelligence layer for humans and AI agents. It explains
+> what a software system does and how its parts work together, while guiding future changes toward
+> a cleaner, more coherent design.**
 
-- deterministic static analysis
-- code dependency graphs
-- semantic LLM analysis
-- Git history
-- test coverage
-- architectural rules
-- complexity and coupling metrics
-- change history
-- dead-code detection
-- refactoring recommendations
-- agent-safe work scopes
-- hierarchical graph visualisation
+Its product promise is deliberately small:
 
-The aim is not simply to visualise a repository. The aim is to create a **persistent intelligence layer over the codebase** that helps humans and AI coding agents understand how the software is structured, how it is changing, where complexity is accumulating, and how to modify it safely.
+1. **Understand the system.** Explain responsibilities, architecture, relationships, and history
+   from a whole-program view down to files and named code parts.
+2. **Guide the agent.** Ground placement, reuse, pattern, impact, and testing decisions in the
+   repository that actually exists.
+3. **Keep the architecture coherent.** Refresh the shared model after changes and surface new
+   sprawl, duplication, misplaced responsibilities, weak boundaries, and possible dead code.
+
+Deterministic analysis, semantic model work, Git history, imported coverage, rules, metrics, the
+dashboard, and AnaxiMCP support those three promises. They are implementation capabilities, not
+independent products.
 
 ---
 
@@ -73,19 +74,14 @@ A reusable intelligence layer can address all of these.
 
 This is not just a code graph.
 
-A useful framing is:
+The concise positioning is:
 
-> **A temporal architecture and intelligence layer for software repositories.**
+> **Understand the system. Guide the agent. Keep the architecture coherent.**
 
-Or:
-
-> **An observability platform for your codebase.**
-
-Traditional observability tells you what your application is doing at runtime.
-
-This system tells you:
+One living AnaxiIndex must let a person and an AI agent answer the same questions:
 
 - what your codebase is
+- what the software does for its users
 - why each part exists
 - what depends on what
 - how the architecture is evolving
@@ -96,7 +92,10 @@ This system tells you:
 - where refactoring is becoming justified
 - what a coding agent should and should not touch
 
-The graph is one representation of that intelligence, not the product itself.
+The graph, dashboard, semantic queue, history importer, REST API, CLI, and MCP tools are delivery
+mechanisms. The product is the shared understanding and the better architectural decision it
+enables. A proposed feature that does not improve one of those decisions does not belong in the
+core product.
 
 ---
 
@@ -1884,7 +1883,7 @@ The strongest long-term version is not:
 
 It is:
 
-> **A persistent memory and governance system for software architecture.**
+> **A shared architecture intelligence layer that people can explore and coding agents can act on.**
 
 It lets humans and agents ask:
 
@@ -1945,8 +1944,9 @@ That is broadly useful across software projects.
 9. **Optimise for simplification.**
    The analyzer itself should remain architecturally boring.
 
-10. **Agent-native.**
-    The system should eventually function as architectural memory for coding agents.
+10. **Human- and agent-native.**
+    The dashboard and coding-agent interfaces must use the same current architecture model and
+    explain the same evidence at the appropriate level of detail.
 
 ---
 

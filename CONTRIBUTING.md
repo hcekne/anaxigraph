@@ -3,6 +3,10 @@
 AnaxiGraph is an Apache-2.0 open-source project. Bug reports, design feedback, language adapters,
 architecture detectors, dashboard improvements, and documentation changes are welcome.
 
+The product direction is deliberately narrow: **understand the system, guide the agent, and keep
+the architecture coherent**. People and coding agents must use one shared architecture model. A
+contribution should make one of those decisions easier without creating a parallel product surface.
+
 ## Local development
 
 ```bash
@@ -77,6 +81,11 @@ are authorized to inspect. Run `docker compose up --build -d` and open
 
 ## Change principles
 
+- Name the **Understand**, **Guide**, or **Keep coherent** decision the change improves.
+- Reuse the existing AnaxiIndex, service, and product surface before adding another abstraction,
+  command, MCP tool, table, job coordinator, or dashboard destination.
+- Record what the change removes, merges, or replaces and report its production-line/public-surface
+  delta. During the convergence roadmap, ordinary feature work must be neutral or negative.
 - Keep target repositories read-only; analysis state belongs outside them.
 - Label deterministic facts, inferred interpretations, and recommendations separately.
 - Preserve repository scoping in every database, REST, dashboard, and MCP query.

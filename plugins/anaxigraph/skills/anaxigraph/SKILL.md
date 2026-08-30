@@ -1,6 +1,6 @@
 ---
 name: anaxigraph
-description: Ground software changes in AnaxiGraph's repository map, dependency evidence, findings, and semantic dossiers. Use when mapping or explaining a repository, bootstrapping or resuming semantic understanding, planning a feature or refactor, checking impact or dead-code evidence, investigating architecture findings, deciding where new code belongs, or verifying that a completed change improved the indexed architecture.
+description: Use AnaxiGraph as shared architecture intelligence for people and coding agents. Ground software changes in its repository map, dependency evidence, findings, and semantic dossiers when explaining a system, bootstrapping semantic understanding, planning a feature or refactor, checking impact or dead-code evidence, deciding where new code belongs, or verifying a completed change.
 ---
 
 # AnaxiGraph architecture workflow
