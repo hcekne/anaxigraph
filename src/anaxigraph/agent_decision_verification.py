@@ -10,6 +10,7 @@ from anaxigraph.agent_decision_handoff_language import comparison_explanation
 from anaxigraph.agent_verification_contract import (
     ARCHITECTURE_BASELINE_V1,
     ARCHITECTURE_BASELINE_VERSION,
+    _short_string,
     validated_baseline,
 )
 
@@ -328,10 +329,6 @@ def _baseline_strings(value: Any, limit: int) -> list[str]:
     if not isinstance(value, (list, tuple)):
         return []
     return [text for item in value if (text := _short_string(item, 1_000))][:limit]
-
-
-def _short_string(value: Any, limit: int) -> str:
-    return str(value or "")[:limit]
 
 
 def _normalized_goal(value: str) -> str:

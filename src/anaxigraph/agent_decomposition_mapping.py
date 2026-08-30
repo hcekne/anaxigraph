@@ -6,6 +6,8 @@ import re
 from pathlib import PurePosixPath
 from typing import Any
 
+from anaxigraph.agent_decision_handoff_language import _bounded_strings
+
 _WORD = re.compile(r"[A-Za-z][A-Za-z0-9]*")
 _STOPWORDS = {
     "a",
@@ -89,8 +91,8 @@ def destination_paths(
     semantic: dict[str, Any], assessment: dict[str, Any], current: str
 ) -> list[str]:
     values = [
-        *(_strings(assessment.get("candidates"), 12)),
-        *(_strings(semantic.get("similar_modules"), 12)),
+        *(_bounded_strings(assessment.get("candidates"), 12, 1_000)),
+        *(_bounded_strings(semantic.get("similar_modules"), 12, 1_000)),
     ]
     return [value for value in dict.fromkeys(values) if value != current and "/" in value]
 
@@ -136,9 +138,3 @@ def _overlap(left: str, right: str) -> int:
 def _tokens(value: str) -> set[str]:
     expanded = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", str(value)).replace("_", " ")
     return {word.lower() for word in _WORD.findall(expanded) if word.lower() not in _STOPWORDS}
-
-
-def _strings(value: Any, limit: int) -> list[str]:
-    if not isinstance(value, (list, tuple)):
-        return []
-    return [str(item)[:1_000] for item in value if str(item).strip()][:limit]

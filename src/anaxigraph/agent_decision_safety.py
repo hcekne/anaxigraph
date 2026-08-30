@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from anaxigraph.agent_decision_handoff_language import verification_explanation
+from anaxigraph.agent_decision_handoff_language import (
+    _bounded_strings as _strings,
+)
+from anaxigraph.agent_decision_handoff_language import (
+    verification_explanation,
+)
 from anaxigraph.agent_decision_language import (
     consolidation_explanation,
     dead_code_explanation,
@@ -311,12 +316,6 @@ def _deterministic_dead_code(path: str, finding: dict[str, Any]) -> dict[str, An
         verification=result["verification"],
     )
     return result
-
-
-def _strings(value: Any, limit: int) -> list[str]:
-    if not isinstance(value, (list, tuple)):
-        return []
-    return [_text(item, 700) for item in value[:limit] if str(item or "").strip()]
 
 
 def _text(value: Any, limit: int) -> str:

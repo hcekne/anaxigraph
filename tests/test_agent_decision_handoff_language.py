@@ -3,6 +3,7 @@ from __future__ import annotations
 from anaxigraph.agent_decision_handoff_language import (
     ARCHITECTURE_HANDOFF_LANGUAGE_VERSION,
     VERIFICATION_LANGUAGE_VERSION,
+    _bounded_strings,
     comparison_explanation,
     constraint_item_explanation,
     constraints_explanation,
@@ -11,6 +12,11 @@ from anaxigraph.agent_decision_handoff_language import (
     semantic_file_explanation,
     verification_explanation,
 )
+
+
+def test_bounded_handoff_strings_ignore_blanks_before_applying_the_limit():
+    assert _bounded_strings(["", "first", "second", "third"], 2, 3) == ["fir", "sec"]
+    assert _bounded_strings("not-a-list", 2) == []
 
 
 def test_machine_decision_status_becomes_a_direct_evidence_summary():

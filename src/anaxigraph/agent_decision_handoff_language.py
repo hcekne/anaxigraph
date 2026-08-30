@@ -35,7 +35,7 @@ def placement_explanation(placement: Mapping[str, Any]) -> dict[str, Any]:
     path = str(placement.get("preferred_path") or "")
     guidance = explain_specialist_terms(placement.get("guidance"))
     role = explain_specialist_terms(placement.get("architecture_role"))
-    precedents = _strings(placement.get("local_precedents"), 4)
+    precedents = _bounded_strings(placement.get("local_precedents"), 4)
     if not path:
         return {
             "version": ARCHITECTURE_HANDOFF_LANGUAGE_VERSION,
@@ -102,7 +102,7 @@ def constraints_explanation(items: Sequence[Mapping[str, Any]]) -> dict[str, Any
 
 def verification_explanation(verification: Mapping[str, Any]) -> dict[str, Any]:
     comparison = verification.get("post_change_comparison")
-    tests = _strings(verification.get("focused_test_paths"), 8)
+    tests = _bounded_strings(verification.get("focused_test_paths"), 8)
     if isinstance(comparison, Mapping):
         conclusion = explain_specialist_terms(
             comparison.get("summary") or "The before/after comparison is available."
@@ -291,14 +291,16 @@ def _comparison_action(status: str) -> str:
     }.get(status, "Read the evidence and focused test results before drawing a conclusion.")
 
 
-def _strings(value: Any, limit: int) -> list[str]:
+def _bounded_strings(value: Any, limit: int, width: int = 700) -> list[str]:
+    """Keep one bounded, non-empty text projection for decision handoffs."""
+
     if not isinstance(value, (list, tuple)):
         return []
-    return [str(item)[:700] for item in value[:limit] if str(item or "").strip()]
+    return [str(item)[:width] for item in value if str(item or "").strip()][:limit]
 
 
 def _plain_strings(value: Any, limit: int) -> list[str]:
-    return [explain_specialist_terms(item) for item in _strings(value, limit)]
+    return [explain_specialist_terms(item) for item in _bounded_strings(value, limit)]
 
 
 def _placement_reason(role: str, guidance: str) -> str:

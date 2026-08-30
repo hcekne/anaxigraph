@@ -5,6 +5,7 @@ from __future__ import annotations
 from fnmatch import fnmatchcase
 from typing import Any
 
+from anaxigraph.agent_decision_handoff_language import _bounded_strings
 from anaxigraph.agent_decomposition_mapping import (
     destination_paths,
     ordered_slices,
@@ -99,10 +100,10 @@ def _decomposition_item(
         if isinstance(semantic.get("consolidation_assessment"), dict)
         else {}
     )
-    responsibilities = _strings(semantic.get("responsibilities"), 5)
-    contracts = _strings(semantic.get("public_contracts"), 8)
-    evidence = _strings(assessment.get("evidence"), 5)
-    counter = _strings(assessment.get("counter_evidence"), 5)
+    responsibilities = _bounded_strings(semantic.get("responsibilities"), 5, 1_000)
+    contracts = _bounded_strings(semantic.get("public_contracts"), 8, 1_000)
+    evidence = _bounded_strings(assessment.get("evidence"), 5, 1_000)
+    counter = _bounded_strings(assessment.get("counter_evidence"), 5, 1_000)
     status, reason, slices, unassigned = _decision(
         path,
         semantic,
@@ -118,8 +119,8 @@ def _decomposition_item(
         "trigger": _trigger(module, finding, assessment, maximum, review_at),
         "responsibilities": responsibilities,
         "public_contracts_to_preserve": contracts,
-        "callers_to_protect": _strings(module.get("incoming_paths"), 12),
-        "dependencies_to_check": _strings(module.get("outgoing_paths"), 12),
+        "callers_to_protect": _bounded_strings(module.get("incoming_paths"), 12, 1_000),
+        "dependencies_to_check": _bounded_strings(module.get("outgoing_paths"), 12, 1_000),
         "focused_tests": [str(value)[:1_000] for value in tests[:12]],
         "supporting_evidence": evidence,
         "evidence_against_split": counter,
@@ -190,8 +191,8 @@ def _preliminary_decision(
             [],
             [],
         )
-    evidence = _strings(assessment.get("evidence"), 5)
-    counter = _strings(assessment.get("counter_evidence"), 5)
+    evidence = _bounded_strings(assessment.get("evidence"), 5, 1_000)
+    counter = _bounded_strings(assessment.get("counter_evidence"), 5, 1_000)
     score = int(assessment.get("score") or 0)
     if recommendation != "split" or score < 65 or not evidence or not counter:
         return (
@@ -344,9 +345,3 @@ def _symbols_by_path(symbols: list[dict[str, Any]]) -> dict[str, list[dict[str, 
 
 def _pattern_keys(path: str, patterns: list[dict[str, Any]]) -> list[str]:
     return [str(item.get("key")) for item in patterns if item.get("target") == path][:8]
-
-
-def _strings(value: Any, limit: int) -> list[str]:
-    if not isinstance(value, (list, tuple)):
-        return []
-    return [str(item)[:1_000] for item in value if str(item).strip()][:limit]

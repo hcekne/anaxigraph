@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from anaxigraph.agent_decision_handoff_language import _bounded_strings
 from anaxigraph.agent_lexicon import goal_artifact_type, goal_terms
 
 TASK_PATH_VERSION = "task-path-v1"
@@ -126,7 +127,7 @@ def _module_step(preferred: dict[str, Any], tests: list[str]) -> dict[str, Any]:
         candidate if str(candidate.get("status") or "") in {"current", "intrinsic_current"} else {}
     )
     language = semantic.get("plain_language") or {}
-    responsibilities = _strings(semantic.get("responsibilities"), 5)
+    responsibilities = _bounded_strings(semantic.get("responsibilities"), 5, 1_000)
     return {
         "path": str(preferred.get("path") or ""),
         "name": Path(str(preferred.get("path") or "file")).name,
@@ -137,10 +138,10 @@ def _module_step(preferred: dict[str, Any], tests: list[str]) -> dict[str, Any]:
         "responsibility": semantic.get("architecture_role")
         or (responsibilities[0] if responsibilities else preferred.get("summary"))
         or "No main responsibility was recorded.",
-        "contracts_to_preserve": _strings(semantic.get("public_contracts"), 8),
-        "extension_points": _strings(semantic.get("extension_points"), 8),
-        "callers_to_check": _strings(preferred.get("incoming_paths"), 10),
-        "dependencies_to_check": _strings(preferred.get("outgoing_paths"), 10),
+        "contracts_to_preserve": _bounded_strings(semantic.get("public_contracts"), 8, 1_000),
+        "extension_points": _bounded_strings(semantic.get("extension_points"), 8, 1_000),
+        "callers_to_check": _bounded_strings(preferred.get("incoming_paths"), 10, 1_000),
+        "dependencies_to_check": _bounded_strings(preferred.get("outgoing_paths"), 10, 1_000),
         "focused_tests": [str(test)[:1_000] for test in tests[:10]],
     }
 
@@ -302,11 +303,11 @@ def _compact_module(value: Any) -> dict[str, Any]:
     return {
         "path": item.get("path"),
         "responsibility": _text(item.get("responsibility"), 240),
-        "contracts_to_preserve": _short_strings(item.get("contracts_to_preserve"), 4),
-        "extension_points": _short_strings(item.get("extension_points"), 4),
-        "callers_to_check": _short_strings(item.get("callers_to_check"), 5),
-        "dependencies_to_check": _short_strings(item.get("dependencies_to_check"), 5),
-        "focused_tests": _short_strings(item.get("focused_tests"), 5),
+        "contracts_to_preserve": _bounded_strings(item.get("contracts_to_preserve"), 4, 240),
+        "extension_points": _bounded_strings(item.get("extension_points"), 4, 240),
+        "callers_to_check": _bounded_strings(item.get("callers_to_check"), 5, 240),
+        "dependencies_to_check": _bounded_strings(item.get("dependencies_to_check"), 5, 240),
+        "focused_tests": _bounded_strings(item.get("focused_tests"), 5, 240),
     }
 
 
@@ -324,16 +325,6 @@ def _route_only(packet: dict[str, Any]) -> dict[str, Any]:
 
 def _terms(value: str) -> set[str]:
     return goal_terms(value)
-
-
-def _strings(value: Any, limit: int) -> list[str]:
-    if not isinstance(value, (list, tuple)):
-        return []
-    return [str(item)[:1_000] for item in value if str(item).strip()][:limit]
-
-
-def _short_strings(value: Any, limit: int) -> list[str]:
-    return [_text(item, 240) for item in value[:limit]] if isinstance(value, list) else []
 
 
 def _name(value: str) -> str:

@@ -3301,6 +3301,48 @@ queue 79 missing intrinsic jobs, and report zero failures without spending model
 index doctor reports schema 10, `integrity=ok`, canonical-only parity, valid lineage, bounded
 reconstruction, an exact canonical digest, and no blocker.
 
+### 10.2 delivery record: one bounded agent normalization vocabulary
+
+The final persistence audit found no remaining accidental block-level duplicate. Its only detected
+clone is the frozen schema-9 semantic-claim DDL already retained as migration evidence. The
+one-consumer architecture-evidence, pattern-plan-state, graph-query, graph-projection, and index
+facade modules remain because each owns a coherent database boundary or keeps the public index
+facade below its coupling ceiling. Merging them would move the same logic into a less cohesive or
+near-ceiling module, not simplify the system. Phase 10.2 therefore advances to agent composition
+instead of deleting files by size.
+
+The first agent slice found smaller parallel input rules that could make the same saved evidence
+appear differently across scope, decision, decomposition, task-path, and verification responses.
+Semantic graph attachment and scope findings now use the existing persistence-row decoder for one
+fail-closed malformed-JSON rule. Decision, safety, handoff, decomposition, and task-path projections
+now share one bounded non-empty text rule. Blank AI evidence is removed before the item limit is
+applied, so empty values no longer consume scarce coding-agent context. Before/after comparison
+also consumes the verification contract's existing bounded-text rule instead of defining another.
+
+These are internal normalizers, not a new universal agent model. Full architecture decisions,
+compact scope responses, task paths, decomposition guidance, verification baselines, and readable
+handoff explanations remain different contracts because they answer different questions. The
+shared helpers follow dependency edges those callers already needed; no new public Python surface,
+module, API route, MCP tool, stored schema, or maintainability warning is introduced.
+
+The Python module count remains **240**, the exact production source ratchet falls from 53,587 to
+**53,556 lines**, and the maintainability warning count remains 146 with no new exception. Focused
+agent, decision, decomposition, task-path, verification transport, scanner, and temporal coverage
+passes with 65 tests. Two new characterizations prove malformed JSON fails closed and blank values
+do not consume a bounded response slot; the full suite passes with **619 tests**. The next agent
+slice should characterize decision/payload assembly or repeated response telemetry before deleting
+another layer; it must not flatten evidence, recommendation, execution, and verification into one
+god response.
+
+The exact rebuilt Docker sidecar is healthy. Its normal self-scan reused all 468 analyses in 1.344
+seconds, kept snapshot 428 current with 4,434 relationships and 154 findings, and the live index
+doctor again reports exact canonical integrity with no blocker. The ordinary agent-scope route then
+mapped the goal “consolidate duplicate agent payload normalization without widening architecture
+boundaries” to `agent_decision_payload.py`, returned a bounded 16,358-byte work packet under the
+20,000-byte limit in 607 ms, and spent no model tokens. Semantic preparation preserved 240 current
+contextual dossiers and 138 current intrinsic descriptions, queued 90 missing intrinsic jobs, and
+reported zero failures without executing AI work.
+
 ## 10.3 Make human understanding the primary dashboard journey
 
 Use the existing semantic repository dossier, reviewed taxonomy, graph, file detail, and history to

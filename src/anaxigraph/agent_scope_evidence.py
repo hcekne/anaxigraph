@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import sqlite3
 from typing import Any
 
@@ -12,6 +11,7 @@ from anaxigraph.finding_language import (
     normalize_finding_copy,
     plain_language_contract,
 )
+from anaxigraph.persistence.row_decoding import _decode_json_value
 
 
 def _applicable_rules(
@@ -31,7 +31,7 @@ def _applicable_rules(
         (repository_id,),
     ):
         item = dict(row)
-        config = _json(item.pop("config_json", "{}"))
+        config = _decode_json_value(item.pop("config_json", "{}"))
         patterns = config.get("paths") if isinstance(config, dict) else None
         if not patterns or any(
             path_matches(path, pattern)
@@ -150,13 +150,6 @@ def _priority_label(score: int) -> str:
 
 def _finding_value(row: Any) -> tuple[dict[str, Any], set[str]]:
     item = dict(row)
-    affected = set(_json(item.pop("affected_artifacts_json", "[]")) or [])
-    item["evidence"] = list(_json(item.pop("evidence_json", "[]")) or [])
+    affected = set(_decode_json_value(item.pop("affected_artifacts_json", "[]")) or [])
+    item["evidence"] = list(_decode_json_value(item.pop("evidence_json", "[]")) or [])
     return normalize_finding_copy(item), affected
-
-
-def _json(value: str) -> Any:
-    try:
-        return json.loads(value)
-    except (ValueError, TypeError):
-        return None

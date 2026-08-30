@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import json
 import sqlite3
 from collections import defaultdict
 from typing import Any
 
 from anaxigraph.persistence.group_read import read_group_hierarchy
+from anaxigraph.persistence.row_decoding import _decode_json_value
 from anaxigraph.persistence.semantic_taxonomy_read import taxonomy_assignments
 from anaxigraph.persistence.snapshot_projection import install_snapshot_projection
 from anaxigraph.semantic_file_language import semantic_file_explanation
@@ -59,7 +59,7 @@ def _attach_semantic_files(
         artifact_id = int(row["artifact_id"])
         if artifact_id not in files:
             continue
-        value = _json(row["value_json"] or "{}") or {}
+        value = _decode_json_value(row["value_json"] or "{}") or {}
         item = files[artifact_id]
         item["deterministic_summary"] = item["summary"]
         semantic = _semantic_file(row, value, str(item["path"]))
@@ -242,10 +242,3 @@ def _group_label(node: dict[str, Any] | None, fallback: str) -> str:
     language = node.get("plain_language") or {}
     label = language.get("display_name") or node.get("label")
     return str(label or fallback.replace("-", " ").replace("_", " ").title())
-
-
-def _json(value: str) -> Any:
-    try:
-        return json.loads(value)
-    except (ValueError, TypeError):
-        return None

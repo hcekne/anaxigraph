@@ -5,6 +5,9 @@ from __future__ import annotations
 from typing import Any
 
 from anaxigraph.agent_decision_handoff_language import (
+    _bounded_strings as _strings,
+)
+from anaxigraph.agent_decision_handoff_language import (
     constraint_item_explanation,
     constraints_explanation,
     decision_explanation,
@@ -400,12 +403,6 @@ def _nested_text(item: dict[str, Any], parent: str, key: str) -> str:
 
 def _mapping(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
-
-
-def _strings(value: Any, limit: int, width: int = 700) -> list[str]:
-    if not isinstance(value, (list, tuple)):
-        return []
-    return [_text(item, width) for item in value[:limit] if str(item or "").strip()]
 
 
 def _dedupe(values: list[Any]) -> list[str]:

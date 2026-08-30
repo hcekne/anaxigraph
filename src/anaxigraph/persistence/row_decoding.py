@@ -6,13 +6,19 @@ import json
 from typing import Any
 
 
+def _decode_json_value(value: Any) -> Any:
+    """Decode one JSON-backed column without leaking malformed persistence data."""
+
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
 def decode_json_columns(value: dict[str, Any]) -> dict[str, Any]:
     for key in list(value):
         if not key.endswith("_json"):
             continue
         decoded_key = key.removesuffix("_json")
-        try:
-            value[decoded_key] = json.loads(value.pop(key) or "null")
-        except json.JSONDecodeError:
-            value[decoded_key] = None
+        value[decoded_key] = _decode_json_value(value.pop(key) or "null")
     return value

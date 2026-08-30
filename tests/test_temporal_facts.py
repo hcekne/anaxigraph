@@ -11,6 +11,7 @@ from anaxigraph.persistence import (
     snapshot_relationship_edges,
     temporal_counts,
 )
+from anaxigraph.persistence.row_decoding import _decode_json_value, decode_json_columns
 from anaxigraph.persistence.temporal_reads import artifact_types_for_files
 from anaxigraph.scanner import RepositoryScanner
 
@@ -27,6 +28,15 @@ def _commit_change(repository: Path) -> None:
         ["git", "-C", str(repository), "commit", "-qm", "Add triple helper"],
         check=True,
     )
+
+
+def test_json_row_decoding_fails_closed_for_malformed_values():
+    assert _decode_json_value('{"status":"current"}') == {"status": "current"}
+    assert _decode_json_value("{") is None
+    assert decode_json_columns({"valid_json": "[1]", "invalid_json": "{"}) == {
+        "valid": [1],
+        "invalid": None,
+    }
 
 
 def test_artifact_type_lookup_batches_large_snapshots(database):
