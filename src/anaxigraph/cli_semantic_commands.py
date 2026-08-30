@@ -4,14 +4,12 @@ from __future__ import annotations
 
 import argparse
 import os
-import sys
 import time
 from pathlib import Path
 from typing import Any
 
 import anaxigraph.cli_services as cli_services
-import anaxigraph.registry as repository_registry
-from anaxigraph.cli_common import add_repository_arguments, emit_json
+from anaxigraph.cli_common import add_repository_arguments
 from anaxigraph.local_runtime import local_database_path
 from anaxigraph.semantic_background import (
     launch_understand_background,
@@ -31,7 +29,6 @@ from anaxigraph.semantic_service import (
 def configure_semantic_commands(commands: Any) -> None:
     _configure_understand(commands)
     _configure_status(commands)
-    _configure_worker(commands)
 
 
 def _configure_understand(commands: Any) -> None:
@@ -90,24 +87,6 @@ def _configure_status(commands: Any) -> None:
         ),
     )
     status.set_defaults(handler=_semantic_status, db=None)
-
-
-def _configure_worker(commands: Any) -> None:
-    worker = commands.add_parser(
-        "semantic-worker",
-        help="Keep repository scans and AI-created descriptions up to date",
-    )
-    add_repository_arguments(worker)
-    worker.add_argument(
-        "--registry", type=Path, help="Process every target in a repository registry"
-    )
-    worker.add_argument(
-        "--interval",
-        type=float,
-        help="Seconds between checks of the full saved AI-task list (defaults to repository settings)",
-    )
-    worker.add_argument("--once", action="store_true", help="Run one reconciliation cycle and exit")
-    worker.set_defaults(handler=_semantic_worker)
 
 
 def _understand(args: argparse.Namespace) -> dict[str, Any]:
@@ -376,108 +355,3 @@ def _semantic_status(args: argparse.Namespace) -> dict[str, Any]:
 
 def _service_discovery_enabled(args: argparse.Namespace) -> bool:
     return bool(args.service_url) or (args.db is None and not os.environ.get("ANAXIGRAPH_DB"))
-
-
-def _semantic_worker(args: argparse.Namespace) -> dict[str, Any] | None:
-    if args.interval is not None and args.interval < 1:
-        raise ValueError("Semantic worker interval must be at least one second")
-    targets = _semantic_targets(args)
-    database = cli_services.open_index(args.db)
-    if args.once:
-        return _semantic_cycle(args, targets, database, respect_refresh_policy=False)
-    print(
-        f"Semantic reconciliation for {len(targets)} repositories (Ctrl-C to stop)",
-        file=sys.stderr,
-    )
-    next_due: dict[str, float] = {}
-    while True:
-        emit_json(
-            _semantic_cycle(
-                args,
-                targets,
-                database,
-                respect_refresh_policy=True,
-                next_due=next_due,
-            )
-        )
-        time.sleep(_wait_seconds(next_due))
-
-
-def _semantic_targets(
-    args: argparse.Namespace,
-) -> tuple[repository_registry.RepositoryTarget, ...]:
-    if args.registry:
-        return repository_registry.load_repository_registry(args.registry)
-    return (
-        repository_registry.RepositoryTarget(
-            key="default",
-            path=args.repository.expanduser().resolve(),
-            config_path=args.config,
-            history_snapshots=0,
-        ),
-    )
-
-
-def _semantic_cycle(
-    args: argparse.Namespace,
-    targets: tuple[repository_registry.RepositoryTarget, ...],
-    database: Any,
-    *,
-    respect_refresh_policy: bool,
-    next_due: dict[str, float] | None = None,
-) -> dict[str, Any]:
-    return {
-        "repositories": [
-            _reconcile_target(
-                args,
-                target,
-                database,
-                respect_refresh_policy=respect_refresh_policy,
-                next_due=next_due,
-            )
-            for target in targets
-        ]
-    }
-
-
-def _reconcile_target(
-    args: argparse.Namespace,
-    target: repository_registry.RepositoryTarget,
-    database: Any,
-    *,
-    respect_refresh_policy: bool,
-    next_due: dict[str, float] | None,
-) -> dict[str, Any]:
-    config = cli_services.load_repository_config(target.path, target.config_path)
-    if not config.semantic.enabled:
-        return {"repository": target.key, "status": "disabled"}
-    if respect_refresh_policy and config.semantic.refresh != "periodic":
-        return {
-            "repository": target.key,
-            "status": "skipped",
-            "reason": f"semantic.refresh is {config.semantic.refresh}, not periodic",
-        }
-    due_at = next_due.get(target.key, 0.0) if next_due is not None else 0.0
-    if next_due is not None and time.monotonic() < due_at:
-        return {
-            "repository": target.key,
-            "status": "scheduled",
-            "next_in_seconds": max(1, round(due_at - time.monotonic())),
-        }
-    stats = cli_services.scanner(database).scan(
-        target.path,
-        config_path=target.config_path,
-        run_type="semantic_reconcile",
-    )
-    semantic = cli_services.semantics(database).bootstrap(stats.repository_id, target.path, config)
-    if next_due is not None:
-        interval = args.interval or config.semantic.reconcile_interval_minutes * 60
-        next_due[target.key] = time.monotonic() + interval
-    return {"repository": target.key, "scan": stats.as_dict(), "semantic": semantic}
-
-
-def _wait_seconds(next_due: dict[str, float]) -> int:
-    return max(
-        1,
-        round(min(next_due.values(), default=time.monotonic() + 86_400) - time.monotonic()),
-    )

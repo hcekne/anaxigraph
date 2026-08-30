@@ -1,13 +1,10 @@
-"""Provider-neutral semantic dossier contracts and model adapters."""
+"""Semantic dossier contracts and local coding-agent adapters."""
 
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import tempfile
-import urllib.error
-import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +18,6 @@ from anaxigraph.semantic_contract import (
     SemanticResult,
 )
 from anaxigraph.semantic_taxonomy_contract import (
-    response_contract_name,
     response_schema,
     validated_semantic_response,
 )
@@ -38,10 +34,6 @@ def create_semantic_provider(config: SemanticConfig) -> SemanticProvider:
         return CodexSemanticProvider(config)
     if config.provider == "claude":
         return ClaudeSemanticProvider(config)
-    if config.provider == "openai":
-        return OpenAISemanticProvider(config)
-    if config.provider == "anthropic":
-        return AnthropicSemanticProvider(config)
     return CommandSemanticProvider(config)
 
 
@@ -235,106 +227,6 @@ class ClaudeSemanticProvider:
         )
 
 
-class OpenAISemanticProvider:
-    """Call the OpenAI Responses API using strict structured output."""
-
-    name = "openai"
-
-    def __init__(self, config: SemanticConfig) -> None:
-        self.config = config
-        if not config.model:
-            raise ValueError("semantic.model is required for the OpenAI provider")
-
-    def analyze(self, request: dict[str, Any]) -> SemanticResult:
-        key_name = self.config.api_key_env or "OPENAI_API_KEY"
-        api_key = os.environ.get(key_name)
-        if not api_key:
-            raise SemanticAnalysisError(f"{key_name} is not set")
-        base = (self.config.base_url or "https://api.openai.com/v1").rstrip("/")
-        payload = {
-            "model": self.config.model,
-            "store": False,
-            "max_output_tokens": self.config.max_output_tokens,
-            "input": [
-                {"role": "system", "content": _system_instruction()},
-                {"role": "user", "content": json.dumps(request)},
-            ],
-            "text": {
-                "format": {
-                    "type": "json_schema",
-                    "name": f"anaxigraph_{response_contract_name(request)}",
-                    "strict": True,
-                    "schema": response_schema(request),
-                }
-            },
-        }
-        response = _post_json(
-            f"{base}/responses",
-            payload,
-            headers={"Authorization": f"Bearer {api_key}"},
-            timeout=self.config.timeout_seconds,
-        )
-        if response.get("status") != "completed":
-            raise SemanticAnalysisError(
-                f"OpenAI response did not complete: {response.get('status', 'unknown')}"
-            )
-        usage = response.get("usage") or {}
-        return _result_from_json(
-            _openai_output_text(response),
-            request=request,
-            input_tokens=int(usage.get("input_tokens") or 0),
-            output_tokens=int(usage.get("output_tokens") or 0),
-        )
-
-
-class AnthropicSemanticProvider:
-    """Call the Anthropic Messages API using JSON-schema structured output."""
-
-    name = "anthropic"
-
-    def __init__(self, config: SemanticConfig) -> None:
-        self.config = config
-        if not config.model:
-            raise ValueError("semantic.model is required for the Anthropic provider")
-
-    def analyze(self, request: dict[str, Any]) -> SemanticResult:
-        key_name = self.config.api_key_env or "ANTHROPIC_API_KEY"
-        api_key = os.environ.get(key_name)
-        if not api_key:
-            raise SemanticAnalysisError(f"{key_name} is not set")
-        base = (self.config.base_url or "https://api.anthropic.com/v1").rstrip("/")
-        payload = {
-            "model": self.config.model,
-            "max_tokens": self.config.max_output_tokens,
-            "system": _system_instruction(),
-            "messages": [{"role": "user", "content": json.dumps(request)}],
-            "output_config": {
-                "format": {"type": "json_schema", "schema": response_schema(request)}
-            },
-        }
-        response = _post_json(
-            f"{base}/messages",
-            payload,
-            headers={
-                "x-api-key": api_key,
-                "anthropic-version": "2023-06-01",
-            },
-            timeout=self.config.timeout_seconds,
-        )
-        output_text = "".join(
-            str(item.get("text") or "")
-            for item in response.get("content") or []
-            if item.get("type") == "text"
-        )
-        usage = response.get("usage") or {}
-        return _result_from_json(
-            output_text,
-            request=request,
-            input_tokens=int(usage.get("input_tokens") or 0),
-            output_tokens=int(usage.get("output_tokens") or 0),
-        )
-
-
 def _system_instruction() -> str:
     from anaxigraph.semantic_request_support import plain_language_instruction
 
@@ -350,49 +242,8 @@ def _system_instruction() -> str:
     )
 
 
-def _openai_output_text(response: dict[str, Any]) -> str:
-    parts: list[str] = []
-    for item in response.get("output") or []:
-        if item.get("type") != "message":
-            continue
-        for content in item.get("content") or []:
-            if content.get("type") == "refusal":
-                raise SemanticAnalysisError(
-                    f"OpenAI refused semantic analysis: {content.get('refusal', '')[:500]}"
-                )
-            if content.get("type") == "output_text":
-                parts.append(str(content.get("text") or ""))
-    return "".join(parts)
-
-
 def _prompt(request: dict[str, Any]) -> str:
     return f"{_system_instruction()}\n\nANAXIGRAPH_PAYLOAD\n{json.dumps(request)}"
-
-
-def _post_json(
-    url: str,
-    payload: dict[str, Any],
-    *,
-    headers: dict[str, str],
-    timeout: int,
-) -> dict[str, Any]:
-    request = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", **headers},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            value = json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")[:1_000]
-        raise SemanticAnalysisError(f"Semantic API returned HTTP {exc.code}: {body}") from exc
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
-        raise SemanticAnalysisError(f"Semantic API request failed: {exc}") from exc
-    if not isinstance(value, dict):
-        raise SemanticAnalysisError("Semantic API response must be a JSON object")
-    return value
 
 
 def _result_from_json(

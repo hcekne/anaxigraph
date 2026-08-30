@@ -265,7 +265,7 @@ publish port 8765 to an untrusted network.
 The first path above is intentionally narrow. Continue with
 [Advanced operation](advanced-operations.md) for:
 
-- hosted OpenAI/Anthropic workers and local Codex/Claude/custom workers;
+- local Codex/Claude/custom executors and durable background runs;
 - semantic privacy, budget, scheduling, and invalidation controls;
 - manual Compose review, custom state paths, ports, and endpoints;
 - remote servers and SSH forwarding;

@@ -7,7 +7,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-_PRIVATE_SEMANTIC_FIELDS = frozenset({"api_key_env", "base_url", "command"})
+_PRIVATE_SEMANTIC_FIELDS = frozenset({"command"})
 
 
 def effective_semantic_policy(semantic: Any) -> dict[str, Any]:

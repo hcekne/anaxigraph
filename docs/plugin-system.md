@@ -19,12 +19,12 @@ fallback. Graphify or Tree-sitter can be added as an analyzer or graph-extractor
 changing persistence consumers.
 
 Coverage adapters likewise return normalized file coverage before persistence. Semantic analysis
-uses one provider-neutral dossier contract. Built-in executors cover a connected coding agent over
-AnaxiMCP, OpenAI and Anthropic APIs, non-interactive Codex and Claude CLIs, and a JSON-over-stdin
-custom command. The semantic planner, queue, fingerprints, and storage do not depend on provider
-SDK types. Executors receive deterministic facts plus bounded source or stored neighbouring
-dossiers and return the strict dossier contract. Execution is disabled by default and runs for
-missing, structurally changed, context-invalidated, policy-stale, or explicitly expired scopes.
+uses one provider-neutral dossier contract. Built-in execution uses a connected coding agent over
+AnaxiMCP or an authenticated, non-interactive Codex/Claude CLI; an advanced JSON-over-stdin command
+adapter remains available for operator-owned runtimes. AnaxiGraph does not host model API keys.
+Executors receive deterministic facts plus bounded source or stored neighbouring dossiers and
+return the strict dossier contract. Execution is disabled by default and runs for missing,
+structurally changed, context-invalidated, policy-stale, or explicitly expired scopes.
 
 Future adapters should preserve three rules:
 

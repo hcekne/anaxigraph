@@ -166,9 +166,6 @@ function semanticSettingsCommand(semantic) {
   if (agentFunded) {
     return "anaxigraph understand /path/to/repository --executor codex --background; then run anaxigraph semantic-status /path/to/repository";
   }
-  if (semantic.enabled && semantic.refresh === "periodic") {
-    return "docker compose -f compose.anaxigraph.yml --profile ai up -d";
-  }
   return "anaxigraph understand /path/to/repository";
 }
 

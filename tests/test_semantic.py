@@ -5,16 +5,11 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
-import pytest
-
 from anaxigraph.config import SemanticConfig
 from anaxigraph.semantic import (
-    AnthropicSemanticProvider,
     ClaudeSemanticProvider,
     CodexSemanticProvider,
-    OpenAISemanticProvider,
 )
-from anaxigraph.semantic_contract import SemanticAnalysisError
 
 
 def _dossier() -> dict[str, Any]:
@@ -62,108 +57,6 @@ def _dossier() -> dict[str, Any]:
         "evidence": ["src/anaxigraph/understanding.py:1"],
         "confidence": 0.91,
     }
-
-
-def test_openai_provider_uses_strict_responses_schema(monkeypatch):
-    captured = {}
-
-    def post(url, payload, *, headers, timeout):
-        captured.update(url=url, payload=payload, headers=headers, timeout=timeout)
-        return {
-            "status": "completed",
-            "output": [
-                {
-                    "type": "message",
-                    "content": [{"type": "output_text", "text": json.dumps(_dossier())}],
-                }
-            ],
-            "usage": {"input_tokens": 120, "output_tokens": 80},
-        }
-
-    monkeypatch.setenv("TEST_OPENAI_KEY", "secret")
-    monkeypatch.setattr("anaxigraph.semantic._post_json", post)
-    provider = OpenAISemanticProvider(
-        SemanticConfig(
-            enabled=True,
-            provider="openai",
-            model="gpt-test",
-            api_key_env="TEST_OPENAI_KEY",
-        )
-    )
-
-    result = provider.analyze({"analysis_kind": "intrinsic", "source": "untrusted source"})
-
-    assert captured["url"] == "https://api.openai.com/v1/responses"
-    assert captured["payload"]["store"] is False
-    assert captured["payload"]["text"]["format"]["strict"] is True
-    assert captured["payload"]["text"]["format"]["schema"]["additionalProperties"] is False
-    assert (
-        captured["payload"]["text"]["format"]["schema"]["properties"]["pattern_opportunities"][
-            "items"
-        ]["additionalProperties"]
-        is False
-    )
-    assert result.value["placement_guidance"].startswith("Add model runtimes")
-    assert result.value["pattern_opportunities"][0]["score"] == 91
-    assert result.input_tokens == 120
-    assert result.output_tokens == 80
-
-
-def test_openai_provider_reports_a_structured_refusal(monkeypatch):
-    monkeypatch.setenv("TEST_OPENAI_KEY", "secret")
-    monkeypatch.setattr(
-        "anaxigraph.semantic._post_json",
-        lambda *_args, **_kwargs: {
-            "status": "completed",
-            "output": [
-                {
-                    "type": "message",
-                    "content": [{"type": "refusal", "refusal": "Request rejected"}],
-                }
-            ],
-        },
-    )
-    provider = OpenAISemanticProvider(
-        SemanticConfig(
-            enabled=True,
-            provider="openai",
-            model="gpt-test",
-            api_key_env="TEST_OPENAI_KEY",
-        )
-    )
-
-    with pytest.raises(SemanticAnalysisError, match="Request rejected"):
-        provider.analyze({"analysis_kind": "intrinsic", "source": "untrusted source"})
-
-
-def test_anthropic_provider_uses_structured_output_config(monkeypatch):
-    captured = {}
-
-    def post(url, payload, *, headers, timeout):
-        captured.update(url=url, payload=payload, headers=headers, timeout=timeout)
-        return {
-            "content": [{"type": "text", "text": json.dumps(_dossier())}],
-            "usage": {"input_tokens": 90, "output_tokens": 60},
-        }
-
-    monkeypatch.setenv("TEST_ANTHROPIC_KEY", "secret")
-    monkeypatch.setattr("anaxigraph.semantic._post_json", post)
-    provider = AnthropicSemanticProvider(
-        SemanticConfig(
-            enabled=True,
-            provider="anthropic",
-            model="claude-test",
-            api_key_env="TEST_ANTHROPIC_KEY",
-        )
-    )
-
-    result = provider.analyze({"analysis_kind": "context", "source": "untrusted source"})
-
-    assert captured["url"] == "https://api.anthropic.com/v1/messages"
-    assert captured["payload"]["output_config"]["format"]["type"] == "json_schema"
-    assert captured["headers"]["anthropic-version"] == "2023-06-01"
-    assert result.confidence == 0.91
-    assert result.input_tokens == 90
 
 
 def test_codex_provider_is_ephemeral_read_only_and_schema_constrained(monkeypatch):

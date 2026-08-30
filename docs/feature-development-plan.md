@@ -3406,6 +3406,46 @@ relationships and 154 findings, and spent no model tokens. The live index doctor
 10, exact canonical integrity, no compatibility rows, valid lineage, bounded reconstruction, zero
 foreign-key violations, and no blocker.
 
+### 10.2 delivery record: remove the hosted-model product path
+
+The earlier dashboard slices established safe characterization but reduced only 375 of the 5,407
+production lines required by this phase. That pace did not satisfy the consolidation goal. The next
+slice therefore removes a complete secondary product path rather than another presentation helper.
+
+AnaxiGraph previously both prepared semantic work for the coding agent already authenticated in a
+repository and acted as a separate OpenAI/Anthropic HTTP client with API-key configuration, a
+periodic `semantic-worker` command, and an optional `ai` Compose service. The second path duplicated
+credential ownership, provider transports, scheduling, errors, documentation, and operations while
+writing the same dossier contract to the same queue. ADR 0004 makes the product boundary explicit:
+AnaxiGraph owns evidence, bounded work, validation, leases, provenance, and AnaxiIndex; the user's
+connected agent or authenticated host Codex/Claude executor owns inference.
+
+The two hosted API clients, their key/base-URL policy fields, periodic refresh policy and scheduler,
+CLI command, generated and repository Compose services, dashboard instruction, provider tests, and
+operator documentation are removed. The advanced local JSON command adapter remains for
+operator-owned runtimes and deterministic tests. Existing dossiers and provider/model provenance
+remain readable; only creation through an AnaxiGraph-hosted API credential is retired. Policies
+using `openai`, `anthropic`, or `periodic` now fail with a migration-oriented message instead of
+silently selecting another authority.
+
+The Python module count remains **240**, but the exact production source ratchet falls by 298 lines,
+from 53,534 to **53,236 lines**. Runtime, tests, and current documentation delete 608 obsolete lines
+while adding 107 migration and replacement-contract lines, plus this decision record and ADR.
+Semantic configuration, local Codex/Claude execution, durable background execution, sidecar
+write-back, agent-funded completion, CLI routing, onboarding, and Compose characterization pass
+together. The full suite passes with **618 tests**, all **17 browser contracts** pass in the pinned
+Playwright container, and every hard maintainability gate remains green. Phase 10.2 must continue
+at whole-path scale; cosmetic or single-digit consolidation no longer counts as an implementation
+milestone.
+
+The exact rebuilt Compose project now has only the main service and read-only watcher; no hidden
+`ai` profile or semantic-worker command remains. The deployed service reports both registered
+repositories with `provider: agent`, completes a real MCP initialization as AnaxiMCP protocol
+2025-03-26, and passes service/MCP doctor checks. Its self-scan reused all 469 analyses in 1.413
+seconds, kept snapshot 462 current with 4,420 relationships and 153 findings, and spent no model
+tokens. The live index doctor reports schema 10, exact canonical integrity, canonical-only parity,
+bounded reconstruction, zero foreign-key violations, and no blocker.
+
 ## 10.3 Make human understanding the primary dashboard journey
 
 Use the existing semantic repository dossier, reviewed taxonomy, graph, file detail, and history to

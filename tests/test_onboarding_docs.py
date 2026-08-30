@@ -25,7 +25,7 @@ def test_advanced_modes_are_routed_out_of_the_primary_path():
     advanced = (ROOT / "docs/advanced-operations.md").read_text(encoding="utf-8")
 
     for detail in (
-        'export OPENAI_API_KEY="..."',
+        "An advanced `command` provider",
         "ssh -L 8765:127.0.0.1:8765",
         "backend/coverage.xml",
         "repositories.example.yml",

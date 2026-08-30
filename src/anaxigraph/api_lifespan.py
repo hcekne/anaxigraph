@@ -39,5 +39,5 @@ async def _scan_targets(context: Any) -> None:
     for target in context.targets:
         context.history_service.start(target)
         config = api_support.load_config(target.path, target.config_path)
-        if config.semantic.enabled and config.semantic.refresh in {"on_scan", "periodic"}:
+        if config.semantic.enabled and config.semantic.refresh == "on_scan":
             context.semantic_refresh.start(target)

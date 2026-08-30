@@ -312,8 +312,8 @@ trusted SSH tunnel; do not expose the port to an untrusted network.
 
 ## Advanced operation
 
-The [advanced guide](docs/advanced-operations.md) covers hosted OpenAI/Anthropic workers, local
-Codex/Claude/custom workers, semantic cost and privacy, SSH forwarding, custom ports/state,
+The [advanced guide](docs/advanced-operations.md) covers local Codex/Claude/custom executors,
+semantic cost and privacy, SSH forwarding, custom ports/state,
 optional coverage imports, durable history controls, watchers, integrity diagnostics, upgrades,
 resets, lower-level CLI commands, and several repositories.
 

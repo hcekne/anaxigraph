@@ -53,7 +53,6 @@ def _repository_policy(
         "enabled": semantic_enabled,
         "provider": "agent",
         "refresh": "manual",
-        "reconcile_interval_minutes": 1_440,
         "max_age_days": 0,
         "max_jobs_per_run": 100,
         "max_parallel_jobs": 1,
@@ -182,20 +181,6 @@ def _compose_workers(history_snapshots: int | str) -> str:
       - /state/anaxi-index.db
       - --interval
       - "${{ANAXIGRAPH_WATCH_INTERVAL:-10}}"
-    depends_on:
-      anaxigraph:
-        condition: service_healthy
-
-  # Optional in-container hosted-model worker. Agent-funded semantic mapping through
-  # AnaxiMCP uses the main service and does not need this profile or an API key.
-  anaxigraph-semantic:
-    <<: *anaxigraph-service
-    profiles: [ai]
-    command:
-      - semantic-worker
-      - /repo
-      - --db
-      - /state/anaxi-index.db
     depends_on:
       anaxigraph:
         condition: service_healthy

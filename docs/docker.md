@@ -190,26 +190,11 @@ map metadata only. The queue survives process restarts. Read the result with
 `ANAXIGRAPH_TAXONOMY` or the dashboard's map-layer selector, and never report the baseline complete
 until `semantic-status` says `semantically_ready: true`.
 
-For unattended reconciliation instead, use `provider: openai` or `provider: anthropic`, set a
-model and `refresh: periodic`, export the matching key before creating the containers, then run:
-
-```bash
-docker compose --profile ai up --build -d
-docker compose logs -f anaxigraph-semantic
-curl --fail http://127.0.0.1:8765/api/semantic
-```
-
-That worker reads all eligible modules on first enrollment, then reconciles at each repository's
-`semantic.reconcile_interval_minutes`. Hash and context comparisons happen before model calls, so
-an unchanged repository is not resent on each interval. The queue and completed dossiers live in
-the shared AnaxiIndex volume and survive container restarts.
-
-Hosted-provider credentials are passed as environment variables to the dashboard and optional
-worker; they are not written to `.anaxigraph.yml` or AnaxiIndex. The stock image does not bundle
-Codex or Claude CLI binaries. Those CLI adapters are intended for a local AnaxiGraph installation
-or a custom operator image. See
-[advanced semantic operation](advanced-operations.md#hosted-semantic-worker) for the full provider,
-cost, egress, and refresh policy.
+The stock image deliberately contains no model client and accepts no hosted-model API key. The
+authenticated Codex/Claude executor runs on the host, or the connected coding agent processes the
+bounded MCP queue with its own tokens. Hash and context comparisons happen before work is queued,
+so unchanged files are not reread. See [advanced semantic operation](advanced-operations.md) for
+cost, privacy, custom-command, and refresh controls.
 
 To reconstruct history from the command line:
 

@@ -106,37 +106,12 @@ closed because the sidecar may merely be busy; it never silently selects a secon
 expose `index.authority`, database/service location, and repository selector so another agent can
 resume the exact same ledger.
 
-## Hosted semantic worker
+## Taxonomy policy and custom executors
 
-Agent-funded semantics is recommended because AnaxiGraph holds no model key. For unattended
-scheduling, configure a hosted provider in `.anaxigraph.yml`:
-
-```yaml
-semantic:
-  enabled: true
-  provider: openai             # or anthropic
-  model: your-model
-  refresh: periodic            # manual | on_scan | watch | periodic
-  reconcile_interval_minutes: 1440
-  max_jobs_per_run: 100
-  max_parallel_jobs: 2
-  max_attempts: 3
-  max_age_days: 0
-  include: [src/**]
-  exclude: [src/generated/**, vendor/**]
-  taxonomy:
-    enabled: true
-    review_passes: 2
-    max_areas: 6
-    max_subsystems: 30
-    stability_bias: 0.8
-```
-
-Taxonomy generation is on by default whenever semantic understanding is enabled. The provider
-proposes a complete responsibility map, critic passes revise it, and deterministic checks repair
-exact membership and bounds before finalization. Optional `map.hints` and
-`map.locked_memberships` can express operator constraints, but neither is required and there is no
-interactive approval gate:
+Taxonomy generation is on by default whenever agent-funded semantic understanding is enabled. The
+coding agent proposes a complete responsibility map, critic passes revise it, and deterministic
+checks repair exact membership and bounds before finalization. Optional `map.hints` and
+`map.locked_memberships` express operator constraints without adding an interactive approval gate:
 
 ```yaml
 map:
@@ -145,45 +120,16 @@ map:
     src/billing/ledger.py: billing-ledger
 ```
 
-Keep credentials out of repository YAML. Export the matching key before creating the worker:
-
-```bash
-export OPENAI_API_KEY="..."       # or ANTHROPIC_API_KEY
-docker compose -f compose.anaxigraph.yml --profile ai up -d
-docker compose -f compose.anaxigraph.yml logs -f anaxigraph-semantic
-```
-
-The key must exist when Docker creates the container. Recreate the worker after changing its
-environment.
-
-## Local CLI or custom semantic worker
-
-A host installation can use an already authenticated coding CLI:
-
-```yaml
-semantic:
-  enabled: true
-  provider: codex              # or claude
-  refresh: manual
-  max_jobs_per_run: 100
-  max_parallel_jobs: 1
-```
-
-```bash
-anaxigraph understand /path/to/repository
-anaxigraph semantic-status /path/to/repository
-```
-
-The Codex adapter invokes non-interactive `codex exec` in an ephemeral read-only sandbox with a
-strict output schema. The Claude adapter uses non-persistent, tool-free print mode. A `command`
-provider can receive one JSON request on standard input and must return
+The normal executor is `anaxigraph understand . --executor codex|claude`. The Codex adapter invokes
+non-interactive `codex exec` in an ephemeral read-only sandbox with a strict output schema; the
+Claude adapter uses non-persistent, tool-free print mode. An advanced `command` provider can receive
+one JSON request on standard input and must return
 `{"result": {...}, "usage": {...}}` on standard output. `dossier` remains accepted for existing
 module-dossier integrations; taxonomy requests require the dynamic schema named by
 `analysis_kind`.
 
-The stock Docker image does not bundle Codex or Claude. Use the connected-agent workflow, a
-hosted worker, or an operator-owned image rather than assuming host authentication is visible
-inside the sidecar.
+The stock Docker image deliberately bundles no coding CLI and accepts no hosted-model key. Run the
+executor on the authenticated host or let the connected coding agent process bounded MCP work.
 
 ## Semantic cost, privacy, and refresh
 

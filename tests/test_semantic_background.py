@@ -172,7 +172,7 @@ def test_background_wrapper_keeps_healthy_child_alive_without_model_progress(tmp
     latest_path = tmp_path / "latest.json"
     record = {
         "run_id": "run-1",
-        "command": ["semantic-worker"],
+        "command": ["understand"],
         "progress_path": str(tmp_path / "missing-progress.json"),
         "heartbeat_at": "2020-01-01T00:00:00+00:00",
     }

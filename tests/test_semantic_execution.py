@@ -82,7 +82,7 @@ def test_configured_semantic_provider_rejects_agent_runtime_flags(options, messa
 
     with pytest.raises(ValueError, match=message):
         semantic_commands._understand_execution(
-            args, SemanticConfig(enabled=True, provider="openai")
+            args, SemanticConfig(enabled=True, provider="command", command=("worker",))
         )
 
 
@@ -90,11 +90,17 @@ def test_configured_semantic_provider_keeps_its_policy_executor():
     args = argparse.Namespace(executor="auto", model=None, reasoning_effort=None, plan_only=False)
 
     execution, mode = semantic_commands._understand_execution(
-        args, SemanticConfig(enabled=True, provider="openai", model="configured")
+        args,
+        SemanticConfig(
+            enabled=True,
+            provider="command",
+            command=("worker",),
+            model="configured",
+        ),
     )
 
     assert execution is None
-    assert mode == "openai"
+    assert mode == "command"
 
 
 def test_agent_executor_rejects_invalid_plan_mcp_and_missing_cli(monkeypatch):

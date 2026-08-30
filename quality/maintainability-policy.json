@@ -6,7 +6,7 @@
   "production_source_budget": {
     "root": "src/anaxigraph",
     "extensions": [".py", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".css", ".html"],
-    "baseline_lines": 53534,
+    "baseline_lines": 53236,
     "target_lines": 48500
   },
   "function_limits": {
@@ -32,7 +32,7 @@
     "src/anaxigraph/analyzers/text.py::_jsonc_to_json": [37, 18],
     "src/anaxigraph/architecture.py::evaluate_architecture": [64, 13],
     "src/anaxigraph/architecture_persistence.py::_update_finding_lifecycle": [69, 6],
-    "src/anaxigraph/config.py::_semantic_config": [55, 11],
+    "src/anaxigraph/config.py::_semantic_config": [53, 11],
     "src/anaxigraph/persistence/module_read.py::_materialize_module": [55, 12],
     "src/anaxigraph/persistence/overview_read.py::read_overview": [71, 8],
     "src/anaxigraph/persistence/semantic_taxonomy_carry.py::carry_taxonomy": [91, 3],

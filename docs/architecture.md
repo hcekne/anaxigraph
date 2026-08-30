@@ -19,8 +19,8 @@ target Git repository (read-only)
       incremental scanner ───────── semantic planner / durable queue
              │                         │                    │
              │                         ▼                    ▼
-             │               provider-neutral       connected coding agent
-             │                model adapters          through AnaxiMCP
+             │               local Codex/Claude      connected coding agent
+             │                   executor              through AnaxiMCP
              │                         │ dossiers + provenance │
              └──────────────┬──────────┴──────────────────────┘
                             ▼
@@ -135,5 +135,5 @@ use them in task-file ranking. A repository may explicitly select `semantic.prov
 enable an index-only write path: AnaxiMCP leases a prepared job, the connected coding agent reasons
 with its own model and tokens, and SUBMIT writes a schema-validated interpretation to AnaxiIndex.
 Opaque expiring lease tokens, repository/snapshot checks, strict dossier validation, MCP write
-annotations, and the repository allowlist bound that path. Hosted and CLI providers remain a
-separate executor option for unattended work.
+annotations, and the repository allowlist bound that path. An authenticated local Codex or Claude
+CLI can drive the same queue in the background; AnaxiGraph itself holds no model API key.

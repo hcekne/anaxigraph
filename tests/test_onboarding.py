@@ -123,7 +123,7 @@ def test_agent_semantic_option_updates_only_its_existing_policy_block(repository
         "  name: Hand Edited\n"
         "semantic:\n"
         "  enabled: false  # old choice\n"
-        "  provider: openai\n"
+        "  provider: command\n"
         "  model: custom-model\n",
         encoding="utf-8",
     )

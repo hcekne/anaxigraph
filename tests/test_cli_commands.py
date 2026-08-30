@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import time
 from pathlib import Path
 
 import pytest
@@ -14,7 +13,6 @@ import anaxigraph.cli_services as cli_services
 import anaxigraph.semantic_execution as semantic_execution
 from anaxigraph.cli import main
 from anaxigraph.cli_common import default_db
-from anaxigraph.registry import RepositoryTarget
 from anaxigraph.semantic_service import SemanticServiceTarget
 
 
@@ -103,9 +101,7 @@ def test_repository_agent_and_export_handlers_share_the_current_scan(
     assert "Watching 1 repositories" in capsys.readouterr().err
 
 
-def test_semantic_handlers_plan_report_run_and_resume(
-    repository: Path, tmp_path: Path, capsys, monkeypatch
-):
+def test_semantic_handlers_plan_report_and_resume(repository: Path, tmp_path: Path, capsys):
     policy_path = repository / ".anaxigraph.yml"
     policy = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
     policy["semantic"] = {
@@ -122,7 +118,6 @@ def test_semantic_handlers_plan_report_run_and_resume(
     planned = _call(["understand", *common, "--limit", "2", "--plan-only"], capsys)
     requires_agent = _call(["understand", *common, "--limit", "2", "--executor", "mcp"], capsys)
     status = _call(["semantic-status", *common], capsys)
-    reconciled = _call(["semantic-worker", *common, "--once"], capsys)
 
     assert planned["semantic"]["enabled"] is True
     assert planned["status"] == "planned"
@@ -131,17 +126,6 @@ def test_semantic_handlers_plan_report_run_and_resume(
     assert requires_agent["next_action"]["kind"] == "connected_agent_semantic_loop"
     assert "must not report" in requires_agent["next_action"]["instruction"]
     assert status["enabled"] is True
-    assert reconciled["repositories"][0]["semantic"]["semantic"]["enabled"] is True
-
-    def stop(_interval: float) -> None:
-        raise KeyboardInterrupt
-
-    monkeypatch.setattr(semantic_commands.time, "sleep", stop)
-    with pytest.raises(SystemExit, match="130"):
-        main(["semantic-worker", *common])
-    captured = capsys.readouterr()
-    assert '"status": "skipped"' in captured.out
-    assert "Semantic reconciliation for 1 repositories" in captured.err
 
 
 def test_understand_routes_omitted_database_to_matching_service(
@@ -360,41 +344,6 @@ def test_until_complete_cannot_return_a_successful_partial_result():
 
     with pytest.raises(RuntimeError, match="pending=3, retry=1"):
         semantic_commands._require_requested_completion(args, result)
-
-
-def test_semantic_scheduler_reports_disabled_and_scheduled_targets(
-    repository: Path,
-    tmp_path: Path,
-):
-    target = RepositoryTarget("fixture", repository, repository / ".anaxigraph.yml", 0)
-    args = argparse.Namespace(interval=None)
-    database = cli_services.open_index(tmp_path / "schedule.db")
-
-    disabled = semantic_commands._reconcile_target(
-        args,
-        target,
-        database,
-        respect_refresh_policy=False,
-        next_due=None,
-    )
-    assert disabled["status"] == "disabled"
-
-    policy = yaml.safe_load((repository / ".anaxigraph.yml").read_text(encoding="utf-8"))
-    policy["semantic"] = {"enabled": True, "provider": "agent", "refresh": "periodic"}
-    (repository / ".anaxigraph.yml").write_text(
-        yaml.safe_dump(policy, sort_keys=False), encoding="utf-8"
-    )
-    scheduled = semantic_commands._reconcile_target(
-        args,
-        target,
-        database,
-        respect_refresh_policy=True,
-        next_due={"fixture": time.monotonic() + 60},
-    )
-
-    assert scheduled["status"] == "scheduled"
-    assert scheduled["next_in_seconds"] > 0
-    assert semantic_commands._wait_seconds({}) >= 1
 
 
 def test_serve_handler_assembles_and_opens_the_selected_endpoint(

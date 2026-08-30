@@ -64,14 +64,14 @@ def test_coverage_warning_can_be_explicitly_required(tmp_path: Path):
     assert config.coverage_files == ("reports/coverage.xml",)
 
 
-def test_semantic_provider_refresh_budget_and_path_policy_load(tmp_path: Path):
+def test_semantic_executor_refresh_budget_and_path_policy_load(tmp_path: Path):
     (tmp_path / ".anaxigraph.yml").write_text(
         """semantic:
   enabled: true
-  provider: openai
+  provider: command
+  command: [semantic-fixture]
   model: example-model
-  refresh: periodic
-  reconcile_interval_minutes: 90
+  refresh: watch
   max_parallel_jobs: 3
   max_jobs_per_run: 25
   daily_budget_usd: 2.5
@@ -95,10 +95,9 @@ map:
     semantic = load_config(tmp_path).semantic
 
     assert semantic.enabled is True
-    assert semantic.provider == "openai"
+    assert semantic.provider == "command"
     assert semantic.model == "example-model"
-    assert semantic.refresh == "periodic"
-    assert semantic.reconcile_interval_minutes == 90
+    assert semantic.refresh == "watch"
     assert semantic.max_parallel_jobs == 3
     assert semantic.daily_budget_usd == 2.5
     assert semantic.includes_path("src/service.py")
@@ -124,6 +123,17 @@ def test_invalid_semantic_policy_fails_loudly(tmp_path: Path):
         load_config(tmp_path)
 
 
+@pytest.mark.parametrize("provider", ("openai", "anthropic"))
+def test_hosted_api_key_provider_is_rejected(tmp_path: Path, provider: str):
+    (tmp_path / ".anaxigraph.yml").write_text(
+        f"semantic: {{enabled: true, provider: {provider}}}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="no longer hosts"):
+        load_config(tmp_path)
+
+
 def test_agent_funded_semantic_policy_needs_no_model_or_command(tmp_path: Path):
     (tmp_path / ".anaxigraph.yml").write_text(
         """semantic:
@@ -146,13 +156,11 @@ def test_agent_funded_semantic_policy_needs_no_model_or_command(tmp_path: Path):
     assert semantic.taxonomy.review_passes == 2
 
 
-def test_effective_semantic_policy_round_trips_limits_without_private_provider_fields():
+def test_effective_semantic_policy_round_trips_limits_without_private_command():
     semantic = SemanticConfig(
         enabled=True,
         provider="agent",
         command=("private-provider",),
-        base_url="https://private.example",
-        api_key_env="PRIVATE_TOKEN",
         max_parallel_jobs=12,
         timeout_seconds=420,
         reasoning_effort="medium",
@@ -164,7 +172,7 @@ def test_effective_semantic_policy_round_trips_limits_without_private_provider_f
     assert transported.max_parallel_jobs == 12
     assert transported.timeout_seconds == 420
     assert transported.reasoning_effort == "medium"
-    assert {"command", "base_url", "api_key_env"}.isdisjoint(policy)
+    assert "command" not in policy
 
 
 def test_service_config_authority_distinguishes_defaults_and_external_policy(tmp_path):

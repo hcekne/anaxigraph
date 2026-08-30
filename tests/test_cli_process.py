@@ -71,14 +71,13 @@ def test_process_scan_scope_and_export_share_one_index(repository: Path, tmp_pat
 
 def test_process_validation_error_has_stable_exit_and_message(repository: Path, tmp_path: Path):
     result = _run(
-        "semantic-worker",
+        "understand",
         str(repository),
         "--db",
         str(tmp_path / "index.db"),
-        "--interval",
-        "0.5",
-        "--once",
+        "--limit",
+        "0",
     )
 
     assert result.returncode == 2
-    assert result.stderr == "anaxigraph: Semantic worker interval must be at least one second\n"
+    assert result.stderr == "anaxigraph: Semantic job limit must be at least one\n"

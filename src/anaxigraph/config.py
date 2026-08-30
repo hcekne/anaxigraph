@@ -63,14 +63,13 @@ class SemanticTaxonomyConfig:
 @dataclass(frozen=True, slots=True)
 class SemanticConfig:
     enabled: bool = False
-    provider: str = "command"
+    provider: str = "agent"
     command: tuple[str, ...] = ()
     model: str = ""
     reasoning_effort: str = ""
     prompt_version: str = "v1"
     timeout_seconds: int = 300
     refresh: str = "manual"
-    reconcile_interval_minutes: int = 1_440
     max_age_days: int = 0
     max_jobs_per_run: int = 100
     max_parallel_jobs: int = 1
@@ -82,8 +81,6 @@ class SemanticConfig:
     daily_budget_usd: float | None = None
     input_cost_per_million: float = 0.0
     output_cost_per_million: float = 0.0
-    base_url: str = ""
-    api_key_env: str = ""
     include: tuple[str, ...] = ()
     exclude: tuple[str, ...] = (
         "vendor/**",
@@ -274,14 +271,15 @@ def _semantic_config(value: Any) -> SemanticConfig:
         return SemanticConfig()
     if not isinstance(value, dict):
         raise ValueError("semantic must be a mapping")
-    provider = str(value.get("provider", "command")).strip().lower()
-    if provider not in {"agent", "command", "codex", "claude", "openai", "anthropic"}:
+    provider = str(value.get("provider", "agent")).strip().lower()
+    if provider not in {"agent", "command", "codex", "claude"}:
         raise ValueError(
-            "semantic.provider must be agent, command, codex, claude, openai, or anthropic"
+            "semantic.provider must be agent, command, codex, or claude; AnaxiGraph no longer "
+            "hosts OpenAI or Anthropic API credentials"
         )
     refresh = str(value.get("refresh", "manual")).strip().lower().replace("-", "_")
-    if refresh not in {"manual", "on_scan", "watch", "periodic"}:
-        raise ValueError("semantic.refresh must be manual, on_scan, watch, or periodic")
+    if refresh not in {"manual", "on_scan", "watch"}:
+        raise ValueError("semantic.refresh must be manual, on_scan, or watch")
 
     def integer(name: str, default: int, minimum: int) -> int:
         result = int(value.get(name, default))
@@ -306,7 +304,6 @@ def _semantic_config(value: Any) -> SemanticConfig:
         prompt_version=str(value.get("prompt_version", "v1")),
         timeout_seconds=integer("timeout_seconds", 300, 1),
         refresh=refresh,
-        reconcile_interval_minutes=integer("reconcile_interval_minutes", 1_440, 1),
         max_age_days=integer("max_age_days", 0, 0),
         max_jobs_per_run=integer("max_jobs_per_run", 100, 1),
         max_parallel_jobs=integer("max_parallel_jobs", 1, 1),
@@ -318,8 +315,6 @@ def _semantic_config(value: Any) -> SemanticConfig:
         daily_budget_usd=budget,
         input_cost_per_million=input_cost,
         output_cost_per_million=output_cost,
-        base_url=str(value.get("base_url", "")),
-        api_key_env=str(value.get("api_key_env", "")),
         include=_tuple_of_strings(value.get("include")),
         exclude=_tuple_of_strings(value.get("exclude")) or SemanticConfig().exclude,
         taxonomy=_semantic_taxonomy_config(value.get("taxonomy")),

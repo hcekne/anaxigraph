@@ -91,24 +91,6 @@ services:
     networks:
       - anaxigraph
 
-  # Optional in-container hosted-model worker. Agent-funded semantic mapping through
-  # AnaxiMCP uses the main service and does not need this profile or an API key.
-  anaxigraph-semantic:
-    <<: *anaxigraph-service
-    profiles:
-      - ai
-    command:
-      - semantic-worker
-      - --registry
-      - /config/repositories.yml
-      - --db
-      - /state/anaxi-index.db
-    depends_on:
-      anaxigraph:
-        condition: service_healthy
-    networks:
-      - anaxigraph
-
 volumes:
   anaxi_index:
     name: anaxigraph_anaxi_index
