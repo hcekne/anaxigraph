@@ -2765,7 +2765,7 @@ than a paragraph that implementation can ignore.
 
 ## 10.1 Inventory the product surface and write the deletion map
 
-**Status:** NEXT
+**Status:** COMPLETE on 30 August 2026
 
 Before changing architecture, trace every top-level dashboard journey, default MCP tool, CLI command
 family, REST route family, database table family, and major module cluster to one of:
@@ -2777,9 +2777,9 @@ family, REST route family, database table family, and major module cluster to on
    removed.
 
 Record call sites, stored state, compatibility obligations, tests, and public consumers before
-marking anything removable. Give special attention to the 57 semantic modules, 51 persistence
-modules, 25 MCP tools, and repeated language/projection layers. The result is one ordered deletion
-map, not another permanent inventory subsystem.
+marking anything removable. Give special attention to the 57 semantic files, 51 persistence files
+(50 import modules), 25 MCP tools, and repeated language/projection layers. The result is one
+ordered deletion map, not another permanent inventory subsystem.
 
 Documentation is part of the same surface. This active roadmap now exceeds 3,000 lines and the
 original product brief exceeds 2,000; completed detail should be collapsed into a short delivery
@@ -2793,6 +2793,162 @@ Acceptance:
 - README, product brief, architecture document, and active roadmap have distinct non-repeating jobs;
 - no feature implementation, new table, new tool, or new dashboard destination lands during the
   inventory.
+
+### 10.1 delivery record: measured surface
+
+The inventory used the checked-out source, static import graph, test and documentation call sites,
+CLI and MCP registrations, dashboard fetches, and the self-hosted AnaxiIndex at commit `676fb4e`.
+It records a measured starting point, not a permanent source-of-truth generator:
+
+| Surface | Measured state | Normal owner | Required outcome |
+|---|---:|---|---|
+| Dashboard | 7 top-level tabs | human understanding | converge to at most 5 task journeys; Files and Graph become representations of one selection |
+| CLI | 21 top-level commands | local/operator adapter | document a short normal path and move administration, import, worker, and recovery commands under advanced use |
+| MCP | 25 registered tools | coding-agent adapter | publish a default profile of at most 10 decision tools; keep executor/operator primitives in named advanced profiles |
+| REST | approximately 34 API routes | dashboard and MCP transport | keep route families internal; consolidate only after their shared read models converge |
+| SQLite | 34 tables | AnaxiIndex | retain canonical facts and evidence, bound operational history, and remove transaction-only staging after consumers move |
+| Python | 245 import modules | implementation | remove forwarding fragments and repeated projections without merging unrelated responsibilities |
+| Production source | 53,907 Python/dashboard lines | whole product | add a non-growth ratchet, lower it after each slice, and reach 48,500 or fewer without code golf |
+
+The apparent `80,000`-line product includes 17,883 lines of tests plus benchmark/tool code. Those
+tests are valuable executable contracts and are not the reduction target. The production baseline
+is 48,522 Python lines and 5,385 dashboard HTML/CSS/JavaScript lines. Both numbers matter: moving
+logic between Python and the browser must not game the combined budget.
+
+### Human and transport surfaces
+
+The seven dashboard destinations are not seven independent products:
+
+| Current destination | Decision served | Disposition |
+|---|---|---|
+| Overview | understand purpose, health, and attention | becomes the entry to **Understand** and **Improve** |
+| Files | inspect a module and its evidence | becomes a table/detail representation inside **Understand** |
+| Graph | inspect relationships and architecture placement | becomes a visual representation inside **Understand**, preserving the same selection as Files |
+| Architecture | inspect intended versus observed structure | joins **Understand** for explanation and **Improve** for violations |
+| History | understand architectural evolution | remains the focused **History** journey |
+| Agents | turn evidence into a bounded coding decision | becomes the plain-language **Workbench** journey |
+| Settings | repository, scan, semantic, and operator controls | remains **Settings**, with advanced controls collapsed by default |
+
+The normal MCP profile will expose no more than these ten existing decisions: repository selection,
+overview, search, file evidence, scope/placement, impact, findings, scan/refresh, semantic readiness,
+and taxonomy. `GRAPH`, `MODULES`, `PATTERNS`, `FINDING_CONTEXT`, `GUIDE`, the three history controls,
+the six low-level semantic queue/schema controls, and branch-collision inspection remain available
+through advanced operator or executor profiles until compatibility evidence permits consolidation.
+The current `coding-loop-contract-v2` freezes a released 19-tool subset, so the smaller default must
+ship as a versioned profile rather than silently changing the old contract. `FINDINGS` may eventually
+absorb optional finding detail, and durable docs plus the installed skill may replace `GUIDE`, but
+only after old clients receive a deprecation path.
+
+The 21 CLI commands divide into four ordinary outcomes—start/use the service, build understanding,
+inspect readiness, and diagnose it—and advanced adapters for scan/update/review/watch/export,
+finding lifecycle, semantic workers, patterns/history, server/MCP operation, scope/impact/collisions,
+and backup/restore. This phase does not remove a released command merely to improve a count. It first
+makes the normal path obvious, observes real use, and then aliases or retires only redundant paths.
+
+REST is principally the dashboard's private adapter. Roughly 22 endpoints have direct browser call
+sites, and the remainder serve operation, history, semantic, or compatibility workflows. Route count
+therefore is not itself a product metric. Shared query/response services should converge before any
+route is merged, so the dashboard and MCP never acquire separate architecture models to achieve a
+smaller transport surface.
+
+### Stored-state surface
+
+The 34 SQLite tables have six distinct responsibilities:
+
+| Family | Tables | Decision |
+|---|---:|---|
+| repository, schema, identity, and time | 8 | retain as canonical identity, configuration, migration, and history state |
+| canonical extracted facts, edges, checkpoints, and metrics | 11 | retain as the deterministic foundation shared by every consumer |
+| finding lifecycle | 2 | retain; converge queries and ranking rather than creating another advice store |
+| semantic documents, claims, queue state, and taxonomy | 8 | retain the evidence model; compact duplicated execution history and repeated projections |
+| operational scan history | 1 | retain bounded audit/liveness evidence, not every no-change poll forever |
+| transaction-local compatibility projections | 4 | remove after architecture evaluation reads the canonical projection directly |
+
+The four compatibility projection tables are `file_versions`, `symbols`, `relationships`, and
+`group_memberships`. A scan currently materializes them, checks parity, lets deterministic detectors
+consume them, and clears them; all four are empty between scans in the live index. They cannot simply
+be deleted because migration tests cover schemas 2, 6, 7, 8, 9, and 10, and architecture evaluation
+still depends on their projected shape. The safe cutover is: characterize detector output, make the
+detectors consume canonical facts/edges, retain released input migrations, stop materializing the
+projection, then remove the permanent staging schema and parity machinery.
+
+The live two-repository sidecar exposed two separate retention problems:
+
+- `analysis_runs` held about 90,100 `watch/unchanged` rows—one durable row per no-op poll—and occupied
+  about 18 MB. Explicit scans and changed, failed, cancelled, or interrupted watcher runs are useful
+  audit evidence; an unlimited history of identical liveness polls is not.
+- `semantic_jobs` occupied about 50 MB, including roughly 12,665 superseded module jobs and repeated
+  completed-job metadata. Active leases, failures, cost/provenance summaries, and the documents they
+  produced must survive. A call-site audit must prove what completed metadata duplicates before any
+  retention or compaction rule is introduced.
+
+The sidecar also demonstrated a coordination cost: a structural scan whose measured work took about
+1.2 seconds waited roughly 95 seconds for the database-wide scan lock while the other registered
+repository was being watched. Per-repository locking is a candidate only after transaction and
+semantic-carry behavior is characterized; it must not be folded casually into the retention fix.
+
+### Major implementation clusters
+
+| Cluster | Files/modules and lines | Product responsibility | Inventory decision |
+|---|---:|---|---|
+| Semantic | 57 files / 13,038 lines | explain responsibility, compose context, review patterns and taxonomy | keep capability; converge repeated planning, language, projection, execution, and status shapes |
+| Persistence | 51 files, 50 import modules / 9,291 lines | make facts, evidence, lifecycle, and time durable | keep canonical model; remove transaction-only projection and one-use forwarding layers in characterized steps |
+| Agent | 19 modules / 5,121 lines | turn shared evidence into placement, impact, and verification decisions | keep decisions; converge duplicated payload and response composition |
+| Foundation/config/other | 26 modules / 4,468 lines | shared contracts, configuration, Git, and composition | keep explicit boundaries; remove only pass-through compatibility with a real caller map |
+| Pattern intelligence | 19 modules / 4,174 lines | evidence-backed pattern, duplication, dead-code, and refactor advice | keep one recommendation model; eliminate semantic/static projection duplication |
+| Extraction | 16 modules / 2,720 lines | produce deterministic language facts | keep analyzer boundary; share language identity and capability reporting |
+| API | 19 modules / 1,718 lines | adapt shared services to the dashboard | keep thin transport; do not duplicate read models |
+| CLI | 12 modules / 1,493 lines | adapt shared services to local workflows | keep composition; separate normal and advanced discovery before removal |
+| History | 5 modules / 1,366 lines | provide temporal evidence | keep one time model; avoid turning history into a separate product family |
+| Architecture | 6 modules / 1,342 lines | compare intended and observed structure | make it consume canonical projections directly |
+| Onboarding | 6 modules / 1,329 lines | get a person and agent to first value | converge generated instructions and durable docs around one ordinary path |
+| Scan | 5 modules / 1,266 lines | refresh deterministic facts safely | retain; bound no-op telemetry and later examine repository-scoped coordination |
+| Finding | 5 modules / 1,196 lines | prioritize and preserve review lifecycle | retain; join list/detail language where it removes a real duplicate |
+
+Small files are not automatically bloat. `api_models`, `architecture_graph`, and
+`semantic_services` express useful transport, algorithm, and composition boundaries. In contrast,
+`persistence/finding_facade.py` is a six-line re-export consumed only by `index_facade` and is a
+specific later removal candidate once its direct imports are characterized. Near-ceiling modules
+such as `storage.py` and `module_read.py` must be simplified before adjacent fragments are merged;
+mechanically combining files would merely hide the module count while worsening cohesion.
+
+### Ordered deletion and convergence map
+
+Each item is one independently testable vertical slice. Later items do not begin because an earlier
+one looks easy; they begin after its surviving contract and reduction are recorded.
+
+1. **Bound no-op operational history.** Preserve explicit-scan audit rows and all changed, failed,
+   cancelled, and interrupted watcher outcomes. Keep only bounded watcher liveness evidence per
+   repository, compact existing no-op rows transactionally, and prove telemetry still distinguishes
+   completed work from interruption. This immediately stops demonstrated database growth.
+2. **Install the combined production-source ratchet.** Count first-party Python plus dashboard
+   HTML/CSS/JavaScript, reject growth over 53,907, and lower the exact baseline with every following
+   consolidation. Tests and generated/runtime data remain outside this budget.
+3. **Compact semantic execution history only after a read-path audit.** Keep current leases, retry
+   evidence, failures, token/cost/provenance summaries, and durable semantic documents. Remove or
+   summarize superseded and duplicated job payloads only after status, pattern, taxonomy, backup,
+   restore, and MCP characterization tests prove the retained contract.
+4. **Cut architecture evaluation over to canonical facts.** Characterize identical findings and
+   group evaluation, then stop populating the four empty compatibility projections. Remove their
+   runtime parity/materialization machinery while preserving migrations for released indexes.
+5. **Converge semantic projections and composition.** Establish one internal representation for
+   scope identity, language support, evidence references, result provenance, and readiness. Delete
+   conversions and one-use service forwarding layers made redundant by that representation; do not
+   collapse planning, execution, and validation into a new god object.
+6. **Publish bounded public profiles.** Add the versioned ten-tool normal MCP profile and ordinary
+   CLI discovery, then deprecate genuinely duplicated guide/detail/raw-query paths with compatibility
+   tests. Executor queue primitives remain explicit and fully usable.
+7. **Converge the dashboard around shared selection and read models.** Move Files, Graph, and
+   Architecture beneath Understand; separate explanation from recommendation; reuse the same backend
+   responses as MCP; delete superseded controllers, renderers, and duplicated state only after browser
+   task tests pass.
+8. **Remove remaining forwarding fragments and collapse completed documentation.** Delete proven
+   one-use facades, repeated generated prose, and completed roadmap narrative. Retain cohesive
+   algorithm, transport-schema, and composition boundaries even when they are small.
+
+The inventory itself added no runtime surface. Its first implementation slice is deliberately the
+bounded watcher history because it is a measured self-hosting failure, has a narrow surviving
+contract, and prevents continued growth while deeper semantic and projection work is characterized.
 
 ## 10.2 Consolidate the implementation without hiding complexity
 
@@ -3022,13 +3178,13 @@ feature-admission rule.
 
 | # | Status | Outcome and acceptance | Specified in |
 |---:|---|---|---|
-| 1 | **NEXT** | Inventory every public surface and major code cluster against Understand, Guide, Keep coherent, enabling infrastructure, advanced operations, or removal; produce the ordered deletion map without implementing features | §10.1 |
-| 2 | **PENDING** | Add the package-level non-growth ratchet and consolidate one characterized vertical slice at a time, beginning with semantic and persistence machinery | §10.2 |
+| 1 | **COMPLETE** | Inventory every public surface and major code cluster against Understand, Guide, Keep coherent, enabling infrastructure, advanced operations, or removal; produce the ordered deletion map without implementing features | §10.1 |
+| 2 | **NEXT** | Bound no-op watcher history, add the package-level non-growth ratchet, and continue one characterized consolidation slice at a time in the recorded deletion order | §10.2 |
 | 3 | **PENDING** | Converge the existing dashboard into the progressive program → capability → area → subsystem → file → symbol understanding journey, with no new primary screen | §10.3 |
 | 4 | **PENDING** | Reduce the normal coding-agent surface to at most ten obvious tools and prove the complete guidance workflow with ordinary agent configurations | §10.4 |
 | 5 | **PENDING** | Make changed-scope refresh return one shared, plain-language architecture consequence to the dashboard and agent, then satisfy the Phase 10 human, agent, and reduction gates | §10.5 |
 
-Only item 1 may begin now. Later items remain pending until the preceding acceptance is recorded.
+Only item 2 may begin now. Later items remain pending until the preceding acceptance is recorded.
 The retained MaxOS run and a future release candidate are evidence/release gates, not independent
 product features. No parser expansion, adapter family, plugin framework, website, media support,
 generic operations work, warning-cleanup campaign, or additional dashboard family may displace this
