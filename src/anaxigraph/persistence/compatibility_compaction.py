@@ -68,7 +68,9 @@ def prepare_semantic_claims_for_compaction(connection: sqlite3.Connection) -> No
 
 
 def backfill_relationship_coverage(connection: sqlite3.Connection) -> int:
-    if "relationships" not in _present_tables(connection):
+    if "relationships" not in _present_tables(
+        connection
+    ) or not coverage_uses_compatibility_reference(connection):
         return 0
     rows = connection.execute(
         """
@@ -98,6 +100,17 @@ def backfill_relationship_coverage(connection: sqlite3.Connection) -> int:
     return len(updates)
 
 
+def coverage_uses_compatibility_reference(connection: sqlite3.Connection) -> bool:
+    return "relationship_id" in {
+        str(row["name"]) for row in connection.execute("PRAGMA table_info(coverage_measurements)")
+    }
+
+
+def retire_coverage_compatibility_reference(connection: sqlite3.Connection) -> None:
+    if coverage_uses_compatibility_reference(connection):
+        connection.execute("ALTER TABLE coverage_measurements DROP COLUMN relationship_id")
+
+
 def compact_compatibility_rows(
     connection: sqlite3.Connection,
 ) -> dict[str, int]:
@@ -115,7 +128,6 @@ def compact_compatibility_rows(
     connection.execute("UPDATE semantic_documents SET artifact_version_id = NULL")
     connection.execute("UPDATE semantic_jobs SET artifact_version_id = NULL")
     connection.execute("UPDATE semantic_scope_states SET artifact_version_id = NULL")
-    connection.execute("UPDATE coverage_measurements SET relationship_id = NULL")
     secure_delete = int(connection.execute("PRAGMA secure_delete").fetchone()[0])
     connection.execute("PRAGMA secure_delete = OFF")
     try:

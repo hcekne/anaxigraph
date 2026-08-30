@@ -9,6 +9,7 @@ from anaxigraph.persistence.compatibility_compaction import (
     backfill_relationship_coverage,
     compact_compatibility_rows,
     prepare_semantic_claims_for_compaction,
+    retire_coverage_compatibility_reference,
 )
 from anaxigraph.persistence.index_parity import parity_report
 from anaxigraph.persistence.semantic_fact_references import (
@@ -132,6 +133,7 @@ def _compact_validated_compatibility(
             )
     prepare_semantic_claims_for_compaction(connection)
     backfill_relationship_coverage(connection)
+    retire_coverage_compatibility_reference(connection)
     if validate_existing_projection:
         compact_duplicate_relationship_sets(connection)
     compact_compatibility_rows(connection)

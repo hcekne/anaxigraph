@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from anaxigraph.finding_language_legacy import legacy_replacement
 from anaxigraph.semantic_file_language import explain_specialist_terms
 
 FINDING_LANGUAGE_VERSION = "plain-language-v2"
@@ -53,16 +52,6 @@ _COMMON_CAVEATS = {
         "The code link exists only for building or type checking, or points to the wrong file.",
     ],
 }
-
-
-def normalize_finding_copy(finding: Mapping[str, Any]) -> dict[str, Any]:
-    """Upgrade known legacy detector wording without rewriting stored evidence."""
-
-    item = dict(finding)
-    replacement = legacy_replacement(item)
-    if replacement is not None:
-        item.update(replacement)
-    return item
 
 
 def finding_caveats(finding_type: str) -> list[str]:

@@ -8,7 +8,6 @@ from typing import Any
 from anaxigraph.config import path_matches
 from anaxigraph.finding_language import (
     finding_caveats,
-    normalize_finding_copy,
     plain_language_contract,
 )
 from anaxigraph.persistence.row_decoding import _decode_json_value
@@ -152,4 +151,4 @@ def _finding_value(row: Any) -> tuple[dict[str, Any], set[str]]:
     item = dict(row)
     affected = set(_decode_json_value(item.pop("affected_artifacts_json", "[]")) or [])
     item["evidence"] = list(_decode_json_value(item.pop("evidence_json", "[]")) or [])
-    return normalize_finding_copy(item), affected
+    return item, affected

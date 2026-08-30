@@ -9,6 +9,8 @@ from pathlib import Path
 
 from anaxigraph.persistence.compatibility_compaction import (
     compact_terminal_semantic_job_metadata,
+    coverage_uses_compatibility_reference,
+    retire_coverage_compatibility_reference,
 )
 from anaxigraph.persistence.index_backup import create_schema_backup
 from anaxigraph.persistence.migrations import (
@@ -32,6 +34,11 @@ def initialize_index(
     validate_schema_version(current_version, target_version)
     if current_version == target_version:
         with connection_factory() as connection:
+            if coverage_uses_compatibility_reference(connection):
+                transactional_schema_change(
+                    connection,
+                    retire_coverage_compatibility_reference,
+                )
             ensure_checkpoint_policy(connection)
             compact_terminal_semantic_job_metadata(connection)
         return

@@ -267,6 +267,30 @@ def test_schema_change_checks_foreign_keys_before_commit(database):
     assert leaked_tables == []
 
 
+def test_current_schema_retires_legacy_coverage_foreign_key(repository, database):
+    RepositoryScanner(database).scan(repository)
+    with database.transaction() as connection:
+        connection.execute(
+            "ALTER TABLE coverage_measurements ADD COLUMN relationship_id INTEGER "
+            "REFERENCES relationships(id) ON DELETE CASCADE"
+        )
+
+    reopened = AnaxiIndex(database.path)
+    RepositoryScanner(reopened).scan(repository)
+    with reopened.connect() as connection:
+        columns = {
+            str(row["name"])
+            for row in connection.execute("PRAGMA table_info(coverage_measurements)")
+        }
+        foreign_tables = {
+            str(row["table"])
+            for row in connection.execute("PRAGMA foreign_key_list(coverage_measurements)")
+        }
+
+    assert "relationship_id" not in columns
+    assert "relationships" not in foreign_tables
+
+
 def test_real_schema_six_index_has_idempotent_backup_and_exact_restore(repository, database):
     _commit_change(repository)
     RepositoryScanner(database).scan(repository)

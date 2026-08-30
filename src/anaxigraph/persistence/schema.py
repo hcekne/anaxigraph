@@ -70,7 +70,6 @@ CREATE TABLE IF NOT EXISTS coverage_measurements (
     id INTEGER PRIMARY KEY,
     snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
     artifact_id INTEGER REFERENCES artifacts(id) ON DELETE CASCADE,
-    relationship_id INTEGER,
     relationship_edge_id INTEGER REFERENCES relationship_edges(id) ON DELETE CASCADE,
     provider TEXT NOT NULL,
     line_coverage REAL,

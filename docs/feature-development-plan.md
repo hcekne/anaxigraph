@@ -3547,11 +3547,20 @@ legacy tables, no foreign-key violation, and a valid unchanged schema-6 backup. 
 AnaxiMCP initializes with protocol `2025-03-26`, and the read-only watcher runs against the migrated
 index.
 
+The first real watcher write then found one final compatibility dependency: the released coverage
+table still named the dropped `relationships` table in a foreign key even after every legacy value
+had been moved to canonical relationship-edge IDs. Fresh schema no longer creates that column, and
+schema-10 startup atomically removes it from already migrated indexes before any scan. A regression
+recreates the dangling foreign key, reopens the index, and proves a following scan can write static
+relationship coverage. The plain-language finding reader also no longer carries a separate
+366-line regular-expression translator for detector copy written by unreleased and pre-0.3 builds.
+Current detectors are the one wording authority; rescanning refreshes persisted findings.
+
 This is a net product reduction despite the migration hardening. The exact production-source
-ratchet falls **814 lines**, from 51,795 to **50,981**. Phase 10 has now removed 2,926 production
-lines from its 53,907-line starting point; 2,481 lines remain before the 48,500 exit target. Public
-surface falls by one MCP tool and one CLI mode, and four production modules disappear. The complete
-suite passes with **590 tests**, and every formatting, architecture, module-size, production-size,
+ratchet falls **1,173 lines**, from 51,795 to **50,622**. Phase 10 has now removed 3,285 production
+lines from its 53,907-line starting point; 2,122 lines remain before the 48,500 exit target. Public
+surface falls by one MCP tool and one CLI mode, and five production modules disappear. The complete
+suite passes with **573 tests**, and every formatting, architecture, module-size, production-size,
 credential, JavaScript, package, and agent-package pre-commit gate passes.
 
 ## 10.3 Make human understanding the primary dashboard journey

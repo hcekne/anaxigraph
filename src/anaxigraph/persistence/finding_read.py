@@ -9,7 +9,6 @@ from typing import Any
 from anaxigraph.finding_language import (
     evidence_sentences,
     finding_caveats,
-    normalize_finding_copy,
     plain_language_contract,
 )
 from anaxigraph.persistence.row_decoding import decode_json_columns
@@ -67,7 +66,7 @@ def read_ranked_findings(
     stats = _module_stats(connection, repository_id, snapshot_id) if snapshot_id is not None else {}
     ranked: list[dict[str, Any]] = []
     for row in rows:
-        item = normalize_finding_copy(decode_json_columns(dict(row)))
+        item = decode_json_columns(dict(row))
         item.update(finding_priority(item, stats))
         ranked.append(item)
     return sorted(ranked, key=finding_sort_key)
@@ -90,7 +89,7 @@ def read_finding(
     ).fetchone()
     if row is None:
         return None
-    item = normalize_finding_copy(decode_json_columns(dict(row)))
+    item = decode_json_columns(dict(row))
     stats = _module_stats(connection, repository_id, snapshot_id) if snapshot_id else {}
     item.update(finding_priority(item, stats))
     return item
