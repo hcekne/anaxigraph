@@ -1,4 +1,4 @@
-"""Bounded agent task context, impact traversal, and branch collision analysis."""
+"""Bounded agent task context and impact traversal."""
 
 from __future__ import annotations
 
@@ -6,7 +6,6 @@ import time
 from pathlib import Path
 from typing import Any
 
-from anaxigraph import git
 from anaxigraph.agent_decision import architecture_decision
 from anaxigraph.agent_finding import build_finding_context
 from anaxigraph.agent_graph import (
@@ -213,33 +212,3 @@ def impact_analysis(
         branch=branch,
         config=config,
     )
-
-
-def branch_collisions(
-    database: AnaxiIndex,
-    *,
-    repository_id: int,
-) -> dict[str, Any]:
-    repository = database.repository(repository_id)
-    if repository is None:
-        raise ValueError("Repository not found")
-    root = Path(repository["path"])
-    branches = git.active_branch_changes(root)
-    collisions: list[dict[str, Any]] = []
-    names = sorted(branches)
-    for index, left in enumerate(names):
-        for right in names[index + 1 :]:
-            shared = sorted(branches[left] & branches[right])
-            if shared:
-                collisions.append(
-                    {
-                        "branches": [left, right],
-                        "shared_files": shared,
-                        "risk": "high" if len(shared) >= 3 else "medium",
-                    }
-                )
-    return {
-        "repository_id": repository_id,
-        "branches": {name: sorted(paths) for name, paths in branches.items()},
-        "collisions": collisions,
-    }

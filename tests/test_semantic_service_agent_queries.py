@@ -24,7 +24,6 @@ def test_service_agent_query_helpers_send_repository_identity(monkeypatch):
     assert semantic_service.service_impact(
         _target(), requested_target="src/app.py", branch="feature"
     ) == {"status": "ok"}
-    assert semantic_service.service_branch_collisions(_target()) == {"status": "ok"}
     assert calls == [
         (
             "http://127.0.0.1:9999/api/impact",
@@ -34,7 +33,6 @@ def test_service_agent_query_helpers_send_repository_identity(monkeypatch):
                 "body": {"target": "src/app.py", "branch": "feature", "repository_id": 7},
             },
         ),
-        ("http://127.0.0.1:9999/api/branch-collisions?repository_id=7", {"timeout": 10}),
     ]
 
 
@@ -43,8 +41,6 @@ def test_service_agent_queries_reject_non_object_results(monkeypatch):
 
     with pytest.raises(ValueError, match="coding-context"):
         semantic_service.service_impact(_target(), requested_target="src/app.py", branch=None)
-    with pytest.raises(ValueError, match="branch-collision"):
-        semantic_service.service_branch_collisions(_target())
 
 
 def test_json_request_encodes_post_bodies_and_empty_posts(monkeypatch):

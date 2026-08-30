@@ -5,10 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from anaxigraph.agent import agent_scope, branch_collisions, impact_analysis
+from anaxigraph.agent import agent_scope, impact_analysis
 from anaxigraph.config import load_config
 from anaxigraph.config_authority import effective_semantic_policy, service_config_authority
-from anaxigraph.guidance import FILE_MEASUREMENT_MEANINGS, product_glossary
+from anaxigraph.guidance import FILE_MEASUREMENT_MEANINGS
 from anaxigraph.operational_health import served_map_status
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic_mcp import current_semantic_status
@@ -78,7 +78,6 @@ class CoreMcpTools:
     def register(self) -> None:
         self._register_inventory_tools()
         self._register_agent_tools()
-        self._register_misc_tools()
         if self.allow_scan:
             self.server.add_tool(
                 self.scan,
@@ -136,21 +135,6 @@ class CoreMcpTools:
                 "Before changing a file or named code part, find code that uses it directly or "
                 "indirectly, relevant tests, possible database changes, files marked for extra "
                 "care, and reasons the change may be risky."
-            ),
-        )
-        self.server.add_tool(
-            self.collisions,
-            name="ANAXIGRAPH_BRANCH_COLLISIONS",
-            description="Report files changed by more than one local or origin feature branch.",
-        )
-
-    def _register_misc_tools(self) -> None:
-        self.server.add_tool(
-            self.guide,
-            name="ANAXIGRAPH_GUIDE",
-            description=(
-                "Explain repository areas, graph color views, finding states, evidence strength, "
-                "and coding-agent workflows in ordinary language."
             ),
         )
 
@@ -264,18 +248,6 @@ class CoreMcpTools:
             branch=branch or None,
             config=self.context.config_for(row, root),
         )
-
-    def guide(self, topic: str = "all") -> dict[str, Any]:
-        value = product_glossary()
-        if topic == "all":
-            return value
-        if topic not in value:
-            raise ValueError(f"Unknown guide topic: {topic}")
-        return {topic: value[topic]}
-
-    def collisions(self, repository: str = "") -> dict[str, Any]:
-        row, _ = self.context.select(repository)
-        return branch_collisions(self.database, repository_id=int(row["id"]))
 
     def scan(self, repository: str = "") -> dict[str, Any]:
         _, root = self.context.select(repository)

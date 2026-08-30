@@ -97,8 +97,6 @@ Run **Check** and inspect **Tools**. MaxOS should discover:
 - `ANAXIGRAPH_IMPACT`
 - `ANAXIGRAPH_FINDINGS`
 - `ANAXIGRAPH_FINDING_CONTEXT`
-- `ANAXIGRAPH_GUIDE`
-- `ANAXIGRAPH_BRANCH_COLLISIONS`
 
 Enable **Available to chat and workflow agents**, then select the connection under **Context &
 tools → Agent tools** in a Workbench chat or on an AI workflow node. A useful first call is:
@@ -112,8 +110,7 @@ call ANAXIGRAPH_FINDING_CONTEXT before editing.
 ```
 
 For a non-default repository, first call `ANAXIGRAPH_REPOSITORIES`, then pass its ID or name in the
-optional `repository` argument of the overview, search, file, scope, impact, finding, and collision
-tools.
+optional `repository` argument of the overview, search, file, scope, impact, and finding tools.
 
 MaxOS keeps the MCP connection in its trusted backend. Its isolated agent runner receives only a
 revocable broker grant and never receives the AnaxiMCP endpoint. Keep AnaxiGraph inside that

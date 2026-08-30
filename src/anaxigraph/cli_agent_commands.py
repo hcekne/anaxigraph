@@ -6,12 +6,11 @@ import argparse
 import os
 from typing import Any
 
-from anaxigraph.agent import agent_scope, branch_collisions, impact_analysis
+from anaxigraph.agent import agent_scope, impact_analysis
 from anaxigraph.cli_common import add_repository_arguments, ensure_current
 from anaxigraph.semantic_service import (
     discover_semantic_service,
     service_agent_scope,
-    service_branch_collisions,
     service_impact,
 )
 
@@ -34,13 +33,6 @@ def configure_agent_commands(commands: Any) -> None:
     impact.add_argument("--branch", help="Branch to check for files also changed elsewhere")
     _add_service_url(impact)
     impact.set_defaults(handler=_impact, db=None)
-
-    collisions = commands.add_parser(
-        "collisions", help="Find files changed by more than one active branch"
-    )
-    add_repository_arguments(collisions)
-    _add_service_url(collisions)
-    collisions.set_defaults(handler=_collisions, db=None)
 
 
 def _add_service_url(parser: Any) -> None:
@@ -93,14 +85,6 @@ def _impact(args: argparse.Namespace) -> dict[str, Any]:
         branch=args.branch,
         config=config,
     )
-
-
-def _collisions(args: argparse.Namespace) -> dict[str, Any]:
-    service = _agent_service(args)
-    if service is not None:
-        return _service_result(service_branch_collisions(service), service)
-    database, repository_id, _ = ensure_current(args)
-    return branch_collisions(database, repository_id=repository_id)
 
 
 def _agent_service(args: argparse.Namespace) -> Any | None:

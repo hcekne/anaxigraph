@@ -225,18 +225,6 @@ def service_impact(
     )
 
 
-def service_branch_collisions(
-    target: SemanticServiceTarget,
-    *,
-    timeout: float = 10,
-) -> dict[str, Any]:
-    query = urllib.parse.urlencode({"repository_id": target.repository_id})
-    value = _request_json(f"{target.base_url}/api/branch-collisions?{query}", timeout=timeout)
-    if not isinstance(value, dict):
-        raise ValueError("AnaxiGraph service returned an invalid branch-collision result")
-    return value
-
-
 def _service_agent_request(
     target: SemanticServiceTarget,
     path: str,

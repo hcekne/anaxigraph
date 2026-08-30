@@ -26,7 +26,6 @@ class AgentRoutes:
         )
         self.router.add_api_route("/api/agent-scope", self.scope, methods=["POST"])
         self.router.add_api_route("/api/impact", self.impact, methods=["POST"])
-        self.router.add_api_route("/api/branch-collisions", self.collisions, methods=["GET"])
 
     def findings(
         self,
@@ -120,7 +119,3 @@ class AgentRoutes:
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    def collisions(self, repository_id: int | None = None) -> dict[str, Any]:
-        row = self.context.selected_repository(repository_id)
-        return api_support.branch_collisions(self.context.database, repository_id=int(row["id"]))

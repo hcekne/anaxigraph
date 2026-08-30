@@ -34,7 +34,6 @@ def test_repository_agent_and_export_handlers_share_the_current_scan(
     reviewed = _call(["review", *common, "--status", "all"], capsys)
     scoped = _call(["scope", *common, "--goal", "Change the calculator"], capsys)
     impacted = _call(["impact", *common, "--target", "pkg/core.py"], capsys)
-    collisions = _call(["collisions", *common], capsys)
     patterns = _call(["patterns", *common, "--limit", "1"], capsys)
     candidate_explanations = _call(
         ["patterns", *common, "--candidates", "--pattern", "circular-dependency", "--limit", "1"],
@@ -47,7 +46,6 @@ def test_repository_agent_and_export_handlers_share_the_current_scan(
     assert scoped["goal"] == "Change the calculator"
     assert scoped["architecture_decision"]["verification"]["rescan_argv"]
     assert impacted["target"]["path"] == "pkg/core.py"
-    assert collisions["branches"] == {}
     assert patterns["contract_version"] == "pattern-query-v1"
     assert patterns["index"]["authority"] == "local"
     assert patterns["total"] == 0

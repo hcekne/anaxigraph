@@ -2831,17 +2831,17 @@ The seven dashboard destinations are not seven independent products:
 
 The normal MCP profile will expose no more than these ten existing decisions: repository selection,
 overview, search, file evidence, scope/placement, impact, findings, scan/refresh, semantic readiness,
-and taxonomy. `GRAPH`, `MODULES`, `PATTERNS`, `FINDING_CONTEXT`, `GUIDE`, the three history controls,
-the six low-level semantic queue/schema controls, and branch-collision inspection remain available
-through advanced operator or executor profiles until compatibility evidence permits consolidation.
+and taxonomy. `GRAPH`, `MODULES`, `PATTERNS`, `FINDING_CONTEXT`, the three history controls, and the
+six low-level semantic queue/schema controls remain available through advanced operator or executor
+profiles until compatibility evidence permits consolidation.
 The current `coding-loop-contract-v2` freezes a released 19-tool subset, so the smaller default must
 ship as a versioned profile rather than silently changing the old contract. `FINDINGS` may eventually
 absorb optional finding detail, and durable docs plus the installed skill may replace `GUIDE`, but
 only after old clients receive a deprecation path.
 
-The 21 CLI commands divide into four ordinary outcomes—start/use the service, build understanding,
+The CLI commands divide into four ordinary outcomes—start/use the service, build understanding,
 inspect readiness, and diagnose it—and advanced adapters for scan/update/review/watch/export,
-finding lifecycle, semantic workers, patterns/history, server/MCP operation, scope/impact/collisions,
+finding lifecycle, semantic workers, patterns/history, server/MCP operation, and scope/impact,
 and backup/restore. This phase does not remove a released command merely to improve a count. It first
 makes the normal path obvious, observes real use, and then aliases or retires only redundant paths.
 
@@ -3474,6 +3474,24 @@ than preserved as an invisible compatibility subsystem. The complete Python suit
 **603 tests at 91.95% coverage**, all **17 browser contracts** pass in the pinned Playwright
 container, and every hard architecture, size, complexity, coupling, formatting, and package gate
 remains green.
+
+### 10.2 delivery record: remove duplicate standalone agent guidance
+
+Branch overlap remains useful only when it changes a coding decision. Scope and Impact already
+measure active-branch overlap for the exact files they return, incorporate it into risk, and explain
+which file conflicts. The separate `collisions` CLI command, REST route, and MCP tool reran the same
+Git traversal without a coding goal or selected file. They are removed while the contextual evidence
+inside Scope and Impact remains unchanged.
+
+The dashboard glossary remains the human interface's single vocabulary for measurements, finding
+states, and overlays. The installed Codex/Claude skill remains the agent's executable workflow.
+`ANAXIGRAPH_GUIDE` and the glossary's embedded coding-loop/agent-operation manifest duplicated those
+durable instructions but were not consumed by the dashboard or part of the released
+`coding-loop-contract-v3` tool subset. They are removed instead of preserving three documentation
+authorities and sending unused workflow manifests on every dashboard load. Together these removals
+delete one CLI command, one REST route, two MCP tools, their remote adapter, and **231 production
+lines**, lowering the exact source ratchet from 52,144 to **51,913** without removing branch-risk
+evidence or the human glossary.
 
 ## 10.3 Make human understanding the primary dashboard journey
 

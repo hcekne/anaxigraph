@@ -125,11 +125,9 @@ Map selector or through `ANAXIGRAPH_TAXONOMY`.
 The complete [onboarding guide](docs/onboarding.md) explains the normal coding loop and setup
 diagnostics.
 
-Connected agents can call `ANAXIGRAPH_GUIDE` with `topic="coding_loop"` to read the
-`coding-loop-contract-v3` required cadence, command, route, tool, telemetry, and response-version
-names. It is a small
-compatibility subset for this workflow, not a promise that every administrative field will remain
-unchanged.
+The installed AnaxiGraph skill carries the normal coding loop. The dashboard's `/api/glossary`
+response exposes the same finding-state and measurement meanings for clients that render the
+human interface; they are not duplicated as another agent tool.
 
 ## 🔁 Use one coding loop
 

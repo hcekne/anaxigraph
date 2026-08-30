@@ -202,7 +202,6 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                         "ANAXIGRAPH_IMPACT",
                         "ANAXIGRAPH_FINDINGS",
                         "ANAXIGRAPH_FINDING_CONTEXT",
-                        "ANAXIGRAPH_GUIDE",
                     } <= names
                     descriptions = {tool.name: str(tool.description or "") for tool in tools.tools}
                     public_help = " ".join(descriptions.values()).lower()
@@ -342,18 +341,6 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                             "complexity"
                         ]
                     )
-                    guide = await session.call_tool(
-                        "ANAXIGRAPH_GUIDE", arguments={"topic": "findings"}
-                    )
-                    assert guide.isError is False
-                    assert guide.structuredContent["findings"]["statuses"]["planned"]["label"]
-                    loop_guide = await session.call_tool(
-                        "ANAXIGRAPH_GUIDE", arguments={"topic": "coding_loop"}
-                    )
-                    assert loop_guide.isError is False
-                    contract = loop_guide.structuredContent["coding_loop"]
-                    assert contract["version"] == "coding-loop-contract-v3"
-                    assert set(contract["mcp_tools"]) <= names
                     scope = await session.call_tool(
                         "ANAXIGRAPH_SCOPE",
                         arguments={"goal": "Change Calculator behavior"},
