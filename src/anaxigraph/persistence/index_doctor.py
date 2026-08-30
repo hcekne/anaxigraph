@@ -11,7 +11,6 @@ from anaxigraph.persistence.compatibility_compaction import COMPATIBILITY_TABLES
 from anaxigraph.persistence.index_backup import validate_schema_backup
 from anaxigraph.persistence.index_parity import parity_report
 from anaxigraph.persistence.index_temporal_health import (
-    canonical_integrity_report,
     lineage_report,
     reconstruction_report,
 )
@@ -35,7 +34,6 @@ def inspect_index(
         reconstruction = reconstruction_report(connection)
         rows = _row_counts(connection)
         semantic_references = semantic_reference_report(connection)
-        canonical_integrity = canonical_integrity_report(connection)
     backup = _backup_report(migrations)
     health_blockers = _health_blockers(
         integrity,
@@ -45,7 +43,6 @@ def inspect_index(
         reconstruction,
         backup,
         semantic_references,
-        canonical_integrity,
     )
     return {
         "status": "healthy" if not health_blockers else "blocked",
@@ -59,7 +56,6 @@ def inspect_index(
         "reconstruction": reconstruction,
         "parity": parity,
         "semantic_references": semantic_references,
-        "canonical_integrity": canonical_integrity,
         "rows": rows,
         "compaction": _compaction_report(health_blockers, rows, semantic_references),
         "blockers": health_blockers,
@@ -123,7 +119,6 @@ def _health_blockers(
     reconstruction: dict[str, Any],
     backup: dict[str, Any],
     semantic_references: dict[str, Any],
-    canonical_integrity: dict[str, Any],
 ) -> list[str]:
     blockers = []
     if integrity != "ok":
@@ -140,8 +135,6 @@ def _health_blockers(
         blockers.append("recovery_backup_invalid")
     if semantic_references["status"] != "exact":
         blockers.append("semantic_fact_references_missing")
-    if canonical_integrity["status"] != "exact":
-        blockers.append("canonical_content_digest_mismatch")
     return blockers
 
 

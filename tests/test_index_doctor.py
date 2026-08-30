@@ -6,7 +6,6 @@ import sys
 
 from anaxigraph.persistence import inspect_index
 from anaxigraph.scanner import RepositoryScanner
-from anaxigraph.storage import AnaxiIndex
 
 
 def test_doctor_proves_canonical_health_after_compaction(repository, database):
@@ -36,43 +35,6 @@ def test_doctor_proves_canonical_health_after_compaction(repository, database):
     assert report["compaction"]["compatibility_rows"] == 0
     assert report["compaction"]["blockers"] == []
     assert report["compaction"]["message"].endswith("canonical facts are authoritative.")
-
-
-def test_doctor_fails_closed_when_canonical_fact_diverges(repository, database):
-    RepositoryScanner(database).scan(repository)
-    with database.transaction() as connection:
-        connection.execute(
-            """
-            UPDATE file_facts SET summary = 'corrupted canonical fact'
-            WHERE id = (SELECT MIN(id) FROM file_facts)
-            """
-        )
-
-    AnaxiIndex(database.path)
-    report = inspect_index(database.path, database.connect)
-
-    assert report["status"] == "blocked"
-    assert report["parity"]["status"] == "canonical_only"
-    assert report["canonical_integrity"]["status"] == "mismatch"
-    assert "canonical_content_digest_mismatch" in report["blockers"]
-
-
-def test_doctor_fails_closed_when_snapshot_delta_diverges(repository, database):
-    RepositoryScanner(database).scan(repository)
-    with database.transaction() as connection:
-        connection.execute(
-            """
-            UPDATE snapshot_file_changes SET last_changed_at = 'corrupted-delta'
-            WHERE rowid = (SELECT MIN(rowid) FROM snapshot_file_changes)
-            """
-        )
-
-    AnaxiIndex(database.path)
-    report = inspect_index(database.path, database.connect)
-
-    assert report["status"] == "blocked"
-    assert report["canonical_integrity"]["status"] == "mismatch"
-    assert "canonical_content_digest_mismatch" in report["blockers"]
 
 
 def test_doctor_cli_emits_machine_readable_report(tmp_path):

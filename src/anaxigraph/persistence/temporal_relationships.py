@@ -27,30 +27,97 @@ def legacy_relationship_sets(
     analysis_signature: str,
     *,
     set_cache: dict[str, int] | None = None,
+    identity_cache: dict[tuple[int, int, str, str, str], int],
+    resolver_cache: dict[int, str],
 ) -> dict[int, int]:
-    rows = connection.execute(
-        """
-        SELECT * FROM relationships
-        WHERE snapshot_id = ? ORDER BY source_artifact_id, id
-        """,
-        (snapshot_id,),
-    ).fetchall()
-    grouped: defaultdict[int, list[dict[str, Any]]] = defaultdict(list)
-    for row in rows:
-        grouped[int(row["source_artifact_id"])].append(dict(row))
-    return {
-        source_id: _upsert_relationship_set(
+    fingerprints = _legacy_relationship_fingerprints(connection, snapshot_id)
+    result: dict[int, int] = {}
+    changed: list[int] = []
+    for source_id, fingerprint in fingerprints.items():
+        if source_id not in files:
+            continue
+        fact_id = int(files[source_id]["file_fact_id"])
+        resolver_hash = _file_fact_resolver_hash(connection, fact_id, resolver_cache)
+        identity = (repository_id, source_id, analysis_signature, fingerprint, resolver_hash)
+        previous = identity_cache.get(identity)
+        if previous is not None:
+            result[source_id] = previous
+            continue
+        changed.append(source_id)
+    changed_rows = _legacy_relationship_rows(connection, snapshot_id, changed)
+    for source_id, values in changed_rows.items():
+        fact_id = int(files[source_id]["file_fact_id"])
+        set_id = _upsert_relationship_set(
             connection,
             repository_id,
-            files[source_id]["file_fact_id"],
+            fact_id,
             source_id,
             values,
             analysis_signature,
             cache=set_cache,
         )
-        for source_id, values in grouped.items()
-        if source_id in files
-    }
+        resolver_hash = _file_fact_resolver_hash(connection, fact_id, resolver_cache)
+        identity = (
+            repository_id,
+            source_id,
+            analysis_signature,
+            fingerprints[source_id],
+            resolver_hash,
+        )
+        identity_cache[identity] = set_id
+        result[source_id] = set_id
+    return result
+
+
+def _legacy_relationship_fingerprints(
+    connection: sqlite3.Connection, snapshot_id: int
+) -> dict[int, str]:
+    rows = connection.execute(
+        """
+        SELECT source_artifact_id,
+               json_group_array(json_array(
+                   target_artifact_id, target_external, relationship_type, source,
+                   confidence, evidence, source_line, weight, metadata_json
+               )) AS fingerprint
+        FROM (
+            SELECT * FROM relationships WHERE snapshot_id = ?
+            ORDER BY source_artifact_id, id
+        )
+        GROUP BY source_artifact_id
+        """,
+        (snapshot_id,),
+    ).fetchall()
+    return {int(row["source_artifact_id"]): str(row["fingerprint"]) for row in rows}
+
+
+def _legacy_relationship_rows(
+    connection: sqlite3.Connection,
+    snapshot_id: int,
+    source_ids: list[int],
+) -> dict[int, list[dict[str, Any]]]:
+    grouped: defaultdict[int, list[dict[str, Any]]] = defaultdict(list)
+    for offset in range(0, len(source_ids), 500):
+        chunk = source_ids[offset : offset + 500]
+        placeholders = ",".join("?" for _item in chunk)
+        rows = connection.execute(
+            f"SELECT * FROM relationships WHERE snapshot_id = ? "
+            f"AND source_artifact_id IN ({placeholders}) ORDER BY source_artifact_id, id",
+            (snapshot_id, *chunk),
+        ).fetchall()
+        for row in rows:
+            grouped[int(row["source_artifact_id"])].append(dict(row))
+    return grouped
+
+
+def _file_fact_resolver_hash(
+    connection: sqlite3.Connection, fact_id: int, cache: dict[int, str]
+) -> str:
+    if fact_id not in cache:
+        row = connection.execute(
+            "SELECT metadata_json FROM file_facts WHERE id = ?", (fact_id,)
+        ).fetchone()
+        cache[fact_id] = resolver_context_hash(row["metadata_json"] if row else "{}")
+    return cache[fact_id]
 
 
 def record_canonical_relationships(

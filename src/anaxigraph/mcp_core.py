@@ -8,7 +8,6 @@ from typing import Any
 from anaxigraph.agent import agent_scope, impact_analysis
 from anaxigraph.config import load_config
 from anaxigraph.config_authority import effective_semantic_policy, service_config_authority
-from anaxigraph.guidance import FILE_MEASUREMENT_MEANINGS
 from anaxigraph.operational_health import served_map_status
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic_mcp import current_semantic_status
@@ -101,11 +100,6 @@ class CoreMcpTools:
                 "Summarize repository size, languages, code areas, test coverage, and finding counts.",
             ),
             (
-                self.modules,
-                "ANAXIGRAPH_MODULES",
-                "List and filter files with their repository area, direct code-link counts, test coverage, and reasons they may deserve attention.",
-            ),
-            (
                 self.search,
                 "ANAXIGRAPH_SEARCH",
                 "Find files and named code parts that are most relevant to a concept or feature.",
@@ -164,49 +158,6 @@ class CoreMcpTools:
         result["semantic"] = semantic
         return result
 
-    def modules(
-        self,
-        query: str = "",
-        area: str = "",
-        subsystem: str = "",
-        language: str = "",
-        sort: str = "path",
-        descending: bool = False,
-        limit: int = 200,
-        repository: str = "",
-    ) -> dict[str, Any]:
-        row, root = self.context.select(repository)
-        items = self.database.modules(int(row["id"]))
-        items = _filter_modules(items, query, area, subsystem, language)
-        allowed = {
-            "path",
-            "lines_of_code",
-            "complexity",
-            "fan_in",
-            "fan_out",
-            "change_count",
-            "first_changed_at",
-            "last_commit_at",
-        }
-        sort_key = sort if sort in allowed else "path"
-        items.sort(
-            key=lambda item: (item.get(sort_key) is None, item.get(sort_key) or ""),
-            reverse=descending,
-        )
-        shown = items[: max(1, min(limit, 1_000))]
-        return {
-            "total": len(items),
-            "modules": shown,
-            "plain_language": {
-                "what": f"{len(shown)} of {len(items)} matching files are included in this response.",
-                "machine_key_note": (
-                    "The stable JSON key 'modules' means repository files in this response."
-                ),
-                "measurement_meanings": FILE_MEASUREMENT_MEANINGS,
-            },
-            "map_status": self.context.map_status(row, root),
-        }
-
     def search(self, query: str, limit: int = 20, repository: str = "") -> dict[str, Any]:
         row, root = self.context.select(repository)
         bounded = max(1, min(limit, 50))
@@ -253,22 +204,6 @@ class CoreMcpTools:
             raise ValueError("Repository is indexed but is not a configured scan target")
         selected_config = target.config_path if target else self.context.config_path
         return RepositoryScanner(self.database).scan(root, config_path=selected_config).as_dict()
-
-
-def _filter_modules(
-    items: list[dict[str, Any]], query: str, area: str, subsystem: str, language: str
-) -> list[dict[str, Any]]:
-    lowered = query.strip().lower()
-    if lowered:
-        items = [item for item in items if lowered in f"{item['path']} {item['summary']}".lower()]
-    for field, value in (
-        ("architecture_area", area),
-        ("architecture_subsystem", subsystem),
-        ("language", language),
-    ):
-        if value:
-            items = [item for item in items if item[field] == value]
-    return items
 
 
 def _safe_relative_path(value: str) -> str:

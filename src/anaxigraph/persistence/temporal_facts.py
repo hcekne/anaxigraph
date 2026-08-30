@@ -45,8 +45,11 @@ def migrate_legacy_temporal_facts(connection: sqlite3.Connection) -> dict[str, i
     prior_by_repository: dict[int, int | None] = {}
     sequence_by_repository: defaultdict[int, int] = defaultdict(int)
     file_fact_cache: dict[str, int] = {}
+    file_fact_carry: dict[int, tuple[tuple[str, ...], int]] = {}
     symbolized_facts: set[int] = set()
     relationship_set_cache: dict[str, int] = {}
+    relationship_identity_cache: dict[tuple[int, int, str, str, str], int] = {}
+    resolver_context_cache: dict[int, str] = {}
     for snapshot in snapshots:
         repository_id = int(snapshot["repository_id"])
         snapshot_id = int(snapshot["id"])
@@ -59,8 +62,11 @@ def migrate_legacy_temporal_facts(connection: sqlite3.Connection) -> dict[str, i
             sequence=sequence_by_repository[repository_id],
             signature=analysis_signature(snapshot["metadata_json"]),
             file_fact_cache=file_fact_cache,
+            file_fact_carry=file_fact_carry,
             symbolized_facts=symbolized_facts,
             relationship_set_cache=relationship_set_cache,
+            relationship_identity_cache=relationship_identity_cache,
+            resolver_context_cache=resolver_context_cache,
         )
         prior_by_repository[repository_id] = snapshot_id
         sequence_by_repository[repository_id] += 1
@@ -132,8 +138,11 @@ def _record_snapshot(
     sequence: int,
     signature: str,
     file_fact_cache: dict[str, int],
+    file_fact_carry: dict[int, tuple[tuple[str, ...], int]],
     symbolized_facts: set[int],
     relationship_set_cache: dict[str, int],
+    relationship_identity_cache: dict[tuple[int, int, str, str, str], int],
+    resolver_context_cache: dict[int, str],
 ) -> None:
     connection.execute(
         "UPDATE snapshots SET base_snapshot_id = ?, sequence = ? WHERE id = ?",
@@ -145,6 +154,7 @@ def _record_snapshot(
         snapshot_id,
         signature,
         fact_cache=file_fact_cache,
+        fact_carry=file_fact_carry,
         symbolized_facts=symbolized_facts,
     )
     persist_file_changes(connection, snapshot_id, previous_files, current_files)
@@ -156,6 +166,8 @@ def _record_snapshot(
         current_files,
         signature,
         set_cache=relationship_set_cache,
+        identity_cache=relationship_identity_cache,
+        resolver_cache=resolver_context_cache,
     )
     persist_relationship_changes(connection, snapshot_id, previous_sets, current_sets)
     refresh_checkpoint_if_due(connection, snapshot_id)

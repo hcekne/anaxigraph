@@ -11,7 +11,6 @@ from typing import Any
 from anaxigraph import __version__
 from anaxigraph.clock import utc_now
 from anaxigraph.history_discovery import available_changes
-from anaxigraph.persistence.index_temporal_health import refresh_canonical_content_digest
 from anaxigraph.scan_persistence import (
     ingest_git_history,
     insert_file_facts,
@@ -210,7 +209,6 @@ def _finish_snapshot(
             "UPDATE repositories SET current_snapshot_id = ?, updated_at = ? WHERE id = ?",
             (snapshot_id, utc_now(), repository_id),
         )
-    refresh_canonical_content_digest(connection)
     return findings, coverage_count
 
 

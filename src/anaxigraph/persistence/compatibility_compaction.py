@@ -8,7 +8,6 @@ from datetime import UTC, datetime
 from typing import Any
 
 from anaxigraph.persistence.index_parity import EDGE_FIELDS
-from anaxigraph.persistence.index_temporal_health import refresh_canonical_content_digest
 from anaxigraph.persistence.temporal_reads import snapshot_relationship_edges
 from anaxigraph.semantic_job_state import PATTERN_METADATA_RETENTION
 
@@ -101,10 +100,8 @@ def backfill_relationship_coverage(connection: sqlite3.Connection) -> int:
 
 def compact_compatibility_rows(
     connection: sqlite3.Connection,
-    *,
-    canonical_changed: bool = False,
 ) -> dict[str, int]:
-    """Clear validated duplicate rows while retaining empty staging tables."""
+    """Retire the validated legacy projection after canonical migration."""
 
     present = _present_tables(connection)
     counts = {
@@ -119,9 +116,14 @@ def compact_compatibility_rows(
     connection.execute("UPDATE semantic_jobs SET artifact_version_id = NULL")
     connection.execute("UPDATE semantic_scope_states SET artifact_version_id = NULL")
     connection.execute("UPDATE coverage_measurements SET relationship_id = NULL")
-    for table in ("group_memberships", "symbols", "relationships", "file_versions"):
-        if table in present:
-            connection.execute(f"DELETE FROM {table}")
+    secure_delete = int(connection.execute("PRAGMA secure_delete").fetchone()[0])
+    connection.execute("PRAGMA secure_delete = OFF")
+    try:
+        for table in ("group_memberships", "symbols", "relationships", "file_versions"):
+            if table in present:
+                connection.execute(f"DROP TABLE {table}")
+    finally:
+        connection.execute(f"PRAGMA secure_delete = {secure_delete}")
     connection.execute(
         "INSERT OR REPLACE INTO schema_meta(key, value) VALUES (?, ?)",
         ("compatibility_compacted_at", datetime.now(UTC).isoformat()),
@@ -130,11 +132,6 @@ def compact_compatibility_rows(
         "INSERT OR REPLACE INTO schema_meta(key, value) VALUES (?, ?)",
         ("compatibility_compacted_rows", json.dumps(counts, sort_keys=True)),
     )
-    existing_digest = connection.execute(
-        "SELECT 1 FROM schema_meta WHERE key = 'canonical_content_digest'"
-    ).fetchone()
-    if sum(counts.values()) or canonical_changed or existing_digest is None:
-        refresh_canonical_content_digest(connection)
     return counts
 
 

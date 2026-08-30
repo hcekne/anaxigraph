@@ -272,7 +272,7 @@ def test_pattern_query_uses_the_matching_authoritative_service(repository, capsy
     captured = {}
 
     monkeypatch.setattr(
-        "anaxigraph.cli_pattern_calibration.discover_semantic_service",
+        "anaxigraph.cli_pattern_commands.discover_semantic_service",
         lambda *_a, **_k: target,
     )
 
@@ -286,7 +286,7 @@ def test_pattern_query_uses_the_matching_authoritative_service(repository, capsy
         return {"contract_version": "pattern-query-v1", "total": 1, "items": [{}]}
 
     monkeypatch.setattr(
-        "anaxigraph.cli_pattern_calibration.service_pattern_evaluations", query_service
+        "anaxigraph.cli_pattern_commands.service_pattern_evaluations", query_service
     )
     result = _call(
         [

@@ -7,7 +7,9 @@ from pathlib import Path
 import pytest
 
 import anaxigraph.persistence.index_initialization as initialization_module
+import anaxigraph.persistence.migrations as migrations_module
 import anaxigraph.persistence.temporal_files as temporal_files
+import anaxigraph.persistence.temporal_relationships as temporal_relationships
 from anaxigraph.history import import_git_history
 from anaxigraph.persistence import (
     backup_path,
@@ -245,6 +247,26 @@ def test_schema_change_rolls_back_every_ddl_and_fact_on_failure(repository, data
     assert _canonical_frames(database) == before
 
 
+def test_schema_change_checks_foreign_keys_before_commit(database):
+    def violate_foreign_key(connection):
+        connection.execute("CREATE TABLE migration_parent(id INTEGER PRIMARY KEY)")
+        connection.execute(
+            "CREATE TABLE migration_child(parent_id INTEGER REFERENCES migration_parent(id))"
+        )
+        connection.execute("INSERT INTO migration_child(parent_id) VALUES (404)")
+
+    with database.connect() as connection:
+        assert int(connection.execute("PRAGMA foreign_keys").fetchone()[0]) == 1
+        with pytest.raises(RuntimeError, match="1 FK violations"):
+            transactional_schema_change(connection, violate_foreign_key)
+        assert int(connection.execute("PRAGMA foreign_keys").fetchone()[0]) == 1
+        leaked_tables = connection.execute(
+            "SELECT name FROM sqlite_master WHERE name LIKE 'migration_%'"
+        ).fetchall()
+
+    assert leaked_tables == []
+
+
 def test_real_schema_six_index_has_idempotent_backup_and_exact_restore(repository, database):
     _commit_change(repository)
     RepositoryScanner(database).scan(repository)
@@ -327,7 +349,7 @@ def test_schema_six_upgrade_is_restartable_after_injected_failure(
     assert _canonical_frames(reopened) == before
 
 
-def test_schema_six_migration_symbolizes_each_distinct_file_fact_once(
+def test_schema_six_migration_reuses_unchanged_file_and_relationship_facts(
     repository,
     database,
     monkeypatch,
@@ -335,16 +357,70 @@ def test_schema_six_migration_symbolizes_each_distinct_file_fact_once(
     _commit_change(repository)
     import_git_history(database, repository, every_commit=True)
     _downgrade_to_schema_six(database)
+    file_facts: list[int] = []
     symbolized: list[int] = []
+    relationship_sets: list[int] = []
+    with database.connect() as connection:
+        initial_secure_delete = int(connection.execute("PRAGMA secure_delete").fetchone()[0])
+        materialized_source_frames = connection.execute(
+            "SELECT COUNT(*) FROM (SELECT DISTINCT snapshot_id, source_artifact_id FROM relationships)"
+        ).fetchone()[0]
+        materialized_file_frames = connection.execute(
+            "SELECT COUNT(*) FROM file_versions"
+        ).fetchone()[0]
+    upsert_file_fact = temporal_files._upsert_file_fact
     insert_symbols = temporal_files._upsert_symbols
+    upsert_relationship_set = temporal_relationships._upsert_relationship_set
+
+    def record_file_fact(connection, row, analysis_signature, **kwargs):
+        file_facts.append(int(row["artifact_id"]))
+        return upsert_file_fact(connection, row, analysis_signature, **kwargs)
 
     def record_symbols(connection, legacy_version_id, fact_id):
         symbolized.append(fact_id)
         insert_symbols(connection, legacy_version_id, fact_id)
 
+    def record_relationship_set(connection, repository_id, source_fact_id, *args, **kwargs):
+        relationship_sets.append(source_fact_id)
+        return upsert_relationship_set(connection, repository_id, source_fact_id, *args, **kwargs)
+
+    monkeypatch.setattr(temporal_files, "_upsert_file_fact", record_file_fact)
     monkeypatch.setattr(temporal_files, "_upsert_symbols", record_symbols)
+    monkeypatch.setattr(
+        temporal_relationships,
+        "_upsert_relationship_set",
+        record_relationship_set,
+    )
+    monkeypatch.setattr(
+        migrations_module,
+        "compact_duplicate_relationship_sets",
+        lambda _connection: (_ for _ in ()).throw(
+            AssertionError("newly content-addressed relationship sets were compacted again")
+        ),
+    )
+    monkeypatch.setattr(
+        migrations_module,
+        "parity_report",
+        lambda _connection: (_ for _ in ()).throw(
+            AssertionError("freshly constructed canonical frames were read back in full")
+        ),
+    )
     reopened = AnaxiIndex(database.path)
     with reopened.connect() as connection:
         fact_count = connection.execute("SELECT COUNT(*) FROM file_facts").fetchone()[0]
+        secure_delete = int(connection.execute("PRAGMA secure_delete").fetchone()[0])
+        migration_indexes = connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'index' "
+            "AND name LIKE 'anaxigraph_migration_%'"
+        ).fetchall()
+        compatibility_tables = connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN "
+            "('file_versions', 'symbols', 'relationships', 'group_memberships')"
+        ).fetchall()
 
     assert len(symbolized) == len(set(symbolized)) == fact_count
+    assert len(file_facts) < materialized_file_frames
+    assert len(relationship_sets) < materialized_source_frames
+    assert secure_delete == initial_secure_delete
+    assert migration_indexes == []
+    assert compatibility_tables == []

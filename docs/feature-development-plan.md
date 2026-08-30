@@ -1114,7 +1114,7 @@ migration, and browser gate was run before the milestone commit.
 | Read amplification | Current/middle/oldest file reconstruction traversed 8/5/1 deltas; all remain below 16 and no checkpoint is needed for an eight-frame history |
 | API latency | Current graph measured 132.09 ms cold and 14.16 ms warm median; middle and oldest measured 13.68/15.22 ms warm, all below their binding ceilings |
 | Historical work | 29,181 ms total; exactly 3,217 source reads and analyzer invocations; peak resident memory was 148,254,720 bytes |
-| Compaction | Zero rows remain in all four compatibility staging tables; canonical integrity, semantic-fact references, lineage, foreign keys, and reconstruction are doctor-checked |
+| Compaction | All four compatibility tables are absent; SQLite integrity, semantic-fact references, lineage, foreign keys, and reconstruction are doctor-checked |
 | Decomposition | `storage.py` is 398 lines and `scanner.py` is 358; both exceptions are removed and no extracted implementation module exceeds 500 lines |
 | Agent contract | The Go-analyzer scope retained all eight expected primary files, no unexpected primary files, and a 5,757-byte payload |
 
@@ -2055,10 +2055,9 @@ code-quality verdict without the intended outcome and focused tests.
 ## 6.8 Expose pattern intelligence without multiplying product surfaces
 
 **Status:** COMPLETE on 26 August 2026 — target- and pattern-centric queries, selected and skipped
-candidate explanations, all 128 pattern-name meanings, readable main and expanded evidence,
-versioned calibration, and deterministic same-goal comparison are implemented and self-hosted. The
-paused external calibration is optional evidence, not unfinished §6.8 product work. Longitudinal
-outcome correlation was delivered through Phase 7 and is not a §6.8 closure item.
+candidate explanations, all 128 pattern-name meanings, readable main and expanded evidence, and
+deterministic same-goal comparison are implemented and self-hosted. Longitudinal outcome
+correlation was delivered through Phase 7 and is not a §6.8 closure item.
 
 Reuse the existing semantic queue, leases, evidence paging, provenance, taxonomy, and bounded query
 infrastructure. Add one narrow evaluation projection keyed by target, pattern, snapshot, and
@@ -2071,10 +2070,10 @@ CLI, MCP, REST, and dashboard support both directions:
 - pattern-centric: the strongest examples, weak conformers, opportunities, and skipped targets for
   one catalog entry.
 
-Build fixture and real-repository calibration sets covering correct/incorrect abstractions,
-justified and low-cohesion modules, dynamic dead-code traps, consolidation false positives, and
-different migration costs. Track precision, critique disagreement, score calibration, false-
-positive cause, and verified post-change outcome by contract/model version.
+Use direct recommendation fixtures covering correct and unnecessary abstractions, justified and
+low-cohesion modules, dynamic dead-code traps, consolidation false positives, and different
+migration costs. Keep those contracts beside the evaluator rather than shipping a second manifest
+and reporting framework to end users.
 
 The first query slice defines `pattern-query-v1` and reads only current `pattern_review` documents,
 so an assessment cannot appear as a finalized recommendation before its independent critique.
@@ -2091,20 +2090,6 @@ counter-evidence, below-priority, sparse-plan-bound, or plan-not-ready as the de
 Selection, exact target, level, paging, and opt-in signal/capability evidence are supported by
 `anaxigraph patterns --candidates`, `ANAXIGRAPH_PATTERNS(mode="candidates")`, and
 `GET /api/patterns/candidates`.
-
-`pattern-calibration-v1` defines bounded, catalog/score/review-versioned expectations without adding
-an approval gate. `anaxigraph patterns --calibrate MANIFEST` uses the same active-sidecar or local
-index authority and emits `pattern-calibration-report-v1`: candidate confusion/precision/recall,
-rating pass and range error, confidence Brier error, false-positive causes, critic verdict/issues,
-category breakdowns, incomplete cases, and provider/model/prompt/snapshot provenance remain
-separate. Thresholds are manifest data; runtime model names are never policy.
-
-The shipped synthetic and real-AnaxiGraph manifests each contain seven cases covering correct and
-incorrect abstractions, justified and low-cohesion modules, dynamic plugin/dead-code traps,
-consolidation false positives, and migration cost. The synthetic source fixture is 137 Python lines.
-Calibration reuses exact target/pattern queries and finalized critiques; it adds no persistence,
-provider, REST, MCP, dashboard, or vector-store surface. Calibration failure is regression evidence,
-not permission to edit source and not a blocker on autonomous map completion.
 
 `anaxigraph patterns` exposes that contract without creating a new scan. When `--db` is omitted it
 uses the same checkout/Git-identity discovery as semantic execution to select a matching active
@@ -2831,7 +2816,7 @@ The seven dashboard destinations are not seven independent products:
 
 The normal MCP profile will expose no more than these ten existing decisions: repository selection,
 overview, search, file evidence, scope/placement, impact, findings, scan/refresh, semantic readiness,
-and taxonomy. `GRAPH`, `MODULES`, `PATTERNS`, `FINDING_CONTEXT`, the three history controls, and the
+and taxonomy. `GRAPH`, `PATTERNS`, `FINDING_CONTEXT`, the three history controls, and the
 six low-level semantic queue/schema controls remain available through advanced operator or executor
 profiles until compatibility evidence permits consolidation.
 The current `coding-loop-contract-v2` freezes a released 19-tool subset, so the smaller default must
@@ -3517,6 +3502,57 @@ to **51,795**, while one MCP/REST/CLI argument family, three response fields, Gi
 and dashboard conflict state disappear. The complete suite passes with **603 tests**, all **17
 browser contracts** pass against a freshly scanned fixture, and the deterministic maintainability
 report falls to 138 warnings with no hard error.
+
+### 10.2 delivery record: retire redundant pattern grading and make legacy migration real-world safe
+
+This slice removes two complete side paths. `ANAXIGRAPH_MODULES` returned an independently filtered
+dump of as many as 1,000 files even though agents already have bounded Overview, Search, File, Scope,
+Impact, and Graph queries; the human Files table continues to use its purpose-built REST read model.
+The `patterns --calibrate` path was a second mini-product that graded saved pattern results against a
+private benchmark manifest but did not produce, improve, or validate a recommendation at runtime.
+Its four production modules, CLI mode, benchmark manifests, fixtures, documentation, and tests are
+deleted. Normal pattern suggestions remain available through CLI, REST, MCP, and the dashboard and
+retain their direct candidate/evidence tests.
+
+The released schema-6 upgrade was then exercised against the retained **1.4 GB** index rather than
+accepted on fixture performance. That index contains 313 materialized snapshots, 198,602 file
+versions, 861,861 symbols, and 1,471,557 relationships. Migration now:
+
+- reuses one immutable file fact and symbol set across frames whose raw hash, structural hash,
+  analyzer, and analysis signature are identical;
+- fingerprints the exact ordered edge content for each source and reuses any matching relationship
+  set already seen for that repository, source artifact, analysis signature, and resolver context;
+- installs and removes migration-only indexes for legacy symbol and per-source relationship reads;
+- constructs new canonical frames once instead of immediately rereading the entire result through
+  parity and duplicate-set passes that are still retained for pre-existing canonical projections;
+- removes the global canonical-table self-hash that scanned every row after every scan. Recording a
+  freshly calculated hash as its own expected value did not prove legacy-to-canonical parity; atomic
+  rollback, SQLite integrity, foreign-key validation, bounded reconstruction, exact semantic
+  references, and the checksummed restorable backup remain the actual safety gates;
+- retires the four legacy tables after conversion instead of retaining empty compatibility schema.
+  Automatic FK actions and secure page overwrites are suspended inside the exclusive migration
+  transaction, an explicit full `foreign_key_check` must pass before commit, and both settings are
+  restored on every exit path;
+- clears checkpoint children explicitly before rebuilding their disposable parent records, so the
+  operation remains correct even while automatic FK actions are suspended.
+
+The live gate found and fixed two failures that the small fixture could not reveal: secure deletion
+first exhausted temporary disk while retiring 2.5 million duplicate rows, and checkpoint cleanup
+then relied on disabled cascades. Each failed attempt rolled back to schema 6, the backup remained
+valid, and the corrected migration completed. The dashboard and MCP server were available by
+**4 minutes 18 seconds** and Docker reported healthy at **4 minutes 40 seconds**; the former path was
+still unavailable after eight minutes. The resulting schema-10 index has 23,554 distinct file facts,
+154,210 fact symbols, 16,909 relationship sets, 214,615 relationship edges, 18 checkpoints, no
+legacy tables, no foreign-key violation, and a valid unchanged schema-6 backup. REST answers,
+AnaxiMCP initializes with protocol `2025-03-26`, and the read-only watcher runs against the migrated
+index.
+
+This is a net product reduction despite the migration hardening. The exact production-source
+ratchet falls **814 lines**, from 51,795 to **50,981**. Phase 10 has now removed 2,926 production
+lines from its 53,907-line starting point; 2,481 lines remain before the 48,500 exit target. Public
+surface falls by one MCP tool and one CLI mode, and four production modules disappear. The complete
+suite passes with **590 tests**, and every formatting, architecture, module-size, production-size,
+credential, JavaScript, package, and agent-package pre-commit gate passes.
 
 ## 10.3 Make human understanding the primary dashboard journey
 

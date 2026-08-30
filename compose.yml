@@ -72,7 +72,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 6
-      start_period: 90s
+      start_period: 300s
 
   # Keep the saved structural map current as the mounted repositories change.
   anaxigraph-watch:

@@ -10,7 +10,7 @@ def test_candidate_query_uses_the_matching_authoritative_service(repository, cap
     target = SemanticServiceTarget("http://127.0.0.1:9999", 17, "Sample", "/repo")
     captured = {}
     monkeypatch.setattr(
-        "anaxigraph.cli_pattern_calibration.discover_semantic_service",
+        "anaxigraph.cli_pattern_commands.discover_semantic_service",
         lambda *_args, **_kwargs: target,
     )
 
@@ -24,7 +24,7 @@ def test_candidate_query_uses_the_matching_authoritative_service(repository, cap
         return {"contract_version": "pattern-candidate-query-v1", "items": []}
 
     monkeypatch.setattr(
-        "anaxigraph.cli_pattern_calibration.service_pattern_candidates", query_candidates
+        "anaxigraph.cli_pattern_commands.service_pattern_candidates", query_candidates
     )
     main(
         [

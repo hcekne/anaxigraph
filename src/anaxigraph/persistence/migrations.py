@@ -11,7 +11,6 @@ from anaxigraph.persistence.compatibility_compaction import (
     prepare_semantic_claims_for_compaction,
 )
 from anaxigraph.persistence.index_parity import parity_report
-from anaxigraph.persistence.index_temporal_health import refresh_canonical_content_digest
 from anaxigraph.persistence.semantic_fact_references import (
     backfill_semantic_fact_references,
 )
@@ -48,28 +47,24 @@ def migrate_schema(
     compatibility_frames = connection.execute(
         "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'file_versions'"
     ).fetchone()
-    if (
-        current_version is not None
-        and current_version not in {7, 8, 9, 10}
-        and compatibility_frames
-    ):
+    migrated_materialized_frames = _requires_materialized_frame_migration(
+        current_version, compatibility_frames
+    )
+    if migrated_materialized_frames:
+        _legacy_migration_indexes(connection, create=True)
         migrate_legacy_temporal_facts(connection)
-    canonical_metadata_changed = bool(backfill_fact_symbol_details(connection))
-    canonical_metadata_changed = (
-        bool(compact_file_placement_metadata(connection)) or canonical_metadata_changed
-    )
-    canonical_metadata_changed = (
-        bool(compact_file_fact_metadata(connection)) or canonical_metadata_changed
-    )
+    backfill_fact_symbol_details(connection)
+    compact_file_placement_metadata(connection)
+    compact_file_fact_metadata(connection)
     ensure_checkpoint_policy(connection)
-    if current_version is None:
-        refresh_canonical_content_digest(connection)
-    else:
+    if current_version is not None:
         backfill_semantic_fact_references(connection)
         _compact_validated_compatibility(
             connection,
-            canonical_changed=canonical_metadata_changed,
+            validate_existing_projection=not migrated_materialized_frames,
         )
+        if migrated_materialized_frames:
+            _legacy_migration_indexes(connection, create=False)
     _ensure_semantic_fact_indexes(connection)
     connection.execute(
         "INSERT OR REPLACE INTO schema_meta(key, value) VALUES ('schema_version', ?)",
@@ -127,18 +122,19 @@ def _ensure_semantic_fact_schema(connection: sqlite3.Connection) -> None:
 def _compact_validated_compatibility(
     connection: sqlite3.Connection,
     *,
-    canonical_changed: bool,
+    validate_existing_projection: bool,
 ) -> None:
-    report = parity_report(connection)
-    if report["status"] not in {"exact", "canonical_only"}:
-        raise RuntimeError("Canonical facts do not match compatibility frames; compaction refused")
+    if validate_existing_projection:
+        report = parity_report(connection)
+        if report["status"] not in {"exact", "canonical_only"}:
+            raise RuntimeError(
+                "Canonical facts do not match compatibility frames; compaction refused"
+            )
     prepare_semantic_claims_for_compaction(connection)
     backfill_relationship_coverage(connection)
-    relationship_sets_removed = compact_duplicate_relationship_sets(connection)
-    compact_compatibility_rows(
-        connection,
-        canonical_changed=canonical_changed or relationship_sets_removed > 0,
-    )
+    if validate_existing_projection:
+        compact_duplicate_relationship_sets(connection)
+    compact_compatibility_rows(connection)
 
 
 def transactional_schema_change(
@@ -149,16 +145,23 @@ def transactional_schema_change(
 
     if connection.in_transaction:
         raise RuntimeError("Schema migration requires an idle SQLite connection")
-    connection.execute("BEGIN IMMEDIATE")
+    foreign_keys = int(connection.execute("PRAGMA foreign_keys").fetchone()[0])
+    if foreign_keys:
+        connection.execute("PRAGMA foreign_keys = OFF")
     try:
-        operation(connection)
-        violations = connection.execute("PRAGMA foreign_key_check").fetchall()
-        if violations:
-            raise RuntimeError(f"Schema migration introduced {len(violations)} FK violations")
-        connection.commit()
-    except BaseException:
-        connection.rollback()
-        raise
+        connection.execute("BEGIN IMMEDIATE")
+        try:
+            operation(connection)
+            violations = connection.execute("PRAGMA foreign_key_check").fetchall()
+            if violations:
+                raise RuntimeError(f"Schema migration introduced {len(violations)} FK violations")
+            connection.commit()
+        except BaseException:
+            connection.rollback()
+            raise
+    finally:
+        if foreign_keys:
+            connection.execute("PRAGMA foreign_keys = ON")
 
 
 def validate_schema_version(current_version: int | None, target_version: int) -> None:
@@ -196,3 +199,31 @@ def _ensure_semantic_fact_indexes(connection: sqlite3.Connection) -> None:
         "ON semantic_scope_states(file_fact_id)",
     ):
         connection.execute(statement)
+
+
+def _legacy_migration_indexes(connection: sqlite3.Connection, *, create: bool) -> None:
+    indexes = (
+        (
+            "anaxigraph_migration_relationships",
+            "relationships",
+            "snapshot_id, source_artifact_id, id",
+        ),
+        ("anaxigraph_migration_symbols", "symbols", "artifact_version_id, start_line, id"),
+    )
+    for name, table, columns in indexes:
+        statement = (
+            f"CREATE INDEX {name} ON {table}({columns})"
+            if create
+            else f"DROP INDEX IF EXISTS {name}"
+        )
+        connection.execute(statement)
+
+
+def _requires_materialized_frame_migration(
+    current_version: int | None, compatibility_frames: sqlite3.Row | None
+) -> bool:
+    return bool(
+        current_version is not None
+        and current_version not in {7, 8, 9, 10}
+        and compatibility_frames
+    )

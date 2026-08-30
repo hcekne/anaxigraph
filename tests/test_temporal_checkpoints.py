@@ -100,6 +100,11 @@ def test_checkpoints_bound_reads_and_rebuild_without_changing_facts(tmp_path, da
                 """
             ).fetchall()
         ]
+        connection.commit()
+        connection.execute("PRAGMA foreign_keys = OFF")
+        rebuilt_without_foreign_key_actions = rebuild_checkpoints(connection)
+        connection.commit()
+        connection.execute("PRAGMA foreign_keys = ON")
 
     assert len(snapshots) == 33
     assert [row["sequence"] for row in checkpoint_rows] == [15, 31]
@@ -108,6 +113,7 @@ def test_checkpoints_bound_reads_and_rebuild_without_changing_facts(tmp_path, da
     assert maximum_relationship_depth < CHECKPOINT_INTERVAL
     assert unbounded.traversed_deltas == 33
     assert rebuilt == {"snapshots": 33, "checkpoints": 2}
+    assert rebuilt_without_foreign_key_actions == {"snapshots": 33, "checkpoints": 2}
     assert after == before
     assert hashes_after == hashes_before
 

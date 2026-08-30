@@ -6,10 +6,17 @@ import argparse
 from pathlib import Path
 from typing import Any
 
-import anaxigraph.cli_pattern_calibration as pattern_calibration
 import anaxigraph.cli_services as cli_services
 from anaxigraph.cli_common import add_repository_arguments
 from anaxigraph.local_runtime import local_database_path
+from anaxigraph.pattern_candidate_query import PatternCandidateQuery
+from anaxigraph.pattern_intelligence import PatternIntelligenceService
+from anaxigraph.pattern_query import PatternEvaluationQuery
+from anaxigraph.semantic_service import (
+    discover_semantic_service,
+    service_pattern_candidates,
+    service_pattern_evaluations,
+)
 
 
 def configure_pattern_commands(commands: Any) -> None:
@@ -55,12 +62,6 @@ def _add_pattern_filters(parser: Any) -> None:
 
 def _add_pattern_modes(parser: Any) -> None:
     parser.add_argument(
-        "--calibrate",
-        type=Path,
-        metavar="MANIFEST",
-        help="Compare current pattern results with expected answers in a saved test-case file",
-    )
-    parser.add_argument(
         "--candidates",
         action="store_true",
         help="Explain why code was selected or skipped before an AI pattern check",
@@ -81,31 +82,27 @@ def _patterns(args: argparse.Namespace) -> dict[str, Any]:
         raise ValueError("The saved-scan id for pattern results must be positive")
     if args.db is not None and args.service_url:
         raise ValueError("Choose either --db for a local index or --service-url for a service")
-    if args.calibrate is not None and args.candidates:
-        raise ValueError("Choose either --calibrate or --candidates")
     repository = args.repository.expanduser().resolve()
-    manifest = pattern_calibration.load_manifest(args.calibrate)
-    request = None if manifest is not None else pattern_calibration.query(args)
+    request = _query(args)
     service = (
-        pattern_calibration.discover_service(repository, args.service_url)
+        discover_semantic_service(repository, explicit_url=args.service_url)
         if args.db is None
         else None
     )
     if service is not None:
-        return _service_response(service, manifest, request, args.snapshot_id)
-    return _local_response(repository, args.db, manifest, request, args.snapshot_id)
+        return _service_response(service, request, args.snapshot_id)
+    return _local_response(repository, args.db, request, args.snapshot_id)
 
 
 def _service_response(
     service: Any,
-    manifest: Any,
-    request: Any,
+    request: PatternEvaluationQuery | PatternCandidateQuery,
     snapshot_id: int | None,
 ) -> dict[str, Any]:
     result = (
-        pattern_calibration.service_result(service, manifest, snapshot_id)
-        if manifest is not None
-        else pattern_calibration.service_query(service, _required(request), snapshot_id)
+        service_pattern_candidates(service, request, snapshot_id=snapshot_id)
+        if isinstance(request, PatternCandidateQuery)
+        else service_pattern_evaluations(service, request, snapshot_id=snapshot_id)
     )
     return {**result, "index": service.identity()}
 
@@ -113,8 +110,7 @@ def _service_response(
 def _local_response(
     repository: Path,
     database_option: Path | None,
-    manifest: Any,
-    request: Any,
+    request: PatternEvaluationQuery | PatternCandidateQuery,
     snapshot_id: int | None,
 ) -> dict[str, Any]:
     database_path = local_database_path(repository, explicit=database_option)
@@ -122,12 +118,11 @@ def _local_response(
     row = database.repository(repository)
     if row is None:
         raise ValueError(f"Repository has not been scanned in {database_path}")
+    service = PatternIntelligenceService(database)
     result = (
-        pattern_calibration.local_result(database, int(row["id"]), manifest, snapshot_id)
-        if manifest is not None
-        else pattern_calibration.local_query(
-            database, int(row["id"]), _required(request), snapshot_id
-        )
+        service.candidates(int(row["id"]), snapshot_id, request=request)
+        if isinstance(request, PatternCandidateQuery)
+        else service.query(int(row["id"]), snapshot_id, request=request)
     )
     return {
         **result,
@@ -135,7 +130,26 @@ def _local_response(
     }
 
 
-def _required(request: Any) -> Any:
-    if request is None:
-        raise ValueError("pattern query request is required")
-    return request
+def _query(args: Any) -> PatternEvaluationQuery | PatternCandidateQuery:
+    if args.candidates:
+        return PatternCandidateQuery(
+            pattern=args.pattern,
+            target=args.target,
+            level=args.level,
+            selection=args.selection,
+            limit=args.limit,
+            offset=args.offset,
+            include_evidence=args.include_evidence,
+        )
+    return PatternEvaluationQuery(
+        target=args.target,
+        pattern=args.pattern,
+        level=args.level,
+        recommendation=args.recommendation,
+        presence=args.presence,
+        sort_by=args.sort_by,
+        minimum_score=args.minimum_score,
+        limit=args.limit,
+        offset=args.offset,
+        include_evidence=args.include_evidence,
+    )

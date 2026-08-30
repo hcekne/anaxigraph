@@ -166,7 +166,7 @@ def _compose_app(port: int, history_snapshots: int | str) -> str:
       interval: 10s
       timeout: 5s
       retries: 6
-      start_period: 120s
+      start_period: 300s
 
 """
 

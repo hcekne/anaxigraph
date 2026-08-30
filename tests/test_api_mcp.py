@@ -193,7 +193,6 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                         "ANAXIGRAPH_SEMANTIC_SUBMIT",
                         "ANAXIGRAPH_SEMANTIC_RELEASE",
                         "ANAXIGRAPH_SEMANTIC_FAIL",
-                        "ANAXIGRAPH_MODULES",
                         "ANAXIGRAPH_GRAPH",
                         "ANAXIGRAPH_PATTERNS",
                         "ANAXIGRAPH_SEARCH",
@@ -325,22 +324,6 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     taxonomy = await session.call_tool("ANAXIGRAPH_TAXONOMY", arguments={})
                     assert taxonomy.isError is False
                     assert taxonomy.structuredContent["status"] == "not_ready"
-                    modules = await session.call_tool(
-                        "ANAXIGRAPH_MODULES", arguments={"language": "python", "limit": 3}
-                    )
-                    assert modules.isError is False
-                    assert modules.structuredContent["total"] >= 3
-                    assert len(modules.structuredContent["modules"]) == 3
-                    assert (
-                        "repository files"
-                        in modules.structuredContent["plain_language"]["machine_key_note"]
-                    )
-                    assert (
-                        "not a code-quality grade"
-                        in modules.structuredContent["plain_language"]["measurement_meanings"][
-                            "complexity"
-                        ]
-                    )
                     scope = await session.call_tool(
                         "ANAXIGRAPH_SCOPE",
                         arguments={"goal": "Change Calculator behavior"},

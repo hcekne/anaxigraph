@@ -17,6 +17,7 @@ def legacy_file_facts(
     analysis_signature: str,
     *,
     fact_cache: dict[str, int] | None = None,
+    fact_carry: dict[int, tuple[tuple[str, ...], int]],
     symbolized_facts: set[int] | None = None,
 ) -> dict[int, dict[str, Any]]:
     rows = connection.execute(
@@ -26,12 +27,19 @@ def legacy_file_facts(
     result: dict[int, dict[str, Any]] = {}
     for row in rows:
         value = dict(row)
-        fact_id = _upsert_file_fact(
-            connection,
-            value,
+        identity = (
+            str(value["raw_hash"]),
+            str(value["structural_hash"]),
+            str(value["analyzer"]),
             analysis_signature,
-            cache=fact_cache,
         )
+        previous = fact_carry.get(int(value["artifact_id"]))
+        fact_id = (
+            previous[1]
+            if previous is not None and previous[0] == identity
+            else _upsert_file_fact(connection, value, analysis_signature, cache=fact_cache)
+        )
+        fact_carry[int(value["artifact_id"])] = (identity, fact_id)
         if symbolized_facts is None or fact_id not in symbolized_facts:
             _upsert_symbols(connection, int(value["id"]), fact_id)
             if symbolized_facts is not None:

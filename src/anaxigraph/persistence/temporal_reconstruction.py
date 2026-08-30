@@ -109,16 +109,12 @@ def rebuild_checkpoints(
     connection: sqlite3.Connection,
     repository_id: int | None = None,
 ) -> dict[str, int]:
+    _clear_checkpoints(connection, repository_id)
     if repository_id is None:
-        connection.execute("DELETE FROM snapshot_checkpoints")
         rows = connection.execute(
             "SELECT id FROM snapshots ORDER BY repository_id, sequence, id"
         ).fetchall()
     else:
-        connection.execute(
-            "DELETE FROM snapshot_checkpoints WHERE repository_id = ?",
-            (repository_id,),
-        )
         rows = connection.execute(
             """
             SELECT id FROM snapshots WHERE repository_id = ?
@@ -128,6 +124,25 @@ def rebuild_checkpoints(
         ).fetchall()
     created = sum(refresh_checkpoint_if_due(connection, int(row["id"])) for row in rows)
     return {"snapshots": len(rows), "checkpoints": created}
+
+
+def _clear_checkpoints(connection: sqlite3.Connection, repository_id: int | None) -> None:
+    if repository_id is None:
+        connection.execute("DELETE FROM checkpoint_relationships")
+        connection.execute("DELETE FROM checkpoint_files")
+        connection.execute("DELETE FROM snapshot_checkpoints")
+        return
+    parameters = (repository_id,)
+    for table in ("checkpoint_relationships", "checkpoint_files"):
+        connection.execute(
+            f"DELETE FROM {table} WHERE checkpoint_snapshot_id IN "
+            "(SELECT snapshot_id FROM snapshot_checkpoints WHERE repository_id = ?)",
+            parameters,
+        )
+    connection.execute(
+        "DELETE FROM snapshot_checkpoints WHERE repository_id = ?",
+        parameters,
+    )
 
 
 def ensure_checkpoint_policy(connection: sqlite3.Connection) -> dict[str, int] | None:
