@@ -4,6 +4,7 @@ import {
   format,
   humanize,
 } from "/assets/dashboard-core.js";
+import { storyList, storyText } from "/assets/dashboard-format.js";
 
 export function renderEvaluationCard(item) {
   const target = item.target || {};
@@ -56,16 +57,6 @@ function scoreMeaning(item) {
     `${scoreLabel(name)} ${format.format(Number(value || 0))} out of 100`
   )).join(" · ");
   return `<section><strong>${escapeHtml(item.label)}</strong><p>${escapeHtml(item.meaning)}</p><span>${escapeHtml(values)}</span></section>`;
-}
-
-function storyText(title, value) {
-  if (!value) return "";
-  return `<section><strong>${escapeHtml(title)}</strong><p>${escapeHtml(value)}</p></section>`;
-}
-
-function storyList(title, values = []) {
-  if (!values.length) return "";
-  return `<section><strong>${escapeHtml(title)}</strong><ul>${values.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul></section>`;
 }
 
 export function renderCandidateCard(item, pattern) {

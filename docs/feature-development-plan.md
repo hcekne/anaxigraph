@@ -3378,6 +3378,34 @@ in 299 ms. Both used zero model tokens. A following self-scan reused all 468 ana
 seconds, retained 4,430 relationships and 154 findings, and the live index doctor reported exact
 canonical integrity with no blocker.
 
+### 10.2 delivery record: one dashboard explanation-markup vocabulary
+
+The dashboard audit traced the seven destinations through their controllers, renderers, shared
+selection state, API reads, and browser contracts before changing presentation code. The first
+bounded duplicate was not navigation state: Findings and Patterns independently constructed the
+same escaped prose section and escaped list markup, while Findings also carried private copies of
+the dashboard's canonical HTML escaping and label-humanizing rules. These copies could make the
+same evidence render or normalize differently depending on which journey displayed it.
+
+`dashboard-format.js` now owns the two explanation-markup primitives, and both Findings and
+Patterns consume them together with the existing core escaping and humanizing vocabulary. Finding
+actions, pattern scoring, selection state, routes, payloads, headings, and primary journeys remain
+unchanged. This is deliberately not a generic component framework: the helpers own only the exact
+safe prose shapes already shared by two evidence views.
+
+The Python module count remains **240**, the exact production source ratchet falls from 53,553 to
+**53,534 lines**, and the maintainability warning count remains 146 with no exception. JavaScript
+syntax checks and API coverage pass, and all **17 browser contracts** pass in the pinned Playwright
+container, including finding explanations, pattern stories, lifecycle actions, graph selection,
+history, semantic state, and first-run onboarding. Phase 10.2 continues with a measured dashboard
+controller or selection-state duplicate; it must not rearrange the primary journey before §10.3.
+
+The exact rebuilt Docker sidecar serves the shared formatter and both importing views. Its normal
+self-scan reused all 468 analyses in 1.385 seconds, kept snapshot 441 current with 4,436
+relationships and 154 findings, and spent no model tokens. The live index doctor reports schema
+10, exact canonical integrity, no compatibility rows, valid lineage, bounded reconstruction, zero
+foreign-key violations, and no blocker.
+
 ## 10.3 Make human understanding the primary dashboard journey
 
 Use the existing semantic repository dossier, reviewed taxonomy, graph, file detail, and history to

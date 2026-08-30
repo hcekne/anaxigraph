@@ -1,5 +1,15 @@
 import { escapeHtml, humanize } from "/assets/dashboard-core.js";
 
+export function storyText(title, value) {
+  if (!value) return "";
+  return `<section><strong>${escapeHtml(title)}</strong><p>${escapeHtml(value)}</p></section>`;
+}
+
+export function storyList(title, values = []) {
+  if (!values.length) return "";
+  return `<section><strong>${escapeHtml(title)}</strong><ul>${values.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul></section>`;
+}
+
 export function detailList(values = [], empty = "No data") {
   const items = values || [];
   return `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("") || `<li>${escapeHtml(empty)}</li>`}</ul>`;

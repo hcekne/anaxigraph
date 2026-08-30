@@ -1,3 +1,6 @@
+import { escapeHtml, humanize } from "/assets/dashboard-core.js";
+import { storyList, storyText } from "/assets/dashboard-format.js";
+
 const number = new Intl.NumberFormat();
 const findingTypeLabels = {
   module_complexity: "File has many lines",
@@ -11,19 +14,6 @@ const findingTypeLabels = {
   weak_test_coverage: "Tests miss part of a file",
   possible_dead_code: "File may no longer be used",
 };
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function humanize(value) {
-  return String(value || "").replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
 
 export function findingCards(items, { glossary = {}, actions = true } = {}) {
   if (!items.length) return '<p class="muted">No findings match this view and its filters.</p>';
@@ -82,16 +72,6 @@ function findingLanguage(item) {
     },
     when_no_change_may_be_needed: item.actionability?.false_positive_conditions || [],
   };
-}
-
-function storyText(title, value) {
-  if (!value) return "";
-  return `<section><strong>${escapeHtml(title)}</strong><p>${escapeHtml(value)}</p></section>`;
-}
-
-function storyList(title, values) {
-  if (!values.length) return "";
-  return `<section><strong>${escapeHtml(title)}</strong><ul>${values.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul></section>`;
 }
 
 function findingActionButtons(item) {
