@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from anaxigraph.agent_graph import _projected_graph_maps, _related_tests, _reverse_reachable
+import anaxigraph.agent_graph as agent_graph
 from anaxigraph.agent_payload import (
     _branch_conflicts,
     _file_summary,
@@ -16,7 +16,6 @@ from anaxigraph.agent_payload import (
     _sorted_ids,
 )
 from anaxigraph.graph_contract import _with_response_telemetry
-from anaxigraph.operational_health import served_map_status
 from anaxigraph.persistence.snapshot_projection import resolve_projected_target
 
 
@@ -61,16 +60,9 @@ def build_impact_analysis(
 
 
 def _impact_graph(database: Any, repository_id: int, target: str) -> _ImpactGraph:
-    repository = database.repository(repository_id)
-    if repository is None:
-        raise ValueError("Repository not found")
-    snapshot = database.latest_snapshot(repository_id)
-    if snapshot is None:
-        raise ValueError("Repository has not been scanned")
-    snapshot_id = int(snapshot["id"])
-    map_status = served_map_status(Path(repository["path"]), snapshot)
+    repository, snapshot_id, map_status = agent_graph._repository_map_state(database, repository_id)
     with database.connect() as connection:
-        files, outgoing, incoming = _projected_graph_maps(connection, snapshot_id)
+        files, outgoing, incoming = agent_graph._projected_graph_maps(connection, snapshot_id)
         target_id = resolve_projected_target(connection, snapshot_id, files, target)
     if target_id is None:
         raise ValueError(f"Target not found: {target}")
@@ -81,9 +73,9 @@ def _impact_evidence(graph: _ImpactGraph, target: str, config: Any) -> _ImpactEv
     direct = set(graph.incoming[graph.target_id])
     second = set().union(*(graph.incoming[item] for item in direct)) if direct else set()
     second.discard(graph.target_id)
-    transitive = _reverse_reachable(graph.target_id, graph.incoming, limit=500)
+    transitive = agent_graph._reverse_reachable(graph.target_id, graph.incoming, limit=500)
     affected = {graph.target_id} | transitive
-    tests = _related_tests(
+    tests = agent_graph._related_tests(
         graph.files,
         graph.outgoing,
         graph.incoming,

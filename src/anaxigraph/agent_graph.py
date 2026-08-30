@@ -26,6 +26,22 @@ from anaxigraph.agent_scope_evidence import (
 from anaxigraph.agent_scope_evidence import (
     _applicable_rules as _applicable_rules,
 )
+from anaxigraph.operational_health import served_map_status
+
+
+def _repository_map_state(
+    database: Any, repository_id: int
+) -> tuple[dict[str, Any], int, dict[str, Any]]:
+    """Resolve the one saved repository state used by an agent answer."""
+
+    repository = database.repository(repository_id)
+    if repository is None:
+        raise ValueError("Repository not found")
+    snapshot = database.latest_snapshot(repository_id)
+    if snapshot is None:
+        raise ValueError("Repository has not been scanned")
+    return repository, int(snapshot["id"]), served_map_status(Path(repository["path"]), snapshot)
+
 
 _SEMANTIC_PRIMARY_SCORE_RATIO = 0.35
 

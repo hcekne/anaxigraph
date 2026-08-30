@@ -198,8 +198,14 @@ def _with_response_telemetry(
         "output_tokens": 0,
     }
     for _attempt in range(4):
-        size = len(json.dumps(response, separators=(",", ":"), default=str).encode())
+        size = _response_payload_bytes(response)
         if size == response["telemetry"]["payload_bytes"]:
             break
         response["telemetry"]["payload_bytes"] = size
     return response
+
+
+def _response_payload_bytes(response: dict[str, Any]) -> int:
+    return len(
+        json.dumps(response, ensure_ascii=False, separators=(",", ":"), default=str).encode("utf-8")
+    )

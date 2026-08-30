@@ -3343,6 +3343,41 @@ boundaries” to `agent_decision_payload.py`, returned a bounded 16,358-byte wor
 contextual dossiers and 138 current intrinsic descriptions, queued 90 missing intrinsic jobs, and
 reported zero failures without executing AI work.
 
+### 10.2 delivery record: one agent map state and wire-size rule
+
+The next agent audit retained the large scope orchestration and its small assembly helpers. The
+scope builder coordinates ranking, bounded graph expansion, tests, protected paths, rules,
+findings, symbols, branch conflicts, architecture decisions, verification, and final byte-budget
+compaction. Inlining its one-use helpers would grow the already ratcheted 91-line entry point and
+erase the names of those stages; merging the full and compact decision modules would couple normal
+reasoning to transport pressure. They remain explicit boundaries.
+
+Two smaller parallel facts were removed. Scope and impact previously looked up the same repository
+and latest snapshot independently, while only scope attached the current-map explanation later in
+payload assembly. `agent_graph` now resolves one repository id, snapshot id, and served-map status
+for both workflows, with the same missing-repository and unscanned-repository failures. Graph and
+impact telemetry also measured JSON using ASCII escaping while scope budgets measured UTF-8. One
+internal serializer now measures the actual UTF-8 response bytes for graph, scope, and impact; the
+scope budget and action telemetry therefore cannot disagree merely because a human-readable label
+contains non-ASCII text.
+
+The Python module count remains **240**, the exact production source ratchet falls from 53,556 to
+**53,553 lines**, and the maintainability warning count remains 146. No public Python surface,
+coupling warning, API route, MCP tool, or response field changes. Focused scope, impact, graph,
+decision, and verification transport coverage passes with 31 tests; a new Unicode contract proves
+the recorded byte count equals the real UTF-8 serialization, and the full suite passes with **620
+tests**. The next agent slice should target a measured duplicate decision projection; if none
+remains, Phase 10.2 should advance to dashboard state/rendering rather than manufacture a generic
+agent response model.
+
+The exact rebuilt Docker sidecar is healthy. Scope and impact answered against the same current
+snapshot 437 and the same current map-status contract. Scope returned a 16,840-byte packet under
+its 20,000-byte budget in 615 ms; its budget estimate and telemetry byte count were identical.
+Impact resolved `agent_payload.py`, found 52 transitive dependants, and returned a 7,546-byte packet
+in 299 ms. Both used zero model tokens. A following self-scan reused all 468 analyses in 1.393
+seconds, retained 4,430 relationships and 154 findings, and the live index doctor reported exact
+canonical integrity with no blocker.
+
 ## 10.3 Make human understanding the primary dashboard journey
 
 Use the existing semantic repository dossier, reviewed taxonomy, graph, file detail, and history to

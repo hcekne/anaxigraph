@@ -12,8 +12,19 @@ from anaxigraph.graph_contract import (
     MAX_NODE_LIMIT,
     GraphNeighborhoodRequest,
     GraphPageRequest,
+    _with_response_telemetry,
 )
 from anaxigraph.scanner import RepositoryScanner
+
+
+def test_response_telemetry_counts_utf8_wire_bytes_without_ascii_escaping():
+    response = _with_response_telemetry({"label": "Anaxi → graph"}, 0, action="test")
+    expected = len(
+        json.dumps(response, ensure_ascii=False, separators=(",", ":"), default=str).encode("utf-8")
+    )
+
+    assert response["telemetry"]["payload_bytes"] == expected
+    assert expected < len(json.dumps(response, separators=(",", ":")).encode("utf-8"))
 
 
 def test_graph_pages_cover_every_matching_node_and_edge(repository, database):

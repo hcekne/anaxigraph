@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -16,9 +15,8 @@ from anaxigraph.agent_decision_payload import (
 )
 from anaxigraph.agent_task_path import compact_task_path
 from anaxigraph.config import AnaxiGraphConfig, path_matches
-from anaxigraph.graph_contract import _with_response_telemetry
+from anaxigraph.graph_contract import _response_payload_bytes, _with_response_telemetry
 from anaxigraph.guidance import FILE_MEASUREMENT_MEANINGS
-from anaxigraph.operational_health import served_map_status
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,7 +25,7 @@ class _ScopePayloadData:
     branch: str | None
     repository_id: int
     snapshot_id: int
-    map_source: tuple[Path, dict[str, Any]]
+    map_status: dict[str, Any]
     files: dict[int, dict[str, Any]]
     outgoing: dict[int, set[int]]
     incoming: dict[int, set[int]]
@@ -70,7 +68,7 @@ def _scope_payload(data: _ScopePayloadData) -> dict[str, Any]:
         "branch": data.branch,
         "repository_id": data.repository_id,
         "snapshot_id": data.snapshot_id,
-        "map_status": served_map_status(*data.map_source),
+        "map_status": data.map_status,
         "primary_files": primary,
         "related_files": related,
         "protected_files": protected,
@@ -220,7 +218,7 @@ def _bound_scope_payload(payload: dict[str, Any], limit_bytes: int) -> dict[str,
     }
 
     def size() -> int:
-        return _scope_payload_size(payload)
+        return _response_payload_bytes(payload)
 
     _trim_scope_collections(payload, size, limit, omitted)
     _compact_optional_scope(payload, size, limit, omitted)
@@ -241,10 +239,6 @@ def _bound_scope_payload(payload: dict[str, Any], limit_bytes: int) -> dict[str,
         if previous == measured and previous_telemetry == measured:
             break
     return payload
-
-
-def _scope_payload_size(payload: dict[str, Any]) -> int:
-    return len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
 
 
 def _trim_scope_collections(
