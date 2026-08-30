@@ -32,7 +32,6 @@ def test_semantic_engine_is_a_composed_compatibility_facade(database) -> None:
         services.planning,
         services.leases,
         services.evidence,
-        services.contracts,
         services.persistence,
         services.runner,
         services.reporting,

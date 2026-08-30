@@ -27,14 +27,13 @@ class SemanticAgentService:
         reporting: SemanticReportingPort,
         leases: SemanticLeaseService,
         evidence: SemanticEvidencePort,
-        contracts: SemanticAgentContractService,
         persistence: SemanticPersistencePort,
     ) -> None:
         self._planning = planning
         self._reporting = reporting
         self._leases = leases
         self._evidence = evidence
-        self._contracts = contracts
+        self._contracts = SemanticAgentContractService()
         self._persistence = persistence
 
     def claim_agent_work(

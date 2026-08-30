@@ -3167,6 +3167,39 @@ shared creation/status vocabulary without model work. It preserved 302 current c
 and 105 current intrinsic descriptions, created 62 `pending_intrinsic` jobs, and reported zero
 failed module or aggregate scopes.
 
+### 10.2 delivery record: one semantic composition root
+
+The fourth item-5 slice first characterized the semantic read projections instead of forcing them
+through a new universal response model. File detail deliberately returns the complete saved dossier
+and its 27 provenance/evidence fields; the module ledger returns a rich contextual browsing row;
+search returns a minimal current-identity result; repository status returns aggregate completion and
+repository-dossier provenance; pattern and taxonomy reads return review-specific evidence. Those
+five shapes answer different bounded questions. They remain separate because normalizing them to
+the largest document would widen routine payloads and couple unrelated screens and tools.
+
+The audit did expose a redundant composition shape. `SemanticCoreServices` was a one-use five-field
+container built in its own module and immediately unwrapped through five forwarding properties on
+`SemanticServices`. The real composition root now creates each concrete service once and directly
+owns planning, leases, evidence, persistence, runner, reporting, and agent services. The agent owns
+its private stateless packet-contract helper. Planning, execution, evidence construction,
+validation, persistence, reporting, taxonomy, and pattern algorithms remain separate classes; no
+stored schema, result document, public route, tool payload, or readiness rule changes.
+
+The Python module count falls from 241 to **240**, and the exact production source ratchet falls
+from 53,768 to **53,725 lines**. Making the actual root visible raises its reported fan-out from a
+hidden nested shape to 10, below the hard cap of 12, and increases the warning count from 145 to
+146. No coupling exception is added: this is an intentional, reviewable signal at the only module
+whose responsibility is construction, not a reason to recreate an indirection. The focused
+composition/queue/MCP suite passes with 50 tests, the full suite passes with **613 tests**, and all
+hard quality gates remain green.
+
+The exact rebuilt Docker image is healthy. Its self-scan reused all 468 analyses in 1.335 seconds,
+kept snapshot 395 current with 4,413 relationships and 154 findings, and semantic preparation
+exercised the flattened construction path without model work. It preserved 301 current contextual
+dossiers and 104 current intrinsic descriptions, created 63 `pending_intrinsic` jobs, and reported
+zero failed scopes. Item 5 remains in progress; its next slice must remove another characterized
+conversion or forwarding boundary, not merge the deliberately different read projections above.
+
 ## 10.3 Make human understanding the primary dashboard journey
 
 Use the existing semantic repository dossier, reviewed taxonomy, graph, file detail, and history to
