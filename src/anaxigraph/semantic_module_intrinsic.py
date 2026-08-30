@@ -13,7 +13,7 @@ from anaxigraph.semantic_freshness import (
     semantic_digest,
     semantic_input_hash,
 )
-from anaxigraph.semantic_graph import _interface_hash, _module_priority
+from anaxigraph.semantic_graph import _interface_hash, _module_priority, _module_scope
 from anaxigraph.semantic_records import (
     _active_job,
     _ensure_job,
@@ -154,11 +154,7 @@ def _enqueue(context: _IntrinsicContext, item: _IntrinsicModule, expired: bool) 
         context.connection,
         repository_id=context.repository_id,
         snapshot_id=context.snapshot_id,
-        scope_type="module",
-        scope_key=item.path,
-        artifact_id=int(item.module["artifact_id"]),
-        artifact_version_id=None,
-        file_fact_id=int(item.module["file_fact_id"]),
+        **_module_scope(item.path, item.module),
         job_kind="intrinsic",
         reason=reason,
         priority=_module_priority(item.module, reason),
@@ -189,11 +185,7 @@ def _record(
         context.connection,
         repository_id=context.repository_id,
         snapshot_id=context.snapshot_id,
-        scope_type="module",
-        scope_key=item.path,
-        artifact_id=int(item.module["artifact_id"]),
-        artifact_version_id=None,
-        file_fact_id=int(item.module["file_fact_id"]),
+        **_module_scope(item.path, item.module),
         status=status,
         reason=reason,
         intrinsic_input_hash=item.input_hash,

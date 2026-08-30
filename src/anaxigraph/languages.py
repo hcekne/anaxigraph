@@ -71,6 +71,15 @@ SPECIAL_FILES = {
     "Rakefile": "ruby",
 }
 
+PYTHON_ANALYZER_LANGUAGES = frozenset({"python"})
+JAVASCRIPT_ANALYZER_LANGUAGES = frozenset(
+    {"javascript", "javascriptreact", "typescript", "typescriptreact"}
+)
+DETECTED_LANGUAGES = frozenset(LANGUAGE_BY_SUFFIX.values()) | frozenset(SPECIAL_FILES.values())
+TEXT_ANALYZER_LANGUAGES = DETECTED_LANGUAGES - (
+    PYTHON_ANALYZER_LANGUAGES | JAVASCRIPT_ANALYZER_LANGUAGES
+)
+
 SOURCE_LANGUAGES = frozenset(
     {
         "python",

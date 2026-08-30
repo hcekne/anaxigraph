@@ -21,6 +21,16 @@ PATTERN_SCORE_DIMENSIONS = (
     "execution_safety",
     "migration_cost",
 )
+PATTERN_RECOMMENDATIONS = (
+    "retain",
+    "introduce",
+    "improve_conformance",
+    "replace",
+    "avoid",
+    "no_action",
+    "insufficient_evidence",
+)
+PATTERN_PRESENCE = ("present", "partial", "absent", "uncertain")
 
 _STRINGS = {"type": "array", "items": {"type": "string"}}
 _SCORE = {
@@ -39,16 +49,6 @@ _SCORES = {
     "required": list(PATTERN_SCORE_DIMENSIONS),
     "additionalProperties": False,
 }
-_RECOMMENDATIONS = (
-    "retain",
-    "introduce",
-    "improve_conformance",
-    "replace",
-    "avoid",
-    "no_action",
-    "insufficient_evidence",
-)
-
 PATTERN_EVALUATION_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
@@ -59,9 +59,9 @@ PATTERN_EVALUATION_SCHEMA: dict[str, Any] = {
         "summary": {"type": "string"},
         "presence": {
             "type": "string",
-            "enum": ["present", "partial", "absent", "uncertain"],
+            "enum": list(PATTERN_PRESENCE),
         },
-        "recommendation": {"type": "string", "enum": list(_RECOMMENDATIONS)},
+        "recommendation": {"type": "string", "enum": list(PATTERN_RECOMMENDATIONS)},
         "scores": _SCORES,
         "rationale": {"type": "string"},
         "evidence": _STRINGS,

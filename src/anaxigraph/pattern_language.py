@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from anaxigraph.pattern_evaluation_contract import PATTERN_SCORE_DIMENSIONS
 from anaxigraph.semantic_file_language import explain_specialist_terms
 
 PATTERN_LANGUAGE_VERSION = "pattern-explanation-v2"
@@ -280,18 +281,7 @@ def _change_score_meanings(values: Mapping[str, int]) -> list[dict[str, Any]]:
 
 def _score_values(scores: Any) -> dict[str, int]:
     source = scores if isinstance(scores, Mapping) else {}
-    names = (
-        "applicability",
-        "suitability",
-        "conformance",
-        "opportunity",
-        "confidence",
-        "benefit",
-        "urgency",
-        "execution_safety",
-        "migration_cost",
-    )
-    return {name: _score(source.get(name)) for name in names}
+    return {name: _score(source.get(name)) for name in PATTERN_SCORE_DIMENSIONS}
 
 
 def _score(value: Any) -> int:

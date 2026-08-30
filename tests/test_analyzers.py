@@ -11,6 +11,7 @@ from anaxigraph.analyzers.python import PythonAnalyzer
 from anaxigraph.analyzers.text import TextAnalyzer
 from anaxigraph.ir import IR_SCHEMA_VERSION
 from anaxigraph.ir_conformance import validate_analysis
+from anaxigraph.languages import DETECTED_LANGUAGES
 
 
 def test_python_ast_extracts_symbols_imports_calls_and_stable_structural_hash():
@@ -124,6 +125,15 @@ def test_every_builtin_analyzer_emits_conforming_ir():
     for analyzer, path, source in cases:
         result = analyzer.analyze(path, source)
         assert validate_analysis(analyzer, path, result) == ()
+
+
+def test_every_detected_language_has_exactly_one_builtin_analyzer():
+    registry = builtin_registry()
+    owned = [language for analyzer in registry.analyzers for language in analyzer.languages]
+
+    assert set(owned) == set(DETECTED_LANGUAGES)
+    assert len(owned) == len(set(owned))
+    assert all(registry.for_language(language) is not None for language in DETECTED_LANGUAGES)
 
 
 def test_builtin_analyzers_declare_honest_pattern_evidence_capabilities():

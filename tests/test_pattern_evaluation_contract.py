@@ -7,6 +7,8 @@ import pytest
 from anaxigraph.pattern_evaluation_contract import (
     PATTERN_ANALYSIS_KINDS,
     PATTERN_EVALUATION_SCHEMA,
+    PATTERN_PRESENCE,
+    PATTERN_RECOMMENDATIONS,
     PATTERN_REVIEW_CONTRACT_VERSION,
     PATTERN_REVIEW_SCHEMA,
     PATTERN_SCORE_CONTRACT_VERSION,
@@ -18,6 +20,7 @@ from anaxigraph.pattern_evaluation_contract import (
     validated_pattern_response,
 )
 from anaxigraph.semantic_contract import SemanticAnalysisError
+from anaxigraph.semantic_pattern_requests import _constraints
 from anaxigraph.semantic_taxonomy_contract import (
     response_contract_name,
     response_schema,
@@ -27,6 +30,14 @@ from anaxigraph.semantic_taxonomy_contract import (
 FINGERPRINT = "a" * 64
 TARGET_KEY = "module:src/provider.py"
 PATTERN_KEY = "provider-abstraction"
+
+
+def test_pattern_contract_owns_query_and_prompt_vocabulary():
+    properties = PATTERN_EVALUATION_SCHEMA["properties"]
+
+    assert properties["presence"]["enum"] == list(PATTERN_PRESENCE)
+    assert properties["recommendation"]["enum"] == list(PATTERN_RECOMMENDATIONS)
+    assert _constraints()["independent_dimensions"] == list(PATTERN_SCORE_DIMENSIONS)
 
 
 def _request(kind="pattern_assessment"):

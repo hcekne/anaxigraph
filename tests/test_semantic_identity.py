@@ -8,9 +8,22 @@ from anaxigraph.config import load_config
 from anaxigraph.persistence.semantic_evidence import semantic_inventory
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic_freshness import semantic_digest
-from anaxigraph.semantic_graph import _interface_hash
+from anaxigraph.semantic_graph import _interface_hash, _module_scope
 from anaxigraph.semantic_taxonomy_plan import _taxonomy_evidence, _taxonomy_settings
 from anaxigraph.understanding import SemanticEngine
+
+
+def test_module_scope_identity_uses_current_fact_references():
+    assert _module_scope(
+        "pkg/core.py",
+        {"artifact_id": "17", "file_fact_id": "29"},
+    ) == {
+        "scope_type": "module",
+        "scope_key": "pkg/core.py",
+        "artifact_id": 17,
+        "artifact_version_id": None,
+        "file_fact_id": 29,
+    }
 
 
 def test_executor_and_model_changes_do_not_invalidate_semantic_documents(

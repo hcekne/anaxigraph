@@ -12,6 +12,16 @@ class SupersededSemanticJob(RuntimeError):
     pass
 
 
+def _module_scope(path: str, module: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "scope_type": "module",
+        "scope_key": path,
+        "artifact_id": int(module["artifact_id"]),
+        "artifact_version_id": None,
+        "file_fact_id": int(module["file_fact_id"]),
+    }
+
+
 def _interface_hash(module: dict[str, Any]) -> str:
     return semantic_digest(
         {

@@ -11,6 +11,7 @@ import yaml
 
 from anaxigraph.analyzer_capabilities import declare_capabilities
 from anaxigraph.ir import module_identity, resolver_context
+from anaxigraph.languages import TEXT_ANALYZER_LANGUAGES
 from anaxigraph.models import Dependency, FileAnalysis
 
 _CSS_IMPORT = re.compile(r"@(?:import|use|forward)\s+(?:url\()?['\"]([^'\"]+)['\"]")
@@ -20,43 +21,7 @@ _MARKDOWN_LINK = re.compile(r"\[[^]]+\]\((?!https?://|mailto:|#)([^)#?]+)")
 class TextAnalyzer:
     name = "builtin-text"
     version = "1"
-    languages = frozenset(
-        {
-            "css",
-            "scss",
-            "sass",
-            "less",
-            "html",
-            "vue",
-            "svelte",
-            "go",
-            "rust",
-            "java",
-            "kotlin",
-            "ruby",
-            "php",
-            "csharp",
-            "c",
-            "cpp",
-            "swift",
-            "shell",
-            "sql",
-            "graphql",
-            "protobuf",
-            "json",
-            "yaml",
-            "toml",
-            "ini",
-            "xml",
-            "markdown",
-            "rst",
-            "text",
-            "terraform",
-            "hcl",
-            "dockerfile",
-            "makefile",
-        }
-    )
+    languages = TEXT_ANALYZER_LANGUAGES
     capabilities = declare_capabilities(
         name,
         version,

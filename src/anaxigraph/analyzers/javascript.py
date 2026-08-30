@@ -8,7 +8,7 @@ from pathlib import PurePosixPath
 
 from anaxigraph.analyzer_capabilities import declare_capabilities
 from anaxigraph.ir import module_identity, resolver_context, symbol_visibility
-from anaxigraph.languages import detect_language
+from anaxigraph.languages import JAVASCRIPT_ANALYZER_LANGUAGES, detect_language
 from anaxigraph.models import Dependency, FileAnalysis, Symbol
 
 _IMPORT_PATTERNS = (
@@ -41,7 +41,7 @@ _BRANCH = re.compile(r"\b(?:if|else\s+if|for|while|case|catch)\b|&&|\|\||\?\?")
 class JavaScriptAnalyzer:
     name = "builtin-js-lexer"
     version = "1"
-    languages = frozenset({"javascript", "javascriptreact", "typescript", "typescriptreact"})
+    languages = JAVASCRIPT_ANALYZER_LANGUAGES
     capabilities = declare_capabilities(
         name,
         version,

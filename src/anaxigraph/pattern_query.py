@@ -4,24 +4,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from anaxigraph.pattern_evaluation_contract import PATTERN_SCORE_DIMENSIONS
+from anaxigraph.pattern_evaluation_contract import (
+    PATTERN_PRESENCE,
+    PATTERN_RECOMMENDATIONS,
+    PATTERN_SCORE_DIMENSIONS,
+)
 from anaxigraph.pattern_targets import PATTERN_TARGET_LEVELS
 
 PATTERN_QUERY_VERSION = "pattern-query-v1"
 PATTERN_QUERY_LIMIT = 20
 PATTERN_QUERY_MAX_LIMIT = 100
-PATTERN_RECOMMENDATIONS = frozenset(
-    {
-        "retain",
-        "introduce",
-        "improve_conformance",
-        "replace",
-        "avoid",
-        "no_action",
-        "insufficient_evidence",
-    }
-)
-PATTERN_PRESENCE = frozenset({"present", "partial", "absent", "uncertain"})
 
 
 @dataclass(frozen=True, slots=True)

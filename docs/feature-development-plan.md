@@ -3200,6 +3200,39 @@ dossiers and 104 current intrinsic descriptions, created 63 `pending_intrinsic` 
 zero failed scopes. Item 5 remains in progress; its next slice must remove another characterized
 conversion or forwarding boundary, not merge the deliberately different read projections above.
 
+### 10.2 delivery record: one semantic scope, language, and pattern vocabulary
+
+The final item-5 slice used both the self-hosted module assessments and a deterministic duplicate
+scan. The saved AI assessments correctly supported keeping small cohesive taxonomy, packet-paging,
+parallel-execution, and graph-reading helpers separate. The deterministic scan then identified the
+parallel representations that could be removed safely: intrinsic and contextual planning repeated
+the same five module-scope identity fields four times; analyzer ownership repeated the complete
+fallback-language inventory; and pattern validation, work prompts, query filters, and human
+explanations repeated the same score dimensions and allowed outcomes.
+
+`semantic_graph._module_scope` now supplies one current-fact identity for module work. Language
+detection owns the complete detected-language set and its disjoint Python, JavaScript-family, and
+text-fallback analyzer partitions; a characterization proves every detected language has exactly
+one built-in analyzer. The strict pattern-response contract owns score dimensions, presence values,
+and recommendations, while prompts, queries, and explanation code consume that vocabulary. Adding
+a language or pattern dimension can no longer make one surface silently disagree with another.
+
+Together with the earlier freshness, digest, work-state, composition, and read-projection audits,
+this completes ordered deletion-map item 5. Evidence and provenance projections remain deliberately
+bounded to the question each caller asks; they do not become one maximal response object. The
+Python module count remains **240**, the exact production source ratchet falls from 53,725 to
+**53,667 lines**, and the maintainability warning count remains 146 with no new exception. Focused
+language, pattern, semantic identity, planning, and complete-understanding coverage passes with 86
+tests; the full suite passes with **616 tests** and every hard quality gate remains green.
+
+The exact rebuilt Docker image is healthy. Its self-scan reused all 468 analyses in 1.370 seconds,
+produced snapshot 403 with 4,418 relationships and 154 findings, and semantic preparation exercised
+the shared vocabularies without model work. It preserved 274 current contextual dossiers and 121
+current intrinsic descriptions, created 73 `pending_intrinsic` jobs, and reported zero failed
+module or aggregate scopes. Section 10.2 remains in progress against its reduction gate; the next
+slice moves to characterized persistence query/projection duplication rather than extending the
+semantic subsystem.
+
 ## 10.3 Make human understanding the primary dashboard journey
 
 Use the existing semantic repository dossier, reviewed taxonomy, graph, file detail, and history to

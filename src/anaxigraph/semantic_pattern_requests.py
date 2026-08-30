@@ -9,6 +9,7 @@ from typing import Any
 from anaxigraph.pattern_evaluation_contract import (
     PATTERN_REVIEW_CONTRACT_VERSION,
     PATTERN_SCORE_CONTRACT_VERSION,
+    PATTERN_SCORE_DIMENSIONS,
 )
 from anaxigraph.persistence.semantic_evidence import module_facts
 from anaxigraph.semantic_config_port import SemanticConfig
@@ -67,17 +68,7 @@ def _contract(kind: str) -> str:
 def _constraints() -> dict[str, Any]:
     return {
         "score_range": [0, 100],
-        "independent_dimensions": [
-            "applicability",
-            "suitability",
-            "conformance",
-            "opportunity",
-            "confidence",
-            "benefit",
-            "urgency",
-            "execution_safety",
-            "migration_cost",
-        ],
+        "independent_dimensions": list(PATTERN_SCORE_DIMENSIONS),
         "score_meanings": {
             "applicability": "Does this pattern address the kind of problem found here?",
             "suitability": "How well does this pattern fit this exact code and repository?",

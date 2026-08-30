@@ -27,13 +27,14 @@ from anaxigraph.analyzers.python_syntax import (
     source_segment,
 )
 from anaxigraph.ir import module_identity, resolver_context, symbol_visibility
+from anaxigraph.languages import PYTHON_ANALYZER_LANGUAGES
 from anaxigraph.models import Dependency, FileAnalysis, Symbol
 
 
 class PythonAnalyzer:
     name = "builtin-python-ast"
     version = "1"
-    languages = frozenset({"python"})
+    languages = PYTHON_ANALYZER_LANGUAGES
     capabilities = declare_capabilities(
         name,
         version,

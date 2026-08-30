@@ -12,7 +12,7 @@ from anaxigraph.semantic_freshness import (
     is_expired,
     semantic_input_hash,
 )
-from anaxigraph.semantic_graph import _module_priority
+from anaxigraph.semantic_graph import _module_priority, _module_scope
 from anaxigraph.semantic_records import (
     _ensure_job,
     _latest_document,
@@ -141,11 +141,7 @@ def _enqueue(plan: _ContextPlan, item: _ContextModule, expired: bool) -> int:
         plan.connection,
         repository_id=plan.repository_id,
         snapshot_id=plan.snapshot_id,
-        scope_type="module",
-        scope_key=item.path,
-        artifact_id=int(item.module["artifact_id"]),
-        artifact_version_id=None,
-        file_fact_id=int(item.module["file_fact_id"]),
+        **_module_scope(item.path, item.module),
         job_kind="context",
         reason=reason,
         priority=_module_priority(item.module, reason) - 10,
@@ -176,11 +172,7 @@ def _record(
         plan.connection,
         repository_id=plan.repository_id,
         snapshot_id=plan.snapshot_id,
-        scope_type="module",
-        scope_key=item.path,
-        artifact_id=int(item.module["artifact_id"]),
-        artifact_version_id=None,
-        file_fact_id=int(item.module["file_fact_id"]),
+        **_module_scope(item.path, item.module),
         status=status,
         reason=reason,
         intrinsic_input_hash=item.state.get("intrinsic_input_hash"),
