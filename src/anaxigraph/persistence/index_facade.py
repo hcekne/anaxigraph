@@ -2,6 +2,7 @@
 
 from anaxigraph.persistence.file_read import read_file_details  # noqa: F401
 from anaxigraph.persistence.finding_query import (  # noqa: F401
+    FINDING_STATUSES,
     FindingPageQuery,
     read_finding,
     read_finding_page,

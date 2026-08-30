@@ -12,6 +12,7 @@ from anaxigraph.persistence.temporal_reconstruction import (
     reconstruct_files_with_diagnostics,
     reconstruct_relationships_with_diagnostics,
 )
+from anaxigraph.persistence.temporal_schema import CANONICAL_CONTENT_TABLES
 
 
 def refresh_canonical_content_digest(connection: sqlite3.Connection) -> None:
@@ -35,16 +36,8 @@ def canonical_integrity_report(connection: sqlite3.Connection) -> dict[str, Any]
 
 
 def _canonical_content_digest(connection: sqlite3.Connection) -> str:
-    tables = (
-        "file_facts",
-        "fact_symbols",
-        "snapshot_file_changes",
-        "relationship_sets",
-        "relationship_edges",
-        "snapshot_relationship_changes",
-    )
     content = []
-    for table in tables:
+    for table in CANONICAL_CONTENT_TABLES:
         rows = connection.execute(f"SELECT * FROM {table} ORDER BY rowid").fetchall()
         content.append((table, [tuple(row) for row in rows]))
     return digest(content)

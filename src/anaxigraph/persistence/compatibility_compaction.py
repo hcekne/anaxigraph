@@ -7,6 +7,7 @@ import sqlite3
 from datetime import UTC, datetime
 from typing import Any
 
+from anaxigraph.persistence.index_parity import EDGE_FIELDS
 from anaxigraph.persistence.index_temporal_health import refresh_canonical_content_digest
 from anaxigraph.persistence.temporal_reads import snapshot_relationship_edges
 from anaxigraph.semantic_job_state import PATTERN_METADATA_RETENTION
@@ -145,19 +146,7 @@ def _present_tables(connection: sqlite3.Connection) -> set[str]:
 
 
 def _same_edge(left: sqlite3.Row, right: dict[str, Any]) -> bool:
-    fields = (
-        "source_artifact_id",
-        "target_artifact_id",
-        "target_external",
-        "relationship_type",
-        "source",
-        "confidence",
-        "evidence",
-        "source_line",
-        "weight",
-        "metadata_json",
-    )
-    return all(left[field] == right[field] for field in fields)
+    return all(left[field] == right[field] for field in EDGE_FIELDS)
 
 
 _CLAIMS_V9_SCHEMA = """

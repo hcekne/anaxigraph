@@ -11,6 +11,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from typing import Any
 
+from anaxigraph.guidance import FINDING_STATUSES
 from anaxigraph.persistence.finding_read import (  # noqa: F401
     PRIORITY_VERSION,
     finding_sort_key,
@@ -20,15 +21,6 @@ from anaxigraph.persistence.finding_read import (  # noqa: F401
 )
 
 _SEVERITY_RANK = {"info": 0, "warning": 1, "error": 2, "critical": 3}
-_STATUSES = {
-    "new",
-    "acknowledged",
-    "accepted",
-    "dismissed",
-    "planned",
-    "resolved",
-    "regressed",
-}
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,7 +89,7 @@ def read_finding_page(
 def _validate(query: FindingPageQuery, policy: Any) -> int:
     if query.view not in {"attention", "diagnostics"}:
         raise ValueError("finding view must be attention or diagnostics")
-    unknown_statuses = set(query.statuses) - _STATUSES
+    unknown_statuses = set(query.statuses).difference(FINDING_STATUSES)
     if unknown_statuses:
         raise ValueError(f"unsupported finding status: {sorted(unknown_statuses)[0]}")
     unknown_severities = set(query.severities) - set(_SEVERITY_RANK)

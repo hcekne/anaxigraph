@@ -10,6 +10,7 @@ from typing import Any
 
 from anaxigraph.environment_doctor import inspect_environment
 from anaxigraph.finding_transport import collect_finding_ledger, query_findings
+from anaxigraph.guidance import FINDING_STATUSES
 from anaxigraph.history_jobs import open_history_service
 from anaxigraph.onboarding_cli import configure_initialize_command
 from anaxigraph.registry import RepositoryTarget, parse_history_snapshots
@@ -30,15 +31,7 @@ def configure_finding_command(commands: Any, handler: Any, default_db: Path) -> 
     finding.add_argument("finding_id", type=int)
     finding.add_argument(
         "status",
-        choices=[
-            "new",
-            "acknowledged",
-            "accepted",
-            "dismissed",
-            "planned",
-            "resolved",
-            "regressed",
-        ],
+        choices=tuple(FINDING_STATUSES),
     )
     finding.add_argument("--repository", type=Path, default=Path.cwd())
     finding.add_argument("--db", type=Path, default=default_db)

@@ -4,6 +4,17 @@ from __future__ import annotations
 
 import sqlite3
 
+CANONICAL_CONTENT_TABLES = (
+    "file_facts",
+    "fact_symbols",
+    "snapshot_file_changes",
+    "relationship_sets",
+    "relationship_edges",
+    "snapshot_relationship_changes",
+)
+CHECKPOINT_TABLES = ("snapshot_checkpoints", "checkpoint_files", "checkpoint_relationships")
+TEMPORAL_TABLES = (*CANONICAL_CONTENT_TABLES, *CHECKPOINT_TABLES)
+
 TEMPORAL_SCHEMA = (
     """
     CREATE TABLE IF NOT EXISTS file_facts (
@@ -173,17 +184,7 @@ def install_temporal_schema(connection: sqlite3.Connection) -> None:
 
 
 def clear_temporal_facts(connection: sqlite3.Connection) -> None:
-    for table in (
-        "checkpoint_relationships",
-        "checkpoint_files",
-        "snapshot_checkpoints",
-        "snapshot_relationship_changes",
-        "relationship_edges",
-        "relationship_sets",
-        "snapshot_file_changes",
-        "fact_symbols",
-        "file_facts",
-    ):
+    for table in reversed(TEMPORAL_TABLES):
         connection.execute(f"DELETE FROM {table}")
 
 

@@ -471,16 +471,7 @@ class AnaxiIndex:
             return persistence.read_finding(connection, repository_id, finding_id, snapshot_id)
 
     def update_finding_status(self, repository_id: int, finding_id: int, status: str) -> bool:
-        allowed = {
-            "new",
-            "acknowledged",
-            "accepted",
-            "dismissed",
-            "planned",
-            "resolved",
-            "regressed",
-        }
-        if status not in allowed:
+        if status not in persistence.FINDING_STATUSES:
             raise ValueError(f"Unsupported finding status: {status}")
         with self.transaction() as connection:
             cursor = connection.execute(

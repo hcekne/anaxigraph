@@ -7,6 +7,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from anaxigraph.persistence.compatibility_compaction import COMPATIBILITY_TABLES
 from anaxigraph.persistence.index_backup import validate_schema_backup
 from anaxigraph.persistence.index_parity import parity_report
 from anaxigraph.persistence.index_temporal_health import (
@@ -15,19 +16,7 @@ from anaxigraph.persistence.index_temporal_health import (
     reconstruction_report,
 )
 from anaxigraph.persistence.semantic_fact_references import semantic_reference_report
-
-COMPATIBILITY_TABLES = ("file_versions", "symbols", "relationships", "group_memberships")
-TEMPORAL_TABLES = (
-    "file_facts",
-    "fact_symbols",
-    "snapshot_file_changes",
-    "relationship_sets",
-    "relationship_edges",
-    "snapshot_relationship_changes",
-    "snapshot_checkpoints",
-    "checkpoint_files",
-    "checkpoint_relationships",
-)
+from anaxigraph.persistence.temporal_schema import TEMPORAL_TABLES
 
 
 def inspect_index(

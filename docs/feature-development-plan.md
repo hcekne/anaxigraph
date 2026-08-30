@@ -3233,6 +3233,36 @@ module or aggregate scopes. Section 10.2 remains in progress against its reducti
 slice moves to characterized persistence query/projection duplication rather than extending the
 semantic subsystem.
 
+### 10.2 delivery record: one canonical persistence vocabulary
+
+The first persistence slice characterized repeated schema and lifecycle lists before moving any
+query implementation. The same nine temporal tables were separately named by schema clearing,
+fact counts, canonical digesting, and index diagnostics. Relationship parity and compatibility
+coverage backfill separately named the same ten edge fields. Finding query validation, the public
+index update, and CLI choices separately named the same seven lifecycle states even though the
+human guidance already owned their meanings and allowed transitions.
+
+`temporal_schema.py` now owns content, checkpoint, and complete temporal table inventories. Clearing
+uses their foreign-key-safe reverse order; counts, digests, and doctor output consume the same
+names. `index_parity.EDGE_FIELDS` now defines exact relationship equality for both parity and
+coverage migration. The guidance lifecycle now drives bounded-query validation, CLI choices, and
+AnaxiIndex status updates through its existing narrow facade. The schema-9 semantic-claim table text
+remains duplicated intentionally: it is a frozen migration input whose exact historical shape must
+not change when the current schema evolves.
+
+The Python module count remains **240**, the exact production source ratchet falls from 53,667 to
+**53,606 lines**, and the maintainability warning count remains 146 with no coupling exception.
+Focused temporal, checkpoint, migration, parity, doctor, finding, CLI, and API coverage passes with
+42 tests; the full suite passes with **616 tests** and every hard quality gate remains green.
+
+The exact rebuilt Docker image is healthy. Its self-scan reused all 468 analyses in 1.398 seconds,
+produced snapshot 406 with 4,424 relationships and 154 findings, and the live index doctor reported
+schema 10, `integrity=ok`, canonical-only parity, valid lineage, bounded reconstruction, an exact
+canonical digest, and no blocker. Semantic preparation spent no model tokens, preserved 265 current
+contextual dossiers and 128 current intrinsic descriptions, created 75 `pending_intrinsic` jobs,
+and reported zero failed scopes. The next persistence slice targets duplicated read/projection
+orchestration, not versioned migration contracts.
+
 ## 10.3 Make human understanding the primary dashboard journey
 
 Use the existing semantic repository dossier, reviewed taxonomy, graph, file detail, and history to

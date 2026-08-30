@@ -22,6 +22,7 @@ from anaxigraph.persistence.temporal_relationships import (
     persist_relationship_changes,
 )
 from anaxigraph.persistence.temporal_schema import (
+    TEMPORAL_TABLES,
     clear_temporal_facts,
     install_temporal_schema,
 )
@@ -110,20 +111,9 @@ def rebase_snapshot_facts(
 
 
 def temporal_counts(connection: sqlite3.Connection) -> dict[str, int]:
-    tables = (
-        "file_facts",
-        "fact_symbols",
-        "snapshot_file_changes",
-        "relationship_sets",
-        "relationship_edges",
-        "snapshot_relationship_changes",
-        "snapshot_checkpoints",
-        "checkpoint_files",
-        "checkpoint_relationships",
-    )
     return {
         table: int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
-        for table in tables
+        for table in TEMPORAL_TABLES
     }
 
 
