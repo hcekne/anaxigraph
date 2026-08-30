@@ -31,6 +31,22 @@ PATTERN_RECOMMENDATIONS = (
     "insufficient_evidence",
 )
 PATTERN_PRESENCE = ("present", "partial", "absent", "uncertain")
+PATTERN_EVALUATION_LIST_FIELDS = (
+    "evidence",
+    "counter_evidence",
+    "affected_targets",
+    "local_precedents",
+    "alternatives",
+    "prerequisites",
+    "risks",
+    "invariants",
+    "invalidation_conditions",
+)
+PATTERN_EXPLANATION_LIST_FIELDS = tuple(
+    field
+    for field in PATTERN_EVALUATION_LIST_FIELDS
+    if field not in {"affected_targets", "local_precedents"}
+)
 
 _STRINGS = {"type": "array", "items": {"type": "string"}}
 _SCORE = {
@@ -64,15 +80,7 @@ PATTERN_EVALUATION_SCHEMA: dict[str, Any] = {
         "recommendation": {"type": "string", "enum": list(PATTERN_RECOMMENDATIONS)},
         "scores": _SCORES,
         "rationale": {"type": "string"},
-        "evidence": _STRINGS,
-        "counter_evidence": _STRINGS,
-        "affected_targets": _STRINGS,
-        "local_precedents": _STRINGS,
-        "alternatives": _STRINGS,
-        "prerequisites": _STRINGS,
-        "risks": _STRINGS,
-        "invariants": _STRINGS,
-        "invalidation_conditions": _STRINGS,
+        **{field: _STRINGS for field in PATTERN_EVALUATION_LIST_FIELDS},
     },
     "required": [
         "score_contract_version",
@@ -84,15 +92,7 @@ PATTERN_EVALUATION_SCHEMA: dict[str, Any] = {
         "recommendation",
         "scores",
         "rationale",
-        "evidence",
-        "counter_evidence",
-        "affected_targets",
-        "local_precedents",
-        "alternatives",
-        "prerequisites",
-        "risks",
-        "invariants",
-        "invalidation_conditions",
+        *PATTERN_EVALUATION_LIST_FIELDS,
     ],
     "additionalProperties": False,
 }

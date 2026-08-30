@@ -154,6 +154,21 @@ def symbols_for_files(
     )
 
 
+def artifact_types_for_files(
+    connection: sqlite3.Connection,
+    files: list[dict[str, Any]],
+) -> dict[int, str]:
+    """Load artifact classifications for already-reconstructed files."""
+
+    rows = _rows_for_ids(
+        connection,
+        "artifacts",
+        "id",
+        [int(file["artifact_id"]) for file in files],
+    )
+    return {int(row["id"]): str(row["artifact_type"]) for row in rows}
+
+
 def snapshot_relationship_edges(
     connection: sqlite3.Connection,
     snapshot_id: int,

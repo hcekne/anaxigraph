@@ -7,6 +7,7 @@ import sqlite3
 from typing import Any
 
 from anaxigraph.persistence.temporal_reads import (
+    artifact_types_for_files,
     snapshot_files,
     snapshot_relationship_edges,
     symbols_for_files,
@@ -21,7 +22,7 @@ def semantic_inventory(
     files = snapshot_files(connection, snapshot_id)
     symbols = symbols_for_files(connection, files)
     edges = snapshot_relationship_edges(connection, snapshot_id)
-    artifact_types = _artifact_types(connection, files)
+    artifact_types = artifact_types_for_files(connection, files)
     inventory = _inventory(files, symbols, artifact_types)
     return inventory, _relationship_map(files, edges)
 
@@ -143,20 +144,6 @@ def _relationship_map(
     for values in result.values():
         values.sort(key=lambda item: json.dumps(item, sort_keys=True))
     return result
-
-
-def _artifact_types(
-    connection: sqlite3.Connection,
-    files: list[dict[str, Any]],
-) -> dict[int, str]:
-    ids = [int(file["artifact_id"]) for file in files]
-    if not ids:
-        return {}
-    placeholders = ",".join("?" for _ in ids)
-    rows = connection.execute(
-        f"SELECT id, artifact_type FROM artifacts WHERE id IN ({placeholders})", ids
-    ).fetchall()
-    return {int(row["id"]): str(row["artifact_type"]) for row in rows}
 
 
 def _json_list(value: str) -> list[Any]:

@@ -8,7 +8,10 @@ from collections import Counter
 from typing import Any
 
 from anaxigraph.pattern_catalog import bundled_pattern_catalog
-from anaxigraph.pattern_evaluation_contract import score_values
+from anaxigraph.pattern_evaluation_contract import (
+    PATTERN_EXPLANATION_LIST_FIELDS,
+    score_values,
+)
 from anaxigraph.pattern_language import pattern_explanation
 from anaxigraph.pattern_query import PATTERN_QUERY_VERSION, PatternEvaluationQuery
 from anaxigraph.semantic_file_language import explain_specialist_terms
@@ -224,18 +227,7 @@ def _details(evaluation: dict[str, Any], review: dict[str, Any]) -> dict[str, An
     }
     return {
         "score_rationales": score_rationales,
-        **{
-            key: _plain_strings(evaluation.get(key))
-            for key in (
-                "evidence",
-                "counter_evidence",
-                "alternatives",
-                "prerequisites",
-                "risks",
-                "invariants",
-                "invalidation_conditions",
-            )
-        },
+        **{key: _plain_strings(evaluation.get(key)) for key in PATTERN_EXPLANATION_LIST_FIELDS},
         "affected_targets": _strings(evaluation.get("affected_targets")),
         "local_precedents": _strings(evaluation.get("local_precedents")),
         "review_issues": _plain_bounded_objects(review.get("issues")),

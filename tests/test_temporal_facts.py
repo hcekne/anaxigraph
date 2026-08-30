@@ -11,6 +11,7 @@ from anaxigraph.persistence import (
     snapshot_relationship_edges,
     temporal_counts,
 )
+from anaxigraph.persistence.temporal_reads import artifact_types_for_files
 from anaxigraph.scanner import RepositoryScanner
 
 
@@ -26,6 +27,35 @@ def _commit_change(repository: Path) -> None:
         ["git", "-C", str(repository), "commit", "-qm", "Add triple helper"],
         check=True,
     )
+
+
+def test_artifact_type_lookup_batches_large_snapshots(database):
+    with database.transaction() as connection:
+        repository_id = connection.execute(
+            """
+            INSERT INTO repositories(name, path, created_at, updated_at)
+            VALUES ('large', '/large', '2026-01-01', '2026-01-01')
+            """
+        ).lastrowid
+        connection.executemany(
+            """
+            INSERT INTO artifacts(
+                repository_id, canonical_path, artifact_type, created_at
+            ) VALUES (?, ?, ?, '2026-01-01')
+            """,
+            [(repository_id, f"module-{index}.py", "source") for index in range(1_001)],
+        )
+        files = [
+            {"artifact_id": row["id"]}
+            for row in connection.execute(
+                "SELECT id FROM artifacts WHERE repository_id = ? ORDER BY id",
+                (repository_id,),
+            )
+        ]
+        artifact_types = artifact_types_for_files(connection, files)
+
+    assert len(artifact_types) == 1_001
+    assert set(artifact_types.values()) == {"source"}
 
 
 def test_canonical_frames_reconstruct_and_deduplicate_facts(repository, database):

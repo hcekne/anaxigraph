@@ -3263,6 +3263,44 @@ contextual dossiers and 128 current intrinsic descriptions, created 75 `pending_
 and reported zero failed scopes. The next persistence slice targets duplicated read/projection
 orchestration, not versioned migration contracts.
 
+### 10.2 delivery record: one artifact and pattern-detail projection
+
+The second persistence slice separated accidental duplication from explicit compatibility. Both
+architecture evaluation and semantic planning independently queried artifact classifications for
+the same already-reconstructed files. They now consume one temporal-read projection, which reuses
+the canonical 800-row batching policy instead of building an unbounded SQLite placeholder list.
+This is both a deletion and a scale correction: a 1,001-module characterization proves that the
+shared projection crosses SQLite parameter batches without changing architecture or semantic
+inventory results.
+
+Pattern validation and the public reviewed-pattern projection also repeated the same seven
+explanation-list field names. The strict evaluation contract now owns the complete ordered list
+vocabulary and the bounded detail reader consumes its explanation subset. A future addition can no
+longer be accepted and stored by the agent contract while silently disappearing from the human or
+MCP detail response.
+
+The audit deliberately retains three superficially similar shapes. Historical schema DDL remains
+frozen migration input; changing it to follow current schema constants would make old-version tests
+lie. Empty graph overview and neighborhood responses remain explicit public contracts because they
+have different paging and exploration semantics. The tiny graph projection boundary also remains:
+inlining it would push the canonical snapshot projection above the coupling ceiling merely to
+remove a wrapper. These are recorded constraints, not unexamined duplication.
+
+The Python module count remains **240**, the exact production source ratchet falls from 53,606 to
+**53,587 lines**, and the maintainability warning count remains 146 with no new exception. Focused
+scanner, temporal, semantic-identity, complete-understanding, pattern-contract, and pattern-query
+coverage passes with 55 tests; the full suite passes with **617 tests**. The next persistence slice
+must characterize duplicated query composition or a one-use persistence facade before deletion;
+it must not invent a maximal read model that widens every caller.
+
+The exact rebuilt Docker sidecar is healthy. Its normal self-scan reused all 468 analyses in 1.366
+seconds, kept snapshot 414 current with 4,426 relationships and 154 findings, and exercised the
+shared artifact projection through architecture evaluation. Semantic preparation used the same
+projection to preserve 264 current contextual dossiers and 125 current intrinsic descriptions,
+queue 79 missing intrinsic jobs, and report zero failures without spending model tokens. The live
+index doctor reports schema 10, `integrity=ok`, canonical-only parity, valid lineage, bounded
+reconstruction, an exact canonical digest, and no blocker.
+
 ## 10.3 Make human understanding the primary dashboard journey
 
 Use the existing semantic repository dossier, reviewed taxonomy, graph, file detail, and history to
