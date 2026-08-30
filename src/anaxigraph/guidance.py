@@ -104,8 +104,8 @@ OVERLAYS = {
         "registered handlers. Code can still reach them while the program runs, so inspect before deleting."
     ),
     "agent": (
-        "After you describe a coding task, green files are useful to read, amber files are marked "
-        "by project rules as needing extra care, and red files also changed on another branch. "
+        "After you describe a coding task, green files are useful to read and amber files are "
+        "marked by project rules as needing extra care. "
         "Before a task is described, every file uses a neutral color."
     ),
     "drift": (

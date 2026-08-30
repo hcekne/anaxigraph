@@ -80,7 +80,6 @@ class AgentRoutes:
         self,
         finding_id: int,
         repository_id: int | None = None,
-        branch: str | None = Query(default=None, max_length=250),
     ) -> dict[str, Any]:
         row = self.context.selected_repository(repository_id)
         try:
@@ -88,7 +87,6 @@ class AgentRoutes:
                 self.context.database,
                 repository_id=int(row["id"]),
                 finding_id=finding_id,
-                branch=branch,
                 config=self.context.selected_config(row),
             )
         except ValueError as exc:
@@ -101,7 +99,6 @@ class AgentRoutes:
                 self.context.database,
                 repository_id=int(row["id"]),
                 goal=request.goal,
-                branch=request.branch,
                 config=self.context.selected_config(row),
             )
         except ValueError as exc:
@@ -114,7 +111,6 @@ class AgentRoutes:
                 self.context.database,
                 repository_id=int(row["id"]),
                 target=request.target,
-                branch=request.branch,
                 config=self.context.selected_config(row),
             )
         except ValueError as exc:

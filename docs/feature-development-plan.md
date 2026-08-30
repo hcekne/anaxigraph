@@ -3490,8 +3490,33 @@ durable instructions but were not consumed by the dashboard or part of the relea
 `coding-loop-contract-v3` tool subset. They are removed instead of preserving three documentation
 authorities and sending unused workflow manifests on every dashboard load. Together these removals
 delete one CLI command, one REST route, two MCP tools, their remote adapter, and **231 production
-lines**, lowering the exact source ratchet from 52,144 to **51,913** without removing branch-risk
-evidence or the human glossary.
+lines**, lowering the exact source ratchet from 52,144 to **51,913**. That slice initially retained
+branch-overlap fields inside Scope and Impact so their complete caller map could be characterized;
+the following slice records their final disposition.
+
+### 10.2 delivery record: retire Git-overlap analysis and reuse legacy migration facts
+
+The remaining branch-overlap code was a small merge-conflict analyzer embedded in an architecture
+tool. It enumerated every local and origin branch, calculated merge-base diffs, threaded an optional
+branch argument through CLI, REST, MCP, finding handoff, Scope, and Impact, changed risk scores, and
+maintained a third graph-overlay state. Git and coding harnesses already own that decision. The
+feature is removed end to end; protected-path rules and architecture blast radius remain the
+extra-care signals AnaxiGraph is uniquely positioned to explain.
+
+Live startup against the retained pre-canonical index exposed the opposite kind of waste: the
+schema-6 migration processed 313 snapshots, 198,602 materialized file rows, and 1,471,557 materialized
+relationships in one transaction. Identical file facts repeatedly reloaded symbols, and identical
+relationship sets repeated insert/select checks. Migration-local fact, symbol, and relationship-set
+caches now reuse those immutable identities across frames while the existing exact-parity,
+transaction rollback, backup, restore, and restart tests remain authoritative. A new migration
+contract proves every distinct file fact is symbolized exactly once.
+
+The useful migration acceleration adds no schema or public surface. Removing Git-overlap analysis
+more than pays for it: the exact production-source ratchet falls another **118 lines**, from 51,913
+to **51,795**, while one MCP/REST/CLI argument family, three response fields, Git traversal helpers,
+and dashboard conflict state disappear. The complete suite passes with **603 tests**, all **17
+browser contracts** pass against a freshly scanned fixture, and the deterministic maintainability
+report falls to 138 warnings with no hard error.
 
 ## 10.3 Make human understanding the primary dashboard journey
 

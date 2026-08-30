@@ -140,7 +140,6 @@ def scope_metrics(
             database,
             repository_id=int(row["id"]),
             goal=goal,
-            branch=None,
             config=load_config(repository),
         )
     )

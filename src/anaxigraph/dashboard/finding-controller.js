@@ -57,7 +57,6 @@ function scopeResultMarkup(value) {
     ...(value.primary_files ?? []), ...(value.related_files ?? []),
   ].map((item) => item.path));
   state.protectedPaths = new Set((value.protected_files ?? []).map((item) => item.path));
-  state.conflictPaths = new Set((value.active_branch_conflicts ?? []).map((item) => item.path));
   activateAgentOverlay();
   const findings = (value.known_findings ?? []).map(
     (item) => `#${item.id} ${item.plain_language?.what ?? item.summary} (${item.status})`,
@@ -69,8 +68,7 @@ function scopeResultMarkup(value) {
     + resultList("Related files worth reading", value.related_files?.map(pathOf))
     + resultList("Relevant tests", value.tests)
     + resultList("Existing findings", findings)
-    + resultList("Project rules that apply", rules)
-    + resultList("Files also changed on another branch", value.active_branch_conflicts?.map(branchPath));
+    + resultList("Project rules that apply", rules);
   return agentResultHeader(
     value,
     "Files and facts for this coding task",
@@ -111,10 +109,6 @@ function agentResultHeader(value, eyebrow, title, fallback) {
 
 function pathOf(item) {
   return item.path;
-}
-
-function branchPath(item) {
-  return `${item.branch}: ${item.path}`;
 }
 
 function riskLabel(value) {
@@ -248,11 +242,9 @@ function activateAgentOverlay() {
 export function renderFindingHandoff(value) {
   const result = byId("agent-result");
   const finding = value.finding;
-  const scope = value.scope || {};
   state.lastAgentPrompt = value.agent_prompt || "";
   state.highlightedPaths = new Set((value.recommended_context || []).map(String));
   state.protectedPaths = new Set((value.protected_paths || []).map(String));
-  state.conflictPaths = new Set((scope.active_branch_conflicts || []).map((item) => item.path));
   activateAgentOverlay();
   const explanation = findingCards([finding], { glossary: state.glossary, actions: false });
   result.innerHTML = `<div class="panel-heading"><div><p class="eyebrow">Finding #${finding.id} · coding-agent handoff</p><h2>Give the coding agent the same explanation you can read here</h2><p class="panel-copy">${escapeHtml(value.workflow_note)}</p></div><span class="risk ${escapeHtml(value.risk)}">${escapeHtml(riskLabel(value.risk))}</span></div>${explanation}${findingHistoryMarkup(value.finding_history)}<div class="result-columns">${resultList("Files worth reading", value.recommended_context)}${resultList("Relevant tests", value.relevant_tests)}${resultList("Files project rules mark for extra care", value.protected_paths)}${resultList("How to check the result", value.verification)}</div><h3>Copy this into Codex</h3><textarea id="agent-prompt" class="agent-prompt" readonly>${escapeHtml(state.lastAgentPrompt)}</textarea><div class="handoff-actions"><button id="copy-agent-prompt" class="button" type="button">Copy agent prompt</button><span class="muted">ANAXIGRAPH_FINDING_CONTEXT provides the same information as named JSON fields for coding tools.</span></div>`;

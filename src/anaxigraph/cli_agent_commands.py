@@ -21,7 +21,6 @@ def configure_agent_commands(commands: Any) -> None:
     )
     add_repository_arguments(scope)
     scope.add_argument("--goal", required=True, help="The coding goal")
-    scope.add_argument("--branch", help="Branch to check for files also changed elsewhere")
     _add_service_url(scope)
     scope.set_defaults(handler=_scope, db=None)
 
@@ -30,7 +29,6 @@ def configure_agent_commands(commands: Any) -> None:
     )
     add_repository_arguments(impact)
     impact.add_argument("--target", required=True, help="Repository path or unique symbol")
-    impact.add_argument("--branch", help="Branch to check for files also changed elsewhere")
     _add_service_url(impact)
     impact.set_defaults(handler=_impact, db=None)
 
@@ -52,7 +50,6 @@ def _scope(args: argparse.Namespace) -> dict[str, Any]:
             service_agent_scope(
                 service,
                 goal=args.goal,
-                branch=args.branch,
             ),
             service,
         )
@@ -61,7 +58,6 @@ def _scope(args: argparse.Namespace) -> dict[str, Any]:
         database,
         repository_id=repository_id,
         goal=args.goal,
-        branch=args.branch,
         config=config,
     )
 
@@ -73,7 +69,6 @@ def _impact(args: argparse.Namespace) -> dict[str, Any]:
             service_impact(
                 service,
                 requested_target=args.target,
-                branch=args.branch,
             ),
             service,
         )
@@ -82,7 +77,6 @@ def _impact(args: argparse.Namespace) -> dict[str, Any]:
         database,
         repository_id=repository_id,
         target=args.target,
-        branch=args.branch,
         config=config,
     )
 

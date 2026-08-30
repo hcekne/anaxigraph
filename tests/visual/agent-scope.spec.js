@@ -16,7 +16,6 @@ test("agent workbench shows the readable architecture recommendation", async ({ 
     tests: ["tests/visual/agent-scope.spec.js"],
     known_findings: [],
     architecture_rules: [],
-    active_branch_conflicts: [],
     architecture_decision: {
       plain_language: {
         conclusion: "This recommendation uses current module meaning.",

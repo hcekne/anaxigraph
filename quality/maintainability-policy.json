@@ -6,7 +6,7 @@
   "production_source_budget": {
     "root": "src/anaxigraph",
     "extensions": [".py", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".css", ".html"],
-    "baseline_lines": 51913,
+    "baseline_lines": 51795,
     "target_lines": 48500
   },
   "function_limits": {
@@ -27,7 +27,7 @@
     "removal": "Lower each baseline in the same change that reduces it; remove it once within limits. Remaining analyzer debt belongs to Phase 4B, agent and semantic-taxonomy orchestration debt is retired during Phase 6, and temporal/dashboard debt belongs to Phase 7. Every other legacy entry remains a continuous exact no-growth ratchet."
   },
   "legacy_functions": {
-    "src/anaxigraph/agent.py::agent_scope": [88, 5],
+    "src/anaxigraph/agent.py::agent_scope": [84, 5],
     "src/anaxigraph/analyzers/javascript.py::_strip_comments": [52, 21],
     "src/anaxigraph/analyzers/text.py::_jsonc_to_json": [37, 18],
     "src/anaxigraph/architecture.py::evaluate_architecture": [64, 13],
@@ -56,7 +56,7 @@
     "src/anaxigraph/semantic_taxonomy_runner.py::analyze_taxonomy_review": [79, 11]
   },
   "legacy_coupling": {
-    "anaxigraph": [12, 0],
+    "anaxigraph": [11, 0],
     "anaxigraph.api": [1, 11],
     "anaxigraph.config": [35, 0],
     "anaxigraph.models": [10, 0],

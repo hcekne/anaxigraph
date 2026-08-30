@@ -227,7 +227,6 @@ class CoreMcpTools:
     def scope(
         self,
         goal: str,
-        branch: str = "",
         repository: str = "",
     ) -> dict[str, Any]:
         row, root = self.context.select(repository)
@@ -235,17 +234,15 @@ class CoreMcpTools:
             self.database,
             repository_id=int(row["id"]),
             goal=goal,
-            branch=branch or None,
             config=self.context.config_for(row, root),
         )
 
-    def impact(self, target: str, branch: str = "", repository: str = "") -> dict[str, Any]:
+    def impact(self, target: str, repository: str = "") -> dict[str, Any]:
         row, root = self.context.select(repository)
         return impact_analysis(
             self.database,
             repository_id=int(row["id"]),
             target=target,
-            branch=branch or None,
             config=self.context.config_for(row, root),
         )
 

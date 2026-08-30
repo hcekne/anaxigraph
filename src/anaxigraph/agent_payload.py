@@ -1,14 +1,11 @@
-"""Wire-budget, collision, and file-summary helpers for agent responses."""
+"""Wire-budget and file-summary helpers for agent responses."""
 
 from __future__ import annotations
 
-import re
 from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
-from anaxigraph import git
 from anaxigraph.agent_decision_payload import (
     compact_architecture_decision,
 )
@@ -21,7 +18,6 @@ from anaxigraph.guidance import FILE_MEASUREMENT_MEANINGS
 @dataclass(frozen=True, slots=True)
 class _ScopePayloadData:
     goal: str
-    branch: str | None
     repository_id: int
     snapshot_id: int
     map_status: dict[str, Any]
@@ -37,7 +33,6 @@ class _ScopePayloadData:
     rules: list[dict[str, Any]]
     findings: list[dict[str, Any]]
     decision: dict[str, Any]
-    conflicts: list[dict[str, str]]
     context_limit: int
     payload_limit_bytes: int
     started_at: float
@@ -60,11 +55,10 @@ def _scope_payload(data: _ScopePayloadData) -> dict[str, Any]:
     high_degree = any(
         len(data.outgoing[item]) + len(data.incoming[item]) >= 20 for item in data.primary_ids
     )
-    risk = _scope_risk(protected, data.conflicts, high_degree, data.related_ids)
-    risk_reasons = _risk_reasons(protected, data.conflicts, high_degree)
+    risk = _scope_risk(protected, high_degree, data.related_ids)
+    risk_reasons = _risk_reasons(protected, high_degree)
     payload = {
         "goal": data.goal,
-        "branch": data.branch,
         "repository_id": data.repository_id,
         "snapshot_id": data.snapshot_id,
         "map_status": data.map_status,
@@ -76,7 +70,6 @@ def _scope_payload(data: _ScopePayloadData) -> dict[str, Any]:
         "architecture_rules": data.rules,
         "known_findings": data.findings,
         "architecture_decision": data.decision,
-        "active_branch_conflicts": data.conflicts,
         "risk": risk,
         "risk_reasons": risk_reasons,
         "plain_language": _scope_explanation(
@@ -125,14 +118,14 @@ def _risk_explanation(risk: str, reasons: list[str]) -> dict[str, Any]:
     meaning = {
         "high": (
             "Check the listed risks before editing. High means AnaxiGraph found an extra-care "
-            "file, a branch conflict, or many direct code links; it does not mean the code is broken."
+            "file or many direct code links; it does not mean the code is broken."
         ),
         "medium": (
             "Read the related files before editing because the change may affect nearby code. "
             "This is not a code-quality grade."
         ),
         "low": (
-            "AnaxiGraph did not find an extra-care file, branch conflict, or unusually connected "
+            "AnaxiGraph did not find an extra-care file or unusually connected "
             "starting file. Missing or runtime-only links can still hide effects."
         ),
     }.get(risk, "Read the listed evidence before deciding how carefully to proceed.")
@@ -141,16 +134,13 @@ def _risk_explanation(risk: str, reasons: list[str]) -> dict[str, Any]:
 
 def _scope_risk(
     protected: list[dict[str, Any]],
-    conflicts: list[dict[str, str]],
     high_degree: bool,
     related_ids: set[int],
 ) -> str:
-    return "high" if protected or conflicts or high_degree else "medium" if related_ids else "low"
+    return "high" if protected or high_degree else "medium" if related_ids else "low"
 
 
-def _risk_reasons(
-    protected: list[dict[str, Any]], conflicts: list[dict[str, str]], high_degree: bool
-) -> list[str]:
+def _risk_reasons(protected: list[dict[str, Any]], high_degree: bool) -> list[str]:
     return [
         reason
         for reason, active in (
@@ -158,7 +148,6 @@ def _risk_reasons(
                 "The task includes a file that project rules mark as needing extra care.",
                 bool(protected),
             ),
-            ("Another branch changes a file in this task context.", bool(conflicts)),
             (
                 "A likely implementation file has at least 20 direct incoming or outgoing code links, so a change may reach many files.",
                 high_degree,
@@ -179,7 +168,6 @@ def _scope_stats(
         "related_files": len(data.related_ids),
         "tests": len(data.tests),
         "protected_files": len(protected),
-        "conflicting_files": len({item["path"] for item in data.conflicts}),
     }
 
 
@@ -248,9 +236,6 @@ def _trim_scope_collections(
         for rule in payload["architecture_rules"]:
             omitted["rule_details"] += int(rule.pop("description", None) is not None)
             omitted["rule_details"] += int(rule.pop("parameters", None) is not None)
-    while size() > limit and payload["active_branch_conflicts"]:
-        payload["active_branch_conflicts"].pop()
-        omitted["branch_conflicts"] += 1
     if size() <= limit:
         return
     for collection in (payload["primary_files"], payload["protected_files"]):
@@ -321,8 +306,6 @@ def _compact_optional_scope(
     if size() > limit and payload.get("stats"):
         omitted["stats"] = len(payload["stats"])
         payload.pop("stats")
-    if size() > limit and payload.get("branch") is None:
-        payload.pop("branch")
     if size() > limit and limit <= 4_000:
         payload.pop("telemetry", None)
 
@@ -344,7 +327,6 @@ def _scope_omissions() -> dict[str, int]:
             "related_files",
             "known_findings",
             "interfaces",
-            "branch_conflicts",
             "rule_details",
             "summaries_compacted",
             "protected_file_details",
@@ -357,20 +339,6 @@ def _scope_omissions() -> dict[str, int]:
             "stats",
         )
     }
-
-
-def _branch_conflicts(root: Path, paths: set[str], branch: str | None) -> list[dict[str, str]]:
-    if branch and not re.fullmatch(r"[A-Za-z0-9._/-]{1,250}", branch):
-        raise ValueError("Branch contains unsupported characters")
-    try:
-        branches = git.active_branch_changes(root, exclude=branch)
-    except (git.GitError, OSError):
-        return []
-    result = []
-    for name, changed in branches.items():
-        for path in sorted(paths & changed):
-            result.append({"branch": name, "path": path})
-    return result
 
 
 def _is_protected(path: str, config: AnaxiGraphConfig) -> bool:

@@ -191,7 +191,6 @@ def service_agent_scope(
     target: SemanticServiceTarget,
     *,
     goal: str,
-    branch: str | None,
     timeout: float = 30,
 ) -> dict[str, Any]:
     return _service_agent_request(
@@ -199,7 +198,6 @@ def service_agent_scope(
         "/api/agent-scope",
         {
             "goal": goal,
-            "branch": branch,
             "repository_id": target.repository_id,
         },
         timeout=timeout,
@@ -210,7 +208,6 @@ def service_impact(
     target: SemanticServiceTarget,
     *,
     requested_target: str,
-    branch: str | None,
     timeout: float = 30,
 ) -> dict[str, Any]:
     return _service_agent_request(
@@ -218,7 +215,6 @@ def service_impact(
         "/api/impact",
         {
             "target": requested_target,
-            "branch": branch,
             "repository_id": target.repository_id,
         },
         timeout=timeout,

@@ -133,7 +133,6 @@ function resetRepositoryState() {
   state.selectedNode = null;
   state.highlightedPaths.clear();
   state.protectedPaths.clear();
-  state.conflictPaths.clear();
   state.modulePage = 1;
   state.expandedModuleId = null;
   state.hiddenGroups.clear();

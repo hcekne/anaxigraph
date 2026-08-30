@@ -353,7 +353,6 @@ export function nodeColor(node) {
     return dead ? theme.warm : theme.idle;
   }
   if (overlay === "agent") {
-    if (state.conflictPaths.has(node.path)) return theme.hot;
     if (state.protectedPaths.has(node.path)) return theme.warm;
     if (state.highlightedPaths.has(node.path)) return theme.cool;
     return theme.safe;

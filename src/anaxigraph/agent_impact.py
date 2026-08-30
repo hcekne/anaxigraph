@@ -4,12 +4,10 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 import anaxigraph.agent_graph as agent_graph
 from anaxigraph.agent_payload import (
-    _branch_conflicts,
     _file_summary,
     _is_protected,
     _risk_explanation,
@@ -21,7 +19,6 @@ from anaxigraph.persistence.snapshot_projection import resolve_projected_target
 
 @dataclass(frozen=True, slots=True)
 class _ImpactGraph:
-    repository: dict[str, Any]
     snapshot_id: int
     map_status: dict[str, Any]
     files: dict[int, dict[str, Any]]
@@ -46,27 +43,28 @@ def build_impact_analysis(
     *,
     repository_id: int,
     target: str,
-    branch: str | None,
     config: Any,
 ) -> dict[str, Any]:
     started = time.perf_counter()
     graph = _impact_graph(database, repository_id, target)
     evidence = _impact_evidence(graph, target, config)
     return _with_response_telemetry(
-        _impact_response(repository_id, branch, graph, evidence),
+        _impact_response(repository_id, graph, evidence),
         started,
         action="impact",
     )
 
 
 def _impact_graph(database: Any, repository_id: int, target: str) -> _ImpactGraph:
-    repository, snapshot_id, map_status = agent_graph._repository_map_state(database, repository_id)
+    _repository, snapshot_id, map_status = agent_graph._repository_map_state(
+        database, repository_id
+    )
     with database.connect() as connection:
         files, outgoing, incoming = agent_graph._projected_graph_maps(connection, snapshot_id)
         target_id = resolve_projected_target(connection, snapshot_id, files, target)
     if target_id is None:
         raise ValueError(f"Target not found: {target}")
-    return _ImpactGraph(repository, snapshot_id, map_status, files, outgoing, incoming, target_id)
+    return _ImpactGraph(snapshot_id, map_status, files, outgoing, incoming, target_id)
 
 
 def _impact_evidence(graph: _ImpactGraph, target: str, config: Any) -> _ImpactEvidence:
@@ -99,15 +97,12 @@ def _impact_evidence(graph: _ImpactGraph, target: str, config: Any) -> _ImpactEv
 
 def _impact_response(
     repository_id: int,
-    branch: str | None,
     graph: _ImpactGraph,
     evidence: _ImpactEvidence,
 ) -> dict[str, Any]:
-    paths = {graph.files[item]["path"] for item in evidence.affected}
-    conflicts = _branch_conflicts(Path(graph.repository["path"]), paths, branch)
     degree = len(graph.outgoing[graph.target_id]) + len(graph.incoming[graph.target_id])
-    risk = _impact_risk(evidence, conflicts, degree)
-    risk_reasons = _impact_risk_reasons(evidence, conflicts, degree)
+    risk = _impact_risk(evidence, degree)
+    risk_reasons = _impact_risk_reasons(evidence, degree)
     second_only = evidence.second - evidence.direct
     return {
         "repository_id": repository_id,
@@ -128,7 +123,6 @@ def _impact_response(
         "critical_paths_affected": evidence.protected,
         "tests_relevant": sorted(evidence.tests),
         "database_migrations_possibly_affected": evidence.migrations,
-        "active_feature_branches_affected": conflicts,
         "risk": risk,
         "risk_reasons": risk_reasons,
         "plain_language": _impact_language(graph, evidence, risk, risk_reasons),
@@ -176,22 +170,18 @@ def _impact_metrics(
     }
 
 
-def _impact_risk(evidence: _ImpactEvidence, conflicts: list[dict[str, str]], degree: int) -> str:
-    if evidence.protected or conflicts or len(evidence.transitive) >= 25 or degree >= 20:
+def _impact_risk(evidence: _ImpactEvidence, degree: int) -> str:
+    if evidence.protected or len(evidence.transitive) >= 25 or degree >= 20:
         return "high"
     if evidence.direct or evidence.migrations:
         return "medium"
     return "low"
 
 
-def _impact_risk_reasons(
-    evidence: _ImpactEvidence, conflicts: list[dict[str, str]], degree: int
-) -> list[str]:
+def _impact_risk_reasons(evidence: _ImpactEvidence, degree: int) -> list[str]:
     reasons = []
     if evidence.protected:
         reasons.append("A project rule marks at least one possibly affected file for extra care.")
-    if conflicts:
-        reasons.append("Another branch also changes at least one possibly affected file.")
     if len(evidence.transitive) >= 25:
         reasons.append(
             f"At least {len(evidence.transitive)} files may be affected through one or more code links."

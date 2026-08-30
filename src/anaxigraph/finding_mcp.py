@@ -82,7 +82,6 @@ def _register_context_tool(
     )
     def finding_work(
         finding_id: int,
-        branch: str = "",
         repository: str = "",
     ) -> dict[str, Any]:
         row, root = context(repository)
@@ -90,7 +89,6 @@ def _register_context_tool(
             database,
             repository_id=int(row["id"]),
             finding_id=finding_id,
-            branch=branch or None,
             config=config_for(row, root),
         )
 

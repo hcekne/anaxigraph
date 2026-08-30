@@ -144,7 +144,7 @@ export function renderLegend() {
     items = state.groupRoots.filter((group) => !state.hiddenGroups.has(group.name)).slice(0, 12)
       .map((group) => [humanize(group.name), groupColor(group.name)]);
   } else if (overlay === "agent") {
-    items = [["Useful for this task", theme.cool], ["Needs extra care", theme.warm], ["Also changed on another branch", theme.hot]];
+    items = [["Useful for this task", theme.cool], ["Needs extra care", theme.warm]];
   } else if (overlay === "coverage" && visibleGraphNodes().every((node) => node.line_coverage == null)) {
     items = [["No imported coverage", theme.missing]];
   } else if (overlay === "drift") {

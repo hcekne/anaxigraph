@@ -26,7 +26,6 @@ def test_core_coding_loop_stays_precise_bounded_and_refreshes_current_evidence(
         database,
         repository_id=first_scan.repository_id,
         goal=manifest["scope_goal"],
-        branch=None,
         config=config,
     )
 
@@ -51,7 +50,6 @@ def test_core_coding_loop_stays_precise_bounded_and_refreshes_current_evidence(
         database,
         repository_id=first_scan.repository_id,
         target="src/sample/languages.py",
-        branch=None,
         config=config,
     )
     dependant_paths = {item["path"] for item in impact["direct_dependants"]}
@@ -68,7 +66,6 @@ def test_core_coding_loop_stays_precise_bounded_and_refreshes_current_evidence(
         database,
         repository_id=second_scan.repository_id,
         goal=manifest["scope_goal"],
-        branch=None,
         config=config,
     )
 
@@ -91,7 +88,6 @@ def test_core_coding_loop_stays_precise_bounded_and_refreshes_current_evidence(
         database,
         repository_id=third_scan.repository_id,
         goal=manifest["scope_goal"],
-        branch=None,
         config=config,
     )
 

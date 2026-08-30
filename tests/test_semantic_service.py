@@ -173,7 +173,6 @@ def test_service_scope_sends_the_repository_selector_and_goal(monkeypatch):
     result = service_agent_scope(
         target,
         goal="Measure semantic work",
-        branch="main",
         timeout=9,
     )
 
@@ -184,7 +183,6 @@ def test_service_scope_sends_the_repository_selector_and_goal(monkeypatch):
         "timeout": 9,
         "body": {
             "goal": "Measure semantic work",
-            "branch": "main",
             "repository_id": 4,
         },
     }

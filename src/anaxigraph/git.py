@@ -1,4 +1,4 @@
-"""Read-only Git integration used by scans, history, and agent collision checks."""
+"""Read-only Git integration used by scans and history."""
 
 from __future__ import annotations
 
@@ -374,63 +374,3 @@ def recent_changes(root: Path, *, limit: int = 5_000) -> list[GitChange]:
                 )
             )
     return changes
-
-
-def changed_paths(root: Path, branch: str, *, base: str | None = None) -> set[str]:
-    if not is_repository(root):
-        return set()
-    base = base or _default_comparison_branch(root)
-    merge_base = _run(root, "merge-base", base, branch, check=False)
-    if merge_base.returncode != 0:
-        return set()
-    result = _run(
-        root,
-        "diff",
-        "--name-only",
-        "--diff-filter=ACMRTUXB",
-        f"{merge_base.stdout.strip()}...{branch}",
-        check=False,
-    )
-    return {line.strip() for line in result.stdout.splitlines() if line.strip()}
-
-
-def active_branch_changes(root: Path, *, exclude: str | None = None) -> dict[str, set[str]]:
-    if not is_repository(root):
-        return {}
-    result = _run(
-        root,
-        "for-each-ref",
-        "--format=%(refname:short)",
-        "refs/heads",
-        "refs/remotes/origin",
-        check=False,
-    )
-    base = _default_comparison_branch(root)
-    branches: dict[str, set[str]] = {}
-    for branch in result.stdout.splitlines():
-        branch = branch.strip()
-        if not branch or branch.endswith("/HEAD") or branch in {base, f"origin/{base}", exclude}:
-            continue
-        paths = changed_paths(root, branch, base=base)
-        if paths:
-            branches[branch] = paths
-    return branches
-
-
-def _default_comparison_branch(root: Path) -> str:
-    info = metadata(root)
-    candidates = [
-        f"origin/{info.default_branch}" if info.default_branch else "",
-        info.default_branch or "",
-        "origin/main",
-        "main",
-        "origin/master",
-        "master",
-    ]
-    for candidate in candidates:
-        if not candidate:
-            continue
-        result = _run(root, "rev-parse", "--verify", candidate, check=False)
-        if result.returncode == 0:
-            return candidate
-    return "HEAD"

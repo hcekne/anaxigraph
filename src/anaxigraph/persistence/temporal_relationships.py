@@ -25,6 +25,8 @@ def legacy_relationship_sets(
     repository_id: int,
     files: dict[int, dict[str, Any]],
     analysis_signature: str,
+    *,
+    set_cache: dict[str, int] | None = None,
 ) -> dict[int, int]:
     rows = connection.execute(
         """
@@ -44,6 +46,7 @@ def legacy_relationship_sets(
             source_id,
             values,
             analysis_signature,
+            cache=set_cache,
         )
         for source_id, values in grouped.items()
         if source_id in files
@@ -173,6 +176,8 @@ def _upsert_relationship_set(
     source_artifact_id: int,
     edges: list[dict[str, Any]],
     analysis_signature: str,
+    *,
+    cache: dict[str, int] | None = None,
 ) -> int:
     content_hash = _relationship_content_hash(edges)
     fact = connection.execute(
@@ -181,6 +186,8 @@ def _upsert_relationship_set(
     ).fetchone()
     resolver_hash = resolver_context_hash(fact["metadata_json"] if fact else "{}")
     set_key = digest([source_artifact_id, resolver_hash, analysis_signature, content_hash])
+    if cache is not None and set_key in cache:
+        return cache[set_key]
     connection.execute(
         """
         INSERT OR IGNORE INTO relationship_sets(
@@ -205,12 +212,12 @@ def _upsert_relationship_set(
     ).fetchone()
     assert row is not None
     set_id = int(row["id"])
-    exists = connection.execute(
-        "SELECT 1 FROM relationship_edges WHERE relationship_set_id = ? LIMIT 1",
-        (set_id,),
-    ).fetchone()
-    if not exists:
+    if not connection.execute(
+        "SELECT 1 FROM relationship_edges WHERE relationship_set_id = ? LIMIT 1", (set_id,)
+    ).fetchone():
         _insert_edges(connection, set_id, edges)
+    if cache is not None:
+        cache[set_key] = set_id
     return set_id
 
 

@@ -76,7 +76,6 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
         database,
         repository_id=stats.repository_id,
         goal="Change Calculator behavior",
-        branch=None,
         config=config,
     )
     assert scope["primary_files"][0]["semantic"]["status"] == "current"

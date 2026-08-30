@@ -44,6 +44,9 @@ def migrate_legacy_temporal_facts(connection: sqlite3.Connection) -> dict[str, i
     ).fetchall()
     prior_by_repository: dict[int, int | None] = {}
     sequence_by_repository: defaultdict[int, int] = defaultdict(int)
+    file_fact_cache: dict[str, int] = {}
+    symbolized_facts: set[int] = set()
+    relationship_set_cache: dict[str, int] = {}
     for snapshot in snapshots:
         repository_id = int(snapshot["repository_id"])
         snapshot_id = int(snapshot["id"])
@@ -55,6 +58,9 @@ def migrate_legacy_temporal_facts(connection: sqlite3.Connection) -> dict[str, i
             base_snapshot_id=base_snapshot_id,
             sequence=sequence_by_repository[repository_id],
             signature=analysis_signature(snapshot["metadata_json"]),
+            file_fact_cache=file_fact_cache,
+            symbolized_facts=symbolized_facts,
+            relationship_set_cache=relationship_set_cache,
         )
         prior_by_repository[repository_id] = snapshot_id
         sequence_by_repository[repository_id] += 1
@@ -125,13 +131,22 @@ def _record_snapshot(
     base_snapshot_id: int | None,
     sequence: int,
     signature: str,
+    file_fact_cache: dict[str, int],
+    symbolized_facts: set[int],
+    relationship_set_cache: dict[str, int],
 ) -> None:
     connection.execute(
         "UPDATE snapshots SET base_snapshot_id = ?, sequence = ? WHERE id = ?",
         (base_snapshot_id, sequence, snapshot_id),
     )
     previous_files = reconstruct_files(connection, base_snapshot_id)
-    current_files = legacy_file_facts(connection, snapshot_id, signature)
+    current_files = legacy_file_facts(
+        connection,
+        snapshot_id,
+        signature,
+        fact_cache=file_fact_cache,
+        symbolized_facts=symbolized_facts,
+    )
     persist_file_changes(connection, snapshot_id, previous_files, current_files)
     previous_sets = reconstruct_relationships(connection, base_snapshot_id)
     current_sets = legacy_relationship_sets(
@@ -140,6 +155,7 @@ def _record_snapshot(
         repository_id,
         current_files,
         signature,
+        set_cache=relationship_set_cache,
     )
     persist_relationship_changes(connection, snapshot_id, previous_sets, current_sets)
     refresh_checkpoint_if_due(connection, snapshot_id)

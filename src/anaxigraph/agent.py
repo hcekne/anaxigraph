@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import time
-from pathlib import Path
 from typing import Any
 
 from anaxigraph.agent_decision import architecture_decision
@@ -23,7 +22,6 @@ from anaxigraph.agent_graph import (
 )
 from anaxigraph.agent_impact import build_impact_analysis
 from anaxigraph.agent_payload import (
-    _branch_conflicts,
     _is_protected,
     _scope_payload,
     _ScopePayloadData,
@@ -37,11 +35,10 @@ def agent_scope(
     *,
     repository_id: int,
     goal: str,
-    branch: str | None,
     config: AnaxiGraphConfig,
 ) -> dict[str, Any]:
     started = time.perf_counter()
-    repository, snapshot_id, map_status = _repository_map_state(database, repository_id)
+    _repository, snapshot_id, map_status = _repository_map_state(database, repository_id)
     with database.connect() as connection:
         files, outgoing, incoming, hierarchy = _scope_graph(connection, repository_id, snapshot_id)
         ranked = _rank_files(connection, snapshot_id, files, goal)
@@ -81,7 +78,6 @@ def agent_scope(
             set(primary_ids),
         )
         symbols, interfaces = _scope_symbols(connection, snapshot_id, primary_ids)
-    conflicts = _scope_conflicts(repository, files, relevant_ids, branch)
     decision = _scope_decision(
         database,
         repository_id,
@@ -98,7 +94,6 @@ def agent_scope(
     return _scope_payload(
         _ScopePayloadData(
             goal=goal,
-            branch=branch,
             repository_id=repository_id,
             snapshot_id=snapshot_id,
             map_status=map_status,
@@ -114,7 +109,6 @@ def agent_scope(
             rules=rules,
             findings=findings,
             decision=decision,
-            conflicts=conflicts,
             context_limit=config.agent.context_limit,
             payload_limit_bytes=config.agent.payload_limit_bytes,
             started_at=started,
@@ -166,22 +160,11 @@ def _scope_decision(
     )
 
 
-def _scope_conflicts(
-    repository: Any,
-    files: dict[int, dict[str, Any]],
-    relevant_ids: set[int],
-    branch: str | None,
-) -> list[dict[str, str]]:
-    paths = {files[item]["path"] for item in relevant_ids}
-    return _branch_conflicts(Path(repository["path"]), paths, branch)
-
-
 def finding_context(
     database: AnaxiIndex,
     *,
     repository_id: int,
     finding_id: int,
-    branch: str | None,
     config: AnaxiGraphConfig,
 ) -> dict[str, Any]:
     """Turn one reviewed finding into structured, agent-ready engineering context."""
@@ -190,7 +173,6 @@ def finding_context(
         database,
         repository_id=repository_id,
         finding_id=finding_id,
-        branch=branch,
         config=config,
         scope_builder=agent_scope,
         impact_builder=impact_analysis,
@@ -202,13 +184,11 @@ def impact_analysis(
     *,
     repository_id: int,
     target: str,
-    branch: str | None,
     config: AnaxiGraphConfig,
 ) -> dict[str, Any]:
     return build_impact_analysis(
         database,
         repository_id=repository_id,
         target=target,
-        branch=branch,
         config=config,
     )

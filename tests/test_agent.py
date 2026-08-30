@@ -24,7 +24,6 @@ def test_agent_scope_is_bounded_and_includes_tests_protection_and_rules(reposito
         database,
         repository_id=stats.repository_id,
         goal="Change the Calculator calculation behavior",
-        branch=None,
         config=load_config(repository),
     )
 
@@ -92,7 +91,6 @@ def test_agent_scope_follows_a_declared_area_and_subsystem(repository, database)
         database,
         repository_id=stats.repository_id,
         goal="Change Calculator behavior",
-        branch=None,
         config=load_config(repository),
     )
 
@@ -131,7 +129,6 @@ def test_agent_scope_prefers_the_roadmap_document_for_a_roadmap_goal(repository,
         database,
         repository_id=stats.repository_id,
         goal="Narrow the remaining roadmap to core features in the development plan",
-        branch=None,
         config=load_config(repository),
     )
 
@@ -150,7 +147,6 @@ def test_agent_scope_prefers_a_test_for_an_explicit_test_goal(repository, databa
         database,
         repository_id=stats.repository_id,
         goal="Change the Calculator test behavior",
-        branch=None,
         config=load_config(repository),
     )
 
@@ -192,7 +188,6 @@ def test_agent_scope_places_a_concept_level_architecture_verification_goal(repos
             "Verify whether a code change improved the repository structure without making "
             "files larger or dependencies more tangled"
         ),
-        branch=None,
         config=load_config(repository),
     )
 
@@ -242,7 +237,6 @@ def test_impact_follows_reverse_edges_and_relevant_tests(repository, database):
         database,
         repository_id=stats.repository_id,
         target="pkg/core.py",
-        branch=None,
         config=load_config(repository),
     )
 
@@ -274,7 +268,6 @@ def test_impact_reports_an_unknown_repository_or_target(repository, database):
             database,
             repository_id=999,
             target="pkg/core.py",
-            branch=None,
             config=config,
         )
 
@@ -284,7 +277,6 @@ def test_impact_reports_an_unknown_repository_or_target(repository, database):
             database,
             repository_id=stats.repository_id,
             target="pkg/missing.py",
-            branch=None,
             config=config,
         )
 
@@ -310,7 +302,6 @@ def test_agent_scope_refreshes_findings_after_structural_harm(repository, databa
         database,
         repository_id=second_scan.repository_id,
         goal="Change the double arithmetic helper",
-        branch=None,
         config=config,
     )
 
@@ -338,7 +329,6 @@ def test_agent_scope_trims_optional_context_to_the_configured_wire_budget(reposi
         database,
         repository_id=stats.repository_id,
         goal="Change Calculator behavior and its web presentation dependencies",
-        branch=None,
         config=config,
     )
     encoded_size = len(json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))

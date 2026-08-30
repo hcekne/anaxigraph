@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 import anaxigraph.persistence.index_initialization as initialization_module
+import anaxigraph.persistence.temporal_files as temporal_files
 from anaxigraph.history import import_git_history
 from anaxigraph.persistence import (
     backup_path,
@@ -324,3 +325,26 @@ def test_schema_six_upgrade_is_restartable_after_injected_failure(
     reopened = AnaxiIndex(database.path)
     assert _version(reopened) == 10
     assert _canonical_frames(reopened) == before
+
+
+def test_schema_six_migration_symbolizes_each_distinct_file_fact_once(
+    repository,
+    database,
+    monkeypatch,
+):
+    _commit_change(repository)
+    import_git_history(database, repository, every_commit=True)
+    _downgrade_to_schema_six(database)
+    symbolized: list[int] = []
+    insert_symbols = temporal_files._upsert_symbols
+
+    def record_symbols(connection, legacy_version_id, fact_id):
+        symbolized.append(fact_id)
+        insert_symbols(connection, legacy_version_id, fact_id)
+
+    monkeypatch.setattr(temporal_files, "_upsert_symbols", record_symbols)
+    reopened = AnaxiIndex(database.path)
+    with reopened.connect() as connection:
+        fact_count = connection.execute("SELECT COUNT(*) FROM file_facts").fetchone()[0]
+
+    assert len(symbolized) == len(set(symbolized)) == fact_count

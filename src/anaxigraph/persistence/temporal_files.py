@@ -15,6 +15,9 @@ def legacy_file_facts(
     connection: sqlite3.Connection,
     snapshot_id: int,
     analysis_signature: str,
+    *,
+    fact_cache: dict[str, int] | None = None,
+    symbolized_facts: set[int] | None = None,
 ) -> dict[int, dict[str, Any]]:
     rows = connection.execute(
         "SELECT * FROM file_versions WHERE snapshot_id = ? ORDER BY artifact_id",
@@ -23,8 +26,16 @@ def legacy_file_facts(
     result: dict[int, dict[str, Any]] = {}
     for row in rows:
         value = dict(row)
-        fact_id = _upsert_file_fact(connection, value, analysis_signature)
-        _upsert_symbols(connection, int(value["id"]), fact_id)
+        fact_id = _upsert_file_fact(
+            connection,
+            value,
+            analysis_signature,
+            cache=fact_cache,
+        )
+        if symbolized_facts is None or fact_id not in symbolized_facts:
+            _upsert_symbols(connection, int(value["id"]), fact_id)
+            if symbolized_facts is not None:
+                symbolized_facts.add(fact_id)
         value["file_fact_id"] = fact_id
         result[int(value["artifact_id"])] = value
     return result
@@ -141,6 +152,8 @@ def _upsert_file_fact(
     connection: sqlite3.Connection,
     row: dict[str, Any],
     analysis_signature: str,
+    *,
+    cache: dict[str, int] | None = None,
 ) -> int:
     metadata = json.loads(row["metadata_json"] or "{}")
     fact_key = digest(
@@ -153,6 +166,8 @@ def _upsert_file_fact(
             analysis_signature,
         ]
     )
+    if cache is not None and fact_key in cache:
+        return cache[fact_key]
     connection.execute(
         """
         INSERT OR IGNORE INTO file_facts(
@@ -169,7 +184,10 @@ def _upsert_file_fact(
         (fact_key,),
     ).fetchone()
     assert found is not None
-    return int(found["id"])
+    fact_id = int(found["id"])
+    if cache is not None:
+        cache[fact_key] = fact_id
+    return fact_id
 
 
 def _fact_values(

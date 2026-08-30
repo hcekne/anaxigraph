@@ -17,7 +17,6 @@ export const state = {
   selectedNode: null,
   highlightedPaths: new Set(),
   protectedPaths: new Set(),
-  conflictPaths: new Set(),
   transform: { x: 0, y: 0, scale: 1 },
   positions: new Map(),
   groupRegions: [],

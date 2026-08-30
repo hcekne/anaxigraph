@@ -42,7 +42,7 @@ test("finding handoff explains when a structural problem appeared and returned",
       relevant_tests: ["tests/test_service.py"],
       protected_paths: [],
       verification: ["Run the focused tests."],
-      scope: { active_branch_conflicts: [] },
+      scope: {},
       agent_prompt: "Fix the dependency loop without changing behavior.",
     });
   });

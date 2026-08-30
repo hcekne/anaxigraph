@@ -24,7 +24,6 @@ def build_finding_context(
     *,
     repository_id: int,
     finding_id: int,
-    branch: str | None,
     config: Any,
     scope_builder: AgentOperation,
     impact_builder: AgentOperation,
@@ -39,14 +38,12 @@ def build_finding_context(
         database,
         repository_id=repository_id,
         goal=goal,
-        branch=branch,
         config=config,
     )
     impact = _first_impact(
         database,
         repository_id,
         affected,
-        branch,
         config,
         impact_builder,
     )
@@ -94,7 +91,6 @@ def _first_impact(
     database: Any,
     repository_id: int,
     affected: list[str],
-    branch: str | None,
     config: Any,
     impact_builder: AgentOperation,
 ) -> dict[str, Any] | None:
@@ -104,7 +100,6 @@ def _first_impact(
                 database,
                 repository_id=repository_id,
                 target=path,
-                branch=branch,
                 config=config,
             )
     return None
