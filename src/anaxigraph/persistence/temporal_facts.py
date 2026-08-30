@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import sqlite3
 from collections import defaultdict
+from typing import Any
 
 from anaxigraph.persistence.temporal_files import (
+    canonical_file_facts,
     legacy_file_facts,
     persist_file_changes,
 )
@@ -58,36 +60,25 @@ def migrate_legacy_temporal_facts(connection: sqlite3.Connection) -> dict[str, i
     return temporal_counts(connection)
 
 
-def record_snapshot_facts(
+def record_canonical_file_facts(
     connection: sqlite3.Connection,
     *,
     snapshot_id: int,
     base_snapshot_id: int | None,
-    signature: str | None = None,
-) -> dict[str, int]:
-    """Mirror one complete legacy frame into canonical immutable facts and deltas."""
+    versions: list[tuple[dict[str, Any], list[Any]]],
+    signature: str,
+) -> dict[int, dict[str, Any]]:
+    """Write one scanner frame directly into immutable facts and sparse deltas."""
 
     install_temporal_schema(connection)
-    row = connection.execute(
-        "SELECT repository_id, metadata_json FROM snapshots WHERE id = ?",
-        (snapshot_id,),
-    ).fetchone()
-    if row is None:
-        raise ValueError(f"Unknown snapshot: {snapshot_id}")
-    repository_id = int(row["repository_id"])
-    effective_signature = signature or analysis_signature(row["metadata_json"])
-    _record_snapshot(
-        connection,
-        snapshot_id=snapshot_id,
-        repository_id=repository_id,
-        base_snapshot_id=base_snapshot_id,
-        sequence=_next_sequence(
-            connection,
-            base_snapshot_id,
-        ),
-        signature=effective_signature,
+    connection.execute(
+        "UPDATE snapshots SET base_snapshot_id = ?, sequence = ? WHERE id = ?",
+        (base_snapshot_id, _next_sequence(connection, base_snapshot_id), snapshot_id),
     )
-    return temporal_counts(connection)
+    previous = reconstruct_files(connection, base_snapshot_id)
+    current = canonical_file_facts(connection, versions, signature)
+    persist_file_changes(connection, snapshot_id, previous, current)
+    return current
 
 
 def rebase_snapshot_facts(

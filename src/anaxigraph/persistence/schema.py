@@ -45,65 +45,6 @@ CREATE TABLE IF NOT EXISTS artifacts (
     UNIQUE(repository_id, canonical_path)
 );
 
-CREATE TABLE IF NOT EXISTS file_versions (
-    id INTEGER PRIMARY KEY,
-    artifact_id INTEGER NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
-    snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
-    path TEXT NOT NULL,
-    language TEXT NOT NULL,
-    runtime TEXT,
-    declared_group TEXT,
-    inferred_group TEXT,
-    raw_hash TEXT NOT NULL,
-    structural_hash TEXT NOT NULL,
-    lines_of_code INTEGER NOT NULL,
-    comment_lines INTEGER NOT NULL,
-    complexity REAL NOT NULL,
-    summary TEXT NOT NULL,
-    responsibilities_json TEXT NOT NULL DEFAULT '[]',
-    inputs_json TEXT NOT NULL DEFAULT '[]',
-    outputs_json TEXT NOT NULL DEFAULT '[]',
-    side_effects_json TEXT NOT NULL DEFAULT '[]',
-    public_interfaces_json TEXT NOT NULL DEFAULT '[]',
-    analyzer TEXT NOT NULL,
-    analysis_status TEXT NOT NULL,
-    parse_error TEXT,
-    metadata_json TEXT NOT NULL DEFAULT '{}',
-    first_seen_at TEXT NOT NULL,
-    last_changed_at TEXT NOT NULL,
-    UNIQUE(snapshot_id, artifact_id)
-);
-
-CREATE TABLE IF NOT EXISTS symbols (
-    id INTEGER PRIMARY KEY,
-    artifact_version_id INTEGER NOT NULL REFERENCES file_versions(id) ON DELETE CASCADE,
-    symbol_type TEXT NOT NULL,
-    name TEXT NOT NULL,
-    qualified_name TEXT NOT NULL,
-    start_line INTEGER NOT NULL,
-    end_line INTEGER NOT NULL,
-    signature TEXT NOT NULL DEFAULT '',
-    summary TEXT NOT NULL DEFAULT '',
-    complexity REAL NOT NULL DEFAULT 1,
-    logical_lines INTEGER NOT NULL DEFAULT 0
-);
-
-CREATE TABLE IF NOT EXISTS relationships (
-    id INTEGER PRIMARY KEY,
-    snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
-    source_artifact_id INTEGER NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
-    target_artifact_id INTEGER REFERENCES artifacts(id) ON DELETE CASCADE,
-    target_external TEXT,
-    relationship_type TEXT NOT NULL,
-    source TEXT NOT NULL,
-    confidence REAL NOT NULL,
-    evidence TEXT NOT NULL DEFAULT '',
-    source_line INTEGER NOT NULL DEFAULT 0,
-    weight REAL NOT NULL DEFAULT 1,
-    metadata_json TEXT NOT NULL DEFAULT '{}',
-    CHECK(target_artifact_id IS NOT NULL OR target_external IS NOT NULL)
-);
-
 CREATE TABLE IF NOT EXISTS groups (
     id INTEGER PRIMARY KEY,
     repository_id INTEGER NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
@@ -113,15 +54,6 @@ CREATE TABLE IF NOT EXISTS groups (
     source TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
     UNIQUE(repository_id, name, source)
-);
-
-CREATE TABLE IF NOT EXISTS group_memberships (
-    snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
-    artifact_id INTEGER NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
-    group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-    confidence REAL NOT NULL,
-    evidence TEXT NOT NULL DEFAULT '',
-    PRIMARY KEY(snapshot_id, artifact_id, group_id)
 );
 
 CREATE TABLE IF NOT EXISTS metrics (
@@ -138,7 +70,7 @@ CREATE TABLE IF NOT EXISTS coverage_measurements (
     id INTEGER PRIMARY KEY,
     snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
     artifact_id INTEGER REFERENCES artifacts(id) ON DELETE CASCADE,
-    relationship_id INTEGER REFERENCES relationships(id) ON DELETE CASCADE,
+    relationship_id INTEGER,
     relationship_edge_id INTEGER REFERENCES relationship_edges(id) ON DELETE CASCADE,
     provider TEXT NOT NULL,
     line_coverage REAL,
@@ -232,7 +164,7 @@ CREATE TABLE IF NOT EXISTS semantic_documents (
     scope_type TEXT NOT NULL,
     scope_key TEXT NOT NULL,
     artifact_id INTEGER REFERENCES artifacts(id) ON DELETE CASCADE,
-    artifact_version_id INTEGER REFERENCES file_versions(id) ON DELETE CASCADE,
+    artifact_version_id INTEGER,
     file_fact_id INTEGER REFERENCES file_facts(id) ON DELETE CASCADE,
     previous_document_id INTEGER REFERENCES semantic_documents(id) ON DELETE SET NULL,
     document_kind TEXT NOT NULL,
@@ -260,7 +192,7 @@ CREATE TABLE IF NOT EXISTS semantic_jobs (
     scope_type TEXT NOT NULL,
     scope_key TEXT NOT NULL,
     artifact_id INTEGER REFERENCES artifacts(id) ON DELETE CASCADE,
-    artifact_version_id INTEGER REFERENCES file_versions(id) ON DELETE CASCADE,
+    artifact_version_id INTEGER,
     file_fact_id INTEGER REFERENCES file_facts(id) ON DELETE CASCADE,
     job_kind TEXT NOT NULL,
     reason TEXT NOT NULL,
@@ -296,7 +228,7 @@ CREATE TABLE IF NOT EXISTS semantic_scope_states (
     scope_type TEXT NOT NULL,
     scope_key TEXT NOT NULL,
     artifact_id INTEGER REFERENCES artifacts(id) ON DELETE CASCADE,
-    artifact_version_id INTEGER REFERENCES file_versions(id) ON DELETE CASCADE,
+    artifact_version_id INTEGER,
     file_fact_id INTEGER REFERENCES file_facts(id) ON DELETE CASCADE,
     status TEXT NOT NULL,
     reason TEXT NOT NULL DEFAULT '',
@@ -393,11 +325,6 @@ CREATE TABLE IF NOT EXISTS git_changes (
 
 CREATE INDEX IF NOT EXISTS idx_snapshots_repository ON snapshots(repository_id, id DESC);
 CREATE INDEX IF NOT EXISTS idx_artifacts_repository ON artifacts(repository_id, canonical_path);
-CREATE INDEX IF NOT EXISTS idx_versions_snapshot ON file_versions(snapshot_id, path);
-CREATE INDEX IF NOT EXISTS idx_versions_artifact ON file_versions(artifact_id, snapshot_id DESC);
-CREATE INDEX IF NOT EXISTS idx_symbols_version ON symbols(artifact_version_id);
-CREATE INDEX IF NOT EXISTS idx_relationships_snapshot_source ON relationships(snapshot_id, source_artifact_id);
-CREATE INDEX IF NOT EXISTS idx_relationships_snapshot_target ON relationships(snapshot_id, target_artifact_id);
 CREATE INDEX IF NOT EXISTS idx_metrics_snapshot ON metrics(snapshot_id, name);
 CREATE INDEX IF NOT EXISTS idx_findings_repository_status ON findings(repository_id, status);
 CREATE INDEX IF NOT EXISTS idx_git_changes_repository_path ON git_changes(repository_id, path);

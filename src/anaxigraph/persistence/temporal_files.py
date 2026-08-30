@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from dataclasses import asdict
 from typing import Any
 
 from anaxigraph.ir_serialization import compact_stored_metadata
@@ -24,6 +25,23 @@ def legacy_file_facts(
         value = dict(row)
         fact_id = _upsert_file_fact(connection, value, analysis_signature)
         _upsert_symbols(connection, int(value["id"]), fact_id)
+        value["file_fact_id"] = fact_id
+        result[int(value["artifact_id"])] = value
+    return result
+
+
+def canonical_file_facts(
+    connection: sqlite3.Connection,
+    versions: list[tuple[dict[str, Any], list[Any]]],
+    analysis_signature: str,
+) -> dict[int, dict[str, Any]]:
+    """Persist prepared scan records without a materialized compatibility frame."""
+
+    result: dict[int, dict[str, Any]] = {}
+    for row, symbols in versions:
+        fact_id = _upsert_file_fact(connection, row, analysis_signature)
+        _insert_fact_symbols(connection, fact_id, [asdict(symbol) for symbol in symbols])
+        value = dict(row)
         value["file_fact_id"] = fact_id
         result[int(value["artifact_id"])] = value
     return result
@@ -206,6 +224,33 @@ def _upsert_symbols(
         "SELECT * FROM symbols WHERE artifact_version_id = ? ORDER BY start_line, id",
         (legacy_version_id,),
     ).fetchall()
+    values = []
+    for row in rows:
+        value = dict(row)
+        value.update(details.get((row["qualified_name"], int(row["start_line"])), {}))
+        values.append(value)
+    _insert_fact_symbols(connection, fact_id, values)
+
+
+def _insert_fact_symbols(
+    connection: sqlite3.Connection,
+    fact_id: int,
+    symbols: list[dict[str, Any]],
+) -> None:
+    fields = (
+        "symbol_type",
+        "name",
+        "qualified_name",
+        "start_line",
+        "end_line",
+        "signature",
+        "summary",
+        "complexity",
+        "logical_lines",
+        "visibility",
+        "start_column",
+        "end_column",
+    )
     connection.executemany(
         """
         INSERT OR IGNORE INTO fact_symbols(
@@ -215,30 +260,14 @@ def _upsert_symbols(
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         [
-            (
-                fact_id,
-                row["symbol_type"],
-                row["name"],
-                row["qualified_name"],
-                row["start_line"],
-                row["end_line"],
-                row["signature"],
-                row["summary"],
-                row["complexity"],
-                row["logical_lines"],
-                details.get((row["qualified_name"], int(row["start_line"])), {}).get(
-                    "visibility", "unknown"
-                ),
-                details.get((row["qualified_name"], int(row["start_line"])), {}).get(
-                    "start_column", 0
-                ),
-                details.get((row["qualified_name"], int(row["start_line"])), {}).get(
-                    "end_column", 0
-                ),
-            )
-            for row in rows
+            (fact_id, *(symbol.get(field, _symbol_default(field)) for field in fields))
+            for symbol in symbols
         ],
     )
+
+
+def _symbol_default(field: str) -> str | int:
+    return "unknown" if field == "visibility" else 0
 
 
 def backfill_fact_symbol_details(connection: sqlite3.Connection) -> int:

@@ -6,7 +6,17 @@ import sqlite3
 from collections import defaultdict
 from typing import Any
 
-from anaxigraph.persistence.temporal_hashing import digest, resolver_context_hash
+from anaxigraph.persistence.temporal_hashing import (
+    analysis_signature as stored_analysis_signature,
+)
+from anaxigraph.persistence.temporal_hashing import (
+    digest,
+    resolver_context_hash,
+)
+from anaxigraph.persistence.temporal_reconstruction import (
+    reconstruct_relationships,
+    refresh_checkpoint_if_due,
+)
 
 
 def legacy_relationship_sets(
@@ -38,6 +48,43 @@ def legacy_relationship_sets(
         for source_id, values in grouped.items()
         if source_id in files
     }
+
+
+def record_canonical_relationships(
+    connection: sqlite3.Connection,
+    *,
+    snapshot_id: int,
+    base_snapshot_id: int | None,
+    current_files: dict[int, dict[str, Any]],
+    changed_sources: set[int],
+    edges_by_source: dict[int, list[dict[str, Any]]],
+) -> None:
+    """Persist resolved edges directly as immutable sets and sparse source changes."""
+
+    snapshot = connection.execute(
+        "SELECT repository_id, metadata_json FROM snapshots WHERE id = ?",
+        (snapshot_id,),
+    ).fetchone()
+    if snapshot is None:
+        raise ValueError(f"Unknown snapshot: {snapshot_id}")
+    previous = reconstruct_relationships(connection, base_snapshot_id)
+    current = {
+        source_id: set_id
+        for source_id, set_id in previous.items()
+        if source_id in current_files and source_id not in changed_sources
+    }
+    for source_id, edges in edges_by_source.items():
+        if edges and source_id in current_files:
+            current[source_id] = _upsert_relationship_set(
+                connection,
+                int(snapshot["repository_id"]),
+                int(current_files[source_id]["file_fact_id"]),
+                source_id,
+                edges,
+                stored_analysis_signature(snapshot["metadata_json"]),
+            )
+    persist_relationship_changes(connection, snapshot_id, previous, current)
+    refresh_checkpoint_if_due(connection, snapshot_id)
 
 
 def persist_relationship_changes(

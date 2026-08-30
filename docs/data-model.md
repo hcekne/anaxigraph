@@ -17,7 +17,6 @@ history accumulate over time.
 | `snapshot_relationship_changes` | Sparse selection/retraction of a relationship set for each source artifact |
 | `snapshot_checkpoints` / `checkpoint_*` | Disposable references that bound reconstruction to at most 16 deltas |
 | `groups` | Declared and inferred architecture hierarchy; active assignment is reconstructed from file placement |
-| `file_versions` / `symbols` / `relationships` / `group_memberships` | Empty transaction-local staging surfaces cleared after each atomic scan; never product read models |
 | `metrics` | Repository and artifact measurements for temporal trends |
 | `coverage_measurements` | Node and conservatively proven relationship coverage |
 | `findings` / `finding_occurrences` | Stable findings and lifecycle across snapshots |
@@ -36,17 +35,20 @@ history accumulate over time.
 Schema 7 introduced the canonical temporal representation; Schema 8 added direct `file_fact_id`
 provenance to every module-scoped semantic claim, document, job, and scope state. Schema 9 makes
 that fact identity authoritative and compacts the duplicated materialized frames. Schema 10 adds
-the autonomous semantic taxonomy, its exact primary memberships, and critic audit trail. `file_facts`
-stores each analyzed artifact/raw/analyzer identity once, `fact_symbols` belongs to that immutable
-fact, and `snapshot_file_changes` records only add/change/delete placement transitions.
+the autonomous semantic taxonomy, its exact primary memberships, and critic audit trail. Current
+Schema 10 indexes contain 30 product tables. `file_facts` stores each analyzed
+artifact/raw/analyzer identity once, `fact_symbols` belongs to that immutable fact, and
+`snapshot_file_changes` records only add/change/delete placement transitions.
 Relationship edges are grouped into content-deduplicated immutable `relationship_sets`;
 `snapshot_relationship_changes` selects or retracts a set for each source.
 
-Snapshot reads are reconstructed through the persistence abstraction. The old materialized tables
-are populated only inside the scan transaction because deterministic detectors still consume that
-projection, then exact parity is checked and every row is cleared before commit. REST, MCP,
-dashboard, semantic, finding, history, scope, and impact reads consume canonical facts or temporary
-canonical projections. `doctor` therefore reports `canonical_only`, validates a stored digest over
+The scanner writes immutable file facts, symbol facts, relationship sets, and sparse snapshot deltas
+directly. It does not materialize `file_versions`, `symbols`, `relationships`, or
+`group_memberships`. Those names survive only in migration readers for released indexes; an older
+upgraded database may retain the four empty tables as compatibility tombstones, while a fresh index
+does not create them. REST, MCP, dashboard, semantic, finding, history, scope, impact, and
+architecture evaluation all consume canonical facts or connection-local temporary projections.
+`doctor` therefore reports `canonical_only`, validates a stored digest over
 facts/deltas/sets/edges, checks semantic-fact references, and verifies the schema-6 recovery backup.
 Raw hash equality skips extraction. Structural hash equality after a raw change performs only
 deterministic metadata/documentation refresh and reuses semantic claims.
@@ -56,6 +58,8 @@ module identity, default dependency fields, exports, and symbol details are reco
 artifact paths, typed columns, and `fact_symbols` at the persistence boundary. A tested codec
 reconstructs the complete IR during incremental reuse; metadata is not an unversioned dumping
 ground. See [`ADR 0001`](adr/0001-internal-layers-and-analyzer-ir.md).
+The direct canonical scan decision and its migration boundary are recorded in
+[`ADR 0003`](adr/0003-direct-canonical-scan-persistence.md).
 
 Semantic documents are immutable interpretations. A scope-state row points at the intrinsic and
 contextual documents current for one snapshot. Matching input hashes reuse an older document;

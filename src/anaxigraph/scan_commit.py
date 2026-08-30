@@ -11,17 +11,17 @@ from typing import Any
 from anaxigraph import __version__
 from anaxigraph.clock import utc_now
 from anaxigraph.history_discovery import available_changes
+from anaxigraph.persistence.index_temporal_health import refresh_canonical_content_digest
 from anaxigraph.scan_persistence import (
     ingest_git_history,
+    insert_file_facts,
     insert_snapshot,
-    insert_versions,
     upsert_artifacts,
     upsert_groups,
 )
 from anaxigraph.scan_snapshot import (
     RelationshipBuildResult,
     build_snapshot_graph,
-    clear_snapshot_staging,
     refresh_snapshot_intelligence,
     snapshot_artifacts,
     snapshot_counts,
@@ -64,6 +64,7 @@ def commit_snapshot(
             fingerprint,
             signature,
             revision,
+            previous_snapshot_id,
             prepared,
             progress,
             analysis_version,
@@ -76,7 +77,6 @@ def commit_snapshot(
             artifacts=artifacts,
             config=config,
         )
-        progress(4)
         findings, coverage_count = _finish_snapshot(
             connection,
             repository_id,
@@ -142,6 +142,7 @@ def _persist_files(
     fingerprint: str,
     signature: str,
     revision: str | None,
+    previous_snapshot_id: int | None,
     prepared: list[Any],
     progress: PersistProgress,
     analysis_version: int,
@@ -164,13 +165,15 @@ def _persist_files(
         commit_sha=git_metadata.commit_sha,
     )
     progress(2)
-    insert_versions(
+    insert_file_facts(
         connection,
         snapshot_id=snapshot_id,
+        base_snapshot_id=previous_snapshot_id,
         prepared=prepared,
         artifacts=artifacts,
         config=config,
         analysis_version=analysis_version,
+        signature=signature,
     )
     progress(3)
     return snapshot_id, artifacts, deleted
@@ -187,6 +190,7 @@ def _finish_snapshot(
     git_changes: list[Any],
     progress: PersistProgress,
 ) -> tuple[list[Any], int]:
+    progress(4)
     upsert_groups(connection, repository_id=repository_id, config=config)
     progress(5)
     ingest_git_history(connection, repository_id=repository_id, changes=git_changes)
@@ -206,7 +210,7 @@ def _finish_snapshot(
             "UPDATE repositories SET current_snapshot_id = ?, updated_at = ? WHERE id = ?",
             (snapshot_id, utc_now(), repository_id),
         )
-    clear_snapshot_staging(connection)
+    refresh_canonical_content_digest(connection)
     return findings, coverage_count
 
 

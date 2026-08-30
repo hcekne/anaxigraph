@@ -89,10 +89,10 @@ def test_history_fixture_has_exact_versions_and_agent_scope(tmp_path):
         relationship_edges = int(
             connection.execute("SELECT COUNT(*) FROM relationship_edges").fetchone()[0]
         )
-        compatibility_rows = sum(
-            int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
-            for table in ("file_versions", "symbols", "relationships", "group_memberships")
-        )
+        compatibility_tables = {
+            row["name"]
+            for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+        } & {"file_versions", "symbols", "relationships", "group_memberships"}
 
     scope = scope_metrics(
         database,
@@ -110,7 +110,7 @@ def test_history_fixture_has_exact_versions_and_agent_scope(tmp_path):
     assert file_facts == manifest["expected_distinct_artifact_raw_versions"]
     assert file_deltas < snapshots * latest_files
     assert 0 < relationship_sets < relationship_edges
-    assert compatibility_rows == 0
+    assert compatibility_tables == set()
     assert ambiguous >= 1
     assert len(primary.intersection(manifest["scope_expected_candidates"])) >= 6
     assert scope["payload_bytes"] == scope["payload_budget"]["estimated_bytes"]

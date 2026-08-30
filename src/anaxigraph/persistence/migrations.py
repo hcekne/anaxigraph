@@ -11,6 +11,7 @@ from anaxigraph.persistence.compatibility_compaction import (
     prepare_semantic_claims_for_compaction,
 )
 from anaxigraph.persistence.index_parity import parity_report
+from anaxigraph.persistence.index_temporal_health import refresh_canonical_content_digest
 from anaxigraph.persistence.semantic_fact_references import (
     backfill_semantic_fact_references,
 )
@@ -44,7 +45,14 @@ def migrate_schema(
         "coverage_measurements",
         {"relationship_edge_id": "INTEGER REFERENCES relationship_edges(id) ON DELETE CASCADE"},
     )
-    if current_version not in {7, 8, 9, 10}:
+    compatibility_frames = connection.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'file_versions'"
+    ).fetchone()
+    if (
+        current_version is not None
+        and current_version not in {7, 8, 9, 10}
+        and compatibility_frames
+    ):
         migrate_legacy_temporal_facts(connection)
     canonical_metadata_changed = bool(backfill_fact_symbol_details(connection))
     canonical_metadata_changed = (
@@ -54,11 +62,14 @@ def migrate_schema(
         bool(compact_file_fact_metadata(connection)) or canonical_metadata_changed
     )
     ensure_checkpoint_policy(connection)
-    backfill_semantic_fact_references(connection)
-    _compact_validated_compatibility(
-        connection,
-        canonical_changed=canonical_metadata_changed,
-    )
+    if current_version is None:
+        refresh_canonical_content_digest(connection)
+    else:
+        backfill_semantic_fact_references(connection)
+        _compact_validated_compatibility(
+            connection,
+            canonical_changed=canonical_metadata_changed,
+        )
     _ensure_semantic_fact_indexes(connection)
     connection.execute(
         "INSERT OR REPLACE INTO schema_meta(key, value) VALUES ('schema_version', ?)",

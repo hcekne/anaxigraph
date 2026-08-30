@@ -7,7 +7,7 @@ import sqlite3
 from datetime import UTC, datetime
 from typing import Any
 
-from anaxigraph.persistence.temporal_hashing import digest
+from anaxigraph.persistence.index_temporal_health import refresh_canonical_content_digest
 from anaxigraph.persistence.temporal_reads import snapshot_relationship_edges
 from anaxigraph.semantic_job_state import PATTERN_METADATA_RETENTION
 
@@ -68,6 +68,8 @@ def prepare_semantic_claims_for_compaction(connection: sqlite3.Connection) -> No
 
 
 def backfill_relationship_coverage(connection: sqlite3.Connection) -> int:
+    if "relationships" not in _present_tables(connection):
+        return 0
     rows = connection.execute(
         """
         SELECT cm.id, cm.snapshot_id, r.source_artifact_id, r.target_artifact_id,
@@ -103,18 +105,22 @@ def compact_compatibility_rows(
 ) -> dict[str, int]:
     """Clear validated duplicate rows while retaining empty staging tables."""
 
+    present = _present_tables(connection)
     counts = {
-        table: int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
+        table: (
+            int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
+            if table in present
+            else 0
+        )
         for table in COMPATIBILITY_TABLES
     }
     connection.execute("UPDATE semantic_documents SET artifact_version_id = NULL")
     connection.execute("UPDATE semantic_jobs SET artifact_version_id = NULL")
     connection.execute("UPDATE semantic_scope_states SET artifact_version_id = NULL")
     connection.execute("UPDATE coverage_measurements SET relationship_id = NULL")
-    connection.execute("DELETE FROM group_memberships")
-    connection.execute("DELETE FROM symbols")
-    connection.execute("DELETE FROM relationships")
-    connection.execute("DELETE FROM file_versions")
+    for table in ("group_memberships", "symbols", "relationships", "file_versions"):
+        if table in present:
+            connection.execute(f"DELETE FROM {table}")
     connection.execute(
         "INSERT OR REPLACE INTO schema_meta(key, value) VALUES (?, ?)",
         ("compatibility_compacted_at", datetime.now(UTC).isoformat()),
@@ -127,39 +133,14 @@ def compact_compatibility_rows(
         "SELECT 1 FROM schema_meta WHERE key = 'canonical_content_digest'"
     ).fetchone()
     if sum(counts.values()) or canonical_changed or existing_digest is None:
-        connection.execute(
-            "INSERT OR REPLACE INTO schema_meta(key, value) VALUES (?, ?)",
-            ("canonical_content_digest", canonical_content_digest(connection)),
-        )
+        refresh_canonical_content_digest(connection)
     return counts
 
 
-def canonical_content_digest(connection: sqlite3.Connection) -> str:
-    tables = (
-        "file_facts",
-        "fact_symbols",
-        "snapshot_file_changes",
-        "relationship_sets",
-        "relationship_edges",
-        "snapshot_relationship_changes",
-    )
-    content = []
-    for table in tables:
-        rows = connection.execute(f"SELECT * FROM {table} ORDER BY rowid").fetchall()
-        content.append((table, [tuple(row) for row in rows]))
-    return digest(content)
-
-
-def canonical_integrity_report(connection: sqlite3.Connection) -> dict[str, Any]:
-    row = connection.execute(
-        "SELECT value FROM schema_meta WHERE key = 'canonical_content_digest'"
-    ).fetchone()
-    expected = str(row[0]) if row is not None else None
-    actual = canonical_content_digest(connection)
+def _present_tables(connection: sqlite3.Connection) -> set[str]:
     return {
-        "status": "exact" if expected == actual else "mismatch",
-        "expected_digest": expected,
-        "actual_digest": actual,
+        str(row["name"])
+        for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
     }
 
 

@@ -100,6 +100,11 @@ def _downgrade_to_schema_six(database: AnaxiIndex) -> None:
     """Remove additive v7 state to reproduce the released schema-6 shape."""
 
     with database.transaction() as connection:
+        fixture = Path(__file__).parent / "fixtures" / "schema-v6-compatibility.sql"
+        for statement in initialization_module.schema_statements(
+            fixture.read_text(encoding="utf-8")
+        ):
+            connection.execute(statement)
         _materialize_schema_six_frames(connection)
         for table in (
             "schema_migrations",

@@ -2865,12 +2865,12 @@ The 34 SQLite tables have six distinct responsibilities:
 | transaction-local compatibility projections | 4 | remove after architecture evaluation reads the canonical projection directly |
 
 The four compatibility projection tables are `file_versions`, `symbols`, `relationships`, and
-`group_memberships`. A scan currently materializes them, checks parity, lets deterministic detectors
-consume them, and clears them; all four are empty between scans in the live index. They cannot simply
-be deleted because migration tests cover schemas 2, 6, 7, 8, 9, and 10, and architecture evaluation
-still depends on their projected shape. The safe cutover is: characterize detector output, make the
-detectors consume canonical facts/edges, retain released input migrations, stop materializing the
-projection, then remove the permanent staging schema and parity machinery.
+`group_memberships`. At inventory time a scan materialized three of them, translated them into the
+canonical temporal model, and cleared all four before commit. Characterization then corrected one
+assumption in this map: deterministic architecture evaluation already consumed canonical
+`architecture_evidence`; the remaining dependency was the scanner's write/translate/delete path,
+not the detector. Migration tests still cover schemas 2, 6, 7, 8, 9, and 10, so released input
+readers must survive even after current scans and fresh indexes stop creating the old tables.
 
 The live two-repository sidecar exposed two separate retention problems:
 
@@ -2928,9 +2928,9 @@ one looks easy; they begin after its surviving contract and reduction are record
    evidence, failures, token/cost/provenance summaries, and durable semantic documents. Remove or
    summarize superseded and duplicated job payloads only after status, pattern, taxonomy, backup,
    restore, and MCP characterization tests prove the retained contract.
-4. **Cut architecture evaluation over to canonical facts.** Characterize identical findings and
+4. **Write scans directly to canonical facts.** Characterize identical architecture findings and
    group evaluation, then stop populating the four empty compatibility projections. Remove their
-   runtime parity/materialization machinery while preserving migrations for released indexes.
+   current-index schema and runtime materialization while preserving readers for released indexes.
 5. **Converge semantic projections and composition.** Establish one internal representation for
    scope identity, language support, evidence references, result provenance, and readiness. Delete
    conversions and one-use service forwarding layers made redundant by that representation; do not
@@ -3041,6 +3041,42 @@ without retaining a forwarding file. The Python module count falls from 245 to 2
 production source ratchet falls from 53,897 to **53,885 lines**. Storage, semantic lifecycle, pattern query,
 migration, and recovery characterization tests cover the surviving behavior. The next slice is the
 canonical architecture-evaluation cutover in item 4 of the ordered map.
+
+### 10.2 delivery record: direct canonical scan persistence
+
+Characterization showed that architecture rules, coverage, findings, semantic carry-forward, graph
+reads, and history already consume reconstructed `file_facts`, `fact_symbols`,
+`relationship_sets`/`relationship_edges`, and sparse snapshot deltas. The obsolete detour was the
+scanner itself: it wrote complete `file_versions`, `symbols`, and `relationships` frames, converted
+them to canonical facts, computed a parity digest, and immediately deleted the staging rows.
+
+Current scans now serialize prepared analysis directly into immutable file and symbol facts, persist
+file placement deltas, resolve dependencies directly into reusable relationship sets, and persist
+only changed source selections. Architecture evaluation runs after that canonical write and a
+characterization test observes that no legacy staging table exists at the evaluation boundary.
+Connection-local `projected_*` tables remain disposable read adapters; they are reconstructed from
+canonical facts and are not persistent compatibility storage.
+
+A fresh AnaxiIndex now creates **30 product tables instead of 34** and never creates
+`file_versions`, `symbols`, `relationships`, or `group_memberships`. Migration-only readers and
+parity checks still accept released old indexes. An upgraded database may retain the four empty
+tables as compatibility tombstones because older semantic foreign-key declarations name them; they
+are no longer populated by a scan. The schema-2 and schema-6 migration fixtures, transactional
+failure/restart, exact backup/restore, canonical reconstruction, checkpoint, history, benchmark,
+architecture, and scanner tests all remain green.
+
+The exact production source ratchet falls from 53,885 to **53,878 lines**. The small net line
+reduction is not the primary measurement for this slice: four current-index tables and an entire
+full-frame write/translate/delete path disappear without hiding equivalent source in another
+runtime projection. The full suite passes with **605 tests**, and every pre-commit quality gate is
+green.
+
+The exact self-hosted Docker image scanned 471 AnaxiGraph modules in 1.339 seconds while reusing all
+471 analyses, produced snapshot 364 with 4,439 relationships and 152 findings, and left all four
+legacy tables at zero rows. `PRAGMA quick_check` returned `ok`, foreign-key violations remained zero,
+the canonical digest was exact, reconstruction stayed within the 16-delta budget, the REST health
+endpoint stayed healthy, and `anaxigraph doctor` reported no blockers. The next ordered slice is
+item 5: converge semantic projections and composition without creating another semantic model.
 
 ## 10.3 Make human understanding the primary dashboard journey
 

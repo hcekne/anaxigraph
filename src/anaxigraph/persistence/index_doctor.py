@@ -7,10 +7,10 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from anaxigraph.persistence.compatibility_compaction import canonical_integrity_report
 from anaxigraph.persistence.index_backup import validate_schema_backup
 from anaxigraph.persistence.index_parity import parity_report
 from anaxigraph.persistence.index_temporal_health import (
+    canonical_integrity_report,
     lineage_report,
     reconstruction_report,
 )
@@ -90,8 +90,16 @@ def _migrations(connection: sqlite3.Connection) -> list[dict[str, Any]]:
 
 
 def _row_counts(connection: sqlite3.Connection) -> dict[str, int]:
+    present = {
+        str(row["name"])
+        for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+    }
     return {
-        table: int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
+        table: (
+            int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
+            if table in present
+            else 0
+        )
         for table in (*COMPATIBILITY_TABLES, *TEMPORAL_TABLES)
     }
 

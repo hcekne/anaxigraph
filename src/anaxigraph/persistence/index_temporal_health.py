@@ -5,12 +5,49 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
+from anaxigraph.persistence.temporal_hashing import digest
 from anaxigraph.persistence.temporal_reconstruction import (
     CHECKPOINT_INTERVAL,
     canonical_state_hashes,
     reconstruct_files_with_diagnostics,
     reconstruct_relationships_with_diagnostics,
 )
+
+
+def refresh_canonical_content_digest(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        "INSERT OR REPLACE INTO schema_meta(key, value) VALUES (?, ?)",
+        ("canonical_content_digest", _canonical_content_digest(connection)),
+    )
+
+
+def canonical_integrity_report(connection: sqlite3.Connection) -> dict[str, Any]:
+    row = connection.execute(
+        "SELECT value FROM schema_meta WHERE key = 'canonical_content_digest'"
+    ).fetchone()
+    expected = str(row[0]) if row is not None else None
+    actual = _canonical_content_digest(connection)
+    return {
+        "status": "exact" if expected == actual else "mismatch",
+        "expected_digest": expected,
+        "actual_digest": actual,
+    }
+
+
+def _canonical_content_digest(connection: sqlite3.Connection) -> str:
+    tables = (
+        "file_facts",
+        "fact_symbols",
+        "snapshot_file_changes",
+        "relationship_sets",
+        "relationship_edges",
+        "snapshot_relationship_changes",
+    )
+    content = []
+    for table in tables:
+        rows = connection.execute(f"SELECT * FROM {table} ORDER BY rowid").fetchall()
+        content.append((table, [tuple(row) for row in rows]))
+    return digest(content)
 
 
 def lineage_report(connection: sqlite3.Connection) -> dict[str, Any]:

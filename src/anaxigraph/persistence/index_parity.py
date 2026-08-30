@@ -66,11 +66,16 @@ def parity_report(connection: sqlite3.Connection) -> dict[str, Any]:
     snapshots = connection.execute(
         "SELECT id, repository_id FROM snapshots ORDER BY repository_id, id"
     ).fetchall()
+    tables = {
+        str(row["name"])
+        for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+    }
+    compatibility = {"file_versions", "symbols", "relationships"}
+    present = tables & compatibility
     compatibility_rows = sum(
-        int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
-        for table in ("file_versions", "symbols", "relationships")
+        int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]) for table in present
     )
-    if snapshots and compatibility_rows == 0:
+    if not present or (snapshots and compatibility_rows == 0):
         return {
             "status": "canonical_only",
             "snapshots_checked": len(snapshots),

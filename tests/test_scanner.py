@@ -4,6 +4,7 @@ import json
 import subprocess
 from collections import Counter
 
+from anaxigraph import scan_snapshot
 from anaxigraph.analyzers.python import PythonAnalyzer
 from anaxigraph.architecture import _dead_code_findings
 from anaxigraph.config import RuleConfig
@@ -98,6 +99,28 @@ def test_scan_persists_graph_metrics_coverage_and_findings(repository, database)
     restored = analysis_from_stored(stored)
     assert validate_analysis(PythonAnalyzer(), "pkg/core.py", restored) == ()
     assert restored.resolver_context.configured_aliases == (("@/", "web/"),)
+
+
+def test_scan_evaluates_architecture_without_legacy_staging_rows(repository, database, monkeypatch):
+    real_evidence = scan_snapshot.architecture_evidence
+    observed: list[list[str]] = []
+
+    def capture_staging_rows(connection, snapshot_id):
+        tables = {
+            str(row["name"])
+            for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+        }
+        observed.append(
+            sorted(tables & {"file_versions", "symbols", "relationships", "group_memberships"})
+        )
+        return real_evidence(connection, snapshot_id)
+
+    monkeypatch.setattr(scan_snapshot, "architecture_evidence", capture_staging_rows)
+
+    stats = RepositoryScanner(database).scan(repository)
+
+    assert stats.findings
+    assert observed == [[]]
 
 
 def test_untracked_root_control_file_is_not_an_application_module(repository, database):

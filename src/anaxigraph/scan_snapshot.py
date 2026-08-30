@@ -9,7 +9,6 @@ from typing import Any
 from anaxigraph.architecture import Finding, evaluate_architecture
 from anaxigraph.coverage import collect_coverage
 from anaxigraph.persistence.architecture_evidence import architecture_evidence
-from anaxigraph.persistence.compatibility_compaction import compact_compatibility_rows
 from anaxigraph.persistence.semantic_claim_carry import carry_semantic_claims
 from anaxigraph.persistence.temporal_reads import (
     snapshot_files,
@@ -82,10 +81,6 @@ def snapshot_counts(connection: sqlite3.Connection, snapshot_id: int) -> dict[st
         ).fetchone()[0]
     )
     return {"relationships": relationships, "findings": findings}
-
-
-def clear_snapshot_staging(connection: sqlite3.Connection) -> None:
-    compact_compatibility_rows(connection)
 
 
 def refresh_snapshot_intelligence(

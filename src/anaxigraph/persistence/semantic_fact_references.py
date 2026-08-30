@@ -76,6 +76,13 @@ def semantic_reference_report(connection: sqlite3.Connection) -> dict[str, Any]:
 
 
 def _backfill_claims(connection: sqlite3.Connection, fact_id) -> int:
+    if (
+        connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'file_versions'"
+        ).fetchone()
+        is None
+    ):
+        return 0
     rows = connection.execute(
         """
         SELECT sc.id, fv.snapshot_id, fv.artifact_id

@@ -40,17 +40,17 @@ def test_canonical_frames_reconstruct_and_deduplicate_facts(repository, database
             len(snapshot_files(connection, int(snapshot["id"]))) for snapshot in snapshots
         ]
         counts = temporal_counts(connection)
-        compatibility_rows = sum(
-            int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
-            for table in ("file_versions", "symbols", "relationships", "group_memberships")
-        )
+        compatibility_tables = {
+            row["name"]
+            for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+        } & {"file_versions", "symbols", "relationships", "group_memberships"}
 
     assert len(snapshots) == 2
     assert [int(snapshot["sequence"]) for snapshot in snapshots] == [0, 1]
     assert frame_sizes == [8, 8]
     assert counts["file_facts"] < sum(frame_sizes)
     assert counts["snapshot_file_changes"] < sum(frame_sizes)
-    assert compatibility_rows == 0
+    assert compatibility_tables == set()
 
 
 def test_compact_fact_metadata_expands_at_the_snapshot_boundary(repository, database):

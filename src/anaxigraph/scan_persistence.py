@@ -10,6 +10,7 @@ from typing import Any
 from anaxigraph import __version__
 from anaxigraph.clock import utc_now
 from anaxigraph.ir import analysis_metadata, artifact_type
+from anaxigraph.persistence.temporal_facts import record_canonical_file_facts
 from anaxigraph.scan_preparation import PreparedFile
 
 
@@ -103,56 +104,28 @@ def upsert_artifacts(
     return {path: existing[path] for path in current_paths}, len(deleted_paths)
 
 
-def insert_versions(
+def insert_file_facts(
     connection: sqlite3.Connection,
     *,
     snapshot_id: int,
+    base_snapshot_id: int | None,
     prepared: list[PreparedFile],
     artifacts: dict[str, int],
     config: Any,
     analysis_version: int,
+    signature: str,
 ) -> None:
-    for item in prepared:
-        path = item.discovered.path
-        analysis = item.analysis
-        cursor = connection.execute(
-            """
-            INSERT INTO file_versions(
-                artifact_id, snapshot_id, path, language, runtime, declared_group,
-                inferred_group, raw_hash, structural_hash, lines_of_code, comment_lines,
-                complexity, summary, responsibilities_json, inputs_json, outputs_json,
-                side_effects_json, public_interfaces_json, analyzer, analysis_status,
-                parse_error, metadata_json, first_seen_at, last_changed_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                artifacts[path],
-                snapshot_id,
-                path,
-                item.discovered.language,
-                _runtime(path, item.discovered.language),
-                config.declared_group(path),
-                _inferred_group(path, item.discovered.language),
-                item.discovered.raw_hash,
-                analysis.structural_hash,
-                analysis.lines_of_code,
-                analysis.comment_lines,
-                analysis.complexity,
-                analysis.summary,
-                json.dumps(analysis.responsibilities),
-                json.dumps(analysis.inputs),
-                json.dumps(analysis.outputs),
-                json.dumps(analysis.side_effects),
-                json.dumps(analysis.public_interfaces),
-                analysis.analyzer,
-                item.analysis_status,
-                analysis.parse_error,
-                json.dumps(_version_metadata(item, config, analysis_version), sort_keys=True),
-                item.first_seen_at,
-                item.last_changed_at,
-            ),
-        )
-        _insert_symbols(connection, int(cursor.lastrowid), analysis.symbols)
+    versions = [
+        (_version_record(item, artifacts, config, analysis_version), item.analysis.symbols)
+        for item in prepared
+    ]
+    record_canonical_file_facts(
+        connection,
+        snapshot_id=snapshot_id,
+        base_snapshot_id=base_snapshot_id,
+        versions=versions,
+        signature=signature,
+    )
 
 
 def upsert_groups(
@@ -204,30 +177,41 @@ def ingest_git_history(
     )
 
 
-def _insert_symbols(connection: sqlite3.Connection, version_id: int, symbols: list[Any]) -> None:
-    connection.executemany(
-        """
-        INSERT INTO symbols(
-            artifact_version_id, symbol_type, name, qualified_name, start_line,
-            end_line, signature, summary, complexity, logical_lines
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        [
-            (
-                version_id,
-                symbol.symbol_type,
-                symbol.name,
-                symbol.qualified_name,
-                symbol.start_line,
-                symbol.end_line,
-                symbol.signature,
-                symbol.summary,
-                symbol.complexity,
-                symbol.logical_lines,
-            )
-            for symbol in symbols
-        ],
-    )
+def _version_record(
+    item: PreparedFile,
+    artifacts: dict[str, int],
+    config: Any,
+    analysis_version: int,
+) -> dict[str, Any]:
+    path = item.discovered.path
+    analysis = item.analysis
+    return {
+        "artifact_id": artifacts[path],
+        "path": path,
+        "language": item.discovered.language,
+        "runtime": _runtime(path, item.discovered.language),
+        "declared_group": config.declared_group(path),
+        "inferred_group": _inferred_group(path, item.discovered.language),
+        "raw_hash": item.discovered.raw_hash,
+        "structural_hash": analysis.structural_hash,
+        "lines_of_code": analysis.lines_of_code,
+        "comment_lines": analysis.comment_lines,
+        "complexity": analysis.complexity,
+        "summary": analysis.summary,
+        "responsibilities_json": json.dumps(analysis.responsibilities),
+        "inputs_json": json.dumps(analysis.inputs),
+        "outputs_json": json.dumps(analysis.outputs),
+        "side_effects_json": json.dumps(analysis.side_effects),
+        "public_interfaces_json": json.dumps(analysis.public_interfaces),
+        "analyzer": analysis.analyzer,
+        "analysis_status": item.analysis_status,
+        "parse_error": analysis.parse_error,
+        "metadata_json": json.dumps(
+            _version_metadata(item, config, analysis_version), sort_keys=True
+        ),
+        "first_seen_at": item.first_seen_at,
+        "last_changed_at": item.last_changed_at,
+    }
 
 
 def _version_metadata(
