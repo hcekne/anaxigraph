@@ -3028,6 +3028,12 @@ current UI. Rows, job ids, lease-token hashes, status, attempts, timestamps, err
 counts, and costs remain unchanged. As with watcher cleanup, SQLite may reuse freed pages without an
 automatic `VACUUM`.
 
+The deployed self-hosted index reduced total semantic-job metadata to 2,024,883 bytes and increased
+reclaimable database space from about 47.3 MB to 76.9 MB. `PRAGMA quick_check` remained clean, all
+1,872 actionable packets remained non-empty, all 812 completed assessments retained the versioned
+pattern payload, and a saved 200-item pattern map still returned its target and candidate evidence
+through the normal REST projection.
+
 The same slice removes two one-use persistence forwarding modules, inlines module-ledger
 orchestration into `AnaxiIndex`, and removes an `__all__` list that duplicated the facade imports
 without changing its names. Existing finding-query imports preserve the facade's coupling ceiling
