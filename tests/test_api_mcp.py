@@ -214,7 +214,7 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                         "diagnostic ledger",
                     ):
                         assert unexplained_term not in public_help
-                    assert "before-change record" in descriptions["ANAXIGRAPH_SCOPE"]
+                    assert "rescan guidance" in descriptions["ANAXIGRAPH_SCOPE"]
                     assert "ordinary sentences" in descriptions["ANAXIGRAPH_FINDINGS"]
                     submit_tool = next(
                         tool for tool in tools.tools if tool.name == "ANAXIGRAPH_SEMANTIC_SUBMIT"
@@ -352,7 +352,7 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     )
                     assert loop_guide.isError is False
                     contract = loop_guide.structuredContent["coding_loop"]
-                    assert contract["version"] == "coding-loop-contract-v2"
+                    assert contract["version"] == "coding-loop-contract-v3"
                     assert set(contract["mcp_tools"]) <= names
                     scope = await session.call_tool(
                         "ANAXIGRAPH_SCOPE",

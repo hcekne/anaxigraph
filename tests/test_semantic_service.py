@@ -160,7 +160,7 @@ def test_service_preparation_retries_transient_writer_contention(monkeypatch):
     assert sleeps == [0.25]
 
 
-def test_service_scope_sends_the_repository_identity_and_goal(monkeypatch):
+def test_service_scope_sends_the_repository_selector_and_goal(monkeypatch):
     captured = {}
 
     def request(url, **options):
@@ -174,7 +174,6 @@ def test_service_scope_sends_the_repository_identity_and_goal(monkeypatch):
         target,
         goal="Measure semantic work",
         branch="main",
-        verification_baseline={"snapshot_id": 11},
         timeout=9,
     )
 
@@ -187,7 +186,6 @@ def test_service_scope_sends_the_repository_identity_and_goal(monkeypatch):
             "goal": "Measure semantic work",
             "branch": "main",
             "repository_id": 4,
-            "verification_baseline": {"snapshot_id": 11},
         },
     }
 

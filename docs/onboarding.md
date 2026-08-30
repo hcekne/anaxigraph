@@ -159,35 +159,36 @@ facts; it should not start another model-backed repository pass.
 
 Give the connected agent one concrete goal:
 
-> Use AnaxiGraph to plan and verify “add saved prompt exports.” Find the smallest relevant file
-> set, tell me where the code belongs, inspect what depends on the shared files, save the
-> before-change record, and after implementation rescan and compare the same goal.
+> Use AnaxiGraph to guide “add saved prompt exports.” Find the smallest relevant file set, tell me
+> where the code belongs, inspect what depends on shared files, identify focused checks, and refresh
+> the shared map after implementation.
 
 The agent should follow this sequence for a feature, fix, or refactor:
 
 1. **Scope.** Call `ANAXIGRAPH_SCOPE`. Read the small file list and its
    `architecture-decision-v1` placement, boundaries, likely tests, relevant findings, and reviewed
-   patterns. Save `architecture_decision.verification.post_change_baseline` and keep the goal text
-   unchanged.
+   patterns.
 2. **Impact.** Call `ANAXIGRAPH_IMPACT` for shared files that may change. Inspect direct dependants
    and tests; a missing static edge is not proof that code is unused because dynamic wiring may be
    invisible.
 3. **Change.** Edit source and run focused tests through the normal coding workflow. AnaxiGraph
    observes repository source and updates its external index; it does not edit the target code.
-4. **Verify.** Request `ANAXIGRAPH_SCAN`, then repeat `ANAXIGRAPH_SCOPE` with the exact same goal and
-   pass the saved object as `verification_baseline`. Read `post_change_comparison` beside the test
-   results.
+4. **Refresh.** Request `ANAXIGRAPH_SCAN`. Repeat scope or impact when responsibilities or
+   dependencies may have moved, and use History and findings when you need change evidence.
 
 At the end of a coherent task or commit, run
 `anaxigraph understand . --executor codex --background` if the changed AI descriptions matter.
-It refreshes stale scopes and reuses unchanged descriptions. The structural comparison can finish
-first; wait for `semantically_ready` only when the next decision needs a completely current AI map.
+It refreshes stale scopes and reuses unchanged descriptions. Structural facts are available first;
+wait for `semantically_ready` only when the next decision needs a completely current AI map.
 
 Use the returned telemetry to tune the loop: scope and impact replies report server time, payload
 size, and model-token use; semantic status groups AI work by action with current-snapshot and
 lifetime time/token totals; scan results and detached semantic runs report wall-clock duration.
 Successful and failed attempts contribute tokens when the executor reports them. Missing reports
 still mean unknown usage, not a free call.
+
+A changed metric or finding is not automatically an improvement. Expected behavior, focused tests,
+and architecture evidence must agree.
 
 The comparison says what changed in the bounded file, finding, and reviewed-pattern evidence. It
 does not call a difference an improvement unless the expected outcome and tests support that

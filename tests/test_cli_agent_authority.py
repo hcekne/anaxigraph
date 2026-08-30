@@ -17,12 +17,11 @@ def test_scope_uses_the_matching_service_instead_of_a_separate_local_index(
     captured = {}
     monkeypatch.setattr(agent_commands, "discover_semantic_service", lambda *_a, **_k: target)
 
-    def scope(service, *, goal, branch, verification_baseline):
+    def scope(service, *, goal, branch):
         captured.update(
             service=service,
             goal=goal,
             branch=branch,
-            verification_baseline=verification_baseline,
         )
         return {"snapshot_id": 42, "goal": goal}
 
@@ -46,5 +45,4 @@ def test_scope_uses_the_matching_service_instead_of_a_separate_local_index(
         "service": target,
         "goal": "Measure semantic work",
         "branch": None,
-        "verification_baseline": None,
     }

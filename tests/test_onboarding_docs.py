@@ -41,11 +41,9 @@ def test_primary_docs_share_one_ordered_before_and_after_coding_loop():
     onboarding = (ROOT / "docs/onboarding.md").read_text(encoding="utf-8")
     ordered_steps = (
         "ANAXIGRAPH_SCOPE",
-        "post_change_baseline",
         "ANAXIGRAPH_IMPACT",
         "ANAXIGRAPH_SCAN",
-        "verification_baseline",
-        "post_change_comparison",
+        "History",
     )
 
     for document in (readme, onboarding):
@@ -53,6 +51,4 @@ def test_primary_docs_share_one_ordered_before_and_after_coding_loop():
             document.index(step, document.index("Use one coding loop")) for step in ordered_steps
         ]
         assert positions == sorted(positions)
-        assert "A difference is not automatically an improvement" in document or (
-            "does not call a difference an improvement" in document
-        )
+        assert "not automatically an improvement" in document

@@ -289,21 +289,9 @@ def test_impact_reports_an_unknown_repository_or_target(repository, database):
         )
 
 
-def test_agent_scope_separates_new_structural_harm_from_existing_debt(repository, database):
+def test_agent_scope_refreshes_findings_after_structural_harm(repository, database):
     first_scan = RepositoryScanner(database).scan(repository)
     config = load_config(repository)
-    before = agent_scope(
-        database,
-        repository_id=first_scan.repository_id,
-        goal="Change the double arithmetic helper",
-        branch=None,
-        config=config,
-    )
-    baseline = before["architecture_decision"]["verification"]["post_change_baseline"]
-    tracked = next(item for item in baseline["modules"] if item["path"] == "pkg/util.py")
-    assert tracked["lines_of_code"] > 0
-    assert tracked["fan_in"] == 2
-    assert tracked["fan_out"] == 0
     helper = repository / "pkg/util.py"
     helper.write_text(
         helper.read_text(encoding="utf-8")
@@ -324,27 +312,12 @@ def test_agent_scope_separates_new_structural_harm_from_existing_debt(repository
         goal="Change the double arithmetic helper",
         branch=None,
         config=config,
-        verification_baseline=baseline,
     )
 
-    comparison = after["architecture_decision"]["verification"]["post_change_comparison"]
-    assert comparison["status"] == "changed"
-    assert comparison["baseline_snapshot_id"] == first_scan.snapshot_id
-    assert comparison["current_snapshot_id"] == second_scan.snapshot_id
-    effects = comparison["changes"]["structural_effects"]
-    introduced = {item["category"] for item in effects["introduced"]}
-    assert {"file_size", "dependency_cycle", "architecture_boundary"} <= introduced
-    worsened = {item["category"] for item in effects["worsened"]}
-    assert {"incoming_coupling", "outgoing_coupling"} <= worsened
-    assert all(
-        item["observation"]
-        and item["why_it_matters"]
-        and item["smallest_next_step"]
-        and item["when_no_change_may_be_needed"]
-        and item["how_to_check"]
-        for item in effects["introduced"] + effects["worsened"]
-    )
-    assert any(item["category"] == "file_size" for item in effects["pre_existing"])
+    assert second_scan.snapshot_id != first_scan.snapshot_id
+    finding_types = {item["finding_type"] for item in after["known_findings"]}
+    assert {"dependency_cycle", "architecture_violation"} <= finding_types
+    assert all(item["plain_language"]["how_to_check"] for item in after["known_findings"])
 
 
 def test_agent_scope_trims_optional_context_to_the_configured_wire_budget(repository, database):
@@ -356,14 +329,6 @@ def test_agent_scope_trims_optional_context_to_the_configured_wire_budget(reposi
         )
     stats = RepositoryScanner(database).scan(repository)
     config = load_config(repository)
-    baseline_scope = agent_scope(
-        database,
-        repository_id=stats.repository_id,
-        goal="Change Calculator behavior and its web presentation dependencies",
-        branch=None,
-        config=replace(config, agent=replace(config.agent, payload_limit_bytes=100_000)),
-    )
-    baseline = baseline_scope["architecture_decision"]["verification"]["post_change_baseline"]
     config = replace(
         config,
         agent=replace(config.agent, payload_limit_bytes=4_000),
@@ -375,7 +340,6 @@ def test_agent_scope_trims_optional_context_to_the_configured_wire_budget(reposi
         goal="Change Calculator behavior and its web presentation dependencies",
         branch=None,
         config=config,
-        verification_baseline=baseline,
     )
     encoded_size = len(json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
 
@@ -388,10 +352,6 @@ def test_agent_scope_trims_optional_context_to_the_configured_wire_budget(reposi
     assert value["architecture_decision"]["placement"]["plain_language"]["conclusion"]
     assert value["architecture_decision"]["task_path"]["module"]["path"]
     assert value["architecture_decision"]["history_evidence"]["change_coupling"]["status"]
-    baseline_status = value["architecture_decision"]["verification"]["post_change_baseline_status"]
-    assert baseline_status["status"] == "omitted_for_payload_limit"
-    assert "larger agent.payload_limit_bytes" in baseline_status["reason"]
-    assert (
-        value["architecture_decision"]["verification"]["post_change_comparison"]["status"]
-        == "rescan_required"
-    )
+    verification = value["architecture_decision"]["verification"]
+    assert verification["rescan_argv"] == ["anaxigraph", "update", ".", "--json"]
+    assert "History" in verification["next_step"]

@@ -63,10 +63,9 @@ The packet preserves the product's fact/interpretation/recommendation boundary:
    Machine statuses and scores remain available for automation but never stand in for that
    explanation or move into a separate jargon drawer. Every unused-code projection says that it
    does not authorize deletion.
-9. Scope readiness, preferred placement, change constraints, and before/after verification use the
-   same plain-language contract. A same-snapshot comparison says that no post-change observation
-   was possible, not that the architecture stayed unchanged. Tight payloads retain the direct scope
-   and placement conclusions before duplicate context paths.
+9. Scope readiness, preferred placement, and change constraints use the same plain-language
+   contract. Tight payloads retain direct scope and placement conclusions before duplicate context
+   paths.
 10. Early AI notes retained in agent file summaries are explicitly labeled as notes rather than
     instructions. The architecture packet checks them against repository evidence before explaining
     pattern, consolidation, or removal advice, and the dashboard renders it without adding a human
@@ -81,28 +80,13 @@ The packet preserves the product's fact/interpretation/recommendation boundary:
 
 ## Bounds and freshness
 
-The decision names its snapshot and preserves file size, file complexity, direct incoming and
-outgoing links, structural hashes, architecture placement, bounded semantic responsibilities,
-readable finding evidence, and reviewed-pattern scores in
-`architecture-verification-baseline-v2`. The baseline is bound to fingerprints of the repository
-and normalized coding goal. After a rescan, a client may pass it back to the same scope request.
-The resulting `architecture-verification-comparison-v2` keeps the original module, finding, and
-pattern deltas and adds a bounded structural-effects list grouped as `introduced`, `worsened`,
-`improved`, `resolved`, or `pre_existing`. Every effect states what changed, why it may matter, the
-smallest useful response, why the code may be correct as written, and how to check it.
-
-Those labels describe the direction of indexed evidence. `resolved` means that the current scan no
-longer reports the condition; it is not proof that every runtime path is correct. Likewise, a
-larger or smaller measurement does not prove the whole design became worse or better. The intended
-outcome and focused tests still decide that. Same-snapshot requests return `rescan_required`, and
-cross-repository or cross-goal baselines are refused. Version-1 and unversioned baselines remain
-readable with explicit caveats and do not invent measurements they never stored.
-
-Normal scan and semantic fingerprints continue to own invalidation; this read model has no
-separate freshness mechanism or stored state. Exact target queries reuse the bounded pattern
-application service. If the scope payload exceeds its configured byte budget, detailed decision
-evidence is compacted while contract version, status, preferred path, comparison summary, and the
-highest-priority structural effects remain. `large-file-decomposition-v1` returns at most five
+The decision names its snapshot. Normal scan and semantic fingerprints own invalidation, and exact
+target queries reuse the bounded pattern application service. If the scope payload exceeds its
+configured byte budget, detailed decision evidence is compacted while contract version, status,
+preferred path, focused tests, and rescan guidance remain. The bespoke saved-baseline comparison
+described by the original version of this ADR was removed before 1.0: History, findings, graph
+deltas, and a refreshed scope already own change evidence, so maintaining a second temporal
+protocol made the product harder to use and maintain. `large-file-decomposition-v1` returns at most five
 files and five responsibility slices, preserves the extraction order in compact packets, and adds
 no semantic job, provider call, persistent state, route, or dashboard screen. `task-path-v1`
 returns one area, one subsystem, one module, at most eight matching symbols, and at most ten nearby

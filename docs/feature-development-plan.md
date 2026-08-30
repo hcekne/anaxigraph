@@ -3446,6 +3446,35 @@ seconds, kept snapshot 462 current with 4,420 relationships and 153 findings, an
 tokens. The live index doctor reports schema 10, exact canonical integrity, canonical-only parity,
 bounded reconstruction, zero foreign-key violations, and no blocker.
 
+### 10.2 delivery record: remove the duplicate before/after verification protocol
+
+The live-sidekick mission does not require a second temporal model inside every scope response.
+AnaxiIndex already retains snapshots, graph deltas, finding lifecycle, history, current module
+facts, and reviewed semantic evidence. The former scope workflow copied a bounded subset of those
+facts into a client-owned packet, validated two historical packet versions, accepted that packet
+through CLI, REST, and MCP, compared it with another scope response, classified effects, and then
+compacted the duplicate packet to fit the wire budget. That machinery made an ordinary agent save
+and return opaque JSON before it could finish a coding loop.
+
+The saved-baseline validator, comparison engine, structural-effect classifier, transport argument,
+CLI file loader, comparison prose, and special payload compaction are removed. Scope still returns
+placement, constraints, patterns, decomposition, dead-code caveats, focused tests, semantic test
+guidance, and the exact rescan command. After a coherent change the agent refreshes the shared map,
+repeats scope or impact only when responsibilities or dependencies may have moved, and reads
+History, findings, or graph deltas when temporal evidence matters. One durable AnaxiIndex remains
+the authority; the agent no longer carries a parallel mini-index in its prompt.
+
+This deletes three production modules and lowers the exact production-source ratchet by **1,092
+lines**, from 53,236 to **52,144**. The complete change removes more than 1,800 lines while adding
+fewer than 150 replacement, migration, and decision-record lines. Scale fixtures at 120, 1,000,
+and 3,000 files still prove bounded scope, precise placement, impact traversal, incremental scans,
+current finding evidence, and refresh guidance. The versioned ordinary coding loop advances to
+`coding-loop-contract-v3`; the pre-1.0 saved-baseline wire argument is intentionally retired rather
+than preserved as an invisible compatibility subsystem. The complete Python suite passes with
+**603 tests at 91.95% coverage**, all **17 browser contracts** pass in the pinned Playwright
+container, and every hard architecture, size, complexity, coupling, formatting, and package gate
+remains green.
+
 ## 10.3 Make human understanding the primary dashboard journey
 
 Use the existing semantic repository dossier, reviewed taxonomy, graph, file detail, and history to

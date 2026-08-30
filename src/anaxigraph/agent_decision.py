@@ -29,7 +29,6 @@ def architecture_decision(
     database: Any,
     *,
     repository_id: int,
-    repository_identity: str,
     goal: str,
     snapshot_id: int,
     primary_files: list[dict[str, Any]],
@@ -39,7 +38,6 @@ def architecture_decision(
     tests: list[str],
     findings: list[dict[str, Any]],
     rules: list[dict[str, Any]],
-    verification_baseline: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     patterns = _pattern_items(database, repository_id, snapshot_id, primary_files)
     coupling = scoped_change_coupling(
@@ -58,9 +56,7 @@ def architecture_decision(
         findings=findings,
         rules=rules,
         pattern_items=patterns,
-        repository_identity=repository_identity,
         goal=goal,
-        verification_baseline=verification_baseline,
         change_coupling=coupling,
     )
 
@@ -74,9 +70,7 @@ def build_architecture_decision(
     findings: list[dict[str, Any]],
     pattern_items: list[dict[str, Any]],
     rules: list[dict[str, Any]] | None = None,
-    repository_identity: str = "",
     goal: str = "",
-    verification_baseline: dict[str, Any] | None = None,
     symbols: list[dict[str, Any]] | None = None,
     hierarchy: list[dict[str, Any]] | None = None,
     change_coupling: dict[str, Any] | None = None,
@@ -104,16 +98,7 @@ def build_architecture_decision(
             rules or [],
         ),
         "dead_code": dead_code_advice(primary_files, findings),
-        "verification": verification(
-            snapshot_id,
-            primary_files,
-            tests,
-            findings,
-            reviewed_patterns,
-            repository_identity=repository_identity,
-            goal=goal,
-            previous_baseline=verification_baseline,
-        ),
+        "verification": verification(primary_files, tests),
     }
 
 

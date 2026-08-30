@@ -41,25 +41,21 @@ model-derived interpretations visibly separate.
   preserving the stated limit that retained maps may sample rather than cover every commit.
 - For history questions, use `ANAXIGRAPH_HISTORY_STATUS` and the dashboard timeline. Start or cancel
   an import only when the user requests that index operation.
-- Before an implementation, preserve
-  `architecture_decision.verification.post_change_baseline` from `ANAXIGRAPH_SCOPE`. After the
-  implementation, call `ANAXIGRAPH_SCAN` when available, then repeat `ANAXIGRAPH_SCOPE` with the
-  exact same goal and pass the preserved object as `verification_baseline`. Report the returned
-  `post_change_comparison` alongside focused test results. “No longer reported” is not proof that a
-  finding was fixed, and `changed` is not proof that the architecture improved. Repeat any other
-  relevant impact, finding, or module query needed to test the intended outcome.
+- After an implementation, call `ANAXIGRAPH_SCAN` when available. Repeat scope or impact when
+  responsibilities or dependencies may have moved, and use History and findings for change
+  evidence. “No longer reported” is not proof that a finding was fixed, and a changed metric is not
+  proof that the architecture improved.
 
 ## Work continuously during development
 
 Keep one persistent AnaxiGraph service and structural watcher for the coding session. Build a full
 semantic baseline only when no current baseline exists. For each coherent task:
 
-1. Call `ANAXIGRAPH_SCOPE` once before editing, preserve the exact goal and baseline, and call
-   `ANAXIGRAPH_IMPACT` for shared targets.
+1. Call `ANAXIGRAPH_SCOPE` once before editing and `ANAXIGRAPH_IMPACT` for shared targets.
 2. During edits, let the watcher update deterministic source facts and run focused tests normally.
    Do not start model-backed semantic work after every save.
-3. At the verification checkpoint, call `ANAXIGRAPH_SCAN`, then repeat the same scope request with
-   the saved baseline.
+3. At the verification checkpoint, call `ANAXIGRAPH_SCAN`, then repeat only the queries needed to
+   confirm changed responsibilities, dependencies, findings, or history.
 4. After the coherent task or commit, start one background `understand` run if changed semantic
    descriptions matter. It must reuse unchanged scopes. Wait for `semantically_ready` only when the
    next decision requires a fully current semantic map.
@@ -142,8 +138,7 @@ Return a compact plan containing:
 3. dependants, contracts, protected boundaries, and likely tests;
 4. relevant findings and semantic claims, labeled by provenance and confidence;
 5. the smallest viable change plus credible alternatives;
-6. verification commands, the saved `post_change_baseline`, and the AnaxiGraph rescan/same-goal
-   scope query that measures the architectural outcome.
+6. focused verification commands and the AnaxiGraph refresh/query needed to inspect the result.
 
 Prefer evidence-backed uncertainty over confident extrapolation. Do not recommend deleting a symbol
 or module solely because static analysis found no caller; dynamic loading, reflection, framework

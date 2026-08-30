@@ -1,7 +1,5 @@
 """Validated request bodies for AnaxiGraph's HTTP transport."""
 
-from typing import Any
-
 from pydantic import BaseModel, Field
 
 
@@ -9,7 +7,6 @@ class ScopeRequest(BaseModel):
     goal: str = Field(min_length=2, max_length=2_000)
     branch: str | None = Field(default=None, max_length=250)
     repository_id: int | None = None
-    verification_baseline: dict[str, Any] | None = None
 
 
 class ImpactRequest(BaseModel):

@@ -11,7 +11,6 @@ from typing import Any
 from anaxigraph import git
 from anaxigraph.agent_decision_payload import (
     compact_architecture_decision,
-    fit_verification_to_budget,
 )
 from anaxigraph.agent_task_path import compact_task_path
 from anaxigraph.config import AnaxiGraphConfig, path_matches
@@ -224,9 +223,6 @@ def _bound_scope_payload(payload: dict[str, Any], limit_bytes: int) -> dict[str,
     _compact_optional_scope(payload, size, limit, omitted)
     _compact_scope_file_details(payload, size, limit, omitted)
     _minimize_task_path(payload, size, limit, omitted)
-    decision = payload.get("architecture_decision") or {}
-    for key, count in fit_verification_to_budget(decision, current_size=size, limit=limit).items():
-        omitted[key] += count
     payload["payload_budget"]["truncated"] = any(omitted.values())
     for _attempt in range(4):
         measured = size()
@@ -355,8 +351,6 @@ def _scope_omissions() -> dict[str, int]:
             "primary_file_details",
             "architecture_decision_details",
             "task_path_details",
-            "verification_baseline",
-            "verification_details",
             "recommended_context",
             "plain_language_details",
             "risk_reasons",

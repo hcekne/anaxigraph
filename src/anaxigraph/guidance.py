@@ -142,11 +142,11 @@ AGENT_WORKFLOW = {
 }
 
 CODING_LOOP_CONTRACT = {
-    "version": "coding-loop-contract-v2",
+    "version": "coding-loop-contract-v3",
     "purpose": (
         "These are the existing names an agent can rely on to understand a repository, choose "
-        "where a change belongs, inspect its likely effects, and compare the result after a new "
-        "scan. The lists are required subsets, so AnaxiGraph may expose other operations too."
+        "where a change belongs, inspect its likely effects, and refresh the shared map after a "
+        "change. The lists are required subsets, so AnaxiGraph may expose other operations too."
     ),
     "cli_commands": [
         "up",
@@ -204,7 +204,7 @@ CODING_LOOP_CONTRACT = {
             "when no current baseline exists."
         ),
         "before_each_task": [
-            "Call ANAXIGRAPH_SCOPE with one exact goal and save post_change_baseline.",
+            "Call ANAXIGRAPH_SCOPE with one exact goal and read its placement and checks.",
             "Call ANAXIGRAPH_IMPACT before changing a shared file or named code part.",
         ],
         "during_edits": (
@@ -212,14 +212,14 @@ CODING_LOOP_CONTRACT = {
             "not rebuild the AI map after every save."
         ),
         "after_a_coherent_change": [
-            "Call ANAXIGRAPH_SCAN so verification uses the finished working tree.",
-            "Repeat ANAXIGRAPH_SCOPE with the exact same goal and saved verification_baseline.",
+            "Call ANAXIGRAPH_SCAN so the shared map uses the finished working tree.",
+            "Repeat ANAXIGRAPH_SCOPE when responsibilities or dependencies may have moved; use History and findings for change evidence.",
             "Run understand in the background once to refresh only changed AI scopes; unchanged "
             "descriptions are reused.",
         ],
         "readiness_rule": (
-            "Structural comparison can finish before the background AI refresh. Wait for "
-            "semantically_ready only when the next decision depends on a completely current AI map."
+            "Structural facts refresh before the background AI map. Wait for semantically_ready "
+            "only when the next decision depends on completely current semantic descriptions."
         ),
     },
     "telemetry": {
@@ -235,12 +235,6 @@ CODING_LOOP_CONTRACT = {
     },
     "versioned_results": {
         "scope.architecture_decision.contract_version": "architecture-decision-v1",
-        "scope.architecture_decision.verification.post_change_baseline.contract_version": (
-            "architecture-verification-baseline-v2"
-        ),
-        "scope.architecture_decision.verification.post_change_comparison.contract_version": (
-            "architecture-verification-comparison-v2"
-        ),
         "scope.architecture_decision.decomposition.contract_version": (
             "large-file-decomposition-v1"
         ),

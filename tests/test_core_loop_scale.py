@@ -12,7 +12,9 @@ from benchmarks.repository_factory import create_history_repository
 
 
 @pytest.mark.parametrize("file_count", [120, 1_000, 3_000])
-def test_core_coding_loop_stays_precise_bounded_and_change_aware(tmp_path, file_count):
+def test_core_coding_loop_stays_precise_bounded_and_refreshes_current_evidence(
+    tmp_path, file_count
+):
     repository = tmp_path / "repository"
     manifest = create_history_repository(repository, file_count=file_count, commits=1)
     database = AnaxiIndex(tmp_path / "index.db")
@@ -31,7 +33,6 @@ def test_core_coding_loop_stays_precise_bounded_and_change_aware(tmp_path, file_
     expected = set(manifest["scope_expected_candidates"])
     primary = {item["path"] for item in before["primary_files"]}
     decision = before["architecture_decision"]
-    baseline = decision["verification"]["post_change_baseline"]
     encoded = json.dumps(before, separators=(",", ":"), sort_keys=True).encode()
 
     assert primary == expected
@@ -39,7 +40,12 @@ def test_core_coding_loop_stays_precise_bounded_and_change_aware(tmp_path, file_
     assert decision["contract_version"] == "architecture-decision-v1"
     assert decision["task_path"]["module"]["path"] == "src/sample/analyzers/base.py"
     assert decision["placement"]["preferred_path"] == "src/sample/languages.py"
-    assert baseline["contract_version"] == "architecture-verification-baseline-v2"
+    assert decision["verification"]["rescan_argv"] == [
+        "anaxigraph",
+        "update",
+        ".",
+        "--json",
+    ]
 
     impact = impact_analysis(
         database,
@@ -64,16 +70,17 @@ def test_core_coding_loop_stays_precise_bounded_and_change_aware(tmp_path, file_
         goal=manifest["scope_goal"],
         branch=None,
         config=config,
-        verification_baseline=baseline,
     )
 
     assert second_scan.analyzed == 1
-    introduced_effects = introduced["architecture_decision"]["verification"][
-        "post_change_comparison"
-    ]["changes"]["structural_effects"]
-    assert "dependency_cycle" in {item["category"] for item in introduced_effects["introduced"]}
+    assert introduced["snapshot_id"] == second_scan.snapshot_id
+    active_types = {
+        item["finding_type"]
+        for item in database.findings(second_scan.repository_id)
+        if item["status"] not in {"resolved", "dismissed"}
+    }
+    assert "dependency_cycle" in active_types
 
-    harmful_baseline = introduced["architecture_decision"]["verification"]["post_change_baseline"]
     safe_change = original.replace(
         '".ts": "typescript"}',
         '".ts": "typescript", ".go": "go"}',
@@ -86,11 +93,13 @@ def test_core_coding_loop_stays_precise_bounded_and_change_aware(tmp_path, file_
         goal=manifest["scope_goal"],
         branch=None,
         config=config,
-        verification_baseline=harmful_baseline,
     )
 
     assert third_scan.analyzed == 1
-    resolved_effects = resolved["architecture_decision"]["verification"]["post_change_comparison"][
-        "changes"
-    ]["structural_effects"]
-    assert "dependency_cycle" in {item["category"] for item in resolved_effects["resolved"]}
+    active_types = {
+        item["finding_type"]
+        for item in database.findings(third_scan.repository_id)
+        if item["status"] not in {"resolved", "dismissed"}
+    }
+    assert "dependency_cycle" not in active_types
+    assert resolved["architecture_decision"]["verification"]["rescan_argv"]

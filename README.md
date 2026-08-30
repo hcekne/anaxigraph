@@ -126,7 +126,7 @@ The complete [onboarding guide](docs/onboarding.md) explains the normal coding l
 diagnostics.
 
 Connected agents can call `ANAXIGRAPH_GUIDE` with `topic="coding_loop"` to read the
-`coding-loop-contract-v2` required cadence, command, route, tool, telemetry, and response-version
+`coding-loop-contract-v3` required cadence, command, route, tool, telemetry, and response-version
 names. It is a small
 compatibility subset for this workflow, not a promise that every administrative field will remain
 unchanged.
@@ -139,25 +139,23 @@ not trigger another model-backed repository pass.
 
 Give the connected agent one concrete goal:
 
-> Use AnaxiGraph to plan and verify “add saved prompt exports.” Find the smallest relevant file
-> set, tell me where the code belongs, inspect what depends on the shared files, save the
-> before-change record, and after implementation rescan and compare the same goal.
+> Use AnaxiGraph to guide “add saved prompt exports.” Find the smallest relevant file set, tell me
+> where the code belongs, inspect what depends on shared files, identify the focused checks, and
+> refresh the shared map after implementation.
 
 The agent follows one sequence:
 
-1. **Scope** — `ANAXIGRAPH_SCOPE` returns likely files, placement, boundaries, tests, risks, and a
-   `post_change_baseline`. Keep that baseline and the goal text unchanged.
+1. **Scope** — `ANAXIGRAPH_SCOPE` returns likely files, placement, boundaries, tests, and risks.
 2. **Impact** — `ANAXIGRAPH_IMPACT` shows direct dependants of the shared files before they change.
 3. **Change** — edit source and run focused tests through the normal coding workflow. AnaxiGraph
    observes the repository; it does not edit it.
-4. **Verify** — request `ANAXIGRAPH_SCAN`, then call `ANAXIGRAPH_SCOPE` with the same goal and pass
-   the saved object as `verification_baseline`. Read `post_change_comparison` beside the test
-   results.
+4. **Refresh** — request `ANAXIGRAPH_SCAN`. Ask for scope or impact again when responsibilities or
+   dependencies may have moved, and use History and findings when you need change evidence.
 
 After a coherent task or commit, run `anaxigraph understand . --executor codex --background`
 once if changed AI descriptions matter. It queues only stale scopes and reuses unchanged work. The
-structural comparison does not need to wait for that background refresh; wait for
-`semantically_ready` only before a decision that needs the fully current AI map.
+structural map does not need to wait for that background refresh; wait for `semantically_ready`
+only before a decision that needs the fully current AI map.
 
 Each scope and impact reply now includes server time, payload size, and model-token use. Semantic
 status groups AI jobs by action with current-snapshot and lifetime time/token totals, while scan
@@ -165,8 +163,8 @@ results and detached execution records show wall-clock duration. Successful and 
 contribute token totals when the executor reports them. A process killed before it emits usage is
 still labeled unreported; zero is never presented as proof that the model call was free.
 
-A difference is not automatically an improvement. The expected behavior, focused tests, and
-before/after architecture evidence must agree. The [onboarding guide](docs/onboarding.md#use-one-coding-loop)
+A changed metric or finding is not automatically an improvement. Expected behavior, focused tests,
+and architecture evidence must agree. The [onboarding guide](docs/onboarding.md#use-one-coding-loop)
 explains the same loop; lower-level and operator workflows stay in the
 [advanced guide](docs/advanced-operations.md).
 

@@ -47,7 +47,7 @@ def test_coding_loop_contract_freezes_required_cli_rest_and_result_versions(repo
         for method in path_item
     }
 
-    assert contract["version"] == "coding-loop-contract-v2"
+    assert contract["version"] == "coding-loop-contract-v3"
     assert (
         "Do not rebuild the AI map after every save"
         in contract["development_cadence"]["during_edits"]
@@ -57,12 +57,6 @@ def test_coding_loop_contract_freezes_required_cli_rest_and_result_versions(repo
     assert set(contract["rest_operations"]) <= operations
     assert contract["versioned_results"] == {
         "scope.architecture_decision.contract_version": "architecture-decision-v1",
-        "scope.architecture_decision.verification.post_change_baseline.contract_version": (
-            "architecture-verification-baseline-v2"
-        ),
-        "scope.architecture_decision.verification.post_change_comparison.contract_version": (
-            "architecture-verification-comparison-v2"
-        ),
         "scope.architecture_decision.decomposition.contract_version": (
             "large-file-decomposition-v1"
         ),

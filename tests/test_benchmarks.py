@@ -114,7 +114,7 @@ def test_history_fixture_has_exact_versions_and_agent_scope(tmp_path):
     assert ambiguous >= 1
     assert len(primary.intersection(manifest["scope_expected_candidates"])) >= 6
     assert scope["payload_bytes"] == scope["payload_budget"]["estimated_bytes"]
-    assert scope["architecture_decision"]["baseline_included"] is True
+    assert scope["architecture_decision"]["rescan_included"] is True
     assert set(graph_metrics["temporal_reads"]) == {"current", "oldest", "middle"}
     for measurement in graph_metrics["temporal_reads"].values():
         assert measurement["reconstruction"]["files"]["traversed_deltas"] < 16

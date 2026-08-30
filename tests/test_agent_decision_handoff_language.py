@@ -2,15 +2,12 @@ from __future__ import annotations
 
 from anaxigraph.agent_decision_handoff_language import (
     ARCHITECTURE_HANDOFF_LANGUAGE_VERSION,
-    VERIFICATION_LANGUAGE_VERSION,
     _bounded_strings,
-    comparison_explanation,
     constraint_item_explanation,
     constraints_explanation,
     decision_explanation,
     placement_explanation,
     semantic_file_explanation,
-    verification_explanation,
 )
 
 
@@ -95,41 +92,6 @@ def test_constraints_define_precise_terms_in_the_main_explanation():
     assert "behavior or data that other code relies on" in visible
     assert "shared interface used to call providers" in visible
     assert "way the code is divided between files" in visible
-
-
-def test_verification_explanation_turns_the_baseline_protocol_into_steps():
-    result = verification_explanation(
-        {
-            "focused_test_paths": ["tests/test_service.py"],
-            "post_change_baseline": {"snapshot_id": 9},
-        }
-    )
-
-    assert result["version"] == VERIFICATION_LANGUAGE_VERSION
-    assert "has not compared a newer scan yet" in result["conclusion"]
-    assert result["what_to_do"][0] == "Run the focused tests: tests/test_service.py."
-    assert "anaxigraph update" in result["what_to_do"][1]
-    assert "does not by itself prove" in result["what_it_cannot_prove"]
-
-
-def test_comparison_explanation_does_not_call_no_rescan_an_unchanged_result():
-    result = comparison_explanation(
-        {
-            "status": "rescan_required",
-            "summary": "Both packets use snapshot 9. Run a scan.",
-            "changes": {
-                "modules": {"newly_tracked": [], "no_longer_tracked": [], "changed": []},
-                "findings": {"newly_reported": [], "no_longer_reported": []},
-                "patterns": {"newly_reported": [], "no_longer_reported": [], "changed": []},
-            },
-            "interpretation": "No post-change evidence exists yet.",
-        }
-    )
-
-    assert result["what_anaxigraph_saw"] == [
-        "No newer saved scan was available, so no after-change comparison was possible."
-    ]
-    assert result["what_to_do"].startswith("Run a new scan")
 
 
 def test_semantic_file_explanation_labels_raw_advice_as_input_not_authorization():

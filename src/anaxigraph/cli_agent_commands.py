@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
-from pathlib import Path
 from typing import Any
 
 from anaxigraph.agent import agent_scope, branch_collisions, impact_analysis
@@ -25,11 +23,6 @@ def configure_agent_commands(commands: Any) -> None:
     add_repository_arguments(scope)
     scope.add_argument("--goal", required=True, help="The coding goal")
     scope.add_argument("--branch", help="Branch to check for files also changed elsewhere")
-    scope.add_argument(
-        "--verification-baseline",
-        type=Path,
-        help="Saved before-change JSON from an earlier scope response to compare after a new scan",
-    )
     _add_service_url(scope)
     scope.set_defaults(handler=_scope, db=None)
 
@@ -61,7 +54,6 @@ def _add_service_url(parser: Any) -> None:
 
 
 def _scope(args: argparse.Namespace) -> dict[str, Any]:
-    baseline = _load_verification_baseline(args.verification_baseline)
     service = _agent_service(args)
     if service is not None:
         return _service_result(
@@ -69,7 +61,6 @@ def _scope(args: argparse.Namespace) -> dict[str, Any]:
                 service,
                 goal=args.goal,
                 branch=args.branch,
-                verification_baseline=baseline,
             ),
             service,
         )
@@ -80,23 +71,7 @@ def _scope(args: argparse.Namespace) -> dict[str, Any]:
         goal=args.goal,
         branch=args.branch,
         config=config,
-        verification_baseline=baseline,
     )
-
-
-def _load_verification_baseline(path: Path | None) -> dict[str, Any] | None:
-    if path is None:
-        return None
-    content = path.read_bytes()
-    if len(content) > 64_000:
-        raise ValueError("The verification baseline must be smaller than 64 KB.")
-    try:
-        value = json.loads(content)
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise ValueError("The verification baseline must be valid JSON.") from exc
-    if not isinstance(value, dict):
-        raise ValueError("The verification baseline must be a JSON object.")
-    return value
 
 
 def _impact(args: argparse.Namespace) -> dict[str, Any]:

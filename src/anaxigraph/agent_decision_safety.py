@@ -1,4 +1,4 @@
-"""Balanced consolidation, dead-code, and post-change evidence for agent decisions."""
+"""Balanced consolidation, dead-code, and change checks for agent decisions."""
 
 from __future__ import annotations
 
@@ -7,17 +7,10 @@ from typing import Any
 from anaxigraph.agent_decision_handoff_language import (
     _bounded_strings as _strings,
 )
-from anaxigraph.agent_decision_handoff_language import (
-    verification_explanation,
-)
 from anaxigraph.agent_decision_language import (
     consolidation_explanation,
     dead_code_explanation,
     dead_code_policy_explanation,
-)
-from anaxigraph.agent_decision_verification import (
-    compare_verification_baselines,
-    verification_baseline,
 )
 
 _CONSOLIDATION_PATTERNS = {
@@ -198,44 +191,18 @@ def _finding_corroborates(
     return finding is not None and locator == module
 
 
-def verification(
-    snapshot_id: int,
-    primary_files: list[dict[str, Any]],
-    tests: list[str],
-    findings: list[dict[str, Any]],
-    patterns: list[dict[str, Any]],
-    *,
-    repository_identity: str = "",
-    goal: str = "",
-    previous_baseline: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    current_baseline = verification_baseline(
-        repository_identity=repository_identity,
-        goal=goal,
-        snapshot_id=snapshot_id,
-        modules=primary_files,
-        findings=findings,
-        patterns=patterns,
-    )
-    result = {
+def verification(primary_files: list[dict[str, Any]], tests: list[str]) -> dict[str, Any]:
+    """Return the checks an agent should run without inventing a second history protocol."""
+
+    return {
         "focused_test_paths": tests[:20],
         "semantic_test_guidance": _semantic_test_guidance(primary_files),
         "rescan_argv": ["anaxigraph", "update", ".", "--json"],
-        "post_change_baseline": current_baseline,
-        "compare": [
-            "resolved and ambiguous dependency edges",
-            "active finding keys and blast radius",
-            "reviewed pattern scores and critique verdicts",
-            "module placement and semantic responsibility",
-            "focused test outcomes",
-        ],
+        "next_step": (
+            "Run the focused tests, update the AnaxiGraph map, and ask for scope or impact again "
+            "if the change altered responsibilities or dependencies. Use History for temporal evidence."
+        ),
     }
-    if previous_baseline is not None:
-        result["post_change_comparison"] = compare_verification_baselines(
-            previous_baseline, current_baseline
-        )
-    result["plain_language"] = verification_explanation(result)
-    return result
 
 
 def _semantic_test_guidance(primary_files: list[dict[str, Any]]) -> list[dict[str, Any]]:

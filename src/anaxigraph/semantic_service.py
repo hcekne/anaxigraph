@@ -192,7 +192,6 @@ def service_agent_scope(
     *,
     goal: str,
     branch: str | None,
-    verification_baseline: dict[str, Any] | None,
     timeout: float = 30,
 ) -> dict[str, Any]:
     return _service_agent_request(
@@ -202,7 +201,6 @@ def service_agent_scope(
             "goal": goal,
             "branch": branch,
             "repository_id": target.repository_id,
-            "verification_baseline": verification_baseline,
         },
         timeout=timeout,
     )

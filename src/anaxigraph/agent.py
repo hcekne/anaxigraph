@@ -40,7 +40,6 @@ def agent_scope(
     goal: str,
     branch: str | None,
     config: AnaxiGraphConfig,
-    verification_baseline: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     started = time.perf_counter()
     repository, snapshot_id, map_status = _repository_map_state(database, repository_id)
@@ -87,7 +86,6 @@ def agent_scope(
     decision = _scope_decision(
         database,
         repository_id,
-        str(repository.get("remote_url") or repository["path"]),
         goal,
         snapshot_id,
         files,
@@ -97,7 +95,6 @@ def agent_scope(
         hierarchy,
         tests,
         (findings, rules),
-        verification_baseline,
     )
     return _scope_payload(
         _ScopePayloadData(
@@ -144,7 +141,6 @@ def _scope_symbols(
 def _scope_decision(
     database: AnaxiIndex,
     repository_id: int,
-    repository_identity: str,
     goal: str,
     snapshot_id: int,
     files: dict[int, dict[str, Any]],
@@ -154,13 +150,11 @@ def _scope_decision(
     hierarchy: list[dict[str, Any]],
     tests: set[str],
     evidence: tuple[list[dict[str, Any]], list[dict[str, Any]]],
-    verification_baseline: dict[str, Any] | None,
 ) -> dict[str, Any]:
     findings, rules = evidence
     return architecture_decision(
         database,
         repository_id=repository_id,
-        repository_identity=repository_identity,
         goal=goal,
         snapshot_id=snapshot_id,
         primary_files=[files[item] for item in primary_ids],
@@ -170,7 +164,6 @@ def _scope_decision(
         tests=sorted(tests),
         findings=findings,
         rules=rules,
-        verification_baseline=verification_baseline,
     )
 
 

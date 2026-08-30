@@ -96,33 +96,18 @@ live under `benchmarks/fixtures/pattern-calibration` and `benchmarks/pattern-cal
 The same finalized pattern projection contributes to `architecture-decision-v1` inside the normal
 agent scope. Placement guidance distinguishes patterns already worth reusing from genuine change
 opportunities and retains critic provenance, contracts, invariants, risks, focused tests, and the
-snapshot facts to compare after a rescan. Save the returned
-`architecture_decision.verification.post_change_baseline`, then pass it back with the same goal:
+snapshot facts behind the recommendation. Refresh the shared map after a coherent change:
 
 ```text
 ANAXIGRAPH_SCOPE(goal="Add provider fallback")
 ANAXIGRAPH_SCAN()
-ANAXIGRAPH_SCOPE(
-  goal="Add provider fallback",
-  verification_baseline=<the earlier post_change_baseline>
-)
+ANAXIGRAPH_SCOPE(goal="Add provider fallback")
 ```
 
-The second response includes `architecture-verification-comparison-v2`. It uses
-`rescan_required`, `unchanged`, `changed`, or `incomparable` in ordinary language and lists the
-module, finding, and reviewed-pattern facts that differ. It also groups bounded structural effects
-as introduced, worsened, improved, resolved, or pre-existing. Those labels describe the indexed
-signal: “resolved” does not mean “proved correct,” and a changed score does not by itself mean the
-code is better. The focused tests and the intended outcome still decide that.
-
-The CLI accepts either that nested baseline or the whole earlier scope response:
-
-```bash
-anaxigraph scope . --goal "Add provider fallback" --json > before.json
-anaxigraph update . --json
-anaxigraph scope . --goal "Add provider fallback" \
-  --verification-baseline before.json --json
-```
+Repeat scope only when responsibilities, placement, or dependencies may have moved. History,
+findings, and the refreshed graph provide temporal evidence without a second saved-baseline
+protocol. A changed score or disappeared finding does not prove the code improved; the intended
+outcome and focused tests still decide that.
 
 Consolidation keeps supporting and contrary evidence. Dead-code advice is stricter: a semantic
 suggestion needs a same-granularity deterministic candidate, and deterministic module candidates

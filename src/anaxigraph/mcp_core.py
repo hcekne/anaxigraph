@@ -125,9 +125,8 @@ class CoreMcpTools:
             name="ANAXIGRAPH_SCOPE",
             description=(
                 "For a coding goal, return a small list of likely files, advice about where to "
-                "start, AI-checked pattern results, risks, and steps for checking the change. Save "
-                "the returned before-change record; after a new scan, pass it as "
-                "verification_baseline to see which tracked facts changed."
+                "start, AI-checked pattern results, risks, focused checks, and rescan guidance. "
+                "Ask again when a coherent change may have moved responsibilities or dependencies."
             ),
         )
         self.server.add_tool(
@@ -246,7 +245,6 @@ class CoreMcpTools:
         goal: str,
         branch: str = "",
         repository: str = "",
-        verification_baseline: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         row, root = self.context.select(repository)
         return agent_scope(
@@ -255,7 +253,6 @@ class CoreMcpTools:
             goal=goal,
             branch=branch or None,
             config=self.context.config_for(row, root),
-            verification_baseline=verification_baseline,
         )
 
     def impact(self, target: str, branch: str = "", repository: str = "") -> dict[str, Any]:

@@ -154,7 +154,6 @@ def scope_metrics(
     expected_set = set(expected)
     decision = payload["architecture_decision"]
     verification = decision.get("verification") or {}
-    baseline = verification.get("post_change_baseline") or {}
     return {
         **timing,
         "goal": goal,
@@ -170,8 +169,8 @@ def scope_metrics(
             "preferred_path": (decision.get("placement") or {}).get("preferred_path"),
             "task_path_status": (decision.get("task_path") or {}).get("status"),
             "task_path_module": ((decision.get("task_path") or {}).get("module") or {}).get("path"),
-            "baseline_contract_version": baseline.get("contract_version"),
-            "baseline_included": bool(baseline),
+            "rescan_included": bool(verification.get("rescan_argv")),
+            "focused_test_count": len(verification.get("focused_test_paths") or ()),
         },
         "payload_budget": payload["payload_budget"],
     }

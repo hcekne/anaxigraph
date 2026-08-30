@@ -45,26 +45,7 @@ def test_repository_agent_and_export_handlers_share_the_current_scan(
     assert scanned["status"] == "ok"
     assert "finding_page" in reviewed
     assert scoped["goal"] == "Change the calculator"
-    baseline_path = tmp_path / "verification-baseline.json"
-    baseline_path.write_text(
-        json.dumps(scoped["architecture_decision"]["verification"]["post_change_baseline"]),
-        encoding="utf-8",
-    )
-    compared = _call(
-        [
-            "scope",
-            *common,
-            "--goal",
-            "Change the calculator",
-            "--verification-baseline",
-            str(baseline_path),
-        ],
-        capsys,
-    )
-    assert (
-        compared["architecture_decision"]["verification"]["post_change_comparison"]["status"]
-        == "rescan_required"
-    )
+    assert scoped["architecture_decision"]["verification"]["rescan_argv"]
     assert impacted["target"]["path"] == "pkg/core.py"
     assert collisions["branches"] == {}
     assert patterns["contract_version"] == "pattern-query-v1"

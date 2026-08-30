@@ -1,4 +1,4 @@
-"""Readable placement, constraint, and verification handoffs over indexed evidence."""
+"""Readable placement and constraint handoffs over indexed evidence."""
 
 from __future__ import annotations
 
@@ -11,7 +11,6 @@ from anaxigraph.semantic_file_language import (
 )
 
 ARCHITECTURE_HANDOFF_LANGUAGE_VERSION = "architecture-handoff-explanation-v2"
-VERIFICATION_LANGUAGE_VERSION = "architecture-verification-explanation-v3"
 
 
 def decision_explanation(
@@ -100,58 +99,6 @@ def constraints_explanation(items: Sequence[Mapping[str, Any]]) -> dict[str, Any
     }
 
 
-def verification_explanation(verification: Mapping[str, Any]) -> dict[str, Any]:
-    comparison = verification.get("post_change_comparison")
-    tests = _bounded_strings(verification.get("focused_test_paths"), 8)
-    if isinstance(comparison, Mapping):
-        conclusion = explain_specialist_terms(
-            comparison.get("summary") or "The before/after comparison is available."
-        )
-    else:
-        conclusion = (
-            "AnaxiGraph saved what the selected code looked like before the change, but it has not "
-            "compared a newer scan yet."
-        )
-    steps = []
-    if tests:
-        steps.append(f"Run the focused tests: {', '.join(tests)}.")
-    steps.extend(
-        [
-            "Run `anaxigraph update . --json` after the code change.",
-            "Send the saved before-change record with the same coding goal and compare the result.",
-        ]
-    )
-    return {
-        "version": VERIFICATION_LANGUAGE_VERSION,
-        "conclusion": conclusion,
-        "what_to_do": steps,
-        "what_the_result_can_prove": (
-            "It can show which tracked facts about files, findings, and pattern ratings changed "
-            "between two scans."
-        ),
-        "what_it_cannot_prove": (
-            "A changed score or disappeared finding does not by itself prove that the code improved. "
-            "The expected behavior and focused tests must also pass."
-        ),
-    }
-
-
-def comparison_explanation(comparison: Mapping[str, Any]) -> dict[str, Any]:
-    status = str(comparison.get("status") or "")
-    return {
-        "version": VERIFICATION_LANGUAGE_VERSION,
-        "conclusion": explain_specialist_terms(
-            comparison.get("summary") or "No comparison summary is available."
-        ),
-        "what_anaxigraph_saw": _comparison_observations(status, comparison.get("changes")),
-        "what_to_do": _comparison_action(status),
-        "what_it_does_not_prove": explain_specialist_terms(
-            comparison.get("interpretation")
-            or "The comparison does not prove that the code became better or worse."
-        ),
-    }
-
-
 def compact_explanation(value: Any, *fields: str) -> dict[str, Any]:
     source = value if isinstance(value, Mapping) else {}
     return {
@@ -203,92 +150,6 @@ def _decision_limits(status: str) -> list[str]:
         "files are responsible for or what behavior must stay true.",
         "Start with the returned files, but inspect their callers and focused tests before editing.",
     ]
-
-
-def _comparison_observations(status: str, value: Any) -> list[str]:
-    if status == "rescan_required":
-        return ["No newer saved scan was available, so no after-change comparison was possible."]
-    if status == "incomparable":
-        return ["The two saved records did not describe the same repository and coding goal."]
-    changes = value if isinstance(value, Mapping) else {}
-    modules = changes.get("modules") if isinstance(changes.get("modules"), Mapping) else {}
-    findings = changes.get("findings") if isinstance(changes.get("findings"), Mapping) else {}
-    patterns = changes.get("patterns") if isinstance(changes.get("patterns"), Mapping) else {}
-    effects = (
-        changes.get("structural_effects")
-        if isinstance(changes.get("structural_effects"), Mapping)
-        else {}
-    )
-    counts = [
-        (
-            "file record",
-            "file records",
-            sum(len(item) for item in modules.values() if isinstance(item, list)),
-        ),
-        (
-            "finding",
-            "findings",
-            sum(len(item) for item in findings.values() if isinstance(item, list)),
-        ),
-        (
-            "AI-checked pattern result",
-            "AI-checked pattern results",
-            sum(len(item) for item in patterns.values() if isinstance(item, list)),
-        ),
-    ]
-    observations = [
-        f"AnaxiGraph found {_items(count, singular, plural)} that changed."
-        for singular, plural, count in counts
-        if count
-    ]
-    observations.extend(_effect_observations(effects))
-    if not observations:
-        return ["The tracked files, findings, and AI-checked pattern results did not change."]
-    return observations
-
-
-def _effect_observations(effects: Mapping[str, Any]) -> list[str]:
-    wording = {
-        "introduced": ("was introduced", "were introduced"),
-        "worsened": ("became harder to manage", "became harder to manage"),
-        "improved": ("became easier to manage", "became easier to manage"),
-        "resolved": ("was resolved", "were resolved"),
-        "pre_existing": ("was already present", "were already present"),
-    }
-    result = []
-    for name, (singular, plural) in wording.items():
-        values = effects.get(name)
-        count = len(values) if isinstance(values, list) else 0
-        if count:
-            verb = singular if count == 1 else plural
-            result.append(f"{_items(count, 'structural effect', 'structural effects')} {verb}.")
-    omitted = effects.get("omitted_count")
-    if isinstance(omitted, int) and omitted > 0:
-        result.append(
-            f"{_items(omitted, 'additional effect was', 'additional effects were')} omitted to keep the response small."
-        )
-    return result
-
-
-def _comparison_action(status: str) -> str:
-    return {
-        "rescan_required": (
-            "Run a new scan, then compare again with the same saved before-change record and coding goal."
-        ),
-        "incomparable": (
-            "Save a before-change record for this repository and use the same coding goal."
-        ),
-        "changed": (
-            "Start with structural effects marked introduced or harder to manage. Read their "
-            "smallest next steps and exceptions, then confirm the intended behavior with focused "
-            "tests before calling the change an improvement."
-        ),
-        "unchanged": (
-            "If the code map was expected to change, inspect which files were scanned and what "
-            "evidence was available. Otherwise, keep this as confirmation that the tracked facts "
-            "stayed the same."
-        ),
-    }.get(status, "Read the evidence and focused test results before drawing a conclusion.")
 
 
 def _bounded_strings(value: Any, limit: int, width: int = 700) -> list[str]:

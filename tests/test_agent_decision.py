@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import pytest
-
 from anaxigraph.agent_decision import build_architecture_decision
-from anaxigraph.agent_decision_verification import ARCHITECTURE_BASELINE_VERSION
 
 
 def _module(
@@ -44,23 +41,6 @@ def _module(
                 "counter_evidence": counter or [],
             },
             "dead_code_candidates": dead_code or [],
-        },
-    }
-
-
-def _finding(key, finding_type, *, severity="warning"):
-    return {
-        "stable_key": key,
-        "finding_type": finding_type,
-        "severity": severity,
-        "affected_artifacts": ["src/service.py"],
-        "summary": f"{finding_type} affects src/service.py",
-        "plain_language": {
-            "what": f"{finding_type} affects src/service.py.",
-            "why_it_matters": "This can make the file harder to change safely.",
-            "next_step": "Make the smallest structural correction that removes the problem.",
-            "how_to_check": "Run focused tests and scan again.",
-            "when_no_change_may_be_needed": ["The repository intentionally allows this structure."],
         },
     }
 
@@ -149,15 +129,10 @@ def test_architecture_decision_combines_placement_patterns_and_balanced_consolid
     assert consolidation["conclusion"].startswith("Keep src/service.py separate")
     assert "not a code-quality grade" in consolidation["evidence_strength"]["meaning"]
     assert result["consolidation"][0]["context"]["change_coupling"]["status"] == "unavailable"
-    baseline = result["verification"]["post_change_baseline"]
-    assert baseline["contract_version"] == ARCHITECTURE_BASELINE_VERSION
-    assert baseline["snapshot_id"] == 9
-    assert baseline["finding_keys"] == ["finding-3"]
-    assert baseline["modules"][0]["lines_of_code"] == 120
-    assert baseline["modules"][0]["complexity"] == 4
     assert result["verification"]["focused_test_paths"] == ["tests/test_service.py"]
     assert result["verification"]["semantic_test_guidance"][0]["guidance"]
-    assert "has not compared a newer scan" in result["verification"]["plain_language"]["conclusion"]
+    assert result["verification"]["rescan_argv"] == ["anaxigraph", "update", ".", "--json"]
+    assert "Use History for temporal evidence" in result["verification"]["next_step"]
 
 
 def test_architecture_decision_suppresses_uncorroborated_dead_code_and_weak_merge_advice():
@@ -255,170 +230,3 @@ def test_module_dead_code_finding_does_not_corroborate_symbol_candidate():
     assert items[0]["status"] == "suppressed"
     assert items[1]["path_or_symbol"] == "src/service.py"
     assert items[1]["status"] == "deterministic_candidate"
-
-
-def test_architecture_decision_compares_a_previous_baseline_after_a_rescan():
-    previous = build_architecture_decision(
-        snapshot_id=20,
-        primary_files=[_module()],
-        interfaces=[],
-        tests=["tests/test_service.py"],
-        findings=[_finding("finding-old", "dependency_cycle")],
-        pattern_items=[_pattern()],
-        repository_identity="https://example.test/repository.git",
-        goal="Simplify the service boundary",
-    )["verification"]["post_change_baseline"]
-
-    result = build_architecture_decision(
-        snapshot_id=21,
-        primary_files=[
-            _module(
-                structural_hash="structural-2",
-                fan_in=5,
-                fan_out=5,
-                lines_of_code=145,
-                complexity=7,
-            )
-        ],
-        interfaces=[],
-        tests=["tests/test_service.py"],
-        findings=[_finding("finding-new", "architecture_violation", severity="error")],
-        pattern_items=[_pattern(opportunity=10, conformance=90)],
-        repository_identity="https://example.test/repository.git",
-        goal="Simplify the service boundary",
-        verification_baseline=previous,
-    )
-
-    comparison = result["verification"]["post_change_comparison"]
-    assert comparison["status"] == "changed"
-    assert comparison["baseline_snapshot_id"] == 20
-    assert comparison["current_snapshot_id"] == 21
-    assert "observed" in comparison["summary"]
-    module_change = comparison["changes"]["modules"]["changed"][0]
-    assert module_change["path"] == "src/service.py"
-    assert module_change["source_structure_changed"] is True
-    assert module_change["fan_in"]["change"] == 1
-    assert module_change["fan_out"]["change"] == 2
-    assert module_change["lines_of_code"]["change"] == 25
-    assert module_change["complexity"]["change"] == 3
-    assert comparison["changes"]["findings"] == {
-        "newly_reported": ["finding-new"],
-        "no_longer_reported": ["finding-old"],
-    }
-    score_changes = comparison["changes"]["patterns"]["changed"][0]["score_changes"]
-    assert score_changes["conformance"]["change"] == 6
-    assert score_changes["opportunity"]["change"] == -10
-    effects = comparison["changes"]["structural_effects"]
-    assert {item["category"] for item in effects["introduced"]} == {"architecture_boundary"}
-    assert {item["category"] for item in effects["resolved"]} == {"dependency_cycle"}
-    assert {item["category"] for item in effects["worsened"]} >= {
-        "file_size",
-        "file_complexity",
-        "incoming_coupling",
-        "outgoing_coupling",
-    }
-    assert all(item["observation"] and item["how_to_check"] for item in effects["worsened"])
-    assert "do not prove the code is better or worse overall" in comparison["interpretation"]
-    assert comparison["plain_language"]["version"] == "architecture-verification-explanation-v3"
-    observations = comparison["plain_language"]["what_anaxigraph_saw"]
-    assert "AnaxiGraph found 1 file record that changed." in observations
-    assert "AnaxiGraph found 2 findings that changed." in observations
-    assert any("introduced" in item for item in observations)
-    assert any("harder to manage" in item for item in observations)
-
-
-def test_architecture_comparison_separates_improvements_from_preexisting_debt():
-    persistent = _finding("cycle-stays", "dependency_cycle", severity="error")
-    previous = build_architecture_decision(
-        snapshot_id=24,
-        primary_files=[_module(lines_of_code=180, complexity=9, fan_in=8, fan_out=7)],
-        interfaces=[],
-        tests=[],
-        findings=[persistent],
-        pattern_items=[],
-        repository_identity="repository-a",
-        goal="Simplify the service",
-    )["verification"]["post_change_baseline"]
-
-    result = build_architecture_decision(
-        snapshot_id=25,
-        primary_files=[_module(lines_of_code=120, complexity=4, fan_in=5, fan_out=3)],
-        interfaces=[],
-        tests=[],
-        findings=[persistent],
-        pattern_items=[],
-        repository_identity="repository-a",
-        goal="Simplify the service",
-        verification_baseline=previous,
-    )
-
-    effects = result["verification"]["post_change_comparison"]["changes"]["structural_effects"]
-    assert {item["category"] for item in effects["improved"]} == {
-        "file_size",
-        "file_complexity",
-        "incoming_coupling",
-        "outgoing_coupling",
-    }
-    assert [item["category"] for item in effects["pre_existing"]] == ["dependency_cycle"]
-    assert effects["introduced"] == []
-    assert effects["resolved"] == []
-
-
-def test_architecture_decision_requires_a_new_snapshot_and_matching_goal_for_comparison():
-    previous = build_architecture_decision(
-        snapshot_id=30,
-        primary_files=[_module()],
-        interfaces=[],
-        tests=[],
-        findings=[],
-        pattern_items=[],
-        repository_identity="repository-a",
-        goal="Change the service",
-    )["verification"]["post_change_baseline"]
-
-    same_snapshot = build_architecture_decision(
-        snapshot_id=30,
-        primary_files=[_module()],
-        interfaces=[],
-        tests=[],
-        findings=[],
-        pattern_items=[],
-        repository_identity="repository-a",
-        goal="Change the service",
-        verification_baseline=previous,
-    )["verification"]["post_change_comparison"]
-    assert same_snapshot["status"] == "rescan_required"
-    assert "Run a scan" in same_snapshot["summary"]
-
-    different_goal = build_architecture_decision(
-        snapshot_id=31,
-        primary_files=[_module()],
-        interfaces=[],
-        tests=[],
-        findings=[],
-        pattern_items=[],
-        repository_identity="repository-a",
-        goal="Delete the service",
-        verification_baseline=previous,
-    )["verification"]["post_change_comparison"]
-    assert different_goal["status"] == "incomparable"
-    assert "different coding goal" in different_goal["summary"]
-
-
-def test_architecture_decision_rejects_an_unknown_baseline_contract():
-    with pytest.raises(ValueError, match="Unsupported previous verification baseline version"):
-        build_architecture_decision(
-            snapshot_id=40,
-            primary_files=[_module()],
-            interfaces=[],
-            tests=[],
-            findings=[],
-            pattern_items=[],
-            verification_baseline={
-                "contract_version": "architecture-verification-baseline-v99",
-                "snapshot_id": 39,
-                "modules": [],
-                "finding_keys": [],
-                "patterns": [],
-            },
-        )
