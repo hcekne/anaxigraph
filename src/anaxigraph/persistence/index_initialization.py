@@ -7,6 +7,9 @@ from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 
+from anaxigraph.persistence.compatibility_compaction import (
+    compact_terminal_semantic_job_metadata,
+)
 from anaxigraph.persistence.index_backup import create_schema_backup
 from anaxigraph.persistence.migrations import (
     migrate_schema,
@@ -30,6 +33,7 @@ def initialize_index(
     if current_version == target_version:
         with connection_factory() as connection:
             ensure_checkpoint_policy(connection)
+            compact_terminal_semantic_job_metadata(connection)
         return
     backup = None
     if current_version is not None and current_version < target_version:
@@ -45,6 +49,7 @@ def initialize_index(
                 current_version=current_version,
                 target_version=target_version,
             )
+            compact_terminal_semantic_job_metadata(current)
             if backup is not None:
                 _record_migration(current, backup, target_version)
 

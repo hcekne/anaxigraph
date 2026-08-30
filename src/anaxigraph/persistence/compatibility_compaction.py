@@ -1,4 +1,4 @@
-"""Validate and clear materialized-frame compatibility rows."""
+"""Compact redundant persistence projections and terminal work packets."""
 
 from __future__ import annotations
 
@@ -9,8 +9,27 @@ from typing import Any
 
 from anaxigraph.persistence.temporal_hashing import digest
 from anaxigraph.persistence.temporal_reads import snapshot_relationship_edges
+from anaxigraph.semantic_job_state import PATTERN_METADATA_RETENTION
 
 COMPATIBILITY_TABLES = ("file_versions", "symbols", "relationships", "group_memberships")
+
+
+def compact_terminal_semantic_job_metadata(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        "UPDATE semantic_jobs SET metadata_json = '{}' "
+        "WHERE (status = 'superseded' OR (status = 'completed' "
+        "AND job_kind != 'pattern_assessment')) AND metadata_json != '{}'"
+    )
+    connection.execute(
+        """
+        UPDATE semantic_jobs SET metadata_json = json_object(
+            'retention', ?, 'candidate', json_extract(metadata_json, '$.candidate'))
+        WHERE status = 'completed' AND job_kind = 'pattern_assessment'
+          AND metadata_json != '{}' AND json_valid(metadata_json)
+          AND COALESCE(json_extract(metadata_json, '$.retention'), '') != ?
+        """,
+        (PATTERN_METADATA_RETENTION, PATTERN_METADATA_RETENTION),
+    )
 
 
 def prepare_semantic_claims_for_compaction(connection: sqlite3.Connection) -> None:

@@ -4,6 +4,7 @@ import yaml
 
 from anaxigraph.config import load_config
 from anaxigraph.scanner import RepositoryScanner
+from anaxigraph.semantic import SemanticResult
 from anaxigraph.semantic_agent import SemanticAgentService
 from anaxigraph.semantic_leases import SemanticLeaseService
 from anaxigraph.semantic_reporting import SemanticReportingService
@@ -73,3 +74,16 @@ def test_lease_service_persists_declared_claim_and_release_transitions(
     assert resumed is not None
     assert resumed["id"] == job["id"]
     assert resumed["status"] == "running"
+
+    engine._services.persistence.complete_job(
+        resumed,
+        SemanticResult({"summary": "Test module responsibility"}, 0.8, ("pkg/core.py",)),
+        "agent",
+        config.semantic,
+    )
+    with database.connect() as connection:
+        completed = connection.execute(
+            "SELECT status, metadata_json FROM semantic_jobs WHERE id = ?",
+            (resumed["id"],),
+        ).fetchone()
+    assert tuple(completed) == ("completed", "{}")

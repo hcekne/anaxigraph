@@ -152,7 +152,7 @@ def supersede_scope_jobs(
     superseded = semantic_job_bulk_transition(("pending", "retry", "running"), "supersede")
     connection.execute(
         f"""
-        UPDATE semantic_jobs SET status = ?, completed_at = ?, worker_id = NULL,
+        UPDATE semantic_jobs SET status = ?, completed_at = ?, metadata_json = '{{}}', worker_id = NULL,
             lease_expires_at = NULL, lease_token_hash = NULL,
             error = 'The sparse candidate plan no longer selects this pattern pair.'
         WHERE snapshot_id = ? AND scope_type = 'pattern'
@@ -172,7 +172,7 @@ def supersede_running_mismatch(
     superseded = semantic_job_bulk_transition(("running",), "supersede")
     connection.execute(
         """
-        UPDATE semantic_jobs SET status = ?, completed_at = ?, worker_id = NULL,
+        UPDATE semantic_jobs SET status = ?, completed_at = ?, metadata_json = '{}', worker_id = NULL,
             lease_expires_at = NULL, lease_token_hash = NULL,
             error = 'A newer pattern input replaced this leased job.'
         WHERE snapshot_id = ? AND scope_type = 'pattern' AND scope_key = ?

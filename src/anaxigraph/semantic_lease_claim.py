@@ -87,7 +87,7 @@ def reconcile_claimable_jobs(
     )
     connection.execute(
         """
-        UPDATE semantic_jobs SET status = ?, completed_at = ?,
+        UPDATE semantic_jobs SET status = ?, completed_at = ?, metadata_json = '{}',
             worker_id = NULL, lease_expires_at = NULL, lease_token_hash = NULL,
             error = 'A newer repository snapshot replaced this job.'
         WHERE repository_id = ? AND snapshot_id != ?

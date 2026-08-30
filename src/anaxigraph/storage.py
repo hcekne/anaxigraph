@@ -309,9 +309,17 @@ class AnaxiIndex:
         offset: int = 0,
     ) -> list[dict[str, Any]]:
         """Return the file-level intelligence ledger for inventory views and agents."""
-        return persistence.index_modules(
-            self, repository_id, snapshot_id, limit=limit, offset=offset
-        )
+        snapshot = self._resolve_snapshot(repository_id, snapshot_id)
+        if snapshot is None:
+            return []
+        with self.connect() as connection:
+            return persistence.read_modules(
+                connection,
+                repository_id,
+                int(snapshot["id"]),
+                limit=limit,
+                offset=offset,
+            )
 
     def pattern_evidence(
         self,

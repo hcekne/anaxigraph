@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from enum import StrEnum
 
+PATTERN_METADATA_RETENTION = "pattern-evaluation-v1"
+
 
 class SemanticJobState(StrEnum):
     PENDING = "pending"

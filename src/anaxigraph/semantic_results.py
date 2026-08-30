@@ -13,7 +13,7 @@ from anaxigraph.config import SemanticConfig
 from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION, SemanticResult
 from anaxigraph.semantic_graph import _cost, _intent_fingerprint
 from anaxigraph.semantic_index_port import SemanticIndex
-from anaxigraph.semantic_job_state import semantic_job_transition
+from anaxigraph.semantic_job_state import PATTERN_METADATA_RETENTION, semantic_job_transition
 from anaxigraph.semantic_pattern_results import complete_pattern_job
 from anaxigraph.semantic_taxonomy_results import complete_taxonomy_job
 
@@ -221,7 +221,8 @@ class SemanticPersistenceService:
             connection.execute(
                 """
                 UPDATE semantic_jobs SET status = ?, completed_at = ?, error = ?,
-                    worker_id = NULL, lease_expires_at = NULL, lease_token_hash = NULL WHERE id = ?
+                    worker_id = NULL, lease_expires_at = NULL, lease_token_hash = NULL,
+                    metadata_json = '{}' WHERE id = ?
                 """,
                 (target_status, utc_now(), reason[:4_000], job_id),
             )
@@ -306,12 +307,18 @@ def _finish_job(
     job: dict[str, Any],
     completion: _Completion,
 ) -> None:
+    retained_metadata = {}
+    if job["job_kind"] == "pattern_assessment":
+        retained_metadata = {
+            "retention": PATTERN_METADATA_RETENTION,
+            "candidate": job["metadata"].get("candidate"),
+        }
     connection.execute(
         """
         UPDATE semantic_jobs SET status = ?, completed_at = ?,
             input_tokens = input_tokens + ?, output_tokens = output_tokens + ?, estimated_cost_usd = ?,
             actual_cost_usd = ?, worker_id = NULL, lease_expires_at = NULL,
-            error = NULL WHERE id = ?
+            error = NULL, metadata_json = ? WHERE id = ?
         """,
         (
             completion.target_status,
@@ -320,6 +327,7 @@ def _finish_job(
             completion.output_tokens,
             completion.estimated_cost,
             completion.actual_cost,
+            json.dumps(retained_metadata, sort_keys=True),
             job["id"],
         ),
     )

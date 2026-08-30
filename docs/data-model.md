@@ -21,11 +21,11 @@ history accumulate over time.
 | `metrics` | Repository and artifact measurements for temporal trends |
 | `coverage_measurements` | Node and conservatively proven relationship coverage |
 | `findings` / `finding_occurrences` | Stable findings and lifecycle across snapshots |
-| `analysis_runs` | Operational audit of every scan/update/review/history run |
+| `analysis_runs` | Operational audit of explicit and meaningful scan/update/review/history work plus the latest unchanged watcher heartbeat per repository |
 | `architecture_rules` | Effective built-in and configured machine-readable policy |
 | `semantic_claims` | Compact current module claims used by inventory queries |
 | `semantic_documents` | Immutable intrinsic, contextual, group, and repository dossiers with fingerprints, provider/executor provenance, evidence, tokens, and costs |
-| `semantic_jobs` | Durable prioritized work queue with invalidation reason, attempts, estimates, result/error state, executor identity, and expiring worker/agent lease |
+| `semantic_jobs` | Durable prioritized work queue with lifecycle, cost, executor, and lease evidence; full packets remain for actionable/failed work while terminal duplicate metadata is compacted |
 | `semantic_scope_states` | Current per-snapshot semantic coverage and document pointers for modules, groups, and repository |
 | `semantic_taxonomies` | Snapshot-scoped proposal/review/finalization record with provider provenance, validation summary, facets, and temporal map changes |
 | `semantic_taxonomy_nodes` | Stable responsibility-based area and subsystem identities with evidence and confidence |

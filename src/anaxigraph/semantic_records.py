@@ -229,7 +229,7 @@ def _supersede_changed_jobs(
     superseded = semantic_job_bulk_transition(("pending", "retry"), "supersede")
     connection.execute(
         """
-        UPDATE semantic_jobs SET status = ?, completed_at = ?,
+        UPDATE semantic_jobs SET status = ?, completed_at = ?, metadata_json = '{}',
             error = 'A newer semantic input replaced this queued job.'
         WHERE repository_id = ? AND snapshot_id = ? AND scope_type = ? AND scope_key = ?
           AND job_kind = ? AND input_hash != ? AND status IN ('pending', 'retry')
@@ -467,7 +467,7 @@ def _supersede_duplicate_jobs(
     superseded = semantic_job_bulk_transition(("pending", "retry"), "supersede")
     connection.execute(
         """
-        UPDATE semantic_jobs SET status = ?, completed_at = ?,
+        UPDATE semantic_jobs SET status = ?, completed_at = ?, metadata_json = '{}',
             error = 'A matching semantic document already exists.'
         WHERE snapshot_id = ? AND scope_type = ? AND scope_key = ? AND job_kind = ?
           AND status IN ('pending', 'retry')

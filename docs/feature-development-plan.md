@@ -3005,7 +3005,36 @@ JavaScript/TypeScript, CSS, and HTML beneath `src/anaxigraph`. Its exact shrinki
 **53,897 lines** after the watcher slice. Growth fails with removal/simplification guidance; a lower
 count also fails until the contributor lowers the recorded baseline in the same change. Tests and
 tooling do not count toward that production budget and cannot be used to offset production growth.
-The next consolidation slice begins with the semantic-job read-path audit recorded in §10.1.
+The next consolidation slice follows the semantic-job read-path audit recorded in §10.1.
+
+### 10.2 delivery record: terminal semantic payload compaction
+
+The read-path audit found that deleting terminal `semantic_jobs` rows would break useful contracts.
+Completed rows support idempotent coding-agent retries and lifetime duration/cost telemetry; failed
+rows retain the packet required to retry; current pattern evaluation reads candidate-selection fields
+from its completed assessment job. The durable lifecycle row is therefore retained.
+
+The duplicated work packet is now compacted instead. Pending, retrying, running, and failed work
+keeps its full metadata. A completed pattern assessment keeps a versioned
+`pattern-evaluation-v1` payload containing its candidate; all other completed and superseded jobs
+clear metadata that is already represented by `semantic_documents`, scope state, taxonomy, pattern,
+or error/provenance columns. Completion and supersession compact new rows in their existing
+transactions. Index initialization safely compacts valid legacy JSON once and leaves malformed
+legacy payloads untouched rather than destroying uncertain evidence.
+
+On the pre-change self-hosted index this policy identifies **37,146,976 duplicated metadata bytes**:
+about 24.3 MB from non-pattern terminal packets and 12.9 MB from pattern evidence not needed by the
+current UI. Rows, job ids, lease-token hashes, status, attempts, timestamps, errors, models, token
+counts, and costs remain unchanged. As with watcher cleanup, SQLite may reuse freed pages without an
+automatic `VACUUM`.
+
+The same slice removes two one-use persistence forwarding modules, inlines module-ledger
+orchestration into `AnaxiIndex`, and removes an `__all__` list that duplicated the facade imports
+without changing its names. Existing finding-query imports preserve the facade's coupling ceiling
+without retaining a forwarding file. The Python module count falls from 245 to 243 and the exact
+production source ratchet falls from 53,897 to **53,885 lines**. Storage, semantic lifecycle, pattern query,
+migration, and recovery characterization tests cover the surviving behavior. The next slice is the
+canonical architecture-evaluation cutover in item 4 of the ordered map.
 
 ## 10.3 Make human understanding the primary dashboard journey
 
