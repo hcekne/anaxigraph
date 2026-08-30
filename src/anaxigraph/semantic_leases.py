@@ -15,7 +15,7 @@ from anaxigraph.semantic_agent_protocol import agent_token_hash
 from anaxigraph.semantic_config_port import SemanticConfig
 from anaxigraph.semantic_contract import SEMANTIC_SCHEMA_VERSION
 from anaxigraph.semantic_index_port import SemanticIndex
-from anaxigraph.semantic_job_state import semantic_job_transition
+from anaxigraph.semantic_job_state import semantic_job_transition, semantic_scope_status
 from anaxigraph.semantic_lease_claim import claim_next_job, reconcile_claimable_jobs
 from anaxigraph.semantic_ports import SemanticPersistencePort
 
@@ -131,15 +131,7 @@ class SemanticLeaseService:
     def release_agent_job(self, job: dict[str, Any], reason: str) -> None:
         message = (reason.strip() or "Coding agent released this work item")[:2_000]
         job_status = semantic_job_transition(str(job["status"]), "release")
-        state = {
-            "intrinsic": "pending_intrinsic",
-            "context": "pending_context",
-            "synthesis": "pending_synthesis",
-            "taxonomy_proposal": "pending_taxonomy_proposal",
-            "taxonomy_review": "pending_taxonomy_review",
-            "pattern_assessment": "pending_pattern_assessment",
-            "pattern_review": "pending_pattern_review",
-        }[job["job_kind"]]
+        state = semantic_scope_status(str(job["job_kind"]))
         now = utc_now()
         with self._database.transaction() as connection:
             connection.execute(

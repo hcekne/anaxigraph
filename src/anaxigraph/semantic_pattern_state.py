@@ -8,7 +8,7 @@ from typing import Any
 
 from anaxigraph.clock import utc_now
 from anaxigraph.semantic_freshness import is_expired
-from anaxigraph.semantic_job_state import semantic_job_bulk_transition
+from anaxigraph.semantic_job_state import semantic_job_bulk_transition, semantic_scope_status
 from anaxigraph.semantic_records import _reset_failed_job, _upsert_state
 
 PATTERN_PLAN_SCOPE = "default"
@@ -94,11 +94,7 @@ def retry_failed_patterns(connection: sqlite3.Connection, snapshot_id: int) -> N
     ).fetchall()
     for row in rows:
         _reset_failed_job(connection, int(row["id"]))
-        pending = (
-            "pending_pattern_assessment"
-            if row["job_kind"] == "pattern_assessment"
-            else "pending_pattern_review"
-        )
+        pending = semantic_scope_status(str(row["job_kind"]))
         connection.execute(
             """
             UPDATE semantic_scope_states SET status = ?, reason = ?, last_checked_at = ?

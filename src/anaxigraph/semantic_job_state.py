@@ -42,6 +42,11 @@ _TRANSITIONS = {
     (SemanticJobState.FAILED, SemanticJobEvent.RESET_FAILED): SemanticJobState.PENDING,
 }
 
+_JOB_KINDS = frozenset(
+    "intrinsic context synthesis taxonomy_proposal taxonomy_review "
+    "pattern_assessment pattern_review".split()
+)
+
 
 def semantic_job_transition(current: str, event: str) -> str:
     """Return the only valid next state or fail before persistence changes."""
@@ -69,3 +74,17 @@ def semantic_job_bulk_transition(currents: Iterable[str], event: str) -> str:
         choices = ", ".join(sorted(targets))
         raise ValueError(f"Semantic job bulk transition has multiple targets: {choices}")
     return targets.pop()
+
+
+def semantic_scope_status(job_kind: str, *, failed: bool = False) -> str:
+    """Return the durable scope state associated with one semantic job kind."""
+
+    if job_kind not in _JOB_KINDS:
+        raise ValueError(f"Unknown semantic job kind: {job_kind}")
+    family = job_kind.split("_", 1)[0] if failed else job_kind
+    return f"{'failed' if failed else 'pending'}_{family}"
+
+
+FAILED_SEMANTIC_SCOPE_STATES = frozenset(
+    semantic_scope_status(kind, failed=True) for kind in _JOB_KINDS
+)

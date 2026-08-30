@@ -182,7 +182,7 @@ def _ensure_assessment(
         connection, repository_id, "pattern", scope_key, "pattern_assessment"
     )
     job_metadata = {**metadata, "previous_document_id": previous["id"] if previous else None}
-    status, created, error = _ensure_job(
+    scope_status, created, error = _ensure_job(
         connection,
         repository_id=repository_id,
         snapshot_id=snapshot_id,
@@ -206,7 +206,7 @@ def _ensure_assessment(
         snapshot_id,
         scope_key,
         metadata["candidate"],
-        status="failed_pattern" if status == "failed" else "pending_pattern_assessment",
+        status=scope_status,
         reason=error or "Sparse candidate awaits agent assessment",
         assessment_hash=input_hash,
     )
@@ -305,7 +305,7 @@ def _ensure_review_job(
         "assessment_document_id": int(assessment["id"]),
         "previous_document_id": previous["id"] if previous else None,
     }
-    status, created, error = _ensure_job(
+    scope_status, created, error = _ensure_job(
         connection,
         repository_id=repository_id,
         snapshot_id=snapshot_id,
@@ -329,7 +329,7 @@ def _ensure_review_job(
         snapshot_id,
         scope_key,
         metadata["candidate"],
-        status="failed_pattern" if status == "failed" else "pending_pattern_review",
+        status=scope_status,
         reason=error or "Assessment awaits independent agent critique",
         assessment_hash=str(assessment["input_hash"]),
         review_hash=review_hash,

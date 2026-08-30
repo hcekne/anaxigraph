@@ -8,16 +8,7 @@ from typing import Any, Protocol
 
 from anaxigraph.semantic import SemanticResult
 from anaxigraph.semantic_config_port import AnaxiGraphConfig, SemanticConfig
-from anaxigraph.semantic_index_port import SemanticIndex
-
-__all__ = [
-    "SemanticEvidencePort",
-    "SemanticIndex",
-    "SemanticPersistencePort",
-    "SemanticPatternPlanningPort",
-    "SemanticPlanningPort",
-    "SemanticReportingPort",
-]
+from anaxigraph.semantic_index_port import SemanticIndex as SemanticIndex
 
 
 class SemanticReportingPort(Protocol):

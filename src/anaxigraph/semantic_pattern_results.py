@@ -61,7 +61,7 @@ def _queue_review(
         "assessment_document_id": document_id,
         "previous_document_id": previous["id"] if previous else None,
     }
-    status, _, error = _ensure_job(
+    scope_status, _, error = _ensure_job(
         connection,
         repository_id=int(job["repository_id"]),
         snapshot_id=int(job["snapshot_id"]),
@@ -84,7 +84,7 @@ def _queue_review(
         int(job["snapshot_id"]),
         str(job["scope_key"]),
         candidate,
-        status="failed_pattern" if status == "failed" else "pending_pattern_review",
+        status=scope_status,
         reason=error or "Assessment awaits independent agent critique",
         assessment_hash=str(job["input_hash"]),
         review_hash=review_hash,

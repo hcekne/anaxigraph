@@ -137,7 +137,7 @@ def _enqueue(plan: _ContextPlan, item: _ContextModule, expired: bool) -> int:
     reason = "context_missing" if latest is None else "architectural_context_changed"
     if expired:
         reason = "age_expired"
-    status, created, error = _ensure_job(
+    scope_status, created, error = _ensure_job(
         plan.connection,
         repository_id=plan.repository_id,
         snapshot_id=plan.snapshot_id,
@@ -161,8 +161,7 @@ def _enqueue(plan: _ContextPlan, item: _ContextModule, expired: bool) -> int:
         retry_failed=plan.retry_failed,
         force_new=expired,
     )
-    state = "failed_context" if status == "failed" else "pending_context"
-    _record(plan, item, state, error or reason)
+    _record(plan, item, scope_status, error or reason)
     return int(created)
 
 

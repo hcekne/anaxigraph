@@ -15,6 +15,7 @@ from anaxigraph.semantic_graph import SupersededSemanticJob, _cost
 from anaxigraph.semantic_job_state import (
     semantic_job_bulk_transition,
     semantic_job_transition,
+    semantic_scope_status,
 )
 
 _INSERT_JOB_SQL = """
@@ -145,7 +146,7 @@ def _ensure_job(
         job_kind,
         input_hash,
     )
-    reused = _reuse_job(connection, existing, retry_failed, force_new)
+    reused = _reuse_job(connection, existing, job_kind, retry_failed, force_new)
     if reused is not None:
         return reused
     _insert_job(
@@ -165,7 +166,7 @@ def _ensure_job(
         estimated_input_tokens=estimated_input_tokens,
         metadata=metadata,
     )
-    return "pending", True, None
+    return semantic_scope_status(job_kind), True, None
 
 
 def _existing_job(
@@ -191,6 +192,7 @@ def _existing_job(
 def _reuse_job(
     connection: sqlite3.Connection,
     existing: sqlite3.Row | None,
+    job_kind: str,
     retry_failed: bool,
     force_new: bool,
 ) -> tuple[str, bool, str | None] | None:
@@ -200,11 +202,16 @@ def _reuse_job(
     if status == "completed" and force_new:
         return None
     if status == "failed" and retry_failed:
-        return _reset_failed_job(connection, int(existing["id"])), False, None
-    return status, False, str(existing["error"] or "") or None
+        _reset_failed_job(connection, int(existing["id"]))
+        return semantic_scope_status(job_kind), False, None
+    return (
+        semantic_scope_status(job_kind, failed=status == "failed"),
+        False,
+        str(existing["error"] or "") or None,
+    )
 
 
-def _reset_failed_job(connection: sqlite3.Connection, job_id: int) -> str:
+def _reset_failed_job(connection: sqlite3.Connection, job_id: int) -> None:
     pending = semantic_job_transition("failed", "reset_failed")
     connection.execute(
         """
@@ -214,7 +221,6 @@ def _reset_failed_job(connection: sqlite3.Connection, job_id: int) -> str:
         """,
         (pending, utc_now(), job_id),
     )
-    return pending
 
 
 def _supersede_changed_jobs(

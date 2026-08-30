@@ -13,7 +13,11 @@ from anaxigraph.config import SemanticConfig
 from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION, SemanticResult
 from anaxigraph.semantic_graph import _cost, _intent_fingerprint
 from anaxigraph.semantic_index_port import SemanticIndex
-from anaxigraph.semantic_job_state import PATTERN_METADATA_RETENTION, semantic_job_transition
+from anaxigraph.semantic_job_state import (
+    PATTERN_METADATA_RETENTION,
+    semantic_job_transition,
+    semantic_scope_status,
+)
 from anaxigraph.semantic_pattern_results import complete_pattern_job
 from anaxigraph.semantic_taxonomy_results import complete_taxonomy_job
 
@@ -192,15 +196,7 @@ class SemanticPersistenceService:
                     job["id"],
                 ),
             )
-            state = {
-                "intrinsic": "pending_intrinsic" if retry else "failed_intrinsic",
-                "context": "pending_context" if retry else "failed_context",
-                "synthesis": "pending_synthesis" if retry else "failed_synthesis",
-                "taxonomy_proposal": ("pending_taxonomy_proposal" if retry else "failed_taxonomy"),
-                "taxonomy_review": "pending_taxonomy_review" if retry else "failed_taxonomy",
-                "pattern_assessment": ("pending_pattern_assessment" if retry else "failed_pattern"),
-                "pattern_review": "pending_pattern_review" if retry else "failed_pattern",
-            }[job["job_kind"]]
+            state = semantic_scope_status(str(job["job_kind"]), failed=not retry)
             connection.execute(
                 """
                 UPDATE semantic_scope_states SET status = ?, reason = ?, last_checked_at = ?

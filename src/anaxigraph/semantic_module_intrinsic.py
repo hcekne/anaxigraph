@@ -150,7 +150,7 @@ def _enqueue(context: _IntrinsicContext, item: _IntrinsicModule, expired: bool) 
         context.connection, context.repository_id, "module", item.path, "intrinsic"
     )
     reason = _reason(context.force, expired, latest is not None)
-    status, created, error = _ensure_job(
+    scope_status, created, error = _ensure_job(
         context.connection,
         repository_id=context.repository_id,
         snapshot_id=context.snapshot_id,
@@ -174,8 +174,7 @@ def _enqueue(context: _IntrinsicContext, item: _IntrinsicModule, expired: bool) 
         retry_failed=context.retry_failed,
         force_new=context.force or expired,
     )
-    state = "failed_intrinsic" if status == "failed" else "pending_intrinsic"
-    _record(context, item, state, error or reason)
+    _record(context, item, scope_status, error or reason)
     return int(created)
 
 

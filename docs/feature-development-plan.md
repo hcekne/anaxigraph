@@ -3136,6 +3136,37 @@ preparation through the normal REST route. The unified identity/composition path
 current contextual dossiers and 104 current intrinsic descriptions, enqueued 56 missing intrinsic
 jobs, reported zero failures, and spent no model tokens during preparation.
 
+### 10.2 delivery record: one semantic work-state vocabulary
+
+The third item-5 slice makes durable job state and visible readiness use the same vocabulary. The
+seven semantic job kinds previously had separate pending/failed translations in job creation,
+coding-agent release, worker failure/retry, pattern retry, and status aggregation. That allowed a
+new job kind or renamed state to be accepted by one path while another path could silently report
+different readiness.
+
+`semantic_job_state.py` now owns the job-kind-to-scope-state rule alongside the already canonical
+job transition machine. `_ensure_job` returns the correct scope state to every intrinsic, context,
+group, repository, taxonomy, and pattern planner. Agent release, retry/failure persistence, failed
+pattern recovery, and readiness aggregation use the same rule and failure set. Unknown job kinds
+fail explicitly. A table-driven characterization covers every supported kind, both outcomes, and
+the rejection case; queue, agent, taxonomy, pattern, usage, and complete understanding tests cover
+the transactional callers.
+
+The change also removes an unused `semantic_ports.__all__` inventory. Its explicit `SemanticIndex`
+re-export remains intact and no wildcard consumer existed. The Python module count remains **241**,
+the exact production source ratchet falls from 53,774 to **53,768 lines**, and warning-level
+complexity falls from 13 to 12 in group planning, 11 to 10 in repository planning, and 6 to 5 in
+taxonomy-review planning. The total maintainability warning count falls from 146 to **145** without
+adding a coupling exception. Item 5 remains in progress; result provenance and duplicated read
+projections still require characterization before the next deletion.
+
+The full suite passes with **613 tests**, every pre-commit gate is green, and the exact rebuilt
+Docker image is healthy. Its normal self-scan reused all 469 analyses in 1.358 seconds, produced
+snapshot 389 with 4,420 relationships and 153 findings, and semantic preparation exercised the
+shared creation/status vocabulary without model work. It preserved 302 current contextual dossiers
+and 105 current intrinsic descriptions, created 62 `pending_intrinsic` jobs, and reported zero
+failed module or aggregate scopes.
+
 ## 10.3 Make human understanding the primary dashboard journey
 
 Use the existing semantic repository dossier, reviewed taxonomy, graph, file detail, and history to
@@ -3333,7 +3364,7 @@ feature-admission rule.
 | # | Status | Outcome and acceptance | Specified in |
 |---:|---|---|---|
 | 1 | **COMPLETE** | Inventory every public surface and major code cluster against Understand, Guide, Keep coherent, enabling infrastructure, advanced operations, or removal; produce the ordered deletion map without implementing features | §10.1 |
-| 2 | **NEXT** | Bound no-op watcher history, add the package-level non-growth ratchet, and continue one characterized consolidation slice at a time in the recorded deletion order | §10.2 |
+| 2 | **IN PROGRESS** | Bound no-op watcher history, add the package-level non-growth ratchet, and continue one characterized consolidation slice at a time in the recorded deletion order | §10.2 |
 | 3 | **PENDING** | Converge the existing dashboard into the progressive program → capability → area → subsystem → file → symbol understanding journey, with no new primary screen | §10.3 |
 | 4 | **PENDING** | Reduce the normal coding-agent surface to at most ten obvious tools and prove the complete guidance workflow with ordinary agent configurations | §10.4 |
 | 5 | **PENDING** | Make changed-scope refresh return one shared, plain-language architecture consequence to the dashboard and agent, then satisfy the Phase 10 human, agent, and reduction gates | §10.5 |

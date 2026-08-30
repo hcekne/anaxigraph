@@ -8,16 +8,9 @@ from typing import Any
 
 from anaxigraph.semantic_config_port import SemanticConfig
 from anaxigraph.semantic_file_language import semantic_file_explanation
+from anaxigraph.semantic_job_state import FAILED_SEMANTIC_SCOPE_STATES
 from anaxigraph.semantic_status_language import semantic_status_explanation
 from anaxigraph.semantic_status_queries import SemanticStatusRows
-
-_TERMINAL_FAILURES = (
-    "failed_intrinsic",
-    "failed_context",
-    "failed_synthesis",
-    "failed_taxonomy",
-    "failed_pattern",
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,7 +91,7 @@ def _coverage(rows: SemanticStatusRows, semantic: SemanticConfig | None) -> Sema
     total = sum(rows.counts.values())
     eligible = max(0, total - excluded)
     current = rows.counts.get("current", 0)
-    failed = sum(rows.counts.get(key, 0) for key in _TERMINAL_FAILURES)
+    failed = sum(rows.counts.get(key, 0) for key in FAILED_SEMANTIC_SCOPE_STATES)
     pending = _pending(rows.counts)
     pending_scopes, failed_scopes = _non_module_metrics(rows.scope_counts)
     repository_ready = bool(rows.repository_state and rows.repository_state["status"] == "current")
@@ -140,7 +133,10 @@ def _non_module_metrics(
     counts = [values for key, values in scope_counts.items() if key != "module"]
     pending = sum(_pending(values) for values in counts)
     failed = sum(
-        count for values in counts for key, count in values.items() if key in _TERMINAL_FAILURES
+        count
+        for values in counts
+        for key, count in values.items()
+        if key in FAILED_SEMANTIC_SCOPE_STATES
     )
     return pending, failed
 

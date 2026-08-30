@@ -119,7 +119,7 @@ class SemanticTaxonomyPlanner:
         metadata: dict[str, Any],
         retry_failed: bool,
     ) -> int:
-        status, created, error = _ensure_job(
+        scope_status, created, error = _ensure_job(
             connection,
             repository_id=repository_id,
             snapshot_id=snapshot_id,
@@ -142,7 +142,7 @@ class SemanticTaxonomyPlanner:
             snapshot_id=snapshot_id,
             scope_type="taxonomy",
             scope_key=str(repository_id),
-            status=("failed_taxonomy" if status == "failed" else "pending_taxonomy_proposal"),
+            status=scope_status,
             reason=error or "Agent taxonomy proposal is required before scope synthesis",
             context_input_hash=input_hash,
             context_fingerprint=input_hash,
@@ -192,7 +192,7 @@ class SemanticTaxonomyPlanner:
             "review_pass": review_pass,
             "validation": validation,
         }
-        status, created, error = _ensure_job(
+        scope_status, created, error = _ensure_job(
             connection,
             repository_id=repository_id,
             snapshot_id=snapshot_id,
@@ -215,7 +215,7 @@ class SemanticTaxonomyPlanner:
             snapshot_id=snapshot_id,
             scope_type="taxonomy",
             scope_key=str(repository_id),
-            status=("failed_taxonomy" if status == "failed" else "pending_taxonomy_review"),
+            status=scope_status,
             reason=error or f"Independent taxonomy review pass {review_pass} is required",
             context_input_hash=input_hash,
             context_fingerprint=input_hash,

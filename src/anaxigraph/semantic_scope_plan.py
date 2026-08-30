@@ -291,7 +291,7 @@ class SemanticPlanningService:
                     context_document_id=int(document["id"]),
                 )
                 continue
-            job_status, created, job_error = _ensure_job(
+            scope_status, created, job_error = _ensure_job(
                 connection,
                 repository_id=repository_id,
                 snapshot_id=snapshot_id,
@@ -329,7 +329,7 @@ class SemanticPlanningService:
                 snapshot_id=snapshot_id,
                 scope_type="group",
                 scope_key=group,
-                status="failed_synthesis" if job_status == "failed" else "pending_synthesis",
+                status=scope_status,
                 reason=job_error or "group_understanding_missing_or_stale",
                 context_input_hash=input_hash,
                 context_fingerprint=input_hash,
@@ -391,7 +391,7 @@ class SemanticPlanningService:
                 context_document_id=int(document["id"]),
             )
             return 0
-        job_status, created, job_error = _ensure_job(
+        scope_status, created, job_error = _ensure_job(
             connection,
             repository_id=repository_id,
             snapshot_id=snapshot_id,
@@ -431,7 +431,7 @@ class SemanticPlanningService:
             snapshot_id=snapshot_id,
             scope_type="repository",
             scope_key=str(repository_id),
-            status="failed_synthesis" if job_status == "failed" else "pending_synthesis",
+            status=scope_status,
             reason=job_error or "repository_understanding_missing_or_stale",
             context_input_hash=input_hash,
             context_fingerprint=input_hash,
