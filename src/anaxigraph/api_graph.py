@@ -7,19 +7,16 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 
+from anaxigraph.architecture_vocabulary import CURRENT_MAP, MAP_LAYERS
 from anaxigraph.graph_contract import (
     DEFAULT_EDGE_LIMIT,
-    DEFAULT_GRAPH_AGGREGATE_EDGE_LIMIT,
     DEFAULT_GRAPH_DELTA_LIMIT,
-    DEFAULT_GRAPH_GROUP_LIMIT,
     DEFAULT_NEIGHBOR_EDGE_LIMIT,
     DEFAULT_NEIGHBOR_NODE_LIMIT,
     DEFAULT_NODE_LIMIT,
     MAX_EDGE_LIMIT,
-    MAX_GRAPH_AGGREGATE_EDGE_LIMIT,
     MAX_GRAPH_CURSOR_LENGTH,
     MAX_GRAPH_DELTA_LIMIT,
-    MAX_GRAPH_GROUP_LIMIT,
     MAX_NEIGHBOR_EDGE_LIMIT,
     MAX_NEIGHBOR_NODE_LIMIT,
     MAX_NODE_LIMIT,
@@ -28,6 +25,7 @@ from anaxigraph.graph_contract import (
 )
 
 RepositorySelector = Callable[[int | None], dict[str, Any]]
+_MAP_LAYER_PATTERN = f"^({'|'.join(MAP_LAYERS)})$"
 
 
 class GraphRoutes:
@@ -36,7 +34,6 @@ class GraphRoutes:
         self.selected_repository = selected_repository
         self.router = APIRouter()
         self.router.add_api_route("/api/graph", self.page, methods=["GET"])
-        self.router.add_api_route("/api/graph/overview", self.overview, methods=["GET"])
         self.router.add_api_route("/api/graph/neighbors", self.neighbors, methods=["GET"])
         self.router.add_api_route("/api/graph/delta", self.delta, methods=["GET"])
 
@@ -48,6 +45,7 @@ class GraphRoutes:
         node_limit: int = Query(default=DEFAULT_NODE_LIMIT, ge=1, le=MAX_NODE_LIMIT),
         edge_limit: int = Query(default=DEFAULT_EDGE_LIMIT, ge=1, le=MAX_EDGE_LIMIT),
         include_external: bool = False,
+        map_layer: str = Query(default=CURRENT_MAP, pattern=_MAP_LAYER_PATTERN),
         path: str = Query(default="", max_length=2_000),
         language: list[str] = Query(default=[]),
         area: list[str] = Query(default=[]),
@@ -62,6 +60,7 @@ class GraphRoutes:
                 node_limit=node_limit,
                 edge_limit=edge_limit,
                 include_external=include_external,
+                map_layer=map_layer,
                 path=path,
                 languages=tuple(language),
                 areas=tuple(area),
@@ -70,32 +69,6 @@ class GraphRoutes:
                 relationship_types=tuple(relationship),
             )
             return self.database.graph(int(row["id"]), snapshot_id, query=request)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    def overview(
-        self,
-        repository_id: int | None = None,
-        snapshot_id: int | None = None,
-        level: str = Query(default="area", pattern="^(area|subsystem)$"),
-        group_limit: int = Query(default=DEFAULT_GRAPH_GROUP_LIMIT, ge=1, le=MAX_GRAPH_GROUP_LIMIT),
-        edge_limit: int = Query(
-            default=DEFAULT_GRAPH_AGGREGATE_EDGE_LIMIT,
-            ge=1,
-            le=MAX_GRAPH_AGGREGATE_EDGE_LIMIT,
-        ),
-        include_external: bool = False,
-    ) -> dict[str, Any]:
-        row = self.selected_repository(repository_id)
-        try:
-            return self.database.graph_overview(
-                int(row["id"]),
-                snapshot_id,
-                level=level,
-                group_limit=group_limit,
-                edge_limit=edge_limit,
-                include_external=include_external,
-            )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 

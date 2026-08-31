@@ -11,10 +11,8 @@ from anaxigraph.persistence.finding_query import (  # noqa: F401
 from anaxigraph.persistence.graph_index import (  # noqa: F401
     index_graph_delta,
     index_graph_neighborhood,
-    index_graph_overview,
     index_graph_page,
 )
-from anaxigraph.persistence.group_read import read_group_hierarchy  # noqa: F401
 from anaxigraph.persistence.index_initialization import initialize_index  # noqa: F401
 from anaxigraph.persistence.module_read import read_modules  # noqa: F401
 from anaxigraph.persistence.overview_read import read_overview  # noqa: F401
@@ -23,7 +21,11 @@ from anaxigraph.persistence.pattern_evidence_read import (  # noqa: F401
     read_pattern_evidence,
 )
 from anaxigraph.persistence.schema import SCHEMA, SCHEMA_VERSION  # noqa: F401
-from anaxigraph.persistence.search_read import search_modules  # noqa: F401
+from anaxigraph.persistence.search_read import (  # noqa: F401
+    ensure_search_schema,
+    refresh_search_projection,
+    search_modules,
+)
 from anaxigraph.persistence.semantic_taxonomy_read import taxonomy_map_payload  # noqa: F401
 from anaxigraph.persistence.snapshot_catalog import (  # noqa: F401
     read_snapshots,

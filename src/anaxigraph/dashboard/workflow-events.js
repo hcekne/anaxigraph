@@ -20,6 +20,7 @@ import {
   layoutGraph,
   renderGraphAreaOptions,
 } from "/assets/graph-model.js";
+import { loadGraphRegion } from "/assets/graph-regions.js";
 import {
   cancelHistoryImport,
   graphAtSnapshot,
@@ -74,7 +75,7 @@ function setupNavigationEvents() {
     window.history.replaceState({}, "", url);
     await state.reloadRepository?.();
   });
-  byId("map-layer-select").addEventListener("change", (event) => {
+  byId("map-layer-select").addEventListener("change", async (event) => {
     state.mapLayer = event.target.value;
     try {
       window.localStorage.setItem("anaxigraph.map-layer", state.mapLayer);
@@ -89,10 +90,12 @@ function setupNavigationEvents() {
     renderOverview();
     renderModuleFilters();
     renderModules();
-    renderGraphAreaOptions();
-    layoutGraph(true);
-    renderLegend();
-    drawGraph();
+    try {
+      await loadGraphRegion("");
+      renderLegend();
+    } catch (error) {
+      toast(error.message, true);
+    }
   });
 }
 

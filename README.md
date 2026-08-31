@@ -259,6 +259,12 @@ runtime wiring can still be invisible, so a missing edge is never presented as p
 
 ### One index, several views
 
+The map selector distinguishes four sources instead of blending them: **Current view** uses
+optional declared intent first, then the AI-reviewed **Responsibility map**, then the deterministic
+**Path map** fallback; **Declared map** shows repository policy alone. Stable group identities are
+kept separate from their display labels, and history uses today's current-view frame by default so
+the same regions visibly fill and connect over time.
+
 - **Overview** summarizes areas, evidence completeness, history, and immediate attention.
 - **Files** is a sortable and filterable list of purpose, repository area, size, branch count,
   direct code links, Git activity, test coverage, findings, and pattern review.
@@ -275,6 +281,11 @@ runtime wiring can still be invisible, so a missing edge is never presented as p
   verification; its nine exact ratings are grouped and explained instead of shown as a number wall.
   Candidate results likewise explain why a pair was selected or skipped, what evidence is missing,
   and why the internal selection order is not itself a pattern recommendation.
+
+`anaxigraph search "goal or code name" .` uses the same bounded SQLite FTS ranking as dashboard
+search, `ANAXIGRAPH_SEARCH`, and the first step of agent scope. It searches paths, filenames,
+symbols, summaries, responsibilities, contracts, and normalized aliases, then reports the semantic
+provenance that contributed to each result.
 
 ## 🎯 Findings are a workflow, not a wall
 

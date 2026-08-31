@@ -6,6 +6,7 @@ import sqlite3
 from collections import Counter
 from typing import Any
 
+from anaxigraph.architecture_vocabulary import CURRENT_MAP, architecture_placement
 from anaxigraph.relationships import (
     EXTERNAL,
     RESOLUTION_STATUSES,
@@ -232,13 +233,16 @@ def graph_node(
     changes: int,
     assignment: dict[str, Any] | None,
     parents: dict[str, str | None],
+    selected_layer: str = CURRENT_MAP,
 ) -> dict[str, Any]:
     historical_policy = file.get("declared_group")
     historical_inferred = file.get("inferred_group") or "ungrouped"
-    policy = file.get("architecture_declared_group")
-    inferred = file.get("architecture_inferred_group") or "ungrouped"
-    area = file.get("area") or root_group(str(policy or inferred), parents)
-    subsystem = file.get("subsystem") or policy or inferred
+    declared = file.get("architecture_declared_group")
+    path_group = file.get("architecture_inferred_group") or "ungrouped"
+    placement = architecture_placement(
+        selected_layer, declared, path_group, parents, assignment, show_missing=True
+    )
+    assert placement is not None
     return {
         "id": file["artifact_id"],
         "path": file["path"],
@@ -246,19 +250,14 @@ def graph_node(
         "lines_of_code": file["lines_of_code"],
         "complexity": file["complexity"],
         "summary": file["summary"],
-        "declared_group": policy,
-        "inferred_group": inferred,
-        "architecture_area": area,
-        "architecture_subsystem": subsystem,
-        "architecture_source": file.get("architecture_source"),
-        "architecture_layer": "semantic" if assignment else "effective",
-        "architecture_layers": {
-            "semantic": assignment,
-            "policy": architecture_placement(policy, inferred, parents) if policy else None,
-            "inferred": architecture_placement(None, inferred, parents),
-        },
+        "declared_group": declared,
+        "inferred_group": path_group,
+        "architecture_area": placement["area"],
+        "architecture_subsystem": placement["subsystem"],
+        "architecture_source": placement["source"],
+        "architecture_layer": placement["map_layer"],
         "historical_architecture": {
-            **architecture_placement(historical_policy, historical_inferred, parents),
+            **architecture_placement(CURRENT_MAP, historical_policy, historical_inferred, parents),
             "declared_group": historical_policy,
             "inferred_group": historical_inferred,
         },
@@ -268,17 +267,6 @@ def graph_node(
         "fan_out": outgoing,
         "line_coverage": coverage,
         "change_count": changes,
-    }
-
-
-def architecture_placement(
-    declared: Any, inferred: str, parents: dict[str, str | None]
-) -> dict[str, Any]:
-    group = str(declared or inferred)
-    return {
-        "area": root_group(group, parents),
-        "subsystem": group,
-        "source": "project path rule" if declared else "standard fallback vocabulary",
     }
 
 
@@ -293,15 +281,6 @@ def group_parents(connection: sqlite3.Connection, repository_id: int) -> dict[st
     result: dict[str, str | None] = {}
     for row in rows:
         result.setdefault(str(row["name"]), row["parent_name"])
-    return result
-
-
-def root_group(group: str, parents: dict[str, str | None]) -> str:
-    result = group
-    seen: set[str] = set()
-    while parents.get(result) and result not in seen:
-        seen.add(result)
-        result = str(parents[result])
     return result
 
 

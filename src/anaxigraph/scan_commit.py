@@ -11,6 +11,7 @@ from typing import Any
 from anaxigraph import __version__
 from anaxigraph.clock import utc_now
 from anaxigraph.history_discovery import available_changes
+from anaxigraph.persistence.search_read import refresh_search_projection
 from anaxigraph.scan_persistence import (
     ingest_git_history,
     insert_file_facts,
@@ -209,6 +210,7 @@ def _finish_snapshot(
             "UPDATE repositories SET current_snapshot_id = ?, updated_at = ? WHERE id = ?",
             (snapshot_id, utc_now(), repository_id),
         )
+        refresh_search_projection(connection, repository_id, snapshot_id, force=True)
     return findings, coverage_count
 
 
@@ -247,6 +249,7 @@ def _refresh_current_intelligence(
             """,
             (int(git_metadata.dirty), git_metadata.branch, utc_now(), snapshot_id),
         )
+        refresh_search_projection(connection, repository_id, snapshot_id, force=True)
 
 
 def refresh_historical_snapshot_intelligence(

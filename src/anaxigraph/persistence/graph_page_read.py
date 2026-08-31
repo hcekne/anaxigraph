@@ -52,7 +52,7 @@ def read_graph_page(
     cursor = resolve_graph_cursor(request, snapshot_id)
     reconstruction = install_graph_projection(connection, snapshot_id)
     assignments, parents, architecture_frame = install_graph_architecture(
-        connection, repository_id, snapshot_id
+        connection, repository_id, snapshot_id, layer=request.map_layer
     )
     state = _read_page_state(
         connection,
@@ -214,6 +214,7 @@ def _read_nodes(
             changes=int(row["change_count"]),
             assignment=assignments.get(int(row["artifact_id"])),
             parents=parents,
+            selected_layer=request.map_layer,
         )
         for row in rows
     ]

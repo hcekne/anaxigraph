@@ -6,6 +6,11 @@ import sqlite3
 from collections import defaultdict
 from typing import Any
 
+from anaxigraph.architecture_vocabulary import (
+    CURRENT_MAP,
+    RESPONSIBILITY_MAP,
+    architecture_placement,
+)
 from anaxigraph.persistence.group_read import read_group_hierarchy
 from anaxigraph.persistence.row_decoding import _decode_json_value
 from anaxigraph.persistence.semantic_taxonomy_read import taxonomy_assignments
@@ -168,7 +173,7 @@ def _attach_architecture_map(
     snapshot_id: int,
     files: dict[int, dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Attach the effective area/subsystem path without creating another read model."""
+    """Attach the current responsibility path without creating another read model."""
 
     hierarchy = read_group_hierarchy(connection, repository_id, snapshot_id)
     nodes, parents = _hierarchy_nodes(hierarchy)
@@ -177,38 +182,24 @@ def _attach_architecture_map(
         assignment = assignments.get(artifact_id)
         if assignment:
             item["semantic_taxonomy"] = assignment
-            item["architecture_placement"] = _semantic_placement(assignment)
-            continue
-        subsystem = str(item.get("declared_group") or item.get("inferred_group") or "ungrouped")
-        area = _root_group(subsystem, parents)
-        source = (
-            "project path rule" if item.get("declared_group") else "standard fallback vocabulary"
+        declared = item.get("declared_group")
+        path_group = str(item.get("inferred_group") or "ungrouped")
+        placement = architecture_placement(CURRENT_MAP, declared, path_group, parents, assignment)
+        assert placement is not None
+        area = str(placement["area"])
+        subsystem = str(placement["subsystem"])
+        language = (
+            (assignment or {}).get("plain_language") or {}
+            if placement["map_layer"] == RESPONSIBILITY_MAP
+            else {}
         )
         item["architecture_placement"] = {
-            "area": area,
-            "area_name": _group_label(nodes.get(area), area),
-            "subsystem": subsystem,
-            "subsystem_name": _group_label(nodes.get(subsystem), subsystem),
-            "source": source,
-            "why_here": (
-                "Repository configuration puts this file in this group."
-                if item.get("declared_group")
-                else "The standard fallback vocabulary supplies this role; no current AI-created placement exists."
-            ),
+            **placement,
+            "area_name": language.get("area_name") or _group_label(nodes.get(area), area),
+            "subsystem_name": language.get("subsystem_name")
+            or _group_label(nodes.get(subsystem), subsystem),
         }
     return hierarchy
-
-
-def _semantic_placement(assignment: dict[str, Any]) -> dict[str, Any]:
-    language = assignment.get("plain_language") or {}
-    return {
-        "area": assignment["area"],
-        "area_name": language.get("area_name") or assignment.get("area_name"),
-        "subsystem": assignment["subsystem"],
-        "subsystem_name": language.get("subsystem_name") or assignment.get("subsystem_name"),
-        "source": assignment["source"],
-        "why_here": language.get("why_this_file_is_here") or assignment.get("rationale"),
-    }
 
 
 def _hierarchy_nodes(
@@ -227,15 +218,6 @@ def _hierarchy_nodes(
     for root in hierarchy:
         visit(root, None)
     return nodes, parents
-
-
-def _root_group(group: str, parents: dict[str, str | None]) -> str:
-    result = group
-    seen: set[str] = set()
-    while parents.get(result) and result not in seen:
-        seen.add(result)
-        result = str(parents[result])
-    return result
 
 
 def _group_label(node: dict[str, Any] | None, fallback: str) -> str:

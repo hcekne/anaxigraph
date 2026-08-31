@@ -110,6 +110,19 @@ def test_repository_agent_and_export_handlers_share_the_current_scan(
     assert changed == {"id": finding_id, "status": "acknowledged"}
 
 
+def test_search_command_uses_the_shared_ranked_projection(repository: Path, tmp_path: Path, capsys):
+    database = tmp_path / "search.db"
+
+    main(["scan", str(repository), "--db", str(database), "--json"])
+    capsys.readouterr()
+    main(["search", "Calculator", str(repository), "--db", str(database), "--json"])
+    result = json.loads(capsys.readouterr().out)
+
+    assert result["query"] == "Calculator"
+    assert result["results"][0]["path"] == "pkg/core.py"
+    assert result["results"][0]["search"]["contract_version"] == "module-search-fts-v1"
+
+
 def test_semantic_handlers_plan_report_and_resume(repository: Path, tmp_path: Path, capsys):
     policy_path = repository / ".anaxigraph.yml"
     policy = yaml.safe_load(policy_path.read_text(encoding="utf-8"))

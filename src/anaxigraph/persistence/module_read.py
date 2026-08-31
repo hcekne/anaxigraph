@@ -7,6 +7,11 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from anaxigraph.architecture_vocabulary import (
+    CURRENT_MAP,
+    architecture_layers,
+    architecture_placement,
+)
 from anaxigraph.persistence.semantic_taxonomy_read import taxonomy_assignments
 from anaxigraph.persistence.snapshot_projection import install_snapshot_projection
 from anaxigraph.semantic_file_language import semantic_file_explanation
@@ -68,6 +73,7 @@ def read_modules(
     *,
     limit: int | None = None,
     offset: int = 0,
+    artifact_ids: tuple[int, ...] | None = None,
     _projection_installed: bool = False,
 ) -> list[dict[str, Any]]:
     if not _projection_installed:
@@ -78,11 +84,13 @@ def read_modules(
         snapshot_id,
         limit=limit,
         offset=offset,
+        artifact_ids=artifact_ids,
     )
+    selected = tuple(int(row["artifact_id"]) for row in rows)
     parents = _group_parents(connection, repository_id)
-    claims = _claims_by_artifact(connection, snapshot_id)
-    semantic_states = _semantic_states(connection, snapshot_id)
-    semantic_assignments = taxonomy_assignments(connection, snapshot_id)
+    claims = _claims_by_artifact(connection, snapshot_id, selected)
+    semantic_states = _semantic_states(connection, snapshot_id, selected)
+    semantic_assignments = taxonomy_assignments(connection, snapshot_id, artifact_ids=selected)
     findings = _findings_by_path(connection, repository_id)
     return [
         _materialize_module(
@@ -104,7 +112,10 @@ def _module_rows(
     *,
     limit: int | None,
     offset: int,
+    artifact_ids: tuple[int, ...] | None,
 ) -> list[sqlite3.Row]:
+    if artifact_ids is not None and not artifact_ids:
+        return []
     parameters: tuple[Any, ...] = (
         repository_id,
         repository_id,
@@ -113,6 +124,10 @@ def _module_rows(
         repository_id,
     )
     sql = _MODULE_ROWS_SQL
+    if artifact_ids is not None:
+        placeholders = ",".join("?" for _ in artifact_ids)
+        sql = sql.replace("ORDER BY fv.path", f"WHERE a.id IN ({placeholders}) ORDER BY fv.path")
+        parameters = (*parameters, *artifact_ids)
     if limit is not None:
         sql += " LIMIT ? OFFSET ?"
         parameters = (*parameters, limit, offset)
@@ -142,15 +157,20 @@ def _group_parents(
 def _claims_by_artifact(
     connection: sqlite3.Connection,
     snapshot_id: int,
+    artifact_ids: tuple[int, ...],
 ) -> dict[int, dict[str, Any]]:
+    if not artifact_ids:
+        return {}
+    placeholders = ",".join("?" for _ in artifact_ids)
     rows = connection.execute(
-        """
+        f"""
         SELECT sc.*, fv.artifact_id FROM semantic_claims sc
         JOIN projected_file_versions fv ON fv.id = sc.file_fact_id
         WHERE fv.snapshot_id = ? AND sc.claim_type IN ('module_analysis', 'module_context')
+          AND fv.artifact_id IN ({placeholders})
         ORDER BY CASE sc.claim_type WHEN 'module_analysis' THEN 0 ELSE 1 END
         """,
-        (snapshot_id,),
+        (snapshot_id, *artifact_ids),
     ).fetchall()
     return {
         int(row["artifact_id"]): {
@@ -166,9 +186,13 @@ def _claims_by_artifact(
 def _semantic_states(
     connection: sqlite3.Connection,
     snapshot_id: int,
+    artifact_ids: tuple[int, ...],
 ) -> dict[str, dict[str, Any]]:
+    if not artifact_ids:
+        return {}
+    placeholders = ",".join("?" for _ in artifact_ids)
     rows = connection.execute(
-        """
+        f"""
         SELECT ss.*, intrinsic.intent_fingerprint AS intrinsic_intent_fingerprint,
                intrinsic.created_at AS intrinsic_created_at,
                context.intent_fingerprint AS context_intent_fingerprint,
@@ -182,8 +206,9 @@ def _semantic_states(
         LEFT JOIN semantic_documents intrinsic ON intrinsic.id = ss.intrinsic_document_id
         LEFT JOIN semantic_documents context ON context.id = ss.context_document_id
         WHERE ss.snapshot_id = ? AND ss.scope_type = 'module'
+          AND ss.artifact_id IN ({placeholders})
         """,
-        (snapshot_id,),
+        (snapshot_id, *artifact_ids),
     ).fetchall()
     return {str(row["scope_key"]): dict(row) for row in rows}
 
@@ -220,41 +245,21 @@ def _materialize_module(
     item["public_interfaces"] = json.loads(item.pop("public_interfaces_json") or "[]")
     policy_group = item["declared_group"]
     inferred_group = item["inferred_group"] or "ungrouped"
-    fallback_group = policy_group or inferred_group
-    fallback_area = _architecture_area(str(fallback_group), parents)
     assignment = semantic_assignments.get(int(item["artifact_id"]))
-    area = assignment["area"] if assignment else fallback_area
-    group = assignment["subsystem"] if assignment else fallback_group
+    placement = architecture_placement(
+        CURRENT_MAP, policy_group, inferred_group, parents, assignment
+    )
+    assert placement is not None
+    area = placement["area"]
+    group = placement["subsystem"]
     item.update(
         name=Path(item["path"]).name,
         architecture_area=area,
         architecture_subsystem=group if group != area else None,
         architecture_group=group,
-        architecture_source=(
-            assignment["source"]
-            if assignment
-            else "project path rule"
-            if policy_group
-            else "standard fallback vocabulary"
-        ),
-        architecture_layer="semantic" if assignment else "effective",
-        architecture_layers={
-            "semantic": assignment,
-            "policy": (
-                {
-                    "area": _architecture_area(str(policy_group), parents),
-                    "subsystem": policy_group,
-                    "source": "project path rule",
-                }
-                if policy_group
-                else None
-            ),
-            "inferred": {
-                "area": _architecture_area(str(inferred_group), parents),
-                "subsystem": inferred_group,
-                "source": "standard fallback vocabulary",
-            },
-        },
+        architecture_source=placement["source"],
+        architecture_layer=placement["map_layer"],
+        architecture_layers=architecture_layers(policy_group, inferred_group, parents, assignment),
         semantic_taxonomy=assignment,
     )
     _apply_semantic_summary(item, claims.get(int(item["artifact_id"])))
@@ -270,15 +275,6 @@ def _attach_semantic(item: dict[str, Any], state: dict[str, Any] | None) -> None
     item["semantic"] = semantic
     if semantic.get("summary"):
         item["summary"] = semantic["plain_language"]["what_this_file_does"]
-
-
-def _architecture_area(group: str, parents: dict[str, str | None]) -> str:
-    area = group
-    visited: set[str] = set()
-    while parents.get(area) and area not in visited:
-        visited.add(area)
-        area = str(parents[area])
-    return area
 
 
 def _apply_semantic_summary(item: dict[str, Any], claim: dict[str, Any] | None) -> None:

@@ -265,29 +265,6 @@ class AnaxiIndex:
         with self.connect() as connection:
             return persistence.read_overview(connection, repository_id, snapshot)
 
-    def group_hierarchy(
-        self,
-        repository_id: int,
-        snapshot_id: int | None = None,
-        *,
-        layer: str = "effective",
-    ) -> list[dict[str, Any]]:
-        """Return effective groups rolled up through their configured parent hierarchy."""
-
-        snapshot = self._resolve_snapshot(repository_id, snapshot_id)
-        if snapshot is None:
-            return []
-        with self.connect() as connection:
-            persistence.install_snapshot_projection(
-                connection, int(snapshot["id"]), include_symbols=False
-            )
-            return persistence.read_group_hierarchy(
-                connection,
-                repository_id,
-                int(snapshot["id"]),
-                layer=layer,
-            )
-
     def semantic_taxonomy(
         self, repository_id: int, snapshot_id: int | None = None
     ) -> dict[str, Any] | None:
@@ -358,26 +335,6 @@ class AnaxiIndex:
             query=query,
         )
 
-    def graph_overview(
-        self,
-        repository_id: int,
-        snapshot_id: int | None = None,
-        *,
-        level: str,
-        group_limit: int,
-        edge_limit: int,
-        include_external: bool = False,
-    ) -> dict[str, Any]:
-        return persistence.index_graph_overview(
-            self,
-            repository_id,
-            snapshot_id,
-            level=level,
-            group_limit=group_limit,
-            edge_limit=edge_limit,
-            include_external=include_external,
-        )
-
     def graph_neighborhood(
         self,
         repository_id: int,
@@ -424,7 +381,13 @@ class AnaxiIndex:
         if snapshot is None:
             return []
         with self.connect() as connection:
-            return persistence.search_modules(connection, int(snapshot["id"]), query, limit=limit)
+            return persistence.search_modules(
+                connection,
+                repository_id,
+                int(snapshot["id"]),
+                query,
+                limit=limit,
+            )
 
     def findings(
         self,

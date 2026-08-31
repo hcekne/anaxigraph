@@ -47,7 +47,9 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
     modules = database.modules(stats.repository_id)
     core_module = next(item for item in modules if item["path"] == "pkg/core.py")
     assert core_module["summary_source"] == "command AI description using repository context"
-    assert core_module["architecture_layer"] == "semantic"
+    assert core_module["architecture_layer"] == "declared"
+    assert core_module["architecture_layers"]["current"]["map_layer"] == "declared"
+    assert core_module["architecture_layers"]["responsibility"]["map_layer"] == ("responsibility")
     assert core_module["semantic_taxonomy"]["confidence"] == 0.85
     assert core_module["semantic_taxonomy"]["plain_language"]["why_this_file_is_here"]
     assert core_module["semantic_taxonomy"]["area_label"]
@@ -66,9 +68,9 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
     assert all("issues_json" not in review for review in semantic_map["reviews"])
     assert sum(group["files"] for group in semantic_map["hierarchy"]) == 8
     overview = database.overview(stats.repository_id)
-    assert overview["map"]["default_layer"] == "semantic"
-    assert overview["group_hierarchy"] == overview["group_hierarchies"]["semantic"]
-    group_language = overview["group_hierarchy"][0]["plain_language"]
+    assert overview["map"]["default_layer"] == "current"
+    assert overview["group_hierarchies"]["current"]
+    group_language = overview["group_hierarchies"]["responsibility"][0]["plain_language"]
     assert group_language["version"] == "semantic-taxonomy-explanation-v2"
     assert group_language["what_this_group_does"]
     assert group_language["why_these_files_are_together"]
@@ -85,7 +87,7 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
     assert "early AI notes, not instructions" in file_language["how_to_use_the_raw_fields"]
     assert scope["primary_files"][0]["summary"] == file_language["what_this_file_does"]
     task_path = scope["architecture_decision"]["task_path"]
-    assert task_path["status"].startswith("semantic_")
+    assert task_path["status"].startswith("declared_")
     assert task_path["area"]["responsibility"]
     assert task_path["subsystem"]["why_grouped"]
     assert task_path["module"]["path"] == "pkg/core.py"
@@ -101,6 +103,8 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
         search_result["summary"]
         == search_result["semantic"]["plain_language"]["what_this_file_does"]
     )
+    semantic_query = "Evidence-grounded context dossier"
+    assert "pkg/core.py" in _search_paths(database, stats.repository_id, semantic_query)
 
     first_call_count = len(_calls(log))
     unchanged = SemanticEngine(database).bootstrap(stats.repository_id, repository, config)
@@ -115,6 +119,7 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
         encoding="utf-8",
     )
     changed = RepositoryScanner(database).scan(repository, run_type="update")
+    assert "pkg/core.py" not in _search_paths(database, changed.repository_id, semantic_query)
     refreshed = SemanticEngine(database).bootstrap(changed.repository_id, repository, config)
     assert refreshed["processed"] > 1
     new_calls = _calls(log)[first_call_count:]
@@ -136,6 +141,11 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
     assert dossier["status"] == "current"
     assert dossier["intrinsic"]["input_tokens"] == 100
     assert dossier["intrinsic"]["previous_document_id"] is not None
+    assert "pkg/core.py" in _search_paths(database, changed.repository_id, semantic_query)
+
+
+def _search_paths(database, repository_id: int, query: str) -> set[str]:
+    return {item["path"] for item in database.search(repository_id, query, limit=100)}
 
 
 def test_package_version_change_reuses_unchanged_semantic_documents(

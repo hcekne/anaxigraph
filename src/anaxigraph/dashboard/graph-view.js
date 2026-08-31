@@ -20,6 +20,7 @@ import {
 import {
   effectiveGroup,
   groupColor,
+  groupLabel,
   layoutGraph,
   nodeColor,
   nodeMetric,
@@ -106,7 +107,7 @@ function drawRegions(context, scale) {
     context.fillStyle = groupColor(region.group);
     context.font = `${9 / scale}px ui-sans-serif, system-ui, sans-serif`;
     context.fillText(
-      humanize(region.group), region.x + 6 / scale, region.y + 12 / scale,
+      groupLabel(region.group), region.x + 6 / scale, region.y + 12 / scale,
       Math.max(10, region.width - 12 / scale),
     );
   });
@@ -171,7 +172,7 @@ export function renderLegend() {
   let items;
   if (overlay === "architecture") {
     items = state.groupRoots.filter((group) => !state.hiddenGroups.has(group.name)).slice(0, 12)
-      .map((group) => [humanize(group.name), groupColor(group.name)]);
+      .map((group) => [groupLabel(group.name), groupColor(group.name)]);
   } else if (overlay === "agent") {
     items = [["Useful for this task", theme.cool], ["Needs extra care", theme.warm]];
   } else if (overlay === "coverage" && visibleGraphNodes().every((node) => node.line_coverage == null)) {
@@ -235,7 +236,9 @@ function inspectorMarkup(node, detail, displayName) {
   const relationships = relationshipButtons(detail.relationships);
   const dependants = dependantButtons(detail.dependants);
   const history = historyMarkup(detail.history);
-  return `<p class="eyebrow">${escapeHtml(humanize(placement.area))} · ${escapeHtml(humanize(placement.subsystem))}</p><h2>${escapeHtml(displayName)}</h2><code class="inspector-path">${escapeHtml(file.path)}</code><h3>Purpose</h3><p class="muted">${escapeHtml(semanticData.purpose)}</p><p class="inspector-provenance">${escapeHtml(semanticData.purposeSource)}</p>${factList(file, node, inventory, detail, coverageLabel(node))}${semanticSection(semanticData.document, semanticData.value, detail)}<h3>Jobs detected in this file</h3><div class="tag-list">${markupOr(responsibilities, "No specific job was detected")}</div><h3>Pattern ideas from code checks</h3><div class="tag-list">${markupOr(patterns, "No pattern idea has direct code evidence yet")}</div><h3>Names other files can use</h3><div class="tag-list">${markupOr(interfaces, "None detected")}</div><h3>Uses</h3><div class="relation-list">${markupOr(relationships, "No direct use of another indexed file was found")}</div><h3>Used by</h3><div class="relation-list">${markupOr(dependants, "No indexed file directly uses this file")}</div><h3>Recent changes</h3><div class="relation-list">${markupOr(history, "No Git history loaded")}</div>`;
+  const area = placement.area_label || groupLabel(placement.area);
+  const subsystem = placement.subsystem_label || groupLabel(placement.subsystem);
+  return `<p class="eyebrow">${escapeHtml(area)} · ${escapeHtml(subsystem)}</p><h2>${escapeHtml(displayName)}</h2><code class="inspector-path">${escapeHtml(file.path)}</code><h3>Purpose</h3><p class="muted">${escapeHtml(semanticData.purpose)}</p><p class="inspector-provenance">${escapeHtml(semanticData.purposeSource)}</p>${factList(file, node, inventory, detail, coverageLabel(node))}${semanticSection(semanticData.document, semanticData.value, detail)}<h3>Jobs detected in this file</h3><div class="tag-list">${markupOr(responsibilities, "No specific job was detected")}</div><h3>Pattern ideas from code checks</h3><div class="tag-list">${markupOr(patterns, "No pattern idea has direct code evidence yet")}</div><h3>Names other files can use</h3><div class="tag-list">${markupOr(interfaces, "None detected")}</div><h3>Uses</h3><div class="relation-list">${markupOr(relationships, "No direct use of another indexed file was found")}</div><h3>Used by</h3><div class="relation-list">${markupOr(dependants, "No indexed file directly uses this file")}</div><h3>Recent changes</h3><div class="relation-list">${markupOr(history, "No Git history loaded")}</div>`;
 }
 
 function semanticInspectorData(detail, inventory, file) {

@@ -5,6 +5,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Any, Mapping
 
+from anaxigraph.architecture_vocabulary import CURRENT_MAP, MAP_LAYERS
 from anaxigraph.persistence.graph_read import projected_graph_quality
 from anaxigraph.persistence.group_read import read_group_hierarchy
 from anaxigraph.persistence.snapshot_projection import install_snapshot_projection
@@ -30,19 +31,10 @@ def read_overview(
         (repository_id,),
     ).fetchall()
     coverage = _coverage(connection, snapshot_id)
-    semantic_hierarchy = read_group_hierarchy(
-        connection, repository_id, snapshot_id, layer="semantic"
-    )
-    policy_hierarchy = read_group_hierarchy(connection, repository_id, snapshot_id, layer="policy")
-    inferred_hierarchy = read_group_hierarchy(
-        connection, repository_id, snapshot_id, layer="inferred"
-    )
-    effective_hierarchy = (
-        semantic_hierarchy
-        if semantic_hierarchy
-        else read_group_hierarchy(connection, repository_id, snapshot_id, layer="effective")
-    )
-    default_layer = "semantic" if semantic_hierarchy else "effective"
+    hierarchies = {
+        layer: read_group_hierarchy(connection, repository_id, snapshot_id, layer=layer)
+        for layer in MAP_LAYERS
+    }
     return {
         "repository_id": repository_id,
         "snapshot": dict(snapshot),
@@ -52,31 +44,11 @@ def read_overview(
         "symbols": projection.symbol_count,
         "findings": {row["severity"]: row["count"] for row in findings},
         "languages": [dict(row) for row in _languages(connection)],
-        "groups": [dict(row) for row in _groups(connection)],
-        "group_hierarchy": effective_hierarchy,
-        "group_hierarchies": {
-            "effective": effective_hierarchy,
-            "semantic": semantic_hierarchy,
-            "policy": policy_hierarchy,
-            "inferred": inferred_hierarchy,
-        },
+        "group_hierarchies": hierarchies,
         "map": {
-            "default_layer": default_layer,
-            "available_layers": [
-                layer
-                for layer, hierarchy in (
-                    ("effective", effective_hierarchy),
-                    ("semantic", semantic_hierarchy),
-                    ("policy", policy_hierarchy),
-                    ("inferred", inferred_hierarchy),
-                )
-                if hierarchy
-            ],
-            "source": (
-                "AI-created file grouping checked by a separate AI pass"
-                if semantic_hierarchy
-                else "project path rules, with file-path guesses when no rule matches"
-            ),
+            "default_layer": CURRENT_MAP,
+            "available_layers": [layer for layer in MAP_LAYERS if hierarchies[layer]],
+            "source": "declared rules first, then inferred responsibilities, then path fallback",
         },
         "coverage": coverage,
         "reconstruction": projection.as_dict(),
@@ -105,17 +77,6 @@ def _languages(connection: sqlite3.Connection) -> list[sqlite3.Row]:
         SELECT language, COUNT(*) AS files, SUM(lines_of_code) AS lines_of_code
         FROM projected_file_versions
         GROUP BY language ORDER BY lines_of_code DESC, language
-        """
-    ).fetchall()
-
-
-def _groups(connection: sqlite3.Connection) -> list[sqlite3.Row]:
-    return connection.execute(
-        """
-        SELECT COALESCE(declared_group, inferred_group, 'ungrouped') AS name,
-               COUNT(*) AS files, SUM(lines_of_code) AS lines_of_code
-        FROM projected_file_versions
-        GROUP BY name ORDER BY lines_of_code DESC
         """
     ).fetchall()
 

@@ -1,6 +1,6 @@
 import { api, byId, escapeAttr, escapeHtml, format, humanize, request, state, toast } from "/assets/dashboard-core.js";
 import { drawGraph } from "/assets/graph-view.js";
-import { layoutGraph, renderGraphAreaOptions } from "/assets/graph-model.js";
+import { groupLabel, layoutGraph, renderGraphAreaOptions } from "/assets/graph-model.js";
 
 const NODE_LIMIT = 1000;
 const EDGE_LIMIT = 2000;
@@ -40,6 +40,7 @@ export async function loadGraphRegion(region = "", cursor = "") {
 export function graphRequestParams(snapshotId, region = state.graphRegion, cursor = "") {
   return {
     snapshot_id: snapshotId,
+    map_layer: state.mapLayer,
     include_external: byId("external-toggle")?.checked || false,
     node_limit: NODE_LIMIT,
     edge_limit: EDGE_LIMIT,
@@ -50,7 +51,7 @@ export function graphRequestParams(snapshotId, region = state.graphRegion, curso
 
 export function renderGraphRegionBrowser() {
   const browser = graphRegionBrowser();
-  const regions = state.graphOverview?.nodes || [];
+  const regions = state.overview?.group_hierarchies?.[state.mapLayer] || [];
   const counts = state.graph?.counts || {};
   if (!regions.length) {
     browser.hidden = true;
@@ -64,7 +65,7 @@ export function renderGraphRegionBrowser() {
   const matchingEdges = Number(counts.matching_edges || 0);
   browser.innerHTML = `
     <div class="graph-region-summary">
-      <div><span>Browse the whole repository or focus one area</span><strong>${escapeHtml(humanize(current))}</strong></div>
+      <div><span>Browse the whole repository or focus one area</span><strong>${escapeHtml(state.graphRegion ? groupLabel(current) : humanize(current))}</strong></div>
       <p>Showing ${format.format(shownNodes)} of ${format.format(matchingNodes)} files and ${format.format(shownEdges)} of ${format.format(matchingEdges)} direct code links in this area</p>
       ${state.graph?.next_cursor ? '<button class="secondary-button" type="button" data-graph-next>Show the next page</button>' : ""}
     </div>
@@ -77,7 +78,7 @@ export function renderGraphRegionBrowser() {
 function regionButton(region) {
   const name = String(region.name || "ungrouped");
   const active = name === state.graphRegion ? "active" : "";
-  return `<button class="graph-region ${active}" type="button" data-graph-region="${escapeAttr(name)}"><span>${escapeHtml(humanize(name))}</span><em>${format.format(region.files || 0)} files</em></button>`;
+  return `<button class="graph-region ${active}" type="button" data-graph-region="${escapeAttr(name)}"><span>${escapeHtml(groupLabel(name))}</span><em>${format.format(region.files || 0)} files</em></button>`;
 }
 
 function graphRegionBrowser() {

@@ -25,7 +25,6 @@ class RepositoryRoutes:
         self.router.add_api_route("/api/glossary", self.glossary, methods=["GET"])
         self.router.add_api_route("/api/overview", self.overview, methods=["GET"])
         self.router.add_api_route("/api/modules", self.modules, methods=["GET"])
-        self.router.add_api_route("/api/groups", self.groups, methods=["GET"])
         self.router.add_api_route("/api/taxonomy", self.taxonomy, methods=["GET"])
         self.router.add_api_route("/api/file", self.file_details, methods=["GET"])
         self.router.add_api_route("/api/search", self.search, methods=["GET"])
@@ -96,18 +95,6 @@ class RepositoryRoutes:
         row = self.context.selected_repository(repository_id)
         return self.database.modules(int(row["id"]), snapshot_id, limit=limit, offset=offset)
 
-    def groups(
-        self,
-        repository_id: int | None = None,
-        snapshot_id: int | None = None,
-        layer: str = Query(default="effective", pattern="^(effective|semantic|policy|inferred)$"),
-    ) -> dict[str, Any]:
-        row = self.context.selected_repository(repository_id)
-        return {
-            "layer": layer,
-            "groups": self.database.group_hierarchy(int(row["id"]), snapshot_id, layer=layer),
-        }
-
     def taxonomy(
         self,
         repository_id: int | None = None,
@@ -137,7 +124,7 @@ class RepositoryRoutes:
         self,
         q: str = Query(min_length=2, max_length=1_000),
         repository_id: int | None = None,
-        limit: int = Query(default=30, ge=1, le=100),
+        limit: int = Query(default=30, ge=1, le=250),
     ) -> dict[str, Any]:
         row = self.context.selected_repository(repository_id)
         return {

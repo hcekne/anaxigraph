@@ -33,6 +33,7 @@ def test_root_support_files_use_regular_architecture_roles(repository: Path, dat
     assert "package-lock.json" not in nodes
     assert nodes["package.json"]["architecture_area"] == "infrastructure"
     assert nodes["package.json"]["architecture_subsystem"] == "build-and-packaging"
+    assert nodes["package.json"]["architecture_layer"] == "path"
     assert nodes["pyproject.toml"]["architecture_area"] == "infrastructure"
     assert nodes["Dockerfile"]["architecture_subsystem"] == "delivery-and-operations"
     assert nodes[".agents/plugins/marketplace.json"]["architecture_area"] == ("developer-tooling")
@@ -53,10 +54,15 @@ def test_inferred_layer_keeps_fallback_parent_areas(repository: Path, database):
     (repository / "pyproject.toml").write_text('[project]\nname = "sample"\n', encoding="utf-8")
     stats = RepositoryScanner(database).scan(repository)
 
-    hierarchy = database.group_hierarchy(stats.repository_id, layer="inferred")
+    hierarchy = database.overview(stats.repository_id)["group_hierarchies"]["path"]
     infrastructure = next(item for item in hierarchy if item["name"] == "infrastructure")
+    packaging = next(
+        item for item in infrastructure["children"] if item["name"] == "build-and-packaging"
+    )
 
-    assert any(child["name"] == "build-and-packaging" for child in infrastructure["children"])
+    assert infrastructure["key"] == "infrastructure"
+    assert infrastructure["label"] == "Infrastructure"
+    assert packaging["fallback_reason"]
 
 
 def test_dependency_lockfiles_are_not_application_modules(repository: Path):

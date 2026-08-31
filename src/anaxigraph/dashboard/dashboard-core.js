@@ -4,7 +4,6 @@ export const state = {
   glossary: null,
   overview: null,
   modules: [],
-  graphOverview: null,
   graph: { nodes: [], edges: [], snapshot: null },
   graphRegion: "",
   findings: [],
@@ -22,6 +21,7 @@ export const state = {
   groupRegions: [],
   subgroupRegions: [],
   groupParents: new Map(),
+  groupLabels: new Map(),
   groupRoots: [],
   hiddenGroups: new Set(),
   repositoryLoadToken: 0,
@@ -34,8 +34,11 @@ export const state = {
   moduleSort: { key: "lines_of_code", direction: "desc" },
   modulePage: 1,
   expandedModuleId: null,
+  moduleSearchResults: null,
+  moduleSearchQuery: "",
+  moduleSearchToken: 0,
   themeColors: null,
-  mapLayer: "effective",
+  mapLayer: "current",
   reloadRepository: null,
 };
 
@@ -140,22 +143,20 @@ export function selectedRepository() {
 }
 
 export function architectureFor(item, layer = state.mapLayer) {
-  if (layer === "effective") {
-    const semantic = item.semantic_taxonomy || {};
+  const placement = item.architecture_layers?.[layer] || null;
+  if (placement) return placement;
+  if (layer === "current" || item.architecture_layer === layer) {
     return {
       area: item.architecture_area,
       subsystem: item.architecture_subsystem || item.architecture_group,
-      area_label: semantic.area_label,
-      subsystem_label: semantic.subsystem_label,
       source: item.architecture_source,
     };
   }
-  const placement = item.architecture_layers?.[layer] || null;
-  if (placement || layer !== "policy") return placement;
+  if (layer !== "declared") return null;
   return {
     area: "unconfigured",
     subsystem: "unconfigured",
-    source: "no project path rule places this file",
+    source: "no declared map rule places this file",
   };
 }
 

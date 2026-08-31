@@ -95,7 +95,7 @@ def test_agent_scope_follows_a_declared_area_and_subsystem(repository, database)
     )
 
     path = value["architecture_decision"]["task_path"]
-    assert path["status"] == "policy_with_symbols"
+    assert path["status"] == "declared_with_symbols"
     assert path["area"]["name"] == "Domain"
     assert path["subsystem"]["name"] == "Domain Core"
     assert path["area"]["responsibility"] == "Domain implementation."
@@ -211,7 +211,8 @@ def test_primary_scope_uses_the_reviewed_responsibility_instead_of_unrelated_mat
             "architecture_placement": {
                 "area": area,
                 "subsystem": subsystem,
-                "source": "AI-created map checked by a separate AI pass",
+                "source": "inferred responsibility map",
+                "map_layer": "responsibility",
             },
         }
 

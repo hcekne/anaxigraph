@@ -10,6 +10,7 @@ from typing import Any
 
 from anaxigraph.clock import utc_now
 from anaxigraph.config import SemanticConfig
+from anaxigraph.persistence.search_read import refresh_search_projection
 from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION, SemanticResult
 from anaxigraph.semantic_graph import _cost, _intent_fingerprint
 from anaxigraph.semantic_index_port import SemanticIndex
@@ -77,6 +78,12 @@ class SemanticPersistenceService:
                     semantic=semantic,
                     now=completion.now,
                 )
+                refresh_search_projection(
+                    connection,
+                    int(job["repository_id"]),
+                    int(job["snapshot_id"]),
+                    force=True,
+                )
                 return
             if job["job_kind"] in {"pattern_assessment", "pattern_review"}:
                 complete_pattern_job(
@@ -127,6 +134,12 @@ class SemanticPersistenceService:
             claim_type = "module_analysis" if intrinsic else "module_context"
             self._write_inventory_claim(
                 connection, job, result, claim_type, provider, completion.source
+            )
+            refresh_search_projection(
+                connection,
+                int(job["repository_id"]),
+                int(job["snapshot_id"]),
+                artifact_ids=(int(job["artifact_id"]),),
             )
 
     def _write_inventory_claim(

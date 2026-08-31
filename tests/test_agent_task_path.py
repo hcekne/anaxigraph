@@ -3,7 +3,7 @@ from __future__ import annotations
 from anaxigraph.agent_task_path import compact_task_path, task_path
 
 
-def _module(source="AI-created map checked by a separate AI pass"):
+def _module(source="inferred responsibility map", map_layer="responsibility"):
     return {
         "path": "src/calculator.py",
         "summary": "Calculate invoice totals.",
@@ -16,6 +16,7 @@ def _module(source="AI-created map checked by a separate AI pass"):
             "subsystem": "billing-calculation",
             "subsystem_name": "Billing calculations",
             "source": source,
+            "map_layer": map_layer,
             "why_here": "This file owns the calculation behavior used by checkout.",
         },
         "semantic": {
@@ -93,7 +94,7 @@ def test_task_path_connects_goal_to_map_file_symbol_and_boundaries():
     )
 
     assert result["contract_version"] == "task-path-v1"
-    assert result["status"] == "semantic_with_symbols"
+    assert result["status"] == "responsibility_with_symbols"
     assert result["area"]["responsibility"] == "Own customer charges and invoices."
     assert result["subsystem"]["responsibility"] == "Calculate invoice amounts."
     assert result["module"]["contracts_to_preserve"] == [
@@ -116,7 +117,7 @@ def test_task_path_connects_goal_to_map_file_symbol_and_boundaries():
 
 
 def test_project_rule_path_does_not_invent_a_matching_symbol():
-    module = _module(source="project path rule")
+    module = _module(source="declared map", map_layer="declared")
 
     result = task_path(
         "Change unrelated behavior",
@@ -127,7 +128,7 @@ def test_project_rule_path_does_not_invent_a_matching_symbol():
         _hierarchy(),
     )
 
-    assert result["status"] == "policy_module_only"
+    assert result["status"] == "declared_module_only"
     assert result["symbols"] == []
     assert result["module"]["path"] in result["plain_language"]["conclusion"]
 

@@ -15,18 +15,27 @@ import {
 
 export function buildGroupIndex(groups) {
   state.groupParents.clear();
+  state.groupLabels.clear();
   state.groupRoots = groups;
   const visit = (group, root) => {
     state.groupParents.set(group.name, root);
+    state.groupLabels.set(
+      group.name,
+      group.plain_language?.display_name || group.label || humanize(group.name),
+    );
     (group.children || []).forEach((child) => visit(child, root));
   };
   groups.forEach((group) => visit(group, group.name));
 }
 
+export function groupLabel(group) {
+  return state.groupLabels.get(group) || humanize(group);
+}
+
 export function effectiveGroup(node) {
   const placement = architectureFor(node);
   if (placement) return placement.subsystem || placement.area || "ungrouped";
-  if (state.mapLayer === "policy") return "unconfigured";
+  if (state.mapLayer === "declared") return "unconfigured";
   return node.declared_group || node.inferred_group || "ungrouped";
 }
 
@@ -66,7 +75,7 @@ export function renderGraphAreaOptions() {
       || left.localeCompare(right)
   ));
   byId("graph-area-options").innerHTML = roots.map(([root, count]) => (
-    `<label><input type="checkbox" data-graph-area="${escapeAttr(root)}" ${state.hiddenGroups.has(root) ? "" : "checked"} /><i style="background:${groupColor(root)}"></i><span>${escapeHtml(humanize(root))}</span><em>${format.format(count)}</em></label>`
+    `<label><input type="checkbox" data-graph-area="${escapeAttr(root)}" ${state.hiddenGroups.has(root) ? "" : "checked"} /><i style="background:${groupColor(root)}"></i><span>${escapeHtml(groupLabel(root))}</span><em>${format.format(count)}</em></label>`
   )).join("");
   const visible = roots.filter(([root]) => !state.hiddenGroups.has(root)).length;
   byId("graph-area-count").textContent = visible === roots.length
@@ -208,7 +217,7 @@ export function layoutGraph(resetView = true) {
   const rootEntries = rootNames.map((root) => {
     const nodeCount = [...roots.get(root).values()].reduce((sum, members) => sum + members.length, 0);
     const total = totals.roots.get(root) || nodeCount;
-    return { key: root, weight: Math.max(48, 28 + humanize(root).length * 2.4, total) };
+    return { key: root, weight: Math.max(48, 28 + groupLabel(root).length * 2.4, total) };
   });
   const margin = Math.min(28, width * 0.04, height * 0.04);
   const rootRectangles = squarifiedRectangles(
@@ -294,7 +303,7 @@ function estimateLabelWidth(value) {
 }
 
 function regionLabelLines(region) {
-  const name = humanize(region.root);
+  const name = groupLabel(region.root);
   let count = `${format.format(region.nodeCount)} file${region.nodeCount === 1 ? "" : "s"}`;
   if (region.historicalFrame) {
     count = `${format.format(region.nodeCount)} then · ${format.format(region.totalNodeCount)} now`;

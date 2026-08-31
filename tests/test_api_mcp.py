@@ -59,16 +59,20 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         glossary = (await client.get("/api/glossary")).json()
         assert "saved index" in glossary["product"]["anaxi_index"]
         assert "direct code links" in glossary["product"]["anaxi_index"]
+        assert set(glossary["architecture"]) >= {
+            "current_view",
+            "declared_map",
+            "responsibility_map",
+            "path_map",
+        }
         assert glossary["findings"]["statuses"]["planned"]["label"] == "Planned for agent"
         overview = (await client.get("/api/overview")).json()
         assert overview["files"] == 8
         assert overview["map_status"]["state"] == "current"
-        assert overview["group_hierarchy"]
-        assert overview["map"]["default_layer"] == "effective"
-        assert "policy" in overview["map"]["available_layers"]
-        policy_groups = (await client.get("/api/groups", params={"layer": "policy"})).json()
-        assert policy_groups["layer"] == "policy"
-        assert policy_groups["groups"]
+        assert overview["group_hierarchies"]["current"]
+        assert overview["map"]["default_layer"] == "current"
+        assert "declared" in overview["map"]["available_layers"]
+        assert overview["group_hierarchies"]["declared"]
         assert overview["graph_quality"]["resolution_rate"] == 1.0
         assert overview["coverage"]["state"] == "imported"
         assert overview["coverage"]["required"] is False
@@ -106,6 +110,9 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         documentation = next(item for item in modules if item["path"] == "docs/architecture.md")
         assert documentation["evaluation"]["monitored_by_default"] is False
         assert documentation["evaluation"]["attention_score"] is None
+        search = (await client.get("/api/search", params={"q": "Calculator", "limit": 5})).json()
+        assert search["results"][0]["path"] == "pkg/core.py"
+        assert search["results"][0]["search"]["contract_version"] == "module-search-fts-v1"
         graph = (await client.get("/api/graph")).json()
         assert graph["nodes"]
         patterns = (await client.get("/api/patterns")).json()
@@ -133,6 +140,7 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert scope.status_code == 200
         assert scope.json()["map_status"]["state"] == "current"
         assert scope.json()["primary_files"][0]["path"] == "pkg/core.py"
+        assert scope.json()["primary_files"][0]["path"] == search["results"][0]["path"]
         assert (
             scope.json()["architecture_decision"]["contract_version"] == "architecture-decision-v1"
         )
@@ -252,12 +260,26 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     taxonomy = await session.call_tool("ANAXIGRAPH_TAXONOMY", arguments={})
                     assert taxonomy.isError is False
                     assert taxonomy.structuredContent["status"] == "not_ready"
+                    search = await session.call_tool(
+                        "ANAXIGRAPH_SEARCH",
+                        arguments={"query": "Calculator", "limit": 5},
+                    )
+                    assert search.isError is False
+                    assert search.structuredContent["results"][0]["path"] == "pkg/core.py"
+                    assert (
+                        search.structuredContent["results"][0]["search"]["contract_version"]
+                        == "module-search-fts-v1"
+                    )
                     scope = await session.call_tool(
                         "ANAXIGRAPH_SCOPE",
                         arguments={"goal": "Change Calculator behavior"},
                     )
                     assert scope.isError is False
                     assert scope.structuredContent["primary_files"][0]["path"] == "pkg/core.py"
+                    assert (
+                        scope.structuredContent["primary_files"][0]["path"]
+                        == search.structuredContent["results"][0]["path"]
+                    )
                     assert scope.structuredContent["architecture_decision"]["snapshot_id"] > 0
                     finding_context = await session.call_tool(
                         "ANAXIGRAPH_FINDING_CONTEXT",

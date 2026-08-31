@@ -49,16 +49,14 @@ test("map layers update their hierarchy explanation", async ({ page }) => {
   await openDashboard(page);
   const picker = page.locator("#map-layer-select");
 
-  await picker.selectOption("policy");
+  await expect(picker).toHaveValue("current");
+  await picker.selectOption("declared");
   await expect(page.locator("#map-layer-description")).toContainText(
-    "code areas defined by path rules",
+    "optional architecture intent",
   );
-  await picker.selectOption("inferred");
+  await picker.selectOption("path");
   await expect(page.locator("#map-layer-description")).toContainText(
-    "standard vocabulary",
-  );
-  await expect(page.locator("#map-layer-description")).toContainText(
-    "root filenames never become areas",
+    "deterministic directory and package rules",
   );
 });
 
@@ -267,8 +265,8 @@ test("a slow previous repository can never overwrite a newer selection", async (
   };
   const overview = (files) => ({
     files, lines_of_code: files * 10, symbols: 0, relationships: 0,
-    findings: {}, languages: [], group_hierarchies: { effective: [] },
-    map: { available_layers: ["effective"], default_layer: "effective" },
+    findings: {}, languages: [], group_hierarchies: { current: [] },
+    map: { available_layers: ["current"], default_layer: "current" },
     snapshot, graph_quality: {}, coverage: {}, semantic: { enabled: false },
   });
   let releaseSlowRepository;
@@ -284,7 +282,6 @@ test("a slow previous repository can never overwrite a newer selection", async (
       "/api/repositories": [slowRepository, targetRepository],
       "/api/glossary": { overlays: {} },
       "/api/overview": overview(repositoryId === targetRepository.id ? 222 : 111),
-      "/api/graph/overview": { nodes: [] },
       "/api/modules": [],
       "/api/graph": { nodes: [], edges: [], snapshot, counts: {} },
       "/api/findings": { items: [], shown: 0, omitted: {} },
@@ -336,6 +333,18 @@ test("architecture overview opens one graph region at a time", async ({ page }) 
   await expect(page.locator("#graph-canvas")).toHaveAttribute("data-region-count", "1");
   await browser.locator('[data-graph-region=""]').click();
   await expect(browser.locator(".graph-region-summary strong")).toHaveText("All Files");
+
+  const pathRequest = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return url.pathname === "/api/graph" && url.searchParams.get("map_layer") === "path";
+  });
+  await page.locator("#map-layer-select").selectOption("path");
+  await pathRequest;
+  await expect(browser.locator('[data-graph-region="application"]')).toBeVisible();
+  const graphLayer = await page.evaluate(async () => (
+    await import("/assets/dashboard-core.js")
+  ).state.graph.architecture_frame.map_layer);
+  expect(graphLayer).toBe("path");
 });
 
 test("historical files replay inside today's stable architecture frame", async ({ page }) => {

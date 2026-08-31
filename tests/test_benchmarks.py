@@ -161,7 +161,7 @@ def test_dashboard_fixture_covers_stable_browser_contracts(tmp_path):
     modules = database.modules(stats.repository_id)
     findings = database.findings(stats.repository_id)
 
-    groups = {item["name"]: item for item in overview["group_hierarchy"]}
+    groups = {item["name"]: item for item in overview["group_hierarchies"]["current"]}
     assert len(groups) > 5
     assert {item["name"] for item in groups["frontend"]["children"]} == {
         "frontend-features",

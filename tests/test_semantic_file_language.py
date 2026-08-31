@@ -206,7 +206,7 @@ def test_missing_or_newer_semantic_copy_stays_honest():
         }
     )
     assert placement["conclusion"] == (
-        "The AI-created map places this file in Saved data and repository views, inside "
+        "The inferred responsibility map places this file in Saved data and repository views, inside "
         "Repository Intelligence Core."
     )
     assert "saved description and direct code links" in placement["why_this_file_is_here"]

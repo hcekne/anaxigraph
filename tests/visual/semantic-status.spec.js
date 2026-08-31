@@ -24,6 +24,7 @@ function idleSemanticLanguage(agent = false) {
 
 test("semantic progress and model-backed pattern advice use direct language", async ({ page }) => {
   let semanticPath = "";
+  let semanticModule = null;
   await page.route("**/api/semantic*", async (route) => {
     if (route.request().method() !== "GET") {
       await route.fulfill({ json: { status: "started" } });
@@ -106,7 +107,16 @@ test("semantic progress and model-backed pattern advice use direct language", as
         preconditions: [],
       }],
     };
+    semanticModule = structuredClone(module);
     await route.fulfill({ response, json: modules });
+  });
+  await page.route("**/api/search*", async (route) => {
+    const response = await route.fetch();
+    const result = await response.json();
+    result.results = result.results.map((item) => (
+      item.path === semanticPath ? { ...item, semantic: semanticModule.semantic } : item
+    ));
+    await route.fulfill({ response, json: result });
   });
 
   await openDashboard(page);

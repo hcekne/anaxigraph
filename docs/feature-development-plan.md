@@ -3860,7 +3860,7 @@ next work is §10.4; Phase 10.2 remains closed and is not reopened to offset thi
 
 ## 10.4 Establish one responsibility-map vocabulary and one search substrate
 
-**Status:** IN PROGRESS; begins after the completed §10.3 runtime convergence.
+**Status:** COMPLETE on 31 August 2026.
 
 The graph, history, semantic taxonomy, configured architecture groups, and file browser must stop
 using overlapping group names as if they were equivalent truths. Use four precise terms:
@@ -3907,9 +3907,47 @@ Acceptance:
 - ambiguous placement, generic fallbacks, and missing semantic evidence remain visible;
 - the old independent lexical rankers are removed and the production ratchet falls.
 
+### 10.4 delivery record: one vocabulary and one bounded module search
+
+AnaxiGraph now uses four explicit architecture projections everywhere: `declared`, `path`,
+`responsibility`, and `current`. `architecture_vocabulary.py` owns the names and current-view
+precedence: declared repository intent first, then an evidence-backed responsibility assignment,
+then deterministic path placement. Group keys remain stable machine identities while labels remain
+presentation. Every hierarchy includes its source, and path/missing fallbacks explain why richer
+placement was unavailable instead of pretending to be semantic truth.
+
+The canonical overview returns all four hierarchies. Graph reads use `graph-query-v2`, bind the
+selected map layer into pagination cursors, and project nodes for that layer on the server. The
+dashboard map selector therefore changes the actual backend projection rather than recoloring a
+stale client-side graph. Current history continues to place earlier files through today's stable
+map, while historical placement remains available as evidence. Region focus changes the bounded
+page, not repository-wide counts or identities.
+
+`module-search-fts-v1` is now the single repository- and snapshot-scoped discovery substrate. Its
+disposable SQLite FTS5 projection indexes paths, names, symbols, deterministic summaries,
+responsibilities, public contracts, semantic dossier text, taxonomy identities, and normalized
+aliases. Exact path, filename, and symbol matches receive deterministic boosts. Every result
+identifies the projection contract, snapshot, and semantic/taxonomy provenance. A new snapshot
+refreshes it during commit; completed semantic work updates affected rows; same-snapshot semantic
+replanning invalidates it once so stale evidence cannot survive policy or fingerprint changes.
+
+Dashboard module search, REST, MCP, CLI `anaxigraph search`, and agent goal scoping now consume the
+same ranked artifact identities. Hydration occurs only after the bounded FTS query. The former
+Python TF-IDF corpus, whole-module browser filter, and repeated lexical ranking loop are gone.
+Future Charter lookup and pattern seeding must reuse this service; they do not receive another
+search implementation.
+
+The obsolete graph-overview read model and route, the duplicate groups route/facade, redundant
+overview group payload, and browser-side lexical corpus were removed during the convergence. The
+complete Python suite passes with **592 tests**, the browser suite passes **21/21** contracts, Ruff
+and JavaScript syntax checks pass, and the maintainability checker reports zero errors. Even after
+adding the shared FTS projection and four-layer contracts, production source falls from 49,995 to
+**49,991 lines**. That lower number is the new hard ratchet. Extracting the module-table sort
+strategies also removed one previously accepted dashboard complexity finding from self-governance.
+
 ## 10.5 Generate and maintain the Living Architecture Charter
 
-**Status:** PENDING; begins only after §10.4.
+**Status:** IN PROGRESS from 31 August 2026 after completion of §10.4.
 
 AnaxiGraph must be able to read a repository and state what it believes the system is for without
 waiting for a person to author an architecture document. Introduce `architecture-charter-v1` as a
@@ -4414,14 +4452,14 @@ feature-admission rule.
 | 1 | **COMPLETE** | Inventory every public surface and major code cluster against Understand, Guide, Keep coherent, enabling infrastructure, advanced operations, or removal; produce the ordered deletion map without implementing features | §10.1 |
 | 2 | **COMPLETE** | Close substantive consolidation at the owner-accepted 49,797-line ratchet after removing 4,110 lines and multiple complete duplicate paths without code golf | §10.2 |
 | 3 | **COMPLETE** | Fold watchers into one service lifecycle, establish one repository-scoped write authority, and reduce normal generated Compose to one AnaxiGraph service | §10.3 |
-| 4 | **IN PROGRESS** | Adopt the declared/path/inferred/current responsibility vocabulary and replace duplicate lexical ranking with one bounded FTS5 query substrate | §10.4 |
-| 5 | **PENDING** | Generate the evidence-backed Living Architecture Charter without human input, support optional visible corrections, and prove resumable agent-funded completion | §10.5 |
+| 4 | **COMPLETE** | Adopt the declared/path/inferred/current responsibility vocabulary and replace duplicate lexical ranking with one bounded FTS5 query substrate | §10.4 |
+| 5 | **IN PROGRESS** | Generate the evidence-backed Living Architecture Charter without human input, support optional visible corrections, and prove resumable agent-funded completion | §10.5 |
 | 6 | **PENDING** | Deliver the same implementation/refactor guidance through at most five dashboard journeys and at most ten normal MCP tools; pass independent agent-only and human-led workflows | §10.6 |
 | 7 | **PENDING** | Run the fixed capability brief → independent clean-sheet proposals → blind adjudication → as-built comparison → mission filter sequence through one resumable agent-funded Improve workflow | §10.7 |
 | 8 | **PENDING** | Refresh only changed semantic scope and return shared architecture reassessment without a Change Contract or approval workflow | §10.8 |
 | 9 | **PENDING** | Replace regex-oriented JavaScript/TypeScript analysis with a parser-backed, capability-honest implementation and remove the shallow path | Phase 11 |
 
-Only item 4 may proceed now. Later items remain pending until the preceding acceptance is recorded.
+Only item 5 may proceed now. Later items remain pending until the preceding acceptance is recorded.
 The retained MaxOS run and a future release candidate are evidence/release gates, not independent
 product features. No additional parser expansion, adapter family, plugin framework, website, media
 support, generic operations work, warning-cleanup campaign, or dashboard family may displace this

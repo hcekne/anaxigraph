@@ -111,7 +111,7 @@ def _remaining_work(
         )
     taxonomy = _mapping(status.get("taxonomy"))
     if taxonomy.get("enabled") and not taxonomy.get("ready"):
-        values.append("The AI-created grouping of files has not finished its automatic checks yet.")
+        values.append("The inferred responsibility map has not finished its automatic checks yet.")
     if _mapping(status.get("budget")).get("paused"):
         values.append(
             "AI work using a separate paid model is paused because the next call would exceed today's budget."

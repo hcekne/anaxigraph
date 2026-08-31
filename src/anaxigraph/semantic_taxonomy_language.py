@@ -1,4 +1,4 @@
-"""Plain-language projection for one AI-created repository group."""
+"""Plain-language projection for one inferred repository responsibility."""
 
 from __future__ import annotations
 
@@ -40,15 +40,15 @@ def semantic_taxonomy_explanation(node: Mapping[str, Any]) -> dict[str, Any]:
     display_name = _plain_name(label)
     return {
         "version": SEMANTIC_TAXONOMY_LANGUAGE_VERSION,
-        "conclusion": f"The AI-created map uses {display_name} as {_level_meaning(level)}.",
+        "conclusion": f"The inferred responsibility map uses {display_name} as {_level_meaning(level)}.",
         "display_name": display_name,
         "name_and_meaning": display_name,
         "what_this_group_does": responsibility
-        or "The AI-created map did not state this group's concrete job.",
+        or "The inferred responsibility map did not state this group's concrete job.",
         "what_belongs_here": description
-        or "The AI-created map did not explain which work belongs in this group.",
+        or "The inferred responsibility map did not explain which work belongs in this group.",
         "why_these_files_are_together": rationale
-        or "The AI-created map did not record a reason for grouping these files.",
+        or "The inferred responsibility map did not record a reason for grouping these files.",
         "evidence_strength": {
             "value": confidence,
             "meaning": _confidence_meaning(confidence),
@@ -69,13 +69,13 @@ def semantic_taxonomy_assignment_explanation(assignment: Mapping[str, Any]) -> d
         "Repository map configuration explicitly puts this file in this group."
         if assignment.get("locked")
         else (
-            "The AI map compared the file's saved description and direct code links with the "
+            "The responsibility map compared the file's saved description and direct code links with the "
             "jobs of the other groups. This group was its strongest match."
         )
     )
     return {
         "version": SEMANTIC_TAXONOMY_LANGUAGE_VERSION,
-        "conclusion": f"The AI-created map places this file in {destination}.",
+        "conclusion": f"The inferred responsibility map places this file in {destination}.",
         "area_name": area,
         "subsystem_name": subsystem,
         "why_this_file_is_here": reason,

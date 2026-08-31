@@ -102,6 +102,64 @@ def test_graph_filters_are_exact_and_cursors_are_bound(repository, database):
         )
 
 
+def test_graph_map_layer_controls_placement_and_region_filters(repository, database):
+    stats = RepositoryScanner(database).scan(repository)
+
+    declared = database.graph(
+        stats.repository_id,
+        query=GraphPageRequest(
+            map_layer="declared",
+            areas=("unconfigured",),
+            node_limit=100,
+            edge_limit=100,
+        ),
+    )
+    path = database.graph(
+        stats.repository_id,
+        query=GraphPageRequest(
+            map_layer="path",
+            areas=("application",),
+            node_limit=100,
+            edge_limit=100,
+        ),
+    )
+
+    assert declared["architecture_frame"]["map_layer"] == "declared"
+    assert declared["counts"]["matching_nodes"] > 0
+    assert all(node["architecture_area"] == "unconfigured" for node in declared["nodes"])
+    assert all(node["architecture_layer"] == "declared" for node in declared["nodes"])
+    assert path["architecture_frame"]["map_layer"] == "path"
+    assert {node["path"] for node in path["nodes"]} == {
+        "pkg/__init__.py",
+        "pkg/consumer.py",
+        "pkg/core.py",
+        "pkg/util.py",
+        "web/App.tsx",
+        "web/helper.ts",
+    }
+    assert all(node["architecture_layer"] == "path" for node in path["nodes"])
+
+
+def test_graph_cursor_is_bound_to_the_selected_map_layer(repository, database):
+    stats = RepositoryScanner(database).scan(repository)
+    page = database.graph(
+        stats.repository_id,
+        query=GraphPageRequest(map_layer="current", node_limit=2, edge_limit=1),
+    )
+
+    assert page["next_cursor"]
+    with pytest.raises(ValueError, match="does not match"):
+        database.graph(
+            stats.repository_id,
+            query=GraphPageRequest(
+                cursor=page["next_cursor"],
+                map_layer="path",
+                node_limit=2,
+                edge_limit=1,
+            ),
+        )
+
+
 def test_historical_graph_uses_current_map_without_erasing_original_placement(repository, database):
     first = RepositoryScanner(database).scan(repository)
     (repository / ".anaxigraph.yml").write_text(
@@ -140,6 +198,7 @@ ignore: [ignored/**]
         "reference_snapshot_id": second.snapshot_id,
         "historical_snapshot_id": first.snapshot_id,
         "reclassified": True,
+        "map_layer": "current",
     }
     assert (core["architecture_area"], core["architecture_subsystem"]) == (
         "application",
@@ -218,31 +277,12 @@ def test_graph_contract_rejects_unsafe_limits_and_malformed_cursor():
         GraphPageRequest(node_limit=MAX_NODE_LIMIT + 1)
     with pytest.raises(ValueError, match="edge_limit"):
         GraphPageRequest(edge_limit=MAX_EDGE_LIMIT + 1)
+    with pytest.raises(ValueError, match="map_layer"):
+        GraphPageRequest(map_layer="invented")
     with pytest.raises(ValueError, match="malformed"):
         from anaxigraph.graph_contract import GraphCursor
 
         GraphCursor.decode("not-a-cursor")
-
-
-def test_graph_overview_returns_bounded_architecture_aggregates(repository, database):
-    stats = RepositoryScanner(database).scan(repository)
-    overview = database.graph_overview(
-        stats.repository_id,
-        level="area",
-        group_limit=2,
-        edge_limit=1,
-        include_external=True,
-    )
-
-    assert overview["contract_version"] == "graph-overview-v1"
-    assert overview["counts"]["returned_groups"] == 2
-    assert overview["counts"]["groups"] >= 2
-    assert overview["counts"]["returned_aggregate_edges"] <= 1
-    assert overview["counts"]["omitted_groups"] == overview["counts"]["groups"] - 2
-    assert all(node["level"] == "area" for node in overview["nodes"])
-    assert overview["telemetry"]["payload_bytes"] == len(
-        json.dumps(overview, separators=(",", ":")).encode()
-    )
 
 
 def test_graph_neighborhood_expands_by_direction_and_bounded_depth(repository, database):
@@ -306,10 +346,11 @@ async def test_rest_graph_routes_enforce_bounds_and_cursor_contract(repository, 
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://testserver"
     ) as client:
-        overview = await client.get(
-            "/api/graph/overview", params={"group_limit": 2, "edge_limit": 1}
-        )
         page = await client.get("/api/graph", params={"node_limit": 2, "edge_limit": 1})
+        path_page = await client.get(
+            "/api/graph",
+            params={"map_layer": "path", "area": "application", "node_limit": 100},
+        )
         neighbors = await client.get(
             "/api/graph/neighbors", params={"node": "pkg/core.py", "depth": 1}
         )
@@ -326,11 +367,12 @@ async def test_rest_graph_routes_enforce_bounds_and_cursor_contract(repository, 
         )
         delta = await client.get("/api/graph/delta", params={"from_snapshot_id": stats.snapshot_id})
 
-    assert overview.status_code == 200
-    assert overview.json()["contract_version"] == "graph-overview-v1"
     assert page.status_code == 200
     assert page.json()["counts"]["page_internal_nodes"] == 2
     assert page.json()["quality"]["plain_language"]["version"] == ("graph-quality-explanation-v1")
+    assert path_page.status_code == 200
+    assert path_page.json()["architecture_frame"]["map_layer"] == "path"
+    assert all(node["architecture_area"] == "application" for node in path_page.json()["nodes"])
     assert neighbors.status_code == 200
     assert neighbors.json()["contract_version"] == "graph-neighborhood-v1"
     assert oversized.status_code == 422

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
+from anaxigraph.persistence.search_read import invalidate_search_projection
 from anaxigraph.persistence.semantic_evidence import semantic_inventory
 from anaxigraph.semantic_freshness import (
     GROUP_SYNTHESIS_CONTRACT,
@@ -84,8 +85,7 @@ class SemanticPlanningService:
         root = Path(repository).expanduser().resolve()
         if not root.is_dir():
             raise ValueError(f"Repository does not exist or is not a directory: {root}")
-        snapshot = self._database.latest_snapshot(repository_id)
-        if snapshot is None:
+        if (snapshot := self._database.latest_snapshot(repository_id)) is None:
             raise ValueError("Repository has not been scanned")
         snapshot_id = int(snapshot["id"])
         semantic = config.semantic
@@ -128,6 +128,7 @@ class SemanticPlanningService:
             )
             enqueued += downstream_jobs
             stage = downstream_stage or stage
+            invalidate_search_projection(connection, repository_id)
             active_jobs = int(
                 connection.execute(
                     """

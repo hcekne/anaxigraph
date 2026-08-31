@@ -69,15 +69,14 @@ async function loadRepository() {
   window.clearTimeout(state.historyPollTimer);
   window.clearTimeout(state.semanticPollTimer);
   try {
-    const [overview, graphOverview] = await Promise.all([
-      request(api("/api/overview")),
-      request(api("/api/graph/overview")),
-    ]);
+    const overview = await request(api("/api/overview"));
     if (token !== state.repositoryLoadToken) return;
+    state.overview = overview;
+    configureMapLayers();
     const [modules, graph, findings, snapshots, trends, historyInfo, semanticStatus] = await Promise.all([
       request(api("/api/modules")),
       request(api("/api/graph", {
-        node_limit: 1000, edge_limit: 2000, area: "",
+        node_limit: 1000, edge_limit: 2000, area: "", map_layer: state.mapLayer,
       })),
       request(api("/api/findings", findingParams())),
       request(api("/api/snapshots")),
@@ -88,7 +87,6 @@ async function loadRepository() {
     if (token !== state.repositoryLoadToken) return;
     Object.assign(state, {
       overview,
-      graphOverview,
       graphRegion: "",
       modules,
       graph,
@@ -100,7 +98,6 @@ async function loadRepository() {
       semanticStatus,
     });
     resetRepositoryState();
-    configureMapLayers();
     buildGroupIndex(selectedHierarchy());
     renderGraphAreaOptions();
     renderGraphRegionBrowser();
@@ -139,13 +136,16 @@ function resetRepositoryState() {
   state.protectedPaths.clear();
   state.modulePage = 1;
   state.expandedModuleId = null;
+  state.moduleSearchResults = null;
+  state.moduleSearchQuery = "";
+  state.moduleSearchToken += 1;
   state.hiddenGroups.clear();
   resetPatternView();
 }
 
 function configureMapLayers() {
   const map = state.overview?.map || {};
-  const available = map.available_layers || ["effective"];
+  const available = map.available_layers || ["current"];
   let remembered = "";
   try {
     remembered = window.localStorage.getItem("anaxigraph.map-layer") || "";

@@ -56,6 +56,20 @@ anaxigraph init . --semantic agent --connect codex \
 
 Credentials and URL fragments are rejected rather than written into client configuration.
 
+## Shared module search
+
+Use the same ranked module discovery that backs the dashboard, AnaxiMCP, and goal scope:
+
+```bash
+anaxigraph search "invoice reconciliation" .
+anaxigraph search "BillingCalculator" . --limit 10 --json
+```
+
+The query searches the current repository snapshot only. Exact paths, filenames, and symbols are
+boosted deterministically; current AI descriptions and inferred responsibilities remain tagged in
+the result provenance. Search is bounded by SQLite FTS before related graph files are considered,
+so a normal query does not reread source files or every saved AI description.
+
 ## Remote Linux server and local browser
 
 When AnaxiGraph and the coding agent run on a remote Linux server, the agent reaches the loopback

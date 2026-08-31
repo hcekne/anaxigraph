@@ -10,17 +10,14 @@ import time
 from dataclasses import asdict, dataclass
 from typing import Any
 
-GRAPH_QUERY_VERSION = "graph-query-v1"
+from anaxigraph.architecture_vocabulary import CURRENT_MAP, MAP_LAYERS
+
+GRAPH_QUERY_VERSION = "graph-query-v2"
 DEFAULT_NODE_LIMIT = 250
 DEFAULT_EDGE_LIMIT = 500
 MAX_NODE_LIMIT = 1_000
 MAX_EDGE_LIMIT = 2_000
 MAX_GRAPH_CURSOR_LENGTH = 2_000
-GRAPH_OVERVIEW_VERSION = "graph-overview-v1"
-DEFAULT_GRAPH_GROUP_LIMIT = 100
-DEFAULT_GRAPH_AGGREGATE_EDGE_LIMIT = 250
-MAX_GRAPH_GROUP_LIMIT = 500
-MAX_GRAPH_AGGREGATE_EDGE_LIMIT = 1_000
 GRAPH_NEIGHBORHOOD_VERSION = "graph-neighborhood-v1"
 DEFAULT_NEIGHBOR_NODE_LIMIT = 100
 DEFAULT_NEIGHBOR_EDGE_LIMIT = 250
@@ -40,6 +37,7 @@ class GraphPageRequest:
     node_limit: int = DEFAULT_NODE_LIMIT
     edge_limit: int = DEFAULT_EDGE_LIMIT
     include_external: bool = False
+    map_layer: str = CURRENT_MAP
     path: str = ""
     languages: tuple[str, ...] = ()
     areas: tuple[str, ...] = ()
@@ -54,6 +52,8 @@ class GraphPageRequest:
             raise ValueError(f"edge_limit must be between 1 and {MAX_EDGE_LIMIT}")
         if len(self.cursor) > MAX_GRAPH_CURSOR_LENGTH:
             raise ValueError("graph cursor is too long")
+        if self.map_layer not in MAP_LAYERS:
+            raise ValueError(f"map_layer must be one of: {', '.join(MAP_LAYERS)}")
         object.__setattr__(self, "path", self.path.strip())
         for field in (
             "languages",

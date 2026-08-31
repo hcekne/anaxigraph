@@ -41,11 +41,8 @@ def _compact_overview(value: dict[str, Any]) -> dict[str, Any]:
     hierarchy_count = sum(
         _tree_size(items) for items in (result.get("group_hierarchies") or {}).values()
     )
-    result.pop("group_hierarchy", None)
     result.pop("group_hierarchies", None)
-    groups = result.pop("groups", [])
     result["export_omissions"] = {
-        "groups": len(groups),
         "hierarchy_nodes": hierarchy_count,
     }
     result["languages"] = list(result.get("languages") or [])[:250]

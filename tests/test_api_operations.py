@@ -52,7 +52,7 @@ async def test_operational_api_bounds_inventory_export_and_request_bodies(reposi
     assert export["graph"]["counts"]["page_internal_nodes"] <= 250
     assert export["graph"]["counts"]["page_edges"] <= 500
     assert export["findings"]["shown"] <= 200
-    assert "group_hierarchy" not in export["overview"]
+    assert "group_hierarchies" not in export["overview"]
     assert oversized.status_code == 413
 
 

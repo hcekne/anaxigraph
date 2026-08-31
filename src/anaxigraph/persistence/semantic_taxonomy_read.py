@@ -47,13 +47,24 @@ def _review_payload(review: sqlite3.Row) -> dict[str, Any]:
 
 
 def taxonomy_assignments(
-    connection: sqlite3.Connection, snapshot_id: int
+    connection: sqlite3.Connection,
+    snapshot_id: int,
+    *,
+    artifact_ids: tuple[int, ...] | None = None,
 ) -> dict[int, dict[str, Any]]:
     taxonomy = current_taxonomy(connection, snapshot_id)
     if taxonomy is None:
         return {}
+    if artifact_ids is not None and not artifact_ids:
+        return {}
+    restriction = ""
+    parameters: tuple[Any, ...] = (taxonomy["id"],)
+    if artifact_ids is not None:
+        placeholders = ",".join("?" for _ in artifact_ids)
+        restriction = f"AND stm.artifact_id IN ({placeholders})"
+        parameters = (taxonomy["id"], *artifact_ids)
     rows = connection.execute(
-        """
+        f"""
         SELECT stm.artifact_id, stm.node_key AS subsystem_key,
                subsystem.name AS subsystem_name,
                subsystem.parent_key AS area_key, area.name AS area_name,
@@ -66,9 +77,9 @@ def taxonomy_assignments(
         LEFT JOIN semantic_taxonomy_nodes area
           ON area.taxonomy_id = subsystem.taxonomy_id
          AND area.node_key = subsystem.parent_key
-        WHERE stm.taxonomy_id = ?
+        WHERE stm.taxonomy_id = ? {restriction}
         """,
-        (taxonomy["id"],),
+        parameters,
     ).fetchall()
     return {int(row["artifact_id"]): _taxonomy_assignment(row, taxonomy) for row in rows}
 
@@ -85,7 +96,7 @@ def _taxonomy_assignment(row: sqlite3.Row, taxonomy: dict[str, Any]) -> dict[str
         "evidence": json.loads(row["evidence_json"] or "[]"),
         "alternatives": json.loads(row["alternatives_json"] or "[]"),
         "locked": bool(row["locked"]),
-        "source": "AI-created map checked by a separate AI pass",
+        "source": "inferred responsibility map",
         "freshness": taxonomy["updated_at"],
     }
     assignment["plain_language"] = semantic_taxonomy_assignment_explanation(assignment)
@@ -129,13 +140,10 @@ def read_semantic_hierarchy(
     for row in rows:
         key = str(row["node_key"])
         nodes[key] = _semantic_node(row, taxonomy, stats.get(key))
-    children: dict[str, list[str]] = {key: [] for key in nodes}
-    for key, node in nodes.items():
-        if node["parent"] in children and node["parent"] != key:
-            children[node["parent"]].append(key)
+    children = hierarchy_children(nodes)
     roots = [key for key, node in nodes.items() if node["parent"] not in nodes]
     return sorted(
-        (_materialize(key, nodes, children) for key in roots),
+        (materialize_hierarchy(key, nodes, children) for key in roots),
         key=lambda item: (-int(item["lines_of_code"]), item["name"]),
     )
 
@@ -146,11 +154,12 @@ def _semantic_node(
     stats: dict[str, int] | None,
 ) -> dict[str, Any]:
     node = {
+        "key": str(row["node_key"]),
         "name": str(row["node_key"]),
         "label": row["name"],
         "level": row["level"],
         "parent": row["parent_key"],
-        "source": "semantic",
+        "source": "responsibility",
         "description": row["description"],
         "responsibility": row["responsibility"],
         "confidence": row["confidence"],
@@ -190,13 +199,29 @@ def taxonomy_map_payload(connection: sqlite3.Connection, snapshot_id: int) -> di
     }
 
 
-def _materialize(
+def hierarchy_children(nodes: dict[str, dict[str, Any]]) -> dict[str, list[str]]:
+    children: dict[str, list[str]] = {key: [] for key in nodes}
+    for key, node in nodes.items():
+        if node["parent"] in children and node["parent"] != key:
+            children[node["parent"]].append(key)
+    return children
+
+
+def materialize_hierarchy(
     key: str,
     nodes: dict[str, dict[str, Any]],
     children: dict[str, list[str]],
+    ancestors: frozenset[str] = frozenset(),
 ) -> dict[str, Any]:
     node = nodes[key]
-    child_items = [_materialize(child, nodes, children) for child in children[key]]
+    child_items = (
+        []
+        if key in ancestors
+        else [
+            materialize_hierarchy(child, nodes, children, ancestors | {key})
+            for child in children[key]
+        ]
+    )
     return {
         **node,
         "files": int(node["direct_files"]) + sum(int(item["files"]) for item in child_items),

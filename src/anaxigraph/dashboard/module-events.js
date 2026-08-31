@@ -3,8 +3,10 @@ import { inspectNode } from "/assets/graph-view.js";
 import { renderModules } from "/assets/module-view.js";
 import { switchView } from "/assets/navigation.js";
 
+let searchTimer = null;
+
 export function setupModuleEvents() {
-  byId("module-search").addEventListener("input", resetAndRender);
+  byId("module-search").addEventListener("input", scheduleModuleSearch);
   [
     "module-area-filter", "module-subsystem-filter", "module-language-filter",
     "module-include-reference", "module-page-size",
@@ -29,6 +31,38 @@ export function setupModuleEvents() {
   byId("module-table-body").addEventListener("click", handleModuleClick);
 }
 
+function scheduleModuleSearch() {
+  window.clearTimeout(searchTimer);
+  state.modulePage = 1;
+  const query = byId("module-search").value.trim();
+  if (query.length < 2) {
+    state.moduleSearchResults = null;
+    state.moduleSearchQuery = "";
+    state.moduleSearchToken += 1;
+    renderModules();
+    return;
+  }
+  const searchToken = ++state.moduleSearchToken;
+  const repositoryToken = state.repositoryLoadToken;
+  state.moduleSearchResults = [];
+  state.moduleSearchQuery = query;
+  renderModules();
+  searchTimer = window.setTimeout(async () => {
+    try {
+      const result = await request(api("/api/search", { q: query, limit: 250 }));
+      if (
+        searchToken !== state.moduleSearchToken
+        || repositoryToken !== state.repositoryLoadToken
+        || byId("module-search").value.trim() !== query
+      ) return;
+      state.moduleSearchResults = result.results || [];
+      renderModules();
+    } catch (error) {
+      if (searchToken === state.moduleSearchToken) toast(error.message, true);
+    }
+  }, 180);
+}
+
 function resetAndRender() {
   state.modulePage = 1;
   renderModules();
@@ -50,7 +84,8 @@ async function handleModuleClick(event) {
   state.expandedModuleId = Number(state.expandedModuleId) === id ? null : id;
   renderModules();
   if (Number(state.expandedModuleId) !== id) return;
-  const item = state.modules.find((candidate) => Number(candidate.artifact_id) === id);
+  const item = [...(state.moduleSearchResults || []), ...state.modules]
+    .find((candidate) => Number(candidate.artifact_id) === id);
   if (!item || state.moduleDetails.has(item.path)) return;
   const repositoryLoadToken = state.repositoryLoadToken;
   try {

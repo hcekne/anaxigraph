@@ -61,7 +61,7 @@ class SemanticMcpTools:
             self.taxonomy,
             name="ANAXIGRAPH_TAXONOMY",
             description=(
-                "Return the current AI-created grouping of files into broad areas and smaller "
+                "Return the current inferred responsibility map of broad areas and smaller "
                 "groups. A separate AI pass checks the proposal, then AnaxiGraph verifies that "
                 "every included file appears exactly once. The result includes evidence strength, "
                 "extra cross-area labels, known problems, and who or what created it."

@@ -96,15 +96,27 @@ TypeScript are lexical, and other recognized languages are explicitly fallback a
 Resolution outcomes remain separate relationship facts: resolved, ambiguous, unresolved, or
 external.
 
-Architecture placement has three explicit authorities. A repository's configured path rules come
-first; a complete reviewed semantic taxonomy may provide responsibility-based areas and
-subsystems; otherwise a versioned deterministic fallback vocabulary is used. That fallback has a
-small set of areas—application, testing, documentation, infrastructure, and developer tooling—and
+Architecture placement exposes four precise views. The **declared map** is optional repository
+intent, the **path map** is deterministic directory/package grouping, and the **inferred
+responsibility map** is an AI-reviewed interpretation backed by current dossiers and relationships.
+The default **current view** chooses declared placement per file, then inferred responsibility,
+then path fallback. Stable group keys remain separate from display labels so a wording change does
+not masquerade as a new architecture. Historical replay uses today's current-view frame by default
+and preserves each file's original historical placement as separate evidence.
+
+The path fallback has a small set of areas—application, testing, documentation, infrastructure, and developer tooling—and
 places build metadata, containers, quality gates, agent integrations, scripts, tests, and examples
 into narrower subsystems. It never promotes a root filename such as `pyproject.toml` or
 `package.json` into an architecture area. Dependency lockfiles are ignored as generated resolution
 records rather than presented as application modules. This keeps maps comparable across
 repositories without pretending that a path heuristic is semantic understanding.
+
+Module discovery has one query substrate. A rebuildable SQLite FTS5 projection indexes paths,
+filenames, symbols, summaries, responsibilities, contracts, and normalized aliases for exactly one
+repository snapshot. Dashboard, REST, CLI, AnaxiMCP, and goal scoping call the same ranked query;
+scope expands through graph links only after those shared seeds are selected. Search provenance
+states whether current semantic and responsibility evidence contributed. The projection is a
+disposable read model over AnaxiIndex, not an architectural fact or a second database.
 
 Every overview and graph response also carries `graph-quality-explanation-v1`. It translates those
 machine states into the number of links checked, what failed to point to one file, which dependency,

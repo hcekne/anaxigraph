@@ -87,7 +87,7 @@ as a one-task-at-a-time fallback when no authenticated host worker exists;
 `agent_action_required` means the connected agent must keep working and is not completion.
 
 Each worker claims one task for a limited time, reads its evidence, and submits a result that must
-match the required JSON shape. It continues through file descriptions, an AI-created grouping of
+match the required JSON shape. It continues through file descriptions, an inferred responsibility grouping of
 files, separate AI checks and revisions, and a whole-repository summary. Code checks give every
 included file exactly one main smaller group. No person has to approve this metadata map. Unchanged
 code, direct links, instructions, and intended job reuse current records; worker and model names
@@ -101,9 +101,10 @@ invalid inventory fails closed because the sidecar may be busy. Use `--service-u
 `ANAXIGRAPH_SERVICE_URL` for a non-default endpoint; use `--db` only when you intentionally want a
 standalone local index. The JSON response always names the selected index authority.
 
-When `ANAXIGRAPH_SEMANTIC_STATUS` reports ready, call `ANAXIGRAPH_TAXONOMY` or select **Semantic
-map (AI)** in the dashboard. Project path settings and file-path guesses remain available for
-comparison; they do not replace the AI-created map when it is up to date.
+When `ANAXIGRAPH_SEMANTIC_STATUS` reports ready, call `ANAXIGRAPH_TAXONOMY` or select
+**Responsibility map** in the dashboard. **Current view** uses declared project intent first, then
+that inferred responsibility map, then deterministic path fallback. **Declared map** and **Path
+map** remain available for honest comparison.
 
 ## Recommended: install the agent workflow
 

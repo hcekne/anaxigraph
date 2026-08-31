@@ -26,7 +26,7 @@ import {
 
 export function selectedHierarchy() {
   const hierarchies = state.overview?.group_hierarchies || {};
-  return hierarchies[state.mapLayer] || state.overview?.group_hierarchy || [];
+  return hierarchies[state.mapLayer] || [];
 }
 
 export function renderOverview() {
@@ -233,7 +233,7 @@ function groupMarkup(group, maximum, repositoryLoc) {
   const childHtml = children.length ? `<div class="group-children">${children.map((child) => (
     `<span class="group-child" style="--child-color:${childColor(child)}" title="${escapeAttr(groupChildDescription(child))}"><i class="group-child-dot"></i>${escapeHtml(groupChildLabel(child, group.name))}<em>${format.format(child.lines_of_code || 0)} code lines</em></span>`
   )).join("")}</div>` : "";
-  const badge = state.mapLayer === "semantic" ? "AI-created map"
+  const badge = state.mapLayer === "responsibility" ? "inferred responsibility"
     : children.length ? "includes smaller groups" : sourceLabel(group.source);
   return `<article class="group-family" style="--group-color:${color}"><div class="group-family-header"><strong>${escapeHtml(copy.label)}<span class="source-badge">${escapeHtml(badge)}</span></strong><span>${format.format(group.files)} files · ${format.format(group.lines_of_code)} code lines</span></div>${nameMeaning}<p>${escapeHtml(description)}</p><div class="group-scale"><div class="bar-track"><div class="group-bar-fill" style="width:${Math.max(1, scale)}%">${segments}</div></div><span class="group-scale-label">${share.toFixed(1)}% of repository code lines</span></div>${childHtml}</article>`;
 }
@@ -273,7 +273,7 @@ function groupChildLabel(child, parent) {
 }
 
 function sourceLabel(source) {
-  return ({ declared: "project setting", inferred: "file-path guess", mixed: "setting + guess", derived: "includes smaller groups", semantic: "AI-created map" })[source] || source || "code area";
+  return ({ declared: "declared intent", path: "path map", mixed: "mixed evidence", missing: "not declared", derived: "includes smaller groups", responsibility: "inferred responsibility" })[source] || source || "code area";
 }
 
 function childLabel(name, parent) {

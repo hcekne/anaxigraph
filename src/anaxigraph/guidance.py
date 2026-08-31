@@ -157,17 +157,26 @@ def _architecture_terms() -> dict[str, Any]:
                 "method, or class"
             ),
         ],
-        "declared_group": (
-            "A project setting placed this file in a named area because its path matched a rule."
+        "current_view": (
+            "The default map: declared repository intent where present, then a current inferred "
+            "responsibility, then deterministic path fallback. It is a view, not another fact."
         ),
-        "inferred_group": (
-            "When no project setting or current AI taxonomy matched, AnaxiGraph used its small "
-            "standard vocabulary to place the file by role. Root filenames never become areas."
+        "declared_map": (
+            "Optional repository policy supplied or corrected by a person or team. Unmatched "
+            "files remain visibly unconfigured in this view."
+        ),
+        "responsibility_map": (
+            "An AI-reviewed interpretation of file responsibilities and relationships. Stable "
+            "group keys, display labels, confidence, and evidence remain separate."
+        ),
+        "path_map": (
+            "A deterministic directory and package grouping used without AI. It is a reliable "
+            "fallback, not a claim about what the code means."
         ),
         "fallback_vocabulary": (
             "A deterministic set of ordinary architecture roles: application, testing, "
             "documentation, infrastructure, and developer tooling, each with narrower "
-            "subsystems. Project path rules and a reviewed AI taxonomy take precedence."
+            "subsystems. Declared intent and a current inferred responsibility take precedence."
         ),
         "group_rollup": (
             "Smaller groups stay separate when checking code-link rules, but the overview also "

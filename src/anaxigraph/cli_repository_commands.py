@@ -16,6 +16,7 @@ from anaxigraph.cli_common import add_repository_arguments, default_db, ensure_c
 def configure_repository_commands(commands: Any) -> None:
     _configure_scans(commands)
     _configure_review(commands)
+    _configure_search(commands)
     _configure_export(commands)
     cli_workflows.configure_finding_command(commands, _finding, default_db())
 
@@ -38,6 +39,14 @@ def _configure_review(commands: Any) -> None:
     add_repository_arguments(review)
     review.add_argument("--status", default="active", choices=["active", "all", "new", "resolved"])
     review.set_defaults(handler=_scan, run_type="review")
+
+
+def _configure_search(commands: Any) -> None:
+    search = commands.add_parser("search", help="Find files by name, symbol, or responsibility")
+    search.add_argument("query")
+    add_repository_arguments(search)
+    search.add_argument("--limit", type=int, default=20)
+    search.set_defaults(handler=_search)
 
 
 def _configure_export(commands: Any) -> None:
@@ -89,6 +98,12 @@ def _export(args: argparse.Namespace) -> dict[str, Any] | None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(value, indent=2, sort_keys=True), encoding="utf-8")
     return {"status": "ok", "output": str(output)}
+
+
+def _search(args: argparse.Namespace) -> dict[str, Any]:
+    database, repository_id, _config = ensure_current(args)
+    limit = max(1, min(int(args.limit), 100))
+    return {"query": args.query, "results": database.search(repository_id, args.query, limit=limit)}
 
 
 def _finding(args: argparse.Namespace) -> dict[str, Any]:

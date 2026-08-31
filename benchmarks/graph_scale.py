@@ -1,4 +1,4 @@
-"""Reproducible 50k-node proof for bounded graph overview and region reads."""
+"""Reproducible 50k-node proof for bounded architecture overview and region reads."""
 
 from __future__ import annotations
 
@@ -43,15 +43,7 @@ def seed_graph(index: AnaxiIndex, repository: Path, node_count: int) -> int:
 
 
 def measure_graph_scale(index: AnaxiIndex, repository_id: int, node_count: int) -> dict[str, Any]:
-    overview, overview_runtime = measure(
-        lambda: index.graph_overview(
-            repository_id,
-            level="area",
-            group_limit=100,
-            edge_limit=250,
-            include_external=False,
-        )
-    )
+    overview, overview_runtime = measure(lambda: _architecture_overview(index, repository_id))
     region, region_runtime = measure(
         lambda: index.graph(
             repository_id,
@@ -88,6 +80,16 @@ def measure_graph_scale(index: AnaxiIndex, repository_id: int, node_count: int) 
     report["assertions"] = _assertions(report)
     report["passed"] = all(report["assertions"].values())
     return report
+
+
+def _architecture_overview(index: AnaxiIndex, repository_id: int) -> dict[str, Any]:
+    nodes = index.overview(repository_id)["group_hierarchies"]["current"]
+    return {
+        "contract_version": "responsibility-map-v1",
+        "counts": {"groups": len(nodes)},
+        "nodes": nodes,
+        "edges": [],
+    }
 
 
 def run_benchmark(work: Path, node_count: int) -> dict[str, Any]:

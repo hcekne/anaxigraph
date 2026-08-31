@@ -58,43 +58,41 @@ function moduleValue(item, key) {
 
 function filteredModules() {
   const query = byId("module-search").value.trim().toLowerCase();
+  const sharedSearch = query && state.moduleSearchQuery.toLowerCase() === query
+    ? state.moduleSearchResults || []
+    : null;
   const area = byId("module-area-filter").value;
   const subsystem = byId("module-subsystem-filter").value;
   const language = byId("module-language-filter").value;
   const includeReference = byId("module-include-reference").checked;
-  const filtered = state.modules.filter((item) => {
+  const filtered = (sharedSearch || state.modules).filter((item) => {
     const evaluation = item.evaluation || {};
     const architecture = architectureFor(item) || {};
-    const haystack = [
-      item.path,
-      item.summary,
-      architecture.area,
-      architecture.subsystem,
-      architecture.area_label,
-      architecture.subsystem_label,
-      ...(item.responsibilities || []),
-      ...(evaluation.pattern_candidates || []),
-    ].join(" ").toLowerCase();
     return (includeReference || evaluation.monitored_by_default !== false)
-      && (!query || haystack.includes(query))
       && (!area || architecture.area === area)
       && (!subsystem || architecture.subsystem === subsystem)
       && (!language || item.language === language);
   });
+  return filtered.sort(sharedSearch ? searchOrder : moduleOrder);
+}
+
+function searchOrder(left, right) {
+  return Number(right.score || 0) - Number(left.score || 0)
+    || left.path.localeCompare(right.path);
+}
+
+function moduleOrder(left, right) {
   const { key, direction } = state.moduleSort;
-  filtered.sort((left, right) => {
-    const a = moduleValue(left, key);
-    const b = moduleValue(right, key);
-    if (a == null && b == null) return left.path.localeCompare(right.path);
-    if (a == null) return 1;
-    if (b == null) return -1;
-    const comparison = typeof a === "number" && typeof b === "number"
-      ? a - b
-      : String(a).localeCompare(String(b));
-    return (direction === "asc" ? comparison : -comparison)
-      || left.path.localeCompare(right.path);
-  });
-  return filtered;
+  const a = moduleValue(left, key);
+  const b = moduleValue(right, key);
+  if (a == null && b == null) return left.path.localeCompare(right.path);
+  if (a == null) return 1;
+  if (b == null) return -1;
+  const comparison = typeof a === "number" && typeof b === "number"
+    ? a - b
+    : String(a).localeCompare(String(b));
+  return (direction === "asc" ? comparison : -comparison)
+    || left.path.localeCompare(right.path);
 }
 
 export function renderModules() {

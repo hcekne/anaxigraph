@@ -155,17 +155,18 @@ export function formatDate(value) {
 }
 
 export function mapLayerLabel(layer) {
-  if (layer === "semantic") return "AI-created map";
-  if (layer === "policy") return "Project settings";
-  if (layer === "inferred") return "File-path guesses";
+  if (layer === "current") return "Current view";
+  if (layer === "responsibility") return "Responsibility map";
+  if (layer === "declared") return "Declared map";
+  if (layer === "path") return "Path map";
   return humanize(layer);
 }
 
-export function mapLayerDescription(layer, source = "configured and inferred evidence") {
-  if (layer === "semantic") {
-    return "Created from AI descriptions of what files do, checked by a separate AI pass, then checked against the indexed file list.";
+export function mapLayerDescription(layer, source = "declared, responsibility, and path evidence") {
+  if (layer === "responsibility") {
+    return "Inferred from AI-reviewed file responsibilities and relationships, with confidence and evidence kept visible.";
   }
-  if (layer === "policy") return "Shows only the code areas defined by path rules in this project's settings.";
-  if (layer === "inferred") return "Uses a small standard vocabulary for application code, tests, documentation, infrastructure, and developer tooling; no AI is used and root filenames never become areas.";
-  return `Shows the best map currently available. Source: ${source}.`;
+  if (layer === "declared") return "Shows only the optional architecture intent declared in this project's settings; unmatched files stay visibly unconfigured.";
+  if (layer === "path") return "Uses deterministic directory and package rules; no AI is used, and the result is not presented as semantic meaning.";
+  return `Shows declared intent where present, then inferred responsibilities, then path fallback. Source: ${source}.`;
 }

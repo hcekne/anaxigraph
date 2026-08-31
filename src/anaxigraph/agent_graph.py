@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import sqlite3
 from collections import defaultdict, deque
-from math import log
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +18,7 @@ from anaxigraph.agent_graph_read import (
 )
 from anaxigraph.agent_graph_read import _public_interfaces as _public_interfaces
 from anaxigraph.agent_graph_read import _symbols as _symbols
-from anaxigraph.agent_lexicon import WORD_PATTERN, goal_artifact_type, goal_terms, split_camel
+from anaxigraph.agent_lexicon import WORD_PATTERN
 from anaxigraph.agent_scope_evidence import (
     _applicable_findings as _applicable_findings,
 )
@@ -27,6 +26,7 @@ from anaxigraph.agent_scope_evidence import (
     _applicable_rules as _applicable_rules,
 )
 from anaxigraph.operational_health import served_map_status
+from anaxigraph.persistence.search_read import search_module_hits
 
 
 def _repository_map_state(
@@ -52,110 +52,23 @@ def _rank_files(
     files: dict[int, dict[str, Any]],
     goal: str,
 ) -> list[tuple[float, int]]:
-    words, normalized_goal = _goal_terms(goal)
-    preferred_artifact_type = goal_artifact_type(goal)
-    documents = _ranking_documents(connection, snapshot_id, files)
-    document_frequency = {
-        word: sum(1 for values in documents.values() if word in " ".join(values)) for word in words
-    }
-    ranked = [
-        (
-            _document_score(
-                documents[artifact_id],
-                words,
-                document_frequency,
-                normalized_goal,
-                len(files),
-                artifact_weight=_artifact_weight(
-                    str(item["artifact_type"]), preferred_artifact_type
-                ),
-            ),
-            artifact_id,
-        )
-        for artifact_id, item in files.items()
+    repository = connection.execute(
+        "SELECT repository_id FROM snapshots WHERE id = ?", (snapshot_id,)
+    ).fetchone()
+    if repository is None:
+        return []
+    results = search_module_hits(
+        connection,
+        int(repository["repository_id"]),
+        snapshot_id,
+        goal,
+        limit=min(500, len(files)),
+    )
+    return [
+        (float(item["score"]), int(item["artifact_id"]))
+        for item in results
+        if int(item["artifact_id"]) in files
     ]
-    return sorted(
-        (pair for pair in ranked if pair[0]),
-        key=lambda pair: (-pair[0], files[pair[1]]["path"]),
-    )
-
-
-def _goal_terms(goal: str) -> tuple[set[str], str]:
-    words = goal_terms(goal)
-    normalized = "_".join(
-        word.lower() for word in WORD_PATTERN.findall(split_camel(goal)) if len(word) > 2
-    )
-    return words, normalized
-
-
-def _ranking_documents(
-    connection: sqlite3.Connection,
-    snapshot_id: int,
-    files: dict[int, dict[str, Any]],
-) -> dict[int, tuple[str, ...]]:
-    symbols: dict[int, str] = defaultdict(str)
-    for row in connection.execute(
-        """
-        SELECT fv.artifact_id, GROUP_CONCAT(s.name, ' ') AS names
-        FROM projected_symbols s JOIN projected_file_versions fv ON fv.id = s.artifact_version_id
-        WHERE fv.snapshot_id = ? GROUP BY fv.artifact_id
-        """,
-        (snapshot_id,),
-    ):
-        symbols[int(row["artifact_id"])] = row["names"] or ""
-    return {
-        artifact_id: _ranking_document(item, symbols[artifact_id])
-        for artifact_id, item in files.items()
-    }
-
-
-def _ranking_document(item: dict[str, Any], symbol_names: str) -> tuple[str, ...]:
-    path = item["path"].lower().replace("-", "_")
-    semantic = item.get("semantic") or {}
-    semantic_values = (
-        semantic.get("detailed_summary"),
-        semantic.get("architecture_role"),
-        semantic.get("placement_guidance"),
-        *(semantic.get("responsibilities") or []),
-        *(semantic.get("domain_concepts") or []),
-    )
-    semantic_text = " ".join(str(value) for value in semantic_values if value)
-    return (
-        path,
-        Path(path).stem,
-        (item["summary"] or "").lower().replace("-", "_"),
-        symbol_names.lower().replace("-", "_"),
-        semantic_text.lower().replace("-", "_"),
-    )
-
-
-def _document_score(
-    document: tuple[str, ...],
-    words: set[str],
-    document_frequency: dict[str, int],
-    normalized_goal: str,
-    file_count: int,
-    *,
-    artifact_weight: float,
-) -> float:
-    path, basename, summary, symbol_text, semantic_text = document
-    score = 0.0
-    for word in words:
-        inverse_frequency = 1 + log((file_count + 1) / (document_frequency[word] + 1))
-        score += int(word in path) * 7 * inverse_frequency
-        score += int(word in basename) * 8 * inverse_frequency
-        score += int(word in summary) * 3 * inverse_frequency
-        score += int(word in symbol_text) * 4 * inverse_frequency
-        score += int(word in semantic_text) * 2.5 * inverse_frequency
-    if normalized_goal and normalized_goal in path.replace("/", "_"):
-        score += 30
-    return score * artifact_weight
-
-
-def _artifact_weight(artifact_type: str, preferred_artifact_type: str | None) -> float:
-    if artifact_type == preferred_artifact_type:
-        return 2.0
-    return 0.45 if artifact_type == "test" else 1.0
 
 
 def _select_primary(

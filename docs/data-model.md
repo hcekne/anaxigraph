@@ -16,7 +16,7 @@ history accumulate over time.
 | `relationship_sets` / `relationship_edges` | Reusable resolver-context results and their imports, calls, extensions, and references with provenance/evidence |
 | `snapshot_relationship_changes` | Sparse selection/retraction of a relationship set for each source artifact |
 | `snapshot_checkpoints` / `checkpoint_*` | Disposable references that bound reconstruction to at most 16 deltas |
-| `groups` | Declared and inferred architecture hierarchy; active assignment is reconstructed from file placement |
+| `groups` | Declared architecture intent and deterministic path hierarchy; current placement is reconstructed rather than stored as another fact |
 | `metrics` | Repository and artifact measurements for temporal trends |
 | `coverage_measurements` | Node and conservatively proven relationship coverage |
 | `findings` / `finding_occurrences` | Stable findings and lifecycle across snapshots |
@@ -55,6 +55,25 @@ deterministic metadata/documentation refresh and reuses semantic claims.
 The deterministic architecture-vocabulary version is part of the scan signature. Changing that
 vocabulary therefore creates an honest placement transition while reusing unchanged parser work;
 old history frames retain the categories they were actually saved with.
+
+`module_search` is a disposable, repository- and snapshot-scoped SQLite FTS5 read model over paths,
+names, symbols, deterministic summaries, current AI descriptions, responsibilities, contracts, and
+normalized aliases. Its contract identity and refresh state live in `schema_meta`; it is rebuilt
+from canonical facts and current semantic documents, so it does not increment the product schema
+or become another source of truth. CLI, REST, MCP, dashboard discovery, and goal scoping all use
+this projection before any graph expansion. Exact paths, filenames, and symbols receive explicit
+deterministic boosts, while every result reports whether semantic and responsibility evidence was
+present. A current query reads only a limited FTS candidate page and the matching module records;
+it does not reread repository files or walk every saved dossier in Python.
+
+Responsibility maps use four public layers. The **declared map** is optional team intent from
+repository policy. The **path map** is deterministic fallback grouping and carries no claim about
+meaning. The **inferred responsibility map** is the AI-reviewed area/subsystem interpretation with
+stable node keys, separate display labels, confidence, and evidence. The default **current view**
+chooses declared placement for each file, then a current inferred responsibility, then path
+fallback. Historical facts keep their original placement, while graph replay defaults to projecting
+older files through today's stable current-view identities and exposes the original placement
+alongside it.
 
 Analyzer facts conform to `anaxigraph-ir-v1`. Fact JSON keeps only non-derivable IR/analyzer state;
 module identity, default dependency fields, exports, and symbol details are reconstructed from

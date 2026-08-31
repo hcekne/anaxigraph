@@ -406,7 +406,7 @@ def test_group_hierarchy_rolls_declared_subsystem_into_parent(repository, databa
     )
 
     stats = RepositoryScanner(database).scan(repository)
-    hierarchy = database.overview(stats.repository_id)["group_hierarchy"]
+    hierarchy = database.overview(stats.repository_id)["group_hierarchies"]["current"]
     domain = next(item for item in hierarchy if item["name"] == "domain")
     core = next(item for item in domain["children"] if item["name"] == "domain-core")
 

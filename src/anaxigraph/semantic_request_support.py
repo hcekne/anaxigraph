@@ -41,7 +41,7 @@ INPUT_TERM_MEANINGS = {
     "dossier": "A structured AI description of what code does and what evidence supports it.",
     "intrinsic": "A description based on one file itself, before using the rest of the repository.",
     "context": "A description that also uses related files and repository-wide evidence.",
-    "taxonomy": "The AI-created map that groups files into broad areas and smaller groups.",
+    "taxonomy": "The inferred responsibility map that groups files by the work they perform.",
     "synthesis": "A summary that combines several completed code descriptions.",
     "scope": "The exact file, named code part, code area, or whole repository being described.",
     "area": "A broad group of files that contribute to the same kind of repository work.",

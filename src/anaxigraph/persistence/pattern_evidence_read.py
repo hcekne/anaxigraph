@@ -8,6 +8,7 @@ import sqlite3
 from collections import defaultdict
 from typing import Any
 
+from anaxigraph.architecture_vocabulary import CURRENT_MAP, RESPONSIBILITY_MAP
 from anaxigraph.pattern_evidence import (
     PATTERN_EVIDENCE_VERSION,
     PatternEvidenceProjection,
@@ -279,9 +280,11 @@ def _architecture_targets(
     module_targets: dict[int, PatternTarget] = {}
     for module in modules:
         taxonomy = module.get("semantic_taxonomy") or {}
-        area_identity = str(module["architecture_area"])
-        subsystem_identity = str(module["architecture_group"])
-        source = str(module["architecture_source"])
+        layers = module.get("architecture_layers") or {}
+        placement = layers.get(RESPONSIBILITY_MAP) or layers.get(CURRENT_MAP) or {}
+        area_identity = str(placement.get("area") or module["architecture_area"])
+        subsystem_identity = str(placement.get("subsystem") or module["architecture_group"])
+        source = str(placement.get("source") or module["architecture_source"])
         area = area_target(
             area_identity,
             str(taxonomy.get("area_name") or _label(area_identity)),

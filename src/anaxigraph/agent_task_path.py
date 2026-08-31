@@ -147,12 +147,12 @@ def _module_step(preferred: dict[str, Any], tests: list[str]) -> dict[str, Any]:
 
 
 def _goal_symbols(goal: str, path: str, symbols: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    terms = _terms(goal)
+    terms = goal_terms(goal)
     ranked = []
     for symbol in symbols:
         if str(symbol.get("path") or "") != path:
             continue
-        matches = terms & _terms(
+        matches = terms & goal_terms(
             " ".join(str(symbol.get(key) or "") for key in ("name", "signature", "summary"))
         )
         if matches:
@@ -178,12 +178,12 @@ def _task_module(
 ) -> dict[str, Any]:
     if str(preferred.get("artifact_type") or "") == goal_artifact_type(goal):
         return preferred
-    terms = _terms(goal)
+    terms = goal_terms(goal)
     scores: dict[str, int] = {}
     for symbol in symbols:
         path = str(symbol.get("path") or "")
         matches = len(
-            terms & _terms(" ".join(str(symbol.get(key) or "") for key in ("name", "summary")))
+            terms & goal_terms(" ".join(str(symbol.get(key) or "") for key in ("name", "summary")))
         )
         scores[path] = max(scores.get(path, 0), matches)
     candidates = [item for item in primary_files if scores.get(str(item.get("path") or ""), 0)]
@@ -250,14 +250,7 @@ def _explanation(result: dict[str, Any]) -> dict[str, str]:
 
 
 def _status(placement: dict[str, Any], symbols: list[dict[str, Any]]) -> str:
-    source = str(placement.get("source") or "")
-    mapping = (
-        "semantic"
-        if source.startswith("AI-created")
-        else "policy"
-        if source == "project path rule"
-        else "inferred"
-    )
+    mapping = str(placement.get("map_layer") or "path")
     return f"{mapping}_with_symbols" if symbols else f"{mapping}_module_only"
 
 
@@ -268,7 +261,8 @@ def _fallback_placement(preferred: dict[str, Any]) -> dict[str, str]:
         "area_name": _name(group),
         "subsystem": group,
         "subsystem_name": _name(group),
-        "source": "standard fallback vocabulary",
+        "source": "path map",
+        "map_layer": "path",
         "why_here": "No current architecture placement was attached to this file.",
     }
 
@@ -321,10 +315,6 @@ def _route_only(packet: dict[str, Any]) -> dict[str, Any]:
         "symbols": [{"name": symbol.get("name")} for symbol in (packet.get("symbols") or [])[:5]],
         "plain_language": {"conclusion": (packet.get("plain_language") or {}).get("conclusion")},
     }
-
-
-def _terms(value: str) -> set[str]:
-    return goal_terms(value)
 
 
 def _name(value: str) -> str:

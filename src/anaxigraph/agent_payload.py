@@ -211,6 +211,7 @@ def _bound_scope_payload(payload: dict[str, Any], limit_bytes: int) -> dict[str,
     _compact_optional_scope(payload, size, limit, omitted)
     _compact_scope_file_details(payload, size, limit, omitted)
     _minimize_task_path(payload, size, limit, omitted)
+    _compact_rule_identities(payload, size, limit, omitted)
     payload["payload_budget"]["truncated"] = any(omitted.values())
     for _attempt in range(4):
         measured = size()
@@ -272,6 +273,18 @@ def _minimize_task_path(
     if size() > limit and decision.get("task_path"):
         decision["task_path"] = compact_task_path(decision["task_path"], route_only=True)
         omitted["task_path_details"] = 1
+
+
+def _compact_rule_identities(
+    payload: dict[str, Any], size: Callable[[], int], limit: int, omitted: dict[str, int]
+) -> None:
+    if size() <= limit:
+        return
+    rules = payload.get("architecture_rules") or []
+    payload["architecture_rules"] = [
+        {key: rule[key] for key in ("rule_id", "severity") if key in rule} for rule in rules
+    ]
+    omitted["rule_details"] += sum(max(0, len(rule) - 2) for rule in rules)
 
 
 def _maybe_compact_decision(

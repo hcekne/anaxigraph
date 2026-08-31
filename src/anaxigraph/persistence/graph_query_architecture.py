@@ -1,4 +1,4 @@
-"""Connection-local effective architecture placement for bounded graph queries."""
+"""Connection-local current responsibility placement for bounded graph queries."""
 
 from __future__ import annotations
 
@@ -7,9 +7,13 @@ from collections import Counter, defaultdict
 from pathlib import PurePosixPath
 from typing import Any
 
-from anaxigraph.architecture_vocabulary import inferred_group
+from anaxigraph.architecture_vocabulary import (
+    CURRENT_MAP,
+    architecture_placement,
+    inferred_group,
+)
 from anaxigraph.languages import artifact_type
-from anaxigraph.persistence.graph_read import architecture_placement, group_parents
+from anaxigraph.persistence.graph_read import group_parents
 from anaxigraph.persistence.semantic_taxonomy_read import taxonomy_assignments
 from anaxigraph.persistence.temporal_reads import snapshot_files
 
@@ -28,6 +32,8 @@ def install_graph_architecture(
     connection: sqlite3.Connection,
     repository_id: int,
     snapshot_id: int,
+    *,
+    layer: str = CURRENT_MAP,
 ) -> tuple[dict[int, dict[str, Any]], dict[str, str | None], dict[str, Any]]:
     """Project a snapshot through today's map while retaining its original placement."""
 
@@ -44,7 +50,9 @@ def install_graph_architecture(
     if reference_id != snapshot_id:
         current_files = snapshot_files(connection, reference_id, expand_metadata=False)
     current_assignments = taxonomy_assignments(connection, reference_id)
-    values, assignments = _architecture_rows(rows, current_files, current_assignments, parents)
+    values, assignments = _architecture_rows(
+        rows, current_files, current_assignments, parents, layer
+    )
     connection.executescript(_GRAPH_ARCHITECTURE_SCHEMA)
     connection.executemany("INSERT INTO graph_architecture VALUES (?, ?, ?, ?, ?, ?)", values)
     frame = {
@@ -52,6 +60,7 @@ def install_graph_architecture(
         "reference_snapshot_id": reference_id,
         "historical_snapshot_id": snapshot_id,
         "reclassified": reference_id != snapshot_id,
+        "map_layer": layer,
     }
     return assignments, parents, frame
 
@@ -61,6 +70,7 @@ def _architecture_rows(
     current_files: list[dict[str, Any]],
     current_assignments: dict[int, dict[str, Any]],
     parents: dict[str, str | None],
+    layer: str,
 ) -> tuple[list[tuple[Any, ...]], dict[int, dict[str, Any]]]:
     by_id = {int(file["artifact_id"]): file for file in current_files}
     by_path = {str(file["path"]): file for file in current_files}
@@ -86,7 +96,10 @@ def _architecture_rows(
             assignment = None
         if assignment:
             assignments[artifact_id] = assignment
-        placement = assignment or architecture_placement(declared, inferred, parents)
+        placement = architecture_placement(
+            layer, declared, inferred, parents, assignment, show_missing=True
+        )
+        assert placement is not None
         values.append(
             (
                 artifact_id,
