@@ -193,7 +193,6 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                         "ANAXIGRAPH_SEMANTIC_SUBMIT",
                         "ANAXIGRAPH_SEMANTIC_RELEASE",
                         "ANAXIGRAPH_SEMANTIC_FAIL",
-                        "ANAXIGRAPH_GRAPH",
                         "ANAXIGRAPH_PATTERNS",
                         "ANAXIGRAPH_SEARCH",
                         "ANAXIGRAPH_FILE",
@@ -222,53 +221,6 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     assert overview.isError is False
                     assert overview.structuredContent["files"] == 8
                     assert overview.structuredContent["map_status"]["state"] == "current"
-                    graph = await session.call_tool("ANAXIGRAPH_GRAPH", arguments={})
-                    assert graph.isError is False
-                    assert graph.structuredContent["contract_version"] == "graph-overview-v1"
-                    graph_delta = await session.call_tool(
-                        "ANAXIGRAPH_GRAPH",
-                        arguments={
-                            "mode": "delta",
-                            "baseline_snapshot_id": stats.snapshot_id,
-                        },
-                    )
-                    assert graph_delta.isError is False
-                    assert graph_delta.structuredContent["contract_version"] == "graph-delta-v1"
-                    graph_page = await session.call_tool(
-                        "ANAXIGRAPH_GRAPH",
-                        arguments={
-                            "mode": "page",
-                            "node_limit": 3,
-                            "edge_limit": 4,
-                            "language": ["python"],
-                        },
-                    )
-                    assert graph_page.isError is False
-                    assert graph_page.structuredContent["contract_version"] == "graph-query-v1"
-                    assert len(graph_page.structuredContent["nodes"]) <= 3
-                    graph_neighbors = await session.call_tool(
-                        "ANAXIGRAPH_GRAPH",
-                        arguments={
-                            "mode": "neighbors",
-                            "node": "pkg/core.py",
-                            "depth": 1,
-                            "direction": "both",
-                            "relationship": ["imports"],
-                        },
-                    )
-                    assert graph_neighbors.isError is False
-                    assert (
-                        graph_neighbors.structuredContent["contract_version"]
-                        == "graph-neighborhood-v1"
-                    )
-                    missing_delta = await session.call_tool(
-                        "ANAXIGRAPH_GRAPH", arguments={"mode": "delta"}
-                    )
-                    invalid_mode = await session.call_tool(
-                        "ANAXIGRAPH_GRAPH", arguments={"mode": "everything"}
-                    )
-                    assert missing_delta.isError is True
-                    assert invalid_mode.isError is True
                     patterns = await session.call_tool("ANAXIGRAPH_PATTERNS", arguments={})
                     assert patterns.isError is False
                     assert patterns.structuredContent["contract_version"] == "pattern-query-v1"

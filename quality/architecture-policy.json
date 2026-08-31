@@ -190,7 +190,6 @@
         "anaxigraph.cli_services",
         "anaxigraph.cli_workflows",
         "anaxigraph.finding_mcp",
-        "anaxigraph.graph_mcp",
         "anaxigraph.history_mcp",
         "anaxigraph.local_runtime",
         "anaxigraph.mcp_core",

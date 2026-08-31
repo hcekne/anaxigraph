@@ -3592,6 +3592,25 @@ now removed 3,620 production lines from its 53,907-line starting point; **1,787 
 the 48,500 convergence target. This is still Phase 10.2: the next slice must remove another whole
 duplicate path before the five-journey dashboard convergence in §10.3.
 
+### 10.2 delivery record: remove the unused raw-graph agent surface
+
+The shipped Codex/Claude workflow and ordinary coding loop never call `ANAXIGRAPH_GRAPH`. Overview
+already gives agents the architecture hierarchy; Search and File give bounded source evidence;
+Scope and Impact turn graph traversal into the placement, dependency, risk, and test decisions an
+agent can act on. The dashboard uses the bounded REST graph directly. The standalone MCP adapter
+therefore exposed four low-level query modes and eighteen arguments without owning a distinct user
+decision or a documented normal consumer.
+
+The 263-line `graph_mcp.py` adapter, its registration, architecture-policy entry, and transport-only
+tests are removed. Graph overview, paging, neighborhoods, deltas, current-frame projection, history
+replay, REST routes, persistence queries, and dashboard rendering remain unchanged. The focused MCP
+contract passes and still verifies every retained core, finding, history, pattern, taxonomy, and
+semantic-executor tool.
+
+The exact production-source ratchet falls another 265 lines, from 50,287 to **50,022 lines**. Phase
+10 has now removed 3,885 production lines; **1,522 lines remain** before the 48,500 target, and one
+flat low-level tool no longer competes with the goal-oriented agent workflow.
+
 ## 10.3 Make human understanding the primary dashboard journey
 
 Use the existing semantic repository dossier, reviewed taxonomy, graph, file detail, and history to

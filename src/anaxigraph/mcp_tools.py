@@ -8,7 +8,6 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 
 from anaxigraph.finding_mcp import register_finding_tools as register_finding_tools
-from anaxigraph.graph_mcp import register_graph_tool
 from anaxigraph.history_mcp import register_history_tools
 from anaxigraph.pattern_mcp import register_pattern_tool
 
@@ -23,7 +22,6 @@ def register_query_tools(
     config_path: Path | None,
     history_service: Any | None,
 ) -> None:
-    register_graph_tool(server, database, context)
     register_pattern_tool(server, database, context)
     register_history_tools(
         server,
