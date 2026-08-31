@@ -69,6 +69,8 @@ def _architecture_rows(
         else:
             area = root_group(fallback, parents)
             subsystem = fallback
-            source = "project path rule" if row["declared_group"] else "file-path guess without AI"
+            source = (
+                "project path rule" if row["declared_group"] else "standard fallback vocabulary"
+            )
         values.append((artifact_id, area, subsystem, source))
     return values

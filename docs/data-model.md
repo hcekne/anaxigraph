@@ -52,6 +52,9 @@ architecture evaluation all consume canonical facts or connection-local temporar
 facts/deltas/sets/edges, checks semantic-fact references, and verifies the schema-6 recovery backup.
 Raw hash equality skips extraction. Structural hash equality after a raw change performs only
 deterministic metadata/documentation refresh and reuses semantic claims.
+The deterministic architecture-vocabulary version is part of the scan signature. Changing that
+vocabulary therefore creates an honest placement transition while reusing unchanged parser work;
+old history frames retain the categories they were actually saved with.
 
 Analyzer facts conform to `anaxigraph-ir-v1`. Fact JSON keeps only non-derivable IR/analyzer state;
 module identity, default dependency fields, exports, and symbol details are reconstructed from

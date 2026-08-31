@@ -309,8 +309,8 @@ def test_parallel_claims_reserve_budget_before_provider_usage_arrives(
     budget = max(estimates) + min(estimates) / 2
     semantic = replace(config.semantic, daily_budget_usd=budget)
 
-    assert engine._claim_job(stats.repository_id, semantic) is not None
-    assert engine._claim_job(stats.repository_id, semantic) is None
+    assert engine._services.leases.claim_job(stats.repository_id, semantic) is not None
+    assert engine._services.leases.claim_job(stats.repository_id, semantic) is None
 
 
 def test_forced_plan_survives_until_a_later_worker_run(repository, database, tmp_path):
@@ -402,7 +402,7 @@ def test_large_scope_synthesis_is_chunked_and_reduced(database):
             {"scope": f"module-{index}", "value": {"summary": "x" * 1_000}} for index in range(80)
         ],
     }
-    result = SemanticEngine(database)._analyze_request(
+    result = SemanticEngine(database)._services.runner.analyze_request(
         Provider(), request, SemanticConfig(max_source_chars=4_000, max_context_modules=4)
     )
 

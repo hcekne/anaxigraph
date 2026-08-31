@@ -161,8 +161,13 @@ def _architecture_terms() -> dict[str, Any]:
             "A project setting placed this file in a named area because its path matched a rule."
         ),
         "inferred_group": (
-            "When no project setting matched, AnaxiGraph guessed the file's area from its path "
-            "and how that kind of code normally runs."
+            "When no project setting or current AI taxonomy matched, AnaxiGraph used its small "
+            "standard vocabulary to place the file by role. Root filenames never become areas."
+        ),
+        "fallback_vocabulary": (
+            "A deterministic set of ordinary architecture roles: application, testing, "
+            "documentation, infrastructure, and developer tooling, each with narrower "
+            "subsystems. Project path rules and a reviewed AI taxonomy take precedence."
         ),
         "group_rollup": (
             "Smaller groups stay separate when checking code-link rules, but the overview also "

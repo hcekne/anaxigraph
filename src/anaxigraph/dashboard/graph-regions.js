@@ -28,7 +28,10 @@ export function setupGraphRegionEvents() {
 
 export async function loadGraphRegion(region = "", cursor = "") {
   const snapshotId = state.graph.snapshot?.id || state.overview?.snapshot?.id;
-  state.graph = await request(api("/api/graph", graphRequestParams(snapshotId, region, cursor)));
+  const token = ++state.graphRequestToken;
+  const graph = await request(api("/api/graph", graphRequestParams(snapshotId, region, cursor)));
+  if (token !== state.graphRequestToken) return;
+  state.graph = graph;
   state.graphRegion = region;
   state.selectedNode = null;
   state.hiddenGroups.clear();

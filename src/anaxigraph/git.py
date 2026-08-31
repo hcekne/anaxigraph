@@ -227,14 +227,6 @@ class RevisionDelta:
     def changed_current_paths(self) -> frozenset[str]:
         return frozenset(item.new_path for item in self.changes if item.new_path is not None)
 
-    @property
-    def removed_paths(self) -> frozenset[str]:
-        return frozenset(
-            item.old_path
-            for item in self.changes
-            if item.old_path is not None and item.status in {"D", "R"}
-        )
-
 
 @dataclass(frozen=True, slots=True)
 class RevisionSummary:

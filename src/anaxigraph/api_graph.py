@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from fastapi import APIRouter, FastAPI, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 
 from anaxigraph.graph_contract import (
     DEFAULT_EDGE_LIMIT,
@@ -28,14 +28,6 @@ from anaxigraph.graph_contract import (
 )
 
 RepositorySelector = Callable[[int | None], dict[str, Any]]
-
-
-def register_graph_routes(
-    app: FastAPI,
-    database: Any,
-    selected_repository: RepositorySelector,
-) -> None:
-    app.include_router(GraphRoutes(database, selected_repository).router)
 
 
 class GraphRoutes:

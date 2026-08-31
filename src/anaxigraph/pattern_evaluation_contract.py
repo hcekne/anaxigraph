@@ -242,12 +242,6 @@ def validated_pattern_response(
     )
 
 
-def finalized_evaluation(review: dict[str, Any]) -> dict[str, Any]:
-    """Return the full corrected assessment carried by an already validated critique."""
-
-    return dict(review["evaluation"])
-
-
 def score_values(evaluation: dict[str, Any]) -> dict[str, int]:
     return {name: int(evaluation["scores"][name]["value"]) for name in PATTERN_SCORE_DIMENSIONS}
 

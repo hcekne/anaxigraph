@@ -319,23 +319,6 @@ def _add_representative_group(
     )
 
 
-def group_summaries(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    result = []
-    for chunk in chunks:
-        for area in chunk["taxonomy"].get("areas") or []:
-            for subsystem in area.get("subsystems") or []:
-                result.append(
-                    {
-                        "area_key": area.get("key"),
-                        "area": area.get("name"),
-                        "subsystem_key": subsystem.get("key"),
-                        "subsystem": subsystem.get("name"),
-                        "responsibility": subsystem.get("responsibility"),
-                    }
-                )
-    return result
-
-
 def representative_relationships(
     relationships: list[dict[str, Any]],
     mapping: dict[str, str],

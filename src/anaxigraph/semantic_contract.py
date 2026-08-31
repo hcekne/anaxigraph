@@ -225,22 +225,6 @@ def validated_result(
     )
 
 
-def validated_agent_result(
-    value: Any,
-    *,
-    input_tokens: int = 0,
-    output_tokens: int = 0,
-) -> SemanticResult:
-    """Strictly validate an untrusted MCP submission before normalizing it."""
-
-    _validate_schema(value, DOSSIER_SCHEMA, "dossier")
-    return validated_result(
-        value,
-        input_tokens=input_tokens,
-        output_tokens=output_tokens,
-    )
-
-
 def _validate_schema(value: Any, schema: dict[str, Any], path: str) -> None:
     expected = schema.get("type")
     if expected == "object":

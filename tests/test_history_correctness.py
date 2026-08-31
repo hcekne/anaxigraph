@@ -348,7 +348,6 @@ def test_revision_delta_classifies_every_tree_transition(tmp_path):
     assert {item.status for item in delta.changes} == {"A", "C", "D", "M", "R", "T"}
     assert by_current_path["src/renamed.py"] == "R"
     assert by_current_path["src/copied.py"] == "C"
-    assert delta.removed_paths == frozenset({"src/delete.py", "src/rename.py"})
 
 
 def test_history_reads_only_distinct_changed_blobs_and_records_reuse(

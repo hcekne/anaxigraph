@@ -235,7 +235,7 @@ def _materialize_module(
             if assignment
             else "project path rule"
             if policy_group
-            else "file-path guess without AI"
+            else "standard fallback vocabulary"
         ),
         architecture_layer="semantic" if assignment else "effective",
         architecture_layers={
@@ -250,9 +250,9 @@ def _materialize_module(
                 else None
             ),
             "inferred": {
-                "area": inferred_group,
+                "area": _architecture_area(str(inferred_group), parents),
                 "subsystem": inferred_group,
-                "source": "file-path guess without AI",
+                "source": "standard fallback vocabulary",
             },
         },
         semantic_taxonomy=assignment,

@@ -268,7 +268,7 @@ def _fallback_placement(preferred: dict[str, Any]) -> dict[str, str]:
         "area_name": _name(group),
         "subsystem": group,
         "subsystem_name": _name(group),
-        "source": "file-path guess without AI",
+        "source": "standard fallback vocabulary",
         "why_here": "No current architecture placement was attached to this file.",
     }
 

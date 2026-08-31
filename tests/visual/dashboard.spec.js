@@ -55,7 +55,10 @@ test("map layers update their hierarchy explanation", async ({ page }) => {
   );
   await picker.selectOption("inferred");
   await expect(page.locator("#map-layer-description")).toContainText(
-    "Guesses code areas from file paths",
+    "standard vocabulary",
+  );
+  await expect(page.locator("#map-layer-description")).toContainText(
+    "root filenames never become areas",
   );
 });
 
@@ -120,6 +123,31 @@ test("durable history progress is actionable without blocking current views", as
   await expect(page.locator("#history-help")).toContainText("Completed code maps remain usable");
   await expect(page.locator("#history-import-button")).toHaveText("Retry / resume history");
   await expect(page.locator("#history-cancel-button")).toBeHidden();
+});
+
+test("stale history explains the final jump instead of claiming continuity", async ({ page }) => {
+  await page.route("**/api/history?**", async (route) => route.fulfill({
+    json: {
+      total_commits: 155,
+      analyzed_commits: 7,
+      timeline_frames: 8,
+      timeline: {
+        state: "stale",
+        needs_update: true,
+        saved_commit_maps: 7,
+        unmapped_tail_commits: 147,
+      },
+      job: { status: "not_started" },
+    },
+  }));
+  await openDashboard(page);
+  await page.locator('.tab[data-view="history"]').click();
+
+  await expect(page.locator("#history-help")).toContainText(
+    "stops 147 commits before the current Git head",
+  );
+  await expect(page.locator("#history-help")).toContainText("not a continuous animation");
+  await expect(page.locator("#history-import-button")).toHaveText("Update Git timeline");
 });
 
 test("relationship completeness and analyzer limits are visible", async ({ page }) => {
@@ -205,6 +233,25 @@ test("graph area labels fit and deselecting an area rebuilds the viewport", asyn
 
   await page.locator("#graph-area-all").click();
   await expect(canvas).toHaveAttribute("data-region-count", String(initialRegions));
+});
+
+test("graph redraw survives rapid tab changes without a white canvas", async ({ page }) => {
+  await openDashboard(page);
+  for (let index = 0; index < 8; index += 1) {
+    await page.locator('[data-view="graph"]').click();
+    await page.locator('[data-view="overview"]').click();
+  }
+  await page.locator('[data-view="graph"]').click();
+  const canvas = page.locator("#graph-canvas");
+  await expect(canvas).toHaveAttribute("data-render-state", "ready");
+  expect(await canvas.evaluate((element) => {
+    const context = element.getContext("2d");
+    const pixels = context.getImageData(0, 0, element.width, element.height).data;
+    for (let index = 0; index < pixels.length; index += 64) {
+      if (pixels[index] || pixels[index + 1] || pixels[index + 2]) return true;
+    }
+    return false;
+  })).toBe(true);
 });
 
 test("architecture overview opens one graph region at a time", async ({ page }) => {

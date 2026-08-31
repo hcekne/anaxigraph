@@ -11,9 +11,11 @@ from typing import Any
 
 import anaxigraph.cli_services as cli_services
 import anaxigraph.cli_workflows as cli_workflows
+import anaxigraph.git as git
 import anaxigraph.registry as repository_registry
 from anaxigraph.bounded_export import bounded_export
 from anaxigraph.cli_common import add_repository_arguments, default_db, emit_json, ensure_current
+from anaxigraph.history_jobs import ACTIVE_STATES, HistoryJobService
 
 
 def configure_repository_commands(commands: Any) -> None:
@@ -108,18 +110,39 @@ def _watch(args: argparse.Namespace) -> None:
         raise ValueError("Watch interval must be at least 0.2 seconds")
     scanner = cli_services.scanner(cli_services.open_index(args.db))
     targets = _repository_targets(args)
+    history = HistoryJobService(scanner.database)
+    observed_heads: dict[str, str] = {}
+    history.recover(targets)
     print(f"Watching {len(targets)} repositories (Ctrl-C to stop)", file=sys.stderr)
     while True:
         for target in targets:
+            repository = scanner.database.repository(target.path)
+            if repository and history.status(int(repository["id"]))["status"] in ACTIVE_STATES:
+                continue
             stats = scanner.scan(target.path, config_path=target.config_path, run_type="watch")
             if stats.analyzed or stats.deleted:
                 emit_json({"repository": target.key, **stats.as_dict()})
+            _refresh_history_at_new_head(history, target, observed_heads)
             config = cli_services.load_repository_config(target.path, target.config_path)
             if config.semantic.enabled and config.semantic.refresh in {"watch", "on_scan"}:
                 cli_services.semantics(scanner.database).bootstrap(
                     stats.repository_id, target.path, config
                 )
         time.sleep(args.interval)
+
+
+def _refresh_history_at_new_head(
+    service: HistoryJobService,
+    target: repository_registry.RepositoryTarget,
+    observed_heads: dict[str, str],
+) -> None:
+    if target.history_snapshots == 0 or not git.has_commits(target.path):
+        return
+    head = git.metadata(target.path).commit_sha
+    if observed_heads.get(target.key) == head:
+        return
+    service.start(target)
+    observed_heads[target.key] = head
 
 
 def _repository_targets(

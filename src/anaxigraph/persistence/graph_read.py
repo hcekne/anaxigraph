@@ -235,8 +235,7 @@ def graph_node(
 ) -> dict[str, Any]:
     policy = file.get("declared_group")
     inferred = file.get("inferred_group") or "ungrouped"
-    fallback = policy or inferred
-    fallback_area = root_group(str(fallback), parents)
+    fallback_area = root_group(str(policy or inferred), parents)
     return {
         "id": file["artifact_id"],
         "path": file["path"],
@@ -247,7 +246,8 @@ def graph_node(
         "declared_group": policy,
         "inferred_group": inferred,
         "architecture_area": assignment["area"] if assignment else fallback_area,
-        "architecture_subsystem": assignment["subsystem"] if assignment else fallback,
+        "architecture_subsystem": assignment["subsystem"] if assignment else policy or inferred,
+        "architecture_source": file.get("architecture_source"),
         "architecture_layer": "semantic" if assignment else "effective",
         "architecture_layers": {
             "semantic": assignment,
@@ -261,9 +261,9 @@ def graph_node(
                 else None
             ),
             "inferred": {
-                "area": inferred,
+                "area": root_group(str(inferred), parents),
                 "subsystem": inferred,
-                "source": "file-path guess without AI",
+                "source": "standard fallback vocabulary",
             },
         },
         "analysis_status": file["analysis_status"],

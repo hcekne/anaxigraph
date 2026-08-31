@@ -80,31 +80,6 @@ TEXT_ANALYZER_LANGUAGES = DETECTED_LANGUAGES - (
     PYTHON_ANALYZER_LANGUAGES | JAVASCRIPT_ANALYZER_LANGUAGES
 )
 
-SOURCE_LANGUAGES = frozenset(
-    {
-        "python",
-        "javascript",
-        "javascriptreact",
-        "typescript",
-        "typescriptreact",
-        "go",
-        "rust",
-        "java",
-        "kotlin",
-        "ruby",
-        "php",
-        "csharp",
-        "c",
-        "cpp",
-        "swift",
-        "shell",
-        "sql",
-        "graphql",
-        "protobuf",
-        "terraform",
-    }
-)
-
 
 def detect_language(path: str) -> str | None:
     pure = PurePosixPath(path)

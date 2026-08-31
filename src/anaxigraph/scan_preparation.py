@@ -13,6 +13,7 @@ from typing import Any
 from anaxigraph import __version__
 from anaxigraph.analyzers import AnalyzerRegistry
 from anaxigraph.analyzers.base import LanguageAnalyzer
+from anaxigraph.architecture_vocabulary import VOCABULARY_VERSION
 from anaxigraph.clock import utc_now
 from anaxigraph.history_discovery import DiscoveredFile
 from anaxigraph.ir import analysis_from_stored, analyze_with_contract
@@ -196,6 +197,7 @@ def structural_config_projection(config: Any) -> dict[str, Any]:
         },
         "resolution": {"aliases": dict(config.aliases)},
         "placement": {"groups": [dataclasses.asdict(group) for group in config.groups]},
+        "architecture_vocabulary": VOCABULARY_VERSION,
     }
 
 

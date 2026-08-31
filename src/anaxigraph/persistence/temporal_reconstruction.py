@@ -66,18 +66,6 @@ def reconstruct_relationships_with_diagnostics(
     return state, _diagnostics(started, snapshot_id, frames, checkpoint_id, len(state))
 
 
-def snapshot_lineage(
-    connection: sqlite3.Connection,
-    snapshot_id: int | None,
-) -> list[int]:
-    _checkpoint_id, frames = _reconstruction_path(
-        connection,
-        snapshot_id,
-        stop_at_checkpoint=False,
-    )
-    return frames
-
-
 def refresh_checkpoint_if_due(connection: sqlite3.Connection, snapshot_id: int) -> bool:
     invalidate_checkpoints(connection, snapshot_id)
     snapshot = connection.execute(

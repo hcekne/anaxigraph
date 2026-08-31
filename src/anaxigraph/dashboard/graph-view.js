@@ -20,6 +20,7 @@ import {
 import {
   effectiveGroup,
   groupColor,
+  layoutGraph,
   nodeColor,
   nodeMetric,
   nodeRadius,
@@ -34,18 +35,22 @@ export function drawGraph() {
   const width = canvas.clientWidth;
   const height = canvas.clientHeight;
   if (!width || !height) return;
+  const visibleNodes = visibleGraphNodes();
+  if (visibleNodes.some((node) => !state.positions.has(String(node.id)))) {
+    layoutGraph(false);
+  }
   if (canvas.width !== Math.floor(width * ratio) || canvas.height !== Math.floor(height * ratio)) {
     canvas.width = Math.floor(width * ratio);
     canvas.height = Math.floor(height * ratio);
   }
   const context = canvas.getContext("2d");
+  if (!context) return;
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
   context.clearRect(0, 0, width, height);
   const { x, y, scale } = state.transform;
   context.save();
   context.translate(x, y);
   context.scale(scale, scale);
-  const visibleNodes = visibleGraphNodes();
   const visibleIds = new Set(visibleNodes.map((node) => String(node.id)));
   const metricMaximum = Math.max(...visibleNodes.map(nodeMetric), 1);
   const theme = state.themeColors || readThemeColors();
@@ -69,6 +74,13 @@ export function drawGraph() {
   ));
   context.globalAlpha = 1;
   context.restore();
+  const positioned = visibleNodes.filter((node) => state.positions.has(String(node.id))).length;
+  canvas.dataset.renderState = positioned ? "ready" : "empty";
+  if (!positioned) {
+    context.fillStyle = theme.label;
+    context.textAlign = "center";
+    context.fillText("No modules match this graph view.", width / 2, height / 2);
+  }
 }
 
 function drawRegions(context, scale) {

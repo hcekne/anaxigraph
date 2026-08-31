@@ -3,16 +3,19 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import yaml
 
+import anaxigraph.cli_repository_commands as repository_commands
 import anaxigraph.cli_semantic_commands as semantic_commands
 import anaxigraph.cli_server_commands as server_commands
 import anaxigraph.cli_services as cli_services
 import anaxigraph.semantic_execution as semantic_execution
 from anaxigraph.cli import main
 from anaxigraph.cli_common import default_db
+from anaxigraph.registry import RepositoryTarget
 from anaxigraph.semantic_service import SemanticServiceTarget
 
 
@@ -20,6 +23,27 @@ def _call(arguments: list[str], capsys) -> dict:
     main(arguments)
     captured = capsys.readouterr()
     return json.loads(captured.out)
+
+
+def test_registry_watcher_refreshes_history_once_per_new_git_head(repository, monkeypatch):
+    target = RepositoryTarget("sample", repository, history_snapshots=8)
+    heads = iter(("first", "first", "second"))
+    calls = []
+    service = SimpleNamespace(start=lambda value: calls.append(value.key))
+    monkeypatch.setattr(repository_commands.git, "has_commits", lambda _path: True)
+    monkeypatch.setattr(
+        repository_commands.git,
+        "metadata",
+        lambda _path: SimpleNamespace(commit_sha=next(heads)),
+    )
+    observed = {}
+
+    repository_commands._refresh_history_at_new_head(service, target, observed)
+    repository_commands._refresh_history_at_new_head(service, target, observed)
+    repository_commands._refresh_history_at_new_head(service, target, observed)
+
+    assert calls == ["sample", "sample"]
+    assert observed == {"sample": "second"}
 
 
 def test_repository_agent_and_export_handlers_share_the_current_scan(

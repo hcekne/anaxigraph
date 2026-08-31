@@ -166,6 +166,6 @@ export function mapLayerDescription(layer, source = "configured and inferred evi
     return "Created from AI descriptions of what files do, checked by a separate AI pass, then checked against the indexed file list.";
   }
   if (layer === "policy") return "Shows only the code areas defined by path rules in this project's settings.";
-  if (layer === "inferred") return "Guesses code areas from file paths and common runtime conventions; no AI is used.";
+  if (layer === "inferred") return "Uses a small standard vocabulary for application code, tests, documentation, infrastructure, and developer tooling; no AI is used and root filenames never become areas.";
   return `Shows the best map currently available. Source: ${source}.`;
 }

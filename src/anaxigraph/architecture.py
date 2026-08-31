@@ -36,13 +36,13 @@ def evaluate_architecture(
 ) -> list[Finding]:
     relationships = [row for row in relationship_evidence if row["target_artifact_id"] is not None]
     file_by_id = {int(row["artifact_id"]): row for row in files}
-    fan_out = Counter(int(row["source_artifact_id"]) for row in relationships)
-    fan_in = Counter(int(row["target_artifact_id"]) for row in relationships)
-    graph: dict[int, set[int]] = defaultdict(set)
+    graph, reverse_graph = defaultdict(set), defaultdict(set)
     for row in relationships:
         graph[int(row["source_artifact_id"])].add(int(row["target_artifact_id"]))
+        reverse_graph[int(row["target_artifact_id"])].add(int(row["source_artifact_id"]))
+    fan_out = Counter({source: len(targets) for source, targets in graph.items()})
+    fan_in = Counter({target: len(sources) for target, sources in reverse_graph.items()})
     cycles = [component for component in _strongly_connected(graph) if len(component) > 1]
-
     configured_by_id = {rule.rule_id: rule for rule in config.architecture.rules}
     rules = tuple(configured_by_id.get(rule.rule_id, rule) for rule in DEFAULT_RULES)
     rules += tuple(

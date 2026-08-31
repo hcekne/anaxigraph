@@ -31,20 +31,18 @@ class HistoryRoutes:
         commits = []
         if target and git.has_commits(target.path):
             commits = git.revisions(target.path, limit=None, oldest_first=True)
-        analyzed = {
-            str(item["commit_sha"])
-            for item in timeline
-            if item["commit_sha"] not in {"unversioned", "unknown"}
-        }
+        job = self.context.history_service.status(int(row["id"]))
+        summary = _timeline_summary(timeline, commits, job)
         return {
             "source": "git_first_parent" if commits else "working_tree",
             "total_commits": len(commits),
-            "analyzed_commits": len(analyzed),
+            "analyzed_commits": summary["saved_commit_maps"],
             "timeline_frames": len(timeline),
             "first_commit": commits[0] if commits else None,
             "latest_commit": commits[-1] if commits else None,
             "sample_limit": target.history_snapshots if target else 0,
-            "job": self.context.history_service.status(int(row["id"])),
+            "timeline": summary,
+            "job": job,
         }
 
     def import_history(self, repository_id: int | None = None) -> dict[str, Any]:
@@ -84,3 +82,28 @@ def _start_status(started: dict[str, Any]) -> str:
     if started.get("resumed"):
         return "resumed"
     return str(started.get("reason", "already_running"))
+
+
+def _timeline_summary(
+    frames: list[dict[str, Any]], revisions: list[str], job: dict[str, Any]
+) -> dict[str, Any]:
+    saved = [frame for frame in frames if frame.get("snapshot_kind") == "commit"]
+    last = (job.get("result") or {}).get("latest_commit")
+    last = last or (saved[-1].get("commit_sha") if saved else None)
+    position = {revision: index for index, revision in enumerate(revisions)}.get(str(last or ""))
+    tail = len(revisions) if position is None else len(revisions) - position - 1
+    status = str(job.get("status") or "")
+    if status in {"queued", "enumerating", "importing", "finalizing"}:
+        state = "updating"
+    elif not revisions:
+        state = "unversioned"
+    elif not saved:
+        state = "not_imported"
+    else:
+        state = "stale" if tail else "current"
+    return {
+        "state": state,
+        "needs_update": state in {"not_imported", "stale", "failed", "cancelled"},
+        "saved_commit_maps": len(saved),
+        "unmapped_tail_commits": max(0, tail),
+    }

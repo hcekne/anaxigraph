@@ -11,6 +11,7 @@
         "anaxigraph.analyzer_capabilities",
         "anaxigraph.analyzer_facts",
         "anaxigraph.agent_lexicon",
+        "anaxigraph.architecture_vocabulary",
         "anaxigraph.clock",
         "anaxigraph.config",
         "anaxigraph.config_authority",

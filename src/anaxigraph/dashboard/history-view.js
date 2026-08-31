@@ -12,22 +12,24 @@ export function historyStartMessage(status) {
 
 export function historyView(info, snapshots) {
   const job = info.job || {};
+  const timeline = info.timeline || {};
   const active = activeHistoryStates.has(job.status);
   return {
     active,
     cancelRequested: Boolean(job.cancel_requested),
-    help: historyHelp(info, snapshots, job),
+    help: historyHelp(info, snapshots, job, timeline),
     details: jobDetails(job),
     importDisabled: Number(info.total_commits || 0) < 1 || active,
     importLabel: active
       ? "Importing history…"
       : ["failed", "cancelled"].includes(job.status)
         ? "Retry / resume history"
-        : snapshots.length > 1 ? "Rebuild Git timeline" : "Import Git history",
+        : timeline.needs_update ? "Update Git timeline"
+          : snapshots.length > 1 ? "Rebuild Git timeline" : "Import Git history",
   };
 }
 
-function historyHelp(info, snapshots, job) {
+function historyHelp(info, snapshots, job, timeline) {
   if (activeHistoryStates.has(job.status)) {
     const progress = job.total_frames
       ? ` ${format.format(job.completed_frames || 0)}/${format.format(job.total_frames)}`
@@ -41,11 +43,14 @@ function historyHelp(info, snapshots, job) {
     const reason = job.error ? ` ${job.error}` : "";
     return `History import ${job.status}.${reason} Completed code maps remain usable; retry continues without reading them again.`;
   }
+  if (timeline.state === "stale") {
+    return `The saved replay stops ${format.format(timeline.unmapped_tail_commits || 0)} commits before the current Git head, then shows the current working tree. Update the Git timeline before replaying if you want a smoother, representative sequence; the final jump is not a continuous animation.`;
+  }
   if (info.total_commits > 0 && snapshots.length > 1) {
     const sampling = info.total_commits > info.analyzed_commits
       ? `${info.analyzed_commits} representative code maps across ${info.total_commits} commits in the repository's main Git history`
       : `${info.analyzed_commits} saved commit code maps`;
-    return `${sampling}, from the first commit through the current commit. Move the timeline slider or replay how the map changed.${workSummary(job.work)}`;
+    return `${sampling}, from the first commit through the current commit. Saved maps are samples, not invented intermediate states; the slider labels how many commits were omitted between them.${workSummary(job.work)}`;
   }
   if (info.total_commits > 0) {
     return `Git contains ${info.total_commits} commits in its main history. Import them to replay how the code map changed from the first commit.`;

@@ -72,7 +72,8 @@ export function showHistoryIndex(index) {
   if (!snapshot) return;
   byId("history-range").value = String(index);
   const timestamp = snapshot.commit_timestamp || snapshot.analysis_timestamp;
-  byId("history-value").textContent = `${String(snapshot.commit_sha).slice(0, 10)} · ${new Date(timestamp).toLocaleString()}`;
+  const working = snapshot.snapshot_kind === "working_tree" ? " · current working tree" : "";
+  byId("history-value").textContent = `${String(snapshot.commit_sha).slice(0, 10)} · ${new Date(timestamp).toLocaleString()}${working}`;
   const trend = state.trends.find((item) => Number(item.snapshot_id) === Number(snapshot.id));
   const metrics = trend?.metrics || {};
   const values = [
@@ -90,7 +91,10 @@ export function showHistoryIndex(index) {
 
 export async function graphAtSnapshot(snapshotId, preserveCamera = true) {
   const selectedPath = state.selectedNode?.path;
-  state.graph = await request(api("/api/graph", graphRequestParams(snapshotId)));
+  const token = ++state.graphRequestToken;
+  const graph = await request(api("/api/graph", graphRequestParams(snapshotId)));
+  if (token !== state.graphRequestToken) return;
+  state.graph = graph;
   state.selectedNode = selectedPath
     ? state.graph.nodes.find((node) => node.path === selectedPath) || null : null;
   buildGroupIndex(selectedHierarchy());

@@ -31,29 +31,52 @@ architecture:
 
 groups:
   extraction:
+    level: subsystem
+    parent: application
+    description: Turns repository files into deterministic code facts and relationships.
     paths:
       - src/anaxigraph/analyzers/**
+      - src/anaxigraph/architecture_vocabulary.py
       - src/anaxigraph/languages.py
       - src/anaxigraph/scanner.py
   intelligence:
+    level: subsystem
+    parent: application
+    description: Evaluates architecture, patterns, findings, and semantic understanding.
     paths:
-      - src/anaxigraph/architecture.py
+      - src/anaxigraph/architecture*.py
       - src/anaxigraph/coverage.py
-      - src/anaxigraph/agent.py
-      - src/anaxigraph/semantic.py
-      - src/anaxigraph/semantic_*.py
+      - src/anaxigraph/agent*.py
+      - src/anaxigraph/finding*.py
+      - src/anaxigraph/pattern*.py
+      - src/anaxigraph/semantic*.py
+      - src/anaxigraph/trend_service.py
       - src/anaxigraph/understanding.py
   persistence:
-    paths: [src/anaxigraph/storage.py]
-  interfaces:
+    level: subsystem
+    parent: application
+    description: Owns the versioned AnaxiIndex and its canonical temporal facts.
     paths:
-      - src/anaxigraph/api.py
-      - src/anaxigraph/mcp_server.py
-      - src/anaxigraph/cli.py
+      - src/anaxigraph/storage.py
+      - src/anaxigraph/persistence/**
+  interfaces:
+    level: subsystem
+    parent: application
+    description: Exposes AnaxiGraph through the dashboard, CLI, REST, and MCP.
+    paths:
+      - src/anaxigraph/api*.py
+      - src/anaxigraph/cli*.py
       - src/anaxigraph/dashboard/**
+      - src/anaxigraph/mcp*.py
   tests:
+    level: subsystem
+    parent: testing
+    description: Verifies product behavior, compatibility, scale, and visual output.
     paths: [tests/**]
-  documentation:
+  docs:
+    level: subsystem
+    parent: documentation
+    description: Explains the product, architecture, operations, and decisions.
     paths:
       - docs/**
       - '*.md'

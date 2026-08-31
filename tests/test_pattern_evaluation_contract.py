@@ -13,7 +13,6 @@ from anaxigraph.pattern_evaluation_contract import (
     PATTERN_REVIEW_SCHEMA,
     PATTERN_SCORE_CONTRACT_VERSION,
     PATTERN_SCORE_DIMENSIONS,
-    finalized_evaluation,
     pattern_response_name,
     pattern_response_schema,
     score_values,
@@ -186,7 +185,7 @@ def test_independent_review_carries_the_full_finalized_evaluation():
     result = validated_pattern_response(review, _request("pattern_review"))
 
     assert result.confidence == 0.7
-    assert finalized_evaluation(result.value) == evaluation
+    assert result.value["evaluation"] == evaluation
     assert result.value["evaluation"] is evaluation
 
 

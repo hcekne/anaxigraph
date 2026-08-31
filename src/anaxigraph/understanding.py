@@ -108,19 +108,3 @@ class SemanticEngine:
 
     def fail_agent_work(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         return self._services.agent.fail_agent_work(*args, **kwargs)
-
-    def _analyze_request(
-        self,
-        provider: Any,
-        request: dict[str, Any],
-        semantic: SemanticConfig,
-    ) -> Any:
-        return self._services.runner.analyze_request(provider, request, semantic)
-
-    def _claim_job(
-        self,
-        repository_id: int,
-        semantic: SemanticConfig,
-        **kwargs: Any,
-    ) -> dict[str, Any] | None:
-        return self._services.leases.claim_job(repository_id, semantic, **kwargs)

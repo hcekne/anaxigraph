@@ -1,0 +1,47 @@
+{
+  "version": "fallback-architecture-v2",
+  "groups": [
+    ["application", "area", null, "Code that implements the product."],
+    ["application-code", "subsystem", "application", "Unclassified product code."],
+    ["testing", "area", null, "Automated checks and engineering experiments."],
+    ["tests", "subsystem", "testing", "Automated test code."],
+    ["benchmarks", "subsystem", "testing", "Performance and scale checks."],
+    ["documentation", "area", null, "Explanations and worked examples."],
+    ["docs", "subsystem", "documentation", "Repository documentation."],
+    ["examples", "subsystem", "documentation", "Example configuration and usage."],
+    ["infrastructure", "area", null, "Build, dependency, and runtime machinery."],
+    ["build-and-packaging", "subsystem", "infrastructure", "Build and package metadata."],
+    ["delivery-and-operations", "subsystem", "infrastructure", "Runtime and delivery files."],
+    ["developer-tooling", "area", null, "Tools and policy used to develop the repository."],
+    ["quality-tooling", "subsystem", "developer-tooling", "Quality gates and configuration."],
+    ["repository-governance", "subsystem", "developer-tooling", "Repository-wide policy."],
+    ["agent-integrations", "subsystem", "developer-tooling", "Agent plugins and instructions."],
+    ["scripts", "subsystem", "developer-tooling", "Developer and release automation."]
+  ],
+  "directories": {
+    ".agents": "agent-integrations",
+    ".claude-plugin": "agent-integrations",
+    ".github": "delivery-and-operations",
+    "benchmarks": "benchmarks",
+    "docs": "docs",
+    "examples": "examples",
+    "infra": "delivery-and-operations",
+    "infrastructure": "delivery-and-operations",
+    "plugins": "agent-integrations",
+    "quality": "quality-tooling",
+    "scripts": "scripts"
+  },
+  "root_files": {
+    "build-and-packaging": [
+      "package.json", "pyproject.toml", "setup.cfg", "setup.py", "requirements.txt",
+      "manifest.in", "makefile"
+    ],
+    "delivery-and-operations": [
+      "dockerfile", "compose.yml", "compose.yaml", "docker-compose.yml", "docker-compose.yaml"
+    ],
+    "repository-governance": [
+      "contributing.md", "code_of_conduct.md", "security.md", "repo_instructions.md",
+      "repositories.yml", "repositories.yaml"
+    ]
+  }
+}

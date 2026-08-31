@@ -181,7 +181,9 @@ def _attach_architecture_map(
             continue
         subsystem = str(item.get("declared_group") or item.get("inferred_group") or "ungrouped")
         area = _root_group(subsystem, parents)
-        source = "project path rule" if item.get("declared_group") else "file-path guess without AI"
+        source = (
+            "project path rule" if item.get("declared_group") else "standard fallback vocabulary"
+        )
         item["architecture_placement"] = {
             "area": area,
             "area_name": _group_label(nodes.get(area), area),
@@ -191,7 +193,7 @@ def _attach_architecture_map(
             "why_here": (
                 "Repository configuration puts this file in this group."
                 if item.get("declared_group")
-                else "The file path suggests this group; no current AI-created placement exists."
+                else "The standard fallback vocabulary supplies this role; no current AI-created placement exists."
             ),
         }
     return hierarchy

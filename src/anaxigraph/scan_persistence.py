@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from pathlib import PurePosixPath
 from typing import Any
 
 from anaxigraph import __version__
+from anaxigraph.architecture_vocabulary import INFERRED_GROUPS, inferred_group
 from anaxigraph.clock import utc_now
 from anaxigraph.ir import analysis_metadata, artifact_type
 from anaxigraph.persistence.temporal_facts import record_canonical_file_facts
@@ -134,17 +134,24 @@ def upsert_groups(
     repository_id: int,
     config: Any,
 ) -> None:
-    for group in config.groups:
-        connection.execute(
-            """
-            INSERT INTO groups(repository_id, name, level, parent_name, source, description)
-            VALUES (?, ?, ?, ?, 'declared', ?)
-            ON CONFLICT(repository_id, name, source) DO UPDATE SET
-                level = excluded.level, parent_name = excluded.parent_name,
-                description = excluded.description
-            """,
-            (repository_id, group.name, group.level, group.parent, group.description),
-        )
+    rows = [
+        (repository_id, name, level, parent, "inferred", description)
+        for name, level, parent, description in INFERRED_GROUPS
+    ]
+    rows.extend(
+        (repository_id, group.name, group.level, group.parent, "declared", group.description)
+        for group in config.groups
+    )
+    connection.executemany(
+        """
+        INSERT INTO groups(repository_id, name, level, parent_name, source, description)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(repository_id, name, source) DO UPDATE SET
+            level = excluded.level, parent_name = excluded.parent_name,
+            description = excluded.description
+        """,
+        rows,
+    )
 
 
 def ingest_git_history(
@@ -191,7 +198,11 @@ def _version_record(
         "language": item.discovered.language,
         "runtime": _runtime(path, item.discovered.language),
         "declared_group": config.declared_group(path),
-        "inferred_group": _inferred_group(path, item.discovered.language),
+        "inferred_group": inferred_group(
+            path,
+            item.discovered.language,
+            artifact_type(path, item.discovered.language),
+        ),
         "raw_hash": item.discovered.raw_hash,
         "structural_hash": analysis.structural_hash,
         "lines_of_code": analysis.lines_of_code,
@@ -232,28 +243,6 @@ def _version_metadata(
         }
     )
     return metadata
-
-
-def _inferred_group(path: str, language: str) -> str:
-    lowered = [part.lower() for part in PurePosixPath(path).parts]
-    if artifact_type(path, language) == "test":
-        return "testing"
-    for name in (
-        "frontend",
-        "backend",
-        "agent-runner",
-        "runner-launcher",
-        "native-worker",
-        "git-worker",
-        "infra",
-        "docs",
-        "scripts",
-    ):
-        if name in lowered:
-            return name
-    if lowered and lowered[0] == "src" and len(lowered) > 1:
-        return lowered[1]
-    return lowered[0] if lowered else "root"
 
 
 def _runtime(path: str, language: str) -> str:

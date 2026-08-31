@@ -95,6 +95,17 @@ exports, parse depth, analyzer version, and resolver inputs. Python is AST-backe
 TypeScript are lexical, and other recognized languages are explicitly fallback analysis today.
 Resolution outcomes remain separate relationship facts: resolved, ambiguous, unresolved, or
 external.
+
+Architecture placement has three explicit authorities. A repository's configured path rules come
+first; a complete reviewed semantic taxonomy may provide responsibility-based areas and
+subsystems; otherwise a versioned deterministic fallback vocabulary is used. That fallback has a
+small set of areas—application, testing, documentation, infrastructure, and developer tooling—and
+places build metadata, containers, quality gates, agent integrations, scripts, tests, and examples
+into narrower subsystems. It never promotes a root filename such as `pyproject.toml` or
+`package.json` into an architecture area. Dependency lockfiles are ignored as generated resolution
+records rather than presented as application modules. This keeps maps comparable across
+repositories without pretending that a path heuristic is semantic understanding.
+
 Every overview and graph response also carries `graph-quality-explanation-v1`. It translates those
 machine states into the number of links checked, what failed to point to one file, which dependency,
 impact, or deletion advice becomes incomplete, and what to do next. Plain-text and parsing limits

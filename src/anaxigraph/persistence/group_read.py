@@ -35,16 +35,15 @@ def read_group_hierarchy(
         FROM projected_file_versions GROUP BY name
         """
     ).fetchall()
-    metadata_rows = []
-    if layer != "inferred":
-        metadata_rows = connection.execute(
-            """
-            SELECT name, level, parent_name, source, description
-            FROM groups WHERE repository_id = ?
-            ORDER BY CASE source WHEN 'declared' THEN 0 ELSE 1 END, name
-            """,
-            (repository_id,),
-        ).fetchall()
+    source_filter = "AND source = 'inferred'" if layer == "inferred" else ""
+    metadata_rows = connection.execute(
+        f"""
+        SELECT name, level, parent_name, source, description
+        FROM groups WHERE repository_id = ? {source_filter}
+        ORDER BY CASE source WHEN 'declared' THEN 0 ELSE 1 END, name
+        """,
+        (repository_id,),
+    ).fetchall()
     nodes = _group_nodes(stat_rows, metadata_rows)
     children = _children(nodes)
     _mark_parent_areas(nodes, children)

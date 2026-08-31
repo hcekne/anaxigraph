@@ -17,7 +17,7 @@ DEFAULT_IGNORE = tuple(
     .venv/** venv/** node_modules/** dist/** build/** .next/** .nuxt/**
     coverage/** **/coverage.xml **/lcov.info htmlcov/**
     __pycache__/** .pytest_cache/** .mypy_cache/** .ruff_cache/**
-    *.min.js *.map *.lock
+    *.min.js *.map *.lock package-lock.json npm-shrinkwrap.json pnpm-lock.yaml
     *.png *.jpg *.jpeg *.gif *.webp *.ico *.pdf
     *.zip *.tar *.gz *.woff *.woff2 *.ttf
     """.split()
