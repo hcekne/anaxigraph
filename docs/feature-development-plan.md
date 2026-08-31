@@ -1,8 +1,8 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 4.0
+**Roadmap version:** 4.2
 
-**Updated:** 30 August 2026
+**Updated:** 31 August 2026
 
 **Execution rule:** one phase is active at a time; the next phase does not begin until the current
 phase's exit gate is met.
@@ -18,10 +18,17 @@ coherent**. That is the admission test for every unfinished feature. Breadth, pr
 ecosystem work do not get priority merely because they could make the product look more complete.
 
 The shipped temporal index, relationship provenance, semantic map, pattern catalog, and bounded
-agent scope are foundations, not separate products. The dashboard and AnaxiMCP are two consumers
-of one shared architecture model, not separate interpretations of the repository. Remaining work
-must make that model easier for a person to explore and easier for an agent to act on while making
-the implementation materially smaller.
+agent scope are foundations, not separate products. The dashboard, CLI, and AnaxiMCP are adapters
+over one shared architecture model, not separate interpretations of the repository. The principal
+using that model may be a person, a coding agent acting for a person, or another authorized system.
+No core outcome may depend on a human opening the dashboard, and no core human outcome may require
+copying opaque agent payloads by hand.
+
+The central workflow is architecture understanding and guidance, not change management. A principal
+asks what the system does, where a requested capability should fit, or how the current design could
+be improved. AnaxiGraph answers from current facts, semantic understanding, patterns, and history;
+the principal decides whether and how to edit the repository. Formal change contracts, approval
+gates, and a decision-management product are deliberately outside the core.
 
 The roadmap follows these refinements:
 
@@ -43,10 +50,10 @@ The roadmap follows these refinements:
 - **Tracked hook configuration and CI are the enforcement mechanism.** Files under `.git/hooks/`
   are local and cannot be versioned. The repository will ship a `.pre-commit-config.yaml`, a
   deterministic size/architecture checker, and the same required CI checks.
-- **Language breadth is optional until the core change loop is excellent.** A parser adapter may be
-  added later for demonstrated user demand, but broader language recognition does not outrank
-  placement, boundary, coupling, large-file, and before/after guidance for repositories the tool
-  already understands.
+- **JavaScript and TypeScript depth is strategic; undirected language breadth is not.** After the
+  convergence phase, the regex-oriented JavaScript/TypeScript path is replaced with a parser-backed
+  implementation and honest capability reporting. Other languages remain demand-led and cannot
+  displace the shared understanding-and-guidance loop merely to increase a supported-language count.
 - **A gate must be failable by one change.** The temporal work is therefore split into Phase 1a
   (delta discovery on the existing schema) and Phase 1b (immutable facts plus snapshot deltas).
   Landing a new algorithm, a new schema, a migration, and a large refactor behind a single gate
@@ -85,21 +92,82 @@ AnaxiGraph should help a person or coding agent answer:
 3. **How could the design improve?** Identify repeated responsibilities, misplaced boundaries,
    consolidation opportunities, dead-code candidates, and suitable patterns with evidence and
    counter-evidence.
-4. **Where should new functionality go?** Give an agent local precedents, extension points,
+4. **What might this system look like with fresh eyes?** Distill behavior without leaking the
+   current implementation, obtain independent clean-sheet designs, adjudicate them, and use the
+   result as a counterfactual comparator rather than an automatic rewrite target.
+5. **Where should new functionality go?** Give an agent local precedents, extension points,
    contracts, protected boundaries, affected tests, and a verification plan before it edits code.
-5. **Did the change help?** Rescan, compare the relevant architecture facts, resolve or regress
-   findings, and retain the decision in repository history.
+6. **Did the change help?** Rescan, compare the relevant architecture facts, explain improvement or
+   regression, and update the shared understanding without requiring a separate change record.
 
 The product loop is:
 
 ```text
-understand -> guide -> change -> refresh -> learn
+observe -> understand -> advise -> principal changes code -> reassess
+   ^                                                    |
+   +----------------------------------------------------+
 ```
 
 The promise is not “draw a pretty code graph” or “make another AI reviewer.” It is:
 
 > Give people and coding agents one living, inspectable understanding of the software, then use it
 > to make the next change fit the system better than an isolated prompt would.
+
+### One model, any principal
+
+“Human-friendly” and “agent-friendly” are presentation requirements over the same use cases, not
+two product editions:
+
+- a person may explore the map, read the Architecture Charter, ask for implementation or refactor
+  guidance, inspect evidence, add optional context, and refresh the repository through the dashboard;
+- a coding agent may install and start AnaxiGraph, create the deterministic map, fund the semantic
+  baseline with its own model context, read the same Charter, request the same guidance, inspect the
+  same evidence, and reassess after editing through CLI or MCP;
+- both receive the same stable identities, confidence, provenance, caveats, and recommendation
+  structure, with prose for comprehension and bounded fields for automation;
+- human annotations may refine the shared interpretation, but no human-authored setup document,
+  approval, comment, or dashboard action is a prerequisite for useful architecture understanding.
+
+Every new core use case therefore begins as an application-level request and response independent
+of transport. Dashboard, MCP, and CLI adapters may format or paginate it, but may not invent their
+own analysis, vocabulary, lifecycle, or required intermediate object.
+
+### Fresh eyes without architectural amnesia
+
+An agent immersed in an existing repository is good at explaining local constraints but is also
+likely to accept accidental structure as inevitable. An agent shown only the required behavior can
+design more freely, but may overlook constraints and good decisions already encoded in the running
+system. AnaxiGraph should use both perspectives in a controlled sequence:
+
+1. **Distill capability, not implementation.** Derive what the software does, for whom, through
+   which workflows, under which externally meaningful constraints and non-goals. Exclude modules,
+   packages, tables, frameworks, and current boundaries unless one is itself a public requirement.
+2. **Invite independent clean-sheet designs.** Give the same capability-only brief to one or more
+   fresh agent contexts. Each proposes a system from first principles without seeing the current
+   code architecture or another proposal.
+3. **Adjudicate before revealing the legacy.** Compare the independent designs, identify consensus,
+   disagreements, assumptions, and trade-offs, and synthesize a reference architecture while the
+   adjudicator is still unanchored by the current implementation.
+4. **Compare reference and reality.** Only then give a repository-aware agent the synthesized
+   reference, current Charter, responsibility map, code evidence, and history. Ask what the current
+   design gets right, where it diverges for good reasons, and where accidental complexity remains.
+5. **Filter through mission and economics.** Reject ideas that do not advance the product mission or
+   that add more complexity, migration risk, or maintenance burden than the expected improvement.
+   Preserve useful existing choices even when they differ from the clean-sheet design.
+6. **Recommend evolutionary slices.** Produce a small ordered refactor strategy with evidence,
+   counter-evidence, expected simplification, protected behavior, and verification—not a wholesale
+   rewrite mandate.
+
+The clean-sheet result is a **counterfactual lens**, never architectural truth. Independent agents
+can share blind spots, and a beautiful greenfield design may be wrong for a mature repository. The
+value comes from deliberately controlling when each reviewer sees implementation detail, preserving
+disagreement, and adjudicating every suggestion against the actual mission and constraints.
+
+AnaxiGraph makes this economical because module dossiers and fingerprints already separate changed
+understanding from unchanged understanding. If capabilities have not materially changed, the
+capability brief and reference architecture can be reused while only the current-architecture
+comparison is refreshed. A new clean-sheet review is triggered by a meaningful capability change,
+an explicit request, or a deliberately chosen cadence—not by every file edit.
 
 ## Feature admission rule
 
@@ -137,7 +205,7 @@ regression thresholds.
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
 | Semantic understanding | Durable `module-dossier-v4` records, fingerprint invalidation, leased agent work, provenance, budget controls, and explicit composed services | Differentiating foundation; semantic planning, leases, evidence, contracts, persistence, execution, and reporting now evolve behind a stable facade |
-| Parser depth | Python AST plus a regex-oriented JavaScript/TypeScript analyzer; other languages use text heuristics | Support claims must disclose those limits; parser breadth is optional and cannot displace the core change loop |
+| Parser depth | Python AST plus a regex-oriented JavaScript/TypeScript analyzer; other languages use text heuristics | Support claims must disclose those limits; parser-backed JavaScript/TypeScript is committed after convergence, while all further language breadth remains demand-led |
 | History benchmark | Measured 3,000-file/eight-frame import: 69.566 seconds, 23,970 blob reads, 23,970 `file_versions` for 3,217 distinct artifact/raw versions, 47,896 relationship rows, and a 49.56 MB vacuumed index | Unchanged source is repeatedly read and snapshot-heavy facts/edges are repeatedly materialized |
 | Graph delivery | Versioned overview, page, neighborhood, and delta reads are bounded from SQLite through REST/MCP and the dashboard; a retained 50,000-node fixture stays within time, memory, and payload budgets | Large local indexes can be explored without a monolithic graph response |
 | Installation | PyPI and GitHub release 0.3.0 provide one-command local startup, explicit agent connection, the dual-client plugin, generated hardened Compose, and a protected OIDC release workflow; public `uvx --from anaxigraph==0.3.0 anaxigraph` and multi-architecture container artifacts are verified | The first-run distribution barrier is closed and subsequent versions can use the routine short-lived-identity release path |
@@ -196,6 +264,32 @@ this document.
    cost, counter-evidence, and lifecycle state. They are never automatic permission to refactor or
    delete code.
 
+### The Architecture Charter is inferred first and inspectable always
+
+Every repository receives a living Architecture Charter generated from its code, README files,
+documentation, entry points, configuration, extracted relationships, semantic dossiers, reviewed
+responsibility map, and relevant history. It is AnaxiGraph's evidence-backed working interpretation
+of the system: purpose, capabilities, responsibilities, boundaries, contracts, extension points,
+quality concerns, and important unknowns.
+
+The Charter is an **interpretation**, not a deterministic fact and not a form a human must fill in.
+Every claim carries evidence, provenance, confidence, and freshness. A human may correct, augment,
+or explicitly declare part of it, but inferred and declared statements remain distinguishable and
+the absence of human input never prevents generation, refresh, or use. Dashboard, CLI, and MCP read
+the same versioned projection. Guidance must identify uncertainty instead of presenting a plausible
+summary as certainty.
+
+### Core workflows are actor-neutral
+
+- No architecture understanding, guidance, refresh, reassessment, or semantic-bootstrap capability
+  is dashboard-only.
+- No normal dashboard task requires a user to understand semantic leases, queue records, transport
+  schemas, executor internals, or MCP tool choreography.
+- Agent-only operation must be resumable and must not require an interactive human approval in the
+  middle of repository-sized semantic work.
+- Optional comments, finding lifecycle actions, and saved handoffs may support collaboration. They
+  never become a mandatory change contract, approval workflow, or decision ledger.
+
 ### The target repository remains safe
 
 - Scanning is read-only and never executes target code.
@@ -223,6 +317,14 @@ every unchanged file in every selected frame.
 - A 500-line maximum is a safety ceiling, not the design target.
 - New modules should normally land between 100 and 350 physical lines and own one explainable
   responsibility.
+- The quality gate tracks production lines, module count, public surface, dependency direction,
+  and per-package cohesion together. Creating a forwarding file or a one-call helper solely to stay
+  below 500 lines fails the gate even when every individual file is small.
+- Packages that already have high module counts receive non-growth ratchets. An increase requires a
+  named responsibility that cannot coherently live in an existing module, removal or consolidation
+  elsewhere, and a test at the public boundary.
+- Architecture-policy entries must resolve to a current module, path, or declared logical concept;
+  stale references to deleted modules fail CI instead of lingering as fictitious structure.
 - Interfaces should be explicit; mixin order and hidden shared state are not acceptable extension
   mechanisms for core workflows.
 - Storage, analysis, transport, and presentation must communicate through narrow models rather
@@ -2726,8 +2828,9 @@ system and use that understanding to guide cleaner changes.
 
 This is a subtraction and convergence phase, not a new feature family. The existing scanner,
 AnaxiIndex, semantic dossiers, taxonomy, pattern evidence, history, dashboard, and AnaxiMCP already
-contain most of the required capability. The work is to remove competing concepts, join the useful
-parts into three obvious journeys, and prove those journeys with humans and ordinary coding agents.
+contain most of the required capability. The work is to remove competing concepts, organize the
+useful parts around the three promises and at most five journeys, and prove the same outcomes with
+human-led and agent-only use.
 
 ## 10.0 Make the mission an operating rule
 
@@ -2787,7 +2890,7 @@ It records a measured starting point, not a permanent source-of-truth generator:
 
 | Surface | Measured state | Normal owner | Required outcome |
 |---|---:|---|---|
-| Dashboard | 7 top-level tabs | human understanding | converge to at most 5 task journeys; Files and Graph become representations of one selection |
+| Dashboard | 7 top-level tabs | shared understanding and guidance | converge to at most 5 task journeys; Files and Graph become representations of one selection |
 | CLI | 21 top-level commands | local/operator adapter | document a short normal path and move administration, import, worker, and recovery commands under advanced use |
 | MCP | 25 registered tools | coding-agent adapter | publish a default profile of at most 10 decision tools; keep executor/operator primitives in named advanced profiles |
 | REST | approximately 34 API routes | dashboard and MCP transport | keep route families internal; consolidate only after their shared read models converge |
@@ -2800,7 +2903,7 @@ tests are valuable executable contracts and are not the reduction target. The pr
 is 48,522 Python lines and 5,385 dashboard HTML/CSS/JavaScript lines. Both numbers matter: moving
 logic between Python and the browser must not game the combined budget.
 
-### Human and transport surfaces
+### Principal and transport surfaces
 
 The seven dashboard destinations are not seven independent products:
 
@@ -2810,8 +2913,8 @@ The seven dashboard destinations are not seven independent products:
 | Files | inspect a module and its evidence | becomes a table/detail representation inside **Understand** |
 | Graph | inspect relationships and architecture placement | becomes a visual representation inside **Understand**, preserving the same selection as Files |
 | Architecture | inspect intended versus observed structure | joins **Understand** for explanation and **Improve** for violations |
-| History | understand architectural evolution | remains the focused **History** journey |
-| Agents | turn evidence into a bounded coding decision | becomes the plain-language **Workbench** journey |
+| History | understand architectural evolution and current consequences | becomes evidence within **Changes** |
+| Agents | turn evidence into bounded architecture guidance | becomes the plain-language **Guide** journey |
 | Settings | repository, scan, semantic, and operator controls | remains **Settings**, with advanced controls collapsed by default |
 
 The normal MCP profile will expose no more than these ten existing decisions: repository selection,
@@ -3383,7 +3486,7 @@ The Python module count remains **240**, the exact production source ratchet fal
 syntax checks and API coverage pass, and all **17 browser contracts** pass in the pinned Playwright
 container, including finding explanations, pattern stories, lifecycle actions, graph selection,
 history, semantic state, and first-run onboarding. Phase 10.2 continues with a measured dashboard
-controller or selection-state duplicate; it must not rearrange the primary journey before §10.3.
+controller or selection-state duplicate; it must not rearrange the primary journey before §10.6.
 
 The exact rebuilt Docker sidecar serves the shared formatter and both importing views. Its normal
 self-scan reused all 468 analyses in 1.385 seconds, kept snapshot 441 current with 4,436
@@ -3590,7 +3693,7 @@ The exact production-source ratchet first fell from 50,611 to 50,606 in the hier
 commit, then to **50,287 lines** after removing the repository-specific language path. Phase 10 has
 now removed 3,620 production lines from its 53,907-line starting point; **1,787 lines remain** before
 the 48,500 convergence target. This is still Phase 10.2: the next slice must remove another whole
-duplicate path before the five-journey dashboard convergence in §10.3.
+duplicate path before the single-service runtime work in §10.3 and five-journey convergence in §10.6.
 
 ### 10.2 delivery record: remove the unused raw-graph agent surface
 
@@ -3655,91 +3758,480 @@ The exact production-source ratchet falls from 49,800 to **49,797 lines** despit
 incremental-extension behavior. Phase 10 has now removed 4,110 production lines; **1,297 lines
 remain** before the 48,500 convergence target.
 
-## 10.3 Make human understanding the primary dashboard journey
+## 10.3 Put the watcher inside one service and establish one write authority
 
-Use the existing semantic repository dossier, reviewed taxonomy, graph, file detail, and history to
-provide progressive disclosure:
+**Status:** PENDING; begins only after §10.2 reaches its convergence gate.
+
+The normal deployment currently describes one product but runs the HTTP/MCP service and repository
+watcher as separate AnaxiGraph processes against the same SQLite index. That creates lifecycle,
+locking, restart, configuration, and support behavior that the product does not need. The default
+runtime becomes:
 
 ```text
-program purpose -> user capability -> architecture area -> subsystem -> file -> symbol
+one AnaxiGraph service process
+  ├─ dashboard, REST, and MCP adapters
+  ├─ repository registry
+  ├─ scan/update coordinator
+  ├─ supervised repository watchers
+  └─ one AnaxiIndex write authority
 ```
 
-At every level answer: what does this do, why does it exist, how does it serve the program, what
-does it depend on, what depends on it, how confident is the explanation, when did it change, and
-what deserves attention? Beginners receive ordinary-language consequences first; experts can open
-the exact facts, edges, hashes, provenance, and caveats behind them.
+“One writer” means one owner coordinates write transactions, migrations, scans, semantic
+submissions, and lifecycle updates for an index. It does not mean one global database for every
+repository or a long transaction that blocks all reads. Read-only queries remain concurrent and
+bounded; multi-repository service remains supported.
 
-Do not add another primary screen. Converge the seven current tabs toward at most five human
-journeys—**Understand**, **Improve**, **History**, **Workbench**, and **Settings**—with Files and
-Graph as complementary ways of exploring the same selected system concept. A selected capability,
-subsystem, or module should remain selected while switching representation.
+Delivery order:
 
-Acceptance is task-based. A new professional developer and a person who does not read code can,
-without documentation beside them:
+1. Characterize current local, generated-Compose, multi-repository, watcher, semantic-submission,
+   cancellation, crash-recovery, and shutdown behavior before moving ownership.
+2. Start and supervise repository watchers inside the service lifecycle after registry and index
+   initialization. Stop them before closing write coordinators and database handles.
+3. Route every in-process mutation through one repository-scoped write authority. Preserve short
+   transactions and the existing durable semantic lease model.
+4. Generate one normal AnaxiGraph Compose service. Remove the second watcher service, duplicate
+   environment/configuration, cross-process lock workarounds, and associated onboarding prose.
+5. Keep a standalone `watch` command only as a temporary advanced compatibility adapter when a real
+   consumer requires it. It must refuse unsafe concurrent ownership of an index; otherwise deprecate
+   and remove it through the existing release policy.
 
-- explain the program's main responsibilities;
-- trace one user-facing capability to the modules that implement it;
-- explain one module's purpose, role, callers, dependencies, and recent change;
-- distinguish a parser fact, an AI interpretation, and a recommendation;
-- ask the coding agent to investigate a visible opportunity without manually copying raw graph
-  payloads.
+Acceptance:
 
-## 10.4 Make agent guidance one obvious workflow
+- generated Compose contains one AnaxiGraph service and one health/lifecycle story;
+- a two-repository fixture watches, scans, accepts semantic write-back, and serves reads without a
+  database lock stall or wrong-repository response;
+- SIGTERM, SIGINT, failed scans, and expired semantic leases recover without an abandoned writer;
+- an unchanged watcher cycle adds no unbounded durable noise;
+- dashboard, MCP, local `up`, backup/restore, and migration contracts remain green;
+- the change removes more production/process/configuration surface than it adds.
 
-The normal coding agent should not need to understand leases, queue schemas, history jobs, REST
-routes, or twenty-five flat MCP tools. Publish a default coding profile of no more than ten tools
-covering repository selection, system understanding, search/file evidence, planning/scope, impact,
-refresh, and status. Keep low-level semantic executor and operator controls in explicit advanced
-profiles; retain wire compatibility only where a released client actually depends on it.
+## 10.4 Establish one responsibility-map vocabulary and one search substrate
 
-The primary goal-driven response must compose existing evidence into one answer:
+**Status:** PENDING; begins only after §10.3.
 
-- where the change belongs and why;
+The graph, history, semantic taxonomy, configured architecture groups, and file browser must stop
+using overlapping group names as if they were equivalent truths. Use four precise terms:
+
+| Term | Meaning | Authority |
+|---|---|---|
+| **Declared map** | Optional repository policy supplied or corrected by a person/team | Explicit intent; never required for first value |
+| **Path map** | Deterministic package/directory grouping inferred without a model | Reliable fallback, not semantic meaning |
+| **Inferred responsibility map** | AI-reviewed capabilities, areas, subsystems, and responsibilities supported by dossiers and relationships | Default semantic explanation with confidence and evidence |
+| **Current view** | A presentation projection choosing declared intent where present, then inferred responsibility, then path fallback | Convenience only; not a fourth source of truth |
+
+Stable group identities are separate from display labels so a renamed area does not look like a new
+architecture. The default historical replay shows earlier files through today's current
+responsibility map, allowing a viewer to see stable regions fill and connect over time. An explicit
+“as understood then” lens may show the historical classification when that question matters. A
+generic bucket such as `code`, `other`, or a one-file top-level region must expose why it is a
+fallback and should normally be folded into a meaningful parent once semantic evidence exists.
+
+Search and goal scoping currently maintain separate whole-repository lexical ranking paths. Replace
+both with one repository- and snapshot-scoped SQLite FTS5 projection over paths, names, symbols,
+summaries, responsibilities, contracts, and approved aliases. Exact path/name matches receive
+deterministic boosts; semantic evidence remains provenance-tagged; graph expansion occurs only after
+the shared seed query. FTS is a rebuildable read model, not a new source of architectural truth.
+
+Delivery order:
+
+1. Pin current search and scope fixtures, including exact symbol/path lookup, similar-responsibility
+   discovery, repository isolation, stale semantic evidence, and bounded payload behavior.
+2. Add an incrementally maintained FTS5 projection with explicit schema/analyzer identity and a
+   deterministic rebuild path.
+3. Make dashboard search, MCP search, CLI search, goal scope, Charter evidence lookup, and pattern
+   candidate seeding call one query service.
+4. Delete the duplicate lexical corpora, tokenizers, ranking loops, and repeated result projection.
+5. Migrate graph/history grouping to the vocabulary above without rewriting extracted facts or
+   pretending an inferred label was declared policy.
+
+Acceptance:
+
+- the same query against dashboard, CLI, MCP, and guidance returns the same ranked identities before
+  transport-specific pagination;
+- no query scans every dossier or source file in Python after the FTS projection is current;
+- current-view graph counts do not change when a user merely focuses or filters a region;
+- history retains stable group identities and defaults to the present-day responsibility lens;
+- ambiguous placement, generic fallbacks, and missing semantic evidence remain visible;
+- the old independent lexical rankers are removed and the production ratchet falls.
+
+## 10.5 Generate and maintain the Living Architecture Charter
+
+**Status:** PENDING; begins only after §10.4.
+
+AnaxiGraph must be able to read a repository and state what it believes the system is for without
+waiting for a person to author an architecture document. Introduce `architecture-charter-v1` as a
+versioned projection in the existing semantic-document model, not a new configuration product or a
+mandatory checked-in file.
+
+The Charter contains:
+
+- system purpose, users/actors, and externally visible capabilities;
+- major responsibilities and how they map to areas, subsystems, modules, and entry points;
+- important execution/data flows and relationships between responsibilities;
+- public contracts, invariants, protected boundaries, and natural extension points;
+- recurring implementation patterns and meaningful exceptions;
+- current coherence concerns, duplication/dead-code hypotheses, and quality priorities;
+- unknowns, contradictions, weak evidence, confidence, provenance, and freshness.
+
+The Charter also exposes a generated **Capability Brief** projection for fresh-context review. It
+contains purpose, actors, observable behavior, user journeys, external interfaces, non-functional
+requirements, compatibility obligations, and genuine non-goals. It deliberately omits internal
+module/package names, storage choices, frameworks, current boundaries, findings, and historical
+design decisions unless one is itself an externally required constraint. The full Charter explains
+the system as built; the Capability Brief describes the problem the system must solve.
+
+Initial and refresh behavior:
+
+1. A deterministic scan immediately produces a **provisional** Charter containing only supportable
+   facts, documentation claims, and explicit unknowns.
+2. The connected coding agent can start one resumable **build understanding** task and use its own
+   tokens to complete module dossiers, responsibility synthesis, taxonomy review, and repository
+   synthesis. The official client workflow owns paging, leases, retries, and continuation; a normal
+   agent is not asked to manually administer thousands of jobs.
+3. The complete Charter is synthesized from code plus README/documentation evidence rather than
+   treating prose as automatically correct. Conflicts are recorded instead of silently resolved.
+4. Structural, interface, relationship, intent, prompt, and model fingerprints invalidate only the
+   affected claims and aggregates. Unchanged Charter sections keep stable identities and wording
+   where the evidence has not materially changed.
+5. Human additions and corrections are optional overlays with author, time, and rationale. They may
+   override the current presentation but never erase the inferred statement or masquerade as an
+   extracted fact.
+
+The same Charter read model is returned through dashboard, CLI, and MCP. It leads with a concise
+ordinary-language explanation, then permits progressive disclosure:
+
+```text
+purpose -> capability -> responsibility area -> subsystem -> module -> symbol -> evidence
+```
+
+Acceptance:
+
+- a repository with no `.anaxigraph.yml` architecture section and no human response receives a
+  useful provisional Charter after static scan and a complete Charter after agent-funded synthesis;
+- every material statement can be traced to file/document/relationship evidence and its inference
+  provenance;
+- a misleading README fixture is represented as conflicting evidence rather than unquestioned truth;
+- the Capability Brief remains behaviorally complete while a leakage fixture proves that current
+  module, framework, storage, and boundary names are absent unless marked as public constraints;
+- interruption, expired leases, agent restart, and service restart resume the same understanding task;
+- dashboard, CLI, and MCP return the same Charter identity, readiness, claims, and caveats;
+- optional human correction is visible as declared context and is never a completion prerequisite;
+- the feature reuses semantic documents, jobs, claims, and taxonomy rather than adding a parallel
+  architecture database or provider path.
+
+## 10.6 Deliver one actor-neutral understanding and guidance workflow
+
+**Status:** PENDING; begins only after §10.5.
+
+The principal should be able to ask either of the two questions that define the product:
+
+1. **“How should I build this capability in this repository?”**
+2. **“How should this repository or selected area be refactored to become cleaner?”**
+
+Both dashboard prompts and coding-agent calls invoke the same application service. A goal and
+optional scope/context are sufficient input. The response composes existing evidence into:
+
+- its understanding of the goal and any important ambiguity;
+- where the work belongs and why;
 - what already performs the same or adjacent responsibility;
-- whether to extend, consolidate, or create something new;
-- relevant patterns with counter-evidence and migration cost;
-- direct and bounded transitive impact;
-- protected contracts, focused tests, and a saved comparison baseline.
+- whether to extend, reuse, consolidate, split, move, delete, or create code;
+- suitable patterns, local precedents, counter-evidence, trade-offs, and migration cost;
+- direct and bounded transitive impact, callers, dependencies, contracts, and focused tests;
+- the smallest coherent working set and a concrete verification plan;
+- confidence, unknowns, reasons to leave the design alone, and evidence links.
 
-Test the workflow with ordinary medium-capability Codex and Claude configurations, not only with a
-carefully prompted frontier model. A repository-sized semantic baseline must be one durable action;
-an ordinary agent must never be expected to manually shepherd thousands of queue operations.
+This is guidance, not a Change Contract. Do **not** introduce a mandatory plan record, approval gate,
+decision ledger, workflow state machine, or project-management lifecycle. A response may be cached,
+linked to a finding, or shared as an optional handoff, but the principal can act on it immediately
+and can ask again after changing the repository.
 
-## 10.5 Close the continuous coherence loop
+The normal dashboard converges to at most five actor-neutral journeys:
+
+1. **Understand** — Charter, capabilities, responsibility map, files, graph, and evidence;
+2. **Guide** — goal-driven placement and implementation advice;
+3. **Improve** — refactor, pattern, duplication, boundary, size, and possible dead-code advice;
+4. **Changes** — current deltas, reassessment, and supporting history;
+5. **Settings** — repositories, readiness, refresh, and progressively disclosed operations.
+
+Files and Graph are representations of one selection inside Understand, not competing semantic
+models. The normal MCP profile contains no more than ten high-level use cases covering repository,
+understanding/Charter, search/explanation, guidance, improvement, impact, refresh, reassessment, and
+readiness. Raw graph/history and semantic lease/evidence/submit operations remain in explicit
+analyst/executor profiles or behind the official client workflow.
+
+Actor-neutral acceptance has two independent paths:
+
+- **agent-only:** on a clean machine, an ordinary medium-capability Codex or Claude configuration
+  installs/starts AnaxiGraph, scans a repository, completes and resumes agent-funded understanding,
+  reads the Charter, requests implementation and refactor guidance, follows evidence, refreshes, and
+  reassesses without opening a browser or receiving mid-run human help;
+- **human-led:** a professional developer and a person who does not read code use the dashboard to
+  explain the system, trace a capability, inspect a module, distinguish fact from interpretation and
+  recommendation, request the same two forms of guidance, and hand an optional link/prompt to their
+  coding agent without copying raw payloads.
+
+Both paths must produce the same recommendation identity and core contents for the same repository,
+snapshot, goal, policy, and completed semantic state. Browser layout and MCP token budgets may
+change presentation, never the architectural conclusion.
+
+## 10.7 Add the fixed fresh-eyes architecture review
+
+**Status:** PENDING; begins only after §10.6.
+
+Turn the method in “Fresh eyes without architectural amnesia” into one resumable, agent-funded
+review recipe beneath **Improve**. This is not a generic agent framework. It is a fixed sequence with
+versioned inputs, explicit information boundaries, existing semantic-job execution, and one composed
+result: `fresh-eyes-review-v1`.
+
+The stages are:
+
+```text
+                             ┌─> independent proposal A ─┐
+repository -> Capability Brief                           ├─> blind adjudication
+                             └─> independent proposal B ─┘          |
+                                                                    v
+current Charter + map + history --------------------------> as-built comparison
+                                                                    |
+mission + constraints + engineering economics ---------------------+
+                                                                    v
+                                                   ranked refactor strategy
+```
+
+One proposal is a supported low-cost mode. Two independent proposals are the recommended default
+when the connected principal has the capacity; a third is optional. Diversity may come from Claude,
+Codex, Gemini, or independent sessions of one capable model. AnaxiGraph records actual provider,
+model, prompt/protocol version, and input manifest and never labels same-model sessions as
+cross-provider agreement.
+
+### Stage A — capability distillation
+
+Use the Charter's Capability Brief rather than asking every reviewer to reread the repository.
+Require evidence coverage for every capability and identify contradictions or unknown requirements.
+A reviewer may request bounded supporting evidence when a behavior is unclear, but implementation
+details do not enter the clean-sheet packet.
+
+### Stage B — isolated clean-sheet proposals
+
+Each proposal receives the same versioned Capability Brief, externally required constraints,
+quality priorities, and output schema—nothing from the current responsibility map, file paths,
+frameworks, findings, history, or another proposal. It describes component responsibilities,
+boundaries, information flows, extension strategy, operating model, and important patterns at a
+useful architectural level. It must explain trade-offs and avoid speculative infrastructure that
+the stated scale and mission do not require.
+
+AnaxiGraph can guarantee and hash only the packet it supplies. It cannot prove that an external
+model has no unrelated prior context, so the result records the requested isolation mode and this
+caveat. The official Codex/Claude workflow should create a fresh subagent or session where the host
+supports it; otherwise it must report that isolation is unverified.
+
+### Stage C — blind adjudication
+
+The adjudicator receives the Capability Brief and proposals, still without the current repository
+architecture. It preserves meaningful disagreement, calls out shared assumptions and likely common
+blind spots, and synthesizes a reference design from the strongest compatible ideas. Consensus is
+evidence of agreement, not proof of correctness.
+
+### Stage D — comparison with the as-built system
+
+A repository-aware reviewer receives the adjudicated reference plus the current Charter,
+responsibility map, module dossiers, graph evidence, patterns, findings, and relevant history. It
+maps reference responsibilities to current responsibilities and classifies each difference as:
+
+- current design already satisfies the intent;
+- current design differs for a documented or evidence-backed good reason;
+- potentially useful simplification or consolidation;
+- missing capability or architectural weakness;
+- greenfield idea whose migration cost or risk outweighs its likely value;
+- unresolved because evidence is insufficient.
+
+The reviewer must search for strengths in the current system as deliberately as it searches for
+debt. Absence from the clean-sheet proposal is not evidence that existing code should be deleted.
+
+### Stage E — mission filter and refactor strategy
+
+Adjudicate candidate changes against the current mission, user value, architectural coherence,
+expected production-code reduction, operational simplicity, compatibility, migration risk,
+reversibility, and verification cost. The output keeps only suggestions that make the existing
+product materially better. Each retained suggestion contains:
+
+- the mission/capability it advances;
+- current evidence and the reference-architecture insight;
+- the smallest coherent change, expected benefit, and expected deletions/consolidations;
+- protected behavior, affected contracts/tests, risk, counter-evidence, and reasons not to proceed;
+- dependencies and a safe sequence relative to other retained suggestions;
+- a verification method and a confidence statement.
+
+This ordered result is refactor guidance, not a mandatory roadmap, Change Contract, or permission to
+rewrite code. A principal may request deeper evidence, ignore it, or use selected slices as input to
+the ordinary Guide workflow.
+
+### Reuse, recurrence, and storage
+
+Reuse the existing semantic document/job/lease/provenance machinery and recommendation language.
+Persist one versioned review bundle plus bounded stage artifacts; do not create a new database,
+provider client, scheduler, recommendation ledger, or configurable workflow DAG.
+
+Fingerprint three boundaries independently:
+
+1. **capability fingerprint** — behavior, public contracts, mission, non-functional constraints, and
+   Capability Brief protocol;
+2. **reference fingerprint** — capability fingerprint plus proposal/adjudication protocol and actual
+   reviewer identities;
+3. **comparison fingerprint** — reference fingerprint plus current Charter, responsibility,
+   relationship, pattern, finding, and relevant history identities.
+
+When implementation changes but capabilities do not, reuse proposals/adjudication and rerun only
+the as-built comparison and mission filter. When capabilities change materially, mark the reference
+stale and offer a new review. A watcher may mark stages stale but never launches model work by
+itself; the connected agent or human-triggered agent workflow owns tokens and execution. Support
+manual review at any time and an optional release/milestone reminder, not an always-on AI schedule.
+
+The dashboard shows this inside **Improve** as Capability Brief, independent proposals,
+adjudication, as-built comparison, and ranked strategy. MCP/CLI expose the same high-level review
+operation and result through the bounded normal Improve use case; low-level work packets remain in
+the executor profile. This adds no sixth dashboard journey or flat family of stage-specific tools.
+
+Acceptance:
+
+- a fresh agent can complete the whole review using its own tokens without reading source files or
+  receiving manual human orchestration after the task starts;
+- exact stage input manifests prove current module/path/framework labels are withheld from proposal
+  and blind-adjudication packets;
+- interrupted work, expired leases, service restart, and a different connected agent resume safely;
+- a two-proposal fixture preserves real disagreement and reports model/provider diversity honestly;
+- a legacy-anchoring fixture discovers a simpler responsibility split that repository-local review
+  misses, while a compatibility fixture keeps an existing design that the greenfield proposal would
+  wrongly replace;
+- a mission-filter fixture rejects attractive but unnecessary infrastructure and retains a smaller,
+  evidence-backed refactor slice;
+- an implementation-only change reuses the reference stages, while a capability change invalidates
+  them with an explicit reason;
+- dashboard and MCP/CLI return the same review identity, stage readiness, recommendations, evidence,
+  and caveats;
+- no workflow engine, provider integration, table family, top-level navigation item, mandatory
+  approval state, or automatic refactor is introduced.
+
+## 10.8 Close the continuous architecture-sidekick loop
+
+**Status:** PENDING; begins only after §10.7.
 
 After a coherent edit or commit, hashes and deterministic analysis identify changed modules. Only
-stale semantic scopes and affected aggregates are refreshed. The dashboard and coding agent then
-receive the same explanation of what changed in responsibility, placement, dependencies,
-complexity, duplication, pattern fit, and possible dead code.
+stale semantic scopes, affected responsibility aggregates, and Charter sections are refreshed. The
+same application response then explains to either principal what changed in responsibility,
+placement, dependencies, complexity, duplication, pattern fit, boundary coherence, and possible
+unused code.
 
-The response must separate:
+The response separates:
 
 - observed change;
 - architectural consequence;
 - recommendation and confidence;
-- reasons to leave the code alone;
+- counter-evidence and reasons to leave the code alone;
 - smallest safe follow-up and verification.
 
-This is immediate guidance for the next decision, not merely a historical audit. History remains
-valuable because it supplies evidence about churn, co-change, introduction, and recurrence; it is
-not the center of the product promise.
+Reassessment uses the last compatible durable snapshot and current evidence. It does not require a
+pre-created Change Contract, saved plan, or human approval. An optional earlier snapshot or goal may
+narrow the comparison, but ordinary watch/refresh is enough to keep the shared model current.
+
+AnaxiGraph can surface proactive, ranked opportunities—duplicate responsibilities, merge/split
+candidates, missing abstractions, misplaced modules, suitable patterns, boundary erosion, and
+possible dead symbols/modules—but never deletes or rewrites target code automatically. History
+supports the advice with churn, co-change, introduction, and recurrence evidence; it is not a
+separate product center.
+
+Acceptance:
+
+- a one-module edit reanalyzes that module plus only conservatively affected dependants/aggregates;
+- the Charter and both principal surfaces become current without a repository-wide semantic rerun;
+- known pattern, duplication, boundary, dead-code, and coherent-no-change fixtures yield calibrated
+  advice with false-positive caveats;
+- asking again after a good refactor explains the improvement; asking after a harmful edit explains
+  the regression;
+- no mandatory decision/change-management state is created along the path.
 
 ## Phase 10 exit gate
 
-- The three product promises are visible in onboarding, navigation, agent guidance, contribution
-  review, and roadmap admission.
-- One current AnaxiIndex produces the hierarchy and explanations consumed by both dashboard and
-  coding-agent workflows; neither maintains a competing semantic model.
+- The three product promises and the actor-neutral rule are visible in onboarding, navigation,
+  agent guidance, contribution review, and roadmap admission.
+- Normal generated Compose runs one AnaxiGraph service process with supervised watchers and one
+  repository-scoped AnaxiIndex write authority.
+- One vocabulary distinguishes declared, path-derived, inferred-responsibility, and current-view
+  maps; dashboard, history, CLI, and MCP preserve stable identities and use it consistently.
+- One FTS5-backed query service seeds search, scope, guidance, Charter evidence, and pattern discovery;
+  the duplicate whole-repository lexical rankers are gone.
+- A no-human-input repository receives an evidence-backed Charter, and optional human corrections
+  remain visibly distinct from inferred understanding.
+- One current AnaxiIndex produces the hierarchy, Charter, explanations, and recommendations consumed
+  by dashboard and coding-agent workflows; neither maintains a competing semantic model.
 - The normal dashboard has at most five task-centered journeys and the normal MCP profile has at
   most ten tools; advanced operations remain intentionally accessible.
-- A professional and a non-programmer complete the human-understanding tasks in §10.3, with their
-  confusion and corrections recorded as product evidence.
-- An ordinary coding agent completes system explanation, change placement, impact inspection, and
-  before/after review without manual semantic-queue orchestration.
-- The package-level production budget is ratcheted downward from 53,907 lines, with 48,500 as the
-  convergence target and no loss of tested behavior, coverage, safety, or bounded performance.
-- No new product family, primary dashboard destination, database, provider pipeline, or parallel
-  architecture model was introduced to achieve the phase.
+- Both the agent-only and human-led acceptance paths in §10.6 pass, including interrupted semantic
+  bootstrap and medium-capability agent configurations.
+- The §10.7 fresh-eyes review proves implementation-blind proposal packets, honest independent-agent
+  provenance, blind adjudication, as-built comparison, mission filtering, and incremental reuse
+  without adding another provider or workflow platform.
+- The package-level production budget reaches 48,500 or fewer lines with no loss of tested behavior,
+  coverage, safety, or bounded performance. Production module count, high-fragmentation package
+  counts, and public surface are ratcheted downward alongside LOC.
+- No Change Contract, mandatory approval/decision workflow, new product family, database, provider
+  pipeline, or parallel architecture model was introduced to achieve the phase.
+
+---
+
+# Phase 11 — parser-backed JavaScript and TypeScript understanding
+
+**Status:** PENDING; begins only after the Phase 10 exit gate.
+
+**Goal:** make AnaxiGraph genuinely useful on modern JavaScript/TypeScript repositories without
+turning language count into a vanity metric. Python remains the reference analyzer. JavaScript,
+JSX, TypeScript, and TSX become the second deeply supported family through the existing IR and
+analyzer contract.
+
+## 11.0 Ratify the parser and capability contract
+
+Benchmark tree-sitter as the preferred implementation against representative browser, Node,
+monorepo, decorator, JSX/TSX, CommonJS, and ECMAScript-module fixtures. Record an ADR covering wheel
+availability, grammar/version pinning, security/update policy, parse recovery, memory, speed, license,
+and packaging. If tree-sitter fails a binding constraint, select an equivalent concrete parser; the
+regex analyzer is not accepted as the deep-analysis fallback.
+
+Publish an honest capability matrix for each syntax family. Extension recognition alone never means
+symbol, call, type, or dependency support.
+
+## 11.1 Produce parser-backed JavaScript/JSX facts
+
+Extract stable modules, imports, exports/re-exports, CommonJS references, declarations, classes,
+methods, functions, selected calls, and source locations. Preserve ambiguous, unresolved, external,
+and dynamic relationships explicitly. Parse recovery returns partial facts plus diagnostics rather
+than silently falling through to high-confidence regex results.
+
+## 11.2 Add TypeScript/TSX contracts without inventing precision
+
+Add interfaces, type aliases, enums, namespaces, typed declarations, decorators, and type-only
+imports/exports where the syntax supports them. Distinguish syntax-level reference evidence from
+compiler/type-checker resolution. Project references, aliases, and workspace/package resolution are
+reported with provenance and honest ambiguity; AnaxiGraph still does not execute the target build.
+
+## 11.3 Migrate consumers and remove the regex path
+
+Version analyzer identity and invalidate affected cached facts. Make responsibility synthesis,
+patterns, scope/guidance, impact, dead-code caveats, graph resolution, and Charter generation consume
+the same IR capabilities used for Python. Delete the regex-oriented import/symbol analyzer after
+fixture parity and migration tests pass; retain only bounded text heuristics for explicitly shallow,
+unsupported languages.
+
+## Phase 11 exit gate
+
+- JavaScript, JSX, TypeScript, and TSX fixtures expose versioned parser-backed capability truth;
+- modern syntax, parse errors, aliases, monorepos, ambiguous resolution, dynamic imports, and
+  CommonJS have explicit tests and provenance;
+- mixed Python/TypeScript guidance finds correct responsibilities, extension points, contracts, and
+  focused tests without pretending syntax extraction is runtime certainty;
+- scan/history/incremental-reuse performance is benchmarked on small, medium, and large fixtures;
+- supported wheels, containers, SBOMs, licensing, and release artifacts include the pinned parser
+  safely;
+- the regex analyzer and its duplicate projections are removed, all size/cohesion gates pass, and
+  production growth is offset by deleted shallow-analysis code or explicitly ratified.
 
 ---
 
@@ -3749,8 +4241,8 @@ These are recorded only so they are not repeatedly rediscovered and mistaken for
 do not block 1.0 and are not implementation tasks. The owner must explicitly reopen one after
 concrete user evidence shows that it materially improves the core navigation-and-structure mission:
 
-- parser-backed JavaScript/TypeScript, Go, Rust, Java, C, C++, C#, Ruby, or PHP support, delivered
-  one language at a time through the existing analyzer contract;
+- parser-backed Go, Rust, Java, C, C++, C#, Ruby, or PHP support, delivered one language at a time
+  through the existing analyzer contract after the committed JavaScript/TypeScript phase;
 - SQL, API-schema, deployment, Terraform, Markdown/ADR, or other non-code adapters;
 - a general third-party plugin SDK;
 - PDF, image, audio, or video understanding;
@@ -3787,6 +4279,9 @@ Every phase must satisfy all applicable gates below, not only its own feature te
 
 - 500 physical lines maximum for new/cleared first-party implementation modules;
 - no growth in temporary legacy exceptions;
+- production LOC, module count, exported surface, and high-fragmentation package counts use ratchets
+  together; passing the file-size ceiling by adding a forwarding fragment is not a valid reduction;
+- architecture-policy references resolve to current modules, paths, or declared logical concepts;
 - no new package dependency cycles or layer violations;
 - 85% or better changed-code coverage and no unexplained total coverage decline;
 - an ADR for schema, public API, dependency, or deployment decisions;
@@ -3804,6 +4299,7 @@ Every phase must satisfy all applicable gates below, not only its own feature te
 ## Trust and security
 
 - extracted/inferred/ambiguous/unresolved provenance preserved;
+- declared, path-derived, inferred-responsibility, and presentation projections remain distinguishable;
 - semantic provider/model/prompt/schema and evidence retained;
 - no credential in repository configuration, logs, fixtures, or index exports;
 - state-changing behavior audited and idempotent where retries are expected.
@@ -3813,24 +4309,31 @@ Every phase must satisfy all applicable gates below, not only its own feature te
 - loading, empty, partial, failure, cancellation, retry, and success states;
 - clear totals whenever results are filtered, paginated, ranked, or omitted;
 - keyboard/accessibility and visual regression checks for changed dashboard flows;
+- every changed core use case has dashboard and CLI/MCP parity tests unless a surface is explicitly
+  classified as advanced operator or semantic-executor behavior;
 - onboarding and operator docs updated in the same phase, not deferred.
 
 # Metrics that decide whether the roadmap is working
 
 | Product question | Metric |
 |---|---|
-| Can a new user reach value? | Commands and median minutes to dashboard, MCP connection, and first semantic dossier |
+| Can a new user reach value? | Commands and median minutes to static map, agent connection, resumable semantic understanding, and first useful guidance—with and without opening the dashboard |
+| Does AnaxiGraph understand the repository? | Charter claim evidence coverage, unknown/conflict rate, confidence calibration, freshness, independent-agent agreement, and optional human correction rate |
+| Does fresh-eyes review escape legacy anchoring? | Capability coverage versus implementation leakage, proposal diversity, preserved disagreement, useful novel simplifications, rejected overengineering, retained good existing decisions, and reference-stage reuse |
 | Can someone navigate a large codebase? | Steps and bounded payload from a coding goal to area, subsystem, module, symbol, contracts, and related files |
+| Are human and agent views equivalent? | Same-snapshot Charter/guidance identity and content parity across dashboard, CLI, and MCP plus completion rate for human-led and agent-only fixtures |
 | Can an agent choose where code belongs? | Placement-fixture accuracy, useful local precedents, affected-contract recall, focused-test recall, and unnecessary-file rate |
 | Does the change loop prevent entropy? | Introduced/worsened/improved/resolved classification accuracy for size, complexity, coupling, cycles, boundaries, and responsibilities |
 | Can a large file be split coherently? | Mixed-versus-cohesive decision accuracy, bounded extraction slices, preserved-contract coverage, and focused-test coverage |
-| Can users trust the graph? | Analyzer mix, unique/ambiguous/unresolved relationship rate, parse errors, dynamic-wiring caveats |
+| Can users trust the graph? | Analyzer capability mix, stable responsibility-map identities, unique/ambiguous/unresolved relationship rate, parse errors, and dynamic-wiring caveats |
 | Is the attention queue useful? | Queue size, top-20 action rate, dismissal reason, recurrence, time to resolution |
 | Is architecture advice useful? | Independent-agent agreement, optional operator correction rate, false-positive category, score calibration, verified improvement/regression |
 | Is semantic cost controlled? | Current/stale/failed/excluded coverage plus per-action task time, input/output tokens, cost, model, reuse rate, jobs per changed module, and detached-run wall time |
 | Does history improve today's decision? | Co-change precision, introduction/resolution lookup time, and incremental work per changed file |
-| Is AnaxiGraph staying clean? | Modules over 400/500 lines, cycles, layer violations, complexity, changed-code coverage, and finding recurrence |
-| Do product surfaces stay bounded? | Scope, overview, expanded-region, comparison, and evidence payload bytes/time plus peak browser memory |
+| Is AnaxiGraph staying clean? | Production LOC, per-package LOC/module count, public surface, modules over 400/500 lines, stale architecture policy, cycles, layer violations, complexity, changed-code coverage, and finding recurrence |
+| Is the runtime simple? | Normal AnaxiGraph process count, writer ownership violations, lock-wait time, clean-shutdown rate, and restart/recovery success |
+| Is JavaScript/TypeScript support real? | Parser-backed capability coverage, fixture precision/recall, partial-parse honesty, edge-resolution provenance, and mixed-repository guidance accuracy |
+| Do product surfaces stay bounded? | Charter, guidance, scope, overview, expanded-region, comparison, and evidence payload bytes/time plus peak browser memory |
 
 # Complexity exclusions
 
@@ -3838,6 +4341,10 @@ These are not introduced to deliver the active core roadmap:
 
 - a second graph, vector database, or provider pipeline beside the existing contracts;
 - a second planning or verification product beside scope, update, findings, patterns, and Map;
+- a Change Contract, mandatory approval gate, decision ledger, or project-management workflow;
+- a dashboard-only core action or separate agent-only interpretation of the repository;
+- a configurable multi-agent workflow engine, provider broker, autonomous review scheduler, or
+  stage-specific public tool family for the fixed fresh-eyes recipe;
 - automatic code deletion or unreviewed autonomous refactors;
 - a general policy language for rules current configuration can express;
 - a new primary dashboard view for information that fits the existing task-centered views;
@@ -3853,12 +4360,16 @@ feature-admission rule.
 |---:|---|---|---|
 | 1 | **COMPLETE** | Inventory every public surface and major code cluster against Understand, Guide, Keep coherent, enabling infrastructure, advanced operations, or removal; produce the ordered deletion map without implementing features | §10.1 |
 | 2 | **IN PROGRESS** | Bound no-op watcher history, add the package-level non-growth ratchet, and continue one characterized consolidation slice at a time in the recorded deletion order | §10.2 |
-| 3 | **PENDING** | Converge the existing dashboard into the progressive program → capability → area → subsystem → file → symbol understanding journey, with no new primary screen | §10.3 |
-| 4 | **PENDING** | Reduce the normal coding-agent surface to at most ten obvious tools and prove the complete guidance workflow with ordinary agent configurations | §10.4 |
-| 5 | **PENDING** | Make changed-scope refresh return one shared, plain-language architecture consequence to the dashboard and agent, then satisfy the Phase 10 human, agent, and reduction gates | §10.5 |
+| 3 | **PENDING** | Fold watchers into one service lifecycle, establish one repository-scoped write authority, and reduce normal generated Compose to one AnaxiGraph service | §10.3 |
+| 4 | **PENDING** | Adopt the declared/path/inferred/current responsibility vocabulary and replace duplicate lexical ranking with one bounded FTS5 query substrate | §10.4 |
+| 5 | **PENDING** | Generate the evidence-backed Living Architecture Charter without human input, support optional visible corrections, and prove resumable agent-funded completion | §10.5 |
+| 6 | **PENDING** | Deliver the same implementation/refactor guidance through at most five dashboard journeys and at most ten normal MCP tools; pass independent agent-only and human-led workflows | §10.6 |
+| 7 | **PENDING** | Run the fixed capability brief → independent clean-sheet proposals → blind adjudication → as-built comparison → mission filter sequence through one resumable agent-funded Improve workflow | §10.7 |
+| 8 | **PENDING** | Refresh only changed semantic scope and return shared architecture reassessment without a Change Contract or approval workflow | §10.8 |
+| 9 | **PENDING** | Replace regex-oriented JavaScript/TypeScript analysis with a parser-backed, capability-honest implementation and remove the shallow path | Phase 11 |
 
 Only item 2 may begin now. Later items remain pending until the preceding acceptance is recorded.
 The retained MaxOS run and a future release candidate are evidence/release gates, not independent
-product features. No parser expansion, adapter family, plugin framework, website, media support,
-generic operations work, warning-cleanup campaign, or additional dashboard family may displace this
-queue.
+product features. No additional parser expansion, adapter family, plugin framework, website, media
+support, generic operations work, warning-cleanup campaign, or dashboard family may displace this
+queue. Phase 11 is the sole committed parser expansion and begins only after Phase 10.
