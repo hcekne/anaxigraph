@@ -148,6 +148,51 @@ ignore: [ignored/**]
     assert core["historical_architecture"]["subsystem"] == "domain"
 
 
+def test_historical_graph_projects_directory_renames_through_current_map(repository, database):
+    legacy = repository / "src" / "old_package"
+    (legacy / "dashboard").mkdir(parents=True)
+    (legacy / "service.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (legacy / "dashboard" / "app.js").write_text("export const app = true;\n", encoding="utf-8")
+    (legacy / "dashboard" / "styles.css").write_text("body { color: black; }\n", encoding="utf-8")
+    first = RepositoryScanner(database).scan(repository)
+
+    current = repository / "src" / "new_package"
+    legacy.rename(current)
+    (repository / ".anaxigraph.yml").write_text(
+        """project:
+  name: Sample Observatory
+groups:
+  web-frontend:
+    level: subsystem
+    parent: application
+    paths: [src/new_package/dashboard/**]
+  backend-api:
+    level: subsystem
+    parent: application
+    paths: [src/new_package/**]
+coverage:
+  files: [coverage.xml]
+ignore: [ignored/**]
+""",
+        encoding="utf-8",
+    )
+    second = RepositoryScanner(database).scan(repository)
+
+    historical = database.graph(
+        first.repository_id,
+        first.snapshot_id,
+        query=GraphPageRequest(node_limit=100, edge_limit=100),
+    )
+    nodes = {node["path"]: node for node in historical["nodes"]}
+
+    assert historical["architecture_frame"]["reference_snapshot_id"] == second.snapshot_id
+    assert nodes["src/old_package/service.py"]["architecture_subsystem"] == "backend-api"
+    assert nodes["src/old_package/dashboard/app.js"]["architecture_subsystem"] == "web-frontend"
+    assert nodes["src/old_package/service.py"]["historical_architecture"]["subsystem"] == (
+        "application-code"
+    )
+
+
 def test_graph_finding_path_and_payload_telemetry(repository, database):
     stats = RepositoryScanner(database).scan(repository)
     finding = database.findings(stats.repository_id)[0]

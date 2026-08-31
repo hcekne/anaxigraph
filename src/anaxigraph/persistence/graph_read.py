@@ -252,10 +252,16 @@ def graph_node(
         "architecture_subsystem": subsystem,
         "architecture_source": file.get("architecture_source"),
         "architecture_layer": "semantic" if assignment else "effective",
-        "architecture_layers": _architecture_layers(policy, inferred, assignment, parents),
-        "historical_architecture": _historical_placement(
-            historical_policy, historical_inferred, parents
-        ),
+        "architecture_layers": {
+            "semantic": assignment,
+            "policy": architecture_placement(policy, inferred, parents) if policy else None,
+            "inferred": architecture_placement(None, inferred, parents),
+        },
+        "historical_architecture": {
+            **architecture_placement(historical_policy, historical_inferred, parents),
+            "declared_group": historical_policy,
+            "inferred_group": historical_inferred,
+        },
         "analysis_status": file["analysis_status"],
         "last_changed_at": file["last_changed_at"],
         "fan_in": incoming,
@@ -265,40 +271,14 @@ def graph_node(
     }
 
 
-def _architecture_layers(
-    policy: Any,
-    inferred: str,
-    semantic: dict[str, Any] | None,
-    parents: dict[str, str | None],
+def architecture_placement(
+    declared: Any, inferred: str, parents: dict[str, str | None]
 ) -> dict[str, Any]:
-    policy_layer = None
-    if policy:
-        policy_layer = {
-            "area": root_group(str(policy), parents),
-            "subsystem": policy,
-            "source": "project path rule",
-        }
-    return {
-        "semantic": semantic,
-        "policy": policy_layer,
-        "inferred": {
-            "area": root_group(inferred, parents),
-            "subsystem": inferred,
-            "source": "standard fallback vocabulary",
-        },
-    }
-
-
-def _historical_placement(
-    policy: Any, inferred: str, parents: dict[str, str | None]
-) -> dict[str, Any]:
-    group = str(policy or inferred)
+    group = str(declared or inferred)
     return {
         "area": root_group(group, parents),
         "subsystem": group,
-        "source": "project path rule" if policy else "standard fallback vocabulary",
-        "declared_group": policy,
-        "inferred_group": inferred,
+        "source": "project path rule" if declared else "standard fallback vocabulary",
     }
 
 
