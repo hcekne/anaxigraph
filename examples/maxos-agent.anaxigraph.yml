@@ -198,6 +198,9 @@ coverage:
 
 ignore:
   - data/**
+  - '**/git/workspaces/**'
+  - '**/.node_modules_root_old/**'
+  - '**/.dist_root_old/**'
   - .secrets/**
   - .claude/settings.local.json
   - frontend/node_modules/**
