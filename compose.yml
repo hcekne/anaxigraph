@@ -13,8 +13,7 @@ x-anaxigraph-service: &anaxigraph-service
   tmpfs:
     - /tmp:size=128m,mode=1777
   environment:
-    OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
-    ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+    ANAXIGRAPH_WATCH_INTERVAL: "${ANAXIGRAPH_WATCH_INTERVAL:-10}"
   volumes:
     - type: bind
       source: ${ANAXIGRAPH_REPOSITORY:-../maxos_agent}
@@ -73,23 +72,6 @@ services:
       timeout: 5s
       retries: 6
       start_period: 300s
-
-  # Keep the saved structural map current as the mounted repositories change.
-  anaxigraph-watch:
-    <<: *anaxigraph-service
-    command:
-      - watch
-      - --registry
-      - /config/repositories.yml
-      - --db
-      - /state/anaxi-index.db
-      - --interval
-      - "${ANAXIGRAPH_WATCH_INTERVAL:-10}"
-    depends_on:
-      anaxigraph:
-        condition: service_healthy
-    networks:
-      - anaxigraph
 
 volumes:
   anaxi_index:

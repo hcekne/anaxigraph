@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,7 @@ class SemanticRefreshCoordinator:
     def __init__(self, database: AnaxiIndex) -> None:
         self.database = database
         self.jobs: dict[str, dict[str, Any]] = {}
+        self.threads: dict[str, threading.Thread] = {}
         self.lock = threading.Lock()
 
     def start(
@@ -39,17 +41,30 @@ class SemanticRefreshCoordinator:
             if self.jobs.get(key, {}).get("status") in {"queued", "running"}:
                 return False
             self.jobs[key] = {"status": "queued"}
-        threading.Thread(
+        thread = threading.Thread(
             target=self._worker,
             args=(target, force, retry_failed),
             name=f"anaxigraph-semantic-{target.key}",
             daemon=True,
-        ).start()
+        )
+        with self.lock:
+            self.threads[key] = thread
+        thread.start()
         return True
 
     def status_for(self, path: Path) -> dict[str, Any]:
         with self.lock:
             return dict(self.jobs.get(str(path.resolve()), {"status": "idle"}))
+
+    def close(self, timeout_seconds: float = 4.0) -> bool:
+        """Wait boundedly for in-process semantic planning to finish before index release."""
+
+        with self.lock:
+            threads = list(self.threads.values())
+        deadline = time.monotonic() + max(0.0, timeout_seconds)
+        for thread in threads:
+            thread.join(timeout=max(0.0, deadline - time.monotonic()))
+        return all(not thread.is_alive() for thread in threads)
 
     def _worker(
         self,

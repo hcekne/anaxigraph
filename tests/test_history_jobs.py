@@ -147,7 +147,7 @@ def test_start_is_idempotent_while_job_is_active(repository, database, monkeypat
     assert second["resumed"] is False
     assert second["already_running"] is True
     assert first["job"]["id"] == second["job"]["id"]
-    service.cancel(int(row["id"]))
+    assert service.close(timeout_seconds=2) is True
     assert _wait_for(service, int(row["id"]), "cancelled")["status"] == "cancelled"
 
 

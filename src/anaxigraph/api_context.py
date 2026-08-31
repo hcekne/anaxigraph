@@ -8,6 +8,12 @@ from typing import Any
 
 from fastapi import HTTPException
 
+import anaxigraph.api_support as api_support
+from anaxigraph.api_operation_gate import RepositoryOperationGate
+from anaxigraph.api_semantic import SemanticRefreshCoordinator
+from anaxigraph.index_authority import IndexWriteAuthority
+from anaxigraph.repository_watch import RepositoryWatchService
+
 
 @dataclass(frozen=True, slots=True)
 class ApiContext:
@@ -19,6 +25,8 @@ class ApiContext:
     scan_coordinator: Any
     config_loader: Any
     operation_gate: Any
+    write_authority: Any
+    watch_service: Any | None
 
     def target_for_path(self, path: Path) -> Any | None:
         resolved = path.resolve()
@@ -82,3 +90,39 @@ class ApiContext:
         if self.default_repository:
             return self.database.repository(self.default_repository)
         return self.database.repository()
+
+
+def build_api_context(
+    database: Any,
+    targets: tuple[Any, ...],
+    default_repository: Path | None,
+    watch_interval: float | None,
+) -> ApiContext:
+    """Compose one shared runtime context for every server adapter."""
+
+    history_service = api_support.HistoryJobService(database)
+    semantic_refresh = SemanticRefreshCoordinator(database)
+    return ApiContext(
+        database=database,
+        targets=targets,
+        default_repository=default_repository,
+        history_service=history_service,
+        semantic_refresh=semantic_refresh,
+        scan_coordinator=api_support.ScanCoordinator(database),
+        config_loader=api_support.load_config,
+        operation_gate=RepositoryOperationGate(),
+        write_authority=IndexWriteAuthority(database.path),
+        watch_service=(
+            RepositoryWatchService(
+                database,
+                targets,
+                interval_seconds=watch_interval,
+                scanner_factory=api_support.RepositoryScanner,
+                config_loader=api_support.load_config,
+                semantic_factory=api_support.SemanticEngine,
+                history_service=history_service,
+            )
+            if watch_interval is not None
+            else None
+        ),
+    )

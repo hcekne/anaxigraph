@@ -108,7 +108,7 @@ def render_compose(
         (
             _compose_base(project_slug_value, image),
             _compose_app(port, history_snapshots),
-            _compose_workers(history_snapshots),
+            _compose_volume(history_snapshots),
         )
     )
 
@@ -128,8 +128,7 @@ x-anaxigraph-service: &anaxigraph-service
   tmpfs:
     - /tmp:size=128m,mode=1777
   environment:
-    OPENAI_API_KEY: "${{OPENAI_API_KEY:-}}"
-    ANTHROPIC_API_KEY: "${{ANTHROPIC_API_KEY:-}}"
+    ANAXIGRAPH_WATCH_INTERVAL: "${{ANAXIGRAPH_WATCH_INTERVAL:-10}}"
   volumes:
     - type: bind
       source: .
@@ -171,21 +170,8 @@ def _compose_app(port: int, history_snapshots: int | str) -> str:
 """
 
 
-def _compose_workers(history_snapshots: int | str) -> str:
-    return f"""  anaxigraph-watch:
-    <<: *anaxigraph-service
-    command:
-      - watch
-      - /repo
-      - --db
-      - /state/anaxi-index.db
-      - --interval
-      - "${{ANAXIGRAPH_WATCH_INTERVAL:-10}}"
-    depends_on:
-      anaxigraph:
-        condition: service_healthy
-
-volumes:
+def _compose_volume(history_snapshots: int | str) -> str:
+    return f"""volumes:
   anaxi_index:
 
 # AnaxiGraph uses the {history_snapshots} history-frame policy in the background after startup.

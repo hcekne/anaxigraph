@@ -2896,7 +2896,7 @@ It records a measured starting point, not a permanent source-of-truth generator:
 | REST | approximately 34 API routes | dashboard and MCP transport | keep route families internal; consolidate only after their shared read models converge |
 | SQLite | 34 tables | AnaxiIndex | retain canonical facts and evidence, bound operational history, and remove transaction-only staging after consumers move |
 | Python | 245 import modules | implementation | remove forwarding fragments and repeated projections without merging unrelated responsibilities |
-| Production source | 53,907 Python/dashboard lines | whole product | add a non-growth ratchet, lower it after each slice, and reach 48,500 or fewer without code golf |
+| Production source | 53,907 Python/dashboard lines | whole product | add a non-growth ratchet and remove whole duplicate paths; the owner accepted the resulting 49,797-line baseline rather than forcing code golf to reach the original 48,500 directional target |
 
 The apparent `80,000`-line product includes 17,883 lines of tests plus benchmark/tool code. Those
 tests are valuable executable contracts and are not the reduction target. The production baseline
@@ -3040,7 +3040,7 @@ contract, and prevents continued growth while deeper semantic and projection wor
 
 ## 10.2 Consolidate the implementation without hiding complexity
 
-**Status:** IN PROGRESS from 30 August 2026
+**Status:** COMPLETE on 31 August 2026 by owner acceptance of the substantive reduction.
 
 Work through the deletion map one coherent vertical slice at a time. Preserve characterization
 tests first, then remove duplicated transformations, obsolete compatibility, one-use forwarding
@@ -3048,12 +3048,13 @@ layers, repeated response language, and unnecessary orchestration. Merge tiny fr
 they change for the same reason; shrink near-ceiling modules by simplifying behavior, not by moving
 the same lines into another file.
 
-The original package budget is the measured 53,907 production Python/dashboard lines. Add it to the
-existing maintainability ratchet so it cannot grow unnoticed, lower it after every successful
-consolidation, and target at least a ten-percent reduction to 48,500 or fewer lines. This target does
-not authorize code golf, lost tests, wider modules, generated opacity, or collapsed boundaries. If
-evidence shows the target would require those regressions, stop and revise the target explicitly
-instead of gaming it.
+The original package budget is the measured 53,907 production Python/dashboard lines. It was added
+to the maintainability ratchet and lowered after every successful consolidation. The initial
+directional target was a ten-percent reduction to 48,500 or fewer lines, but that number never
+authorized code golf, lost tests, wider modules, generated opacity, or collapsed boundaries. The
+owner closed this phase at 49,797 after the remaining work stopped identifying whole duplicate paths
+and began selecting code merely to satisfy the number. That explicit revision is preferable to
+gaming the gate.
 
 Priority order:
 
@@ -3758,9 +3759,21 @@ The exact production-source ratchet falls from 49,800 to **49,797 lines** despit
 incremental-extension behavior. Phase 10 has now removed 4,110 production lines; **1,297 lines
 remain** before the 48,500 convergence target.
 
+### 10.2 closure record: accept the substantive reduction
+
+On 31 August 2026 the owner directed the roadmap to stop spending time on further Phase 10.2
+subtraction. The phase removed **4,110 production lines (7.6%)**, eliminated complete duplicate
+provider, projection, verification, MCP, taxonomy, and history-planning paths, retained all hard
+quality gates, and left no module above 500 lines. The remaining difference from the original
+ten-percent target was not backed by another confidently removable product path.
+
+The binding production ratchet is therefore **49,797 lines**, not 48,500. Later phases still prefer
+line-neutral or line-negative changes and must ratify intentional growth, but they do not reopen this
+phase or manufacture fragments/deletions merely to reach the retired target.
+
 ## 10.3 Put the watcher inside one service and establish one write authority
 
-**Status:** PENDING; begins only after §10.2 reaches its convergence gate.
+**Status:** COMPLETE on 31 August 2026.
 
 The normal deployment currently describes one product but runs the HTTP/MCP service and repository
 watcher as separate AnaxiGraph processes against the same SQLite index. That creates lifecycle,
@@ -3805,9 +3818,49 @@ Acceptance:
 - dashboard, MCP, local `up`, backup/restore, and migration contracts remain green;
 - the change removes more production/process/configuration surface than it adds.
 
+### 10.3 delivery record: one supervised service and one index writer
+
+The HTTP/MCP service now owns repository watching as part of the same application lifespan that
+owns its registry, scan coordination, semantic refresh, and history jobs. One
+`RepositoryWatchService` polls every registered target, skips targets with active history work,
+scans through the existing canonical scanner, appends history only when the Git head changes, and
+optionally prepares semantic work under the target's own policy. A failed target is isolated from
+the others, and status for every target is exposed through operational health.
+
+`IndexWriteAuthority` claims a file lock beside the AnaxiIndex for the complete service lifespan.
+A second server using the same index now fails immediately with a direct explanation instead of
+starting another partially functional writer. Shutdown first cancels and joins the supervised
+watcher, its history workers, semantic refresh workers, and scan coordination, then releases the
+write authority. A live container restart demonstrated a clean Uvicorn shutdown, released the
+lock, reclaimed it on startup, and returned healthy without an abandoned worker.
+
+The normal `serve` and `mcp` commands supervise watching by default at the configurable
+`ANAXIGRAPH_WATCH_INTERVAL`; `--no-watch` gives an explicit frozen service. No real consumer of the
+standalone `watch` command remained, so the command and its competing ownership path were removed
+rather than retained as hypothetical compatibility. Generated Compose and the maintained example
+now contain exactly one AnaxiGraph service. The companion watcher service, duplicate configuration,
+unused hosted-model API-key environment, and the separate `start_with_watch` onboarding branch are
+gone.
+
+Characterization covers one-start lifecycle behavior, rescan after an edit, history cancellation,
+bounded worker shutdown, exclusive authority and release, generated single-service Compose, and a
+two-repository service whose responses and watcher results remain repository-scoped. The complete
+suite passes with **588 tests**, every pre-commit and Compose validation passes, and the rebuilt
+self-hosted deployment removed its orphan watcher container. Its single healthy process supervised
+both the 1,882-file MaxOS target and 453-file AnaxiGraph target, reported the service-owned write
+claim through `/api/health`, rejected a live second writer, and recovered cleanly through a Docker
+restart.
+
+This phase deliberately adds **198 production lines** for explicit lifecycle and ownership while
+removing an entire process, CLI path, Compose service, duplicate environment, and split shutdown
+story. The exact production-source ratchet is therefore ratified from 49,797 to **49,995 lines**;
+the increase is accepted phase evidence, not an untracked relaxation. Making application wiring
+more explicit also lowers the recorded `anaxigraph.api` coupling baseline from 1/11 to **1/9**. The
+next work is §10.4; Phase 10.2 remains closed and is not reopened to offset this intentional growth.
+
 ## 10.4 Establish one responsibility-map vocabulary and one search substrate
 
-**Status:** PENDING; begins only after §10.3.
+**Status:** IN PROGRESS; begins after the completed §10.3 runtime convergence.
 
 The graph, history, semantic taxonomy, configured architecture groups, and file browser must stop
 using overlapping group names as if they were equivalent truths. Use four precise terms:
@@ -4170,9 +4223,9 @@ Acceptance:
 - The §10.7 fresh-eyes review proves implementation-blind proposal packets, honest independent-agent
   provenance, blind adjudication, as-built comparison, mission filtering, and incremental reuse
   without adding another provider or workflow platform.
-- The package-level production budget reaches 48,500 or fewer lines with no loss of tested behavior,
-  coverage, safety, or bounded performance. Production module count, high-fragmentation package
-  counts, and public surface are ratcheted downward alongside LOC.
+- The Phase 10.3-ratified 49,995-line production ratchet remains enforced unless a later phase
+  explicitly ratifies necessary growth; production module count, high-fragmentation package counts,
+  and public surface are governed alongside LOC rather than traded against it.
 - No Change Contract, mandatory approval/decision workflow, new product family, database, provider
   pipeline, or parallel architecture model was introduced to achieve the phase.
 
@@ -4359,16 +4412,16 @@ feature-admission rule.
 | # | Status | Outcome and acceptance | Specified in |
 |---:|---|---|---|
 | 1 | **COMPLETE** | Inventory every public surface and major code cluster against Understand, Guide, Keep coherent, enabling infrastructure, advanced operations, or removal; produce the ordered deletion map without implementing features | §10.1 |
-| 2 | **IN PROGRESS** | Bound no-op watcher history, add the package-level non-growth ratchet, and continue one characterized consolidation slice at a time in the recorded deletion order | §10.2 |
-| 3 | **PENDING** | Fold watchers into one service lifecycle, establish one repository-scoped write authority, and reduce normal generated Compose to one AnaxiGraph service | §10.3 |
-| 4 | **PENDING** | Adopt the declared/path/inferred/current responsibility vocabulary and replace duplicate lexical ranking with one bounded FTS5 query substrate | §10.4 |
+| 2 | **COMPLETE** | Close substantive consolidation at the owner-accepted 49,797-line ratchet after removing 4,110 lines and multiple complete duplicate paths without code golf | §10.2 |
+| 3 | **COMPLETE** | Fold watchers into one service lifecycle, establish one repository-scoped write authority, and reduce normal generated Compose to one AnaxiGraph service | §10.3 |
+| 4 | **IN PROGRESS** | Adopt the declared/path/inferred/current responsibility vocabulary and replace duplicate lexical ranking with one bounded FTS5 query substrate | §10.4 |
 | 5 | **PENDING** | Generate the evidence-backed Living Architecture Charter without human input, support optional visible corrections, and prove resumable agent-funded completion | §10.5 |
 | 6 | **PENDING** | Deliver the same implementation/refactor guidance through at most five dashboard journeys and at most ten normal MCP tools; pass independent agent-only and human-led workflows | §10.6 |
 | 7 | **PENDING** | Run the fixed capability brief → independent clean-sheet proposals → blind adjudication → as-built comparison → mission filter sequence through one resumable agent-funded Improve workflow | §10.7 |
 | 8 | **PENDING** | Refresh only changed semantic scope and return shared architecture reassessment without a Change Contract or approval workflow | §10.8 |
 | 9 | **PENDING** | Replace regex-oriented JavaScript/TypeScript analysis with a parser-backed, capability-honest implementation and remove the shallow path | Phase 11 |
 
-Only item 2 may begin now. Later items remain pending until the preceding acceptance is recorded.
+Only item 4 may proceed now. Later items remain pending until the preceding acceptance is recorded.
 The retained MaxOS run and a future release candidate are evidence/release gates, not independent
 product features. No additional parser expansion, adapter family, plugin framework, website, media
 support, generic operations work, warning-cleanup campaign, or dashboard family may displace this

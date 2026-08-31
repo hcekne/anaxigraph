@@ -9,12 +9,10 @@ from fastapi import FastAPI
 import anaxigraph.api_dashboard as api_dashboard
 import anaxigraph.api_support as api_support
 from anaxigraph import __version__
-from anaxigraph.api_context import ApiContext
+from anaxigraph.api_context import ApiContext, build_api_context
 from anaxigraph.api_lifespan import application_lifespan
 from anaxigraph.api_limits import RequestBodyLimitMiddleware
-from anaxigraph.api_operation_gate import RepositoryOperationGate
 from anaxigraph.api_routes import register_api_routes
-from anaxigraph.api_semantic import SemanticRefreshCoordinator
 from anaxigraph.mcp_server import create_anaxi_mcp_server
 from anaxigraph.storage import AnaxiIndex
 
@@ -30,6 +28,7 @@ def create_app(
     allow_scan_tool: bool = False,
     repository_targets: tuple[api_support.RepositoryTarget, ...] = (),
     repository_history_snapshots: int | str = 0,
+    watch_interval: float | None = None,
 ) -> FastAPI:
     targets = _repository_targets(
         repository_targets,
@@ -38,7 +37,7 @@ def create_app(
         repository_history_snapshots,
     )
     default_repository = targets[0].path if targets else repository
-    context = _api_context(database, targets, default_repository)
+    context = build_api_context(database, targets, default_repository, watch_interval)
     mcp = (
         _mcp_server(
             context,
@@ -61,21 +60,6 @@ def create_app(
     if mcp is not None:
         app.mount("/", mcp.streamable_http_app())
     return app
-
-
-def _api_context(
-    database: AnaxiIndex, targets: tuple, default_repository: Path | None
-) -> ApiContext:
-    return ApiContext(
-        database=database,
-        targets=targets,
-        default_repository=default_repository,
-        history_service=api_support.HistoryJobService(database),
-        semantic_refresh=SemanticRefreshCoordinator(database),
-        scan_coordinator=api_support.ScanCoordinator(database),
-        config_loader=api_support.load_config,
-        operation_gate=RepositoryOperationGate(),
-    )
 
 
 def _mcp_server(

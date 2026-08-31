@@ -14,17 +14,25 @@ import anaxigraph.api_support as api_support
 def application_lifespan(context: Any, *, scan_on_start: bool, mcp: Any):
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI):
-        context.history_service.recover(context.targets)
-        if scan_on_start:
-            await _scan_targets(context)
-        try:
-            if mcp is not None:
-                async with mcp.session_manager.run():
+        with context.write_authority.claim("service"):
+            context.history_service.recover(context.targets)
+            if scan_on_start:
+                await _scan_targets(context)
+            if context.watch_service is not None:
+                context.watch_service.start()
+            try:
+                if mcp is not None:
+                    async with mcp.session_manager.run():
+                        yield
+                else:
                     yield
-            else:
-                yield
-        finally:
-            context.scan_coordinator.close()
+            finally:
+                if context.watch_service is not None:
+                    context.watch_service.stop()
+                else:
+                    context.history_service.close()
+                context.semantic_refresh.close()
+                context.scan_coordinator.close()
 
     return lifespan
 

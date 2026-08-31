@@ -40,8 +40,8 @@ docker compose logs -f anaxigraph
 ```
 
 Open `http://127.0.0.1:8765`. The default registry contains MaxOS and AnaxiGraph itself, so both
-appear under **Current repository** after the companion watcher finishes its first structural
-scan. The HTTP and MCP service becomes ready immediately; until that scan finishes, currentness
+appear under **Current repository** after the service's supervised watcher finishes its first
+structural scan. The HTTP and MCP service becomes ready immediately; until that scan finishes, currentness
 fields prevent an old map from being mistaken for the mounted checkout. Sampled Git biographies
 then import in the background and report progress on the History page.
 
@@ -134,19 +134,20 @@ uv run pytest --cov=src/anaxigraph --cov-report=xml:coverage.xml
 
 ## Keep all repositories current
 
-The companion watcher creates each structural map and keeps it current without blocking HTTP or
-MCP startup. You can also click **Refresh scan** for the selected repository. Dashboard refreshes
+The AnaxiGraph service supervises repository watching in its own lifecycle. It creates each
+structural map and keeps it current without a second process or blocking HTTP/MCP startup. You can
+also click **Refresh scan** for the selected repository. Dashboard refreshes
 run in the background, show phase/file progress, and can be cancelled without discarding the
 previous current snapshot:
 
 ```bash
 docker compose up --build -d
-docker compose logs -f anaxigraph-watch
+docker compose logs -f anaxigraph
 ```
 
-Set `ANAXIGRAPH_WATCH_INTERVAL` in `.env` to change the default ten-second interval. Stop the
-`anaxigraph-watch` service if you intentionally want a frozen map; current API and MCP responses
-will then report when the mounted checkout has advanced beyond it.
+Set `ANAXIGRAPH_WATCH_INTERVAL` in `.env` to change the default ten-second interval. For an
+intentionally frozen local map, start `anaxigraph serve` with `--no-watch`; current API and MCP
+responses then report when the mounted checkout has advanced beyond it.
 
 ## Build and maintain semantic understanding
 

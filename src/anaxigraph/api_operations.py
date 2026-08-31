@@ -37,7 +37,11 @@ class OperationsRoutes:
 
     def health(self) -> dict[str, Any]:
         try:
-            return operational_health(self.context.database, self.context.operation_gate)
+            result = operational_health(self.context.database, self.context.operation_gate)
+            result["write_authority"] = self.context.write_authority.status()
+            if self.context.watch_service is not None:
+                result["watcher"] = self.context.watch_service.status()
+            return result
         except sqlite3.Error as exc:
             raise HTTPException(status_code=503, detail="AnaxiIndex unavailable") from exc
 

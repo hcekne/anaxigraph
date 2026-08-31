@@ -6,11 +6,6 @@ services:
       anaxigraph: {}
       maxos: {}
 
-  anaxigraph-watch:
-    networks:
-      anaxigraph: {}
-      maxos: {}
-
 networks:
   maxos:
     external: true

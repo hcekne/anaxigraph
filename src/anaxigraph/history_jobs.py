@@ -6,6 +6,7 @@ import json
 import os
 import socket
 import threading
+import time
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -167,6 +168,20 @@ class HistoryJobService:
                 continue
             recovered += int(self._launch(int(active["id"]), target, resumed=True))
         return recovered
+
+    def close(self, timeout_seconds: float = 4.0) -> bool:
+        """Cancel and join this process's workers before releasing its index authority."""
+
+        with self._lock:
+            active = [
+                (job_id, thread) for job_id, thread in self._threads.items() if thread.is_alive()
+            ]
+        for job_id, _thread in active:
+            self._update(job_id, cancel_requested=True, cancel_requested_at=utc_now())
+        deadline = time.monotonic() + max(0.0, timeout_seconds)
+        for _job_id, thread in active:
+            thread.join(timeout=max(0.0, deadline - time.monotonic()))
+        return all(not thread.is_alive() for _job_id, thread in active)
 
     def _launch(self, job_id: int, target: RepositoryTarget, *, resumed: bool) -> bool:
         with self._lock:

@@ -168,10 +168,10 @@ or:
 anaxigraph scan .
 ```
 
-or:
+or keep the supervised server running:
 
 ```bash
-anaxigraph watch .
+anaxigraph serve --repository .
 ```
 
 The target repository should require little or no code modification.
@@ -1570,10 +1570,10 @@ Analyse only changed artifacts.
 ## Watch mode
 
 ```bash
-anaxigraph watch .
+anaxigraph serve --repository .
 ```
 
-Update after changes.
+The server updates after changes and serves dashboard, REST, and MCP from the same process.
 
 ---
 

@@ -8,10 +8,10 @@ from types import SimpleNamespace
 import pytest
 import yaml
 
-import anaxigraph.cli_repository_commands as repository_commands
 import anaxigraph.cli_semantic_commands as semantic_commands
 import anaxigraph.cli_server_commands as server_commands
 import anaxigraph.cli_services as cli_services
+import anaxigraph.repository_watch as repository_watch
 import anaxigraph.semantic_execution as semantic_execution
 from anaxigraph.cli import main
 from anaxigraph.cli_common import default_db
@@ -38,27 +38,34 @@ def test_registry_watcher_refreshes_history_once_per_new_git_head(repository, mo
         },
         start=lambda value, **options: calls.append((value.key, options)),
     )
-    monkeypatch.setattr(repository_commands.git, "has_commits", lambda _path: True)
+    monkeypatch.setattr(repository_watch.git, "has_commits", lambda _path: True)
     monkeypatch.setattr(
-        repository_commands.git,
+        repository_watch.git,
         "metadata",
         lambda _path: SimpleNamespace(commit_sha=next(heads)),
     )
-    observed = {}
+    watcher = repository_watch.RepositoryWatchService(
+        service.database,
+        (target,),
+        interval_seconds=0.2,
+        scanner_factory=lambda _database: None,
+        config_loader=lambda _path, _config: None,
+        semantic_factory=lambda _database: None,
+        history_service=service,
+    )
 
-    repository_commands._refresh_history_at_new_head(service, target, observed)
-    repository_commands._refresh_history_at_new_head(service, target, observed)
-    repository_commands._refresh_history_at_new_head(service, target, observed)
+    watcher._refresh_history(target)
+    watcher._refresh_history(target)
+    watcher._refresh_history(target)
 
     assert calls == [("sample", {"after_revision": "first"})]
-    assert observed == {"sample": "second"}
+    assert watcher._observed_heads == {"sample": "second"}
 
 
 def test_repository_agent_and_export_handlers_share_the_current_scan(
     repository: Path,
     tmp_path: Path,
     capsys,
-    monkeypatch,
 ):
     database = tmp_path / "commands.db"
     common = [str(repository), "--db", str(database), "--json"]
@@ -101,14 +108,6 @@ def test_repository_agent_and_export_handlers_share_the_current_scan(
         capsys,
     )
     assert changed == {"id": finding_id, "status": "acknowledged"}
-
-    def stop(_interval: float) -> None:
-        raise KeyboardInterrupt
-
-    monkeypatch.setattr("anaxigraph.cli_repository_commands.time.sleep", stop)
-    with pytest.raises(SystemExit, match="130"):
-        main(["watch", *common, "--interval", "0.2"])
-    assert "Watching 1 repositories" in capsys.readouterr().err
 
 
 def test_semantic_handlers_plan_report_and_resume(repository: Path, tmp_path: Path, capsys):
@@ -398,6 +397,7 @@ def test_serve_handler_assembles_and_opens_the_selected_endpoint(
     assert created[0]["repository"] == repository.resolve()
     assert created[0]["allow_scan_tool"] is True
     assert created[0]["scan_on_start"] is False
+    assert created[0]["watch_interval"] == 10.0
     assert runs == [(application, "0.0.0.0", 9123, "info")]
     assert opened == ["http://127.0.0.1:9123"]
     assert "Dashboard: http://127.0.0.1:9123" in capsys.readouterr().err

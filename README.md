@@ -131,9 +131,9 @@ human interface; they are not duplicated as another agent tool.
 
 ## 🔁 Use one coding loop
 
-Keep one persistent sidecar and structural watcher running throughout the coding session. Build the
-complete AI map once at the start when needed; ordinary saves should update cheap structural facts,
-not trigger another model-backed repository pass.
+Keep one persistent AnaxiGraph service running throughout the coding session. The service supervises
+its structural watcher internally, so ordinary saves update cheap structural facts without a second
+container or another model-backed repository pass. Build the complete AI map once when needed.
 
 Give the connected agent one concrete goal:
 

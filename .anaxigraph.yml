@@ -69,6 +69,7 @@ groups:
       - src/anaxigraph/languages.py
       - src/anaxigraph/ir*.py
       - src/anaxigraph/relationship*.py
+      - src/anaxigraph/repository_watch.py
       - src/anaxigraph/scan*.py
       - src/anaxigraph/scanner.py
       - src/anaxigraph/git.py
@@ -99,6 +100,7 @@ groups:
     description: Owns the versioned AnaxiIndex, historical reconstruction, and replay frames.
     paths:
       - src/anaxigraph/storage.py
+      - src/anaxigraph/index_authority.py
       - src/anaxigraph/persistence/**
       - src/anaxigraph/history*.py
   shared-runtime:

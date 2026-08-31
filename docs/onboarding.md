@@ -153,9 +153,10 @@ See [Docker operation](docker.md) for container lifecycle and the generated secu
 
 ## Use one coding loop
 
-Keep one persistent sidecar and its structural watcher running for the whole coding session. Build
-the complete AI map once when no current baseline exists. Saving a file should refresh cheap source
-facts; it should not start another model-backed repository pass.
+Keep one persistent AnaxiGraph service running for the whole coding session. It supervises the
+structural watcher in the same lifecycle, so no companion container is required. Build the complete
+AI map once when no current baseline exists. Saving a file refreshes cheap source facts; it does not
+start another model-backed repository pass.
 
 Give the connected agent one concrete goal:
 

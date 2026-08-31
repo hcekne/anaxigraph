@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import threading
 
 import anyio
@@ -17,6 +18,7 @@ from anaxigraph.api_operation_gate import RepositoryOperationGate
 from anaxigraph.bounded_export import _compact_taxonomy
 from anaxigraph.operational_health import served_map_status
 from anaxigraph.persistence.schema import SCHEMA_VERSION
+from anaxigraph.registry import RepositoryTarget
 from anaxigraph.scanner import RepositoryScanner, ScanCancelled
 
 
@@ -102,6 +104,82 @@ async def test_scan_endpoint_is_nonblocking_observable_and_cancellable(
     assert cancelling["status"] == "cancelling"
     assert terminal["active"] is False
     assert health["pressure"]["http_operations"]["active_count"] == 0
+
+
+@pytest.mark.anyio
+async def test_service_lifecycle_supervises_repository_watcher(repository, database):
+    app = create_app(
+        database=database,
+        repository=repository,
+        enable_mcp=False,
+        watch_interval=0.2,
+    )
+
+    async with app.router.lifespan_context(app):
+        first = await _wait_for_snapshot(database, repository)
+        core = repository / "pkg" / "core.py"
+        core.write_text(core.read_text(encoding="utf-8") + "\nWATCHED = True\n", encoding="utf-8")
+        second = await _wait_for_snapshot(database, repository, after=int(first["id"]))
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            health = (await client.get("/api/health")).json()
+
+    assert int(second["id"]) > int(first["id"])
+    assert health["write_authority"]["claimed"] is True
+    assert health["write_authority"]["owner"] == "service"
+    assert health["watcher"]["running"] is True
+    assert health["watcher"]["targets"]["default"]["status"] == "current"
+
+
+@pytest.mark.anyio
+async def test_single_service_watches_two_repositories_without_crossing_results(
+    repository, database, tmp_path
+):
+    second = tmp_path / "second"
+    shutil.copytree(repository, second)
+    (second / "second_only.py").write_text("SECOND_ONLY = True\n", encoding="utf-8")
+    targets = (
+        RepositoryTarget("first", repository, history_snapshots=0),
+        RepositoryTarget("second", second, history_snapshots=0),
+    )
+    app = create_app(
+        database=database,
+        enable_mcp=False,
+        repository_targets=targets,
+        watch_interval=0.2,
+    )
+
+    async with app.router.lifespan_context(app):
+        await _wait_for_snapshot(database, repository)
+        await _wait_for_snapshot(database, second)
+        first_row = database.repository(repository)
+        second_row = database.repository(second)
+        assert first_row is not None and second_row is not None
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            repositories = (await client.get("/api/repositories")).json()
+            first = (
+                await client.get("/api/overview", params={"repository_id": first_row["id"]})
+            ).json()
+            other = (
+                await client.get("/api/overview", params={"repository_id": second_row["id"]})
+            ).json()
+
+    assert [item["registry_key"] for item in repositories] == ["first", "second"]
+    assert first["files"] == 8
+    assert other["files"] == 9
+
+
+async def _wait_for_snapshot(database, repository, *, after: int = 0) -> dict:
+    for _ in range(200):
+        row = database.repository(repository)
+        snapshot = database.latest_snapshot(int(row["id"])) if row else None
+        if snapshot and int(snapshot["id"]) > after:
+            return snapshot
+        await anyio.sleep(0.02)
+    raise AssertionError("watcher did not produce a current snapshot")
 
 
 async def _wait_for_scan(client: httpx.AsyncClient, expected: str) -> dict:

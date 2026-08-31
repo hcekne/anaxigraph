@@ -50,3 +50,24 @@ def test_refresh_coordinator_does_not_treat_an_expired_lease_as_live(
 
     assert coordinator.start(RepositoryTarget("sample", repository)) is True
     assert launched == [True]
+
+
+def test_refresh_coordinator_joins_owned_threads_before_shutdown(database):
+    joined = []
+
+    class Thread:
+        alive = True
+
+        def join(self, *, timeout):
+            joined.append(timeout)
+            self.alive = False
+
+        def is_alive(self):
+            return self.alive
+
+    coordinator = api_semantic.SemanticRefreshCoordinator(database)
+    coordinator.threads["sample"] = Thread()
+
+    assert coordinator.close(timeout_seconds=1) is True
+    assert len(joined) == 1
+    assert 0 <= joined[0] <= 1

@@ -50,6 +50,17 @@ def _serve_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--scan-on-start", action="store_true")
     parser.add_argument(
+        "--watch-interval",
+        type=float,
+        default=os.environ.get("ANAXIGRAPH_WATCH_INTERVAL", "10"),
+        help="Seconds between supervised repository checks (default: 10)",
+    )
+    parser.add_argument(
+        "--no-watch",
+        action="store_true",
+        help="Serve the last saved map without supervising repository changes",
+    )
+    parser.add_argument(
         "--history-snapshots",
         type=repository_registry.parse_history_snapshots,
         default="auto",
@@ -79,6 +90,7 @@ def _serve(args: argparse.Namespace) -> None:
         allow_scan_tool=args.allow_agent_scan,
         repository_targets=targets,
         repository_history_snapshots=args.history_snapshots,
+        watch_interval=None if args.no_watch else args.watch_interval,
     )
     url = f"http://{'127.0.0.1' if args.host == '0.0.0.0' else args.host}:{args.port}"
     print(f"Dashboard: {url}", file=sys.stderr)

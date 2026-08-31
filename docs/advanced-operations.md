@@ -222,8 +222,8 @@ anaxigraph backup \
   --json
 ```
 
-Stop every process using the selected index before restoring, including the server, watcher, and
-semantic worker. Restore validates the source before atomically replacing the index, retains the
+Stop every process using the selected index before restoring, including the AnaxiGraph service and
+any explicitly started compatibility CLI process. Restore validates the source before atomically replacing the index, retains the
 source backup, and upgrades any supported older schema when it opens the restored database.
 
 ```bash
@@ -313,12 +313,13 @@ anaxigraph update /path/to/repository
 anaxigraph review /path/to/repository
 anaxigraph scope /path/to/repository --goal "Add saved prompts"
 anaxigraph impact /path/to/repository --target backend/app/services/chat.py
-anaxigraph watch /path/to/repository
 anaxigraph serve --repository /path/to/repository --scan-on-start --open
+anaxigraph serve --repository /path/to/repository --no-watch
 anaxigraph mcp --repository /path/to/repository --port 8765
 ```
 
-The `serve` and `mcp` commands both expose the dashboard/API and Streamable HTTP MCP. Use `up` for
+The `serve` and `mcp` commands expose the dashboard/API and Streamable HTTP MCP and supervise
+repository watching by default. Use `--no-watch` only for a deliberately frozen map. Use `up` for
 the assembled first-run lifecycle unless you need to operate these pieces independently.
 
 ## Upgrade, stop, or reset
