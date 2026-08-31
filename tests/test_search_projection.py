@@ -4,6 +4,7 @@ import shutil
 
 import anaxigraph.persistence.search_read as search_read
 from anaxigraph.scanner import RepositoryScanner
+from anaxigraph.storage import AnaxiIndex
 
 
 def test_shared_search_projection_is_current_bounded_and_reused(repository, database, monkeypatch):
@@ -58,3 +59,17 @@ def test_search_projection_updates_additions_deletions_and_repository_boundaries
 
     assert updated.snapshot_id != second.snapshot_id
     assert database.search(second.repository_id, "quasar dispatch") == []
+
+
+def test_existing_index_backfills_search_before_serving_reads(repository, database):
+    stats = RepositoryScanner(database).scan(repository)
+    with database.transaction() as connection:
+        connection.execute("DELETE FROM module_search")
+        connection.execute(
+            "DELETE FROM schema_meta WHERE key = ?",
+            (f"module_search_state:{stats.repository_id}",),
+        )
+
+    reopened = AnaxiIndex(database.path)
+
+    assert reopened.search(stats.repository_id, "Calculator", limit=1)[0]["path"] == "pkg/core.py"

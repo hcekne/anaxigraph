@@ -55,12 +55,12 @@ def ensure_search_schema(connection: sqlite3.Connection) -> None:
     )
 
 
-def invalidate_search_projection(connection: sqlite3.Connection, repository_id: int) -> None:
-    """Make the next query rebuild after same-snapshot semantic state changes."""
-
-    connection.execute(
-        "DELETE FROM schema_meta WHERE key = ?", (f"{_STATE_PREFIX}{repository_id}",)
-    )
+def refresh_current_search_projections(connection: sqlite3.Connection) -> None:
+    """Backfill missing projections before the service begins serving reads."""
+    ensure_search_schema(connection)
+    query = "SELECT id, current_snapshot_id FROM repositories WHERE current_snapshot_id IS NOT NULL"
+    for repository_id, snapshot_id in connection.execute(query):
+        refresh_search_projection(connection, int(repository_id), int(snapshot_id))
 
 
 def refresh_search_projection(

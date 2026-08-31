@@ -3944,6 +3944,10 @@ and JavaScript syntax checks pass, and the maintainability checker reports zero 
 adding the shared FTS projection and four-layer contracts, production source falls from 49,995 to
 **49,991 lines**. That lower number is the new hard ratchet. Extracting the module-table sort
 strategies also removed one previously accepted dashboard complexity finding from self-governance.
+A live upgrade against the retained 1.3 GB index additionally proved that search projections must
+be backfilled before request serving: startup now fills missing current projections under the sole
+writer, and semantic planning refreshes stale rows in its own transaction, so a GET never becomes
+the first competing writer.
 
 ## 10.5 Generate and maintain the Living Architecture Charter
 

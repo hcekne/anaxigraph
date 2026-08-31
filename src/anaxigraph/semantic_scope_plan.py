@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
-from anaxigraph.persistence.search_read import invalidate_search_projection
+from anaxigraph.persistence.search_read import refresh_search_projection
 from anaxigraph.persistence.semantic_evidence import semantic_inventory
 from anaxigraph.semantic_freshness import (
     GROUP_SYNTHESIS_CONTRACT,
@@ -128,7 +128,7 @@ class SemanticPlanningService:
             )
             enqueued += downstream_jobs
             stage = downstream_stage or stage
-            invalidate_search_projection(connection, repository_id)
+            refresh_search_projection(connection, repository_id, snapshot_id, force=bool(enqueued))
             active_jobs = int(
                 connection.execute(
                     """

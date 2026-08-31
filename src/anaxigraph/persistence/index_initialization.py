@@ -18,7 +18,7 @@ from anaxigraph.persistence.migrations import (
     transactional_schema_change,
     validate_schema_version,
 )
-from anaxigraph.persistence.search_read import ensure_search_schema
+from anaxigraph.persistence.search_read import refresh_current_search_projections
 from anaxigraph.persistence.temporal_reconstruction import ensure_checkpoint_policy
 
 
@@ -42,7 +42,7 @@ def initialize_index(
                 )
             ensure_checkpoint_policy(connection)
             compact_terminal_semantic_job_metadata(connection)
-            ensure_search_schema(connection)
+            refresh_current_search_projections(connection)
         return
     backup = None
     if current_version is not None and current_version < target_version:
@@ -58,7 +58,7 @@ def initialize_index(
                 current_version=current_version,
                 target_version=target_version,
             )
-            ensure_search_schema(current)
+            refresh_current_search_projections(current)
             compact_terminal_semantic_job_metadata(current)
             if backup is not None:
                 _record_migration(current, backup, target_version)
