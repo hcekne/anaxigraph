@@ -23,6 +23,7 @@ export const state = {
   groupParents: new Map(),
   groupRoots: [],
   hiddenGroups: new Set(),
+  repositoryLoadToken: 0,
   graphRequestToken: 0,
   historyPlayToken: 0,
   historyPlaying: false,

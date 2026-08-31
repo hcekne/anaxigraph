@@ -182,6 +182,7 @@ export function renderOverlayHelp() {
 }
 
 export async function inspectNode(node) {
+  const repositoryLoadToken = state.repositoryLoadToken;
   state.selectedNode = node;
   drawGraph();
   const panel = byId("inspector");
@@ -196,9 +197,12 @@ export async function inspectNode(node) {
       path: node.path,
       snapshot_id: state.graph.snapshot?.id,
     }));
+    if (repositoryLoadToken !== state.repositoryLoadToken) return;
     panel.innerHTML = inspectorMarkup(node, detail, displayName);
   } catch (error) {
-    panel.innerHTML += `<p class="muted">${escapeHtml(error.message)}</p>`;
+    if (repositoryLoadToken === state.repositoryLoadToken) {
+      panel.innerHTML += `<p class="muted">${escapeHtml(error.message)}</p>`;
+    }
   }
 }
 

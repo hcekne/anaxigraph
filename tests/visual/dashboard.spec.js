@@ -254,6 +254,61 @@ test("graph redraw survives rapid tab changes without a white canvas", async ({ 
   })).toBe(true);
 });
 
+test("a slow previous repository can never overwrite a newer selection", async ({ page }) => {
+  const slowRepository = {
+    id: 10, name: "Slow old repository", path: "/slow", default: true, scannable: true,
+  };
+  const targetRepository = {
+    id: 20, name: "Race target", path: "/target", default: false, scannable: true,
+  };
+  const snapshot = {
+    id: 200, branch: "main", commit_sha: "target1234", dirty: false,
+    analysis_timestamp: "2026-08-31T00:00:00Z",
+  };
+  const overview = (files) => ({
+    files, lines_of_code: files * 10, symbols: 0, relationships: 0,
+    findings: {}, languages: [], group_hierarchies: { effective: [] },
+    map: { available_layers: ["effective"], default_layer: "effective" },
+    snapshot, graph_quality: {}, coverage: {}, semantic: { enabled: false },
+  });
+  let releaseSlowRepository;
+  const slowRepositoryGate = new Promise((resolve) => { releaseSlowRepository = resolve; });
+  await page.addInitScript(() => window.localStorage.removeItem("anaxigraph.repository"));
+  await page.route("**/api/**", async (route) => {
+    const url = new URL(route.request().url());
+    const repositoryId = Number(url.searchParams.get("repository_id"));
+    if (url.pathname === "/api/overview" && repositoryId === slowRepository.id) {
+      await slowRepositoryGate;
+    }
+    const responses = {
+      "/api/repositories": [slowRepository, targetRepository],
+      "/api/glossary": { overlays: {} },
+      "/api/overview": overview(repositoryId === targetRepository.id ? 222 : 111),
+      "/api/graph/overview": { nodes: [] },
+      "/api/modules": [],
+      "/api/graph": { nodes: [], edges: [], snapshot, counts: {} },
+      "/api/findings": { items: [], shown: 0, omitted: {} },
+      "/api/snapshots": [],
+      "/api/trends": { snapshots: [] },
+      "/api/history": { total_commits: 0, analyzed_commits: 0, timeline_frames: 0, job: {} },
+      "/api/semantic": { enabled: false, worker: {}, jobs: {} },
+    };
+    await route.fulfill({ json: responses[url.pathname] });
+  });
+
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.locator("#repository-select").selectOption(String(targetRepository.id));
+  await expect(page.locator("#project-name")).toHaveText(targetRepository.name);
+  const fileMetric = page.locator(".metric", { hasText: "Files" }).locator("strong").first();
+  await expect(fileMetric).toHaveText("222");
+
+  releaseSlowRepository();
+  await page.waitForTimeout(500);
+  await expect(page.locator("#repository-select")).toHaveValue(String(targetRepository.id));
+  await expect(page.locator("#project-name")).toHaveText(targetRepository.name);
+  await expect(fileMetric).toHaveText("222");
+});
+
 test("architecture overview opens one graph region at a time", async ({ page }) => {
   await openDashboard(page);
   await page.getByRole("button", { name: "Graph", exact: true }).click();

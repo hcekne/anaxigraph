@@ -62,6 +62,10 @@ async function load() {
 }
 
 async function loadRepository() {
+  const token = ++state.repositoryLoadToken;
+  // Invalidate work started for the previous repository. Large repositories
+  // often answer last and must never repaint a newer selection.
+  state.graphRequestToken += 1;
   stopHistoryPlayback();
   window.clearTimeout(state.historyPollTimer);
   window.clearTimeout(state.semanticPollTimer);
@@ -70,6 +74,7 @@ async function loadRepository() {
       request(api("/api/overview")),
       request(api("/api/graph/overview")),
     ]);
+    if (token !== state.repositoryLoadToken) return;
     const graphRegion = initialGraphRegion(overview, graphOverview);
     const [modules, graph, findings, snapshots, trends, historyInfo, semanticStatus] = await Promise.all([
       request(api("/api/modules")),
@@ -82,6 +87,7 @@ async function loadRepository() {
       request(api("/api/history")),
       request(api("/api/semantic")),
     ]);
+    if (token !== state.repositoryLoadToken) return;
     Object.assign(state, {
       overview,
       graphOverview,
@@ -111,7 +117,7 @@ async function loadRepository() {
       : "This repository is indexed but is not mounted as this server's scan target";
     renderAllViews();
   } catch (error) {
-    toast(error.message, true);
+    if (token === state.repositoryLoadToken) toast(error.message, true);
   }
 }
 

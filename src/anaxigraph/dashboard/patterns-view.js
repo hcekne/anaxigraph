@@ -185,6 +185,7 @@ function bindPatternEvents(tab) {
 }
 
 async function loadPatterns() {
+  const repositoryLoadToken = state.repositoryLoadToken;
   const mode = queryMode();
   if (mode === "candidates" && !byId("pattern-key-filter").value.trim()) {
     renderCandidatePrompt();
@@ -197,10 +198,13 @@ async function loadPatterns() {
     : "Reading completed pattern results…";
   try {
     const endpoint = mode === "candidates" ? "/api/patterns/candidates" : "/api/patterns";
-    currentResult = await request(api(endpoint, queryParameters()));
+    const result = await request(api(endpoint, queryParameters()));
+    if (repositoryLoadToken !== state.repositoryLoadToken) return;
+    currentResult = result;
     loadedRepositoryId = state.repositoryId;
     renderPatternResults();
   } catch (error) {
+    if (repositoryLoadToken !== state.repositoryLoadToken) return;
     currentResult = null;
     byId("pattern-query-summary").textContent = error.message;
     byId("pattern-results").innerHTML = "";

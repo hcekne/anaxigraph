@@ -66,16 +66,12 @@ export function renderOverview() {
 
 function renderGraphQualityNotice(graphQuality) {
   const notice = byId("graph-quality-notice");
-  const unresolved = Number(graphQuality.unresolved_internal || 0);
-  const ambiguous = Number(graphQuality.ambiguous_internal || 0);
   const fallback = Number(graphQuality.fallback_files || 0);
   const parseErrors = Number(graphQuality.parse_error_files || 0);
   const partial = graphQuality.status === "partial" || fallback > 0 || parseErrors > 0;
   notice.hidden = !partial;
   if (!partial) return;
-  const language = graphQuality.plain_language || graphQualityFallback(
-    graphQuality, ambiguous, unresolved, fallback, parseErrors,
-  );
+  const language = graphQuality.plain_language;
   const limits = (language.what_this_limits || []).map(
     (item) => `<li>${escapeHtml(item)}</li>`,
   ).join("");
@@ -86,30 +82,6 @@ function renderGraphQualityNotice(graphQuality) {
     <p>${escapeHtml(language.what_was_checked)}</p>
     ${limits ? `<h3>What this limits</h3><ul>${limits}</ul>` : ""}
     ${actions ? `<div class="coverage-next"><strong>What to do</strong><ul>${actions}</ul></div>` : ""}`;
-}
-
-function graphQualityFallback(graphQuality, ambiguous, unresolved, fallback, parseErrors) {
-  const internal = Number(graphQuality.internal_references || 0);
-  const resolved = Number(graphQuality.resolved_internal || 0);
-  const missing = ambiguous + unresolved;
-  const reasons = [
-    missing ? `${countLabel(missing, "likely internal link did", "likely internal links did")} not point to exactly one file` : "",
-    fallback ? `${countLabel(fallback, "file was", "files were")} read only as plain text` : "",
-    parseErrors ? `${countLabel(parseErrors, "file could", "files could")} not be parsed` : "",
-  ].filter(Boolean);
-  return {
-    conclusion: `The map may miss connections because ${reasons.join("; ")}.`,
-    what_was_checked: `AnaxiGraph checked ${countLabel(internal, "likely link", "likely links")} between files. ${format.format(resolved)} pointed to exactly one indexed file.`,
-    what_this_limits: [
-      "Direct code-link, change-impact, and unused-code advice may be incomplete.",
-      "Connections created only while the program runs may not appear in a source-code map.",
-    ],
-    what_to_do: ["Inspect unclear or missing links before acting on code-link or deletion advice."],
-  };
-}
-
-function countLabel(value, singular, plural) {
-  return `${format.format(value)} ${value === 1 ? singular : plural}`;
 }
 
 function renderCoverageNotice(coverage) {
@@ -238,9 +210,12 @@ export function scheduleSemanticPoll() {
   const worker = state.semanticStatus?.worker || {};
   if (!semanticWorkIsActive(state.semanticStatus || {})) return;
   state.semanticPollTimer = window.setTimeout(async () => {
+    const repositoryLoadToken = state.repositoryLoadToken;
     try {
       const previous = worker.status;
-      state.semanticStatus = await request(api("/api/semantic"));
+      const semanticStatus = await request(api("/api/semantic"));
+      if (repositoryLoadToken !== state.repositoryLoadToken) return;
+      state.semanticStatus = semanticStatus;
       renderOverview();
       if (semanticWorkIsActive(state.semanticStatus || {})) {
         scheduleSemanticPoll();
@@ -249,7 +224,7 @@ export function scheduleSemanticPoll() {
         await state.reloadRepository?.();
       }
     } catch (error) {
-      toast(error.message, true);
+      if (repositoryLoadToken === state.repositoryLoadToken) toast(error.message, true);
     }
   }, 1800);
 }

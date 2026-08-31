@@ -51,19 +51,21 @@ function scheduleHistoryRefresh() {
 }
 
 async function refreshHistoryData() {
+  const repositoryLoadToken = state.repositoryLoadToken;
   try {
     const [snapshots, trends, historyInfo] = await Promise.all([
       request(api("/api/snapshots")),
       request(api("/api/trends")),
       request(api("/api/history")),
     ]);
+    if (repositoryLoadToken !== state.repositoryLoadToken) return;
     state.snapshots = snapshots;
     state.trends = trends.snapshots || [];
     state.historyInfo = historyInfo;
     renderHistory();
     renderOnboarding();
   } catch (error) {
-    toast(error.message, true);
+    if (repositoryLoadToken === state.repositoryLoadToken) toast(error.message, true);
   }
 }
 

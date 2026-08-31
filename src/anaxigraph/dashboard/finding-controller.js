@@ -303,12 +303,14 @@ export async function handleFindingAction(button) {
 }
 
 export async function reloadFindings({ append = false } = {}) {
+  const repositoryLoadToken = state.repositoryLoadToken;
   const more = byId("finding-show-all");
   const cursor = append ? state.findingPage?.next_cursor || "" : "";
   if (append && !cursor) return;
   more.disabled = true;
   try {
     const page = await request(api("/api/findings", findingQueryParams(cursor)));
+    if (repositoryLoadToken !== state.repositoryLoadToken) return;
     const items = append ? [...state.findings, ...(page.items || [])] : page.items || [];
     state.findings = items;
     state.findingPage = { ...page, items, shown: items.length,
@@ -317,7 +319,7 @@ export async function reloadFindings({ append = false } = {}) {
     renderOverview();
     drawGraph();
   } catch (error) {
-    toast(error.message, true);
+    if (repositoryLoadToken === state.repositoryLoadToken) toast(error.message, true);
   } finally {
     more.disabled = false;
   }

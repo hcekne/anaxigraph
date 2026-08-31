@@ -52,14 +52,16 @@ async function handleModuleClick(event) {
   if (Number(state.expandedModuleId) !== id) return;
   const item = state.modules.find((candidate) => Number(candidate.artifact_id) === id);
   if (!item || state.moduleDetails.has(item.path)) return;
+  const repositoryLoadToken = state.repositoryLoadToken;
   try {
     const detail = await request(api("/api/file", {
       path: item.path,
       snapshot_id: state.overview?.snapshot?.id,
     }));
+    if (repositoryLoadToken !== state.repositoryLoadToken) return;
     state.moduleDetails.set(item.path, detail);
     if (Number(state.expandedModuleId) === id) renderModules();
   } catch (error) {
-    toast(error.message, true);
+    if (repositoryLoadToken === state.repositoryLoadToken) toast(error.message, true);
   }
 }
