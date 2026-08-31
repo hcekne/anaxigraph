@@ -3563,6 +3563,35 @@ surface falls by one MCP tool and one CLI mode, and five production modules disa
 suite passes with **573 tests**, and every formatting, architecture, module-size, production-size,
 credential, JavaScript, package, and agent-package pre-commit gate passes.
 
+### 10.2 delivery record: keep one current hierarchy vocabulary
+
+The history and graph correction exposed a generality defect in the AI taxonomy presentation.
+`semantic_taxonomy_language.py` had grown to 453 lines largely by recognizing and rewriting prose
+previously generated while AnaxiGraph analyzed itself: benchmark names, dashboard labels, release
+roles, persistence phrases, and other repository-specific sentences were embedded in production as
+if they were a general language model. Current taxonomy prompts and validation already require
+ordinary language, while `semantic_file_language.explain_specialist_terms` already owns the small
+generic vocabulary that explains unavoidable architecture terms.
+
+The taxonomy projection now uses that shared vocabulary plus twelve stable label substitutions.
+Its contract advances to `semantic-taxonomy-explanation-v2`; it still explains group purpose,
+membership, rationale, evidence strength, and configured versus AI placement, but the module falls
+from 453 to **156 physical lines**. Obsolete project-specific file-summary rewrites are removed at
+the same boundary. Legacy saved prose remains readable through generic term definitions rather than
+an ever-growing collection of phrases copied from one repository.
+
+The same hierarchy slice hides declared groups that have no files in the selected snapshot, so
+retired names no longer appear beside the active current map. The watcher also compares the Git head
+with its durable completed-history result after restart instead of scheduling the same history
+import again, and the `review` CLI reuses the canonical scan handler without changing its response.
+Focused hierarchy, watcher, review, taxonomy-language, and full semantic-bootstrap contracts pass.
+
+The exact production-source ratchet first fell from 50,611 to 50,606 in the hierarchy/watcher
+commit, then to **50,287 lines** after removing the repository-specific language path. Phase 10 has
+now removed 3,620 production lines from its 53,907-line starting point; **1,787 lines remain** before
+the 48,500 convergence target. This is still Phase 10.2: the next slice must remove another whole
+duplicate path before the five-journey dashboard convergence in §10.3.
+
 ## 10.3 Make human understanding the primary dashboard journey
 
 Use the existing semantic repository dossier, reviewed taxonomy, graph, file detail, and history to

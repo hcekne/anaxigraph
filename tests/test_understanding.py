@@ -69,7 +69,7 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
     assert overview["map"]["default_layer"] == "semantic"
     assert overview["group_hierarchy"] == overview["group_hierarchies"]["semantic"]
     group_language = overview["group_hierarchy"][0]["plain_language"]
-    assert group_language["version"] == "semantic-taxonomy-explanation-v1"
+    assert group_language["version"] == "semantic-taxonomy-explanation-v2"
     assert group_language["what_this_group_does"]
     assert group_language["why_these_files_are_together"]
     scope = agent_scope(

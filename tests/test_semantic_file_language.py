@@ -144,9 +144,14 @@ def test_missing_or_newer_semantic_copy_stays_honest():
             ),
         },
     )
-    assert marketplace["role_in_repository"] == (
-        "Package information at the place where the repository connects to coding-agent tools, "
-        "so local tools can find the packaged plugin."
+    assert "Distribution metadata" in marketplace["role_in_repository"]
+    assert (
+        "“boundary” means the place where one part hands work or data to another"
+        in marketplace["role_in_repository"]
+    )
+    assert (
+        "“metadata” means information that describes other data"
+        in marketplace["role_in_repository"]
     )
 
     hosted_checks = semantic_file_explanation(
@@ -158,8 +163,14 @@ def test_missing_or_newer_semantic_copy_stays_honest():
             ),
         },
     )
-    assert hosted_checks["role_in_repository"] == (
-        "Automated checks that the code hosting service runs for the repository and before each release."
+    assert "Hosted verification pipeline" in hosted_checks["role_in_repository"]
+    assert (
+        "“contract” means behavior or data that other code relies on"
+        in hosted_checks["role_in_repository"]
+    )
+    assert (
+        "“pipeline” means an ordered sequence of automated steps"
+        in hosted_checks["role_in_repository"]
     )
 
     group_language = semantic_taxonomy_explanation(
@@ -172,15 +183,17 @@ def test_missing_or_newer_semantic_copy_stays_honest():
             "confidence": 0.8,
         }
     )
-    assert group_language["version"] == "semantic-taxonomy-explanation-v1"
-    assert group_language["display_name"] == "Saving repository facts and building useful views"
-    assert group_language["what_belongs_here"] == (
-        "Code that saves data, translates between storage and callers, and checks the shape of "
-        "saved data."
+    assert group_language["version"] == "semantic-taxonomy-explanation-v2"
+    assert group_language["display_name"] == "Saved data and repository views"
+    assert (
+        "“adapter” means code that translates between two parts"
+        in group_language["what_belongs_here"]
     )
+    assert "“schema” means rules for the shape" in group_language["what_belongs_here"]
     assert "Cluster-5" not in group_language["why_these_files_are_together"]
-    assert group_language["why_these_files_are_together"] == (
-        "These files are centered on one set of steps for saving and loading data."
+    assert (
+        "“lifecycle” means the steps from creation"
+        in group_language["why_these_files_are_together"]
     )
     assert "not a grade for the files" in group_language["evidence_strength"]["meaning"]
 
@@ -193,11 +206,11 @@ def test_missing_or_newer_semantic_copy_stays_honest():
         }
     )
     assert placement["conclusion"] == (
-        "The AI-created map places this file in Saving repository facts and building useful "
-        "views, inside Core code for understanding repositories."
+        "The AI-created map places this file in Saved data and repository views, inside "
+        "Repository Intelligence Core."
     )
     assert "saved description and direct code links" in placement["why_this_file_is_here"]
 
     generic_name = semantic_taxonomy_explanation({"label": "Persistence Boundary"})
-    assert generic_name["display_name"] == "Saved data handoff point"
+    assert generic_name["display_name"] == "Saved data handoff"
     assert "In this description" not in generic_name["conclusion"]

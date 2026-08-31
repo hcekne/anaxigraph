@@ -61,31 +61,9 @@ _TERM_REWRITES = (
         "put different ways of solving the same problem behind one caller-visible operation so callers can switch between them",
     ),
     (
-        "connecting the packaged plugin to local marketplace discovery",
-        "so local tools can find the packaged plugin",
-    ),
-    (
-        "hosted verification pipeline defining repository and release-readiness contracts",
-        "automated checks that the code hosting service runs for the repository and before each release",
-    ),
-    (
-        "developer-workflow enforcement configuration at local commit and push boundaries",
-        "configuration that runs required checks before developers commit or push code",
-    ),
-    (
         "container distribution and runtime-security boundary",
         "container build and release file that controls how the running service is isolated and protected",
     ),
-    ("distribution metadata", "package information"),
-    ("marketplace discovery", "finding the plugin in a local marketplace"),
-    ("agent-integration boundary", "place where the repository connects to coding-agent tools"),
-    (
-        "runtime-security boundary",
-        "place that controls how the running service is isolated and protected",
-    ),
-    ("software-supply-chain pipeline", "automated software build and release steps"),
-    ("software-supply-chain", "software build and release"),
-    ("release-readiness contracts", "checks that must pass before a release"),
     ("architectural boundary", "intended separation between repository areas"),
     ("intrinsic dossier", "description based only on this file"),
     ("contextual dossier", "description that also uses related files"),
