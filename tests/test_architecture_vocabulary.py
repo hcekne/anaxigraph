@@ -18,6 +18,14 @@ def test_root_support_files_use_regular_architecture_roles(repository: Path, dat
     )
     (repository / "src").mkdir()
     (repository / "src" / "service.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (repository / "frontend" / "features").mkdir(parents=True)
+    (repository / "frontend" / "features" / "catalog.ts").write_text(
+        "export const catalog = [];\n", encoding="utf-8"
+    )
+    (repository / "backend" / "services").mkdir(parents=True)
+    (repository / "backend" / "services" / "catalog.py").write_text(
+        "def catalog():\n    return []\n", encoding="utf-8"
+    )
 
     stats = RepositoryScanner(database).scan(repository)
     nodes = {item["path"]: item for item in database.graph(stats.repository_id)["nodes"]}
@@ -33,6 +41,8 @@ def test_root_support_files_use_regular_architecture_roles(repository: Path, dat
     )
     assert nodes["src/service.py"]["architecture_area"] == "application"
     assert nodes["src/service.py"]["architecture_subsystem"] == "application-code"
+    assert nodes["frontend/features/catalog.ts"]["architecture_subsystem"] == "web-frontend"
+    assert nodes["backend/services/catalog.py"]["architecture_subsystem"] == "backend-services"
     assert all(
         not item["architecture_area"].endswith((".json", ".toml", ".yml"))
         for item in nodes.values()

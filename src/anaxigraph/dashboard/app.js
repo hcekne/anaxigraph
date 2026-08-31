@@ -15,7 +15,6 @@ import {
 } from "/assets/finding-controller.js";
 import { setupGraphEvents } from "/assets/graph-events.js";
 import {
-  initialGraphRegion,
   renderGraphRegionBrowser,
   setupGraphRegionEvents,
 } from "/assets/graph-regions.js";
@@ -75,11 +74,10 @@ async function loadRepository() {
       request(api("/api/graph/overview")),
     ]);
     if (token !== state.repositoryLoadToken) return;
-    const graphRegion = initialGraphRegion(overview, graphOverview);
     const [modules, graph, findings, snapshots, trends, historyInfo, semanticStatus] = await Promise.all([
       request(api("/api/modules")),
       request(api("/api/graph", {
-        node_limit: 250, edge_limit: 500, area: graphRegion,
+        node_limit: 1000, edge_limit: 2000, area: "",
       })),
       request(api("/api/findings", findingParams())),
       request(api("/api/snapshots")),
@@ -91,7 +89,7 @@ async function loadRepository() {
     Object.assign(state, {
       overview,
       graphOverview,
-      graphRegion,
+      graphRegion: "",
       modules,
       graph,
       findingPage: findings,
@@ -104,8 +102,8 @@ async function loadRepository() {
     resetRepositoryState();
     configureMapLayers();
     buildGroupIndex(selectedHierarchy());
-  renderGraphAreaOptions();
-  renderGraphRegionBrowser();
+    renderGraphAreaOptions();
+    renderGraphRegionBrowser();
     const repository = selectedRepository();
     byId("project-name").textContent = repository?.name || "No repository";
     document.title = `${repository?.name || "Repository"} · AnaxiGraph`;

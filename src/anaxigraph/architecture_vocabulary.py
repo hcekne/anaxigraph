@@ -7,7 +7,7 @@ from importlib.resources import files
 from pathlib import PurePosixPath
 
 _VOCABULARY = json.loads(
-    files("anaxigraph").joinpath("catalog/architecture-vocabulary-v2.json").read_text()
+    files("anaxigraph").joinpath("catalog/architecture-vocabulary-v3.json").read_text()
 )
 VOCABULARY_VERSION = str(_VOCABULARY["version"])
 INFERRED_GROUPS = tuple(tuple(row) for row in _VOCABULARY["groups"])

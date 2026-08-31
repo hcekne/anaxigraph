@@ -50,28 +50,7 @@ function findingMeasurementMeanings(language) {
 }
 
 function findingLanguage(item) {
-  return item.plain_language || {
-    what: item.summary,
-    why_it_matters: item.explanation,
-    next_step: item.recommended_action,
-    facts: item.actionability?.evidence?.plain_language || [],
-    how_to_check: item.actionability?.verification || "Run focused tests and scan the repository again.",
-    check: { id: item.finding_type, label: humanize(item.finding_type) },
-    level: { id: item.severity, meaning: `${humanize(item.severity)} level.` },
-    confidence: {
-      value: Number(item.confidence || 0),
-      meaning: "This number says how sure AnaxiGraph is about the measurement, not whether the design is bad.",
-    },
-    source: { id: item.source || "deterministic", meaning: "AnaxiGraph recorded this from repository evidence." },
-    priority: {
-      score: item.priority_score,
-      label: item.priority_label,
-      guidance: "Use the explanation to decide when to check this.",
-      meaning: "The priority score only decides which finding appears first; it is not a grade for the code.",
-      reasons: item.priority_reasons || [],
-    },
-    when_no_change_may_be_needed: item.actionability?.false_positive_conditions || [],
-  };
+  return item.plain_language;
 }
 
 function findingActionButtons(item) {

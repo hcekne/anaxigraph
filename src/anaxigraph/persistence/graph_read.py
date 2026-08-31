@@ -233,9 +233,12 @@ def graph_node(
     assignment: dict[str, Any] | None,
     parents: dict[str, str | None],
 ) -> dict[str, Any]:
-    policy = file.get("declared_group")
-    inferred = file.get("inferred_group") or "ungrouped"
-    fallback_area = root_group(str(policy or inferred), parents)
+    historical_policy = file.get("declared_group")
+    historical_inferred = file.get("inferred_group") or "ungrouped"
+    policy = file.get("architecture_declared_group")
+    inferred = file.get("architecture_inferred_group") or "ungrouped"
+    area = file.get("area") or root_group(str(policy or inferred), parents)
+    subsystem = file.get("subsystem") or policy or inferred
     return {
         "id": file["artifact_id"],
         "path": file["path"],
@@ -245,33 +248,57 @@ def graph_node(
         "summary": file["summary"],
         "declared_group": policy,
         "inferred_group": inferred,
-        "architecture_area": assignment["area"] if assignment else fallback_area,
-        "architecture_subsystem": assignment["subsystem"] if assignment else policy or inferred,
+        "architecture_area": area,
+        "architecture_subsystem": subsystem,
         "architecture_source": file.get("architecture_source"),
         "architecture_layer": "semantic" if assignment else "effective",
-        "architecture_layers": {
-            "semantic": assignment,
-            "policy": (
-                {
-                    "area": root_group(str(policy), parents),
-                    "subsystem": policy,
-                    "source": "project path rule",
-                }
-                if policy
-                else None
-            ),
-            "inferred": {
-                "area": root_group(str(inferred), parents),
-                "subsystem": inferred,
-                "source": "standard fallback vocabulary",
-            },
-        },
+        "architecture_layers": _architecture_layers(policy, inferred, assignment, parents),
+        "historical_architecture": _historical_placement(
+            historical_policy, historical_inferred, parents
+        ),
         "analysis_status": file["analysis_status"],
         "last_changed_at": file["last_changed_at"],
         "fan_in": incoming,
         "fan_out": outgoing,
         "line_coverage": coverage,
         "change_count": changes,
+    }
+
+
+def _architecture_layers(
+    policy: Any,
+    inferred: str,
+    semantic: dict[str, Any] | None,
+    parents: dict[str, str | None],
+) -> dict[str, Any]:
+    policy_layer = None
+    if policy:
+        policy_layer = {
+            "area": root_group(str(policy), parents),
+            "subsystem": policy,
+            "source": "project path rule",
+        }
+    return {
+        "semantic": semantic,
+        "policy": policy_layer,
+        "inferred": {
+            "area": root_group(inferred, parents),
+            "subsystem": inferred,
+            "source": "standard fallback vocabulary",
+        },
+    }
+
+
+def _historical_placement(
+    policy: Any, inferred: str, parents: dict[str, str | None]
+) -> dict[str, Any]:
+    group = str(policy or inferred)
+    return {
+        "area": root_group(group, parents),
+        "subsystem": group,
+        "source": "project path rule" if policy else "standard fallback vocabulary",
+        "declared_group": policy,
+        "inferred_group": inferred,
     }
 
 

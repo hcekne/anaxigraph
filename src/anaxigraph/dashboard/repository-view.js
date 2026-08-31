@@ -3,7 +3,6 @@ import {
   escapeAttr,
   escapeHtml,
   format,
-  humanize,
   state,
 } from "/assets/dashboard-core.js";
 
@@ -113,12 +112,7 @@ export function renderSettings() {
 }
 
 function semanticSettingsSummary(semantic) {
-  const language = semantic.plain_language || {};
-  if (language.conclusion) return semanticSettingsLanguageSummary(semantic, language);
-  if (!semantic.enabled) {
-    return "AI mapping is off for this repository. The non-AI file and direct-link map still works. Set semantic.provider to agent to use the connected coding agent without giving AnaxiGraph a separate model key, or configure a separate AI worker.";
-  }
-  return semanticSettingsFallbackSummary(semantic);
+  return semanticSettingsLanguageSummary(semantic, semantic.plain_language);
 }
 
 function semanticSettingsLanguageSummary(semantic, language) {
@@ -133,32 +127,11 @@ function semanticSettingsLanguageSummary(semantic, language) {
   return explanation + semanticPolicyLimit(semantic);
 }
 
-function semanticSettingsFallbackSummary(semantic) {
-  const coverage = semantic.coverage == null ? "not started" : `${(semantic.coverage * 100).toFixed(1)}%`;
-  const agentFunded = semantic.provider === "agent";
-  const work = `${format.format(semantic.pending || 0)} file descriptions and ${format.format(semantic.pending_scopes || 0)} whole-map tasks`;
-  const summary = agentFunded
-    ? `${coverage} of included files have current AI descriptions. A connected coding agent processes ${work} with the model chosen for that agent session.`
-    : `${coverage} of included files have current AI descriptions through ${semanticProvider(semantic)}. Refresh policy: ${humanize(semantic.refresh || "manual")}. ${work} remain.`;
-  return summary + semanticTaxonomySummary(semantic.taxonomy || {}) + semanticPolicyLimit(semantic);
-}
-
 function semanticPolicyLimit(semantic) {
   const policy = semantic.semantic_policy || {};
   const parallel = Number(policy.max_parallel_jobs || 1);
   const task = parallel === 1 ? "task" : "tasks";
   return ` The service can run up to ${format.format(parallel)} AI ${task} at once and allows ${format.format(policy.timeout_seconds || 300)} seconds for each model call.`;
-}
-
-function semanticTaxonomySummary(taxonomy) {
-  if (!taxonomy.enabled) return " Automatic creation of the AI code hierarchy is off.";
-  if (!taxonomy.ready) return " The AI-created code hierarchy is still being built and checked automatically.";
-  const checks = Number(taxonomy.current?.review_passes || 0);
-  return ` The AI code hierarchy is current after ${format.format(checks)} independent AI ${checks === 1 ? "check" : "checks"}.`;
-}
-
-function semanticProvider(semantic) {
-  return `${semantic.provider || "configured provider"}${semantic.model ? ` · ${semantic.model}` : ""}`;
 }
 
 function semanticSettingsCommand(semantic) {

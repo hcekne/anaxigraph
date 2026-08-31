@@ -23,6 +23,8 @@ def read_graph_node_rows(
         f"""
         WITH {selection_sql}
         SELECT fv.*, ga.area, ga.subsystem, ga.source AS architecture_source,
+               ga.declared_group AS architecture_declared_group,
+               ga.inferred_group AS architecture_inferred_group,
                COALESCE(incoming.count, 0) AS fan_in,
                COALESCE(outgoing.count, 0) AS fan_out,
                coverage.line_coverage,

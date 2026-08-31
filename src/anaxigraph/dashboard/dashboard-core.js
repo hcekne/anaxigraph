@@ -20,6 +20,7 @@ export const state = {
   transform: { x: 0, y: 0, scale: 1 },
   positions: new Map(),
   groupRegions: [],
+  subgroupRegions: [],
   groupParents: new Map(),
   groupRoots: [],
   hiddenGroups: new Set(),

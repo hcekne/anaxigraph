@@ -40,11 +40,25 @@ export function visibleGraphNodes() {
   return (state.graph.nodes || []).filter((node) => !state.hiddenGroups.has(rootGroup(node)));
 }
 
+function currentArchitectureCounts() {
+  const roots = new Map();
+  const groups = new Map();
+  const visit = (group) => {
+    groups.set(group.name, Number(group.direct_files ?? group.files ?? 0));
+    (group.children || []).forEach(visit);
+  };
+  state.groupRoots.forEach((root) => {
+    roots.set(root.name, Number(root.files || root.direct_files || 0));
+    visit(root);
+  });
+  return { roots, groups };
+}
+
 export function renderGraphAreaOptions() {
-  const counts = new Map();
+  const counts = currentArchitectureCounts().roots;
   (state.graph.nodes || []).forEach((node) => {
     const root = rootGroup(node);
-    counts.set(root, (counts.get(root) || 0) + 1);
+    if (!counts.has(root)) counts.set(root, 1);
   });
   const order = new Map(state.groupRoots.map((group, index) => [group.name, index]));
   const roots = [...counts].sort(([left], [right]) => (
@@ -69,52 +83,6 @@ export function architectureColor(group) {
 
 export function architectureMixTarget() {
   return currentTheme() === "high-contrast" ? "#000000" : "#ffffff";
-}
-
-function weightedRectangles(items, bounds, gap = 8) {
-  const rectangles = new Map();
-  const partition = (entries, rectangle) => {
-    if (!entries.length) return;
-    if (entries.length === 1) {
-      const inset = Math.min(gap, rectangle.width * 0.08, rectangle.height * 0.08);
-      rectangles.set(entries[0].key, {
-        x: rectangle.x + inset,
-        y: rectangle.y + inset,
-        width: Math.max(10, rectangle.width - inset * 2),
-        height: Math.max(10, rectangle.height - inset * 2),
-      });
-      return;
-    }
-    const total = entries.reduce((sum, item) => sum + item.weight, 0);
-    let split = 1;
-    let firstWeight = entries[0].weight;
-    while (split < entries.length - 1 && firstWeight + entries[split].weight <= total / 2) {
-      firstWeight += entries[split].weight;
-      split += 1;
-    }
-    const ratio = Math.max(0.08, Math.min(0.92, firstWeight / total));
-    if (rectangle.width >= rectangle.height) {
-      const firstWidth = rectangle.width * ratio;
-      partition(entries.slice(0, split), { ...rectangle, width: firstWidth });
-      partition(entries.slice(split), {
-        x: rectangle.x + firstWidth,
-        y: rectangle.y,
-        width: rectangle.width - firstWidth,
-        height: rectangle.height,
-      });
-    } else {
-      const firstHeight = rectangle.height * ratio;
-      partition(entries.slice(0, split), { ...rectangle, height: firstHeight });
-      partition(entries.slice(split), {
-        x: rectangle.x,
-        y: rectangle.y + firstHeight,
-        width: rectangle.width,
-        height: rectangle.height - firstHeight,
-      });
-    }
-  };
-  partition(items, bounds);
-  return rectangles;
 }
 
 function squarifiedRectangles(items, bounds, gap = 8) {
@@ -194,19 +162,7 @@ function squarifiedRectangles(items, bounds, gap = 8) {
   return rectangles;
 }
 
-export function layoutGraph(resetView = true) {
-  const nodes = visibleGraphNodes();
-  const canvas = byId("graph-canvas");
-  const width = canvas.clientWidth;
-  const height = canvas.clientHeight;
-  if (!width || !height) return;
-  const grouped = new Map();
-  nodes.forEach((node) => {
-    const group = effectiveGroup(node);
-    if (!grouped.has(group)) grouped.set(group, []);
-    grouped.get(group).push(node);
-  });
-  const rootOrder = new Map(state.groupRoots.map((group, index) => [group.name, index]));
+function graphRoots(nodes) {
   const roots = new Map();
   const seedGroup = (map, group) => {
     if (!map.has(group.name)) map.set(group.name, []);
@@ -217,75 +173,55 @@ export function layoutGraph(resetView = true) {
     seedGroup(map, root);
     roots.set(root.name, map);
   });
-  grouped.forEach((members, group) => {
-    const root = state.groupParents.get(group) || rootGroup(members[0]);
+  nodes.forEach((node) => {
+    const group = effectiveGroup(node);
+    const root = state.groupParents.get(group) || rootGroup(node);
     if (!roots.has(root)) roots.set(root, new Map());
-    roots.get(root).set(group, members);
+    if (!roots.get(root).has(group)) roots.get(root).set(group, []);
+    roots.get(root).get(group).push(node);
   });
-  const rootNames = [...roots.keys()]
-    .filter((root) => [...roots.get(root).values()].some((members) => members.length))
+  return roots;
+}
+
+function orderedRoots(roots, historicalFrame) {
+  const order = new Map(state.groupRoots.map((group, index) => [group.name, index]));
+  return [...roots.keys()]
+    .filter((root) => historicalFrame
+      || [...roots.get(root).values()].some((members) => members.length))
     .sort((left, right) => {
-      const leftOrder = rootOrder.get(left) ?? 10_000;
-      const rightOrder = rootOrder.get(right) ?? 10_000;
+      const leftOrder = order.get(left) ?? 10_000;
+      const rightOrder = order.get(right) ?? 10_000;
       return leftOrder - rightOrder || left.localeCompare(right);
     });
+}
+
+export function layoutGraph(resetView = true) {
+  const nodes = visibleGraphNodes();
+  const canvas = byId("graph-canvas");
+  const width = canvas.clientWidth;
+  const height = canvas.clientHeight;
+  if (!width || !height) return;
+  const totals = currentArchitectureCounts();
+  const historicalFrame = Boolean(state.graph?.architecture_frame?.reclassified);
+  const roots = graphRoots(nodes);
+  const rootNames = orderedRoots(roots, historicalFrame);
   const rootEntries = rootNames.map((root) => {
     const nodeCount = [...roots.get(root).values()].reduce((sum, members) => sum + members.length, 0);
-    return { key: root, weight: Math.max(48, 28 + humanize(root).length * 2.4, nodeCount) };
+    const total = totals.roots.get(root) || nodeCount;
+    return { key: root, weight: Math.max(48, 28 + humanize(root).length * 2.4, total) };
   });
+  const margin = Math.min(28, width * 0.04, height * 0.04);
   const rootRectangles = squarifiedRectangles(
-    rootEntries, { x: 0, y: 0, width, height }, 10,
+    rootEntries, {
+      x: margin, y: margin, width: width - margin * 2, height: height - margin * 2,
+    }, 10,
   );
   state.positions.clear();
   state.groupRegions = [];
-  rootNames.forEach((root) => {
-    const rectangle = rootRectangles.get(root);
-    if (!rectangle) return;
-    const nodeCount = [...roots.get(root).values()].reduce((sum, members) => sum + members.length, 0);
-    const region = { root, ...rectangle, nodeCount, color: groupColor(root) };
-    region.labelLines = regionLabelLines(region);
-    region.labelOverflow = region.labelLines.some((line) => (
-      estimateLabelWidth(line) > Math.max(1, region.width - 20)
-    )) || region.height < region.labelLines.length * 14 + 18;
-    state.groupRegions.push(region);
-    const headerHeight = Math.min(
-      Math.max(28, region.labelLines.length * 14 + 8), Math.max(28, region.height * 0.34),
-    );
-    const subgroupEntries = [...roots.get(root).entries()]
-      .filter(([, members]) => members.length)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([group, members]) => ({ key: group, weight: members.length }));
-    const subgroupRectangles = weightedRectangles(subgroupEntries, {
-      x: region.x + 5,
-      y: region.y + headerHeight,
-      width: Math.max(10, region.width - 10),
-      height: Math.max(10, region.height - headerHeight - 5),
-    }, 3);
-    subgroupEntries.forEach(({ key: group }) => {
-      const subregion = subgroupRectangles.get(group);
-      const members = [...roots.get(root).get(group)].sort((left, right) => (
-        left.path.localeCompare(right.path)
-      ));
-      if (!subregion || !members.length) return;
-      const innerWidth = Math.max(8, subregion.width - 8);
-      const innerHeight = Math.max(8, subregion.height - 8);
-      const columns = Math.max(1, Math.ceil(Math.sqrt(members.length * innerWidth / innerHeight)));
-      const rows = Math.ceil(members.length / columns);
-      const cellWidth = innerWidth / columns;
-      const cellHeight = innerHeight / Math.max(rows, 1);
-      members.forEach((node, index) => {
-        const value = hash(node.path);
-        const column = index % columns;
-        const row = Math.floor(index / columns);
-        const jitter = Math.min(cellWidth, cellHeight) * 0.12;
-        state.positions.set(String(node.id), {
-          x: subregion.x + 4 + (column + 0.5) * cellWidth + ((((value & 255) / 255) - 0.5) * jitter),
-          y: subregion.y + 4 + (row + 0.5) * cellHeight + (((((value >>> 8) & 255) / 255) - 0.5) * jitter),
-          group,
-        });
-      });
-    });
-  });
+  state.subgroupRegions = [];
+  rootNames.forEach((root) => layoutRoot(
+    root, roots.get(root), rootRectangles.get(root), totals, historicalFrame,
+  ));
   canvas.dataset.regionCount = String(state.groupRegions.length);
   canvas.dataset.visibleNodeCount = String(nodes.length);
   canvas.dataset.labelOverflow = String(
@@ -294,16 +230,80 @@ export function layoutGraph(resetView = true) {
   if (resetView) state.transform = { x: 0, y: 0, scale: 1 };
 }
 
+function layoutRoot(root, groups, rectangle, totals, historicalFrame) {
+  if (!rectangle) return;
+  const nodeCount = [...groups.values()].reduce((sum, members) => sum + members.length, 0);
+  const region = {
+    root, ...rectangle, nodeCount, historicalFrame, color: groupColor(root),
+    totalNodeCount: totals.roots.get(root) || nodeCount,
+  };
+  region.labelLines = regionLabelLines(region);
+  region.labelOverflow = region.labelLines.some((line) => (
+    estimateLabelWidth(line) > Math.max(1, region.width - 20)
+  )) || region.height < region.labelLines.length * 14 + 18;
+  state.groupRegions.push(region);
+  const entries = [...groups.entries()]
+    .filter(([group, members]) => members.length
+      || (historicalFrame && (totals.groups.get(group) || 0) > 0))
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([group, members]) => ({
+      key: group, weight: totals.groups.get(group) || members.length || 1,
+    }));
+  const header = Math.min(54, Math.max(30, region.height * 0.34));
+  const rectangles = squarifiedRectangles(entries, {
+    x: region.x + 5, y: region.y + header, width: Math.max(10, region.width - 10),
+    height: Math.max(10, region.height - header - 5),
+  }, 3);
+  entries.forEach(({ key }) => layoutSubgroup(root, key, groups.get(key), rectangles.get(key)));
+}
+
+function layoutSubgroup(root, group, members, rectangle) {
+  if (!rectangle) return;
+  const sorted = [...members].sort((left, right) => left.path.localeCompare(right.path));
+  const labelled = group !== root && rectangle.width >= 54 && rectangle.height >= 28;
+  state.subgroupRegions.push({
+    root, group, ...rectangle, labelled, nodeCount: sorted.length,
+  });
+  if (!sorted.length) return;
+  const header = labelled ? 16 : 0;
+  const innerWidth = Math.max(8, rectangle.width - 8);
+  const innerHeight = Math.max(8, rectangle.height - 8 - header);
+  const columns = Math.max(1, Math.ceil(Math.sqrt(sorted.length * innerWidth / innerHeight)));
+  const rows = Math.ceil(sorted.length / columns);
+  const cellWidth = innerWidth / columns;
+  const cellHeight = innerHeight / Math.max(rows, 1);
+  sorted.forEach((node, index) => positionNode(
+    node, index, columns, cellWidth, cellHeight, header, rectangle, group,
+  ));
+}
+
+function positionNode(node, index, columns, cellWidth, cellHeight, header, rectangle, group) {
+  const value = hash(node.path);
+  const column = index % columns;
+  const row = Math.floor(index / columns);
+  const jitter = Math.min(cellWidth, cellHeight) * 0.12;
+  state.positions.set(String(node.id), {
+    x: rectangle.x + 4 + (column + 0.5) * cellWidth + ((((value & 255) / 255) - 0.5) * jitter),
+    y: rectangle.y + 4 + header + (row + 0.5) * cellHeight + (((((value >>> 8) & 255) / 255) - 0.5) * jitter),
+    group,
+  });
+}
+
 function estimateLabelWidth(value) {
   return String(value).length * 6.35;
 }
 
 function regionLabelLines(region) {
   const name = humanize(region.root);
-  const count = `${format.format(region.nodeCount)} file${region.nodeCount === 1 ? "" : "s"}`;
+  let count = `${format.format(region.nodeCount)} file${region.nodeCount === 1 ? "" : "s"}`;
+  if (region.historicalFrame) {
+    count = `${format.format(region.nodeCount)} then · ${format.format(region.totalNodeCount)} now`;
+  } else if (region.nodeCount !== region.totalNodeCount) {
+    count = `${format.format(region.nodeCount)} shown · ${format.format(region.totalNodeCount)} total`;
+  }
   const available = Math.max(40, region.width - 20);
-  if (estimateLabelWidth(`${name} · ${format.format(region.nodeCount)}`) <= available) {
-    return [`${name} · ${format.format(region.nodeCount)}`];
+  if (estimateLabelWidth(`${name} · ${count}`) <= available) {
+    return [`${name} · ${count}`];
   }
   const lines = [];
   let current = "";

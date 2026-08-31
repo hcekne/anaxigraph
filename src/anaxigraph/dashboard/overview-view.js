@@ -139,7 +139,7 @@ function renderSemanticNotice(semantic) {
   notice.hidden = false;
   const agentFunded = semantic.provider === "agent";
   const current = Number(semantic.current || 0);
-  const language = semantic.plain_language || semanticStatusFallback(semantic, running);
+  const language = semantic.plain_language;
   const action = repository?.scannable && semantic.enabled
     ? `<button class="secondary-button" type="button" data-semantic-refresh ${running ? "disabled" : ""}>${agentFunded ? running ? "Agent is mapping…" : "Prepare AI tasks" : running ? "Mapping repository…" : current ? "Resume AI mapping" : "Build AI map"}</button>`
     : "";
@@ -150,54 +150,6 @@ function renderSemanticNotice(semantic) {
     ${semanticStatusList("What to do", language.what_to_do)}
     <div class="coverage-next">${(language.how_to_read_progress || []).map((item) => `<p>${escapeHtml(item)}</p>`).join("")}</div>
     </div>${action}</div>`;
-}
-
-function semanticStatusFallback(semantic, running) {
-  const total = Number(semantic.eligible_modules || 0);
-  const current = Number(semantic.current || 0);
-  const pending = Number(semantic.pending || 0);
-  const pendingMap = Number(semantic.pending_scopes || 0);
-  const enabled = Boolean(semantic.enabled);
-  return {
-    conclusion: !enabled ? "AI mapping is turned off for this repository."
-      : running ? "AI mapping is running now and still has work left."
-        : "AI mapping is incomplete, and no worker is running right now.",
-    progress: enabled
-      ? `${format.format(current)} of ${format.format(total)} included files have a current AI description.`
-      : "The non-AI file and direct-link map remains available.",
-    work_state: running
-      ? "A worker is processing saved work now; each completed result is stored immediately."
-      : "Unfinished work is safely saved, but it will not finish until a worker starts.",
-    remaining_work: [
-      `${format.format(pending)} file descriptions and ${format.format(pendingMap)} whole-map steps remain.`,
-    ],
-    what_to_do: semanticFallbackActions(semantic),
-    how_to_read_progress: [
-      "Progress counts current file descriptions; it is not a grade for the code.",
-      "AI mapping updates only AnaxiGraph's external index; it does not edit repository source.",
-      ...(semantic.provider === "agent" ? ["The connected coding agent chooses its runtime model and reasoning effort; AnaxiGraph does not hardcode either one."] : []),
-    ],
-  };
-}
-
-function semanticFallbackActions(semantic) {
-  const action = semantic.recommended_action || {};
-  if (action.kind === "enable_semantics") {
-    return ["Enable AI mapping in the repository's active AnaxiGraph settings."];
-  }
-  if (action.kind === "scan_required") {
-    return ["Run a read-only repository scan, then prepare AI mapping again."];
-  }
-  if (action.kind === "monitor") {
-    return ["Keep the current worker running until this status says the map is complete."];
-  }
-  if (action.kind === "durable_host_executor") {
-    return ["Start a background coding-agent worker and keep it running until the map is complete."];
-  }
-  if (action.kind === "bounded_mcp_fallback") {
-    return ["Have a connected coding agent process each saved task until the map reports complete."];
-  }
-  return ["Start or resume an AI worker, then keep it running until the map is complete."];
 }
 
 function semanticStatusList(title, values = []) {

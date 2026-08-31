@@ -102,6 +102,52 @@ def test_graph_filters_are_exact_and_cursors_are_bound(repository, database):
         )
 
 
+def test_historical_graph_uses_current_map_without_erasing_original_placement(repository, database):
+    first = RepositoryScanner(database).scan(repository)
+    (repository / ".anaxigraph.yml").write_text(
+        """project:
+  name: Sample Observatory
+groups:
+  application-core:
+    level: subsystem
+    parent: application
+    paths: [pkg/**]
+  web-frontend:
+    level: subsystem
+    parent: application
+    paths: [web/**]
+coverage:
+  files: [coverage.xml]
+ignore: [ignored/**]
+""",
+        encoding="utf-8",
+    )
+    (repository / "pkg" / "core.py").write_text(
+        (repository / "pkg" / "core.py").read_text(encoding="utf-8") + "\nCURRENT = True\n",
+        encoding="utf-8",
+    )
+    second = RepositoryScanner(database).scan(repository)
+
+    historical = database.graph(
+        first.repository_id,
+        first.snapshot_id,
+        query=GraphPageRequest(node_limit=100, edge_limit=100),
+    )
+    core = next(node for node in historical["nodes"] if node["path"] == "pkg/core.py")
+
+    assert historical["architecture_frame"] == {
+        "mode": "present_day",
+        "reference_snapshot_id": second.snapshot_id,
+        "historical_snapshot_id": first.snapshot_id,
+        "reclassified": True,
+    }
+    assert (core["architecture_area"], core["architecture_subsystem"]) == (
+        "application",
+        "application-core",
+    )
+    assert core["historical_architecture"]["subsystem"] == "domain"
+
+
 def test_graph_finding_path_and_payload_telemetry(repository, database):
     stats = RepositoryScanner(database).scan(repository)
     finding = database.findings(stats.repository_id)[0]

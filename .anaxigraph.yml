@@ -30,44 +30,82 @@ architecture:
       severity: error
 
 groups:
-  extraction:
+  web-frontend:
     level: subsystem
     parent: application
-    description: Turns repository files into deterministic code facts and relationships.
+    description: Renders the interactive human dashboard and its browser-side workflows.
+    paths: [src/anaxigraph/dashboard/**]
+  backend-api:
+    level: subsystem
+    parent: application
+    description: Serves the read-only REST API and coordinates repository operations.
+    paths: [src/anaxigraph/api*.py]
+  agent-integration:
+    level: subsystem
+    parent: application
+    description: Gives coding agents bounded architecture evidence and write-back protocols.
+    paths:
+      - src/anaxigraph/mcp*.py
+      - src/anaxigraph/*_mcp.py
+      - src/anaxigraph/*_transport.py
+  developer-experience:
+    level: subsystem
+    parent: application
+    description: Owns CLI commands, onboarding, local startup, and environment diagnosis.
+    paths:
+      - src/anaxigraph/cli*.py
+      - src/anaxigraph/*_cli.py
+      - src/anaxigraph/onboarding*.py
+      - src/anaxigraph/local_runtime.py
+      - src/anaxigraph/environment_doctor.py
+  repository-analysis:
+    level: subsystem
+    parent: application
+    description: Extracts deterministic code facts, symbols, references, and repository identity.
     paths:
       - src/anaxigraph/analyzers/**
+      - src/anaxigraph/analyzer*.py
       - src/anaxigraph/architecture_vocabulary.py
       - src/anaxigraph/languages.py
+      - src/anaxigraph/ir*.py
+      - src/anaxigraph/relationship*.py
+      - src/anaxigraph/scan*.py
       - src/anaxigraph/scanner.py
-  intelligence:
+      - src/anaxigraph/git.py
+      - src/anaxigraph/config*.py
+      - src/anaxigraph/registry.py
+  semantic-intelligence:
     level: subsystem
     parent: application
-    description: Evaluates architecture, patterns, findings, and semantic understanding.
+    description: Coordinates AI-funded module understanding, taxonomy, and semantic freshness.
+    paths: [src/anaxigraph/semantic*.py]
+  architecture-guidance:
+    level: subsystem
+    parent: application
+    description: Evaluates patterns, findings, change impact, safety, and architectural decisions.
     paths:
       - src/anaxigraph/architecture*.py
       - src/anaxigraph/coverage.py
       - src/anaxigraph/agent*.py
       - src/anaxigraph/finding*.py
       - src/anaxigraph/pattern*.py
-      - src/anaxigraph/semantic*.py
+      - src/anaxigraph/catalog/**
       - src/anaxigraph/trend_service.py
       - src/anaxigraph/understanding.py
-  persistence:
+      - src/anaxigraph/guidance.py
+  temporal-index:
     level: subsystem
     parent: application
-    description: Owns the versioned AnaxiIndex and its canonical temporal facts.
+    description: Owns the versioned AnaxiIndex, historical reconstruction, and replay frames.
     paths:
       - src/anaxigraph/storage.py
       - src/anaxigraph/persistence/**
-  interfaces:
+      - src/anaxigraph/history*.py
+  shared-runtime:
     level: subsystem
     parent: application
-    description: Exposes AnaxiGraph through the dashboard, CLI, REST, and MCP.
-    paths:
-      - src/anaxigraph/api*.py
-      - src/anaxigraph/cli*.py
-      - src/anaxigraph/dashboard/**
-      - src/anaxigraph/mcp*.py
+    description: Shared contracts and small runtime utilities used across product subsystems.
+    paths: [src/anaxigraph/**]
   tests:
     level: subsystem
     parent: testing

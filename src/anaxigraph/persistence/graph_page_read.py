@@ -51,7 +51,9 @@ def read_graph_page(
     snapshot_id = int(snapshot["id"])
     cursor = resolve_graph_cursor(request, snapshot_id)
     reconstruction = install_graph_projection(connection, snapshot_id)
-    assignments, parents = install_graph_architecture(connection, repository_id, snapshot_id)
+    assignments, parents, architecture_frame = install_graph_architecture(
+        connection, repository_id, snapshot_id
+    )
     state = _read_page_state(
         connection,
         repository_id,
@@ -71,6 +73,7 @@ def read_graph_page(
         state,
         projected_graph_quality(connection),
         reconstruction.as_dict(),
+        architecture_frame,
         started,
     )
 
@@ -150,6 +153,7 @@ def _graph_response(
     state: _PageState,
     quality: dict[str, Any],
     reconstruction: dict[str, Any],
+    architecture_frame: dict[str, Any],
     started: float,
 ) -> dict[str, Any]:
     response = {
@@ -175,6 +179,7 @@ def _graph_response(
         "edges": state.edges,
         "quality": quality,
         "reconstruction": reconstruction,
+        "architecture_frame": architecture_frame,
     }
     return with_graph_telemetry(response, started)
 

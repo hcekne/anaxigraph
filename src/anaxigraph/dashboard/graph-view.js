@@ -94,6 +94,23 @@ function drawRegions(context, scale) {
     context.strokeStyle = region.color;
     context.lineWidth = 1 / scale;
     context.stroke();
+  });
+  state.subgroupRegions.forEach((region) => {
+    context.globalAlpha = 0.14;
+    context.strokeStyle = groupColor(region.group);
+    context.lineWidth = 0.8 / scale;
+    roundedRectangle(context, region.x, region.y, region.width, region.height, 7 / scale);
+    context.stroke();
+    if (!region.labelled) return;
+    context.globalAlpha = 0.68;
+    context.fillStyle = groupColor(region.group);
+    context.font = `${9 / scale}px ui-sans-serif, system-ui, sans-serif`;
+    context.fillText(
+      humanize(region.group), region.x + 6 / scale, region.y + 12 / scale,
+      Math.max(10, region.width - 12 / scale),
+    );
+  });
+  state.groupRegions.forEach((region) => {
     context.save();
     roundedRectangle(context, region.x, region.y, region.width, region.height, 12 / scale);
     context.clip();

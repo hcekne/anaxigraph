@@ -30,7 +30,9 @@ def read_graph_neighborhood(
     started = time.perf_counter()
     snapshot_id = int(snapshot["id"])
     reconstruction = install_graph_projection(connection, snapshot_id)
-    assignments, parents = install_graph_architecture(connection, repository_id, snapshot_id)
+    assignments, parents, _frame = install_graph_architecture(
+        connection, repository_id, snapshot_id
+    )
     seed = _resolve_seed(connection, request.node)
     walk_sql, walk_parameters = _walk_sql(request, seed)
     total_nodes, node_rows = _neighborhood_nodes(

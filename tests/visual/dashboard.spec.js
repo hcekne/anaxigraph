@@ -314,7 +314,20 @@ test("architecture overview opens one graph region at a time", async ({ page }) 
   await page.getByRole("button", { name: "Graph", exact: true }).click();
   const browser = page.locator("#graph-region-browser");
   await expect(browser).toBeVisible();
-  await expect(browser).toContainText("Browse one repository area at a time");
+  await expect(browser).toContainText("Browse the whole repository or focus one area");
+  await expect(browser.locator('[data-graph-region=""]')).toHaveClass(/active/);
+  const summary = await browser.locator(".graph-region-summary p").textContent();
+  const counts = summary.match(/Showing ([\d,]+) of ([\d,]+) files/);
+  expect(counts).not.toBeNull();
+  expect(counts[1]).toBe(counts[2]);
+  const canvas = page.locator("#graph-canvas");
+  await expect(canvas).toHaveAttribute("data-render-state", "ready");
+  await expect.poll(() => canvas.getAttribute("data-region-count")).not.toBe("0");
+  const subregions = await page.evaluate(async () => (
+    await import("/assets/dashboard-core.js")
+  ).state.subgroupRegions.map((region) => region.group));
+  expect(subregions.length).toBeGreaterThan(2);
+  expect(subregions).toContain("frontend-features");
   const testing = browser.locator('[data-graph-region="testing"]');
   await expect(testing).toContainText("files");
   await testing.click();
@@ -323,6 +336,62 @@ test("architecture overview opens one graph region at a time", async ({ page }) 
   await expect(page.locator("#graph-canvas")).toHaveAttribute("data-region-count", "1");
   await browser.locator('[data-graph-region=""]').click();
   await expect(browser.locator(".graph-region-summary strong")).toHaveText("All Files");
+});
+
+test("historical files replay inside today's stable architecture frame", async ({ page }) => {
+  await openDashboard(page);
+  await page.getByRole("button", { name: "Graph", exact: true }).click();
+  const canvas = page.locator("#graph-canvas");
+  await expect(canvas).toHaveAttribute("data-render-state", "ready");
+  await expect.poll(() => canvas.getAttribute("data-region-count")).not.toBe("0");
+  const currentLayout = await page.evaluate(async () => (
+    await import("/assets/dashboard-core.js")
+  ).state.groupRegions.map((region) => [
+    region.root, ...[region.x, region.y, region.width, region.height].map(Math.round),
+  ]));
+  const currentSubregions = await page.evaluate(async () => (
+    await import("/assets/dashboard-core.js")
+  ).state.subgroupRegions.map((region) => [
+    region.group, ...[region.x, region.y, region.width, region.height].map(Math.round),
+  ]));
+  const graph = await page.evaluate(async () => (await fetch("/api/graph?node_limit=1000&edge_limit=2000")).json());
+  const retained = new Set(graph.nodes.filter((_node, index) => index % 2 === 0).map((node) => node.id));
+  const historical = {
+    ...graph,
+    snapshot: { ...graph.snapshot, id: 999999, commit_sha: "historical" },
+    nodes: graph.nodes.filter((node) => retained.has(node.id)),
+    edges: graph.edges.filter((edge) => retained.has(edge.source) && retained.has(edge.target)),
+    architecture_frame: {
+      mode: "present_day", reference_snapshot_id: graph.snapshot.id,
+      historical_snapshot_id: 999999, reclassified: true,
+    },
+  };
+  await page.route("**/api/graph?*", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.searchParams.get("snapshot_id") === "999999") {
+      await route.fulfill({ json: historical });
+    } else await route.continue();
+  });
+
+  await page.evaluate(async () => {
+    const history = await import("/assets/history-controller.js");
+    await history.graphAtSnapshot(999999, true);
+  });
+
+  expect(await page.evaluate(async () => (
+    await import("/assets/dashboard-core.js")
+  ).state.groupRegions.map((region) => [
+    region.root, ...[region.x, region.y, region.width, region.height].map(Math.round),
+  ]))).toEqual(currentLayout);
+  expect(await page.evaluate(async () => (
+    await import("/assets/dashboard-core.js")
+  ).state.subgroupRegions.map((region) => [
+    region.group, ...[region.x, region.y, region.width, region.height].map(Math.round),
+  ]))).toEqual(currentSubregions);
+  expect(await page.evaluate(async () => (
+    await import("/assets/dashboard-core.js")
+  ).state.graph.architecture_frame.reclassified)).toBe(true);
+  await expect(canvas).toHaveAttribute("data-render-state", "ready");
 });
 
 test("reference artifacts are excluded by default and pattern review is visible", async ({ page }) => {

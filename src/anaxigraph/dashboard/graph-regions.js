@@ -2,13 +2,8 @@ import { api, byId, escapeAttr, escapeHtml, format, humanize, request, state, to
 import { drawGraph } from "/assets/graph-view.js";
 import { layoutGraph, renderGraphAreaOptions } from "/assets/graph-model.js";
 
-const NODE_LIMIT = 250;
-const EDGE_LIMIT = 500;
-
-export function initialGraphRegion(overview, graphOverview) {
-  if (Number(overview?.files || 0) <= NODE_LIMIT) return "";
-  return String(graphOverview?.nodes?.[0]?.name || "");
-}
+const NODE_LIMIT = 1000;
+const EDGE_LIMIT = 2000;
 
 export function setupGraphRegionEvents() {
   graphRegionBrowser().addEventListener("click", async (event) => {
@@ -69,12 +64,12 @@ export function renderGraphRegionBrowser() {
   const matchingEdges = Number(counts.matching_edges || 0);
   browser.innerHTML = `
     <div class="graph-region-summary">
-      <div><span>Browse one repository area at a time</span><strong>${escapeHtml(humanize(current))}</strong></div>
+      <div><span>Browse the whole repository or focus one area</span><strong>${escapeHtml(humanize(current))}</strong></div>
       <p>Showing ${format.format(shownNodes)} of ${format.format(matchingNodes)} files and ${format.format(shownEdges)} of ${format.format(matchingEdges)} direct code links in this area</p>
       ${state.graph?.next_cursor ? '<button class="secondary-button" type="button" data-graph-next>Show the next page</button>' : ""}
     </div>
     <div class="graph-region-list">
-      <button class="graph-region ${state.graphRegion ? "" : "active"}" type="button" data-graph-region=""><span>All files</span><em>one page at a time</em></button>
+      <button class="graph-region ${state.graphRegion ? "" : "active"}" type="button" data-graph-region=""><span>All files</span><em>up to ${format.format(NODE_LIMIT)} at once</em></button>
       ${regions.map((region) => regionButton(region)).join("")}
     </div>`;
 }
