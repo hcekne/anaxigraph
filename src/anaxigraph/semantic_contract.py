@@ -258,6 +258,10 @@ def _validate_object(value: Any, schema: dict[str, Any], path: str) -> None:
 def _validate_array(value: Any, schema: dict[str, Any], path: str) -> None:
     if not isinstance(value, list):
         raise SemanticAnalysisError(f"{path} must be an array")
+    if "minItems" in schema and len(value) < schema["minItems"]:
+        raise SemanticAnalysisError(f"{path} must contain at least {schema['minItems']} item(s)")
+    if "maxItems" in schema and len(value) > schema["maxItems"]:
+        raise SemanticAnalysisError(f"{path} must contain at most {schema['maxItems']} item(s)")
     child = schema.get("items") or {}
     for index, item in enumerate(value):
         _validate_schema(item, child, f"{path}[{index}]")
@@ -280,6 +284,15 @@ def _validate_constraints(value: Any, schema: dict[str, Any], path: str) -> None
             raise SemanticAnalysisError(f"{path} must be at least {schema['minimum']}")
         if "maximum" in schema and value > schema["maximum"]:
             raise SemanticAnalysisError(f"{path} must be at most {schema['maximum']}")
+    if isinstance(value, str):
+        if "minLength" in schema and len(value) < schema["minLength"]:
+            raise SemanticAnalysisError(
+                f"{path} must contain at least {schema['minLength']} character(s)"
+            )
+        if "maxLength" in schema and len(value) > schema["maxLength"]:
+            raise SemanticAnalysisError(
+                f"{path} must contain at most {schema['maxLength']} character(s)"
+            )
 
 
 def _strings(value: Any) -> tuple[str, ...]:

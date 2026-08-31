@@ -2,7 +2,12 @@
 
 from anaxigraph.agent import agent_scope, finding_context, impact_analysis
 from anaxigraph.api_coverage import coverage_diagnostics
-from anaxigraph.api_models import FindingStatusRequest, ImpactRequest, ScopeRequest
+from anaxigraph.api_models import (
+    CharterCorrectionRequest,
+    FindingStatusRequest,
+    ImpactRequest,
+    ScopeRequest,
+)
 from anaxigraph.api_scan import ScanCoordinator
 from anaxigraph.config import load_config
 from anaxigraph.finding_transport import collect_finding_ledger, query_findings
@@ -15,6 +20,7 @@ from anaxigraph.understanding import SemanticEngine
 
 __all__ = [
     "FindingStatusRequest",
+    "CharterCorrectionRequest",
     "HistoryJobService",
     "ImpactRequest",
     "RepositoryScanner",

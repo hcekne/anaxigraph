@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from anaxigraph.architecture_charter_contract import (
+    ARCHITECTURE_CHARTER_SCHEMA,
+    is_architecture_charter_request,
+    validated_architecture_charter,
+)
 from anaxigraph.pattern_evaluation_contract import (
     pattern_response_name,
     pattern_response_schema,
@@ -146,6 +151,8 @@ def response_schema(request: dict[str, Any]) -> dict[str, Any]:
     pattern_schema = pattern_response_schema(request)
     if pattern_schema is not None:
         return pattern_schema
+    if is_architecture_charter_request(request):
+        return ARCHITECTURE_CHARTER_SCHEMA
     kind = str(request.get("analysis_kind") or "")
     if kind.startswith("taxonomy_review"):
         return TAXONOMY_REVIEW_SCHEMA
@@ -158,6 +165,8 @@ def response_contract_name(request: dict[str, Any]) -> str:
     pattern_name = pattern_response_name(request)
     if pattern_name is not None:
         return pattern_name
+    if is_architecture_charter_request(request):
+        return "architecture_charter"
     kind = str(request.get("analysis_kind") or "")
     if kind.startswith("taxonomy_review"):
         return "taxonomy_review"
@@ -176,6 +185,13 @@ def validated_semantic_response(
     kind = str(request.get("analysis_kind") or "")
     if pattern_response_schema(request) is not None:
         return validated_pattern_response(
+            value,
+            request,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+        )
+    if is_architecture_charter_request(request):
+        return validated_architecture_charter(
             value,
             request,
             input_tokens=input_tokens,

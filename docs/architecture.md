@@ -127,7 +127,13 @@ separate technical warning.
 
 Semantic enrollment has four phases: intrinsic module dossiers, contextual module dossiers, an
 autonomous responsibility-taxonomy proposal plus independent AI critic/revision passes, then
-taxonomy-shaped group/repository synthesis. Context carry-forward is per module: unaffected scopes
+taxonomy-shaped group synthesis and an `architecture-charter-v1` repository synthesis. The Living
+Architecture Charter is the shared actor-neutral read model for purpose, actors, capabilities,
+responsibilities, flows, public contracts, invariants, extension points, patterns, coherence
+concerns, conflicts, unknowns, evidence, confidence, provenance, and freshness. Its embedded
+Capability Brief deliberately describes behavior rather than the current module, framework,
+storage, or internal-boundary shape. A static scan supplies a provisional Charter; a complete
+agent-funded synthesis supplies the current one. Context carry-forward is per module: unaffected scopes
 remain fully current while changed modules and their semantic neighbours wait. A deterministic
 validator repairs duplicate, unknown, missing, and over-limit membership before the map becomes
 current; it also matches nodes to the prior snapshot so unchanged responsibilities retain stable
@@ -136,6 +142,10 @@ neighbour-intent, prompt, stage-contract, and taxonomy fingerprints invalidate o
 downstream work. Provider and model are execution provenance and never freshness inputs. SQLite
 jobs carry priorities, attempts, token/cost estimates, and renewable worker leases, making the
 pipeline resumable across process and coding-agent restarts.
+Optional principal corrections are immutable `charter_correction` semantic documents. The shared
+projection may present their declared wording, but retains the original inferred statement plus
+author, time, and rationale. A correction is never a semantic-completion prerequisite and does not
+create another architecture database, provider, or approval workflow.
 The status response adds `semantic-status-explanation-v1` over those machine states. It says
 whether a worker is running now, whether saved work can finish by itself, how many included files
 have current descriptions, which whole-map work or failures remain, and what action will resume it.

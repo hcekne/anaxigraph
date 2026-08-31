@@ -8,6 +8,7 @@ import json
 import re
 from typing import Any
 
+from anaxigraph.architecture_charter_contract import ARCHITECTURE_CHARTER_SCHEMA
 from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
 from anaxigraph.pattern_evaluation_contract import (
     PATTERN_EVALUATION_SCHEMA,
@@ -30,6 +31,7 @@ def semantic_agent_schema() -> dict[str, Any]:
     return {
         "schema_version": SEMANTIC_SCHEMA_VERSION,
         "dossier_schema": DOSSIER_SCHEMA,
+        "architecture_charter_schema": ARCHITECTURE_CHARTER_SCHEMA,
         "taxonomy_schema": TAXONOMY_SCHEMA,
         "taxonomy_review_schema": TAXONOMY_REVIEW_SCHEMA,
         "pattern_evaluation_schema": PATTERN_EVALUATION_SCHEMA,
@@ -39,10 +41,11 @@ def semantic_agent_schema() -> dict[str, Any]:
         "input_term_meanings": INPUT_TERM_MEANINGS,
         "instructions": (
             "Return the complete JSON result named by each work packet's response_contract. The "
-            "machine may call it a dossier, taxonomy, taxonomy review, pattern evaluation, or "
-            "pattern review; these mean a file description, code-area map, check of that map, "
-            "pattern result, or check of that pattern result. Use only supplied source, facts read "
-            "from code, and prior AI descriptions. A review must return the full corrected result "
+            "machine may call it a dossier, architecture charter, taxonomy, taxonomy review, "
+            "pattern evaluation, or pattern review; these mean a file description, whole-system "
+            "explanation, code-area map, check of that map, pattern result, or check of that "
+            "pattern result. Use only supplied source, facts read from code, and prior AI "
+            "descriptions. A review must return the full corrected result "
             "without asking a person to approve it. Score how well a pattern fits separately from "
             "how much of it already exists and whether changing code would help. A missing direct "
             "code link does not prove code is unused. Do not change repository files while mapping."

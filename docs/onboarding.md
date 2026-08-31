@@ -88,7 +88,10 @@ as a one-task-at-a-time fallback when no authenticated host worker exists;
 
 Each worker claims one task for a limited time, reads its evidence, and submits a result that must
 match the required JSON shape. It continues through file descriptions, an inferred responsibility grouping of
-files, separate AI checks and revisions, and a whole-repository summary. Code checks give every
+files, separate AI checks and revisions, and the whole-repository Living Architecture Charter. The
+Charter explains purpose, observable capabilities, responsibilities, flows, contracts, invariants,
+extension points, patterns, coherence concerns, conflicts, and unknowns. Its Capability Brief
+describes required behavior without leaking the current implementation shape. Code checks give every
 included file exactly one main smaller group. No person has to approve this metadata map. Unchanged
 code, direct links, instructions, and intended job reuse current records; worker and model names
 record who created the result but do not decide whether it is stale.
@@ -105,6 +108,21 @@ When `ANAXIGRAPH_SEMANTIC_STATUS` reports ready, call `ANAXIGRAPH_TAXONOMY` or s
 **Responsibility map** in the dashboard. **Current view** uses declared project intent first, then
 that inferred responsibility map, then deterministic path fallback. **Declared map** and **Path
 map** remain available for honest comparison.
+
+`anaxigraph charter .` returns the same current Charter that Overview and
+`ANAXIGRAPH_OVERVIEW` expose. Before AI mapping finishes it is explicitly provisional; after code
+changes an older AI result is explicitly stale. A person may add optional declared context without
+making it a prerequisite or deleting the inferred claim:
+
+```bash
+anaxigraph charter . --correct-section purpose \
+  --statement "The intended product outcome in ordinary language." \
+  --author "repository owner" \
+  --rationale "The outcome is not fully inferable from code."
+```
+
+Use the same target with `--withdraw` to stop presenting that overlay. Corrections live only in the
+external AnaxiIndex and retain author, time, rationale, and the original inference.
 
 ## Recommended: install the agent workflow
 

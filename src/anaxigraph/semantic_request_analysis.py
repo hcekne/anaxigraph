@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from anaxigraph.architecture_charter_contract import compact_architecture_charter
 from anaxigraph.config import SemanticConfig
 from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION, SemanticResult
 from anaxigraph.semantic_graph import _source_chunks
@@ -183,9 +184,14 @@ def _reduce_synthesis_partials(
 
 
 def _partial_dossier(index: int, result: SemanticResult) -> dict[str, Any]:
+    value = (
+        compact_architecture_charter(result.value)
+        if result.value.get("contract_version") == "architecture-charter-v1"
+        else compact_dossier(result.value)
+    )
     return {
         "scope": f"semantic-chunk-{index}",
         "kind": "synthesis",
         "confidence": result.confidence,
-        "value": compact_dossier(result.value),
+        "value": value,
     }

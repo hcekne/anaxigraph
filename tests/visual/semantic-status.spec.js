@@ -25,6 +25,33 @@ function idleSemanticLanguage(agent = false) {
 test("semantic progress and model-backed pattern advice use direct language", async ({ page }) => {
   let semanticPath = "";
   let semanticModule = null;
+  const charter = {
+    contract_version: "architecture-charter-v1",
+    identity: "architecture-charter-v1:1:1:7",
+    state: "current",
+    complete: true,
+    purpose: {
+      statement: "Keeps a saved map of the repository for people and coding agents.",
+      presented_statement: "Keeps a continuously reviewed map for people and coding agents.",
+    },
+    capabilities: [{ statement: "Shows how files work together without changing source code." }],
+    responsibilities: [{ statement: "Keeps code explanations tied to current evidence." }],
+    execution_flows: [{ statement: "A person asks a question and receives a bounded repository explanation." }],
+    extension_points: [{ statement: "Add a new code reader through the existing reader interface." }],
+    coherence_concerns: [{ statement: "Code links created only while the program runs may be missing." }],
+    unknowns: [{ question: "Which runtime-created links are absent?" }],
+    conflicts: [],
+    declared_context: [{
+      statement: "Keeps a continuously reviewed map for people and coding agents.",
+      author: "repository owner",
+      rationale: "Continuity is part of the intended product behavior.",
+    }],
+    provenance: { provider: "codex", model: "test-model" },
+  };
+  await page.route("**/api/overview*", async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({ response, json: { ...await response.json(), architecture_charter: charter } });
+  });
   await page.route("**/api/semantic*", async (route) => {
     if (route.request().method() !== "GET") {
       await route.fulfill({ json: { status: "started" } });
@@ -47,43 +74,6 @@ test("semantic progress and model-backed pattern advice use direct language", as
         budget: { paused: false },
         worker: { status: "idle" },
         plain_language: idleSemanticLanguage(),
-        repository_dossier: {
-          provider: "codex",
-          model: "test-model",
-          confidence: 0.87,
-          plain_language: {
-            version: "semantic-file-explanation-v4",
-            what_this_file_does: "Keeps a saved map of the repository for people and coding agents.",
-            role_in_repository: "Shows how files work together without changing source code.",
-            where_related_work_belongs: "Add new code readers through the existing reader interface.",
-            risks_and_uncertainty: ["Code links created only while the program runs may be missing."],
-          },
-          value: {
-            summary: "Opaque repository intelligence sidecar with a durable semantic index.",
-            architecture_role: "Read-only architecture observatory and agent context service.",
-            placement_guidance: "Add analyzers behind the existing analyzer protocol.",
-            pattern_opportunities: [{
-              name: "Analyzer strategy",
-              score: 93,
-              confidence: 0.9,
-              rationale: "Language analyzers already share one protocol.",
-              migration_cost: "low",
-            }],
-            consolidation_assessment: {
-              recommendation: "keep",
-              score: 88,
-              rationale: "Keep provider transport separate from orchestration.",
-              candidates: [],
-            },
-            dead_code_candidates: [{
-              path_or_symbol: "src/legacy.py",
-              confidence: 0.82,
-              rationale: "The indexed source has no direct caller.",
-              verification: "Check configuration and runtime registration.",
-            }],
-            risks: ["Static edges cannot prove runtime reachability."],
-          },
-        },
       },
     });
   });
@@ -130,31 +120,22 @@ test("semantic progress and model-backed pattern advice use direct language", as
   await expect(notice.locator("[data-semantic-refresh]")).toBeVisible();
   await expect(page.locator("#repository-intelligence")).toBeVisible();
   await expect(page.locator("#repository-intelligence")).toContainText(
-    "Keeps a saved map of the repository",
+    "Keeps a continuously reviewed map",
   );
   await expect(page.locator("#repository-intelligence")).toContainText(
     "Shows how files work together",
   );
-  await expect(page.locator("#repository-intelligence")).not.toContainText(
-    "Opaque repository intelligence sidecar",
+  await expect(page.locator("#repository-intelligence")).toContainText(
+    "Keeps code explanations tied to current evidence",
   );
   await expect(page.locator("#repository-intelligence")).toContainText(
-    "Analyzer strategy may fit this code",
-  );
-  await expect(page.locator("#repository-intelligence")).not.toContainText("93/100");
-  await expect(page.locator("#repository-intelligence")).not.toContainText("88/100");
-  await expect(page.locator("#repository-intelligence")).not.toContainText("% confidence");
-  await expect(page.locator("#repository-intelligence")).toContainText(
-    "Keep this code separate from nearby code for now",
+    "A person asks a question",
   );
   await expect(page.locator("#repository-intelligence")).toContainText(
-    "Do not delete src/legacy.py from this result alone",
+    "Which runtime-created links are absent?",
   );
   await expect(page.locator("#repository-intelligence")).toContainText(
-    "settings and code registered when the application starts or runs",
-  );
-  await expect(page.locator("#repository-intelligence")).not.toContainText(
-    "runtime registration",
+    "repository owner: Continuity is part of the intended product behavior.",
   );
 
   await page.getByRole("button", { name: "Files", exact: true }).click();

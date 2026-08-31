@@ -3951,7 +3951,7 @@ the first competing writer.
 
 ## 10.5 Generate and maintain the Living Architecture Charter
 
-**Status:** IN PROGRESS from 31 August 2026 after completion of §10.4.
+**Status:** COMPLETE on 31 August 2026.
 
 AnaxiGraph must be able to read a repository and state what it believes the system is for without
 waiting for a person to author an architecture document. Introduce `architecture-charter-v1` as a
@@ -4013,6 +4013,52 @@ Acceptance:
 - optional human correction is visible as declared context and is never a completion prerequisite;
 - the feature reuses semantic documents, jobs, claims, and taxonomy rather than adding a parallel
   architecture database or provider path.
+
+### 10.5 delivery record: one evidence-backed Charter on every product surface
+
+`architecture-charter-v1` is now the repository-synthesis contract used by the existing semantic
+pipeline. A static scan immediately projects an honest `provisional` Charter from repository
+identity, snapshot facts, and the current responsibility map. Agent-funded repository synthesis
+replaces that projection with a strictly validated Charter only after the existing module dossiers,
+taxonomy, evidence, and freshness checks are satisfied. A saved Charter is reported as `current`
+only while its indexed semantic scope is current; changed evidence makes it `stale` rather than
+allowing old prose to masquerade as present understanding. Older generic repository dossiers are
+also treated as stale input instead of being silently relabelled as the new contract.
+
+The contract covers purpose, actors, observable capabilities, responsibilities, execution flows,
+public contracts, invariants, extension points, recurring patterns, coherence concerns, unknowns,
+and conflicts. Material claims require evidence and confidence. Documentation is presented to the
+agent as evidence to test against code, not as architecture truth. The embedded
+`capability-brief-v1` projection is separately validated to reject internal filenames, module paths,
+framework identities, and storage choices outside an explicitly declared compatibility obligation.
+This makes the brief suitable for the fresh-context workflow in §10.7 without building another
+semantic product.
+
+One actor-neutral projection supplies the dashboard Overview, `anaxigraph charter`, the repository
+Overview API, and `ANAXIGRAPH_OVERVIEW`. Those surfaces return the same Charter identity, state,
+readiness, claims, provenance, and caveats; the browser does not infer its own currentness. Optional
+human or agent corrections are append-only `charter_correction` semantic documents. They may add
+declared wording to the current presentation, including author and rationale, while preserving the
+original inferred statement and evidence. Corrections survive subsequent scans, can be superseded
+or withdrawn, and are never required to make a repository semantically ready. This reuses the
+existing semantic-document store and write authority; it adds no architecture table, model provider,
+approval workflow, or dashboard-only truth.
+
+The acceptance suite covers a no-policy/no-human provisional Charter, strict evidence and conflict
+validation, Capability Brief leakage, current-to-stale invalidation, legacy dossier handling,
+correction persistence and withdrawal, API/MCP parity, CLI behavior, semantic chunk reduction, and
+rendered dashboard disclosure. The complete Python suite passes with **601 tests** and **92% total
+coverage**. The exact browser contract runner passes **21/21**, including the Charter projection.
+Pre-commit, Ruff, JavaScript syntax, Compose validation, architecture cycles, container hardening,
+first-user latency, and deterministic self-analysis all pass; self-analysis reports zero governed
+issues. A rebuilt retained-index deployment serves both registered repositories with the same
+repository-scoped Charter contract and no selection bleed.
+
+This phase adds **704 intentional production lines** for the strict contract, projection, correction
+overlay, and adapters. The exact production-source ratchet moves from 49,991 to **50,695 lines**.
+Every new module remains below 500 lines and the maintainability warning count does not increase.
+The increase is accepted evidence-backed product work and does not reopen the owner-closed Phase
+10.2 subtraction target. The next work is §10.6.
 
 ## 10.6 Deliver one actor-neutral understanding and guidance workflow
 
@@ -4457,13 +4503,13 @@ feature-admission rule.
 | 2 | **COMPLETE** | Close substantive consolidation at the owner-accepted 49,797-line ratchet after removing 4,110 lines and multiple complete duplicate paths without code golf | §10.2 |
 | 3 | **COMPLETE** | Fold watchers into one service lifecycle, establish one repository-scoped write authority, and reduce normal generated Compose to one AnaxiGraph service | §10.3 |
 | 4 | **COMPLETE** | Adopt the declared/path/inferred/current responsibility vocabulary and replace duplicate lexical ranking with one bounded FTS5 query substrate | §10.4 |
-| 5 | **IN PROGRESS** | Generate the evidence-backed Living Architecture Charter without human input, support optional visible corrections, and prove resumable agent-funded completion | §10.5 |
+| 5 | **COMPLETE** | Generate the evidence-backed Living Architecture Charter without human input, support optional visible corrections, and prove resumable agent-funded completion | §10.5 |
 | 6 | **PENDING** | Deliver the same implementation/refactor guidance through at most five dashboard journeys and at most ten normal MCP tools; pass independent agent-only and human-led workflows | §10.6 |
 | 7 | **PENDING** | Run the fixed capability brief → independent clean-sheet proposals → blind adjudication → as-built comparison → mission filter sequence through one resumable agent-funded Improve workflow | §10.7 |
 | 8 | **PENDING** | Refresh only changed semantic scope and return shared architecture reassessment without a Change Contract or approval workflow | §10.8 |
 | 9 | **PENDING** | Replace regex-oriented JavaScript/TypeScript analysis with a parser-backed, capability-honest implementation and remove the shallow path | Phase 11 |
 
-Only item 5 may proceed now. Later items remain pending until the preceding acceptance is recorded.
+Only item 6 may proceed now. Later items remain pending until the preceding acceptance is recorded.
 The retained MaxOS run and a future release candidate are evidence/release gates, not independent
 product features. No additional parser expansion, adapter family, plugin framework, website, media
 support, generic operations work, warning-cleanup campaign, or dashboard family may displace this

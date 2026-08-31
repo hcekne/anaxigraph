@@ -31,14 +31,10 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
     assert status["semantically_ready"] is True
     assert status["baseline_complete"] is True
     assert status["current"] == status["eligible_modules"] == 8
-    assert status["repository_dossier"]["value"]["summary"]
-    assert status["repository_dossier"]["plain_language"]["version"] == (
-        "semantic-file-explanation-v4"
-    )
-    assert (
-        "how its parts work together"
-        in status["repository_dossier"]["plain_language"]["conclusion"]
-    )
+    charter = status["architecture_charter"]
+    assert charter["value"]["contract_version"] == "architecture-charter-v1"
+    assert charter["value"]["purpose"]["statement"]
+    assert charter["value"]["capability_brief"]["contract_version"] == "capability-brief-v1"
     assert status["taxonomy"]["ready"] is True
     assert status["taxonomy"]["current"]["review_passes"] == 2
     assert status["patterns"]["ready"] is True

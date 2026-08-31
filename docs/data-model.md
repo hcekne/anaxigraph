@@ -23,7 +23,7 @@ history accumulate over time.
 | `analysis_runs` | Operational audit of explicit and meaningful scan/update/review/history work plus the latest unchanged watcher heartbeat per repository |
 | `architecture_rules` | Effective built-in and configured machine-readable policy |
 | `semantic_claims` | Compact current module claims used by inventory queries |
-| `semantic_documents` | Immutable intrinsic, contextual, group, and repository dossiers with fingerprints, provider/executor provenance, evidence, tokens, and costs |
+| `semantic_documents` | Immutable intrinsic/contextual dossiers, group synthesis, Living Architecture Charters, and optional declared Charter corrections with fingerprints, provenance, evidence, tokens, and costs |
 | `semantic_jobs` | Durable prioritized work queue with lifecycle, cost, executor, and lease evidence; full packets remain for actionable/failed work while terminal duplicate metadata is compacted |
 | `semantic_scope_states` | Current per-snapshot semantic coverage and document pointers for modules, groups, and repository |
 | `semantic_taxonomies` | Snapshot-scoped proposal/review/finalization record with provider provenance, validation summary, facets, and temporal map changes |
@@ -93,6 +93,11 @@ immutable document. Current module dossiers and graph evidence feed a complete a
 proposal; critic jobs return corrected complete maps, and deterministic validation enforces exact
 primary membership before finalization. Group and repository documents are then synthesized from
 the semantic taxonomy and child dossier fingerprints rather than from another full source pass.
+Repository synthesis stores `architecture-charter-v1`, including its behavior-only
+`capability-brief-v1`. Current reads project that same Charter through dashboard, CLI, REST, and
+MCP with one identity and an explicit provisional/current/stale state. Optional declared overlays
+reuse immutable `semantic_documents` with `document_kind = charter_correction`; they retain the
+inferred claim and chain superseding corrections instead of creating a mutable architecture table.
 
 In agent-funded mode, only a SHA-256 digest of the opaque submission token is stored. The token is
 scoped to one job and lease; the completed document retains the reported executor label/model for

@@ -73,6 +73,12 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert overview["map"]["default_layer"] == "current"
         assert "declared" in overview["map"]["available_layers"]
         assert overview["group_hierarchies"]["declared"]
+        charter = overview["architecture_charter"]
+        assert charter["contract_version"] == "architecture-charter-v1"
+        assert charter["state"] == "provisional"
+        assert charter["complete"] is False
+        assert charter["responsibilities"]
+        assert charter["unknowns"]
         assert overview["graph_quality"]["resolution_rate"] == 1.0
         assert overview["coverage"]["state"] == "imported"
         assert overview["coverage"]["required"] is False
@@ -226,6 +232,10 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     assert overview.isError is False
                     assert overview.structuredContent["files"] == 8
                     assert overview.structuredContent["map_status"]["state"] == "current"
+                    charter = overview.structuredContent["architecture_charter"]
+                    assert charter["contract_version"] == "architecture-charter-v1"
+                    assert charter["state"] == "provisional"
+                    assert charter["identity"]
                     history = await session.call_tool("ANAXIGRAPH_HISTORY_STATUS", arguments={})
                     assert history.isError is False
                     assert history.structuredContent["status"] == "not_started"
@@ -243,6 +253,9 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                         schema.structuredContent["schema_version"] == "repository-understanding-v5"
                     )
                     assert schema.structuredContent["taxonomy_schema"]["type"] == "object"
+                    assert (
+                        schema.structuredContent["architecture_charter_schema"]["type"] == "object"
+                    )
                     assert schema.structuredContent["taxonomy_review_schema"]["type"] == "object"
                     assert schema.structuredContent["pattern_evaluation_schema"]["type"] == "object"
                     assert schema.structuredContent["pattern_review_schema"]["type"] == "object"

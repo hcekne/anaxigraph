@@ -64,12 +64,14 @@ class _DeterministicLifecycleProvider:
 
 def _fake_provider(tmp_path: Path, *, fail_path: str = "") -> Path:
     provider = tmp_path / "semantic_provider.py"
+    charter_json = json.dumps(_agent_charter(), separators=(",", ":"))
     provider.write_text(
         """from __future__ import annotations
 import json
 import sys
 
 request = json.load(sys.stdin)
+CHARTER_VALUE = json.loads(CHARTER_VALUE_JSON)
 path = str(request.get("path") or request.get("scope_key") or "scope")
 kind = str(request.get("analysis_kind") or "unknown")
 with open(sys.argv[1], "a", encoding="utf-8") as stream:
@@ -213,10 +215,12 @@ elif kind == "taxonomy_review":
     }
 elif kind.startswith("taxonomy_"):
     value = taxonomy_value()
+elif kind.startswith("synthesis") and request.get("scope_type") == "repository":
+    value = CHARTER_VALUE
 else:
     value = dossier
 json.dump({"result": value, "usage": {"input_tokens": 100, "output_tokens": 40}}, sys.stdout)
-""".replace("FAIL_PATH", repr(fail_path)),
+""".replace("FAIL_PATH", repr(fail_path)).replace("CHARTER_VALUE_JSON", repr(charter_json)),
         encoding="utf-8",
     )
     return provider
@@ -233,63 +237,10 @@ def _agent_dossier(request: dict) -> dict:
     kind = str(request.get("analysis_kind") or "semantic")
     if kind.startswith("pattern_"):
         return _agent_pattern_response(request, kind)
-
     if kind.startswith("taxonomy_"):
-        members = [
-            {
-                "path": item["path"],
-                "confidence": 0.8,
-                "rationale": "Grouped from supplied semantic evidence.",
-                "evidence": [item["path"]],
-                "alternatives": [],
-            }
-            for item in request.get("modules") or []
-        ]
-        taxonomy = {
-            "summary": "Agent-funded semantic repository map.",
-            "areas": [
-                {
-                    "key": "repository",
-                    "name": "Repository",
-                    "description": "Repository responsibilities.",
-                    "responsibility": "Own the analyzed repository.",
-                    "confidence": 0.8,
-                    "rationale": "Bounded test evidence supports one area.",
-                    "evidence": [item["path"] for item in (request.get("modules") or [])[:5]],
-                    "counter_evidence": [],
-                    "subsystems": [
-                        {
-                            "key": "repository-modules",
-                            "name": "Repository modules",
-                            "description": "Analyzed repository modules.",
-                            "responsibility": "Own module behavior.",
-                            "confidence": 0.8,
-                            "rationale": "Bounded test evidence supports one subsystem.",
-                            "evidence": [
-                                item["path"] for item in (request.get("modules") or [])[:5]
-                            ],
-                            "counter_evidence": [],
-                            "members": members,
-                        }
-                    ],
-                }
-            ]
-            if members
-            else [],
-            "facets": [],
-            "confidence": 0.8,
-            "evidence": ["Agent-funded taxonomy test"],
-        }
-        if kind.startswith("taxonomy_review"):
-            return {
-                "verdict": "approve",
-                "summary": "Reviewed the candidate taxonomy.",
-                "issues": [],
-                "taxonomy": request.get("candidate_taxonomy") or taxonomy,
-                "confidence": 0.85,
-                "evidence": ["Independent agent review"],
-            }
-        return taxonomy
+        return _agent_taxonomy(request, kind)
+    if kind.startswith("synthesis") and request.get("scope_type") == "repository":
+        return _agent_charter()
     return {
         "summary": f"{kind} understanding for {scope}",
         "detailed_summary": f"Evidence-grounded {kind} dossier for {scope}.",
@@ -321,6 +272,138 @@ def _agent_dossier(request: dict) -> dict:
         "risks": [],
         "evidence": [scope],
         "confidence": 0.9,
+    }
+
+
+def _agent_taxonomy(request: dict, kind: str) -> dict:
+    modules = request.get("modules") or []
+    members = [
+        {
+            "path": item["path"],
+            "confidence": 0.8,
+            "rationale": "Grouped from supplied semantic evidence.",
+            "evidence": [item["path"]],
+            "alternatives": [],
+        }
+        for item in modules
+    ]
+    taxonomy = {
+        "summary": "Agent-funded semantic repository map.",
+        "areas": [_agent_taxonomy_area(modules, members)] if members else [],
+        "facets": [],
+        "confidence": 0.8,
+        "evidence": ["Agent-funded taxonomy test"],
+    }
+    if not kind.startswith("taxonomy_review"):
+        return taxonomy
+    return {
+        "verdict": "approve",
+        "summary": "Reviewed the candidate taxonomy.",
+        "issues": [],
+        "taxonomy": request.get("candidate_taxonomy") or taxonomy,
+        "confidence": 0.85,
+        "evidence": ["Independent agent review"],
+    }
+
+
+def _agent_taxonomy_area(modules: list[dict], members: list[dict]) -> dict:
+    evidence = [item["path"] for item in modules[:5]]
+    return {
+        "key": "repository",
+        "name": "Repository",
+        "description": "Repository responsibilities.",
+        "responsibility": "Own the analyzed repository.",
+        "confidence": 0.8,
+        "rationale": "Bounded test evidence supports one area.",
+        "evidence": evidence,
+        "counter_evidence": [],
+        "subsystems": [
+            {
+                "key": "repository-modules",
+                "name": "Repository modules",
+                "description": "Analyzed repository modules.",
+                "responsibility": "Own module behavior.",
+                "confidence": 0.8,
+                "rationale": "Bounded test evidence supports one subsystem.",
+                "evidence": evidence,
+                "counter_evidence": [],
+                "members": members,
+            }
+        ],
+    }
+
+
+def _agent_charter() -> dict:
+    def claim(statement: str) -> dict:
+        return {
+            "statement": statement,
+            "evidence": ["supplied repository descriptions"],
+            "counter_evidence": [],
+            "confidence": 0.85,
+        }
+
+    def item(key: str, name: str, statement: str) -> dict:
+        return {
+            "key": key,
+            "name": name,
+            "statement": statement,
+            "related": [],
+            "entry_points": [],
+            "evidence": ["supplied repository descriptions"],
+            "counter_evidence": [],
+            "confidence": 0.85,
+        }
+
+    return {
+        "contract_version": "architecture-charter-v1",
+        "purpose": claim("Help people understand and improve a software repository."),
+        "actors": [item("developer", "Developer", "Uses the repository map to guide changes.")],
+        "capabilities": [item("repository-map", "Repository map", "Explains saved code behavior.")],
+        "responsibilities": [
+            item("understanding", "Understanding", "Keeps code explanations current.")
+        ],
+        "execution_flows": [
+            item("inspect", "Inspect", "A user requests and receives an explanation.")
+        ],
+        "public_contracts": [
+            item(
+                "saved-evidence",
+                "Saved evidence",
+                "Saved explanations remain tied to indexed evidence.",
+            )
+        ],
+        "invariants": [
+            item(
+                "read-only-source",
+                "Read-only source",
+                "Repository source remains read-only during analysis.",
+            )
+        ],
+        "extension_points": [],
+        "patterns": [],
+        "coherence_concerns": [],
+        "unknowns": [],
+        "conflicts": [],
+        "capability_brief": {
+            "contract_version": "capability-brief-v1",
+            "purpose": "Help people understand and improve a software repository.",
+            "actors": ["A person or coding agent planning a software change."],
+            "observable_capabilities": [
+                "Explain what the software does and how its parts cooperate."
+            ],
+            "user_journeys": ["Ask where a change belongs and receive evidence-backed guidance."],
+            "external_interfaces": [
+                "A dashboard, command line, and agent tool expose the same understanding."
+            ],
+            "non_functional_requirements": ["Analysis does not modify the inspected repository."],
+            "compatibility_obligations": [],
+            "non_goals": ["It does not edit source code by itself."],
+            "unknowns": [],
+            "evidence": ["indexed repository behavior"],
+            "confidence": 0.85,
+        },
+        "confidence": 0.85,
+        "evidence": ["supplied repository descriptions"],
     }
 
 

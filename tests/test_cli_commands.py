@@ -78,6 +78,22 @@ def test_repository_agent_and_export_handlers_share_the_current_scan(
         ["patterns", *common, "--candidates", "--pattern", "circular-dependency", "--limit", "1"],
         capsys,
     )
+    charter = _call(["charter", *common], capsys)
+    corrected_charter = _call(
+        [
+            "charter",
+            *common,
+            "--correct-section",
+            "purpose",
+            "--statement",
+            "Provide sample calculator behavior.",
+            "--author",
+            "test owner",
+            "--rationale",
+            "The source map alone cannot establish the intended user outcome.",
+        ],
+        capsys,
+    )
     exported = _call(["export", *common], capsys)
 
     assert scanned["status"] == "ok"
@@ -89,6 +105,15 @@ def test_repository_agent_and_export_handlers_share_the_current_scan(
     assert patterns["index"]["authority"] == "local"
     assert patterns["total"] == 0
     assert candidate_explanations["contract_version"] == "pattern-candidate-query-v1"
+    assert charter["contract_version"] == "architecture-charter-v1"
+    assert charter["state"] == "provisional"
+    assert charter["complete"] is False
+    assert charter["responsibilities"]
+    assert (
+        corrected_charter["purpose"]["statement"]
+        != (corrected_charter["purpose"]["presented_statement"])
+    )
+    assert corrected_charter["declared_context"][0]["author"] == "test owner"
     assert exported["contract_version"] == "anaxigraph-export-v1"
     assert exported["graph"]["nodes"]
     assert exported["graph"]["counts"]["page_internal_nodes"] <= 250

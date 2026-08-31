@@ -9,6 +9,11 @@ from typing import Any
 
 import anaxigraph.cli_services as cli_services
 import anaxigraph.cli_workflows as cli_workflows
+from anaxigraph.architecture_charter import architecture_charter
+from anaxigraph.architecture_charter_corrections import (
+    CORRECTABLE_SECTIONS,
+    save_charter_correction,
+)
 from anaxigraph.bounded_export import bounded_export
 from anaxigraph.cli_common import add_repository_arguments, default_db, ensure_current
 
@@ -17,6 +22,7 @@ def configure_repository_commands(commands: Any) -> None:
     _configure_scans(commands)
     _configure_review(commands)
     _configure_search(commands)
+    _configure_charter(commands)
     _configure_export(commands)
     cli_workflows.configure_finding_command(commands, _finding, default_db())
 
@@ -47,6 +53,18 @@ def _configure_search(commands: Any) -> None:
     add_repository_arguments(search)
     search.add_argument("--limit", type=int, default=20)
     search.set_defaults(handler=_search)
+
+
+def _configure_charter(commands: Any) -> None:
+    charter = commands.add_parser("charter", help="Explain repository purpose and architecture")
+    add_repository_arguments(charter)
+    charter.add_argument("--correct-section", choices=sorted(CORRECTABLE_SECTIONS))
+    charter.add_argument("--key", default="", help="Stable key of a named Charter claim")
+    charter.add_argument("--statement", default="", help="Declared replacement or addition")
+    charter.add_argument("--author", default="", help="Person or principal making the correction")
+    charter.add_argument("--rationale", default="", help="Why the declared context is needed")
+    charter.add_argument("--withdraw", action="store_true", help="Withdraw this declared overlay")
+    charter.set_defaults(handler=_charter)
 
 
 def _configure_export(commands: Any) -> None:
@@ -104,6 +122,35 @@ def _search(args: argparse.Namespace) -> dict[str, Any]:
     database, repository_id, _config = ensure_current(args)
     limit = max(1, min(int(args.limit), 100))
     return {"query": args.query, "results": database.search(repository_id, args.query, limit=limit)}
+
+
+def _charter(args: argparse.Namespace) -> dict[str, Any]:
+    database, repository_id, config = ensure_current(args)
+    repository = database.repository(repository_id)
+    assert repository is not None
+    correction_values = (
+        args.key,
+        args.statement,
+        args.author,
+        args.rationale,
+        args.withdraw,
+    )
+    if any(correction_values) and not args.correct_section:
+        raise ValueError("--correct-section is required when changing declared Charter context")
+    if args.correct_section:
+        save_charter_correction(
+            database,
+            repository_id,
+            section=args.correct_section,
+            key=args.key,
+            statement=args.statement,
+            author=args.author,
+            rationale=args.rationale,
+            active=not args.withdraw,
+        )
+    overview = database.overview(repository_id)
+    semantic = cli_services.semantics(database).status(repository_id, config.semantic)
+    return architecture_charter(repository, overview, semantic)
 
 
 def _finding(args: argparse.Namespace) -> dict[str, Any]:

@@ -6,8 +6,8 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
+from anaxigraph.architecture_charter_contract import ARCHITECTURE_CHARTER_VERSION
 from anaxigraph.semantic_config_port import SemanticConfig
-from anaxigraph.semantic_file_language import semantic_file_explanation
 from anaxigraph.semantic_job_state import FAILED_SEMANTIC_SCOPE_STATES
 from anaxigraph.semantic_status_language import semantic_status_explanation
 from anaxigraph.semantic_status_queries import SemanticStatusRows
@@ -42,7 +42,8 @@ def semantic_status_payload(
         "usage": _usage_payload(rows),
         "telemetry": _telemetry_payload(rows, snapshot_id),
         "budget": _budget_payload(rows, semantic, coverage),
-        "repository_dossier": _repository_document(rows.repository_state),
+        "architecture_charter": _architecture_charter_document(rows.repository_state),
+        "charter_corrections": rows.charter_corrections,
         "taxonomy": _taxonomy_payload(rows.taxonomy, semantic, coverage),
         "patterns": _pattern_payload(rows, semantic),
         "recommended_action": _recommended_action(rows, semantic, coverage),
@@ -94,7 +95,7 @@ def _coverage(rows: SemanticStatusRows, semantic: SemanticConfig | None) -> Sema
     failed = sum(rows.counts.get(key, 0) for key in FAILED_SEMANTIC_SCOPE_STATES)
     pending = _pending(rows.counts)
     pending_scopes, failed_scopes = _non_module_metrics(rows.scope_counts)
-    repository_ready = bool(rows.repository_state and rows.repository_state["status"] == "current")
+    repository_ready = _repository_charter_ready(rows.repository_state)
     taxonomy_enabled = bool(semantic and semantic.enabled and semantic.taxonomy.enabled)
     taxonomy_ready = bool(rows.taxonomy and rows.taxonomy["status"] == "current")
     patterns_ready = _patterns_ready(rows, semantic)
@@ -361,12 +362,22 @@ def _budget_payload(
     }
 
 
-def _repository_document(state: dict[str, Any] | None) -> dict[str, Any] | None:
-    if not state or not state["value_json"]:
+def _repository_charter_ready(state: dict[str, Any] | None) -> bool:
+    if not state or state.get("status") != "current" or not state.get("value_json"):
+        return False
+    value = json.loads(state["value_json"])
+    return value.get("contract_version") == ARCHITECTURE_CHARTER_VERSION
+
+
+def _architecture_charter_document(state: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not state or not state.get("value_json"):
         return None
     value = json.loads(state["value_json"])
+    if value.get("contract_version") != ARCHITECTURE_CHARTER_VERSION:
+        return None
     result = {
         "status": state["status"],
+        "document_id": state["document_id"],
         "value": value,
         "confidence": state["confidence"],
         "provider": state["provider"],
@@ -376,15 +387,6 @@ def _repository_document(state: dict[str, Any] | None) -> dict[str, Any] | None:
         "prompt_version": state["prompt_version"],
         "created_at": state["created_at"],
     }
-    result["plain_language"] = semantic_file_explanation(
-        "the whole repository",
-        {
-            **value,
-            "status": state["status"],
-            "confidence": state["confidence"],
-            "subject_kind": "repository",
-        },
-    )
     return result
 
 

@@ -6,6 +6,7 @@ import pytest
 import yaml
 from semantic_support import _agent_dossier
 
+from anaxigraph.architecture_charter import architecture_charter
 from anaxigraph.config import load_config
 from anaxigraph.persistence import rebuild_checkpoints
 from anaxigraph.persistence.semantic_evidence import semantic_inventory
@@ -39,6 +40,7 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
 
     last_packet = None
     last_dossier = None
+    saw_charter_task = False
     for _ in range(500):
         packet = engine.claim_agent_work(
             stats.repository_id,
@@ -59,6 +61,13 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
         terms = packet["analysis_request"]["input_term_meanings"]
         assert "one repository file" in terms["module"]
         assert "not a code-quality grade" in terms["complexity"]
+        request = packet["analysis_request"]
+        if request.get("scope_type") == "repository" and str(
+            request.get("analysis_kind")
+        ).startswith("synthesis"):
+            saw_charter_task = True
+            assert packet["response_contract"]["artifact"] == "architecture_charter"
+            assert "capability_brief" in packet["response_contract"]["required_fields"]
         manifest = packet["evidence_manifest"]
         if manifest:
             pages = [
@@ -89,6 +98,7 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
         raise AssertionError("Agent-funded semantic bootstrap did not converge")
 
     status = engine.status(stats.repository_id, config.semantic)
+    assert saw_charter_task is True
     assert status["semantically_ready"] is True
     assert status["execution_mode"] == "coding_agent"
     assert status["patterns"]["ready"] is True
@@ -115,8 +125,14 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
     )
     assert scan_action["completed"] == 1
     assert scan_action["input_tokens"] == 0
-    assert status["repository_dossier"]["executor_id"] == "codex-test"
-    assert status["repository_dossier"]["executor_model"] == "test-model"
+    assert status["architecture_charter"]["executor_id"] == "codex-test"
+    assert status["architecture_charter"]["executor_model"] == "test-model"
+    row = database.repository(stats.repository_id)
+    assert row is not None
+    charter = architecture_charter(row, database.overview(stats.repository_id), status)
+    assert charter["state"] == "current"
+    assert charter["complete"] is True
+    assert charter["capability_brief"]["observable_capabilities"]
     with database.transaction() as connection:
         connection.execute(
             """

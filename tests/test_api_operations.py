@@ -324,6 +324,18 @@ async def test_request_limit_preserves_combined_mcp_transport(repository, databa
             base_url="http://testserver",
             timeout=5,
         ) as http_client:
+            corrected = await http_client.post(
+                "/api/charter/corrections",
+                json={
+                    "section": "purpose",
+                    "statement": "Provide sample calculator behavior.",
+                    "author": "test owner",
+                    "rationale": "Static facts do not establish the intended user outcome.",
+                },
+            )
+            assert corrected.status_code == 200
+            rest_charter = (await http_client.get("/api/overview")).json()["architecture_charter"]
+            assert corrected.json()["identity"] == rest_charter["identity"]
             async with streamable_http_client(
                 "http://testserver/mcp",
                 http_client=http_client,
@@ -335,3 +347,9 @@ async def test_request_limit_preserves_combined_mcp_transport(repository, databa
 
     assert overview.isError is False
     assert overview.structuredContent["files"] == 8
+    mcp_charter = overview.structuredContent["architecture_charter"]
+    assert mcp_charter["identity"] == rest_charter["identity"]
+    assert mcp_charter["readiness"] == rest_charter["readiness"]
+    assert mcp_charter["purpose"] == rest_charter["purpose"]
+    assert mcp_charter["caveats"] == rest_charter["caveats"]
+    assert mcp_charter["declared_context"] == rest_charter["declared_context"]

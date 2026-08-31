@@ -20,6 +20,18 @@ from anaxigraph.semantic_request_support import (
     compact_dossier,
 )
 
+_REPOSITORY_CHARTER_CONTRACT = (
+    "Create the Living Architecture Charter for this repository. Explain its purpose, actors, "
+    "observable capabilities, responsibility areas, important execution flows, behavior other "
+    "systems rely on, invariants, safe extension points, recurring patterns, and current coherence "
+    "concerns. Treat README and documentation statements as claims to compare with code evidence, "
+    "not automatic truth; record contradictions and unknowns. Every material statement needs "
+    "specific supplied evidence and counter-evidence when present. The embedded Capability Brief "
+    "must describe the problem and externally visible behavior for a fresh architect without "
+    "leaking current file, package, framework, storage, or internal-boundary names unless one is "
+    "itself a public compatibility obligation. Do not propose or approve code changes."
+)
+
 
 class SemanticEvidenceService:
     def __init__(self, database: SemanticIndex) -> None:
@@ -186,8 +198,11 @@ class SemanticEvidenceService:
                 if job["metadata"].get("previous_document_id")
                 else None
             )
+        repository = job["scope_type"] == "repository"
         return {
-            "contract": (
+            "contract": _REPOSITORY_CHARTER_CONTRACT
+            if repository
+            else (
                 "Combine the supplied descriptions into one clear explanation of this repository "
                 "area. Keep important differences between files, identify work they share, and "
                 "summarize supported pattern ideas, combine-or-separate advice, and where new work "

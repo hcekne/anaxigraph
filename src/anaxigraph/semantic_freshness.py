@@ -12,7 +12,7 @@ from typing import Any
 MODULE_INTRINSIC_CONTRACT = "module-intrinsic-v1"
 MODULE_CONTEXT_CONTRACT = "module-context-v1"
 GROUP_SYNTHESIS_CONTRACT = "group-synthesis-v1"
-REPOSITORY_SYNTHESIS_CONTRACT = "repository-synthesis-v1"
+REPOSITORY_SYNTHESIS_CONTRACT = "architecture-charter-v1"
 TAXONOMY_PROPOSAL_CONTRACT = "taxonomy-proposal-v1"
 TAXONOMY_REVIEW_CONTRACT = "taxonomy-review-v1"
 PATTERN_PLAN_CONTRACT = "pattern-plan-v1"

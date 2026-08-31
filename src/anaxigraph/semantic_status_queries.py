@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from anaxigraph.architecture_charter_corrections import read_charter_corrections
+
 
 @dataclass(frozen=True, slots=True)
 class SemanticStatusRows:
@@ -19,6 +21,7 @@ class SemanticStatusRows:
     next_estimated_cost: float
     last_checked: str | None
     repository_state: dict[str, Any] | None
+    charter_corrections: list[dict[str, Any]]
     taxonomy: dict[str, Any] | None
     current_semantic_actions: list[dict[str, Any]]
     lifetime_semantic_actions: list[dict[str, Any]]
@@ -46,6 +49,7 @@ def read_semantic_status(
         next_estimated_cost=_next_cost(connection, repository_id, snapshot_id),
         last_checked=_last_checked(connection, snapshot_id),
         repository_state=_repository_state(connection, snapshot_id),
+        charter_corrections=read_charter_corrections(connection, repository_id),
         taxonomy=_taxonomy(connection, snapshot_id),
         current_semantic_actions=_semantic_actions(connection, repository_id, snapshot_id),
         lifetime_semantic_actions=_semantic_actions(connection, repository_id),
@@ -179,7 +183,7 @@ def _last_checked(connection: sqlite3.Connection, snapshot_id: int) -> str | Non
 def _repository_state(connection: sqlite3.Connection, snapshot_id: int) -> dict[str, Any] | None:
     row = connection.execute(
         """
-        SELECT ss.status, sd.value_json, sd.confidence, sd.provider, sd.model,
+        SELECT ss.status, sd.id AS document_id, sd.value_json, sd.confidence, sd.provider, sd.model,
                sd.executor_id, sd.executor_model, sd.prompt_version, sd.created_at
         FROM semantic_scope_states ss
         LEFT JOIN semantic_documents sd ON sd.id = ss.context_document_id

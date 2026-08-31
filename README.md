@@ -117,10 +117,30 @@ evidence for one file or code area at a time, checks the returned structured des
 which worker and model created it, and resumes unfinished work in a later session. Once every file
 has a current description, the same workflow automatically proposes a
 responsibility-based area/subsystem map, runs independent AI critic/revision passes, and applies
-exact membership and size checks in code. There is no human approval gate: the result is
-versioned map metadata and never edits or controls the analyzed code. Unchanged fingerprints avoid
-rereading unchanged files or rebuilding an unchanged file grouping. View the result in the dashboard
-Map selector or through `ANAXIGRAPH_TAXONOMY`.
+exact membership and size checks in code. It then produces a versioned **Living Architecture
+Charter**: purpose, actors, observable capabilities, responsibilities, important flows, public
+contracts, invariants, extension points, patterns, coherence concerns, conflicts, unknowns, and a
+behavior-only Capability Brief for fresh-context review. There is no human approval gate: the
+result is versioned map metadata and never edits or controls the analyzed code. Unchanged
+fingerprints avoid rereading unchanged files or rebuilding unchanged higher-level understanding.
+Read the same Charter in Overview, `anaxigraph charter .`, or `ANAXIGRAPH_OVERVIEW`; use the Map
+selector or `ANAXIGRAPH_TAXONOMY` for its area/subsystem structure.
+
+A deterministic scan exposes an honest provisional Charter immediately. AI synthesis replaces it
+only when current evidence is complete; a prior Charter is labeled stale after relevant evidence
+changes. Optional declared context can clarify an inferred claim without overwriting it:
+
+```bash
+anaxigraph charter . \
+  --correct-section purpose \
+  --statement "Help teams keep AI-assisted code architecturally coherent." \
+  --author "repository owner" \
+  --rationale "This intended outcome is not fully visible in source structure."
+```
+
+The overlay retains the inferred statement, author, time, and rationale in AnaxiIndex. Repeat with
+`--withdraw` to remove it from the current presentation. Human input is never required for Charter
+generation, refresh, or agent use.
 
 The complete [onboarding guide](docs/onboarding.md) explains the normal coding loop and setup
 diagnostics.
@@ -265,7 +285,8 @@ optional declared intent first, then the AI-reviewed **Responsibility map**, the
 kept separate from their display labels, and history uses today's current-view frame by default so
 the same regions visibly fill and connect over time.
 
-- **Overview** summarizes areas, evidence completeness, history, and immediate attention.
+- **Overview** leads with the Living Architecture Charter, then summarizes areas, evidence
+  completeness, history, and immediate attention.
 - **Files** is a sortable and filterable list of purpose, repository area, size, branch count,
   direct code links, Git activity, test coverage, findings, and pattern review.
 - **Graph** moves between repository areas and direct links between files.

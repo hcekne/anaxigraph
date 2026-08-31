@@ -8,6 +8,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 
 import anaxigraph.api_support as api_support
+from anaxigraph.architecture_charter import architecture_charter
+from anaxigraph.architecture_charter_corrections import save_charter_correction
 from anaxigraph.config_authority import effective_semantic_policy, service_config_authority
 from anaxigraph.operational_health import served_map_status
 
@@ -24,6 +26,9 @@ class RepositoryRoutes:
         self.router.add_api_route("/api/repositories", self.repositories, methods=["GET"])
         self.router.add_api_route("/api/glossary", self.glossary, methods=["GET"])
         self.router.add_api_route("/api/overview", self.overview, methods=["GET"])
+        self.router.add_api_route(
+            "/api/charter/corrections", self.correct_charter, methods=["POST"]
+        )
         self.router.add_api_route("/api/modules", self.modules, methods=["GET"])
         self.router.add_api_route("/api/taxonomy", self.taxonomy, methods=["GET"])
         self.router.add_api_route("/api/file", self.file_details, methods=["GET"])
@@ -83,6 +88,7 @@ class RepositoryRoutes:
             result["semantic"] = api_support.SemanticEngine(self.database).status(
                 int(row["id"]), config.semantic
             )
+            result["architecture_charter"] = architecture_charter(row, result, result["semantic"])
         return result
 
     def modules(
@@ -94,6 +100,23 @@ class RepositoryRoutes:
     ) -> list[dict[str, Any]]:
         row = self.context.selected_repository(repository_id)
         return self.database.modules(int(row["id"]), snapshot_id, limit=limit, offset=offset)
+
+    def correct_charter(self, request: api_support.CharterCorrectionRequest) -> dict[str, Any]:
+        row = self.context.selected_repository(request.repository_id)
+        try:
+            save_charter_correction(
+                self.database,
+                int(row["id"]),
+                section=request.section,
+                key=request.key,
+                statement=request.statement,
+                author=request.author,
+                rationale=request.rationale,
+                active=request.active,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return self.overview(int(row["id"]))["architecture_charter"]
 
     def taxonomy(
         self,

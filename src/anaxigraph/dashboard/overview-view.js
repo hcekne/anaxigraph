@@ -11,12 +11,7 @@ import {
   state,
   toast,
 } from "/assets/dashboard-core.js";
-import {
-  consolidationMarkup,
-  deadCodeList,
-  detailList,
-  patternOpportunityList,
-} from "/assets/dashboard-format.js";
+import { detailList } from "/assets/dashboard-format.js";
 import { findingCards } from "/assets/findings-view.js";
 import {
   architectureColor,
@@ -59,7 +54,7 @@ export function renderOverview() {
     state.findings.slice(0, 10), { glossary: state.glossary, actions: false },
   );
   renderSemanticNotice(semantic);
-  renderRepositoryIntelligence(semantic);
+  renderRepositoryIntelligence(value.architecture_charter);
   renderGraphQualityNotice(graphQuality);
   renderCoverageNotice(value.coverage || {});
 }
@@ -100,24 +95,28 @@ function renderCoverageNotice(coverage) {
   notice.innerHTML = `<strong>Required line coverage is unavailable.</strong><p>${escapeHtml(reason)}</p><details><summary>Coverage inputs · ${found}/${inputs.length} found</summary><ul class="coverage-inputs">${rows || "<li>No coverage paths are configured.</li>"}</ul></details><p class="coverage-next">Run the repository's own test or CI command first. <strong>Refresh scan</strong> only imports a report that already exists.</p>`;
 }
 
-function renderRepositoryIntelligence(semantic) {
+function renderRepositoryIntelligence(value) {
   const panel = byId("repository-intelligence");
-  const document = semantic.repository_dossier;
-  const value = document?.value;
   panel.hidden = !value;
   if (!value) {
     panel.innerHTML = "";
     return;
   }
-  const language = document.plain_language || {};
-  const summary = language.what_this_file_does || value.summary
-    || "The AI map did not record a repository summary.";
-  const role = language.role_in_repository || value.architecture_role || value.detailed_summary
-    || "The AI map did not record the repository's role.";
-  const placement = language.where_related_work_belongs || value.placement_guidance
-    || "The AI map did not record where new repository-wide work belongs.";
-  const risks = language.risks_and_uncertainty || value.risks || [];
-  panel.innerHTML = `<div class="panel-heading"><div><p class="eyebrow">Whole-repository AI description</p><h2>What this repository does</h2><p class="panel-copy">${escapeHtml(summary)}</p><p class="inspector-provenance">Created by ${escapeHtml(semanticProviderLabel(document))}. This is an AI explanation based on indexed evidence; check that evidence before changing code.</p></div></div><div class="repository-intelligence-grid"><div><h3>Role of this repository</h3><p>${escapeHtml(role)}</p><h3>Where new work belongs</h3><p>${escapeHtml(placement)}</p></div><div><h3>Patterns that may fit</h3>${patternOpportunityList(value.pattern_opportunities || [])}${consolidationMarkup(value.consolidation_assessment)}</div><div><h3>Code that may no longer be used</h3>${deadCodeList(value.dead_code_candidates || [])}<h3>Risks and uncertainty</h3>${detailList(risks, "The AI map did not record a repository-wide risk")}</div></div>`;
+  const statements = (items = []) => items.map(
+    (item) => item.presented_statement || item.statement || item.name,
+  );
+  const unknowns = (value.unknowns || []).map((item) => item.question);
+  const conflicts = (value.conflicts || []).map((item) => item.claim);
+  const declared = (value.declared_context || []).map(
+    (item) => `${item.statement} — ${item.author}: ${item.rationale}`,
+  );
+  const source = value.state === "provisional"
+    ? "Built from static scan facts only. AI review has not confirmed the product meaning yet."
+    : value.state === "stale"
+      ? "Saved AI understanding is visible, but changed code evidence still needs review."
+    : `Created by ${semanticProviderLabel(value.provenance)}. Every claim should point back to indexed evidence; uncertainty stays visible.`;
+  const purpose = value.purpose?.presented_statement || value.purpose?.statement;
+  panel.innerHTML = `<div class="panel-heading"><div><p class="eyebrow">Living Architecture Charter · ${escapeHtml(value.state)}</p><h2>What this repository does</h2><p class="panel-copy">${escapeHtml(purpose || "The Charter did not record a purpose.")}</p><p class="inspector-provenance">${escapeHtml(source)}</p></div></div><div class="repository-intelligence-grid"><div><h3>Observable capabilities</h3>${detailList(statements(value.capabilities), "No capability has enough evidence yet")}<h3>Responsibility areas</h3>${detailList(statements(value.responsibilities), "No responsibility has enough evidence yet")}</div><div><h3>Important flows</h3>${detailList(statements(value.execution_flows), "No execution flow has enough evidence yet")}<h3>Safe extension points</h3>${detailList(statements(value.extension_points), "No extension point has enough evidence yet")}</div><div><h3>Coherence concerns</h3>${detailList(statements(value.coherence_concerns), "No current coherence concern was recorded")}<h3>Unknowns and conflicts</h3>${detailList([...unknowns, ...conflicts], "No unresolved unknown or conflict was recorded")}<h3>Declared context</h3>${detailList(declared, "No human or principal correction has been added")}</div></div>`;
 }
 
 export function semanticProviderLabel(document = {}) {

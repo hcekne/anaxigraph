@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from anaxigraph.agent import agent_scope, impact_analysis
+from anaxigraph.architecture_charter import architecture_charter
 from anaxigraph.config import load_config
 from anaxigraph.config_authority import effective_semantic_policy, service_config_authority
 from anaxigraph.operational_health import served_map_status
@@ -156,6 +157,7 @@ class CoreMcpTools:
         semantic = current_semantic_status(self.database, int(row["id"]), config.semantic)
         semantic.update(self.context.semantic_config_contract(row, root, config))
         result["semantic"] = semantic
+        result["architecture_charter"] = architecture_charter(row, result, semantic)
         return result
 
     def search(self, query: str, limit: int = 20, repository: str = "") -> dict[str, Any]:
