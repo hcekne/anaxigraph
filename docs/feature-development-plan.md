@@ -3611,6 +3611,24 @@ The exact production-source ratchet falls another 265 lines, from 50,287 to **50
 10 has now removed 3,885 production lines; **1,522 lines remain** before the 48,500 target, and one
 flat low-level tool no longer competes with the goal-oriented agent workflow.
 
+### 10.2 delivery record: keep operator controls out of the coding-agent menu
+
+The installed agent workflow does not start or cancel Git-history imports and does not issue raw
+pattern-result queries. History import is an operator action already owned by the dashboard and
+CLI; agents only need its read-only status when answering a history question. Relevant pattern
+recommendations are already composed into Scope, while the complete expert result browser remains
+available through the dashboard, REST API, and `anaxigraph patterns`.
+
+`ANAXIGRAPH_HISTORY_IMPORT`, `ANAXIGRAPH_HISTORY_CANCEL`, and `ANAXIGRAPH_PATTERNS` are removed from
+the flat MCP menu without removing history import/cancellation or pattern intelligence. Their
+198-line adapters and registration paths disappear. The now-empty 26-line `mcp_tools` forwarding
+facade also disappears; the MCP composition root calls the retained history and finding tool
+families directly. Focused MCP, history, CLI-pattern, and pattern-query contracts pass.
+
+The exact production-source ratchet falls from 50,022 to **49,800 lines**. Phase 10 has now removed
+4,107 production lines; **1,300 lines remain** before the 48,500 target. This slice also removes
+three more low-level choices from the tool list seen by an ordinary coding agent.
+
 ## 10.3 Make human understanding the primary dashboard journey
 
 Use the existing semantic repository dossier, reviewed taxonomy, graph, file detail, and history to

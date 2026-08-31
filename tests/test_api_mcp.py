@@ -183,8 +183,6 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     assert {
                         "ANAXIGRAPH_OVERVIEW",
                         "ANAXIGRAPH_HISTORY_STATUS",
-                        "ANAXIGRAPH_HISTORY_IMPORT",
-                        "ANAXIGRAPH_HISTORY_CANCEL",
                         "ANAXIGRAPH_SEMANTIC_STATUS",
                         "ANAXIGRAPH_TAXONOMY",
                         "ANAXIGRAPH_SEMANTIC_SCHEMA",
@@ -193,7 +191,6 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                         "ANAXIGRAPH_SEMANTIC_SUBMIT",
                         "ANAXIGRAPH_SEMANTIC_RELEASE",
                         "ANAXIGRAPH_SEMANTIC_FAIL",
-                        "ANAXIGRAPH_PATTERNS",
                         "ANAXIGRAPH_SEARCH",
                         "ANAXIGRAPH_FILE",
                         "ANAXIGRAPH_SCOPE",
@@ -221,27 +218,6 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     assert overview.isError is False
                     assert overview.structuredContent["files"] == 8
                     assert overview.structuredContent["map_status"]["state"] == "current"
-                    patterns = await session.call_tool("ANAXIGRAPH_PATTERNS", arguments={})
-                    assert patterns.isError is False
-                    assert patterns.structuredContent["contract_version"] == "pattern-query-v1"
-                    assert patterns.structuredContent["total"] == 0
-                    invalid_patterns = await session.call_tool(
-                        "ANAXIGRAPH_PATTERNS", arguments={"limit": 101}
-                    )
-                    assert invalid_patterns.isError is True
-                    candidate_explanations = await session.call_tool(
-                        "ANAXIGRAPH_PATTERNS",
-                        arguments={
-                            "mode": "candidates",
-                            "pattern": "circular-dependency",
-                            "limit": 1,
-                        },
-                    )
-                    assert candidate_explanations.isError is False
-                    assert (
-                        candidate_explanations.structuredContent["contract_version"]
-                        == "pattern-candidate-query-v1"
-                    )
                     history = await session.call_tool("ANAXIGRAPH_HISTORY_STATUS", arguments={})
                     assert history.isError is False
                     assert history.structuredContent["status"] == "not_started"

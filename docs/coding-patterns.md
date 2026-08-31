@@ -33,8 +33,6 @@ bounded query in either direction:
 
 ```text
 anaxigraph patterns . --target module:src/service.py --sort-by opportunity --json
-ANAXIGRAPH_PATTERNS(target="module:src/service.py", sort_by="opportunity")
-ANAXIGRAPH_PATTERNS(pattern="strategy", sort_by="conformance")
 GET /api/patterns?target=src/service.py&include_evidence=true
 ```
 
@@ -63,7 +61,6 @@ persisted sparse plan. It does not store or regenerate the dense target-by-patte
 
 ```text
 anaxigraph patterns . --candidates --pattern=strategy --selection=skipped --include-evidence
-ANAXIGRAPH_PATTERNS(mode="candidates", pattern="strategy", selection="skipped")
 GET /api/patterns/candidates?pattern=strategy&selection=skipped&include_evidence=true
 ```
 

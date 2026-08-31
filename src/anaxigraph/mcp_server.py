@@ -5,9 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from anaxigraph.finding_mcp import register_finding_tools
+from anaxigraph.history_mcp import register_history_tools
 from anaxigraph.mcp_core import CoreMcpTools, McpToolContext
 from anaxigraph.mcp_runtime import build_responsive_mcp
-from anaxigraph.mcp_tools import register_finding_tools, register_query_tools
 from anaxigraph.registry import RepositoryTarget
 from anaxigraph.semantic_mcp import register_semantic_tools
 from anaxigraph.storage import AnaxiIndex
@@ -27,13 +28,11 @@ def create_anaxi_mcp_server(
     context = McpToolContext(database, repository, config_path, repository_targets)
 
     CoreMcpTools(server, context, allow_scan=allow_scan_tool).register()
-    register_query_tools(
+    register_history_tools(
         server,
-        database,
-        context.select,
-        context.targets_by_path,
-        config_path,
-        history_service,
+        database=database,
+        context=context.select,
+        service=history_service,
     )
     register_semantic_tools(
         server,

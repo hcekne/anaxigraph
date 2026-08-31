@@ -192,8 +192,8 @@ anaxigraph history /path/to/repository --limit auto
 ```
 
 Cancellation happens between atomic frames. Restarting resumes compatible completed work. MCP
-clients have the matching repository-scoped `ANAXIGRAPH_HISTORY_STATUS`,
-`ANAXIGRAPH_HISTORY_IMPORT`, and `ANAXIGRAPH_HISTORY_CANCEL` tools.
+clients can read repository-scoped progress with `ANAXIGRAPH_HISTORY_STATUS`; explicit import and
+cancellation remain operator actions in the dashboard and CLI.
 
 Refresh on demand in the dashboard, or let the generated polling sidecar keep the map current:
 

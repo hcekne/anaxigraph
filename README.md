@@ -269,9 +269,9 @@ runtime wiring can still be invisible, so a missing edge is never presented as p
   it after a rescan, and explains semantic progress without calling every difference an
   improvement. Reviewed patterns keep their size-limited plain-language explanation in this handoff;
   agents do not receive unexplained suitability or opportunity numbers.
-- **Pattern intelligence** lets agents query finalized evaluations by target or catalog pattern
-  in the **Patterns** view or through `anaxigraph patterns`, `ANAXIGRAPH_PATTERNS`, and the paged
-  `/api/patterns` endpoint. Each result leads with a conclusion, evidence, action, cautions, and
+- **Pattern intelligence** exposes finalized evaluations by target or catalog pattern in the
+  **Patterns** view, through `anaxigraph patterns`, and through the paged `/api/patterns` endpoint.
+  Scope includes relevant recommendations directly for coding agents. Each result leads with a conclusion, evidence, action, cautions, and
   verification; its nine exact ratings are grouped and explained instead of shown as a number wall.
   Candidate results likewise explain why a pair was selected or skipped, what evidence is missing,
   and why the internal selection order is not itself a pattern recommendation.
