@@ -5,7 +5,6 @@ import copy
 import pytest
 
 from anaxigraph.pattern_evaluation_contract import (
-    PATTERN_ANALYSIS_KINDS,
     PATTERN_EVALUATION_SCHEMA,
     PATTERN_PRESENCE,
     PATTERN_RECOMMENDATIONS,
@@ -238,7 +237,6 @@ def test_review_identity_and_version_are_strict():
 
 
 def test_response_dispatch_is_narrow_and_versioned():
-    assert PATTERN_ANALYSIS_KINDS == {"pattern_assessment", "pattern_review"}
     assessment = pattern_response_schema(_request())
     review = pattern_response_schema(_request("pattern_review"))
     assert assessment is not PATTERN_EVALUATION_SCHEMA

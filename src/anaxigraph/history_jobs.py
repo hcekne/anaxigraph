@@ -19,6 +19,7 @@ from anaxigraph.storage import AnaxiIndex
 
 ACTIVE_STATES = frozenset({"queued", "enumerating", "importing", "finalizing"})
 JOB_TYPE = "history_import"
+CLAIM_STALE_SECONDS = 300
 
 
 class HistoryJobService:
@@ -175,12 +176,17 @@ class HistoryJobService:
             metadata = json.loads(row["metadata_json"] or "{}")
             owner_pid = int(metadata.get("worker_pid") or 0)
             same_host = metadata.get("worker_host") == socket.gethostname()
-            if owner_pid and same_host and _pid_is_running(owner_pid):
+            heartbeat = metadata.get("heartbeat_at") or metadata.get("claimed_at")
+            if owner_pid and (
+                (same_host and _pid_is_running(owner_pid))
+                or (heartbeat and _elapsed_seconds(heartbeat, None) < CLAIM_STALE_SECONDS)
+            ):
                 return False
             metadata.update(
                 worker_pid=os.getpid(),
                 worker_host=socket.gethostname(),
                 claimed_at=utc_now(),
+                heartbeat_at=utc_now(),
             )
             connection.execute(
                 "UPDATE analysis_runs SET metadata_json = ? WHERE id = ?",
@@ -303,6 +309,7 @@ class HistoryJobService:
         )
 
     def _transition(self, job_id: int, status: str, **metadata: Any) -> None:
+        metadata["heartbeat_at"] = utc_now()
         self._update(job_id, status=status, **metadata)
 
     def _finish(

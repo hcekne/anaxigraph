@@ -142,10 +142,6 @@ TAXONOMY_REVIEW_SCHEMA: dict[str, Any] = {
 }
 
 
-def taxonomy_analysis_kind(request: dict[str, Any]) -> bool:
-    return str(request.get("analysis_kind") or "").startswith("taxonomy_")
-
-
 def response_schema(request: dict[str, Any]) -> dict[str, Any]:
     pattern_schema = pattern_response_schema(request)
     if pattern_schema is not None:

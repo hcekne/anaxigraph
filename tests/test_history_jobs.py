@@ -106,6 +106,23 @@ def test_recover_resumes_durable_active_job(repository, database):
     assert result["completed_frames"] == 3
 
 
+def test_remote_worker_claim_is_recovered_only_after_its_heartbeat_expires(repository, database):
+    RepositoryScanner(database).scan(repository)
+    original = HistoryJobService(database)
+    job_id = int(original.start_record(_target(repository))["job_id"])
+    assert original._claim(job_id) is True
+    original._update(
+        job_id,
+        worker_host="another-container",
+        heartbeat_at="2999-01-01T00:00:00+00:00",
+    )
+
+    restarted = HistoryJobService(database)
+    assert restarted._claim(job_id) is False
+    original._update(job_id, heartbeat_at="2000-01-01T00:00:00+00:00")
+    assert restarted._claim(job_id) is True
+
+
 def test_start_is_idempotent_while_job_is_active(repository, database, monkeypatch):
     RepositoryScanner(database).scan(repository)
     service = HistoryJobService(database)

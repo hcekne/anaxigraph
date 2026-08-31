@@ -12,7 +12,6 @@ from anaxigraph.semantic_agent_protocol import packetize_agent_request
 from anaxigraph.semantic_contract import SemanticAnalysisError, SemanticResult
 from anaxigraph.semantic_freshness import legacy_input_matches
 from anaxigraph.semantic_taxonomy_contract import (
-    taxonomy_analysis_kind,
     validated_agent_semantic_response,
 )
 from anaxigraph.semantic_taxonomy_partition import filter_previous
@@ -196,8 +195,6 @@ def test_taxonomy_agent_contract_rejects_incomplete_proposals_and_reviews():
 
 
 def test_taxonomy_routing_and_legacy_reuse_fail_closed():
-    assert taxonomy_analysis_kind({"analysis_kind": "taxonomy_proposal"}) is True
-    assert taxonomy_analysis_kind({"analysis_kind": "intrinsic"}) is False
     assert (
         legacy_input_matches(
             {"prompt_version": "old", "schema_version": "module-dossier-v4"},

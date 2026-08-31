@@ -112,9 +112,9 @@ def _watch(args: argparse.Namespace) -> None:
     targets = _repository_targets(args)
     history = HistoryJobService(scanner.database)
     observed_heads: dict[str, str] = {}
-    history.recover(targets)
     print(f"Watching {len(targets)} repositories (Ctrl-C to stop)", file=sys.stderr)
     while True:
+        history.recover(targets)
         for target in targets:
             repository = scanner.database.repository(target.path)
             if repository and history.status(int(repository["id"]))["status"] in ACTIVE_STATES:

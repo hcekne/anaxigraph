@@ -9,7 +9,6 @@ from anaxigraph.semantic_contract import SemanticResult, _validate_schema
 
 PATTERN_SCORE_CONTRACT_VERSION = "pattern-scores-v1"
 PATTERN_REVIEW_CONTRACT_VERSION = "pattern-review-v1"
-PATTERN_ANALYSIS_KINDS = frozenset({"pattern_assessment", "pattern_review"})
 PATTERN_SCORE_DIMENSIONS = (
     "applicability",
     "suitability",

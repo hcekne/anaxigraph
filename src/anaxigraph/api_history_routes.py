@@ -58,7 +58,13 @@ class HistoryRoutes:
         self.context.admit_operation(int(row["id"]), "history_import", hold=False)
         started = self.context.history_service.start(target)
         return {
-            "status": _start_status(started),
+            "status": (
+                "started"
+                if started.get("started")
+                else "resumed"
+                if started.get("resumed")
+                else str(started.get("reason", "already_running"))
+            ),
             "repository_id": row["id"],
             "job": started.get("job"),
         }
@@ -74,14 +80,6 @@ class HistoryRoutes:
     ) -> dict[str, Any]:
         row = self.context.selected_repository(repository_id)
         return api_support.repository_trends(self.context.database, int(row["id"]), limit=limit)
-
-
-def _start_status(started: dict[str, Any]) -> str:
-    if started.get("started"):
-        return "started"
-    if started.get("resumed"):
-        return "resumed"
-    return str(started.get("reason", "already_running"))
 
 
 def _timeline_summary(
