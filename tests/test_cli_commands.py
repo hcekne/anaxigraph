@@ -29,7 +29,14 @@ def test_registry_watcher_refreshes_history_once_per_new_git_head(repository, mo
     target = RepositoryTarget("sample", repository, history_snapshots=8)
     heads = iter(("first", "first", "second"))
     calls = []
-    service = SimpleNamespace(start=lambda value: calls.append(value.key))
+    service = SimpleNamespace(
+        database=SimpleNamespace(repository=lambda _path: {"id": 1}),
+        status=lambda _repository_id: {
+            "status": "complete",
+            "result": {"latest_commit": "first"},
+        },
+        start=lambda value: calls.append(value.key),
+    )
     monkeypatch.setattr(repository_commands.git, "has_commits", lambda _path: True)
     monkeypatch.setattr(
         repository_commands.git,
@@ -42,7 +49,7 @@ def test_registry_watcher_refreshes_history_once_per_new_git_head(repository, mo
     repository_commands._refresh_history_at_new_head(service, target, observed)
     repository_commands._refresh_history_at_new_head(service, target, observed)
 
-    assert calls == ["sample", "sample"]
+    assert calls == ["sample"]
     assert observed == {"sample": "second"}
 
 

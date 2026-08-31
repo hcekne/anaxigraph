@@ -170,7 +170,7 @@ def _materialize(
         "lines_of_code": int(node["direct_lines_of_code"])
         + sum(int(item["lines_of_code"]) for item in child_items),
         "children": sorted(
-            child_items,
+            [item for item in child_items if int(item["files"]) > 0],
             key=lambda item: (-int(item["lines_of_code"]), item["name"]),
         ),
     }

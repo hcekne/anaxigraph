@@ -392,6 +392,11 @@ def test_group_hierarchy_rolls_declared_subsystem_into_parent(repository, databa
     parent: domain
     description: Core domain behavior.
     paths: [pkg/core.py]
+  retired-domain:
+    level: subsystem
+    parent: domain
+    description: A subsystem with no files in this snapshot.
+    paths: [retired/**]
   domain:
     level: area
     description: Domain implementation.
@@ -408,3 +413,4 @@ def test_group_hierarchy_rolls_declared_subsystem_into_parent(repository, databa
     assert domain["files"] >= core["files"] == 1
     assert domain["lines_of_code"] >= core["lines_of_code"]
     assert core["description"] == "Core domain behavior."
+    assert all(item["name"] != "retired-domain" for item in domain["children"])

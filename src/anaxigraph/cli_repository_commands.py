@@ -43,7 +43,7 @@ def _configure_review(commands: Any) -> None:
     )
     add_repository_arguments(review)
     review.add_argument("--status", default="active", choices=["active", "all", "new", "resolved"])
-    review.set_defaults(handler=_review)
+    review.set_defaults(handler=_scan, run_type="review")
 
 
 def _configure_watch(commands: Any) -> None:
@@ -72,8 +72,19 @@ def _scan(args: argparse.Namespace) -> dict[str, Any]:
         config_path=args.config,
         run_type=args.run_type,
     )
-    result: dict[str, Any] = {"status": "ok", **stats.as_dict()}
     config = cli_services.load_repository_config(args.repository.resolve(), args.config)
+    if args.run_type == "review":
+        return {
+            "scan": stats.as_dict(),
+            "finding_page": cli_workflows.query_findings(
+                database,
+                stats.repository_id,
+                config,
+                view="diagnostics" if args.status in {"all", "resolved"} else "attention",
+                statuses=(args.status,),
+            ),
+        }
+    result: dict[str, Any] = {"status": "ok", **stats.as_dict()}
     if config.semantic.enabled and config.semantic.refresh == "on_scan":
         result["semantic"] = cli_services.semantics(database).bootstrap(
             stats.repository_id, args.repository, config
@@ -83,26 +94,6 @@ def _scan(args: argparse.Namespace) -> dict[str, Any]:
             stats.repository_id, config.semantic
         )
     return result
-
-
-def _review(args: argparse.Namespace) -> dict[str, Any]:
-    database = cli_services.open_index(args.db)
-    stats = cli_services.scanner(database).scan(
-        args.repository,
-        config_path=args.config,
-        run_type="review",
-    )
-    config = cli_services.load_repository_config(args.repository, args.config)
-    return {
-        "scan": stats.as_dict(),
-        "finding_page": cli_workflows.query_findings(
-            database,
-            stats.repository_id,
-            config,
-            view="diagnostics" if args.status in {"all", "resolved"} else "attention",
-            statuses=(args.status,),
-        ),
-    }
 
 
 def _watch(args: argparse.Namespace) -> None:
@@ -139,7 +130,11 @@ def _refresh_history_at_new_head(
     if target.history_snapshots == 0 or not git.has_commits(target.path):
         return
     head = git.metadata(target.path).commit_sha
-    if observed_heads.get(target.key) == head:
+    repository = service.database.repository(target.path)
+    durable = service.status(int(repository["id"])) if repository else {}
+    imported_head = (durable.get("result") or {}).get("latest_commit")
+    if observed_heads.get(target.key, imported_head) == head:
+        observed_heads[target.key] = head
         return
     service.start(target)
     observed_heads[target.key] = head
