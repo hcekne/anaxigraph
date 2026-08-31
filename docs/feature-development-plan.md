@@ -3629,6 +3629,32 @@ The exact production-source ratchet falls from 50,022 to **49,800 lines**. Phase
 4,107 production lines; **1,300 lines remain** before the 48,500 target. This slice also removes
 three more low-level choices from the tool list seen by an ordinary coding agent.
 
+### 10.2 delivery record: make live history append instead of reshuffle
+
+The repository watcher previously treated every new Git head as a reason to run the complete
+representative-history plan again. Adding four commits to a repository with a 32-frame budget
+therefore revisited all 32 positions. Because tag, architecture-change, calendar, and recent-commit
+weighting chose different older commits whenever the lifetime changed, repeated updates accumulated
+retired samples, consumed CPU for minutes, and made replay appear to jump between incompatible
+historical selections.
+
+Automatic history updates now begin after the newest **completed** durable import head. The selected
+tail reuses that compatible commit frame as its structural and relationship baseline, preserves the
+former clean current frame as a visible commit, and appends only later first-parent commits. A
+partial or cancelled retry cannot displace the last completed head. If Git history was rewritten or
+the saved analysis signature is incompatible, the importer deliberately falls back to a complete
+safe plan instead of carrying facts across an unverified boundary.
+
+The initial bounded import now uses one predictable evenly spaced lifetime sample that always keeps
+the first and current commits. Later watcher updates preserve those choices and append the new tail;
+they do not continually reinterpret which old commits were important. This removes the tag and
+repository-filename weighting path, its Git adapter, and duplicate frame-progress builders. Focused
+watcher, durable-job, history, temporal-fact, migration, CLI, and MCP contracts pass with **54 tests**.
+
+The exact production-source ratchet falls from 49,800 to **49,797 lines** despite adding durable
+incremental-extension behavior. Phase 10 has now removed 4,110 production lines; **1,297 lines
+remain** before the 48,500 convergence target.
+
 ## 10.3 Make human understanding the primary dashboard journey
 
 Use the existing semantic repository dossier, reviewed taxonomy, graph, file detail, and history to

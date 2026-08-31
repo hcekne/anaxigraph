@@ -131,12 +131,11 @@ def _refresh_history_at_new_head(
         return
     head = git.metadata(target.path).commit_sha
     repository = service.database.repository(target.path)
-    durable = service.status(int(repository["id"])) if repository else {}
-    imported_head = (durable.get("result") or {}).get("latest_commit")
+    imported_head = service.latest_imported_commit(int(repository["id"])) if repository else None
     if observed_heads.get(target.key, imported_head) == head:
         observed_heads[target.key] = head
         return
-    service.start(target)
+    service.start(target, after_revision=imported_head)
     observed_heads[target.key] = head
 
 

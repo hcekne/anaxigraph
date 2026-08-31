@@ -31,11 +31,12 @@ def test_registry_watcher_refreshes_history_once_per_new_git_head(repository, mo
     calls = []
     service = SimpleNamespace(
         database=SimpleNamespace(repository=lambda _path: {"id": 1}),
+        latest_imported_commit=lambda _repository_id: "first",
         status=lambda _repository_id: {
             "status": "complete",
             "result": {"latest_commit": "first"},
         },
-        start=lambda value: calls.append(value.key),
+        start=lambda value, **options: calls.append((value.key, options)),
     )
     monkeypatch.setattr(repository_commands.git, "has_commits", lambda _path: True)
     monkeypatch.setattr(
@@ -49,7 +50,7 @@ def test_registry_watcher_refreshes_history_once_per_new_git_head(repository, mo
     repository_commands._refresh_history_at_new_head(service, target, observed)
     repository_commands._refresh_history_at_new_head(service, target, observed)
 
-    assert calls == ["sample"]
+    assert calls == [("sample", {"after_revision": "first"})]
     assert observed == {"sample": "second"}
 
 
@@ -85,7 +86,6 @@ def test_repository_agent_and_export_handlers_share_the_current_scan(
     assert exported["graph"]["nodes"]
     assert exported["graph"]["counts"]["page_internal_nodes"] <= 250
     assert exported["findings"]["shown"] <= 200
-
     finding_id = reviewed["finding_page"]["items"][0]["id"]
     changed = _call(
         [

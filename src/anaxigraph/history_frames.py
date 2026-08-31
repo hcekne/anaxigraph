@@ -26,6 +26,16 @@ def rebase_existing_snapshot(
         )
 
 
+def retain_snapshot_as_commit(database: Any, snapshot_id: int) -> None:
+    """Keep a clean former current frame visible after a newer Git head arrives."""
+
+    with database.transaction() as connection:
+        connection.execute(
+            "UPDATE snapshots SET snapshot_kind = 'commit' WHERE id = ? AND dirty = 0",
+            (snapshot_id,),
+        )
+
+
 def materialize_revision(context: Any, state: Any, commit_sha: str) -> bool:
     """Reuse/rebase a compatible frame or scan the selected revision."""
 

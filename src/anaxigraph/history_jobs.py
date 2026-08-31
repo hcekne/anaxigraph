@@ -42,8 +42,26 @@ class HistoryJobService:
         value.setdefault("last_complete_snapshot_id", self._latest_snapshot_id(repository_id))
         return value
 
-    def start(self, target: RepositoryTarget) -> dict[str, Any]:
-        record = self.start_record(target)
+    def latest_imported_commit(self, repository_id: int) -> str | None:
+        """Return the newest fully imported head, ignoring a partial retry."""
+
+        with self.database.connect() as connection:
+            row = connection.execute(
+                """
+                SELECT metadata_json FROM analysis_runs
+                WHERE repository_id = ? AND run_type = ? AND status = 'complete'
+                ORDER BY id DESC LIMIT 1
+                """,
+                (repository_id, JOB_TYPE),
+            ).fetchone()
+        value = json.loads(row["metadata_json"] or "{}") if row else {}
+        latest = (value.get("result") or {}).get("latest_commit")
+        return str(latest) if latest else None
+
+    def start(
+        self, target: RepositoryTarget, *, after_revision: str | None = None
+    ) -> dict[str, Any]:
+        record = self.start_record(target, after_revision=after_revision)
         job_id = record.get("job_id")
         if job_id is None:
             return {"started": False, "reason": record["status"]}
@@ -86,7 +104,9 @@ class HistoryJobService:
         assert repository is not None
         return self.status(int(repository["id"]))
 
-    def start_record(self, target: RepositoryTarget) -> dict[str, Any]:
+    def start_record(
+        self, target: RepositoryTarget, *, after_revision: str | None = None
+    ) -> dict[str, Any]:
         """Create or claim a job without starting a daemon thread."""
 
         if target.history_snapshots == 0 or not git.has_commits(target.path):
@@ -120,7 +140,7 @@ class HistoryJobService:
                     repository_id,
                     JOB_TYPE,
                     utc_now(),
-                    json.dumps(_initial_metadata(target), sort_keys=True),
+                    json.dumps(_initial_metadata(target, after_revision), sort_keys=True),
                 ),
             )
             return {"job_id": int(cursor.lastrowid), "resumed": False}
@@ -222,7 +242,13 @@ class HistoryJobService:
         )
         try:
             result = self._execute_import(
-                job_id, target, baseline, every_commit=every_commit, since=since, progress=progress
+                job_id,
+                target,
+                baseline,
+                every_commit=every_commit,
+                since=since,
+                after_revision=prior.get("after_revision"),
+                progress=progress,
             )
             self._complete(job_id, baseline, result)
         except HistoryImportCancelled as exc:
@@ -246,6 +272,7 @@ class HistoryJobService:
         *,
         every_commit: bool,
         since: str | None,
+        after_revision: str | None,
         progress: Callable[[int, int, str], None] | None,
     ) -> Any:
         return import_git_history(
@@ -255,6 +282,7 @@ class HistoryJobService:
             max_snapshots=target.history_snapshots,
             every_commit=every_commit,
             since=since,
+            after_revision=after_revision,
             progress=progress,
             job_progress=lambda event: self._record_progress(job_id, event, baseline),
             should_cancel=lambda: self._cancel_requested(job_id),
@@ -416,11 +444,14 @@ class HistoryJobService:
         return int(row["rows"]), size
 
 
-def _initial_metadata(target: RepositoryTarget) -> dict[str, Any]:
+def _initial_metadata(
+    target: RepositoryTarget, after_revision: str | None = None
+) -> dict[str, Any]:
     return {
         "job_schema": "history-import-v1",
         "repository_path": str(target.path.resolve()),
         "history_snapshots": target.history_snapshots,
+        "after_revision": after_revision,
         "completed_frames": 0,
         "total_frames": 0,
         "cancel_requested": False,

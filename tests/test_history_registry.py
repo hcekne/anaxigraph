@@ -6,7 +6,6 @@ from anaxigraph import git
 from anaxigraph.history import (
     adaptive_history_limit,
     import_git_history,
-    representative_revisions,
     sampled_revisions,
 )
 from anaxigraph.registry import load_repository_registry
@@ -29,36 +28,6 @@ def test_adaptive_history_limits_follow_repository_size_budgets():
     assert adaptive_history_limit(501) == 24
     assert adaptive_history_limit(2_001) == 16
     assert adaptive_history_limit(5_001) == 12
-
-
-def test_representative_history_prioritizes_tags_and_architecture_changes(repository):
-    commits = [git.revisions(repository, limit=1)[0]]
-    for index in range(1, 9):
-        if index == 5:
-            config = repository / ".anaxigraph.yml"
-            config.write_text(
-                config.read_text(encoding="utf-8") + "\n# architecture checkpoint\n",
-                encoding="utf-8",
-            )
-        else:
-            path = repository / "pkg" / "util.py"
-            path.write_text(
-                path.read_text(encoding="utf-8") + f"\nMARKER_{index} = {index}\n",
-                encoding="utf-8",
-            )
-        subprocess.run(["git", "-C", str(repository), "add", "-A"], check=True)
-        subprocess.run(
-            ["git", "-C", str(repository), "commit", "-qm", f"Checkpoint {index}"], check=True
-        )
-        commits.append(git.revisions(repository, limit=1)[0])
-        if index == 2:
-            subprocess.run(["git", "-C", str(repository), "tag", "v0.2.0"], check=True)
-
-    selected = representative_revisions(repository, commits, 4)
-    selected_three = representative_revisions(repository, commits, 3)
-
-    assert selected == [commits[0], commits[2], commits[5], commits[-1]]
-    assert selected_three == [commits[0], commits[2], commits[-1]]
 
 
 def test_history_import_uses_git_lifetime_without_duplicate_scan_frames(repository, database):
@@ -96,6 +65,42 @@ def test_history_import_uses_git_lifetime_without_duplicate_scan_frames(reposito
     assert timeline[-1]["commit_sha"] == head
     assert database.latest_snapshot(1)["id"] == result.current_snapshot_id
     assert repeated_count == snapshot_count
+
+
+def test_history_extension_appends_only_commits_after_the_durable_head(repository, database):
+    initial_head = git.revisions(repository, limit=1)[0]
+    import_git_history(database, repository, max_snapshots=3)
+    initial_timeline = database.timeline_snapshots(1)
+
+    appended = []
+    for index in range(2):
+        path = repository / "pkg" / "util.py"
+        path.write_text(
+            path.read_text(encoding="utf-8") + f"\nAPPENDED_{index} = {index}\n",
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "-C", str(repository), "add", "pkg/util.py"], check=True)
+        subprocess.run(
+            ["git", "-C", str(repository), "commit", "-qm", f"Appended {index}"],
+            check=True,
+        )
+        appended.append(git.revisions(repository, limit=1)[0])
+
+    result = import_git_history(
+        database,
+        repository,
+        max_snapshots=3,
+        after_revision=initial_head,
+    )
+    timeline = database.timeline_snapshots(1)
+
+    assert result.total_commits == 3
+    assert result.selected_commits == result.imported_snapshots == 2
+    assert [row["commit_sha"] for row in timeline] == [
+        initial_head,
+        *appended,
+    ], timeline
+    assert len(timeline) == len(initial_timeline) + 2
 
 
 def test_repository_registry_resolves_relative_paths(tmp_path):

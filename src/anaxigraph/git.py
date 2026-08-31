@@ -304,24 +304,6 @@ def revision_summaries(root: Path) -> list[RevisionSummary]:
     return summaries
 
 
-def tagged_revisions(root: Path) -> set[str]:
-    """Return commits referenced by tags that are reachable from HEAD."""
-
-    result = _run(
-        root,
-        "for-each-ref",
-        "--merged=HEAD",
-        "--format=%(*objectname)%09%(objectname)",
-        "refs/tags",
-        check=False,
-    )
-    revisions = set()
-    for line in result.stdout.splitlines():
-        peeled, _, direct = line.partition("\t")
-        revisions.add(peeled or direct)
-    return {value for value in revisions if value}
-
-
 def recent_changes(root: Path, *, limit: int = 5_000) -> list[GitChange]:
     if not is_repository(root):
         return []

@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
 from anaxigraph import git
 from anaxigraph.config import load_config
-from anaxigraph.history_frames import materialize_revision
+from anaxigraph.history_frames import materialize_revision, retain_snapshot_as_commit
 from anaxigraph.languages import detect_language
 from anaxigraph.scanner import RepositoryScanner, analysis_signature
 
@@ -29,15 +29,7 @@ class HistoryImportResult:
     work: dict[str, Any] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
-        return {
-            "total_commits": self.total_commits,
-            "selected_commits": self.selected_commits,
-            "imported_snapshots": self.imported_snapshots,
-            "first_commit": self.first_commit,
-            "latest_commit": self.latest_commit,
-            "current_snapshot_id": self.current_snapshot_id,
-            "work": self.work,
-        }
+        return asdict(self)
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,6 +40,8 @@ class _HistoryPlan:
     signature: str
     summaries: dict[str, git.RevisionSummary]
     config: Any
+    baseline_snapshot_id: int | None = None
+    baseline_revision: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,6 +85,7 @@ def import_git_history(
     max_snapshots: int | str = "auto",
     every_commit: bool = False,
     since: str | None = None,
+    after_revision: str | None = None,
     progress: Callable[[int, int, str], None] | None = None,
     job_progress: Callable[[dict[str, Any]], None] | None = None,
     should_cancel: Callable[[], bool] | None = None,
@@ -109,6 +104,7 @@ def import_git_history(
         max_snapshots=max_snapshots,
         every_commit=every_commit,
         since=since,
+        after_revision=after_revision,
     )
     _notify(
         job_progress,
@@ -116,13 +112,22 @@ def import_git_history(
         total_commits=len(plan.complete),
         total_frames=len(plan.selected),
     )
+    context = _ImportContext(
+        database, scanner, root, plan, config_path, progress, job_progress, should_cancel
+    )
     state = _import_revisions(
-        _ImportContext(
-            database, scanner, root, plan, config_path, progress, job_progress, should_cancel
-        )
+        context,
+        baseline_snapshot_id=plan.baseline_snapshot_id,
+        baseline_revision=plan.baseline_revision,
     )
     _raise_if_cancelled(should_cancel)
     current_snapshot_id = _finalize_history(scanner, root, config_path, job_progress, state, plan)
+    return _history_result(plan, state, current_snapshot_id)
+
+
+def _history_result(
+    plan: _HistoryPlan, state: _FrameState, current_snapshot_id: int
+) -> HistoryImportResult:
     return HistoryImportResult(
         total_commits=len(plan.complete),
         selected_commits=len(plan.selected),
@@ -142,13 +147,21 @@ def _history_plan(
     max_snapshots: int | str,
     every_commit: bool,
     since: str | None,
+    after_revision: str | None,
 ) -> _HistoryPlan:
     complete = git.revisions(root, limit=None, since=since, oldest_first=True)
     config = load_config(root, Path(config_path) if config_path else None)
     repository_id = database.ensure_repository(
         path=root, name=config.project_name or root.name, git=git.metadata(root)
     )
-    selected = _selected_revisions(root, complete, config, max_snapshots, every_commit)
+    candidates, baseline_snapshot_id, baseline_revision = _incremental_candidates(
+        database,
+        repository_id,
+        complete,
+        after_revision,
+        analysis_signature(config),
+    )
+    selected = _selected_revisions(root, candidates, config, max_snapshots, every_commit)
     summaries = {item.commit_sha: item for item in git.revision_summaries(root)}
     return _HistoryPlan(
         complete,
@@ -157,11 +170,42 @@ def _history_plan(
         analysis_signature(config),
         summaries,
         config,
+        baseline_snapshot_id,
+        baseline_revision,
     )
 
 
-def _import_revisions(context: _ImportContext) -> _FrameState:
-    state = _FrameState(work=_empty_work())
+def _incremental_candidates(
+    database: Any,
+    repository_id: int,
+    complete: list[str],
+    after_revision: str | None,
+    signature: str,
+) -> tuple[list[str], int | None, str | None]:
+    """Keep prior frames stable when extending an already imported first-parent history."""
+
+    if not after_revision or after_revision not in complete:
+        return complete, None, None
+    baseline = database.commit_snapshot(repository_id, after_revision, signature)
+    if baseline is None:
+        return complete, None, None
+    position = complete.index(after_revision)
+    baseline_snapshot_id = int(baseline["id"])
+    retain_snapshot_as_commit(database, baseline_snapshot_id)
+    return complete[position + 1 :], baseline_snapshot_id, after_revision
+
+
+def _import_revisions(
+    context: _ImportContext,
+    *,
+    baseline_snapshot_id: int | None = None,
+    baseline_revision: str | None = None,
+) -> _FrameState:
+    state = _FrameState(
+        baseline_snapshot_id=baseline_snapshot_id,
+        baseline_revision=baseline_revision,
+        work=_empty_work(),
+    )
     for index, commit_sha in enumerate(context.plan.selected, start=1):
         _import_revision(context, state, index, commit_sha)
     return state
@@ -172,42 +216,39 @@ def _import_revision(
 ) -> None:
     _raise_if_cancelled(context.should_cancel)
     summary = context.plan.summaries.get(commit_sha)
-    _notify_frame_started(context, state, index, commit_sha, summary)
+    _notify_frame(context, state, index, commit_sha, summary, "frame_started", index - 1)
     if context.progress:
         context.progress(index, len(context.plan.selected), commit_sha)
     reused = materialize_revision(context, state, commit_sha)
     state.baseline_revision = commit_sha
     state.imported += 1
-    _notify_frame_complete(
-        context.job_progress,
-        index,
-        context.plan.selected,
-        commit_sha,
-        summary,
-        state.baseline_snapshot_id,
-        state.work,
-        reused_frame=reused,
+    _notify_frame(
+        context, state, index, commit_sha, summary, "frame_complete", index, reused_frame=reused
     )
 
 
-def _notify_frame_started(
+def _notify_frame(
     context: _ImportContext,
     state: _FrameState,
     index: int,
     commit_sha: str,
     summary: git.RevisionSummary | None,
+    stage: str,
+    completed_frames: int,
+    **extra: Any,
 ) -> None:
     _notify(
         context.job_progress,
-        stage="frame_started",
+        stage=stage,
         frame=index,
-        completed_frames=index - 1,
+        completed_frames=completed_frames,
         total_frames=len(context.plan.selected),
         commit_sha=commit_sha,
         commit_subject=summary.subject if summary else "",
         commit_date=summary.committed_at if summary else None,
         last_complete_snapshot_id=state.baseline_snapshot_id,
         work=state.work,
+        **extra,
     )
 
 
@@ -234,32 +275,6 @@ def _finalize_history(
         baseline_snapshot_id=state.baseline_snapshot_id,
     )
     return current.snapshot_id
-
-
-def _notify_frame_complete(
-    callback: Callable[[dict[str, Any]], None] | None,
-    index: int,
-    selected: list[str],
-    commit_sha: str,
-    summary: git.RevisionSummary | None,
-    snapshot_id: int,
-    work: dict[str, Any],
-    *,
-    reused_frame: bool,
-) -> None:
-    _notify(
-        callback,
-        stage="frame_complete",
-        frame=index,
-        completed_frames=index,
-        total_frames=len(selected),
-        commit_sha=commit_sha,
-        commit_subject=summary.subject if summary else "",
-        commit_date=summary.committed_at if summary else None,
-        last_complete_snapshot_id=snapshot_id,
-        reused_frame=reused_frame,
-        work=work,
-    )
 
 
 def _notify(callback: Callable[[dict[str, Any]], None] | None, **event: Any) -> None:
@@ -301,7 +316,7 @@ def _selected_revisions(
     if every_commit:
         return values
     resolved = resolve_history_limit(root, config, limit)
-    return representative_revisions(root, values, max(1, resolved))
+    return sampled_revisions(values, max(1, resolved))
 
 
 def resolve_history_limit(root: Path, config: Any, value: int | str) -> int:
@@ -316,43 +331,3 @@ def resolve_history_limit(root: Path, config: Any, value: int | str) -> int:
         not config.is_ignored(path) and detect_language(path) is not None for path in paths
     )
     return adaptive_history_limit(eligible)
-
-
-def representative_revisions(root: Path, values: list[str], limit: int) -> list[str]:
-    if len(values) <= limit or limit < 2:
-        return sampled_revisions(values, limit)
-    eligible = set(values)
-    summaries = [item for item in git.revision_summaries(root) if item.commit_sha in eligible]
-    selected = {values[0], values[-1]}
-    tagged = [value for value in values if value in git.tagged_revisions(root)]
-    _add_sampled(selected, tagged, limit - len(selected))
-    architecture = [item.commit_sha for item in summaries if _architecture_change(item.paths)]
-    _add_sampled(selected, architecture, (limit - len(selected) + 1) // 2)
-    calendar = list({item.committed_at[:7]: item.commit_sha for item in summaries}.values())
-    _add_sampled(selected, calendar, (limit - len(selected) + 1) // 2)
-    for value in reversed(values):
-        if len(selected) >= limit:
-            break
-        selected.add(value)
-    return [value for value in values if value in selected]
-
-
-def _add_sampled(selected: set[str], candidates: list[str], count: int) -> None:
-    available = [value for value in candidates if value not in selected]
-    selected.update(sampled_revisions(available, min(max(0, count), len(available))))
-
-
-def _architecture_change(paths: tuple[str, ...]) -> bool:
-    markers = (
-        ".anaxigraph",
-        "architecture",
-        "dockerfile",
-        "compose",
-        "package.json",
-        "pyproject.toml",
-        "requirements",
-        "migration",
-        "schema",
-        ".github/workflows",
-    )
-    return any(any(marker in path.lower() for marker in markers) for path in paths)

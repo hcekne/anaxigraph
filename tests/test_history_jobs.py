@@ -151,6 +151,31 @@ def test_start_is_idempotent_while_job_is_active(repository, database, monkeypat
     assert _wait_for(service, int(row["id"]), "cancelled")["status"] == "cancelled"
 
 
+def test_incremental_start_persists_the_durable_head_for_worker_recovery(repository, database):
+    RepositoryScanner(database).scan(repository)
+    service = HistoryJobService(database)
+
+    record = service.start_record(_target(repository), after_revision="durable-head")
+    stored = service._job(int(record["job_id"]))
+
+    assert stored["after_revision"] == "durable-head"
+
+
+def test_latest_imported_commit_prefers_completed_head_over_partial_retry(repository, database):
+    _add_history(repository)
+    service = HistoryJobService(database)
+    completed = service.run_inline(_target(repository), every_commit=True)
+    completed_head = completed["result"]["latest_commit"]
+    partial = service.start_record(_target(repository))
+    service._finish(
+        int(partial["job_id"]),
+        "cancelled",
+        last_complete_snapshot_id=completed["snapshot_id"],
+    )
+
+    assert service.latest_imported_commit(1) == completed_head
+
+
 def test_cli_runs_and_reads_the_same_durable_job(repository, database):
     _add_history(repository)
     arguments = Namespace(
