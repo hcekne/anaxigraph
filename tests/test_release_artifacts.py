@@ -77,3 +77,11 @@ def test_release_workflow_can_probe_trusted_publishing_without_uploading():
     assert "if: github.event_name == 'release'" in release
     assert "Attach durable GitHub release assets" in release
     assert 'gh release upload "${RELEASE_TAG}" release/* --clobber' in release
+
+
+def test_container_digest_names_the_published_semver_tag():
+    workflow = (ROOT / ".github/workflows/container.yml").read_text(encoding="utf-8")
+
+    assert 'version="${GITHUB_REF_NAME#v}"' in workflow
+    assert "${{ env.IMAGE_NAME }}:${version}" in workflow
+    assert "${{ env.IMAGE_NAME }}:${GITHUB_REF_NAME}" not in workflow
