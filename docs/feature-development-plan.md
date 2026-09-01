@@ -4420,8 +4420,8 @@ the rest of the current repository dashboard stuck in a loading state.
 The ratified acceptance evidence is **615 Python tests** and **26 pinned-browser contracts**, plus
 Ruff, JavaScript syntax, module-size, architecture, agent-package, Compose, deterministic
 self-analysis, coverage, changed-coverage, first-user, container, and benchmark gates. On the
-self-hosted 478-module AnaxiGraph map, the read-only response compared two saved frames, bounded two
-changed modules to 15 context modules, returned about 25 KB, and completed in about 626 ms. Five
+self-hosted 479-module AnaxiGraph map, the read-only response compared two saved frames, bounded two
+changed modules to six context modules, returned about 26 KB, and completed in about 847 ms. Five
 cohesive Python modules and two dashboard assets keep every implementation file below 500 lines.
 They add **1,864 intentional production lines** for temporal/semantic evidence, calibrated advice,
 the shared application projection, transport adapters, and the human rendering. The exact
