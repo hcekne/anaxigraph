@@ -295,8 +295,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
 .inspector dl { display: grid; grid-template-columns: minmax(90px, auto) minmax(0, 1fr); gap: 0.5rem 0.8rem; font-size: 0.78rem; }
 .inspector dt { color: var(--muted); }
 .inspector dd { min-width: 0; margin: 0; text-align: right; overflow-wrap: anywhere; }
-.tag-list { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.6rem 0 1rem; }
-.tag { padding: 0.27rem 0.48rem; border-radius: 6px; color: var(--muted); background: var(--surface-subtle); font: 0.68rem ui-monospace, monospace; }
+.tag-list { display: flex; min-width: 0; flex-wrap: wrap; gap: 0.35rem; margin: 0.6rem 0 1rem; }
+.tag { max-width: 100%; min-width: 0; overflow-wrap: anywhere; padding: 0.27rem 0.48rem; border-radius: 6px; color: var(--muted); background: var(--surface-subtle); font: 0.68rem ui-monospace, monospace; }
 .relation-list { display: grid; gap: 0.35rem; margin: 0.6rem 0 1rem; }
 .relation-list button { min-width: 0; overflow-wrap: anywhere; word-break: break-word; border: 0; padding: 0; color: var(--blue); background: transparent; cursor: pointer; text-align: left; white-space: normal; font-size: 0.75rem; }
 

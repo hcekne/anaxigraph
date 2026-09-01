@@ -34,6 +34,30 @@ test("the Charter has a readable, contained hierarchy", async ({ page }) => {
   ))).toBe(true);
 });
 
+test("long finding tags wrap inside phone cards", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openDashboard(page);
+  await page.locator("#finding-preview").evaluate((preview) => {
+    let list = preview.querySelector(".tag-list");
+    if (!list) {
+      list = document.createElement("div");
+      list.className = "tag-list";
+      preview.querySelector(".finding-card > div")?.append(list);
+    }
+    const tag = document.createElement("span");
+    tag.className = "tag";
+    tag.textContent = "a-very-long-unbroken-real-repository-tag-that-must-stay-inside-its-finding-card";
+    list.append(tag);
+  });
+
+  const layout = await page.evaluate(() => ({
+    documentFits: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    previewFits: document.querySelector("#finding-preview").scrollWidth
+      <= document.querySelector("#finding-preview").clientWidth + 1,
+  }));
+  expect(layout).toEqual({ documentFits: true, previewFits: true });
+});
+
 test("every dashboard journey stays inside desktop and phone viewports", async ({ browser }) => {
   const views = [
     ["overview", null],
