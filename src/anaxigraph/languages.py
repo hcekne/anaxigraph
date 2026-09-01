@@ -72,9 +72,9 @@ SPECIAL_FILES = {
 }
 
 PYTHON_ANALYZER_LANGUAGES = frozenset({"python"})
-JAVASCRIPT_ANALYZER_LANGUAGES = frozenset(
-    {"javascript", "javascriptreact", "typescript", "typescriptreact"}
-)
+ECMASCRIPT_ANALYZER_LANGUAGES = frozenset({"javascript", "javascriptreact"})
+TYPESCRIPT_ANALYZER_LANGUAGES = frozenset({"typescript", "typescriptreact"})
+JAVASCRIPT_ANALYZER_LANGUAGES = ECMASCRIPT_ANALYZER_LANGUAGES | TYPESCRIPT_ANALYZER_LANGUAGES
 DETECTED_LANGUAGES = frozenset(LANGUAGE_BY_SUFFIX.values()) | frozenset(SPECIAL_FILES.values())
 TEXT_ANALYZER_LANGUAGES = DETECTED_LANGUAGES - (
     PYTHON_ANALYZER_LANGUAGES | JAVASCRIPT_ANALYZER_LANGUAGES

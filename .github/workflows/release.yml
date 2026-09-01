@@ -94,6 +94,7 @@ jobs:
         run: |
           python -m venv "${RUNNER_TEMP}/release-audit"
           "${RUNNER_TEMP}/release-audit/bin/python" -m pip install --disable-pip-version-check dist/*.whl
+          "${RUNNER_TEMP}/release-audit/bin/python" -c "from anaxigraph.analyzers.javascript import TypeScriptAnalyzer; result = TypeScriptAnalyzer().analyze('view.tsx', 'export const View = () => <main />;'); assert result.parse_status == 'parsed' and result.symbols"
           "${RUNNER_TEMP}/release-audit/bin/python" scripts/report_installed_distributions.py \
             --output release/dependency-licenses.json
       - name: Generate SPDX SBOM

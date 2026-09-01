@@ -144,8 +144,8 @@ def _symbols(
     placeholders = ",".join("?" for _ in artifact_ids)
     rows = connection.execute(
         f"""
-        SELECT fv.path, s.symbol_type, s.name, s.qualified_name, s.signature,
-               s.start_line, s.end_line, s.summary
+        SELECT fv.artifact_id, fv.path, s.symbol_type, s.name, s.qualified_name, s.signature,
+               s.start_line, s.end_line, s.summary, s.visibility
         FROM projected_symbols s
         JOIN projected_file_versions fv ON fv.id = s.artifact_version_id
         WHERE fv.snapshot_id = ? AND fv.artifact_id IN ({placeholders})
@@ -153,12 +153,36 @@ def _symbols(
         """,
         [snapshot_id, *artifact_ids],
     ).fetchall()
-    return [dict(row) for row in rows]
+    rank = {artifact_id: index for index, artifact_id in enumerate(artifact_ids)}
+    values = [dict(row) for row in rows]
+    values.sort(
+        key=lambda item: (
+            rank.get(int(item["artifact_id"]), len(rank)),
+            int(item["start_line"]),
+            str(item["name"]),
+        )
+    )
+    for item in values:
+        item.pop("artifact_id", None)
+    return values
 
 
 def _public_interfaces(symbols: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    kinds = {"class", "api_endpoint", "database_model"}
-    return [item for item in symbols if item.get("symbol_type") in kinds][:100]
+    kinds = {
+        "api_endpoint",
+        "class",
+        "database_model",
+        "enum",
+        "interface",
+        "namespace",
+        "react_component",
+        "type_alias",
+    }
+    return [
+        item
+        for item in symbols
+        if item.get("symbol_type") in kinds and item.get("visibility") == "public"
+    ][:100]
 
 
 def _interfaces(

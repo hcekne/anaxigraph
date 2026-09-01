@@ -75,11 +75,15 @@ fallback. Historical facts keep their original placement, while graph replay def
 older files through today's stable current-view identities and exposes the original placement
 alongside it.
 
-Analyzer facts conform to `anaxigraph-ir-v1`. Fact JSON keeps only non-derivable IR/analyzer state;
+Current analyzer facts conform to `anaxigraph-ir-v2`; historical v1 facts remain readable and keep
+their original schema identity. V2 adds an explicit reference form so static imports, CommonJS,
+literal and computed dynamic imports, and TypeScript type-only references cannot be conflated. Fact
+JSON keeps only non-derivable IR/analyzer state;
 module identity, default dependency fields, exports, and symbol details are reconstructed from
 artifact paths, typed columns, and `fact_symbols` at the persistence boundary. A tested codec
 reconstructs the complete IR during incremental reuse; metadata is not an unversioned dumping
-ground. See [`ADR 0001`](adr/0001-internal-layers-and-analyzer-ir.md).
+ground. See [`ADR 0001`](adr/0001-internal-layers-and-analyzer-ir.md) and
+[`ADR 0006`](adr/0006-reference-forms-and-ir-v2.md).
 The direct canonical scan decision and its migration boundary are recorded in
 [`ADR 0003`](adr/0003-direct-canonical-scan-persistence.md).
 

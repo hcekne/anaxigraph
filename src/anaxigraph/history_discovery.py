@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from anaxigraph import git
-from anaxigraph.languages import detect_language
+from anaxigraph.languages import JAVASCRIPT_ANALYZER_LANGUAGES, detect_language
 
 
 class DiscoveryConfig(Protocol):
@@ -111,6 +111,10 @@ def plan_invalidations(
     affected: set[str] = set()
     reasons: dict[str, str] = {}
     relationship_sources: set[str] = set()
+    workspace_context_changed = any(
+        _stored_workspace(previous.get(path)) != _analysis_workspace(current.get(path))
+        for path in sorted(set(previous) | set(current))
+    )
     for path in sorted(set(previous) | set(current)):
         prior_view = _stored_view(previous.get(path))
         current_view = _analysis_view(path, current.get(path))
@@ -124,6 +128,9 @@ def plan_invalidations(
             reasons[path] = _direct_reason(initial_reason, prior_view, current_view)
             relationship_sources.add(path)
         elif affected and _references_affected(current_view[2], affected):
+            reasons[path] = "resolver_context_changed"
+            relationship_sources.add(path)
+        elif workspace_context_changed and analysis.language in JAVASCRIPT_ANALYZER_LANGUAGES:
             reasons[path] = "resolver_context_changed"
             relationship_sources.add(path)
         else:
@@ -203,6 +210,21 @@ def _stored_view(value: dict[str, Any] | None) -> tuple[set[str], set[str], set[
         for token in _reference_tokens(item["target"], item.get("names") or [])
     }
     return namespace, interface, references
+
+
+def _analysis_workspace(analysis: Any | None) -> dict[str, Any] | None:
+    if analysis is None:
+        return None
+    value = analysis.metadata.get("javascript_workspace")
+    return value if isinstance(value, dict) else None
+
+
+def _stored_workspace(value: dict[str, Any] | None) -> dict[str, Any] | None:
+    if value is None:
+        return None
+    metadata = json.loads(value["metadata_json"] or "{}")
+    workspace = metadata.get("javascript_workspace")
+    return workspace if isinstance(workspace, dict) else None
 
 
 def _path_tokens(path: str) -> set[str]:

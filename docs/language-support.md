@@ -24,10 +24,11 @@ that produced it.
 | Runtime dispatch and dynamic wiring | Not claimed | Not claimed | Not claimed | Not claimed |
 | Data flow and dead-code proof | Not claimed | Not claimed | Not claimed | Not claimed |
 
-The JavaScript/TypeScript rows are the binding Phase 11 contract. Until the parser-backed adapter is
-released, installed `0.3.x` versions still report their JavaScript-family facts as lexical. The
-dashboard and agent APIs use the capability record stored with a snapshot, so an old lexical map
-does not become “structural” merely because a newer AnaxiGraph executable reads it.
+The JavaScript/TypeScript rows are the binding implementation contract in current source builds.
+Published `0.3.0` predates this adapter and still reports its JavaScript-family facts as lexical; a
+future version bump will carry the parser-backed implementation through the immutable release path.
+The dashboard and agent APIs always use the capability record stored with a snapshot, so an old
+lexical map does not become “structural” merely because a newer AnaxiGraph executable reads it.
 
 ## Precision rules
 

@@ -89,8 +89,8 @@ def test_scan_persists_graph_metrics_coverage_and_findings(repository, database)
             if item["artifact_id"] == stored["artifact_id"]
         ]
     metadata = json.loads(stored["metadata_json"])
-    assert metadata["analysis_version"] == 4
-    assert metadata["ir"]["schema_version"] == "anaxigraph-ir-v1"
+    assert metadata["analysis_version"] == 5
+    assert metadata["ir"]["schema_version"] == "anaxigraph-ir-v2"
     assert metadata["ir"]["analyzer_version"] == "1"
     assert metadata["ir"]["analyzer_capabilities"] == PythonAnalyzer.capabilities.as_dict()
     assert metadata["ir"]["module_identity"]["canonical_name"] == "pkg.core"

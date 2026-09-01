@@ -11,9 +11,10 @@ RESOLVED_INTERNAL = "resolved_internal"
 AMBIGUOUS_INTERNAL = "ambiguous_internal"
 UNRESOLVED_INTERNAL = "unresolved_internal"
 EXTERNAL = "external"
+DYNAMIC = "dynamic"
 
 RESOLUTION_STATUSES = frozenset(
-    {RESOLVED_INTERNAL, AMBIGUOUS_INTERNAL, UNRESOLVED_INTERNAL, EXTERNAL}
+    {RESOLVED_INTERNAL, AMBIGUOUS_INTERNAL, UNRESOLVED_INTERNAL, EXTERNAL, DYNAMIC}
 )
 
 
@@ -58,7 +59,11 @@ def relationship_quality(rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
     )
     unresolved = counts[AMBIGUOUS_INTERNAL] + counts[UNRESOLVED_INTERNAL]
     status = (
-        "unavailable" if not internal_references else "complete" if unresolved == 0 else "partial"
+        "unavailable"
+        if not internal_references and not counts[DYNAMIC]
+        else "complete"
+        if unresolved == 0 and counts[DYNAMIC] == 0
+        else "partial"
     )
     return {
         "status": status,
@@ -69,6 +74,7 @@ def relationship_quality(rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
         "ambiguous_internal": counts[AMBIGUOUS_INTERNAL],
         "unresolved_internal": counts[UNRESOLVED_INTERNAL],
         "external": counts[EXTERNAL],
+        "dynamic": counts[DYNAMIC],
         "caveat": (
             "Resolution measures extracted references only; dynamic runtime wiring can still be absent."
         ),

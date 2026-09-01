@@ -5,9 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-IR_SCHEMA_VERSION = "anaxigraph-ir-v1"
+IR_SCHEMA_VERSION = "anaxigraph-ir-v2"
+LEGACY_IR_SCHEMA_VERSION = "anaxigraph-ir-v1"
 PARSE_STATUSES = frozenset({"parsed", "lexical", "fallback", "parse_error"})
 REFERENCE_KINDS = frozenset({"imports", "exports", "calls", "extends", "references"})
+REFERENCE_FORMS = frozenset(
+    {"static", "commonjs", "dynamic_literal", "dynamic_expression", "type_only"}
+)
 VISIBILITIES = frozenset({"public", "protected", "private", "unknown"})
 
 
@@ -61,6 +65,7 @@ class Dependency:
     column: int = 0
     end_line: int = 0
     end_column: int = 0
+    reference_form: str = "static"
 
 
 @dataclass(slots=True)

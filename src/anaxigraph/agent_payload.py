@@ -257,6 +257,7 @@ def _trim_scope_collections(
     if size() > limit:
         compact_guidance_projection(payload)
         omitted["guidance_details"] = 1
+    _maybe_compact_decision(payload, size(), limit, omitted)
     while size() > limit and payload["known_findings"]:
         payload["known_findings"].pop()
         omitted["known_findings"] += 1

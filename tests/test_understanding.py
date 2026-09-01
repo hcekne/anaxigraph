@@ -199,7 +199,7 @@ def test_unaffected_context_dossiers_remain_current_while_changed_modules_wait(
 def test_semantic_failure_and_exclusion_are_visible_terminal_states(repository, database, tmp_path):
     log = tmp_path / "semantic-failure.log"
     provider = _fake_provider(tmp_path, fail_path="pkg/core.py")
-    _semantic_config(repository, provider, log, exclude=["docs/**"])
+    _semantic_config(repository, provider, log, exclude=["docs/**"], max_jobs_per_run=120)
     config = load_config(repository)
 
     stats = RepositoryScanner(database).scan(repository)

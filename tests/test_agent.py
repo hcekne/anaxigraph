@@ -77,6 +77,34 @@ def test_architecture_guidance_is_bounded_and_includes_tests_protection_and_rule
     assert "tests/test_core.py" in path["module"]["focused_tests"]
 
 
+def test_architecture_guidance_uses_parser_backed_typescript_contracts(repository, database):
+    (repository / "web" / "App.test.tsx").write_text(
+        "import { App } from './App';\ntest('renders the application label', () => App());\n",
+        encoding="utf-8",
+    )
+    stats = RepositoryScanner(database).scan(repository)
+
+    value = architecture_guidance(
+        database,
+        repository_id=stats.repository_id,
+        goal="Change the App component label behavior",
+        config=load_config(repository),
+    )
+
+    assert value["primary_files"][0]["path"] == "web/App.tsx"
+    assert "web/App.test.tsx" in value["tests"]
+    assert any(
+        item["path"] == "web/App.tsx"
+        and item["name"] == "App"
+        and item["symbol_type"] == "react_component"
+        and item["visibility"] == "public"
+        for item in value["interfaces"]
+    )
+    task = value["architecture_decision"]["task_path"]
+    assert any(item["name"] == "App" for item in task["symbols"])
+    assert "web/App.test.tsx" in task["module"]["focused_tests"]
+
+
 def test_refactor_guidance_is_distinct_and_does_not_invent_a_change(repository, database):
     stats = RepositoryScanner(database).scan(repository)
     config = load_config(repository)

@@ -80,6 +80,7 @@ def _module_inputs(
         "path": path,
         "language": module["language"],
         "analyzer": module["analyzer"],
+        "analysis_contract": module.get("analysis_contract"),
         "structural_hash": module["structural_hash"],
         "interface_hash": interface_hash,
     }
@@ -131,7 +132,7 @@ def _reuse_existing(context: _IntrinsicContext, item: _IntrinsicModule) -> tuple
         "intrinsic",
         item.input_hash,
         context.semantic,
-        legacy_evidence=item.evidence,
+        legacy_evidence=_legacy_evidence(item.evidence),
     )
     expired = document is not None and is_expired(
         document["created_at"], context.semantic.max_age_days
@@ -143,6 +144,13 @@ def _reuse_existing(context: _IntrinsicContext, item: _IntrinsicModule) -> tuple
     )
     _record(context, item, "intrinsic_current", _CURRENT_REASON, int(document["id"]))
     return True, False
+
+
+def _legacy_evidence(evidence: dict[str, Any]) -> tuple[dict[str, Any], ...]:
+    """Accept the old flat hash only when its original evidence is still identical."""
+
+    without_contract = {key: value for key, value in evidence.items() if key != "analysis_contract"}
+    return evidence, without_contract
 
 
 def _enqueue(context: _IntrinsicContext, item: _IntrinsicModule, expired: bool) -> int:

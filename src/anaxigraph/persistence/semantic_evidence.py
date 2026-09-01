@@ -43,7 +43,15 @@ def module_facts(
     return module, [
         {
             key: symbol[key]
-            for key in ("symbol_type", "name", "signature", "start_line", "end_line", "summary")
+            for key in (
+                "symbol_type",
+                "name",
+                "signature",
+                "start_line",
+                "end_line",
+                "summary",
+                "visibility",
+            )
         }
         for symbol in symbols
     ]
@@ -77,6 +85,9 @@ def relationships_for_artifact(
                 "type": edge["relationship_type"],
                 "confidence": edge["confidence"],
                 "resolution": metadata.get("resolution_status", "unknown"),
+                "reference_forms": metadata.get("reference_forms", []),
+                "resolution_provenance": metadata.get("resolution_provenance", []),
+                "candidates": metadata.get("candidate_paths", []),
                 "evidence": edge["evidence"],
             }
         )
@@ -105,6 +116,15 @@ def _inventory(
         module["artifact_version_id"] = None
         module["public_interfaces"] = _json_list(module["public_interfaces_json"])
         module["symbols"] = symbols_by_fact.get(fact_id, [])
+        metadata = json.loads(module.get("metadata_json") or "{}")
+        ir = metadata.get("ir") or {}
+        capabilities = ir.get("analyzer_capabilities") or {}
+        module["analysis_contract"] = {
+            "analyzer": module.get("analyzer"),
+            "analyzer_version": ir.get("analyzer_version"),
+            "capability_fingerprint": capabilities.get("fingerprint"),
+            "parse_status": ir.get("parse_status"),
+        }
         result[str(module["path"])] = module
     return result
 
@@ -129,6 +149,8 @@ def _relationship_map(
                 "type": edge["relationship_type"],
                 "resolution": metadata.get("resolution_status", "unknown"),
                 "candidates": metadata.get("candidate_paths", []),
+                "reference_forms": metadata.get("reference_forms", []),
+                "resolution_provenance": metadata.get("resolution_provenance", []),
             }
         )
         if target_id is not None and int(target_id) in paths:
@@ -139,6 +161,8 @@ def _relationship_map(
                     "type": edge["relationship_type"],
                     "resolution": metadata.get("resolution_status", "resolved_internal"),
                     "candidates": [],
+                    "reference_forms": metadata.get("reference_forms", []),
+                    "resolution_provenance": metadata.get("resolution_provenance", []),
                 }
             )
     for values in result.values():

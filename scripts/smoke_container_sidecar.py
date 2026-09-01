@@ -73,6 +73,7 @@ def smoke_container_sidecar(root: Path, *, image: str, build: bool = True) -> di
             "health": health,
             "mcp_repositories": len(mcp["repositories"]),
             "repository_files": mcp["overview"]["files"],
+            "parser_files": mcp["overview"]["graph_quality"]["parser_files"],
             "hardening": hardening,
         }
 
@@ -81,6 +82,10 @@ def _create_repository(repository: Path) -> Path:
     repository.mkdir(parents=True)
     (repository / "app.py").write_text(
         '"""Container smoke fixture."""\n\ndef ready() -> bool:\n    return True\n',
+        encoding="utf-8",
+    )
+    (repository / "view.tsx").write_text(
+        "export const View = () => <main>AnaxiGraph</main>;\n",
         encoding="utf-8",
     )
     for command in (
@@ -118,7 +123,10 @@ async def _mcp_evidence(url: str) -> dict[str, Any]:
             )
             if overview.isError:
                 raise RuntimeError("container MCP overview query failed")
-            return {"repositories": repositories, "overview": overview.structuredContent}
+            content = overview.structuredContent or {}
+            if content.get("graph_quality", {}).get("parser_files") != 1:
+                raise RuntimeError("container did not load the parser-backed TypeScript analyzer")
+            return {"repositories": repositories, "overview": content}
 
 
 async def _wait_for_mcp_repository(

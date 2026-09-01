@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from semantic_support import _fake_provider, _semantic_config
 
+from anaxigraph.analyzers.javascript import TypeScriptAnalyzer
 from anaxigraph.analyzers.python import PythonAnalyzer
 from anaxigraph.config import load_config
 from anaxigraph.pattern_evidence import PATTERN_EVIDENCE_VERSION
@@ -125,7 +126,7 @@ def test_projection_fingerprints_invalidate_only_changed_targets_and_parents(rep
     assert before["repository:root"] != after["repository:root"]
 
 
-def test_lexical_symbol_marks_unsupported_documentation_as_unavailable(repository, database):
+def test_parser_symbol_exposes_structural_documentation_capability(repository, database):
     stats = RepositoryScanner(database).scan(repository)
     projection = database.pattern_evidence(stats.repository_id)
     app_key = target_key("symbol", path="web/App.tsx", identity="web.App.App")
@@ -134,8 +135,22 @@ def test_lexical_symbol_marks_unsupported_documentation_as_unavailable(repositor
         feature for feature in app["features"] if feature["name"] == "documentation.summary"
     )
 
-    assert documentation["availability"] == "unavailable"
-    assert documentation["confidence"] == 0
+    assert documentation["availability"] == "available"
+    assert documentation["confidence"] > 0
+    assert app["capability_fingerprints"] == [TypeScriptAnalyzer.capabilities.fingerprint]
+
+
+def test_typescript_syntax_facts_feed_the_shared_pattern_evidence(repository, database):
+    stats = RepositoryScanner(database).scan(repository)
+    projection = database.pattern_evidence(stats.repository_id)
+    helper_key = target_key("module", path="web/helper.ts")
+    helper = next(item for item in projection["items"] if item["target"]["key"] == helper_key)
+    features = {item["name"]: item for item in helper["features"]}
+
+    assert helper["capability_fingerprints"] == [TypeScriptAnalyzer.capabilities.fingerprint]
+    assert features["analyzer.parse_status"]["value"] == "parsed"
+    assert features["interfaces.public"]["value"] == ["label"]
+    assert features["syntax.annotations"]["value"]["count"] >= 1
 
 
 def test_projection_uses_only_current_dossiers_and_reviewed_taxonomy(

@@ -48,6 +48,7 @@ def test_built_wheel_and_sdist_preserve_runtime_and_license_contract(
         "anaxigraph-0.3.0.tar.gz",
     }
     assert all(len(item["sha256"]) == 64 for item in report["artifacts"])
+    assert all(len(item["parser_dependencies"]) == 3 for item in report["artifacts"])
 
     checksums = tmp_path / "SHA256SUMS"
     write_checksums(report, checksums)

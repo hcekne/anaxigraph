@@ -32,7 +32,7 @@ from anaxigraph.scan_preparation import (
 from anaxigraph.scan_snapshot import RelationshipBuildResult, previous_analysis_records
 from anaxigraph.storage import AnaxiIndex
 
-ANALYSIS_VERSION = 4
+ANALYSIS_VERSION = 5
 
 ScanProgress = Callable[[dict[str, Any]], None]
 CancelCheck = Callable[[], bool]

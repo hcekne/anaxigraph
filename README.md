@@ -352,10 +352,14 @@ claiming that every Git commit was analyzed.
 
 ## Current support boundary
 
-The deepest code reading is currently Python-first. JavaScript and TypeScript use the
-built-in lexical analyzer; other recognized source and text formats have heuristic or inventory
-support. The roadmap deliberately does not call extension recognition “full language support.”
-Parser-backed JavaScript/TypeScript, Go, Rust, and Java are the next language-platform phase.
+Python uses its built-in AST. JavaScript, JSX, TypeScript, and TSX use pinned Tree-sitter grammars
+for structural symbols, imports and re-exports, CommonJS, modern dynamic imports, source spans,
+TypeScript declarations, and syntax-level type evidence. Workspace targets resolve from indexed
+`package.json`, `tsconfig.json`, and `jsconfig.json` evidence with explicit provenance and honest
+ambiguity; AnaxiGraph does not run the target build or pretend it has compiler/type-checker or
+runtime certainty. Other recognized source and text formats have heuristic or inventory support.
+The roadmap deliberately does not call extension recognition “full language support.” See the
+[capability matrix](docs/language-support.md).
 
 Linux x86-64 is release-gated. Linux ARM64, macOS, and WSL2 are best effort; Docker Desktop is the
 recommended macOS path. Native Windows is not supported—use WSL2. See the

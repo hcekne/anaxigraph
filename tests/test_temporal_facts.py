@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 
 from anaxigraph.history import import_git_history
+from anaxigraph.ir_serialization import expand_stored_metadata
 from anaxigraph.persistence import (
     inspect_index,
     snapshot_files,
@@ -114,9 +115,22 @@ def test_compact_fact_metadata_expands_at_the_snapshot_boundary(repository, data
     projected_ir = json.loads(projected["metadata_json"])["ir"]
     assert "module_identity" not in stored_ir
     assert "symbols" not in stored_ir
+    assert stored_ir["schema_version"] == "anaxigraph-ir-v2"
     assert projected_ir["module_identity"]["path"] == "pkg/util.py"
     assert projected_ir["exports"] == json.loads(projected["public_interfaces_json"])
     assert projected_ir["analyzer_capabilities"]["fingerprint"]
+
+
+def test_legacy_compact_metadata_keeps_v1_defaults():
+    projected = expand_stored_metadata(
+        {"dependencies": [{"target": "./helper"}], "ir": {}},
+        path="web/App.tsx",
+        language="typescript",
+        public_interfaces=[],
+    )
+
+    assert projected["ir"]["schema_version"] == "anaxigraph-ir-v1"
+    assert projected["dependencies"][0]["reference_form"] == "static"
 
 
 def test_history_import_rebases_an_existing_current_snapshot(repository, database):

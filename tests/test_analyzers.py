@@ -6,7 +6,7 @@ import pytest
 
 from anaxigraph.analyzer_capabilities import CapabilitySupport, capabilities_from_dict
 from anaxigraph.analyzers import builtin_registry
-from anaxigraph.analyzers.javascript import JavaScriptAnalyzer
+from anaxigraph.analyzers.javascript import JavaScriptAnalyzer, TypeScriptAnalyzer
 from anaxigraph.analyzers.python import PythonAnalyzer
 from anaxigraph.analyzers.text import TextAnalyzer
 from anaxigraph.ir import IR_SCHEMA_VERSION
@@ -58,8 +58,8 @@ def test_python_evidence_preserves_multiline_and_unicode_ast_offsets():
     assert result.dependencies[0].evidence == "from package import (     first,     second, )"
 
 
-def test_javascript_lexer_extracts_imports_components_and_ignores_comment_changes():
-    analyzer = JavaScriptAnalyzer()
+def test_typescript_parser_extracts_imports_components_and_ignores_comment_changes():
+    analyzer = TypeScriptAnalyzer()
     source = """// Screen component
 import { load } from './api';
 export const Dashboard = () => {
@@ -118,7 +118,7 @@ def test_python_analyzer_is_the_reference_ir_implementation():
 def test_every_builtin_analyzer_emits_conforming_ir():
     cases = (
         (PythonAnalyzer(), "module.py", "def value():\n    return 1\n"),
-        (JavaScriptAnalyzer(), "module.ts", "export function value() { return 1; }\n"),
+        (TypeScriptAnalyzer(), "module.ts", "export function value() { return 1; }\n"),
         (TextAnalyzer(), "module.go", "package module\n\nfunc Value() int { return 1 }\n"),
     )
 
@@ -139,18 +139,21 @@ def test_every_detected_language_has_exactly_one_builtin_analyzer():
 def test_builtin_analyzers_declare_honest_pattern_evidence_capabilities():
     python = PythonAnalyzer.capabilities
     javascript = JavaScriptAnalyzer.capabilities
+    typescript = TypeScriptAnalyzer.capabilities
     text = TextAnalyzer.capabilities
 
     assert python.support_level("symbols") == "deep"
     assert python.support_level("calls") == "structural"
     assert python.support_level("mutation") == "structural"
     assert python.support_level("data_flow") == "unavailable"
-    assert javascript.support_level("symbols") == "lexical"
-    assert javascript.supports("symbols", "structural") is False
+    assert javascript.support_level("symbols") == "structural"
+    assert javascript.support_level("types") == "unavailable"
+    assert typescript.support_level("symbols") == "structural"
+    assert typescript.support_level("types") == "structural"
     assert text.support_level("module_identity") == "deep"
     assert text.support_level("complexity") == "heuristic"
     assert text.support_level("symbols") == "unavailable"
-    assert len({item.capabilities.fingerprint for item in builtin_registry().analyzers}) == 3
+    assert len({item.capabilities.fingerprint for item in builtin_registry().analyzers}) == 4
 
 
 def test_python_reference_analyzer_emits_pattern_neutral_evidence_families():

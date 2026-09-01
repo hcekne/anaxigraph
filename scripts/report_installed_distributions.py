@@ -24,6 +24,11 @@ def installed_distributions() -> list[dict[str, Any]]:
                 "version": distribution.version,
                 "license_expression": metadata.get("License-Expression"),
                 "license": metadata.get("License"),
+                "license_classifiers": [
+                    value.removeprefix("License :: ")
+                    for value in metadata.get_all("Classifier", [])
+                    if value.startswith("License :: ")
+                ],
                 "license_files": metadata.get_all("License-File", []),
                 "project_urls": metadata.get_all("Project-URL", []),
             }

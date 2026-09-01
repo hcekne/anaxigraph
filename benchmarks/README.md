@@ -73,6 +73,16 @@ uv run python -m benchmarks.parser_selection \
   --output benchmarks/results/phase11-parser-selection-2026-09-01.json
 ```
 
+The repository-scale companion measures cold scan, unchanged reuse, one-file incremental scan, and
+three-frame history import across 120, 1,000, and 3,000 parser-backed source files. Its correctness
+contract requires zero parser errors, zero unchanged re-analysis, one-file incremental work, and
+history analysis proportional to changed files rather than repository size.
+
+```bash
+uv run python -m benchmarks.javascript_analysis \
+  --output benchmarks/results/phase11-javascript-analysis-2026-09-01.json
+```
+
 ## First-user time to value
 
 The Phase 3 gate exercises the assembled local product rather than timing helper functions. Each

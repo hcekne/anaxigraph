@@ -1,0 +1,450 @@
+{
+  "cases": {
+    "1000": {
+      "checks": {
+        "all_source_files_parser_backed": true,
+        "cold_indexed_every_file": true,
+        "history_reused_unchanged_files": true,
+        "history_selected_requested_frames": true,
+        "no_parser_errors": true,
+        "one_file_change_reanalyzed_one": true,
+        "unchanged_scan_reanalyzed_nothing": true
+      },
+      "cold_scan": {
+        "analysis_run_id": 1,
+        "analyzed": 1002,
+        "deleted": 0,
+        "discovered": 1002,
+        "duration_ms": 1570,
+        "findings": 1,
+        "peak_resident_bytes": 104583168,
+        "peak_resident_delta_bytes": 19062784,
+        "relationships": 1997,
+        "repository_id": 1,
+        "reused": 0,
+        "snapshot_id": 1,
+        "wall_time_ms": 1577
+      },
+      "graph_quality": {
+        "ambiguous_internal": 0,
+        "analyzers": {
+          "builtin-javascript-tree-sitter": 500,
+          "builtin-text": 2,
+          "builtin-typescript-tree-sitter": 500
+        },
+        "ast_files": 0,
+        "caveat": "This check sees references written in source files. Connections created only while the program runs may be missing.",
+        "dynamic": 0,
+        "external": 0,
+        "extraction_caveat": "Python, JavaScript, and TypeScript files are read from parsed code structure. Other recognized text formats are read as plain text, so their relationships are less complete.",
+        "fallback_files": 2,
+        "internal_references": 1997,
+        "lexical_files": 0,
+        "parse_error_files": 0,
+        "parser_files": 1000,
+        "plain_language": {
+          "conclusion": "The map may miss connections because 2 files were read only as plain text.",
+          "version": "graph-quality-explanation-v1",
+          "what_this_limits": [
+            "For 2 files, AnaxiGraph could read words but not code structure, so it may have missed functions, classes, or imports.",
+            "Connections created only while the program runs, such as plugin registration or generated imports, may not appear in a source-code map."
+          ],
+          "what_to_do": [
+            "Use a code-structure analyzer for these file types when exact functions and dependencies matter."
+          ],
+          "what_was_checked": "AnaxiGraph checked 1997 likely links between files. 1997 pointed to exactly one indexed file, 0 could point to more than one file, and 0 looked internal but had no matching file."
+        },
+        "resolution_rate": 1.0,
+        "resolved_internal": 1997,
+        "status": "complete",
+        "total_relationships": 1997,
+        "unresolved_internal": 0
+      },
+      "history_import": {
+        "analysis_runs": [
+          {
+            "analyzed": 1002,
+            "discovered": 1002,
+            "reused": 0
+          },
+          {
+            "analyzed": 1,
+            "discovered": 1002,
+            "reused": 1001
+          },
+          {
+            "analyzed": 1,
+            "discovered": 1002,
+            "reused": 1001
+          },
+          {
+            "analyzed": 1,
+            "discovered": 1002,
+            "reused": 1001
+          }
+        ],
+        "current_snapshot_id": 4,
+        "first_commit": "8f21a12fda130ebf461786780e1cca602d4319c4",
+        "imported_snapshots": 3,
+        "latest_commit": "8cd4704896fe5d4d5dbe0b57dbb03e954693d460",
+        "peak_resident_bytes": 119468032,
+        "peak_resident_delta_bytes": 8192,
+        "selected_commits": 3,
+        "total_commits": 3,
+        "wall_time_ms": 7354,
+        "work": {
+          "analyzed_files": 1004,
+          "carried_forward": 2002,
+          "invalidation_reasons": {
+            "carried_forward": 1004,
+            "content_changed": 1,
+            "interface_changed": 1,
+            "namespace_changed": 1002,
+            "resolver_context_changed": 998
+          },
+          "relationship_sources_resolved": 2002,
+          "relationship_sources_reused": 1004,
+          "relationships_copied": 1995,
+          "reused_analysis": 2002,
+          "source_reads": 1004
+        }
+      },
+      "index_bytes": 7741440,
+      "indexed_files": 1002,
+      "one_file_incremental_scan": {
+        "analysis_run_id": 3,
+        "analyzed": 1,
+        "deleted": 0,
+        "discovered": 1002,
+        "duration_ms": 1364,
+        "findings": 1,
+        "peak_resident_bytes": 119463936,
+        "peak_resident_delta_bytes": 12910592,
+        "relationships": 1997,
+        "repository_id": 1,
+        "reused": 1001,
+        "snapshot_id": 2,
+        "wall_time_ms": 1375
+      },
+      "passed": true,
+      "source_files": 1000,
+      "unchanged_scan": {
+        "analysis_run_id": 2,
+        "analyzed": 0,
+        "deleted": 0,
+        "discovered": 1002,
+        "duration_ms": 640,
+        "findings": 1,
+        "peak_resident_bytes": 107765760,
+        "peak_resident_delta_bytes": 5316608,
+        "relationships": 1997,
+        "repository_id": 1,
+        "reused": 1002,
+        "snapshot_id": 1,
+        "wall_time_ms": 645
+      }
+    },
+    "120": {
+      "checks": {
+        "all_source_files_parser_backed": true,
+        "cold_indexed_every_file": true,
+        "history_reused_unchanged_files": true,
+        "history_selected_requested_frames": true,
+        "no_parser_errors": true,
+        "one_file_change_reanalyzed_one": true,
+        "unchanged_scan_reanalyzed_nothing": true
+      },
+      "cold_scan": {
+        "analysis_run_id": 1,
+        "analyzed": 122,
+        "deleted": 0,
+        "discovered": 122,
+        "duration_ms": 248,
+        "findings": 1,
+        "peak_resident_bytes": 82751488,
+        "peak_resident_delta_bytes": 7245824,
+        "relationships": 237,
+        "repository_id": 1,
+        "reused": 0,
+        "snapshot_id": 1,
+        "wall_time_ms": 253
+      },
+      "graph_quality": {
+        "ambiguous_internal": 0,
+        "analyzers": {
+          "builtin-javascript-tree-sitter": 60,
+          "builtin-text": 2,
+          "builtin-typescript-tree-sitter": 60
+        },
+        "ast_files": 0,
+        "caveat": "This check sees references written in source files. Connections created only while the program runs may be missing.",
+        "dynamic": 0,
+        "external": 0,
+        "extraction_caveat": "Python, JavaScript, and TypeScript files are read from parsed code structure. Other recognized text formats are read as plain text, so their relationships are less complete.",
+        "fallback_files": 2,
+        "internal_references": 237,
+        "lexical_files": 0,
+        "parse_error_files": 0,
+        "parser_files": 120,
+        "plain_language": {
+          "conclusion": "The map may miss connections because 2 files were read only as plain text.",
+          "version": "graph-quality-explanation-v1",
+          "what_this_limits": [
+            "For 2 files, AnaxiGraph could read words but not code structure, so it may have missed functions, classes, or imports.",
+            "Connections created only while the program runs, such as plugin registration or generated imports, may not appear in a source-code map."
+          ],
+          "what_to_do": [
+            "Use a code-structure analyzer for these file types when exact functions and dependencies matter."
+          ],
+          "what_was_checked": "AnaxiGraph checked 237 likely links between files. 237 pointed to exactly one indexed file, 0 could point to more than one file, and 0 looked internal but had no matching file."
+        },
+        "resolution_rate": 1.0,
+        "resolved_internal": 237,
+        "status": "complete",
+        "total_relationships": 237,
+        "unresolved_internal": 0
+      },
+      "history_import": {
+        "analysis_runs": [
+          {
+            "analyzed": 122,
+            "discovered": 122,
+            "reused": 0
+          },
+          {
+            "analyzed": 1,
+            "discovered": 122,
+            "reused": 121
+          },
+          {
+            "analyzed": 1,
+            "discovered": 122,
+            "reused": 121
+          },
+          {
+            "analyzed": 1,
+            "discovered": 122,
+            "reused": 121
+          }
+        ],
+        "current_snapshot_id": 4,
+        "first_commit": "6b03689bf04052165ec28088eca54545a84cd3e4",
+        "imported_snapshots": 3,
+        "latest_commit": "363096beedd564f7a76327bb8cad81a334bf9393",
+        "peak_resident_bytes": 85393408,
+        "peak_resident_delta_bytes": 503808,
+        "selected_commits": 3,
+        "total_commits": 3,
+        "wall_time_ms": 933,
+        "work": {
+          "analyzed_files": 124,
+          "carried_forward": 242,
+          "invalidation_reasons": {
+            "carried_forward": 124,
+            "content_changed": 1,
+            "interface_changed": 1,
+            "namespace_changed": 122,
+            "resolver_context_changed": 118
+          },
+          "relationship_sources_resolved": 242,
+          "relationship_sources_reused": 124,
+          "relationships_copied": 235,
+          "reused_analysis": 242,
+          "source_reads": 124
+        }
+      },
+      "index_bytes": 1261568,
+      "indexed_files": 122,
+      "one_file_incremental_scan": {
+        "analysis_run_id": 3,
+        "analyzed": 1,
+        "deleted": 0,
+        "discovered": 122,
+        "duration_ms": 188,
+        "findings": 1,
+        "peak_resident_bytes": 84889600,
+        "peak_resident_delta_bytes": 1556480,
+        "relationships": 237,
+        "repository_id": 1,
+        "reused": 121,
+        "snapshot_id": 2,
+        "wall_time_ms": 193
+      },
+      "passed": true,
+      "source_files": 120,
+      "unchanged_scan": {
+        "analysis_run_id": 2,
+        "analyzed": 0,
+        "deleted": 0,
+        "discovered": 122,
+        "duration_ms": 107,
+        "findings": 1,
+        "peak_resident_bytes": 83337216,
+        "peak_resident_delta_bytes": 458752,
+        "relationships": 237,
+        "repository_id": 1,
+        "reused": 122,
+        "snapshot_id": 1,
+        "wall_time_ms": 110
+      }
+    },
+    "3000": {
+      "checks": {
+        "all_source_files_parser_backed": true,
+        "cold_indexed_every_file": true,
+        "history_reused_unchanged_files": true,
+        "history_selected_requested_frames": true,
+        "no_parser_errors": true,
+        "one_file_change_reanalyzed_one": true,
+        "unchanged_scan_reanalyzed_nothing": true
+      },
+      "cold_scan": {
+        "analysis_run_id": 1,
+        "analyzed": 3002,
+        "deleted": 0,
+        "discovered": 3002,
+        "duration_ms": 4813,
+        "findings": 1,
+        "peak_resident_bytes": 141893632,
+        "peak_resident_delta_bytes": 22650880,
+        "relationships": 5997,
+        "repository_id": 1,
+        "reused": 0,
+        "snapshot_id": 1,
+        "wall_time_ms": 4825
+      },
+      "graph_quality": {
+        "ambiguous_internal": 0,
+        "analyzers": {
+          "builtin-javascript-tree-sitter": 1500,
+          "builtin-text": 2,
+          "builtin-typescript-tree-sitter": 1500
+        },
+        "ast_files": 0,
+        "caveat": "This check sees references written in source files. Connections created only while the program runs may be missing.",
+        "dynamic": 0,
+        "external": 0,
+        "extraction_caveat": "Python, JavaScript, and TypeScript files are read from parsed code structure. Other recognized text formats are read as plain text, so their relationships are less complete.",
+        "fallback_files": 2,
+        "internal_references": 5997,
+        "lexical_files": 0,
+        "parse_error_files": 0,
+        "parser_files": 3000,
+        "plain_language": {
+          "conclusion": "The map may miss connections because 2 files were read only as plain text.",
+          "version": "graph-quality-explanation-v1",
+          "what_this_limits": [
+            "For 2 files, AnaxiGraph could read words but not code structure, so it may have missed functions, classes, or imports.",
+            "Connections created only while the program runs, such as plugin registration or generated imports, may not appear in a source-code map."
+          ],
+          "what_to_do": [
+            "Use a code-structure analyzer for these file types when exact functions and dependencies matter."
+          ],
+          "what_was_checked": "AnaxiGraph checked 5997 likely links between files. 5997 pointed to exactly one indexed file, 0 could point to more than one file, and 0 looked internal but had no matching file."
+        },
+        "resolution_rate": 1.0,
+        "resolved_internal": 5997,
+        "status": "complete",
+        "total_relationships": 5997,
+        "unresolved_internal": 0
+      },
+      "history_import": {
+        "analysis_runs": [
+          {
+            "analyzed": 3002,
+            "discovered": 3002,
+            "reused": 0
+          },
+          {
+            "analyzed": 1,
+            "discovered": 3002,
+            "reused": 3001
+          },
+          {
+            "analyzed": 1,
+            "discovered": 3002,
+            "reused": 3001
+          },
+          {
+            "analyzed": 1,
+            "discovered": 3002,
+            "reused": 3001
+          }
+        ],
+        "current_snapshot_id": 4,
+        "first_commit": "993a37ef49dabb398820cf3ac0652d3018317be0",
+        "imported_snapshots": 3,
+        "latest_commit": "60b5724c4ed06ab08b0ddceb71ef8a839acb9e21",
+        "peak_resident_bytes": 190423040,
+        "peak_resident_delta_bytes": 7655424,
+        "selected_commits": 3,
+        "total_commits": 3,
+        "wall_time_ms": 22945,
+        "work": {
+          "analyzed_files": 3004,
+          "carried_forward": 6002,
+          "invalidation_reasons": {
+            "carried_forward": 3004,
+            "content_changed": 1,
+            "interface_changed": 1,
+            "namespace_changed": 3002,
+            "resolver_context_changed": 2998
+          },
+          "relationship_sources_resolved": 6002,
+          "relationship_sources_reused": 3004,
+          "relationships_copied": 5995,
+          "reused_analysis": 6002,
+          "source_reads": 3004
+        }
+      },
+      "index_bytes": 21393408,
+      "indexed_files": 3002,
+      "one_file_incremental_scan": {
+        "analysis_run_id": 3,
+        "analyzed": 1,
+        "deleted": 0,
+        "discovered": 3002,
+        "duration_ms": 4308,
+        "findings": 1,
+        "peak_resident_bytes": 190586880,
+        "peak_resident_delta_bytes": 42291200,
+        "relationships": 5997,
+        "repository_id": 1,
+        "reused": 3001,
+        "snapshot_id": 2,
+        "wall_time_ms": 4338
+      },
+      "passed": true,
+      "source_files": 3000,
+      "unchanged_scan": {
+        "analysis_run_id": 2,
+        "analyzed": 0,
+        "deleted": 0,
+        "discovered": 3002,
+        "duration_ms": 1819,
+        "findings": 1,
+        "peak_resident_bytes": 152580096,
+        "peak_resident_delta_bytes": 10756096,
+        "relationships": 5997,
+        "repository_id": 1,
+        "reused": 3002,
+        "snapshot_id": 1,
+        "wall_time_ms": 1827
+      }
+    }
+  },
+  "environment": {
+    "anaxigraph_revision": "f7f33ccc448c289f7ba8cb24275f62af853ae9cc",
+    "anaxigraph_version": "0.3.0",
+    "cpu_count": 16,
+    "generated_at": "2026-09-01T03:28:52.892594+00:00",
+    "machine": "x86_64",
+    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+    "python": "3.11.15",
+    "sqlite": "3.53.1",
+    "working_tree_dirty": true
+  },
+  "history_frames": 3,
+  "passed": true,
+  "report_schema_version": "javascript-analysis-v1"
+}

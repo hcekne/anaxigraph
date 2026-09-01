@@ -89,12 +89,13 @@ Deterministic parser facts and probabilistic semantic claims never share a prove
 Relationship rows name their evidence source and confidence. Semantic rows name provider, model,
 prompt version, time, confidence, and supporting evidence.
 
-All built-in analyzers emit `anaxigraph-ir-v1`. That contract records module identity and aliases,
+Current built-in analyzers emit `anaxigraph-ir-v2`. That contract records module identity and aliases,
 symbol kind/signature/span/visibility, extracted references with evidence and confidence, explicit
-exports, parse depth, analyzer version, and resolver inputs. Python is AST-backed, JavaScript and
-TypeScript are lexical, and other recognized languages are explicitly fallback analysis today.
-Resolution outcomes remain separate relationship facts: resolved, ambiguous, unresolved, or
-external.
+exports, parse depth, analyzer version, resolver inputs, and the source form of each reference.
+Python is AST-backed; JavaScript, JSX, TypeScript, and TSX are Tree-sitter-backed; other recognized
+languages are explicitly fallback analysis today. Resolution outcomes remain separate relationship
+facts: resolved, ambiguous, unresolved, external, or dynamic. Historical v1 facts remain readable
+without being relabeled as v2 evidence.
 
 Architecture placement exposes four precise views. The **declared map** is optional repository
 intent, the **path map** is deterministic directory/package grouping, and the **inferred

@@ -8,6 +8,7 @@ from typing import Any
 
 from anaxigraph.architecture_vocabulary import CURRENT_MAP, architecture_placement
 from anaxigraph.relationships import (
+    DYNAMIC,
     EXTERNAL,
     RESOLUTION_STATUSES,
     RESOLVED_INTERNAL,
@@ -36,14 +37,19 @@ def graph_quality_explanation(quality: dict[str, Any]) -> dict[str, Any]:
     resolved = _count(quality.get("resolved_internal"))
     ambiguous = _count(quality.get("ambiguous_internal"))
     unresolved = _count(quality.get("unresolved_internal"))
+    dynamic = _count(quality.get("dynamic"))
     fallback = _count(quality.get("fallback_files"))
     parse_errors = _count(quality.get("parse_error_files"))
     return {
         "version": GRAPH_QUALITY_LANGUAGE_VERSION,
-        "conclusion": _quality_conclusion(internal, ambiguous, unresolved, fallback, parse_errors),
-        "what_was_checked": _resolution_sentence(internal, resolved, ambiguous, unresolved),
-        "what_this_limits": _quality_limits(ambiguous, unresolved, fallback, parse_errors),
-        "what_to_do": _quality_actions(ambiguous, unresolved, fallback, parse_errors),
+        "conclusion": _quality_conclusion(
+            internal, ambiguous, unresolved, dynamic, fallback, parse_errors
+        ),
+        "what_was_checked": _resolution_sentence(
+            internal, resolved, ambiguous, unresolved, dynamic
+        ),
+        "what_this_limits": _quality_limits(ambiguous, unresolved, dynamic, fallback, parse_errors),
+        "what_to_do": _quality_actions(ambiguous, unresolved, dynamic, fallback, parse_errors),
     }
 
 
@@ -51,6 +57,7 @@ def _quality_conclusion(
     internal: int,
     ambiguous: int,
     unresolved: int,
+    dynamic: int,
     fallback: int,
     parse_errors: int,
 ) -> str:
@@ -64,6 +71,11 @@ def _quality_conclusion(
             )
             + " not link to exactly one indexed file"
         )
+    if dynamic:
+        reasons.append(
+            _items(dynamic, "computed reference has", "computed references have")
+            + " no single target written in source"
+        )
     if fallback:
         reasons.append(_items(fallback, "file was", "files were") + " read only as plain text")
     if parse_errors:
@@ -75,24 +87,36 @@ def _quality_conclusion(
     return "AnaxiGraph linked every extracted internal code reference to one indexed file."
 
 
-def _resolution_sentence(internal: int, resolved: int, ambiguous: int, unresolved: int) -> str:
-    if not internal:
+def _resolution_sentence(
+    internal: int, resolved: int, ambiguous: int, unresolved: int, dynamic: int
+) -> str:
+    if not internal and not dynamic:
         return (
             "No extracted source reference looked like a link to another file in this repository."
         )
-    return (
+    result = (
         f"AnaxiGraph checked {_items(internal, 'likely link', 'likely links')} between files. "
         f"{resolved} pointed to exactly one indexed file, {ambiguous} could point to more than one "
         f"file, and {unresolved} looked internal but had no matching file."
     )
+    if dynamic:
+        result += f" It also retained {_items(dynamic, 'computed reference', 'computed references')} without guessing a target."
+    return result
 
 
-def _quality_limits(ambiguous: int, unresolved: int, fallback: int, parse_errors: int) -> list[str]:
+def _quality_limits(
+    ambiguous: int, unresolved: int, dynamic: int, fallback: int, parse_errors: int
+) -> list[str]:
     limits = []
     if ambiguous + unresolved:
         limits.append(
             "Dependency, change-impact, and unused-code advice may be incomplete. AnaxiGraph will "
             "not recommend deleting code when these missing links make that unsafe."
+        )
+    if dynamic:
+        limits.append(
+            "Computed imports or requires may connect files that cannot be identified from static "
+            "source, so dependency and unused-code advice remains conservative."
         )
     if fallback:
         limits.append(
@@ -111,12 +135,16 @@ def _quality_limits(ambiguous: int, unresolved: int, fallback: int, parse_errors
 
 
 def _quality_actions(
-    ambiguous: int, unresolved: int, fallback: int, parse_errors: int
+    ambiguous: int, unresolved: int, dynamic: int, fallback: int, parse_errors: int
 ) -> list[str]:
     actions = []
     if ambiguous + unresolved:
         actions.append(
             "Inspect the unclear or missing links before acting on dependency, impact, or deletion advice."
+        )
+    if dynamic:
+        actions.append(
+            "Inspect computed import and require expressions before deleting or moving related code."
         )
     if fallback:
         actions.append(
@@ -153,7 +181,7 @@ def _projected_resolution_quality(connection: sqlite3.Connection) -> dict[str, A
         """
         SELECT CASE
                  WHEN json_extract(metadata_json, '$.resolution_status') IN
-                      ('resolved_internal', 'ambiguous_internal', 'unresolved_internal', 'external')
+                      ('resolved_internal', 'ambiguous_internal', 'unresolved_internal', 'external', 'dynamic')
                  THEN json_extract(metadata_json, '$.resolution_status')
                  WHEN target_artifact_id IS NOT NULL THEN 'resolved_internal'
                  ELSE 'external'
@@ -167,8 +195,15 @@ def _projected_resolution_quality(connection: sqlite3.Connection) -> dict[str, A
         counts[RESOLVED_INTERNAL] + counts["ambiguous_internal"] + counts["unresolved_internal"]
     )
     unresolved = counts["ambiguous_internal"] + counts["unresolved_internal"]
+    dynamic = counts[DYNAMIC]
     return {
-        "status": "unavailable" if not internal else "complete" if not unresolved else "partial",
+        "status": (
+            "unavailable"
+            if not internal and not dynamic
+            else "complete"
+            if not unresolved and not dynamic
+            else "partial"
+        ),
         "resolution_rate": counts[RESOLVED_INTERNAL] / internal if internal else None,
         "total_relationships": sum(counts.values()),
         "internal_references": internal,
@@ -176,6 +211,7 @@ def _projected_resolution_quality(connection: sqlite3.Connection) -> dict[str, A
         "ambiguous_internal": counts["ambiguous_internal"],
         "unresolved_internal": counts["unresolved_internal"],
         "external": counts[EXTERNAL],
+        "dynamic": dynamic,
         "caveat": (
             "This check sees references written in source files. Connections created only while "
             "the program runs may be missing."
@@ -192,9 +228,13 @@ def _projected_analyzer_quality(connection: sqlite3.Connection) -> dict[str, Any
             ).fetchall()
         }
     )
+    parser_files = (
+        analyzers["builtin-javascript-tree-sitter"] + analyzers["builtin-typescript-tree-sitter"]
+    )
     return {
         "analyzers": dict(sorted(analyzers.items())),
         "ast_files": analyzers["builtin-python-ast"],
+        "parser_files": parser_files,
         "lexical_files": analyzers["builtin-js-lexer"],
         "fallback_files": analyzers["builtin-text"],
         "parse_error_files": int(
@@ -203,9 +243,8 @@ def _projected_analyzer_quality(connection: sqlite3.Connection) -> dict[str, Any
             ).fetchone()[0]
         ),
         "extraction_caveat": (
-            "Python files are read from parsed code structure. JavaScript and TypeScript are read "
-            "from names and code tokens. Other recognized text formats are read as plain text, so "
-            "their relationships are less complete."
+            "Python, JavaScript, and TypeScript files are read from parsed code structure. Other "
+            "recognized text formats are read as plain text, so their relationships are less complete."
         ),
     }
 

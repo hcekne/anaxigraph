@@ -89,6 +89,13 @@ architectures and performs the same parser smoke contract.
 - Parser input is repository source already bounded by discovery policy. No query strings, target
   build configuration, native plugins, or downloaded grammars are accepted at runtime.
 
+The pinned Python binding has an upstream heap-corruption report for reading native `Point.column`
+on some grammar nodes ([py-tree-sitter #487](https://github.com/tree-sitter/py-tree-sitter/issues/487)).
+AnaxiGraph therefore never reads Tree-sitter `Point` fields. It derives zero-based rows and byte
+columns from retained source bytes plus stable `start_byte`/`end_byte` offsets, exactly as the
+upstream workaround recommends. The shipped dashboard file that originally exposed the crash is a
+regression fixture, and self-analysis must parse every dashboard source before release.
+
 ## Consequences
 
 - JavaScript and TypeScript can become genuinely parser-backed without creating another graph or

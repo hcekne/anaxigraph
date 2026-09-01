@@ -115,17 +115,7 @@ class SemanticEvidenceService:
             "analysis_kind": "intrinsic",
             "path": path,
             "language": version["language"],
-            "deterministic_facts": {
-                "deterministic_summary": version["summary"],
-                "declared_group": version["declared_group"],
-                "inferred_group": version["inferred_group"],
-                "lines_of_code": version["lines_of_code"],
-                "complexity": version["complexity"],
-                "public_interfaces": json.loads(version["public_interfaces_json"] or "[]"),
-                "symbols": symbols[:250],
-                "relationships": relations[:250],
-                "recent_changes": history,
-            },
+            "deterministic_facts": _intrinsic_facts(version, symbols, relations, history),
             "source": content,
             "previous_dossier": previous["value"] if previous else None,
         }
@@ -232,3 +222,32 @@ class SemanticEvidenceService:
             "missing_child_count": len(job["metadata"].get("missing_members", [])),
             "previous_dossier": previous["value"] if previous else None,
         }
+
+
+def _intrinsic_facts(
+    version: dict[str, Any],
+    symbols: list[dict[str, Any]],
+    relations: list[dict[str, Any]],
+    history: list[dict[str, Any]],
+) -> dict[str, Any]:
+    metadata = json.loads(version.get("metadata_json") or "{}")
+    ir = metadata.get("ir") or {}
+    return {
+        "deterministic_summary": version["summary"],
+        "declared_group": version["declared_group"],
+        "inferred_group": version["inferred_group"],
+        "lines_of_code": version["lines_of_code"],
+        "complexity": version["complexity"],
+        "analysis_contract": {
+            "analyzer": version["analyzer"],
+            "analyzer_version": ir.get("analyzer_version"),
+            "parse_status": ir.get("parse_status"),
+            "capabilities": ir.get("analyzer_capabilities"),
+            "parse_diagnostics": metadata.get("parse_diagnostics", []),
+        },
+        "public_interfaces": json.loads(version["public_interfaces_json"] or "[]"),
+        "symbols": symbols[:250],
+        "evidence_facts": (ir.get("evidence_facts") or [])[:250],
+        "relationships": relations[:250],
+        "recent_changes": history,
+    }

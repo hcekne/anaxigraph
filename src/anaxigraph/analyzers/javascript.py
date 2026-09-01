@@ -1,308 +1,238 @@
-"""Dependency and symbol extraction for JavaScript and TypeScript families."""
+"""Parser-backed JavaScript, JSX, TypeScript, and TSX analysis facades."""
 
 from __future__ import annotations
 
 import hashlib
-import re
+from importlib.metadata import version as distribution_version
 from pathlib import PurePosixPath
+from typing import Any
 
 from anaxigraph.analyzer_capabilities import declare_capabilities
-from anaxigraph.ir import module_identity, resolver_context, symbol_visibility
-from anaxigraph.languages import JAVASCRIPT_ANALYZER_LANGUAGES, detect_language
-from anaxigraph.models import Dependency, FileAnalysis, Symbol
+from anaxigraph.analyzers.javascript_dependencies import extract_dependencies
+from anaxigraph.analyzers.javascript_evidence import extract_javascript_evidence
+from anaxigraph.analyzers.javascript_parser import (
+    leading_comment,
+    node_complexity,
+    parse_source,
+    parser_languages,
+    source_metrics,
+    structural_hash,
+)
+from anaxigraph.analyzers.javascript_semantics import module_semantics
+from anaxigraph.analyzers.javascript_symbols import extract_symbols
+from anaxigraph.ir import module_identity, resolver_context
+from anaxigraph.languages import (
+    ECMASCRIPT_ANALYZER_LANGUAGES,
+    TYPESCRIPT_ANALYZER_LANGUAGES,
+    detect_language,
+)
+from anaxigraph.models import FileAnalysis
 
-_IMPORT_PATTERNS = (
-    re.compile(
-        r"(?:^|\n)\s*import\s+(?P<binding>[^;\n]*?)\s+from\s+['\"](?P<target>[^'\"]+)['\"]",
-        re.MULTILINE,
-    ),
-    re.compile(r"(?:^|\n)\s*import\s+['\"](?P<target>[^'\"]+)['\"]", re.MULTILINE),
-    re.compile(
-        r"(?:^|\n)\s*export\s+(?:\*|\{[^}]*\})\s+from\s+['\"](?P<target>[^'\"]+)['\"]",
-        re.MULTILINE,
-    ),
-    re.compile(r"\brequire\(\s*['\"](?P<target>[^'\"]+)['\"]\s*\)"),
-    re.compile(r"\bimport\(\s*['\"](?P<target>[^'\"]+)['\"]\s*\)"),
+_STRUCTURAL_FACTS = (
+    "async_behavior",
+    "calls",
+    "complexity",
+    "constructors",
+    "control_flow",
+    "decorators",
+    "entry_points",
+    "error_handling",
+    "exports",
+    "imports",
+    "inheritance",
+    "module_documentation",
+    "mutation",
+    "registrations",
+    "signatures",
+    "source_spans",
+    "symbol_documentation",
+    "symbol_kind",
+    "symbol_visibility",
+    "symbols",
+    "test_relationships",
 )
-_CLASS = re.compile(r"(?:^|\n)\s*(?:export\s+)?(?:default\s+)?class\s+([A-Za-z_$][\w$]*)")
-_FUNCTION = re.compile(
-    r"(?:^|\n)\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(([^)]*)\)"
-)
-_ARROW = re.compile(
-    r"(?:^|\n)\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=\n]+)?=\s*(?:async\s+)?(?:\(([^)]*)\)|([A-Za-z_$][\w$]*))\s*=>"
-)
-_ROUTE = re.compile(r"\b(?:router|app)\.(get|post|put|patch|delete)\s*\(\s*['\"]([^'\"]+)")
-_TOKEN = re.compile(
-    r"(?:[A-Za-z_$][\w$]*|\d+(?:\.\d+)?|===|!==|=>|\?\?|\?\.|&&|\|\||[{}()[\];,.?:+*/%<>=!-])"
-)
-_BRANCH = re.compile(r"\b(?:if|else\s+if|for|while|case|catch)\b|&&|\|\||\?\?")
+_PARSER_VERSIONS = {
+    "binding": distribution_version("tree-sitter"),
+    "javascript": distribution_version("tree-sitter-javascript"),
+    "typescript": distribution_version("tree-sitter-typescript"),
+}
 
 
 class JavaScriptAnalyzer:
-    name = "builtin-js-lexer"
+    name = "builtin-javascript-tree-sitter"
     version = "1"
-    languages = JAVASCRIPT_ANALYZER_LANGUAGES
+    languages = ECMASCRIPT_ANALYZER_LANGUAGES
     capabilities = declare_capabilities(
         name,
         version,
-        "lexical",
+        "structural",
         deep=("module_identity",),
-        lexical=(
-            "calls",
-            "complexity",
-            "entry_points",
-            "exports",
-            "imports",
-            "module_documentation",
-            "signatures",
-            "source_spans",
-            "symbol_kind",
-            "symbol_visibility",
-            "symbols",
-            "types",
-        ),
-        heuristic=("side_effects",),
+        structural=_STRUCTURAL_FACTS,
+        heuristic=("concurrency", "side_effects"),
         limitations=(
-            "Regex extraction cannot prove nested syntax, overloads, or complete call dispatch.",
-            "TypeScript types, decorators, control flow, and mutation are not structural facts.",
+            "Call relationships cover imported roots rather than complete runtime dispatch.",
+            "Dynamic expressions are retained as unresolved evidence rather than guessed targets.",
+            "Data flow, generated modules, and runtime framework wiring are not inferred.",
         ),
     )
 
     def analyze(self, path: str, content: str) -> FileAnalysis:
-        language = detect_language(path) or "javascript"
-        identity = module_identity(path, language)
-        code, comment_lines, leading_comment = _strip_comments(content)
-        structural = " ".join(_TOKEN.findall(code))
-        dependencies, aliases = _imports(content)
-        for alias, target in aliases.items():
-            call_pattern = re.compile(rf"\b{re.escape(alias)}(?:\.[A-Za-z_$][\w$]*)?\s*\(")
-            for match in call_pattern.finditer(code):
-                dependencies.append(
-                    Dependency(
-                        target=target,
-                        relationship_type="calls",
-                        line=code.count("\n", 0, match.start()) + 1,
-                        evidence=match.group(0),
-                        confidence=0.8,
-                    )
-                )
-                break
-        symbols = _symbols(path, code)
-        loc = sum(1 for line in code.splitlines() if line.strip())
-        complexity = 1 + len(_BRANCH.findall(code))
-        public, summary, responsibilities, side_effects = _module_semantics(
-            path, language, leading_comment, symbols, dependencies
-        )
-        return FileAnalysis(
-            language=language,
-            structural_hash=hashlib.sha256(structural.encode()).hexdigest(),
-            lines_of_code=loc,
-            comment_lines=len(comment_lines),
-            complexity=max(1, complexity),
-            summary=summary[:1_000],
-            responsibilities=responsibilities,
-            side_effects=side_effects,
-            public_interfaces=public,
-            symbols=symbols,
-            dependencies=_deduplicate_dependencies(dependencies),
-            analyzer=self.name,
-            module_identity=identity,
-            exports=public,
-            parse_status="lexical",
-            analyzer_version=self.version,
-            resolver_context=resolver_context(identity, import_aliases=aliases),
-            analyzer_capabilities=self.capabilities,
-        )
+        return _analyze(self, path, content, typescript=False)
 
 
-def _module_semantics(path, language, leading_comment, symbols, dependencies):
-    name = PurePosixPath(path).stem
-    public = [symbol.name for symbol in symbols if not symbol.name.startswith("_")]
-    summary = leading_comment or (
-        f"{language.title()} module {name} defining {', '.join(public[:5])}"
-        if public
-        else f"{language.title()} module {name}"
+class TypeScriptAnalyzer:
+    name = "builtin-typescript-tree-sitter"
+    version = "1"
+    languages = TYPESCRIPT_ANALYZER_LANGUAGES
+    capabilities = declare_capabilities(
+        name,
+        version,
+        "structural",
+        deep=("module_identity",),
+        structural=(*_STRUCTURAL_FACTS, "annotations", "generics", "types"),
+        heuristic=("concurrency", "side_effects"),
+        limitations=(
+            "Types, interfaces, decorators, and generics are syntax facts, not type-checker results.",
+            "Call relationships cover imported roots rather than complete runtime dispatch.",
+            "Project aliases resolve only from indexed configuration evidence; runtime wiring is absent.",
+        ),
     )
-    responsibilities = [
-        f"Provide {symbol.symbol_type.replace('_', ' ')} {symbol.name}" for symbol in symbols[:12]
-    ]
-    side_effects = []
-    targets = {item.target for item in dependencies}
-    if any(target in targets for target in ("axios", "node-fetch", "http", "https")):
-        side_effects.append("network access")
-    if any(target in targets for target in ("fs", "node:fs")):
-        side_effects.append("filesystem access")
-    return public, summary, responsibilities, side_effects
+
+    def analyze(self, path: str, content: str) -> FileAnalysis:
+        return _analyze(self, path, content, typescript=True)
 
 
-def _strip_comments(content: str) -> tuple[str, set[int], str]:
-    output = list(content)
-    comment_lines: set[int] = set()
-    collected: list[str] = []
-    index = 0
-    line = 1
-    state = "code"
-    quote = ""
-    while index < len(content):
-        char = content[index]
-        following = content[index + 1] if index + 1 < len(content) else ""
-        if char == "\n":
-            line += 1
-        if state == "code":
-            if char in {"'", '"', "`"}:
-                state = "string"
-                quote = char
-            elif char == "/" and following == "/":
-                state = "line_comment"
-                comment_lines.add(line)
-                output[index] = output[index + 1] = " "
-                index += 1
-            elif char == "/" and following == "*":
-                state = "block_comment"
-                comment_lines.add(line)
-                output[index] = output[index + 1] = " "
-                index += 1
-        elif state == "string":
-            if char == "\\":
-                index += 1
-            elif char == quote:
-                state = "code"
-        elif state == "line_comment":
-            if char == "\n":
-                state = "code"
-            else:
-                if line <= 8:
-                    collected.append(char)
-                output[index] = " "
-        elif state == "block_comment":
-            comment_lines.add(line)
-            if char == "*" and following == "/":
-                output[index] = output[index + 1] = " "
-                index += 1
-                state = "code"
-            elif char != "\n":
-                if line <= 8:
-                    collected.append(char)
-                output[index] = " "
-        index += 1
-    leading = " ".join("".join(collected).replace("*", " ").split())[:1_000]
-    return "".join(output), comment_lines, leading
+def _analyze(analyzer: Any, path: str, content: str, *, typescript: bool) -> FileAnalysis:
+    language = detect_language(path) or ("typescript" if typescript else "javascript")
+    identity = module_identity(path, language)
+    try:
+        parsed = parse_source(language, content)
+    except (TypeError, ValueError, RuntimeError) as exc:
+        return _parse_failure(analyzer, path, content, identity, language, exc)
+    return _parsed_analysis(analyzer, path, language, identity, parsed, typescript=typescript)
 
 
-def _imports(content: str) -> tuple[list[Dependency], dict[str, str]]:
-    result: list[Dependency] = []
-    aliases: dict[str, str] = {}
-    for pattern in _IMPORT_PATTERNS:
-        for match in pattern.finditer(content):
-            target = match.group("target")
-            binding = match.groupdict().get("binding") or ""
-            names = tuple(
-                token
-                for token in re.findall(r"[A-Za-z_$][\w$]*", binding)
-                if token not in {"type", "as"}
-            )
-            if binding:
-                default = binding.split(",", 1)[0].strip()
-                if re.fullmatch(r"[A-Za-z_$][\w$]*", default):
-                    aliases[default] = target
-                for original, alias in re.findall(
-                    r"([A-Za-z_$][\w$]*)(?:\s+as\s+([A-Za-z_$][\w$]*))?", binding
-                ):
-                    aliases[alias or original] = target
-            result.append(
-                Dependency(
-                    target=target,
-                    line=content.count("\n", 0, match.start()) + 1,
-                    evidence=" ".join(match.group(0).split())[:500],
-                    names=names,
-                )
-            )
-    return _deduplicate_dependencies(result), aliases
+def _parsed_analysis(
+    analyzer: Any,
+    path: str,
+    language: str,
+    identity: Any,
+    parsed: Any,
+    *,
+    typescript: bool,
+) -> FileAnalysis:
+    dependencies = extract_dependencies(parsed)
+    symbols = extract_symbols(path, parsed, dependencies)
+    evidence = extract_javascript_evidence(
+        path,
+        parsed,
+        symbols,
+        dependencies,
+        typescript=typescript,
+    )
+    summary, responsibilities, inputs, outputs, side_effects, public = module_semantics(
+        path,
+        language,
+        leading_comment(parsed),
+        symbols,
+        dependencies,
+        evidence,
+    )
+    semantics = summary, responsibilities, inputs, outputs, side_effects, public
+    return _build_analysis(
+        analyzer,
+        language,
+        identity,
+        parsed,
+        dependencies,
+        symbols,
+        evidence,
+        semantics,
+        source_metrics(parsed),
+        typescript=typescript,
+    )
 
 
-def _symbols(path: str, code: str) -> list[Symbol]:
-    result: list[Symbol] = []
-    module = str(PurePosixPath(path).with_suffix("")).replace("/", ".")
-    candidates: list[tuple[int, str, str, str]] = []
-    for match in _CLASS.finditer(code):
-        candidates.append((match.start(), "class", match.group(1), f"class {match.group(1)}"))
-    for match in _FUNCTION.finditer(code):
-        candidates.append(
-            (
-                match.start(),
-                "function",
-                match.group(1),
-                f"function {match.group(1)}({match.group(2).strip()})",
-            )
-        )
-    for match in _ARROW.finditer(code):
-        name = match.group(1)
-        kind = "react_component" if name[:1].isupper() else "function"
-        args = (match.group(2) or match.group(3) or "").strip()
-        candidates.append((match.start(), kind, name, f"const {name} = ({args}) =>"))
-    for match in _ROUTE.finditer(code):
-        name = f"{match.group(1).upper()} {match.group(2)}"
-        candidates.append((match.start(), "api_endpoint", name, name))
-    seen: set[tuple[str, int]] = set()
-    for position, kind, name, signature in sorted(candidates):
-        start_line = code.count("\n", 0, position) + 1
-        if (name, start_line) in seen:
-            continue
-        seen.add((name, start_line))
-        end_line = _block_end_line(code, position)
-        segment = "\n".join(code.splitlines()[start_line - 1 : end_line])
-        result.append(
-            Symbol(
-                symbol_type=kind,
-                name=name,
-                qualified_name=f"{module}.{name}",
-                start_line=start_line,
-                end_line=end_line,
-                signature=signature[:1_000],
-                complexity=1 + len(_BRANCH.findall(segment)),
-                logical_lines=max(1, sum(1 for line in segment.splitlines() if line.strip())),
-                visibility=symbol_visibility(name),
-                start_column=position - code.rfind("\n", 0, position) - 1,
-            )
-        )
-    return result
+def _build_analysis(
+    analyzer: Any,
+    language: str,
+    identity: Any,
+    parsed: Any,
+    dependencies: Any,
+    symbols: Any,
+    evidence: Any,
+    semantics: Any,
+    metrics: tuple[int, int],
+    *,
+    typescript: bool,
+) -> FileAnalysis:
+    summary, responsibilities, inputs, outputs, side_effects, public = semantics
+    lines_of_code, comment_lines = metrics
+    return FileAnalysis(
+        language=language,
+        structural_hash=structural_hash(parsed),
+        lines_of_code=lines_of_code,
+        comment_lines=comment_lines,
+        complexity=node_complexity(parsed.root),
+        summary=summary,
+        responsibilities=responsibilities,
+        inputs=inputs,
+        outputs=outputs,
+        side_effects=side_effects,
+        public_interfaces=public,
+        symbols=symbols,
+        dependencies=dependencies.dependencies,
+        evidence_facts=evidence,
+        parse_error=parsed.parse_error,
+        analyzer=analyzer.name,
+        metadata={
+            "module_documentation": leading_comment(parsed),
+            "parse_diagnostics": list(parsed.diagnostics),
+            "parser": _parser_metadata(language, typescript=typescript),
+        },
+        module_identity=identity,
+        exports=public,
+        parse_status="parse_error" if parsed.parse_error else "parsed",
+        analyzer_version=analyzer.version,
+        resolver_context=resolver_context(identity, import_aliases=dependencies.aliases),
+        analyzer_capabilities=analyzer.capabilities,
+    )
 
 
-def _block_end_line(code: str, position: int) -> int:
-    open_index = code.find("{", position)
-    start_line = code.count("\n", 0, position) + 1
-    if open_index < 0 or open_index - position > 500:
-        return start_line
-    depth = 0
-    state = "code"
-    quote = ""
-    index = open_index
-    while index < len(code):
-        char = code[index]
-        if state == "code" and char in {"'", '"', "`"}:
-            state = "string"
-            quote = char
-        elif state == "string":
-            if char == "\\":
-                index += 1
-            elif char == quote:
-                state = "code"
-        elif char == "{":
-            depth += 1
-        elif char == "}":
-            depth -= 1
-            if depth == 0:
-                return code.count("\n", 0, index) + 1
-        index += 1
-    return min(start_line + 200, len(code.splitlines()) or 1)
+def _parser_metadata(language: str, *, typescript: bool) -> dict[str, Any]:
+    grammar = parser_languages()[language]
+    return {
+        "engine": "tree-sitter",
+        "binding_version": _PARSER_VERSIONS["binding"],
+        "grammar_version": (
+            _PARSER_VERSIONS["typescript"] if typescript else _PARSER_VERSIONS["javascript"]
+        ),
+        "grammar_abi": grammar.abi_version,
+    }
 
 
-def _deduplicate_dependencies(items: list[Dependency]) -> list[Dependency]:
-    result: list[Dependency] = []
-    seen: set[tuple[str, str, int]] = set()
-    for item in items:
-        key = (item.target, item.relationship_type, item.line)
-        if key not in seen:
-            result.append(item)
-            seen.add(key)
-    return result
+def _parse_failure(
+    analyzer: Any,
+    path: str,
+    content: str,
+    identity: Any,
+    language: str,
+    exc: Exception,
+) -> FileAnalysis:
+    normalized = content.replace("\r\n", "\n")
+    return FileAnalysis(
+        language=language,
+        structural_hash=hashlib.sha256(normalized.encode()).hexdigest(),
+        lines_of_code=sum(1 for line in normalized.splitlines() if line.strip()),
+        comment_lines=0,
+        complexity=1,
+        summary=f"{language.title()} module {PurePosixPath(path).stem}",
+        parse_error=f"{type(exc).__name__}: {exc}",
+        analyzer=analyzer.name,
+        metadata={"parser": {"engine": "tree-sitter", "failure": type(exc).__name__}},
+        module_identity=identity,
+        parse_status="parse_error",
+        analyzer_version=analyzer.version,
+        resolver_context=resolver_context(identity),
+        analyzer_capabilities=analyzer.capabilities,
+    )

@@ -18,6 +18,11 @@ from typing import Any
 PROJECT_NAME = "anaxigraph"
 EXPECTED_LICENSE = "Apache-2.0"
 EXPECTED_PYTHON = ">=3.11"
+REQUIRED_PARSER_DEPENDENCIES = {
+    "tree-sitter==0.26.0",
+    "tree-sitter-javascript==0.25.0",
+    "tree-sitter-typescript==0.23.2",
+}
 REQUIRED_DASHBOARD_ASSETS = (
     "anaxigraph/dashboard/app.js",
     "anaxigraph/dashboard/favicon.svg",
@@ -107,6 +112,12 @@ def verify_wheel(wheel: Path, version: str) -> dict[str, Any]:
             )
     if metadata.get_all("License-File", []) != ["LICENSE"]:
         raise ReleaseContractError("wheel metadata must declare exactly License-File: LICENSE")
+    parser_dependencies = REQUIRED_PARSER_DEPENDENCIES.intersection(
+        metadata.get_all("Requires-Dist", [])
+    )
+    if parser_dependencies != REQUIRED_PARSER_DEPENDENCIES:
+        missing = sorted(REQUIRED_PARSER_DEPENDENCIES - parser_dependencies)
+        raise ReleaseContractError(f"wheel is missing exact parser dependencies: {missing}")
     if wheel_metadata.get("Root-Is-Purelib") != "true":
         raise ReleaseContractError("wheel must be platform-independent pure Python")
     if wheel_metadata.get_all("Tag", []) != ["py3-none-any"]:
@@ -123,7 +134,12 @@ def verify_wheel(wheel: Path, version: str) -> dict[str, Any]:
         raise ReleaseContractError("wheel is missing the anaxigraph console entry point")
     if any("codeintel" in name.casefold() for name in names):
         raise ReleaseContractError("wheel contains a retired codeintel path")
-    return {"path": wheel.name, "files": len(names), "sha256": _sha256(wheel)}
+    return {
+        "path": wheel.name,
+        "files": len(names),
+        "parser_dependencies": sorted(parser_dependencies),
+        "sha256": _sha256(wheel),
+    }
 
 
 def verify_sdist(sdist: Path, version: str) -> dict[str, Any]:
@@ -150,9 +166,18 @@ def verify_sdist(sdist: Path, version: str) -> dict[str, Any]:
         raise ReleaseContractError(f"sdist is missing source data: {', '.join(missing)}")
     if packaged.get("project", {}).get("version") != version:
         raise ReleaseContractError("sdist pyproject version does not match its filename")
+    dependencies = set(packaged.get("project", {}).get("dependencies") or ())
+    if not REQUIRED_PARSER_DEPENDENCIES.issubset(dependencies):
+        missing = sorted(REQUIRED_PARSER_DEPENDENCIES - dependencies)
+        raise ReleaseContractError(f"sdist is missing exact parser dependencies: {missing}")
     if any("codeintel" in name.casefold() for name in names):
         raise ReleaseContractError("sdist contains a retired codeintel path")
-    return {"path": sdist.name, "files": len(names), "sha256": _sha256(sdist)}
+    return {
+        "path": sdist.name,
+        "files": len(names),
+        "parser_dependencies": sorted(REQUIRED_PARSER_DEPENDENCIES),
+        "sha256": _sha256(sdist),
+    }
 
 
 def verify_distribution(root: Path, dist: Path, *, tag: str | None = None) -> dict[str, Any]:

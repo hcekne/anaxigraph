@@ -9,12 +9,15 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Any, Protocol
 
+from anaxigraph.analyzers.javascript_workspace import JavaScriptWorkspace, WorkspaceResolution
 from anaxigraph.ir import canonical_python_module, python_module_aliases
+from anaxigraph.languages import JAVASCRIPT_ANALYZER_LANGUAGES
 from anaxigraph.persistence.temporal_reads import snapshot_relationship_edges
 from anaxigraph.persistence.temporal_reconstruction import reconstruct_files
 from anaxigraph.persistence.temporal_relationships import record_canonical_relationships
 from anaxigraph.relationships import (
     AMBIGUOUS_INTERNAL,
+    DYNAMIC,
     EXTERNAL,
     RESOLVED_INTERNAL,
     UNRESOLVED_INTERNAL,
@@ -31,6 +34,7 @@ class ResolvedDependency:
     target_external: str | None
     resolution_status: str
     candidate_paths: tuple[str, ...] = ()
+    provenance: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,12 +148,16 @@ def _merge_relationship(
             "source": relationship_source(item.discovered.language, dependency.relationship_type),
             "candidate_paths": set(),
             "original_targets": set(),
+            "reference_forms": set(),
+            "resolution_provenance": set(),
         },
     )
     current["weight"] += 1
     current["confidence"] = max(current["confidence"], confidence)
     current["candidate_paths"].update(target.candidate_paths)
     current["original_targets"].add(dependency.target)
+    current["reference_forms"].add(dependency.reference_form)
+    current["resolution_provenance"].update(target.provenance)
     if dependency.evidence and dependency.evidence not in current["evidence"]:
         current["evidence"].append(dependency.evidence)
     current["line"] = min(value for value in (current["line"], dependency.line) if value >= 0)
@@ -159,6 +167,8 @@ def _resolved_confidence(confidence: float, status: str) -> float:
     if status == AMBIGUOUS_INTERNAL:
         return min(confidence, 0.5)
     if status == UNRESOLVED_INTERNAL:
+        return min(confidence, 0.35)
+    if status == DYNAMIC:
         return min(confidence, 0.35)
     return confidence
 
@@ -171,6 +181,8 @@ def _resolved_edges(
         metadata = {
             "resolution_status": status,
             "original_targets": sorted(value["original_targets"]),
+            "reference_forms": sorted(value["reference_forms"]),
+            "resolution_provenance": sorted(value["resolution_provenance"]),
         }
         if value["candidate_paths"]:
             metadata["candidate_paths"] = sorted(value["candidate_paths"])
@@ -200,6 +212,7 @@ class DependencyResolver:
         self.paths = set(artifacts)
         self.artifacts = artifacts
         self.config = config
+        self.javascript_workspace = JavaScriptWorkspace(prepared, self.paths, config.aliases)
         self.python_modules: dict[str, set[str]] = {}
         self.symbols: dict[str, set[str]] = {}
         for item in prepared:
@@ -213,36 +226,122 @@ class DependencyResolver:
         self.python_roots = {module.split(".", 1)[0] for module in self.python_modules if module}
 
     def resolve(self, source_path: str, language: str, dependency: Any) -> list[ResolvedDependency]:
+        if dependency.reference_form == "dynamic_expression":
+            return [
+                ResolvedDependency(
+                    None,
+                    dependency.target,
+                    DYNAMIC,
+                    provenance=("computed_expression",),
+                )
+            ]
         if dependency.target.startswith("symbol:"):
             return self._resolve_symbol(dependency.target)
         if language == "python":
             return self._python_dependencies(source_path, dependency)
+        if language in JAVASCRIPT_ANALYZER_LANGUAGES:
+            resolution = self.javascript_workspace.resolve(source_path, dependency.target)
+            return self._workspace_results(dependency.target, resolution)
         paths = self._resolve_path_import(source_path, dependency.target)
-        if paths:
+        if len(paths) == 1:
             return [
-                ResolvedDependency(self.artifacts[path], None, RESOLVED_INTERNAL) for path in paths
+                ResolvedDependency(
+                    self.artifacts[paths[0]], None, RESOLVED_INTERNAL, provenance=("path",)
+                )
+            ]
+        if len(paths) > 1:
+            return [
+                ResolvedDependency(
+                    None,
+                    dependency.target,
+                    AMBIGUOUS_INTERNAL,
+                    tuple(paths),
+                    ("path",),
+                )
             ]
         status = (
             UNRESOLVED_INTERNAL if self._is_internal_path_target(dependency.target) else EXTERNAL
         )
-        return [ResolvedDependency(None, dependency.target, status)]
+        return [ResolvedDependency(None, dependency.target, status, provenance=("path",))]
+
+    def _workspace_results(
+        self,
+        target: str,
+        resolution: WorkspaceResolution | None,
+    ) -> list[ResolvedDependency]:
+        if resolution is None:
+            return [
+                ResolvedDependency(
+                    None,
+                    target,
+                    EXTERNAL,
+                    provenance=("bare_package",),
+                )
+            ]
+        if len(resolution.paths) == 1:
+            return [
+                ResolvedDependency(
+                    self.artifacts[resolution.paths[0]],
+                    None,
+                    RESOLVED_INTERNAL,
+                    provenance=resolution.provenance,
+                )
+            ]
+        status = AMBIGUOUS_INTERNAL if resolution.paths else UNRESOLVED_INTERNAL
+        if not resolution.internal:
+            status = EXTERNAL
+        return [
+            ResolvedDependency(
+                None,
+                target,
+                status,
+                resolution.paths,
+                resolution.provenance,
+            )
+        ]
 
     def _resolve_symbol(self, target: str) -> list[ResolvedDependency]:
         matches = sorted(self.symbols.get(target.removeprefix("symbol:"), set()))
         if len(matches) == 1:
-            return [ResolvedDependency(self.artifacts[matches[0]], None, RESOLVED_INTERNAL)]
+            return [
+                ResolvedDependency(
+                    self.artifacts[matches[0]],
+                    None,
+                    RESOLVED_INTERNAL,
+                    provenance=("indexed_symbol",),
+                )
+            ]
         if matches:
-            return [ResolvedDependency(None, target, AMBIGUOUS_INTERNAL, tuple(matches))]
-        return [ResolvedDependency(None, target, UNRESOLVED_INTERNAL)]
+            return [
+                ResolvedDependency(
+                    None,
+                    target,
+                    AMBIGUOUS_INTERNAL,
+                    tuple(matches),
+                    ("indexed_symbol",),
+                )
+            ]
+        return [
+            ResolvedDependency(None, target, UNRESOLVED_INTERNAL, provenance=("indexed_symbol",))
+        ]
 
     def _python_dependencies(self, source_path: str, dependency: Any) -> list[ResolvedDependency]:
         paths, ambiguous, normalized = self._resolve_python(source_path, dependency)
         result = [
-            ResolvedDependency(self.artifacts[path], None, RESOLVED_INTERNAL) for path in paths
+            ResolvedDependency(
+                self.artifacts[path], None, RESOLVED_INTERNAL, provenance=("python_module",)
+            )
+            for path in paths
         ]
         if ambiguous:
             result.append(
-                ResolvedDependency(None, dependency.target, AMBIGUOUS_INTERNAL, tuple(ambiguous))
+                ResolvedDependency(
+                    None,
+                    dependency.target,
+                    AMBIGUOUS_INTERNAL,
+                    tuple(ambiguous),
+                    ("python_module",),
+                )
             )
         if result:
             return result
@@ -250,7 +349,7 @@ class DependencyResolver:
             dependency.target.startswith(".") or normalized.split(".", 1)[0] in self.python_roots
         )
         status = UNRESOLVED_INTERNAL if internal else EXTERNAL
-        return [ResolvedDependency(None, dependency.target, status)]
+        return [ResolvedDependency(None, dependency.target, status, provenance=("python_module",))]
 
     def _resolve_python(
         self, source_path: str, dependency: Any
@@ -310,12 +409,13 @@ class DependencyResolver:
             "/index.tsx",
             "/index.js",
             "/index.jsx",
+            "/tsconfig.json",
         )
         return [
             candidate_base + extension
             for extension in extensions
             if candidate_base + extension in self.paths
-        ][:1]
+        ]
 
     def _candidate_base(self, source_path: str, target: str) -> str | None:
         if target.startswith("."):
@@ -335,6 +435,8 @@ class DependencyResolver:
 def relationship_source(language: str, relationship_type: str) -> str:
     if language == "python":
         return "ast"
+    if language in {"javascript", "javascriptreact", "typescript", "typescriptreact"}:
+        return "tree-sitter"
     if relationship_type == "references":
         return "configuration"
     return "static"

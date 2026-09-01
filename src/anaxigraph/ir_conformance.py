@@ -10,6 +10,7 @@ from anaxigraph.analyzer_capabilities import CAPABILITY_FACTS, AnalyzerCapabilit
 from anaxigraph.models import (
     IR_SCHEMA_VERSION,
     PARSE_STATUSES,
+    REFERENCE_FORMS,
     REFERENCE_KINDS,
     VISIBILITIES,
     FileAnalysis,
@@ -119,6 +120,8 @@ def _reference_issues(analysis: FileAnalysis) -> list[ConformanceIssue]:
         prefix = f"dependencies[{index}]"
         if reference.relationship_type not in REFERENCE_KINDS or not reference.target:
             issues.append(ConformanceIssue(prefix, "reference kind or target is invalid"))
+        if reference.reference_form not in REFERENCE_FORMS:
+            issues.append(ConformanceIssue(f"{prefix}.reference_form", "unknown reference form"))
         if not 0 <= reference.confidence <= 1:
             issues.append(ConformanceIssue(f"{prefix}.confidence", "outside 0..1"))
         if reference.line < 0:

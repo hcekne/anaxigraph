@@ -43,7 +43,10 @@ def _dead_code_context(
     rule: Any,
     relationships: list[dict[str, Any]],
 ) -> dict[str, Any] | None:
-    resolution_rate = relationship_quality(relationships)["resolution_rate"]
+    quality = relationship_quality(relationships)
+    if quality["dynamic"]:
+        return None
+    resolution_rate = quality["resolution_rate"]
     minimum = float(rule.params.get("minimum_resolution_rate", 0.95))
     if resolution_rate is None or resolution_rate < minimum:
         return None

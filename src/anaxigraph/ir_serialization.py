@@ -10,7 +10,7 @@ from typing import Any
 from anaxigraph.analyzer_capabilities import capabilities_from_dict
 from anaxigraph.analyzer_facts import AnalyzerFact
 from anaxigraph.models import (
-    IR_SCHEMA_VERSION,
+    LEGACY_IR_SCHEMA_VERSION,
     Dependency,
     FileAnalysis,
     ModuleIdentity,
@@ -27,6 +27,7 @@ _DEPENDENCY_DEFAULTS = {
     "column": 0,
     "end_line": 0,
     "end_column": 0,
+    "reference_form": "static",
 }
 
 
@@ -114,7 +115,7 @@ def analysis_from_stored(value: dict[str, Any]) -> FileAnalysis:
             ir.get("parse_status") or ("parse_error" if value["parse_error"] else "fallback")
         ),
         analyzer_version=str(ir.get("analyzer_version") or "legacy"),
-        ir_version=str(ir.get("schema_version") or IR_SCHEMA_VERSION),
+        ir_version=str(ir.get("schema_version") or LEGACY_IR_SCHEMA_VERSION),
         resolver_context=_stored_context(context_value),
         analyzer_capabilities=capabilities_from_dict(ir.get("analyzer_capabilities")),
     )
@@ -146,8 +147,6 @@ def compact_stored_metadata(
         }
     if ir.get("exports") == public_interfaces:
         ir.pop("exports", None)
-    if ir.get("schema_version") == IR_SCHEMA_VERSION:
-        ir.pop("schema_version", None)
     if ir.get("analyzer_version") == "1":
         ir.pop("analyzer_version", None)
     ir.pop("symbols", None)
@@ -183,7 +182,7 @@ def expand_stored_metadata(
         }
     ir.setdefault("exports", list(public_interfaces))
     ir.setdefault("evidence_facts", [])
-    ir.setdefault("schema_version", IR_SCHEMA_VERSION)
+    ir.setdefault("schema_version", LEGACY_IR_SCHEMA_VERSION)
     ir.setdefault("analyzer_version", "1")
     ir.setdefault(
         "analyzer_capabilities",

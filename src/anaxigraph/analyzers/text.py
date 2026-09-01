@@ -10,6 +10,11 @@ from pathlib import PurePosixPath
 import yaml
 
 from anaxigraph.analyzer_capabilities import declare_capabilities
+from anaxigraph.analyzers.javascript_workspace import (
+    extract_workspace_config,
+    project_reference_dependencies,
+)
+from anaxigraph.analyzers.json_support import load_json_document
 from anaxigraph.ir import module_identity, resolver_context
 from anaxigraph.languages import TEXT_ANALYZER_LANGUAGES
 from anaxigraph.models import Dependency, FileAnalysis
@@ -20,7 +25,7 @@ _MARKDOWN_LINK = re.compile(r"\[[^]]+\]\((?!https?://|mailto:|#)([^)#?]+)")
 
 class TextAnalyzer:
     name = "builtin-text"
-    version = "1"
+    version = "2"
     languages = TEXT_ANALYZER_LANGUAGES
     capabilities = declare_capabilities(
         name,
@@ -44,7 +49,8 @@ class TextAnalyzer:
             1 for line in lines if line.strip() and not line.strip().startswith(comment_prefixes)
         )
         normalized, parse_error = _normalized(language, content)
-        dependencies = _dependencies(language, content)
+        workspace = _workspace_config(path, content)
+        dependencies = _dependencies(language, content, workspace)
         summary = _summary(path, language, lines)
         complexity = 1 + sum(
             len(re.findall(pattern, content, flags=re.IGNORECASE | re.MULTILINE))
@@ -61,6 +67,7 @@ class TextAnalyzer:
             dependencies=dependencies,
             parse_error=parse_error,
             analyzer=self.name,
+            metadata={"javascript_workspace": workspace} if workspace else {},
             module_identity=identity,
             parse_status="parse_error" if parse_error else "fallback",
             analyzer_version=self.version,
@@ -88,10 +95,7 @@ def _comment_prefixes(language: str) -> tuple[str, ...]:
 def _normalized(language: str, content: str) -> tuple[str, str | None]:
     try:
         if language == "json":
-            try:
-                value = json.loads(content)
-            except json.JSONDecodeError:
-                value = json.loads(_jsonc_to_json(content))
+            value = load_json_document(content)
             return json.dumps(value, sort_keys=True, separators=(",", ":")), None
         if language == "yaml":
             value = yaml.safe_load(content)
@@ -112,45 +116,6 @@ def _normalized(language: str, content: str) -> tuple[str, str | None]:
     return "\n".join(normalized_lines).strip(), parse_error
 
 
-def _jsonc_to_json(content: str) -> str:
-    output: list[str] = []
-    index = 0
-    state = "code"
-    quote = ""
-    while index < len(content):
-        char = content[index]
-        following = content[index + 1] if index + 1 < len(content) else ""
-        if state == "code":
-            if char in {'"', "'"}:
-                state = "string"
-                quote = char
-                output.append(char)
-            elif char == "/" and following == "/":
-                state = "line_comment"
-                index += 1
-            elif char == "/" and following == "*":
-                state = "block_comment"
-                index += 1
-            else:
-                output.append(char)
-        elif state == "string":
-            output.append(char)
-            if char == "\\" and index + 1 < len(content):
-                index += 1
-                output.append(content[index])
-            elif char == quote:
-                state = "code"
-        elif state == "line_comment":
-            if char == "\n":
-                output.append(char)
-                state = "code"
-        elif state == "block_comment" and char == "*" and following == "/":
-            state = "code"
-            index += 1
-        index += 1
-    return re.sub(r",\s*([}\]])", r"\1", "".join(output))
-
-
 def _string_keyed(value):
     if isinstance(value, dict):
         return {str(key): _string_keyed(item) for key, item in value.items()}
@@ -161,7 +126,11 @@ def _string_keyed(value):
     return value
 
 
-def _dependencies(language: str, content: str) -> list[Dependency]:
+def _dependencies(
+    language: str,
+    content: str,
+    workspace: dict | None = None,
+) -> list[Dependency]:
     dependencies: list[Dependency] = []
     if language in {"css", "scss", "sass", "less"}:
         for match in _CSS_IMPORT.finditer(content):
@@ -183,7 +152,22 @@ def _dependencies(language: str, content: str) -> list[Dependency]:
                     confidence=0.95,
                 )
             )
+    for target in project_reference_dependencies(workspace):
+        dependencies.append(
+            Dependency(
+                target=target,
+                relationship_type="references",
+                evidence=f'TypeScript project reference "{target}"',
+            )
+        )
     return dependencies
+
+
+def _workspace_config(path: str, content: str) -> dict | None:
+    try:
+        return extract_workspace_config(path, content)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return None
 
 
 def _summary(path: str, language: str, lines: list[str]) -> str:

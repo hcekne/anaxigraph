@@ -4459,7 +4459,8 @@ measured core product capability, not a reopened subtraction campaign.
 
 # Phase 11 — parser-backed JavaScript and TypeScript understanding
 
-**Status:** IN PROGRESS since 1 September 2026; Phase 10 is closed and Phase 10.2 remains frozen.
+**Status:** COMPLETE IN SOURCE on 1 September 2026; publication is deferred to the next deliberate
+version bump. Phase 10 is closed and Phase 10.2 remains frozen.
 
 **Goal:** make AnaxiGraph genuinely useful on modern JavaScript/TypeScript repositories without
 turning language count into a vanity metric. Python remains the reference analyzer. JavaScript,
@@ -4496,25 +4497,77 @@ latency promise. A focused regression contract executes the same syntax/recovery
 
 ## 11.1 Produce parser-backed JavaScript/JSX facts
 
+**Status:** COMPLETE on 1 September 2026.
+
 Extract stable modules, imports, exports/re-exports, CommonJS references, declarations, classes,
 methods, functions, selected calls, and source locations. Preserve ambiguous, unresolved, external,
 and dynamic relationships explicitly. Parse recovery returns partial facts plus diagnostics rather
 than silently falling through to high-confidence regex results.
 
+### 11.1 delivery record
+
+The `builtin-javascript-tree-sitter` analyzer now parses JavaScript and JSX through the pinned
+grammar. It emits versioned IR v2 facts for ESM imports and exports, re-exports, CommonJS
+`require`/`module.exports`, literal dynamic imports, computed dynamic expressions, functions,
+classes, methods, class-field arrow methods, React components, selected API endpoints, calls,
+inheritance, visibility, source spans, comments, complexity, and structural hashes. Literal,
+CommonJS, computed, and ordinary static references retain distinct reference forms.
+
+Recovery diagnostics remain attached to partial parser facts. A malformed file never silently
+falls back to the retired regex analyzer, and a computed import is stored as dynamic evidence with
+no invented target. A regression built from the real dashboard also protects against the pinned
+Python binding's unsafe native `Point` access: source positions are derived from stable byte offsets
+while the owning parse tree remains alive.
+
 ## 11.2 Add TypeScript/TSX contracts without inventing precision
+
+**Status:** COMPLETE on 1 September 2026.
 
 Add interfaces, type aliases, enums, namespaces, typed declarations, decorators, and type-only
 imports/exports where the syntax supports them. Distinguish syntax-level reference evidence from
 compiler/type-checker resolution. Project references, aliases, and workspace/package resolution are
 reported with provenance and honest ambiguity; AnaxiGraph still does not execute the target build.
 
+### 11.2 delivery record
+
+The separate `builtin-typescript-tree-sitter` capability contract adds TypeScript and TSX syntax
+facts for interfaces, type aliases, enums, namespaces, annotations, generics, decorators,
+implements/extends clauses, and type-only imports and re-exports. These remain syntax claims: the
+capability declaration expressly excludes type-checker and runtime certainty.
+
+Repository resolution uses only indexed evidence from `.anaxigraph.yml`, `package.json`, and bounded
+JSON/JSONC projections of `tsconfig`/`jsconfig`. It handles relative and repository paths, configured
+aliases, `baseUrl`, `paths`, bounded relative `extends` chains, TypeScript project references,
+workspace package names/subpaths, package `exports`, package `imports`, and entry points. Every
+resolved edge carries its provenance; duplicate candidates stay ambiguous, missing internal aliases
+stay unresolved, unknown packages stay external, and target repository tooling is never executed.
+Changing resolver configuration invalidates carried JavaScript-family relationships without forcing
+unchanged source files through semantic analysis again.
+
 ## 11.3 Migrate consumers and remove the regex path
+
+**Status:** COMPLETE on 1 September 2026.
 
 Version analyzer identity and invalidate affected cached facts. Make responsibility synthesis,
 patterns, scope/guidance, impact, dead-code caveats, graph resolution, and Charter generation consume
 the same IR capabilities used for Python. Delete the regex-oriented import/symbol analyzer after
 fixture parity and migration tests pass; retain only bounded text heuristics for explicitly shallow,
 unsupported languages.
+
+### 11.3 delivery record
+
+Analysis version 5 and IR `anaxigraph-ir-v2` make parser identity, capability fingerprint, parse
+status, source evidence, reference form, and resolution provenance explicit. Stored v1 facts remain
+readable with safe defaults, while changed analyzer contracts invalidate only affected semantic
+dossiers. Agent scope, public-interface selection, semantic requests, pattern evidence, graph
+quality, impact analysis, and dead-code safeguards now consume this shared evidence. Dynamic or
+insufficiently resolved references suppress unsafe deletion advice.
+
+The old `builtin-js-lexer` implementation and its comment-stripping/regex projections are gone from
+current scans. The name remains readable only as legacy-index telemetry. Candidate wheel and sdist
+metadata require the three exact parser pins, the clean-wheel smoke parses TSX, the hardened sidecar
+container exposes parser-backed graph quality through MCP, and dependency inventory records both
+license metadata and classifiers.
 
 ## Phase 11 exit gate
 
@@ -4528,6 +4581,33 @@ unsupported languages.
   safely;
 - the regex analyzer and its duplicate projections are removed, all size/cohesion gates pass, and
   production growth is offset by deleted shallow-analysis code or explicitly ratified.
+
+### Phase 11 acceptance record
+
+The source exit gate passed on 1 September 2026:
+
+- **634 Python tests passed** with **92% aggregate coverage**, including modern syntax, recovery,
+  workspace ambiguity, project aliases/references, dynamic evidence, IR v1 compatibility, semantic
+  invalidation, real-dashboard parsing, release metadata, and container contracts;
+- the retained parser scale benchmark passed at 120, 1,000, and 3,000 source files. The 3,000-file
+  case completed a cold scan in **4.825 seconds**, an unchanged scan in **1.827 seconds**, a one-file
+  incremental scan in **4.338 seconds**, and three historical frames in **22.945 seconds**. Each
+  later history frame read and analyzed exactly one changed file while carrying 3,001 unchanged
+  files;
+- deterministic self-analysis passed with six exact governed findings and no regression. The three
+  newly accepted dashboard warnings were existing complexity made visible by deeper JavaScript
+  parsing, not new Phase 11 complexity; Phase 10.2 was not reopened;
+- all parser implementation modules remain below the 500-line hard ceiling, the architecture and
+  module-size hard gates pass, and the prospective wheel, sdist, clean-wheel TSX smoke, dependency
+  inventory, and hardened sidecar-container smoke pass;
+- the production-source ratchet moves from **55,471** to **57,439 lines**. This explicit 1,968-line
+  increase replaces the 443-line shallow regex path with a capability-honest parser, syntax-fact
+  extractors, deterministic workspace resolver, provenance, compatibility, safety, and scale
+  evidence. It is accepted Phase 11 product depth rather than Phase 10.2 cleanup debt.
+
+The already-published `0.3.0` artifact remains immutable and lexical. Publishing this source is a
+separate release decision requiring an intentional version bump; it does not leave implementation
+work open in Phase 11.
 
 ---
 
@@ -4662,10 +4742,11 @@ feature-admission rule.
 | 6 | **COMPLETE** | Deliver the same implementation/refactor guidance through five dashboard journeys and at most ten normal MCP tools; pass independent agent-only and human-led workflows | §10.6 |
 | 7 | **COMPLETE** | Run the fixed capability brief → independent clean-sheet proposals → blind adjudication → as-built comparison → mission filter sequence through one resumable agent-funded Improve workflow | §10.7 |
 | 8 | **COMPLETE** | Refresh only changed semantic scope and return shared architecture reassessment without a Change Contract or approval workflow | §10.8 |
-| 9 | **IN PROGRESS** | Replace regex-oriented JavaScript/TypeScript analysis with a parser-backed, capability-honest implementation and remove the shallow path; parser selection and capability contract are complete | Phase 11 |
+| 9 | **COMPLETE IN SOURCE** | Replace regex-oriented JavaScript/TypeScript analysis with a parser-backed, capability-honest implementation and remove the shallow path; prospective release artifacts and container behavior are validated, while publication awaits a deliberate version bump | Phase 11 |
 
 Only item 9 may proceed now. Later work remains pending until its preceding acceptance is recorded.
 The retained MaxOS run and a future release candidate are evidence/release gates, not independent
 product features. No additional parser expansion, adapter family, plugin framework, website, media
 support, generic operations work, warning-cleanup campaign, or dashboard family may displace this
-queue. Phase 11 is the sole committed parser expansion and begins only after Phase 10.
+queue. Phase 11 is source-complete; no additional parser expansion begins without a separately
+admitted roadmap item.

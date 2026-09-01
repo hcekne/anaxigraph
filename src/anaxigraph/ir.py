@@ -9,18 +9,24 @@ from anaxigraph.languages import artifact_type, detect_language
 from anaxigraph.models import (
     IR_SCHEMA_VERSION,
     PARSE_STATUSES,
+    REFERENCE_FORMS,
     REFERENCE_KINDS,
     VISIBILITIES,
+    Dependency,
     ModuleIdentity,
     ResolverContext,
+    Symbol,
 )
 
 __all__ = [
     "IR_SCHEMA_VERSION",
+    "Dependency",
     "ModuleIdentity",
     "PARSE_STATUSES",
+    "REFERENCE_FORMS",
     "REFERENCE_KINDS",
     "ResolverContext",
+    "Symbol",
     "VISIBILITIES",
     "analyze_with_contract",
     "analysis_from_stored",

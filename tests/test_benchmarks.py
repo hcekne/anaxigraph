@@ -13,6 +13,7 @@ from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.storage import AnaxiIndex
 from benchmarks.dashboard_fixture import create_dashboard_repository
 from benchmarks.first_user import measure_first_user_path
+from benchmarks.javascript_analysis import run_matrix
 from benchmarks.parser_selection import measure_parser_selection
 from benchmarks.repository_factory import (
     DEFAULT_COMMITS,
@@ -165,6 +166,16 @@ def test_parser_selection_fixture_covers_modern_syntax_and_recovery():
     }
     assert report["cases"]["recovery-typescript"]["has_error"] is True
     assert all(item["root_type"] == "program" for item in report["cases"].values())
+
+
+def test_parser_repository_benchmark_enforces_incremental_work(tmp_path):
+    report = run_matrix(tmp_path / "report.json", sizes=(8,), history_frames=3)
+
+    case = report["cases"]["8"]
+    assert report["passed"] is True
+    assert case["graph_quality"]["parser_files"] == 8
+    assert case["unchanged_scan"]["analyzed"] == 0
+    assert case["one_file_incremental_scan"]["analyzed"] == 1
 
 
 def test_dashboard_fixture_covers_stable_browser_contracts(tmp_path):
