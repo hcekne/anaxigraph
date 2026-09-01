@@ -81,13 +81,26 @@ test("every dashboard journey stays inside desktop and phone viewports", async (
         const view = document.querySelector(".view.active");
         const overflow = [...view.querySelectorAll("*")].filter((element) => {
           const style = getComputedStyle(element);
+          const rendered = style.display !== "none"
+            && style.visibility !== "hidden"
+            && element.getClientRects().length > 0
+            && element.clientWidth > 0
+            && element.clientHeight > 0;
           const intentionallyScrollable = ["auto", "scroll"].includes(style.overflowX);
-          return !intentionallyScrollable && element.scrollWidth > element.clientWidth + 2;
+          return rendered
+            && !intentionallyScrollable
+            && element.scrollWidth > element.clientWidth + 2;
         });
         return {
           documentFits: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
           viewFits: view.scrollWidth <= view.clientWidth + 1,
-          overflow: overflow.map((element) => element.id || element.className).slice(0, 5),
+          overflow: overflow.map((element) => {
+            const identity = element.id
+              ? `#${element.id}`
+              : [...element.classList].map((name) => `.${name}`).join("");
+            return `${element.tagName.toLowerCase()}${identity} `
+              + `(${element.clientWidth}px box, ${element.scrollWidth}px content)`;
+          }).slice(0, 5),
         };
       });
       expect(layout, `${name} at ${viewport.width}px`).toEqual({
