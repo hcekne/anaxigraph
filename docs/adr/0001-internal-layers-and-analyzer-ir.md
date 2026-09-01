@@ -42,7 +42,7 @@ analysis adapters     index persistence
 | Foundation | provider-neutral records, configuration, IR identity, relationship provenance, glossary and small registries | Foundation |
 | Analysis | language adapters, Git/coverage adapters, semantic-provider adapters, deterministic architecture evaluation | Foundation, analysis |
 | Persistence | AnaxiIndex storage and read models | Foundation, persistence |
-| Application | scan/history orchestration, agent scope, semantic planning/queue use cases, onboarding | Foundation, analysis, persistence, application |
+| Application | scan/history orchestration, architecture guidance, semantic planning/queue use cases, onboarding | Foundation, analysis, persistence, application |
 | Transport | CLI, REST, MCP and process entry points | Every inward layer and transport peers |
 | Dashboard | packaged static client | Foundation and dashboard peers |
 

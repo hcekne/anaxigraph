@@ -29,7 +29,7 @@ except ImportError:  # pragma: no cover - native Windows is reported as unsuppor
     resource = None  # type: ignore[assignment]
 
 from anaxigraph import __version__
-from anaxigraph.agent import agent_scope
+from anaxigraph.agent import architecture_guidance
 from anaxigraph.api import create_app
 from anaxigraph.config import load_config
 from anaxigraph.storage import AnaxiIndex
@@ -136,7 +136,7 @@ def scope_metrics(
     if row is None:
         raise RuntimeError("benchmark repository was not indexed")
     payload, timing = measure(
-        lambda: agent_scope(
+        lambda: architecture_guidance(
             database,
             repository_id=int(row["id"]),
             goal=goal,

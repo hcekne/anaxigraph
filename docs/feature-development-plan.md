@@ -200,7 +200,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 601 tests passing plus 17 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, MCP-semantic, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, architecture-decision, post-change comparison, and three-size core-loop paths are regression-tested |
+| Test health | 603 tests passing plus 23 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, normal/executor MCP, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, actor-neutral guidance, interrupted semantic-resume, post-change comparison, and three-size core-loop paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -210,9 +210,9 @@ regression thresholds.
 | Graph delivery | Versioned overview, page, neighborhood, and delta reads are bounded from SQLite through REST/MCP and the dashboard; a retained 50,000-node fixture stays within time, memory, and payload budgets | Large local indexes can be explored without a monolithic graph response |
 | Installation | PyPI and GitHub release 0.3.0 provide one-command local startup, explicit agent connection, the dual-client plugin, generated hardened Compose, and a protected OIDC release workflow; public `uvx --from anaxigraph==0.3.0 anaxigraph` and multi-architecture container artifacts are verified | The first-run distribution barrier is closed and subsequent versions can use the routine short-lived-identity release path |
 | Internal module size | Every first-party implementation module is at or below 500 physical lines; the exception list is empty | Phase 3b now locks in the completed dashboard/evaluator decomposition and adds deterministic self-analysis before further feature growth |
-| Global implementation size | 76,893 first-party source, dashboard, test, benchmark, and quality-script lines; production contains 48,522 Python lines across 245 modules plus 5,385 dashboard HTML/CSS/JavaScript lines | Local 500-line compliance has not prevented global growth or fragmentation; tests are not the reduction target, but production code now requires a subtraction phase |
+| Global implementation size | 74,146 first-party source, dashboard, test, benchmark, and quality-script lines; production contains 45,893 Python lines across 235 modules plus 5,433 dashboard HTML/CSS/JavaScript lines | Phase 10.2 removed complete duplicate paths and is owner-closed; later product work keeps an exact production ratchet and must justify intentional growth without reopening subtraction for its own sake |
 | Concentration and warning pressure | Semantic code spans 57 modules/13,038 lines, persistence spans 51 modules/9,364 lines, 23 Python modules plus two dashboard assets are at least 400 lines, and the clean quality gate still reports 126 function and 20 coupling warnings | Both near-ceiling packing and small-file fragmentation are visible; another round of mechanical extraction would make the system harder to understand rather than leaner |
-| Public surface | The server exposes 25 MCP tools, the CLI declares 19 command parsers, the schema contains 35 current/temporal tables, and the dashboard presents seven top-level tabs | Operator primitives and user journeys are too easy to experience as one flat product; normal human and agent workflows need a smaller default surface while advanced operations remain available deliberately |
+| Public surface | The normal server exposes at most 10 task-level MCP tools, its executor endpoint exposes 7 semantic queue tools, and the dashboard presents five actor-neutral journeys | People and agents now receive the same bounded product workflow while raw lease administration and analyst operations remain deliberately separate |
 
 The modules that were oversized when this roadmap was created were:
 
@@ -4062,7 +4062,7 @@ The increase is accepted evidence-backed product work and does not reopen the ow
 
 ## 10.6 Deliver one actor-neutral understanding and guidance workflow
 
-**Status:** PENDING; begins only after §10.5.
+**Status:** COMPLETE on 1 September 2026.
 
 The principal should be able to ask either of the two questions that define the product:
 
@@ -4114,6 +4114,55 @@ Actor-neutral acceptance has two independent paths:
 Both paths must produce the same recommendation identity and core contents for the same repository,
 snapshot, goal, policy, and completed semantic state. Browser layout and MCP token budgets may
 change presentation, never the architectural conclusion.
+
+### 10.6 delivery record: one adviser, five journeys, and a bounded normal agent surface
+
+`architecture-guidance-v1` is now the single actor-neutral answer to the product's two defining
+questions. It accepts a `build` or `refactor` intent plus an optional focus and composes the current
+Charter, responsibility map, module descriptions, static links, findings, reviewed pattern
+evidence, history clues, protected paths, and focused tests. Its stable identity includes the
+repository, saved snapshot, goal, intent, focus, and core evidence-backed conclusion. The response
+states what AnaxiGraph understood, recommends one of reuse, extend, create, move, split,
+consolidate, delete-as-candidate, refactor, or retain, and preserves counter-reasons, expected
+migration effort, bounded impact, confidence, unknowns, caveats, and direct evidence references.
+It remains advice that can be acted on immediately; no Change Contract, approval gate, decision
+ledger, or project-management state was introduced.
+
+The dashboard, CLI, REST API, and normal MCP profile all call that same application service.
+`anaxigraph guide`, `POST /api/guidance`, and `ANAXIGRAPH_GUIDE` therefore return the same identity
+and architectural conclusion for the same saved state. The dashboard submits the same goal, intent,
+and focus contract and only changes presentation. Finding handoffs reuse the refactor guidance
+service instead of constructing another recommendation. Tight MCP budgets preserve the guidance
+conclusion and bounded impact before compacting older diagnostic detail.
+
+The dashboard now exposes exactly five top-level journeys: **Understand**, **Guide**, **Improve**,
+**Changes**, and **Settings**. Files and Graph are views inside Understand; Findings and Patterns
+are views inside Improve. Their navigation is generated from one definition so the visible tabs and
+view routing cannot drift independently. The normal MCP profile contains nine read tools when scan
+permission is disabled and exactly ten in the generated sidecar: repositories, overview/Charter,
+semantic readiness, search, file explanation, guidance, impact, findings, finding context, and
+read-only-source refresh. History/taxonomy diagnostics remain in the analyst profile. The seven
+lease/schema/evidence/submission tools now live only at `/executor/mcp`, which the official durable
+semantic worker uses; they no longer overwhelm an ordinary coding agent's tool menu.
+
+The agent-only acceptance path covers a real Streamable HTTP executor lifecycle over a 200-module
+repository, including partial completion, an abandoned lease, process replacement, automatic
+reclamation, completed taxonomy/pattern work, and `semantically_ready: true`. The normal profile
+then proves the exact ten-tool coding loop, implementation/refactor guidance, evidence follow-up,
+refresh, and API/MCP conclusion parity without a browser. The human-led path uses the rendered
+dashboard form against the same REST service and proves five-journey navigation, readable
+recommendations and counter-reasons, module/graph exploration, and the prior white-canvas and
+repository-selection regressions. The complete suite passes with **603 tests at 91.98% coverage**;
+the pinned browser runner passes **23/23** contracts.
+
+The generated Compose service and this repository's deployment enable the safe scan tool while
+keeping source mounted read-only; only AnaxiIndex changes. First-user measurement now connects its
+semantic bootstrap to the internal executor endpoint. Ruff, JavaScript syntax, agent-package,
+module-size, architecture, Compose, and production-quality ratchets remain green. This phase adds
+**631 intentional production lines** for the guidance contract and projection, profile boundary,
+five-journey navigation, and their adapters. The exact production-source ratchet moves from 50,695
+to **51,326 lines**. No implementation asset exceeds 500 lines. Phase 10.2 remains closed; the next
+work is §10.7.
 
 ## 10.7 Add the fixed fresh-eyes architecture review
 
@@ -4504,12 +4553,12 @@ feature-admission rule.
 | 3 | **COMPLETE** | Fold watchers into one service lifecycle, establish one repository-scoped write authority, and reduce normal generated Compose to one AnaxiGraph service | §10.3 |
 | 4 | **COMPLETE** | Adopt the declared/path/inferred/current responsibility vocabulary and replace duplicate lexical ranking with one bounded FTS5 query substrate | §10.4 |
 | 5 | **COMPLETE** | Generate the evidence-backed Living Architecture Charter without human input, support optional visible corrections, and prove resumable agent-funded completion | §10.5 |
-| 6 | **PENDING** | Deliver the same implementation/refactor guidance through at most five dashboard journeys and at most ten normal MCP tools; pass independent agent-only and human-led workflows | §10.6 |
+| 6 | **COMPLETE** | Deliver the same implementation/refactor guidance through five dashboard journeys and at most ten normal MCP tools; pass independent agent-only and human-led workflows | §10.6 |
 | 7 | **PENDING** | Run the fixed capability brief → independent clean-sheet proposals → blind adjudication → as-built comparison → mission filter sequence through one resumable agent-funded Improve workflow | §10.7 |
 | 8 | **PENDING** | Refresh only changed semantic scope and return shared architecture reassessment without a Change Contract or approval workflow | §10.8 |
 | 9 | **PENDING** | Replace regex-oriented JavaScript/TypeScript analysis with a parser-backed, capability-honest implementation and remove the shallow path | Phase 11 |
 
-Only item 6 may proceed now. Later items remain pending until the preceding acceptance is recorded.
+Only item 7 may proceed now. Later items remain pending until the preceding acceptance is recorded.
 The retained MaxOS run and a future release candidate are evidence/release gates, not independent
 product features. No additional parser expansion, adapter family, plugin framework, website, media
 support, generic operations work, warning-cleanup campaign, or dashboard family may displace this

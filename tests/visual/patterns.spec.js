@@ -230,6 +230,7 @@ test("plain-language pattern results can be explored in both directions", async 
   });
 
   await openDashboard(page);
+  await page.getByRole("button", { name: "Improve", exact: true }).click();
   await page.getByRole("button", { name: "Patterns", exact: true }).click();
 
   await expect(page.locator("#view-patterns")).toBeVisible();

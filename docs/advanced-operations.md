@@ -58,7 +58,7 @@ Credentials and URL fragments are rejected rather than written into client confi
 
 ## Shared module search
 
-Use the same ranked module discovery that backs the dashboard, AnaxiMCP, and goal scope:
+Use the same ranked module discovery that backs the dashboard, AnaxiMCP, and architecture guidance:
 
 ```bash
 anaxigraph search "invoice reconciliation" .
@@ -206,7 +206,7 @@ anaxigraph history /path/to/repository --limit auto
 ```
 
 Cancellation happens between atomic frames. Restarting resumes compatible completed work. MCP
-clients can read repository-scoped progress with `ANAXIGRAPH_HISTORY_STATUS`; explicit import and
+clients can read repository-scoped progress through the History REST endpoint and dashboard; explicit import and
 cancellation remain operator actions in the dashboard and CLI.
 
 Refresh on demand in the dashboard, or let the generated polling sidecar keep the map current:
@@ -325,7 +325,7 @@ Useful lower-level commands include:
 anaxigraph scan /path/to/repository
 anaxigraph update /path/to/repository
 anaxigraph review /path/to/repository
-anaxigraph scope /path/to/repository --goal "Add saved prompts"
+anaxigraph guide /path/to/repository --intent build --goal "Add saved prompts"
 anaxigraph impact /path/to/repository --target backend/app/services/chat.py
 anaxigraph serve --repository /path/to/repository --scan-on-start --open
 anaxigraph serve --repository /path/to/repository --no-watch

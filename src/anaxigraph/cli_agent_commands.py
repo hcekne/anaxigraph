@@ -6,23 +6,32 @@ import argparse
 import os
 from typing import Any
 
-from anaxigraph.agent import agent_scope, impact_analysis
+from anaxigraph.agent import architecture_guidance, impact_analysis
 from anaxigraph.cli_common import add_repository_arguments, ensure_current
 from anaxigraph.semantic_service import (
     discover_semantic_service,
-    service_agent_scope,
+    service_architecture_guidance,
     service_impact,
 )
 
 
 def configure_agent_commands(commands: Any) -> None:
-    scope = commands.add_parser(
-        "scope", help="Find likely files, relevant tests, risks, and checks for a coding goal"
+    guidance = commands.add_parser(
+        "guide", help="Ask where to build or how to refactor using current architecture evidence"
     )
-    add_repository_arguments(scope)
-    scope.add_argument("--goal", required=True, help="The coding goal")
-    _add_service_url(scope)
-    scope.set_defaults(handler=_scope, db=None)
+    add_repository_arguments(guidance)
+    guidance.add_argument("--goal", required=True, help="The desired implementation or improvement")
+    guidance.add_argument(
+        "--intent",
+        choices=("build", "refactor"),
+        default="build",
+        help="Whether to place new behavior or improve existing structure",
+    )
+    guidance.add_argument(
+        "--focus", default="", help="Optional file, area, or responsibility focus"
+    )
+    _add_service_url(guidance)
+    guidance.set_defaults(handler=_guidance, db=None)
 
     impact = commands.add_parser(
         "impact", help="Find code and tests that may be affected by changing a file or symbol"
@@ -43,22 +52,26 @@ def _add_service_url(parser: Any) -> None:
     )
 
 
-def _scope(args: argparse.Namespace) -> dict[str, Any]:
+def _guidance(args: argparse.Namespace) -> dict[str, Any]:
     service = _agent_service(args)
     if service is not None:
         return _service_result(
-            service_agent_scope(
+            service_architecture_guidance(
                 service,
                 goal=args.goal,
+                intent=args.intent,
+                focus=args.focus,
             ),
             service,
         )
     database, repository_id, config = ensure_current(args)
-    return agent_scope(
+    return architecture_guidance(
         database,
         repository_id=repository_id,
         goal=args.goal,
         config=config,
+        intent=args.intent,
+        focus=args.focus,
     )
 
 

@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from anaxigraph.agent import agent_scope, impact_analysis
+from anaxigraph.agent import architecture_guidance, impact_analysis
 from anaxigraph.config import load_config
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.storage import AnaxiIndex
@@ -22,7 +22,7 @@ def test_core_coding_loop_stays_precise_bounded_and_refreshes_current_evidence(
     config = load_config(repository)
 
     first_scan = scanner.scan(repository)
-    before = agent_scope(
+    before = architecture_guidance(
         database,
         repository_id=first_scan.repository_id,
         goal=manifest["scope_goal"],
@@ -62,7 +62,7 @@ def test_core_coding_loop_stays_precise_bounded_and_refreshes_current_evidence(
         encoding="utf-8",
     )
     second_scan = scanner.scan(repository)
-    introduced = agent_scope(
+    introduced = architecture_guidance(
         database,
         repository_id=second_scan.repository_id,
         goal=manifest["scope_goal"],
@@ -84,7 +84,7 @@ def test_core_coding_loop_stays_precise_bounded_and_refreshes_current_evidence(
     )
     languages.write_text(safe_change, encoding="utf-8")
     third_scan = scanner.scan(repository)
-    resolved = agent_scope(
+    resolved = architecture_guidance(
         database,
         repository_id=third_scan.repository_id,
         goal=manifest["scope_goal"],

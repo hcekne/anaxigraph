@@ -45,7 +45,7 @@ def task_path(
 
 
 def compact_task_path(value: Any, *, route_only: bool = False) -> dict[str, Any]:
-    """Keep the route usable when the wider scope response reaches its byte limit."""
+    """Keep the route usable when the wider guidance response reaches its byte limit."""
 
     packet = value if isinstance(value, dict) else {}
     if route_only:

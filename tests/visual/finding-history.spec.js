@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("finding handoff explains when a structural problem appeared and returned", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("#project-name")).not.toHaveText("Loading…");
-  await page.getByRole("button", { name: "Agents", exact: true }).click();
+  await page.getByRole("button", { name: "Guide", exact: true }).click();
 
   await page.evaluate(async () => {
     const controller = await import("/assets/finding-controller.js");

@@ -54,7 +54,7 @@ def _run_trial(root: Path, work: Path, index: int) -> dict[str, Any]:
         try:
             _wait_for_health(process, port, log_path)
             dashboard_seconds = time.monotonic() - started
-            submission = asyncio.run(_submit_first_dossier(f"http://127.0.0.1:{port}/mcp"))
+            submission = asyncio.run(_submit_first_dossier(f"http://127.0.0.1:{port}/executor/mcp"))
             first_dossier_seconds = time.monotonic() - started
         finally:
             _stop_runtime(process)

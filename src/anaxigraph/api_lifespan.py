@@ -11,7 +11,7 @@ from fastapi import FastAPI
 import anaxigraph.api_support as api_support
 
 
-def application_lifespan(context: Any, *, scan_on_start: bool, mcp: Any):
+def application_lifespan(context: Any, *, scan_on_start: bool, mcp_servers: Any):
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI):
         with context.write_authority.claim("service"):
@@ -21,8 +21,10 @@ def application_lifespan(context: Any, *, scan_on_start: bool, mcp: Any):
             if context.watch_service is not None:
                 context.watch_service.start()
             try:
-                if mcp is not None:
-                    async with mcp.session_manager.run():
+                if mcp_servers is not None:
+                    async with contextlib.AsyncExitStack() as stack:
+                        for server in mcp_servers:
+                            await stack.enter_async_context(server.session_manager.run())
                         yield
                 else:
                     yield

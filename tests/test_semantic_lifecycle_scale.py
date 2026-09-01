@@ -51,6 +51,7 @@ async def test_two_hundred_module_mcp_lifecycle_resumes_and_finishes(tmp_path, m
                 until_complete=False,
                 retry_failed=False,
                 http_client=client,
+                mcp_url="http://testserver/mcp",
             )
             assert partial["completed"] == 100
 
@@ -71,6 +72,7 @@ async def test_two_hundred_module_mcp_lifecycle_resumes_and_finishes(tmp_path, m
                 until_complete=True,
                 retry_failed=False,
                 http_client=client,
+                mcp_url="http://testserver/mcp",
             )
 
     status = resumed["semantic"]
@@ -94,6 +96,7 @@ def _server(database, repository):
         repository=repository,
         config_path=None,
         allowed_hosts=["testserver"],
+        profile="executor",
     )
 
 

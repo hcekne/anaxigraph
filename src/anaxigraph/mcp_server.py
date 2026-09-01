@@ -23,23 +23,30 @@ def create_anaxi_mcp_server(
     allow_scan_tool: bool = False,
     repository_targets: tuple[RepositoryTarget, ...] = (),
     history_service: Any | None = None,
+    profile: str = "normal",
 ) -> Any:
+    if profile not in {"normal", "analyst", "executor", "all"}:
+        raise ValueError("MCP profile must be normal, analyst, executor, or all")
     server = build_responsive_mcp(allowed_hosts)
     context = McpToolContext(database, repository, config_path, repository_targets)
 
-    CoreMcpTools(server, context, allow_scan=allow_scan_tool).register()
-    register_history_tools(
-        server,
-        database=database,
-        context=context.select,
-        service=history_service,
-    )
+    if profile in {"normal", "analyst", "all"}:
+        CoreMcpTools(server, context, allow_scan=allow_scan_tool).register()
+    if profile in {"analyst", "all"}:
+        register_history_tools(
+            server,
+            database=database,
+            context=context.select,
+            service=history_service,
+        )
     register_semantic_tools(
         server,
         database,
         context.select,
         context.config_for,
         context.semantic_config_contract,
+        profile=profile,
     )
-    register_finding_tools(server, database, context.select, context.config_for)
+    if profile in {"normal", "analyst", "all"}:
+        register_finding_tools(server, database, context.select, context.config_for)
     return server

@@ -36,7 +36,7 @@ async def test_operational_api_bounds_inventory_export_and_request_bodies(reposi
         health = (await client.get("/api/health")).json()
         export = (await client.get("/api/export")).json()
         oversized = await client.post(
-            "/api/agent-scope",
+            "/api/guidance",
             content=b"x" * (MAX_REQUEST_BODY_BYTES + 1),
             headers={"content-type": "application/json"},
         )
@@ -336,6 +336,12 @@ async def test_request_limit_preserves_combined_mcp_transport(repository, databa
             assert corrected.status_code == 200
             rest_charter = (await http_client.get("/api/overview")).json()["architecture_charter"]
             assert corrected.json()["identity"] == rest_charter["identity"]
+            rest_guidance = (
+                await http_client.post(
+                    "/api/guidance",
+                    json={"goal": "Simplify Calculator structure", "intent": "refactor"},
+                )
+            ).json()
             async with streamable_http_client(
                 "http://testserver/mcp",
                 http_client=http_client,
@@ -344,6 +350,21 @@ async def test_request_limit_preserves_combined_mcp_transport(repository, databa
                 async with ClientSession(read_stream, write_stream) as session:
                     await session.initialize()
                     overview = await session.call_tool("ANAXIGRAPH_OVERVIEW", arguments={})
+                    guidance = await session.call_tool(
+                        "ANAXIGRAPH_GUIDE",
+                        arguments={
+                            "goal": "Simplify Calculator structure",
+                            "intent": "refactor",
+                        },
+                    )
+            async with streamable_http_client(
+                "http://testserver/executor/mcp",
+                http_client=http_client,
+                terminate_on_close=False,
+            ) as (read_stream, write_stream, _):
+                async with ClientSession(read_stream, write_stream) as session:
+                    await session.initialize()
+                    executor_tools = await session.list_tools()
 
     assert overview.isError is False
     assert overview.structuredContent["files"] == 8
@@ -353,3 +374,19 @@ async def test_request_limit_preserves_combined_mcp_transport(repository, databa
     assert mcp_charter["purpose"] == rest_charter["purpose"]
     assert mcp_charter["caveats"] == rest_charter["caveats"]
     assert mcp_charter["declared_context"] == rest_charter["declared_context"]
+    assert guidance.isError is False
+    mcp_guidance = guidance.structuredContent
+    assert mcp_guidance["identity"] == rest_guidance["identity"]
+    assert mcp_guidance["recommendation"] == rest_guidance["recommendation"]
+    assert mcp_guidance["understanding"] == rest_guidance["understanding"]
+    assert mcp_guidance["impact_summary"] == rest_guidance["impact_summary"]
+    assert mcp_guidance["confidence"] == rest_guidance["confidence"]
+    assert {tool.name for tool in executor_tools.tools} == {
+        "ANAXIGRAPH_SEMANTIC_STATUS",
+        "ANAXIGRAPH_SEMANTIC_SCHEMA",
+        "ANAXIGRAPH_SEMANTIC_WORK",
+        "ANAXIGRAPH_SEMANTIC_EVIDENCE",
+        "ANAXIGRAPH_SEMANTIC_SUBMIT",
+        "ANAXIGRAPH_SEMANTIC_RELEASE",
+        "ANAXIGRAPH_SEMANTIC_FAIL",
+    }

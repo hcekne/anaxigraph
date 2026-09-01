@@ -124,7 +124,7 @@ behavior-only Capability Brief for fresh-context review. There is no human appro
 result is versioned map metadata and never edits or controls the analyzed code. Unchanged
 fingerprints avoid rereading unchanged files or rebuilding unchanged higher-level understanding.
 Read the same Charter in Overview, `anaxigraph charter .`, or `ANAXIGRAPH_OVERVIEW`; use the Map
-selector or `ANAXIGRAPH_TAXONOMY` for its area/subsystem structure.
+selector or the responsibility map embedded in `ANAXIGRAPH_OVERVIEW` for its area/subsystem structure.
 
 A deterministic scan exposes an honest provisional Charter immediately. AI synthesis replaces it
 only when current evidence is complete; a prior Charter is labeled stale after relevant evidence
@@ -163,11 +163,12 @@ Give the connected agent one concrete goal:
 
 The agent follows one sequence:
 
-1. **Scope** — `ANAXIGRAPH_SCOPE` returns likely files, placement, boundaries, tests, and risks.
+1. **Guide** — `ANAXIGRAPH_GUIDE(intent="build"|"refactor")` returns one evidence-backed
+   recommendation, likely files, placement, counter-reasons, bounded impact, tests, and risks.
 2. **Impact** — `ANAXIGRAPH_IMPACT` shows direct dependants of the shared files before they change.
 3. **Change** — edit source and run focused tests through the normal coding workflow. AnaxiGraph
    observes the repository; it does not edit it.
-4. **Refresh** — request `ANAXIGRAPH_SCAN`. Ask for scope or impact again when responsibilities or
+4. **Refresh** — request `ANAXIGRAPH_SCAN`. Ask for guidance or impact again when responsibilities or
    dependencies may have moved, and use History and findings when you need change evidence.
 
 After a coherent task or commit, run `anaxigraph understand . --executor codex --background`
@@ -175,7 +176,7 @@ once if changed AI descriptions matter. It queues only stale scopes and reuses u
 structural map does not need to wait for that background refresh; wait for `semantically_ready`
 only before a decision that needs the fully current AI map.
 
-Each scope and impact reply now includes server time, payload size, and model-token use. Semantic
+Each guidance and impact reply includes server time, payload size, and model-token use. Semantic
 status groups AI jobs by action with current-snapshot and lifetime time/token totals, while scan
 results and detached execution records show wall-clock duration. Successful and failed attempts
 contribute token totals when the executor reports them. A process killed before it emits usage is
@@ -285,26 +286,21 @@ optional declared intent first, then the AI-reviewed **Responsibility map**, the
 kept separate from their display labels, and history uses today's current-view frame by default so
 the same regions visibly fill and connect over time.
 
-- **Overview** leads with the Living Architecture Charter, then summarizes areas, evidence
-  completeness, history, and immediate attention.
-- **Files** is a sortable and filterable list of purpose, repository area, size, branch count,
-  direct code links, Git activity, test coverage, findings, and pattern review.
-- **Graph** moves between repository areas and direct links between files.
-- **Architecture** separates a short attention list from the complete finding record.
-- **History** replays representative first-parent commits from repository initialization to HEAD.
-- **Agents** builds evidence-backed work scope, saves a versioned before-change baseline, compares
-  it after a rescan, and explains semantic progress without calling every difference an
-  improvement. Reviewed patterns keep their size-limited plain-language explanation in this handoff;
-  agents do not receive unexplained suitability or opportunity numbers.
-- **Pattern intelligence** exposes finalized evaluations by target or catalog pattern in the
-  **Patterns** view, through `anaxigraph patterns`, and through the paged `/api/patterns` endpoint.
-  Scope includes relevant recommendations directly for coding agents. Each result leads with a conclusion, evidence, action, cautions, and
+- **Understand** combines the Living Architecture Charter, overview, file inventory, and graph.
+- **Guide** answers where to build and how to refactor with the same recommendation for a person or
+  coding agent.
+- **Improve** combines the ranked finding record and reviewed pattern intelligence.
+- **Changes** replays representative first-parent commits and supports reassessment after edits.
+- **Settings** owns repositories, readiness, refresh, and progressively disclosed operations.
+- **Pattern intelligence** also exposes finalized evaluations through `anaxigraph patterns` and the
+  paged `/api/patterns` endpoint. Guidance includes relevant recommendations directly for coding
+  agents. Each result leads with a conclusion, evidence, action, cautions, and
   verification; its nine exact ratings are grouped and explained instead of shown as a number wall.
   Candidate results likewise explain why a pair was selected or skipped, what evidence is missing,
   and why the internal selection order is not itself a pattern recommendation.
 
 `anaxigraph search "goal or code name" .` uses the same bounded SQLite FTS ranking as dashboard
-search, `ANAXIGRAPH_SEARCH`, and the first step of agent scope. It searches paths, filenames,
+search, `ANAXIGRAPH_SEARCH`, and the first step of architecture guidance. It searches paths, filenames,
 symbols, summaries, responsibilities, contracts, and normalized aliases, then reports the semantic
 provenance that contributed to each result.
 
@@ -315,7 +311,7 @@ notes. The complete record remains filterable and paginated; no evidence is dele
 quiet the UI.
 
 Every finding says what AnaxiGraph saw, why it may matter, what to do, when the code may be fine as
-it is, and how to check the result. The dashboard, REST API, MCP tools, scope results, and copied
+it is, and how to check the result. The dashboard, REST API, MCP tools, guidance results, and copied
 agent prompt use the same wording. Exact rule IDs, evidence values, and ordering scores remain
 structured fields for automation, but each field has an adjacent ordinary-language meaning; they
 are never dumped into a jargon-filled “technical details” section. **Plan agent work** selects

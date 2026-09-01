@@ -34,11 +34,16 @@ class SemanticServiceTarget:
     def mcp_url(self) -> str:
         return f"{self.base_url}/mcp"
 
+    @property
+    def executor_mcp_url(self) -> str:
+        return f"{self.base_url}/executor/mcp"
+
     def identity(self) -> dict[str, Any]:
         return {
             "authority": "service",
             "service_url": self.base_url,
             "mcp_url": self.mcp_url,
+            "executor_mcp_url": self.executor_mcp_url,
             "repository_id": self.repository_id,
             "repository_name": self.repository_name,
             "repository_path": self.repository_path,
@@ -187,17 +192,21 @@ def service_semantic_status(
     return value
 
 
-def service_agent_scope(
+def service_architecture_guidance(
     target: SemanticServiceTarget,
     *,
     goal: str,
+    intent: str = "build",
+    focus: str = "",
     timeout: float = 30,
 ) -> dict[str, Any]:
     return _service_agent_request(
         target,
-        "/api/agent-scope",
+        "/api/guidance",
         {
             "goal": goal,
+            "intent": intent,
+            "focus": focus,
             "repository_id": target.repository_id,
         },
         timeout=timeout,

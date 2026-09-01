@@ -97,6 +97,7 @@ async def test_skill_semantic_release_resume_evidence_and_submit_contract(reposi
         config_path=None,
         allowed_hosts=["testserver"],
         allow_scan_tool=True,
+        profile="executor",
     )
     app = server.streamable_http_app()
 

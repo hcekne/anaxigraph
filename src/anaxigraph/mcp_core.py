@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from anaxigraph.agent import agent_scope, impact_analysis
+from anaxigraph.agent import architecture_guidance, impact_analysis
 from anaxigraph.architecture_charter import architecture_charter
 from anaxigraph.config import load_config
 from anaxigraph.config_authority import effective_semantic_policy, service_config_authority
@@ -115,12 +115,13 @@ class CoreMcpTools:
 
     def _register_agent_tools(self) -> None:
         self.server.add_tool(
-            self.scope,
-            name="ANAXIGRAPH_SCOPE",
+            self.guidance,
+            name="ANAXIGRAPH_GUIDE",
             description=(
-                "For a coding goal, return a small list of likely files, advice about where to "
-                "start, AI-checked pattern results, risks, focused checks, and rescan guidance. "
-                "Ask again when a coherent change may have moved responsibilities or dependencies."
+                "For an implementation or refactor goal, return one evidence-backed architecture "
+                "recommendation: where to start, whether to reuse, extend, split, consolidate, "
+                "move, delete, create, or retain code, what may be affected, reasons not to change, "
+                "focused checks, and refresh guidance."
             ),
         )
         self.server.add_tool(
@@ -177,17 +178,21 @@ class CoreMcpTools:
         result["map_status"] = self.context.map_status(row, root)
         return result
 
-    def scope(
+    def guidance(
         self,
         goal: str,
+        intent: str = "build",
+        focus: str = "",
         repository: str = "",
     ) -> dict[str, Any]:
         row, root = self.context.select(repository)
-        return agent_scope(
+        return architecture_guidance(
             self.database,
             repository_id=int(row["id"]),
             goal=goal,
             config=self.context.config_for(row, root),
+            intent=intent,
+            focus=focus,
         )
 
     def impact(self, target: str, repository: str = "") -> dict[str, Any]:

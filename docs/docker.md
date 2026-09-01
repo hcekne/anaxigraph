@@ -43,7 +43,7 @@ Open `http://127.0.0.1:8765`. The default registry contains MaxOS and AnaxiGraph
 appear under **Current repository** after the service's supervised watcher finishes its first
 structural scan. The HTTP and MCP service becomes ready immediately; until that scan finishes, currentness
 fields prevent an old map from being mistaken for the mounted checkout. Sampled Git biographies
-then import in the background and report progress on the History page.
+then import in the background and report progress in the **Changes** journey.
 
 | Endpoint | Address |
 |---|---|
@@ -185,15 +185,16 @@ PID, heartbeat, log, exact authority, and terminal result outside the chat sessi
 `--service-url` for a non-default endpoint or `--db` only to intentionally bypass the sidecar.
 Structural refresh is a separate explicit scan operation.
 
-Use direct `SCHEMA → WORK → optional EVIDENCE → SUBMIT` calls only for bounded/manual fallback.
-Proposal and critic passes run without a human approval step; deterministic validation finalizes
-map metadata only. The queue survives process restarts. Read the result with
-`ANAXIGRAPH_TAXONOMY` or the dashboard's map-layer selector, and never report the baseline complete
+The official host executor owns the internal lease/evidence/submit protocol; ordinary MCP clients
+receive the smaller architecture workflow instead of queue-administration tools. Proposal and
+critic passes run without a human approval step; deterministic validation finalizes map metadata
+only. The queue survives process restarts. Read the result from `ANAXIGRAPH_OVERVIEW` or the
+dashboard's map-layer selector, and never report the baseline complete
 until `semantic-status` says `semantically_ready: true`.
 
 The stock image deliberately contains no model client and accepts no hosted-model API key. The
-authenticated Codex/Claude executor runs on the host, or the connected coding agent processes the
-bounded MCP queue with its own tokens. Hash and context comparisons happen before work is queued,
+authenticated Codex/Claude executor runs on the host and uses its own tokens. Hash and context
+comparisons happen before work is queued,
 so unchanged files are not reread. See [advanced semantic operation](advanced-operations.md) for
 cost, privacy, custom-command, and refresh controls.
 

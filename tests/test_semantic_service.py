@@ -21,7 +21,7 @@ from anaxigraph.semantic_service import (
     SemanticServiceTarget,
     discover_semantic_service,
     prepare_semantic_service,
-    service_agent_scope,
+    service_architecture_guidance,
 )
 
 
@@ -160,7 +160,7 @@ def test_service_preparation_retries_transient_writer_contention(monkeypatch):
     assert sleeps == [0.25]
 
 
-def test_service_scope_sends_the_repository_selector_and_goal(monkeypatch):
+def test_service_guidance_sends_repository_goal_intent_and_focus(monkeypatch):
     captured = {}
 
     def request(url, **options):
@@ -170,7 +170,7 @@ def test_service_scope_sends_the_repository_selector_and_goal(monkeypatch):
     monkeypatch.setattr("anaxigraph.semantic_service._request_json", request)
     target = SemanticServiceTarget("http://127.0.0.1:8765", 4, "Example", "/repo")
 
-    result = service_agent_scope(
+    result = service_architecture_guidance(
         target,
         goal="Measure semantic work",
         timeout=9,
@@ -178,11 +178,13 @@ def test_service_scope_sends_the_repository_selector_and_goal(monkeypatch):
 
     assert result["snapshot_id"] == 12
     assert captured == {
-        "url": "http://127.0.0.1:8765/api/agent-scope",
+        "url": "http://127.0.0.1:8765/api/guidance",
         "method": "POST",
         "timeout": 9,
         "body": {
             "goal": "Measure semantic work",
+            "intent": "build",
+            "focus": "",
             "repository_id": 4,
         },
     }
@@ -372,6 +374,7 @@ async def test_host_executor_writes_to_sidecar_index_with_runtime_model_provenan
         repository=repository,
         config_path=None,
         allowed_hosts=["testserver"],
+        profile="executor",
     )
 
     class Provider:
@@ -399,6 +402,7 @@ async def test_host_executor_writes_to_sidecar_index_with_runtime_model_provenan
                 until_complete=False,
                 retry_failed=False,
                 http_client=client,
+                mcp_url="http://testserver/mcp",
             )
 
     assert result["completed"] == 1

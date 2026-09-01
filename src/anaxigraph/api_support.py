@@ -1,12 +1,12 @@
 """Cohesive application services consumed by HTTP transport modules."""
 
-from anaxigraph.agent import agent_scope, finding_context, impact_analysis
+from anaxigraph.agent import architecture_guidance, finding_context, impact_analysis
 from anaxigraph.api_coverage import coverage_diagnostics
 from anaxigraph.api_models import (
     CharterCorrectionRequest,
     FindingStatusRequest,
+    GuidanceRequest,
     ImpactRequest,
-    ScopeRequest,
 )
 from anaxigraph.api_scan import ScanCoordinator
 from anaxigraph.config import load_config
@@ -20,6 +20,7 @@ from anaxigraph.understanding import SemanticEngine
 
 __all__ = [
     "FindingStatusRequest",
+    "GuidanceRequest",
     "CharterCorrectionRequest",
     "HistoryJobService",
     "ImpactRequest",
@@ -27,8 +28,7 @@ __all__ = [
     "ScanCoordinator",
     "RepositoryTarget",
     "SemanticEngine",
-    "ScopeRequest",
-    "agent_scope",
+    "architecture_guidance",
     "collect_finding_ledger",
     "coverage_diagnostics",
     "finding_context",

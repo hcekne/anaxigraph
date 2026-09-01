@@ -44,7 +44,7 @@ def test_history_fixture_is_deterministic(tmp_path):
     assert first_manifest["expected_distinct_artifact_structural_versions"] == 134
 
 
-def test_history_fixture_has_exact_versions_and_agent_scope(tmp_path):
+def test_history_fixture_has_exact_versions_and_architecture_guidance(tmp_path):
     repository = tmp_path / "history"
     manifest = create_history_repository(repository, file_count=120)
     database = AnaxiIndex(tmp_path / "index.db")

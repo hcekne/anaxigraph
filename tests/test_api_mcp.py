@@ -39,6 +39,7 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert (await client.get("/assets/dashboard-core.js")).status_code == 200
         assert (await client.get("/assets/graph-regions.js")).status_code == 200
         assert (await client.get("/assets/graph-regions.css")).status_code == 200
+        assert (await client.get("/assets/journey-navigation.css")).status_code == 200
         assert (await client.get("/assets/patterns-view.js")).status_code == 200
         assert (await client.get("/assets/patterns-render.js")).status_code == 200
         assert (await client.get("/assets/patterns.css")).status_code == 200
@@ -142,7 +143,10 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
             "/api/patterns", params={"sort_by": "unbounded_magic"}
         )
         assert invalid_pattern_query.status_code == 400
-        scope = await client.post("/api/agent-scope", json={"goal": "Change Calculator behavior"})
+        scope = await client.post(
+            "/api/guidance",
+            json={"goal": "Change Calculator behavior", "intent": "build"},
+        )
         assert scope.status_code == 200
         assert scope.json()["map_status"]["state"] == "current"
         assert scope.json()["primary_files"][0]["path"] == "pkg/core.py"
@@ -177,6 +181,7 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
         repository=repository,
         config_path=None,
         allowed_hosts=["testserver"],
+        allow_scan_tool=True,
     )
     app = server.streamable_http_app()
     async with server.session_manager.run():
@@ -194,24 +199,19 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     await session.initialize()
                     tools = await session.list_tools()
                     names = {tool.name for tool in tools.tools}
-                    assert {
+                    assert names == {
+                        "ANAXIGRAPH_REPOSITORIES",
                         "ANAXIGRAPH_OVERVIEW",
-                        "ANAXIGRAPH_HISTORY_STATUS",
                         "ANAXIGRAPH_SEMANTIC_STATUS",
-                        "ANAXIGRAPH_TAXONOMY",
-                        "ANAXIGRAPH_SEMANTIC_SCHEMA",
-                        "ANAXIGRAPH_SEMANTIC_WORK",
-                        "ANAXIGRAPH_SEMANTIC_EVIDENCE",
-                        "ANAXIGRAPH_SEMANTIC_SUBMIT",
-                        "ANAXIGRAPH_SEMANTIC_RELEASE",
-                        "ANAXIGRAPH_SEMANTIC_FAIL",
                         "ANAXIGRAPH_SEARCH",
                         "ANAXIGRAPH_FILE",
-                        "ANAXIGRAPH_SCOPE",
+                        "ANAXIGRAPH_GUIDE",
                         "ANAXIGRAPH_IMPACT",
                         "ANAXIGRAPH_FINDINGS",
                         "ANAXIGRAPH_FINDING_CONTEXT",
-                    } <= names
+                        "ANAXIGRAPH_SCAN",
+                    }
+                    assert len(names) <= 10
                     descriptions = {tool.name: str(tool.description or "") for tool in tools.tools}
                     public_help = " ".join(descriptions.values()).lower()
                     for unexplained_term in (
@@ -222,12 +222,8 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                         "diagnostic ledger",
                     ):
                         assert unexplained_term not in public_help
-                    assert "rescan guidance" in descriptions["ANAXIGRAPH_SCOPE"]
+                    assert "refresh guidance" in descriptions["ANAXIGRAPH_GUIDE"]
                     assert "ordinary sentences" in descriptions["ANAXIGRAPH_FINDINGS"]
-                    submit_tool = next(
-                        tool for tool in tools.tools if tool.name == "ANAXIGRAPH_SEMANTIC_SUBMIT"
-                    )
-                    assert submit_tool.annotations.readOnlyHint is False
                     overview = await session.call_tool("ANAXIGRAPH_OVERVIEW", arguments={})
                     assert overview.isError is False
                     assert overview.structuredContent["files"] == 8
@@ -236,9 +232,6 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     assert charter["contract_version"] == "architecture-charter-v1"
                     assert charter["state"] == "provisional"
                     assert charter["identity"]
-                    history = await session.call_tool("ANAXIGRAPH_HISTORY_STATUS", arguments={})
-                    assert history.isError is False
-                    assert history.structuredContent["status"] == "not_started"
                     semantic = await session.call_tool("ANAXIGRAPH_SEMANTIC_STATUS", arguments={})
                     assert semantic.isError is False
                     assert semantic.structuredContent["enabled"] is False
@@ -247,32 +240,6 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                         semantic.structuredContent["config_authority"]["source_kind"]
                         == "repository_policy"
                     )
-                    schema = await session.call_tool("ANAXIGRAPH_SEMANTIC_SCHEMA", arguments={})
-                    assert schema.isError is False
-                    assert (
-                        schema.structuredContent["schema_version"] == "repository-understanding-v5"
-                    )
-                    assert schema.structuredContent["taxonomy_schema"]["type"] == "object"
-                    assert (
-                        schema.structuredContent["architecture_charter_schema"]["type"] == "object"
-                    )
-                    assert schema.structuredContent["taxonomy_review_schema"]["type"] == "object"
-                    assert schema.structuredContent["pattern_evaluation_schema"]["type"] == "object"
-                    assert schema.structuredContent["pattern_review_schema"]["type"] == "object"
-                    assert (
-                        schema.structuredContent["writing_contract_version"] == "plain-language-v2"
-                    )
-                    assert (
-                        "one repository file"
-                        in schema.structuredContent["input_term_meanings"]["module"]
-                    )
-                    assert (
-                        "not a code-quality grade"
-                        in schema.structuredContent["input_term_meanings"]["complexity"]
-                    )
-                    taxonomy = await session.call_tool("ANAXIGRAPH_TAXONOMY", arguments={})
-                    assert taxonomy.isError is False
-                    assert taxonomy.structuredContent["status"] == "not_ready"
                     search = await session.call_tool(
                         "ANAXIGRAPH_SEARCH",
                         arguments={"query": "Calculator", "limit": 5},
@@ -283,17 +250,20 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                         search.structuredContent["results"][0]["search"]["contract_version"]
                         == "module-search-fts-v1"
                     )
-                    scope = await session.call_tool(
-                        "ANAXIGRAPH_SCOPE",
+                    guidance = await session.call_tool(
+                        "ANAXIGRAPH_GUIDE",
                         arguments={"goal": "Change Calculator behavior"},
                     )
-                    assert scope.isError is False
-                    assert scope.structuredContent["primary_files"][0]["path"] == "pkg/core.py"
+                    assert guidance.isError is False
+                    assert guidance.structuredContent["primary_files"][0]["path"] == "pkg/core.py"
                     assert (
-                        scope.structuredContent["primary_files"][0]["path"]
+                        guidance.structuredContent["primary_files"][0]["path"]
                         == search.structuredContent["results"][0]["path"]
                     )
-                    assert scope.structuredContent["architecture_decision"]["snapshot_id"] > 0
+                    assert guidance.structuredContent["architecture_decision"]["snapshot_id"] > 0
+                    refreshed = await session.call_tool("ANAXIGRAPH_SCAN", arguments={})
+                    assert refreshed.isError is False
+                    assert refreshed.structuredContent["repository_id"] == stats.repository_id
                     finding_context = await session.call_tool(
                         "ANAXIGRAPH_FINDING_CONTEXT",
                         arguments={"finding_id": finding_id},

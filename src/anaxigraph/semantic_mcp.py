@@ -23,8 +23,10 @@ def register_semantic_tools(
     context: Any,
     config_for: Any,
     config_contract: Any,
+    *,
+    profile: str = "normal",
 ) -> None:
-    SemanticMcpTools(server, database, context, config_for, config_contract).register()
+    SemanticMcpTools(server, database, context, config_for, config_contract, profile).register()
 
 
 class SemanticMcpTools:
@@ -35,19 +37,25 @@ class SemanticMcpTools:
         context: Any,
         config_for: Any,
         config_contract: Any,
+        profile: str,
     ) -> None:
         self.server = server
         self.database = database
         self.context = context
         self.config_for = config_for
         self.config_contract = config_contract
+        self.profile = profile
 
     def register(self) -> None:
-        self._register_read_tools()
-        self._register_claim_tools()
-        self._register_completion_tools()
+        self._register_status_tool()
+        if self.profile in {"analyst", "all"}:
+            self._register_taxonomy_tool()
+        if self.profile in {"executor", "all"}:
+            self._register_executor_read_tools()
+            self._register_claim_tools()
+            self._register_completion_tools()
 
-    def _register_read_tools(self) -> None:
+    def _register_status_tool(self) -> None:
         self.server.add_tool(
             self.status,
             name="ANAXIGRAPH_SEMANTIC_STATUS",
@@ -57,6 +65,8 @@ class SemanticMcpTools:
                 "current whole-repository AI description."
             ),
         )
+
+    def _register_taxonomy_tool(self) -> None:
         self.server.add_tool(
             self.taxonomy,
             name="ANAXIGRAPH_TAXONOMY",
@@ -67,6 +77,8 @@ class SemanticMcpTools:
                 "extra cross-area labels, known problems, and who or what created it."
             ),
         )
+
+    def _register_executor_read_tools(self) -> None:
         self.server.add_tool(
             self.schema,
             name="ANAXIGRAPH_SEMANTIC_SCHEMA",

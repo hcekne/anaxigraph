@@ -70,18 +70,18 @@ plan not yet ready. Optional details expose matched signals, capability gaps, mi
 the semantic questions associated with the card. The dashboard switches between finalized ratings
 and candidate explanations without mixing candidate priority with the nine independent scores.
 
-The same finalized pattern projection contributes to `architecture-decision-v1` inside the normal
-agent scope. Placement guidance distinguishes patterns already worth reusing from genuine change
+The same finalized pattern projection contributes to `architecture-guidance-v1` inside the normal
+guidance response. Placement guidance distinguishes patterns already worth reusing from genuine change
 opportunities and retains critic provenance, contracts, invariants, risks, focused tests, and the
 snapshot facts behind the recommendation. Refresh the shared map after a coherent change:
 
 ```text
-ANAXIGRAPH_SCOPE(goal="Add provider fallback")
+ANAXIGRAPH_GUIDE(goal="Add provider fallback", intent="build")
 ANAXIGRAPH_SCAN()
-ANAXIGRAPH_SCOPE(goal="Add provider fallback")
+ANAXIGRAPH_GUIDE(goal="Add provider fallback", intent="build")
 ```
 
-Repeat scope only when responsibilities, placement, or dependencies may have moved. History,
+Repeat guidance only when responsibilities, placement, or dependencies may have moved. History,
 findings, and the refreshed graph provide temporal evidence without a second saved-baseline
 protocol. A changed score or disappeared finding does not prove the code improved; the intended
 outcome and focused tests still decide that.
@@ -93,7 +93,7 @@ require trusted graph resolution plus analyzer support for entry points and regi
 detected entry points are suppressed. No result is presented as automatic permission to merge,
 split, or delete code.
 
-For a selected oversized file, that same scope response may include
+For a selected oversized file, that same guidance response may include
 `architecture_decision.decomposition`. A concrete split appears only when the current dossier
 names separate responsibilities, argues both for and against the split, and those jobs map
 unambiguously to real symbols. The packet names callers, contracts, focused tests, destination

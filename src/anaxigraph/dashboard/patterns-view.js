@@ -54,17 +54,12 @@ let loadedRepositoryId = null;
 export function setupPatternView() {
   if (byId("view-patterns")) return;
   installStylesheet();
-  const tab = document.createElement("button");
-  tab.className = "tab";
-  tab.dataset.view = "patterns";
-  tab.textContent = "Patterns";
-  document.querySelector('.tab[data-view="architecture"]').after(tab);
   const section = document.createElement("section");
   section.id = "view-patterns";
   section.className = "view";
   section.innerHTML = patternViewMarkup();
   byId("view-architecture").after(section);
-  bindPatternEvents(tab);
+  bindPatternEvents();
   renderWaitingState();
 }
 
@@ -158,9 +153,11 @@ function optionLabel(value) {
   return OPTION_LABELS[value] || humanize(value);
 }
 
-function bindPatternEvents(tab) {
-  tab.addEventListener("click", () => {
-    if (loadedRepositoryId !== state.repositoryId) loadPatterns();
+function bindPatternEvents() {
+  window.addEventListener("anaxigraph:viewchange", (event) => {
+    if (event.detail?.name === "patterns" && loadedRepositoryId !== state.repositoryId) {
+      loadPatterns();
+    }
   });
   byId("patterns-query-form").addEventListener("submit", (event) => {
     event.preventDefault();

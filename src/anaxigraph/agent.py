@@ -26,94 +26,175 @@ from anaxigraph.agent_payload import (
     _scope_payload,
     _ScopePayloadData,
 )
+from anaxigraph.architecture_charter import architecture_charter
 from anaxigraph.config import AnaxiGraphConfig
 from anaxigraph.storage import AnaxiIndex
+from anaxigraph.understanding import SemanticEngine
 
 
-def agent_scope(
+def architecture_guidance(
     database: AnaxiIndex,
     *,
     repository_id: int,
     goal: str,
     config: AnaxiGraphConfig,
+    intent: str = "build",
+    focus: str = "",
 ) -> dict[str, Any]:
     started = time.perf_counter()
-    _repository, snapshot_id, map_status = _repository_map_state(database, repository_id)
+    repository, snapshot_id, map_status = _repository_map_state(database, repository_id)
     with database.connect() as connection:
-        files, outgoing, incoming, hierarchy = _scope_graph(connection, repository_id, snapshot_id)
-        ranked = _rank_files(connection, snapshot_id, files, goal)
-        primary_ids = _select_primary(ranked, files, limit=min(8, config.agent.context_limit))
-        if not primary_ids and files:
-            primary_ids = [next(iter(files))]
-        related_ids, related_scores = _expand_relevant(
-            primary_ids,
-            outgoing,
-            incoming,
-            files,
-            lexical_scores={artifact_id: score for score, artifact_id in ranked},
-            depth=config.agent.neighbor_depth,
-            limit=config.agent.context_limit * 2,
-        )
-        relevant_ids = set(primary_ids) | related_ids
-        tests = _related_tests(
-            files,
-            outgoing,
-            incoming,
-            set(primary_ids),
-            related_ids,
-            goal,
-            limit=max(8, config.agent.context_limit // 2),
-        )
-        protected_ids = {
-            artifact_id
-            for artifact_id in relevant_ids
-            if _is_protected(files[artifact_id]["path"], config)
-        }
-        rules = _applicable_rules(connection, repository_id, files, relevant_ids)
-        findings = _applicable_findings(
-            connection,
-            repository_id,
-            files,
-            relevant_ids,
-            set(primary_ids),
-        )
-        symbols, interfaces = _scope_symbols(connection, snapshot_id, primary_ids)
+        evidence = _guidance_evidence(connection, repository_id, snapshot_id, goal, focus, config)
     decision = _scope_decision(
         database,
         repository_id,
         goal,
         snapshot_id,
-        files,
-        primary_ids,
-        interfaces,
-        symbols,
-        hierarchy,
-        tests,
-        (findings, rules),
+        evidence["files"],
+        evidence["primary_ids"],
+        evidence["interfaces"],
+        evidence["symbols"],
+        evidence["hierarchy"],
+        evidence["tests"],
+        (evidence["findings"], evidence["rules"]),
     )
+    charter = architecture_charter(
+        repository,
+        database.overview(repository_id),
+        SemanticEngine(database).status(repository_id, config.semantic),
+    )
+    return _guidance_response(
+        evidence,
+        goal=goal,
+        intent=intent,
+        focus=focus,
+        repository_id=repository_id,
+        snapshot_id=snapshot_id,
+        map_status=map_status,
+        charter=charter,
+        decision=decision,
+        config=config,
+        started=started,
+    )
+
+
+def _guidance_response(
+    evidence: dict[str, Any],
+    *,
+    goal: str,
+    intent: str,
+    focus: str,
+    repository_id: int,
+    snapshot_id: int,
+    map_status: dict[str, Any],
+    charter: dict[str, Any],
+    decision: dict[str, Any],
+    config: AnaxiGraphConfig,
+    started: float,
+) -> dict[str, Any]:
     return _scope_payload(
         _ScopePayloadData(
             goal=goal,
+            intent=intent,
+            focus=focus,
+            charter=charter,
             repository_id=repository_id,
             snapshot_id=snapshot_id,
             map_status=map_status,
-            files=files,
-            outgoing=outgoing,
-            incoming=incoming,
-            primary_ids=primary_ids,
-            related_ids=related_ids,
-            related_scores=related_scores,
-            protected_ids=protected_ids,
-            tests=tests,
-            interfaces=interfaces,
-            rules=rules,
-            findings=findings,
+            files=evidence["files"],
+            outgoing=evidence["outgoing"],
+            incoming=evidence["incoming"],
+            primary_ids=evidence["primary_ids"],
+            related_ids=evidence["related_ids"],
+            related_scores=evidence["related_scores"],
+            protected_ids=evidence["protected_ids"],
+            tests=evidence["tests"],
+            interfaces=evidence["interfaces"],
+            rules=evidence["rules"],
+            findings=evidence["findings"],
             decision=decision,
             context_limit=config.agent.context_limit,
             payload_limit_bytes=config.agent.payload_limit_bytes,
             started_at=started,
         )
     )
+
+
+def _guidance_evidence(
+    connection: Any,
+    repository_id: int,
+    snapshot_id: int,
+    goal: str,
+    focus: str,
+    config: AnaxiGraphConfig,
+) -> dict[str, Any]:
+    files, outgoing, incoming, hierarchy = _scope_graph(connection, repository_id, snapshot_id)
+    primary_ids, related_ids, related_scores = _guidance_selection(
+        connection, snapshot_id, files, outgoing, incoming, goal, focus, config
+    )
+    relevant_ids = set(primary_ids) | related_ids
+    tests = _related_tests(
+        files,
+        outgoing,
+        incoming,
+        set(primary_ids),
+        related_ids,
+        goal,
+        limit=max(8, config.agent.context_limit // 2),
+    )
+    protected_ids = {
+        artifact_id
+        for artifact_id in relevant_ids
+        if _is_protected(files[artifact_id]["path"], config)
+    }
+    symbols, interfaces = _scope_symbols(connection, snapshot_id, primary_ids)
+    return {
+        "files": files,
+        "outgoing": outgoing,
+        "incoming": incoming,
+        "hierarchy": hierarchy,
+        "primary_ids": primary_ids,
+        "related_ids": related_ids,
+        "related_scores": related_scores,
+        "protected_ids": protected_ids,
+        "tests": tests,
+        "rules": _applicable_rules(connection, repository_id, files, relevant_ids),
+        "findings": _applicable_findings(
+            connection, repository_id, files, relevant_ids, set(primary_ids)
+        ),
+        "symbols": symbols,
+        "interfaces": interfaces,
+    }
+
+
+def _guidance_selection(
+    connection: Any,
+    snapshot_id: int,
+    files: dict[int, dict[str, Any]],
+    outgoing: dict[int, set[int]],
+    incoming: dict[int, set[int]],
+    goal: str,
+    focus: str,
+    config: AnaxiGraphConfig,
+) -> tuple[list[int], set[int], dict[int, float]]:
+    ranked = _rank_files(connection, snapshot_id, files, _guidance_query(goal, focus))
+    primary_ids = _select_primary(ranked, files, limit=min(8, config.agent.context_limit))
+    if not primary_ids and files:
+        primary_ids = [next(iter(files))]
+    related_ids, related_scores = _expand_relevant(
+        primary_ids,
+        outgoing,
+        incoming,
+        files,
+        lexical_scores={artifact_id: score for score, artifact_id in ranked},
+        depth=config.agent.neighbor_depth,
+        limit=config.agent.context_limit * 2,
+    )
+    return primary_ids, related_ids, related_scores
+
+
+def _guidance_query(goal: str, focus: str) -> str:
+    return " ".join(value.strip() for value in (goal, focus) if value.strip())
 
 
 def _scope_graph(
@@ -174,7 +255,7 @@ def finding_context(
         repository_id=repository_id,
         finding_id=finding_id,
         config=config,
-        scope_builder=agent_scope,
+        scope_builder=architecture_guidance,
         impact_builder=impact_analysis,
     )
 

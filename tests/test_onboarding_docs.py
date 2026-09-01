@@ -40,7 +40,7 @@ def test_primary_docs_share_one_ordered_before_and_after_coding_loop():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     onboarding = (ROOT / "docs/onboarding.md").read_text(encoding="utf-8")
     ordered_steps = (
-        "ANAXIGRAPH_SCOPE",
+        "ANAXIGRAPH_GUIDE",
         "ANAXIGRAPH_IMPACT",
         "ANAXIGRAPH_SCAN",
         "History",

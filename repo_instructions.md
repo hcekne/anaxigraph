@@ -1610,7 +1610,8 @@ Launch the web interface.
 ## Agent context
 
 ```bash
-anaxigraph scope \
+anaxigraph guide \
+  --intent build \
   --goal "Add saved prompts to Workbench"
 ```
 

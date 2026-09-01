@@ -158,6 +158,7 @@ def _compose_app(port: int, history_snapshots: int | str) -> str:
       - "8765"
       - --history-snapshots
       - "{history_snapshots}"
+      - --allow-agent-scan
     ports:
       - "127.0.0.1:${{ANAXIGRAPH_PORT:-{port}}}:8765"
     healthcheck:

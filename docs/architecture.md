@@ -27,7 +27,7 @@ target Git repository (read-only)
                   AnaxiIndex (SQLite)
                        │          │
                        ▼          ▼
-             architecture rules  agent scope/impact
+             architecture rules  guidance/impact
                        │          │
                        └────┬─────┘
                             ▼
@@ -49,7 +49,7 @@ module classification, and versioned analyzer contract are in
 every commit and CI gate.
 
 Goal-specific placement, reviewed-pattern, consolidation, dead-code, and verification evidence is
-composed into the existing bounded scope response. [`ADR 0002`](adr/0002-goal-specific-architecture-decisions.md)
+composed into the actor-neutral bounded guidance response. [`ADR 0002`](adr/0002-goal-specific-architecture-decisions.md)
 defines the additive contract and the safety rules that keep facts, interpretations, and
 recommendations distinct without creating another provider, persistence, or transport surface.
 Its recommendation projections lead with ordinary-language conclusions, evidence, action,
@@ -61,12 +61,12 @@ Pattern-candidate signal and analyzer-coverage records therefore carry their own
 projection beside the stable machine fields, so REST, MCP, CLI, and dashboard readers receive the
 same explanation.
 The same rule covers overall evidence readiness, preferred placement, change constraints, and
-before/after verification. Even the smallest bounded scope keeps the direct scope and placement
+before/after verification. Even the smallest bounded guidance packet keeps the recommendation and placement
 conclusions while compacting optional evidence and duplicate paths.
 Raw semantic advisory fields remain in agent file summaries for compatibility, but a companion
 explanation calls them early AI notes rather than instructions. It directs action to the
 architecture packet, where the map checks those notes against repository evidence and explains its
-recommendation. The dashboard Workbench renders that packet directly; it does not add a human
+recommendation. The dashboard Guide journey renders that packet directly; it does not add a human
 approval stage.
 
 The CLI has the same boundary discipline. `cli.py` is a stable facade, `cli_parser.py` assembles
@@ -113,8 +113,8 @@ repositories without pretending that a path heuristic is semantic understanding.
 
 Module discovery has one query substrate. A rebuildable SQLite FTS5 projection indexes paths,
 filenames, symbols, summaries, responsibilities, contracts, and normalized aliases for exactly one
-repository snapshot. Dashboard, REST, CLI, AnaxiMCP, and goal scoping call the same ranked query;
-scope expands through graph links only after those shared seeds are selected. Search provenance
+repository snapshot. Dashboard, REST, CLI, AnaxiMCP, and architecture guidance call the same ranked query;
+guidance expands through graph links only after those shared seeds are selected. Search provenance
 states whether current semantic and responsibility evidence contributed. The projection is a
 disposable read model over AnaxiIndex, not an architectural fact or a second database.
 
@@ -160,13 +160,18 @@ Historical reconstruction has a separate application-level job coordinator. Its 
 `history_import` record uses `analysis_runs` metadata for queued, enumerating, importing,
 finalizing, complete, failed, and cancelled state; individual atomic frame scans remain ordinary
 analysis runs. Progress and cancellation therefore survive browser sessions and process restarts,
-while completed commit snapshots remain queryable throughout the import. CLI, REST, dashboard, and
-MCP controls all delegate to this coordinator instead of maintaining transport-local job state.
+while completed commit snapshots remain queryable throughout the import. CLI, REST, and dashboard
+controls all delegate to this coordinator instead of maintaining transport-local job state.
 
-The target-code boundary remains read-only. Most AnaxiMCP tools only retrieve current dossiers and
-use them in task-file ranking. A repository may explicitly select `semantic.provider: agent` to
-enable an index-only write path: AnaxiMCP leases a prepared job, the connected coding agent reasons
-with its own model and tokens, and SUBMIT writes a schema-validated interpretation to AnaxiIndex.
-Opaque expiring lease tokens, repository/snapshot checks, strict dossier validation, MCP write
-annotations, and the repository allowlist bound that path. An authenticated local Codex or Claude
-CLI can drive the same queue in the background; AnaxiGraph itself holds no model API key.
+The target-code boundary remains read-only. The normal `/mcp` profile exposes at most ten
+architecture use cases: repository selection, Overview/Charter, readiness, search, file
+explanation, guidance, impact, findings, selected-finding context, and optional refresh. Raw
+history and semantic queue administration are not mixed into that menu.
+
+A repository may explicitly select `semantic.provider: agent` to enable an index-only write path.
+The official host executor uses the separate `/executor/mcp` transport to lease prepared work,
+reason with the user's authenticated model and tokens, and store schema-validated interpretations
+in AnaxiIndex. Opaque expiring lease tokens, repository/snapshot checks, strict validation, MCP
+write annotations, and the repository allowlist bound that internal transport. An authenticated
+local Codex or Claude CLI drives the queue in the background; AnaxiGraph itself holds no model API
+key. Dashboard, CLI, REST, and normal MCP never implement their own queue semantics.

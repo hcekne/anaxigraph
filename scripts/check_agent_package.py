@@ -18,14 +18,9 @@ CORE_TOOLS = (
     "ANAXIGRAPH_REPOSITORIES",
     "ANAXIGRAPH_OVERVIEW",
     "ANAXIGRAPH_SEMANTIC_STATUS",
-    "ANAXIGRAPH_SEMANTIC_SCHEMA",
-    "ANAXIGRAPH_SEMANTIC_WORK",
-    "ANAXIGRAPH_SEMANTIC_EVIDENCE",
-    "ANAXIGRAPH_SEMANTIC_SUBMIT",
-    "ANAXIGRAPH_SEMANTIC_RELEASE",
     "ANAXIGRAPH_SEARCH",
     "ANAXIGRAPH_FILE",
-    "ANAXIGRAPH_SCOPE",
+    "ANAXIGRAPH_GUIDE",
     "ANAXIGRAPH_IMPACT",
     "ANAXIGRAPH_FINDINGS",
     "ANAXIGRAPH_FINDING_CONTEXT",
@@ -80,10 +75,7 @@ def _skill_contract(content: str, frontmatter: dict[str, Any], errors: list[str]
     for tool in CORE_TOOLS:
         if tool not in content:
             errors.append(f"skill does not cover {tool}")
-    ordered = [content.find(tool) for tool in CORE_TOOLS[3:7]]
-    if any(position < 0 for position in ordered) or ordered != sorted(ordered):
-        errors.append("semantic workflow must order SCHEMA, WORK, EVIDENCE, then SUBMIT")
-    for phrase in ("status: completed", "status: already_completed", "never submit stale"):
+    for phrase in ("semantically_ready: true", "Do not edit repository source"):
         if phrase not in content:
             errors.append(f"skill is missing semantic safety phrase {phrase!r}")
 

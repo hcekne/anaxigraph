@@ -38,8 +38,8 @@ def create_app(
     )
     default_repository = targets[0].path if targets else repository
     context = build_api_context(database, targets, default_repository, watch_interval)
-    mcp = (
-        _mcp_server(
+    mcp_servers = (
+        _mcp_servers(
             context,
             config_path=config_path,
             allowed_hosts=allowed_hosts,
@@ -52,31 +52,48 @@ def create_app(
         title="AnaxiGraph API",
         version=__version__,
         description="Temporal architecture, graph, findings, and bounded agent task context.",
-        lifespan=application_lifespan(context, scan_on_start=scan_on_start, mcp=mcp),
+        lifespan=application_lifespan(
+            context,
+            scan_on_start=scan_on_start,
+            mcp_servers=mcp_servers,
+        ),
     )
     app.add_middleware(RequestBodyLimitMiddleware)
     register_api_routes(app, context)
     api_dashboard.register_dashboard_routes(app)
-    if mcp is not None:
-        app.mount("/", mcp.streamable_http_app())
+    if mcp_servers is not None:
+        normal, executor = mcp_servers
+        app.mount("/executor", executor.streamable_http_app())
+        app.mount("/", normal.streamable_http_app())
     return app
 
 
-def _mcp_server(
+def _mcp_servers(
     context: ApiContext,
     *,
     config_path: Path | None,
     allowed_hosts: list[str] | None,
     allow_scan_tool: bool,
 ):
-    return create_anaxi_mcp_server(
-        database=context.database,
-        repository=context.default_repository,
-        config_path=config_path,
-        allowed_hosts=allowed_hosts,
-        allow_scan_tool=allow_scan_tool,
-        repository_targets=context.targets,
-        history_service=context.history_service,
+    shared = {
+        "database": context.database,
+        "repository": context.default_repository,
+        "config_path": config_path,
+        "allowed_hosts": allowed_hosts,
+        "repository_targets": context.targets,
+        "history_service": context.history_service,
+    }
+    return (
+        create_anaxi_mcp_server(
+            **shared,
+            allow_scan_tool=allow_scan_tool,
+            profile="normal",
+        ),
+        create_anaxi_mcp_server(
+            **shared,
+            allow_scan_tool=False,
+            profile="executor",
+        ),
     )
 
 

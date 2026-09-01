@@ -39,6 +39,7 @@ def build_finding_context(
         repository_id=repository_id,
         goal=goal,
         config=config,
+        intent="refactor",
     )
     impact = _first_impact(
         database,
@@ -142,7 +143,7 @@ def _response(
         "recommended_context": context.recommended,
         "relevant_tests": context.tests,
         "protected_paths": context.protected,
-        "scope": scope,
+        "guidance": scope,
         "primary_impact": impact,
         "finding_history": history,
         "verification": [

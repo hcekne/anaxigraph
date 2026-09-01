@@ -1,0 +1,25 @@
+.journey-subnav {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.55rem clamp(1.25rem, 4vw, 4.5rem) 0;
+  background: var(--background);
+}
+
+.journey-subnav[hidden] { display: none; }
+
+.journey-subnav button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.42rem 0.8rem;
+  color: var(--muted);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+
+.journey-subnav button.active {
+  border-color: var(--accent-border);
+  color: var(--text);
+  background: var(--accent-soft);
+}

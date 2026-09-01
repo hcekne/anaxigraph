@@ -6,7 +6,7 @@
 
 ## Context
 
-AnaxiGraph already returns a bounded coding scope, deterministic graph evidence, semantic module
+AnaxiGraph already returns bounded goal-specific context, deterministic graph evidence, semantic module
 dossiers, and independently reviewed pattern evaluations. Agents otherwise have to assemble these
 records themselves before deciding where a change belongs. That repeats policy in each client and
 can accidentally treat a model suggestion, an unreviewed pattern assessment, or a missing static
@@ -18,9 +18,12 @@ work is incomplete.
 
 ## Decision
 
-`ANAXIGRAPH_SCOPE` and the existing REST scope response include an additive
-`architecture-decision-v1` object assembled for the requested goal. The goal already determines the
-ranked primary modules; the decision composes current evidence for those modules into:
+`ANAXIGRAPH_GUIDE`, `anaxigraph guide`, `POST /api/guidance`, and the dashboard Guide journey call
+one application service and return `architecture-guidance-v1`. It accepts a `build` or `refactor`
+intent and optional focus. The response gives one stable recommendation identity, understanding,
+recommended action, bounded impact, confidence, unknowns, caveats, and evidence links. Its detailed
+`architecture-decision-v1` evidence remains an internal projection inside that public packet. The
+goal and focus determine the ranked primary modules; the decision composes current evidence into:
 
 - a preferred placement, semantic placement guidance, extension points, public contracts,
   interfaces, and local precedents;
@@ -38,7 +41,7 @@ ranked primary modules; the decision composes current evidence for those modules
   an optional machine-readable comparison with an earlier baseline.
 
 This is an application projection over the current snapshot. It adds no database table, model
-call, semantic job, REST route, MCP tool, or dashboard state.
+call, semantic job, recommendation ledger, or approval state.
 
 ## Evidence and safety rules
 
@@ -63,8 +66,8 @@ The packet preserves the product's fact/interpretation/recommendation boundary:
    Machine statuses and scores remain available for automation but never stand in for that
    explanation or move into a separate jargon drawer. Every unused-code projection says that it
    does not authorize deletion.
-9. Scope readiness, preferred placement, and change constraints use the same plain-language
-   contract. Tight payloads retain direct scope and placement conclusions before duplicate context
+9. Guidance readiness, preferred placement, and change constraints use the same plain-language
+   contract. Tight payloads retain the recommendation and placement conclusions before duplicate context
    paths.
 10. Early AI notes retained in agent file summaries are explicitly labeled as notes rather than
     instructions. The architecture packet checks them against repository evidence before explaining
@@ -81,11 +84,11 @@ The packet preserves the product's fact/interpretation/recommendation boundary:
 ## Bounds and freshness
 
 The decision names its snapshot. Normal scan and semantic fingerprints own invalidation, and exact
-target queries reuse the bounded pattern application service. If the scope payload exceeds its
+target queries reuse the bounded pattern application service. If the guidance payload exceeds its
 configured byte budget, detailed decision evidence is compacted while contract version, status,
 preferred path, focused tests, and rescan guidance remain. The bespoke saved-baseline comparison
 described by the original version of this ADR was removed before 1.0: History, findings, graph
-deltas, and a refreshed scope already own change evidence, so maintaining a second temporal
+deltas, and refreshed guidance already own change evidence, so maintaining a second temporal
 protocol made the product harder to use and maintain. `large-file-decomposition-v1` returns at most five
 files and five responsibility slices, preserves the extraction order in compact packets, and adds
 no semantic job, provider call, persistent state, route, or dashboard screen. `task-path-v1`
@@ -98,13 +101,13 @@ keeps only the usable breadcrumb and matching names.
 Agents receive a consistent architecture recommendation as a normal consequence of semantic
 mapping, without a human review gate. Deterministic-only and partially semantic repositories still
 receive an honestly labeled packet. Post-change verification compares the same bounded facts after
-a rescan through the existing scope surface; longitudinal temporal outcome correlation remains a
+a rescan through the existing guidance surface; longitudinal temporal outcome correlation remains a
 later evidence input rather than a fabricated signal.
 
 The explanation is assembled when current evidence is read. It adds no prompt-signature or
 freshness input, so adopting clearer language does not invalidate completed semantic dossiers or
 restart repository indexing.
 
-The task path is assembled by the same scope read. The dashboard renders it inside the existing
-Agents result and highlights the same files on the existing Map; CLI, REST, and MCP receive the
-identical additive object without another endpoint or workflow.
+The task path is assembled by the same guidance read. The dashboard renders it inside Guide and
+highlights the same files on the existing Map; CLI, REST, and MCP receive the identical core
+recommendation without transport-specific interpretation.

@@ -10,6 +10,10 @@ from anaxigraph.agent_decision_payload import (
     compact_architecture_decision,
 )
 from anaxigraph.agent_task_path import compact_task_path
+from anaxigraph.architecture_guidance import (
+    compact_guidance_projection,
+    guidance_projection,
+)
 from anaxigraph.config import AnaxiGraphConfig, path_matches
 from anaxigraph.graph_contract import _response_payload_bytes, _with_response_telemetry
 from anaxigraph.guidance import FILE_MEASUREMENT_MEANINGS
@@ -18,6 +22,9 @@ from anaxigraph.guidance import FILE_MEASUREMENT_MEANINGS
 @dataclass(frozen=True, slots=True)
 class _ScopePayloadData:
     goal: str
+    intent: str
+    focus: str
+    charter: dict[str, Any]
     repository_id: int
     snapshot_id: int
     map_status: dict[str, Any]
@@ -39,8 +46,23 @@ class _ScopePayloadData:
 
 
 def _scope_payload(data: _ScopePayloadData) -> dict[str, Any]:
-    """Assemble and bound the public task-scope response."""
+    """Assemble and bound the public architecture-guidance response."""
 
+    payload = _scope_payload_body(data)
+    payload = {
+        **guidance_projection(
+            payload,
+            intent=data.intent,
+            focus=data.focus,
+            charter=data.charter,
+        ),
+        **payload,
+    }
+    _with_response_telemetry(payload, data.started_at, action="guidance")
+    return _bound_scope_payload(payload, data.payload_limit_bytes)
+
+
+def _scope_payload_body(data: _ScopePayloadData) -> dict[str, Any]:
     primary = [_file_summary(data.files[item]) for item in data.primary_ids]
     related_order = sorted(
         data.related_ids,
@@ -57,7 +79,7 @@ def _scope_payload(data: _ScopePayloadData) -> dict[str, Any]:
     )
     risk = _scope_risk(protected, high_degree, data.related_ids)
     risk_reasons = _risk_reasons(protected, high_degree)
-    payload = {
+    return {
         "goal": data.goal,
         "repository_id": data.repository_id,
         "snapshot_id": data.snapshot_id,
@@ -84,8 +106,6 @@ def _scope_payload(data: _ScopePayloadData) -> dict[str, Any]:
         ),
         "stats": _scope_stats(data, primary, protected),
     }
-    _with_response_telemetry(payload, data.started_at, action="scope")
-    return _bound_scope_payload(payload, data.payload_limit_bytes)
 
 
 def _scope_explanation(
@@ -212,6 +232,7 @@ def _bound_scope_payload(payload: dict[str, Any], limit_bytes: int) -> dict[str,
     _compact_scope_file_details(payload, size, limit, omitted)
     _minimize_task_path(payload, size, limit, omitted)
     _compact_rule_identities(payload, size, limit, omitted)
+    _minimize_legacy_decision(payload, size, limit, omitted)
     payload["payload_budget"]["truncated"] = any(omitted.values())
     for _attempt in range(4):
         measured = size()
@@ -229,10 +250,16 @@ def _bound_scope_payload(payload: dict[str, Any], limit_bytes: int) -> dict[str,
 def _trim_scope_collections(
     payload: dict[str, Any], size: Callable[[], int], limit: int, omitted: dict[str, int]
 ) -> None:
-    for key in ("related_files", "known_findings", "interfaces"):
+    for key in ("related_files", "interfaces"):
         while size() > limit and payload[key]:
             payload[key].pop()
             omitted[key] += 1
+    if size() > limit:
+        compact_guidance_projection(payload)
+        omitted["guidance_details"] = 1
+    while size() > limit and payload["known_findings"]:
+        payload["known_findings"].pop()
+        omitted["known_findings"] += 1
     if size() > limit:
         for rule in payload["architecture_rules"]:
             omitted["rule_details"] += int(rule.pop("description", None) is not None)
@@ -287,6 +314,20 @@ def _compact_rule_identities(
     omitted["rule_details"] += sum(max(0, len(rule) - 2) for rule in rules)
 
 
+def _minimize_legacy_decision(
+    payload: dict[str, Any], size: Callable[[], int], limit: int, omitted: dict[str, int]
+) -> None:
+    if size() <= limit:
+        return
+    decision = payload.get("architecture_decision") or {}
+    payload["architecture_decision"] = {
+        key: decision.get(key)
+        for key in ("contract_version", "snapshot_id", "status")
+        if decision.get(key) not in (None, "")
+    }
+    omitted["architecture_decision_details"] = 1
+
+
 def _maybe_compact_decision(
     payload: dict[str, Any], current_size: int, limit: int, omitted: dict[str, int]
 ) -> None:
@@ -300,6 +341,9 @@ def _compact_optional_scope(
     payload: dict[str, Any], size: Callable[[], int], limit: int, omitted: dict[str, int]
 ) -> None:
     _compact_map_status(payload, size, limit, omitted)
+    if size() > limit:
+        compact_guidance_projection(payload)
+        omitted["guidance_details"] = 1
     _maybe_compact_decision(payload, size(), limit, omitted)
     while size() > limit and payload["recommended_context"]:
         payload["recommended_context"].pop()
@@ -350,6 +394,7 @@ def _scope_omissions() -> dict[str, int]:
             "plain_language_details",
             "risk_reasons",
             "stats",
+            "guidance_details",
         )
     }
 

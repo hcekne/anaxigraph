@@ -1,10 +1,14 @@
 """Validated request bodies for AnaxiGraph's HTTP transport."""
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
-class ScopeRequest(BaseModel):
+class GuidanceRequest(BaseModel):
     goal: str = Field(min_length=2, max_length=2_000)
+    intent: Literal["build", "refactor"] = "build"
+    focus: str = Field(default="", max_length=1_000)
     repository_id: int | None = None
 
 

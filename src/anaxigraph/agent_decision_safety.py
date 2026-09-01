@@ -199,7 +199,7 @@ def verification(primary_files: list[dict[str, Any]], tests: list[str]) -> dict[
         "semantic_test_guidance": _semantic_test_guidance(primary_files),
         "rescan_argv": ["anaxigraph", "update", ".", "--json"],
         "next_step": (
-            "Run the focused tests, update the AnaxiGraph map, and ask for scope or impact again "
+            "Run the focused tests, update the AnaxiGraph map, and ask for guidance or impact again "
             "if the change altered responsibilities or dependencies. Use History for temporal evidence."
         ),
     }

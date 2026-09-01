@@ -67,6 +67,10 @@ function setupNavigationEvents() {
   document.querySelectorAll("[data-switch]").forEach((button) => {
     button.addEventListener("click", () => switchView(button.dataset.switch));
   });
+  byId("journey-subnav").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-subview]");
+    if (button) switchView(button.dataset.subview);
+  });
   byId("repository-select").addEventListener("change", async (event) => {
     state.repositoryId = Number(event.target.value);
     window.localStorage.setItem("anaxigraph.repository", state.repositoryId);
@@ -192,12 +196,13 @@ function setupAgentEvents() {
   byId("scope-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     try {
-      const value = await request("/api/agent-scope", {
+      const value = await request("/api/guidance", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           goal: byId("scope-goal").value,
-          branch: byId("scope-branch").value || null,
+          intent: byId("guidance-intent")?.value || "build",
+          focus: byId("scope-focus")?.value || "",
           repository_id: state.repositoryId,
         }),
       });

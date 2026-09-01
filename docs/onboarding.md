@@ -36,8 +36,8 @@ frames remain available for the next run.
 ### 2. Open the dashboard
 
 Visit <http://127.0.0.1:8765>. The current architecture is usable as soon as the first scan
-completes; history can continue building without blocking the Overview, Modules, Graph, or
-Architecture pages.
+completes; history can continue building without blocking the Understand, Guide, Improve, Changes,
+or Settings journeys.
 
 The first-run tour explains the main loop:
 
@@ -104,8 +104,8 @@ invalid inventory fails closed because the sidecar may be busy. Use `--service-u
 `ANAXIGRAPH_SERVICE_URL` for a non-default endpoint; use `--db` only when you intentionally want a
 standalone local index. The JSON response always names the selected index authority.
 
-When `ANAXIGRAPH_SEMANTIC_STATUS` reports ready, call `ANAXIGRAPH_TAXONOMY` or select
-**Responsibility map** in the dashboard. **Current view** uses declared project intent first, then
+When `ANAXIGRAPH_SEMANTIC_STATUS` reports ready, read the responsibility map in
+`ANAXIGRAPH_OVERVIEW` or select **Responsibility map** in the dashboard. **Current view** uses declared project intent first, then
 that inferred responsibility map, then deterministic path fallback. **Declared map** and **Path
 map** remain available for honest comparison.
 
@@ -185,15 +185,15 @@ Give the connected agent one concrete goal:
 
 The agent should follow this sequence for a feature, fix, or refactor:
 
-1. **Scope.** Call `ANAXIGRAPH_SCOPE`. Read the small file list and its
-   `architecture-decision-v1` placement, boundaries, likely tests, relevant findings, and reviewed
-   patterns.
+1. **Guide.** Call `ANAXIGRAPH_GUIDE` with `intent="build"` or `intent="refactor"`. Read its one
+   recommendation, evidence strength, counter-reasons, small file list, placement, bounded impact,
+   likely tests, relevant findings, and reviewed patterns.
 2. **Impact.** Call `ANAXIGRAPH_IMPACT` for shared files that may change. Inspect direct dependants
    and tests; a missing static edge is not proof that code is unused because dynamic wiring may be
    invisible.
 3. **Change.** Edit source and run focused tests through the normal coding workflow. AnaxiGraph
    observes repository source and updates its external index; it does not edit the target code.
-4. **Refresh.** Request `ANAXIGRAPH_SCAN`. Repeat scope or impact when responsibilities or
+4. **Refresh.** Request `ANAXIGRAPH_SCAN`. Repeat guidance or impact when responsibilities or
    dependencies may have moved, and use History and findings when you need change evidence.
 
 At the end of a coherent task or commit, run
@@ -201,7 +201,7 @@ At the end of a coherent task or commit, run
 It refreshes stale scopes and reuses unchanged descriptions. Structural facts are available first;
 wait for `semantically_ready` only when the next decision needs a completely current AI map.
 
-Use the returned telemetry to tune the loop: scope and impact replies report server time, payload
+Use the returned telemetry to tune the loop: guidance and impact replies report server time, payload
 size, and model-token use; semantic status groups AI work by action with current-snapshot and
 lifetime time/token totals; scan results and detached semantic runs report wall-clock duration.
 Successful and failed attempts contribute tokens when the executor reports them. Missing reports
@@ -222,7 +222,7 @@ ratings without treating them as code-quality grades or permission to refactor.
 
 ## Understand findings
 
-The Architecture page opens on at most 20 findings worth checking first. It suppresses routine
+The **Improve → Findings** view opens on at most 20 findings worth checking first. It suppresses routine
 long-function notes unless repository policy opts in. **Complete record** keeps every observation
 and supports filters and pagination.
 

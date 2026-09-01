@@ -27,6 +27,7 @@ import {
 import { renderHistory, stopHistoryPlayback } from "/assets/history-controller.js";
 import { setupModuleEvents } from "/assets/module-events.js";
 import { renderModuleFilters, renderModules } from "/assets/module-view.js";
+import { renderNavigation } from "/assets/navigation.js";
 import { renderOverview, scheduleSemanticPoll, selectedHierarchy } from "/assets/overview-view.js";
 import { resetPatternView, setupPatternView } from "/assets/patterns-view.js";
 import {
@@ -180,6 +181,7 @@ function renderAllViews() {
 
 state.reloadRepository = loadRepository;
 setupTheme();
+renderNavigation();
 setupPatternView();
 setupModuleEvents();
 setupGraphEvents();

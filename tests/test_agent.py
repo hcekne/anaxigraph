@@ -5,7 +5,7 @@ from dataclasses import replace
 
 import pytest
 
-from anaxigraph.agent import agent_scope, impact_analysis
+from anaxigraph.agent import architecture_guidance, impact_analysis
 from anaxigraph.agent_graph import _select_primary
 from anaxigraph.agent_lexicon import goal_terms
 from anaxigraph.config import load_config
@@ -18,9 +18,11 @@ def test_token_usage_goals_include_status_and_telemetry_vocabulary():
     assert {"token", "usage", "cost", "status", "telemetry", "duration"} <= terms
 
 
-def test_agent_scope_is_bounded_and_includes_tests_protection_and_rules(repository, database):
+def test_architecture_guidance_is_bounded_and_includes_tests_protection_and_rules(
+    repository, database
+):
     stats = RepositoryScanner(database).scan(repository)
-    value = agent_scope(
+    value = architecture_guidance(
         database,
         repository_id=stats.repository_id,
         goal="Change the Calculator calculation behavior",
@@ -28,6 +30,14 @@ def test_agent_scope_is_bounded_and_includes_tests_protection_and_rules(reposito
     )
 
     assert value["primary_files"][0]["path"] == "pkg/core.py"
+    assert value["contract_version"] == "architecture-guidance-v1"
+    assert value["identity"].startswith("architecture-guidance-v1:")
+    assert value["intent"] == "build"
+    assert value["recommendation"]["action"] == "extend"
+    assert value["recommendation"]["starting_point"] == "pkg/core.py"
+    assert value["understanding"]["charter"]["state"] == "provisional"
+    assert value["impact_summary"]["target"] == "pkg/core.py"
+    assert value["impact_summary"]["bounded"] is True
     assert value["map_status"]["state"] == "current"
     assert "tests/test_core.py" in value["tests"]
     assert any(item["path"] == "pkg/core.py" for item in value["protected_files"])
@@ -39,7 +49,7 @@ def test_agent_scope_is_bounded_and_includes_tests_protection_and_rules(reposito
     assert encoded_size <= value["payload_budget"]["limit_bytes"]
     assert encoded_size == value["payload_budget"]["estimated_bytes"]
     assert value["telemetry"]["contract_version"] == "action-telemetry-v1"
-    assert value["telemetry"]["action"] == "scope"
+    assert value["telemetry"]["action"] == "guidance"
     assert value["telemetry"]["duration_ms"] >= 0
     assert value["telemetry"]["payload_bytes"] == encoded_size
     assert value["telemetry"]["input_tokens"] == 0
@@ -67,7 +77,45 @@ def test_agent_scope_is_bounded_and_includes_tests_protection_and_rules(reposito
     assert "tests/test_core.py" in path["module"]["focused_tests"]
 
 
-def test_agent_scope_follows_a_declared_area_and_subsystem(repository, database):
+def test_refactor_guidance_is_distinct_and_does_not_invent_a_change(repository, database):
+    stats = RepositoryScanner(database).scan(repository)
+    config = load_config(repository)
+    build = architecture_guidance(
+        database,
+        repository_id=stats.repository_id,
+        goal="Improve Calculator structure",
+        config=config,
+        intent="build",
+    )
+    refactor = architecture_guidance(
+        database,
+        repository_id=stats.repository_id,
+        goal="Improve Calculator structure",
+        config=config,
+        intent="refactor",
+    )
+
+    assert build["identity"] != refactor["identity"]
+    assert refactor["intent"] == "refactor"
+    assert refactor["recommendation"]["action"] == "retain"
+    assert refactor["recommendation"]["reasons_not_to_change"]
+    assert refactor["confidence"]["label"] == "limited"
+
+
+def test_guidance_rejects_an_unknown_intent(repository, database):
+    stats = RepositoryScanner(database).scan(repository)
+
+    with pytest.raises(ValueError, match="Guidance intent"):
+        architecture_guidance(
+            database,
+            repository_id=stats.repository_id,
+            goal="Change Calculator behavior",
+            config=load_config(repository),
+            intent="rewrite-everything",
+        )
+
+
+def test_architecture_guidance_follows_a_declared_area_and_subsystem(repository, database):
     policy = repository / ".anaxigraph.yml"
     policy.write_text(
         policy.read_text(encoding="utf-8").replace(
@@ -87,7 +135,7 @@ def test_agent_scope_follows_a_declared_area_and_subsystem(repository, database)
     )
     stats = RepositoryScanner(database).scan(repository)
 
-    value = agent_scope(
+    value = architecture_guidance(
         database,
         repository_id=stats.repository_id,
         goal="Change Calculator behavior",
@@ -102,7 +150,9 @@ def test_agent_scope_follows_a_declared_area_and_subsystem(repository, database)
     assert path["subsystem"]["responsibility"] == "Core domain behavior."
 
 
-def test_agent_scope_prefers_the_roadmap_document_for_a_roadmap_goal(repository, database):
+def test_architecture_guidance_prefers_the_roadmap_document_for_a_roadmap_goal(
+    repository, database
+):
     roadmap = repository / "docs" / "feature-development-plan.md"
     roadmap.write_text(
         "# Feature development plan\n\n"
@@ -125,7 +175,7 @@ def test_agent_scope_prefers_the_roadmap_document_for_a_roadmap_goal(repository,
     )
     stats = RepositoryScanner(database).scan(repository)
 
-    value = agent_scope(
+    value = architecture_guidance(
         database,
         repository_id=stats.repository_id,
         goal="Narrow the remaining roadmap to core features in the development plan",
@@ -140,10 +190,10 @@ def test_agent_scope_prefers_the_roadmap_document_for_a_roadmap_goal(repository,
     assert decision["task_path"]["symbols"] == []
 
 
-def test_agent_scope_prefers_a_test_for_an_explicit_test_goal(repository, database):
+def test_architecture_guidance_prefers_a_test_for_an_explicit_test_goal(repository, database):
     stats = RepositoryScanner(database).scan(repository)
 
-    value = agent_scope(
+    value = architecture_guidance(
         database,
         repository_id=stats.repository_id,
         goal="Change the Calculator test behavior",
@@ -157,7 +207,9 @@ def test_agent_scope_prefers_a_test_for_an_explicit_test_goal(repository, databa
     assert decision["task_path"]["module"]["path"] == expected
 
 
-def test_agent_scope_places_a_concept_level_architecture_verification_goal(repository, database):
+def test_architecture_guidance_places_a_concept_level_architecture_verification_goal(
+    repository, database
+):
     implementation = repository / "src" / "product" / "agent_decision_verification.py"
     implementation.parent.mkdir(parents=True)
     implementation.write_text(
@@ -181,7 +233,7 @@ def test_agent_scope_places_a_concept_level_architecture_verification_goal(repos
     )
     stats = RepositoryScanner(database).scan(repository)
 
-    value = agent_scope(
+    value = architecture_guidance(
         database,
         repository_id=stats.repository_id,
         goal=(
@@ -282,7 +334,7 @@ def test_impact_reports_an_unknown_repository_or_target(repository, database):
         )
 
 
-def test_agent_scope_refreshes_findings_after_structural_harm(repository, database):
+def test_architecture_guidance_refreshes_findings_after_structural_harm(repository, database):
     first_scan = RepositoryScanner(database).scan(repository)
     config = load_config(repository)
     helper = repository / "pkg/util.py"
@@ -299,7 +351,7 @@ def test_agent_scope_refreshes_findings_after_structural_harm(repository, databa
     )
 
     second_scan = RepositoryScanner(database).scan(repository)
-    after = agent_scope(
+    after = architecture_guidance(
         database,
         repository_id=second_scan.repository_id,
         goal="Change the double arithmetic helper",
@@ -312,7 +364,9 @@ def test_agent_scope_refreshes_findings_after_structural_harm(repository, databa
     assert all(item["plain_language"]["how_to_check"] for item in after["known_findings"])
 
 
-def test_agent_scope_trims_optional_context_to_the_configured_wire_budget(repository, database):
+def test_architecture_guidance_trims_optional_context_to_the_configured_wire_budget(
+    repository, database
+):
     for index in range(18):
         (repository / "pkg" / f"calculator_helper_{index}.py").write_text(
             f'"""Calculator helper {index} ' + ("with detailed context " * 25) + '"""\n'
@@ -326,7 +380,7 @@ def test_agent_scope_trims_optional_context_to_the_configured_wire_budget(reposi
         agent=replace(config.agent, payload_limit_bytes=4_000),
     )
 
-    value = agent_scope(
+    value = architecture_guidance(
         database,
         repository_id=stats.repository_id,
         goal="Change Calculator behavior and its web presentation dependencies",
@@ -338,11 +392,9 @@ def test_agent_scope_trims_optional_context_to_the_configured_wire_budget(reposi
     assert value["payload_budget"]["truncated"] is True
     assert value["primary_files"]
     assert all(item["path"] for item in value["primary_files"])
+    assert value["contract_version"] == "architecture-guidance-v1"
+    assert value["recommendation"]["summary"]
+    assert value["recommendation"]["starting_point"]
+    assert value["understanding"]["summary"]
+    assert value["impact_summary"]["bounded"] is True
     assert value["architecture_decision"]["contract_version"] == "architecture-decision-v1"
-    assert value["architecture_decision"]["plain_language"]["conclusion"]
-    assert value["architecture_decision"]["placement"]["plain_language"]["conclusion"]
-    assert value["architecture_decision"]["task_path"]["module"]["path"]
-    assert value["architecture_decision"]["history_evidence"]["change_coupling"]["status"]
-    verification = value["architecture_decision"]["verification"]
-    assert verification["rescan_argv"] == ["anaxigraph", "update", ".", "--json"]
-    assert "History" in verification["next_step"]

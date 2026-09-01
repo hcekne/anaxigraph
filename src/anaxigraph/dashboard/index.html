@@ -11,6 +11,7 @@
     <link rel="alternate icon" href="/favicon.ico" />
     <link rel="mask-icon" href="/assets/mask-icon.svg" color="#ff4d8d" />
     <link rel="stylesheet" href="/assets/styles.css" />
+    <link rel="stylesheet" href="/assets/journey-navigation.css" />
   </head>
   <body>
     <header class="topbar">
@@ -46,15 +47,8 @@
         <button id="refresh-button" class="button">Refresh scan</button>
       </div>
     </header>
-    <nav class="tabs" aria-label="Dashboard sections">
-      <button class="tab active" data-view="overview">Overview</button>
-      <button class="tab" data-view="modules">Files</button>
-      <button class="tab" data-view="graph">Graph</button>
-      <button class="tab" data-view="architecture">Architecture</button>
-      <button class="tab" data-view="history">History</button>
-      <button class="tab" data-view="agents">Agents</button>
-      <button class="tab" data-view="settings">Settings</button>
-    </nav>
+    <nav id="primary-navigation" class="tabs" aria-label="Dashboard sections"></nav>
+    <nav id="journey-subnav" class="journey-subnav" aria-label="Current journey views"></nav>
     <main>
       <section id="view-overview" class="view active">
         <article id="onboarding-guide" class="panel onboarding-guide" hidden>
@@ -375,29 +369,36 @@
       </section>
       <section id="view-agents" class="view">
         <article class="panel agent-intro">
-          <p class="eyebrow">Goal-specific context for coding agents</p>
-          <h2>Guide the agent with the same system map</h2>
-          <p class="muted">This page does not edit code. It identifies what an agent should read,
-            what depends on the proposed change, which tests matter, and where extra review is
-            required. AnaxiMCP gives Codex the same context directly from AnaxiIndex.</p>
-          <code>ANAXIGRAPH_FINDINGS(status="planned") → ANAXIGRAPH_FINDING_CONTEXT → ANAXIGRAPH_FILE / ANAXIGRAPH_IMPACT</code>
+          <p class="eyebrow">One architecture adviser for people and coding agents</p>
+          <h2>Ask where to build or how to improve the design</h2>
+          <p class="muted">AnaxiGraph does not edit code. It combines the current Charter, module
+            meanings, code links, history, patterns, findings, and tests into the same recommendation
+            here and through AnaxiMCP.</p>
+          <code>ANAXIGRAPH_GUIDE → ANAXIGRAPH_FILE / ANAXIGRAPH_IMPACT → refresh and ask again</code>
         </article>
         <div class="two-column agents-layout">
           <article class="panel">
-            <p class="eyebrow">Find the right coding context</p>
-            <h2>Plan a coding task</h2>
-            <p class="muted">Describe the outcome. AnaxiGraph finds likely implementation files,
-              directly linked files, tests, rules, and existing findings.</p>
+            <p class="eyebrow">Evidence-backed architecture guidance</p>
+            <h2>What do you want to build or improve?</h2>
+            <p class="muted">Describe the outcome. The answer recommends whether to reuse, extend,
+              split, consolidate, move, delete, create, or retain code—and explains why.</p>
             <form id="scope-form" class="agent-form">
               <label>
                 Coding goal
                 <textarea id="scope-goal" required placeholder="Add saved prompts to the Workbench"></textarea>
               </label>
               <label>
-                Branch (optional)
-                <input id="scope-branch" placeholder="feature/workbench-saved-prompts" />
+                Type of guidance
+                <select id="guidance-intent">
+                  <option value="build">Build or change a capability</option>
+                  <option value="refactor">Improve existing code</option>
+                </select>
               </label>
-              <button class="button" type="submit">Find task context</button>
+              <label>
+                Focus (optional)
+                <input id="scope-focus" placeholder="A file, area, or responsibility" />
+              </label>
+              <button class="button" type="submit">Get architecture guidance</button>
             </form>
           </article>
           <article class="panel">

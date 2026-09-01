@@ -27,6 +27,7 @@ async def test_mcp_coding_agent_can_claim_and_submit_semantic_work(repository, d
         repository=repository,
         config_path=None,
         allowed_hosts=["testserver"],
+        profile="executor",
     )
     app = server.streamable_http_app()
     async with server.session_manager.run():
@@ -42,6 +43,21 @@ async def test_mcp_coding_agent_can_claim_and_submit_semantic_work(repository, d
             ) as (read_stream, write_stream, _):
                 async with ClientSession(read_stream, write_stream) as session:
                     await session.initialize()
+                    tools = await session.list_tools()
+                    names = {tool.name for tool in tools.tools}
+                    assert names == {
+                        "ANAXIGRAPH_SEMANTIC_STATUS",
+                        "ANAXIGRAPH_SEMANTIC_SCHEMA",
+                        "ANAXIGRAPH_SEMANTIC_WORK",
+                        "ANAXIGRAPH_SEMANTIC_EVIDENCE",
+                        "ANAXIGRAPH_SEMANTIC_SUBMIT",
+                        "ANAXIGRAPH_SEMANTIC_RELEASE",
+                        "ANAXIGRAPH_SEMANTIC_FAIL",
+                    }
+                    submit_tool = next(
+                        tool for tool in tools.tools if tool.name == "ANAXIGRAPH_SEMANTIC_SUBMIT"
+                    )
+                    assert submit_tool.annotations.readOnlyHint is False
                     work = await session.call_tool(
                         "ANAXIGRAPH_SEMANTIC_WORK",
                         arguments={"agent_id": "codex-integration", "agent_model": "test"},
@@ -82,6 +98,7 @@ async def test_mcp_refuses_to_claim_semantic_work_from_a_stale_map(repository, d
         repository=repository,
         config_path=None,
         allowed_hosts=["testserver"],
+        profile="executor",
     )
     app = server.streamable_http_app()
 

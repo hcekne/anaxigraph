@@ -56,6 +56,7 @@ def test_initializer_generates_reviewable_policy_and_read_only_sidecar(repositor
         "ANAXIGRAPH_WATCH_INTERVAL": "${ANAXIGRAPH_WATCH_INTERVAL:-10}"
     }
     assert "--scan-on-start" not in compose_config["services"]["anaxigraph"]["command"]
+    assert "--allow-agent-scan" in compose_config["services"]["anaxigraph"]["command"]
     assert "start_with_watch" not in result["commands"]
     assert result["commands"]["connect_codex"] == (
         "codex mcp add anaxigraph --url http://127.0.0.1:9123/mcp"

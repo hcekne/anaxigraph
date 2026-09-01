@@ -38,7 +38,6 @@ def execute_remote_semantics(
     retry_failed: bool,
 ) -> dict[str, Any]:
     """Execute a sidecar-owned queue with a model authenticated on this host."""
-
     report_background_progress(stage="connecting", completed=0)
     try:
         result = asyncio.run(
@@ -71,11 +70,12 @@ async def _execute(
     until_complete: bool,
     retry_failed: bool,
     http_client: Any | None = None,
+    mcp_url: str | None = None,
 ) -> dict[str, Any]:
     maximum = None if until_complete else max(1, limit or semantic.max_jobs_per_run)
     total = _empty_result()
     async with streamable_http_client(
-        target.mcp_url,
+        mcp_url or target.executor_mcp_url,
         http_client=http_client,
         terminate_on_close=True,
     ) as streams:

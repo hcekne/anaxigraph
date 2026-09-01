@@ -8,7 +8,7 @@ from anaxigraph.cli import main
 from anaxigraph.semantic_service import SemanticServiceTarget
 
 
-def test_scope_uses_the_matching_service_instead_of_a_separate_local_index(
+def test_guidance_uses_the_matching_service_instead_of_a_separate_local_index(
     repository: Path,
     capsys,
     monkeypatch,
@@ -17,17 +17,19 @@ def test_scope_uses_the_matching_service_instead_of_a_separate_local_index(
     captured = {}
     monkeypatch.setattr(agent_commands, "discover_semantic_service", lambda *_a, **_k: target)
 
-    def scope(service, *, goal):
+    def guidance(service, *, goal, intent, focus):
         captured.update(
             service=service,
             goal=goal,
+            intent=intent,
+            focus=focus,
         )
         return {"snapshot_id": 42, "goal": goal}
 
-    monkeypatch.setattr(agent_commands, "service_agent_scope", scope)
+    monkeypatch.setattr(agent_commands, "service_architecture_guidance", guidance)
     main(
         [
-            "scope",
+            "guide",
             str(repository),
             "--service-url",
             target.base_url,
@@ -43,4 +45,6 @@ def test_scope_uses_the_matching_service_instead_of_a_separate_local_index(
     assert captured == {
         "service": target,
         "goal": "Measure semantic work",
+        "intent": "build",
+        "focus": "",
     }

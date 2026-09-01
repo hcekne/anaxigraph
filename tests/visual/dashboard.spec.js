@@ -6,6 +6,21 @@ async function openDashboard(page) {
   await expect(page.locator(".group-family").first()).toBeVisible();
 }
 
+test("dashboard exposes five actor-neutral journeys", async ({ page }) => {
+  await openDashboard(page);
+  const tabs = page.locator(".tabs .tab");
+
+  await expect(tabs).toHaveCount(5);
+  await expect(tabs).toHaveText(["Understand", "Guide", "Improve", "Changes", "Settings"]);
+  await expect(page.locator("#journey-subnav")).toContainText("Charter & overview");
+  await expect(page.locator("#journey-subnav")).toContainText("Files");
+  await expect(page.locator("#journey-subnav")).toContainText("Graph");
+
+  await page.getByRole("button", { name: "Improve", exact: true }).click();
+  await expect(page.locator("#journey-subnav")).toContainText("Findings");
+  await expect(page.locator("#journey-subnav")).toContainText("Patterns");
+});
+
 test("Constellation light is the default and theme choices persist", async ({ page }) => {
   await openDashboard(page);
   const root = page.locator("html");
@@ -160,7 +175,7 @@ test("relationship completeness and analyzer limits are visible", async ({ page 
   await expect(notice).toContainText("could read words but not code structure");
   await expect(notice).toContainText("What to do");
   await expect(notice).not.toContainText("confidence-gated");
-  await page.getByRole("button", { name: "Architecture", exact: true }).click();
+  await page.getByRole("button", { name: "Improve", exact: true }).click();
   await expect(page.locator("#finding-result-note")).toContainText("findings to check");
   expect(await page.locator("#findings-table .finding-card").count()).toBeLessThanOrEqual(20);
   await expect(page.locator("#findings-table .finding-card", { hasText: "reviews functions above 25 lines" }))
@@ -195,7 +210,7 @@ test("relationship completeness and analyzer limits are visible", async ({ page 
 
 test("finding review and accepted-risk actions persist through the ledger", async ({ page }) => {
   await openDashboard(page);
-  await page.getByRole("button", { name: "Architecture", exact: true }).click();
+  await page.getByRole("button", { name: "Improve", exact: true }).click();
   await page.locator("#finding-view-filter").selectOption("diagnostics");
   const first = page.locator("#findings-table .finding-card", { has: page.getByRole("button", { name: "Mark reviewed" }) }).first();
   const summary = (await first.locator("h3").textContent()).trim();
@@ -236,10 +251,10 @@ test("graph area labels fit and deselecting an area rebuilds the viewport", asyn
 test("graph redraw survives rapid tab changes without a white canvas", async ({ page }) => {
   await openDashboard(page);
   for (let index = 0; index < 8; index += 1) {
-    await page.locator('[data-view="graph"]').click();
+    await page.locator('[data-subview="graph"]').click();
     await page.locator('[data-view="overview"]').click();
   }
-  await page.locator('[data-view="graph"]').click();
+  await page.locator('[data-subview="graph"]').click();
   const canvas = page.locator("#graph-canvas");
   await expect(canvas).toHaveAttribute("data-render-state", "ready");
   expect(await canvas.evaluate((element) => {
@@ -461,7 +476,7 @@ test("first-run tour explains the workflow and can be reopened", async ({ page }
 
   await guide.getByRole("button", { name: "Open architecture graph" }).click();
   await expect(page.locator("#view-graph")).toBeVisible();
-  await page.getByRole("button", { name: "Overview", exact: true }).click();
+  await page.getByRole("button", { name: "Understand", exact: true }).click();
   await expect(page.locator("#onboarding-progress-value")).toHaveText("2/4");
 
   await guide.getByRole("button", { name: "Hide guide" }).click();

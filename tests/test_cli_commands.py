@@ -71,7 +71,7 @@ def test_repository_agent_and_export_handlers_share_the_current_scan(
     common = [str(repository), "--db", str(database), "--json"]
     scanned = _call(["scan", *common], capsys)
     reviewed = _call(["review", *common, "--status", "all"], capsys)
-    scoped = _call(["scope", *common, "--goal", "Change the calculator"], capsys)
+    scoped = _call(["guide", *common, "--goal", "Change the calculator"], capsys)
     impacted = _call(["impact", *common, "--target", "pkg/core.py"], capsys)
     patterns = _call(["patterns", *common, "--limit", "1"], capsys)
     candidate_explanations = _call(

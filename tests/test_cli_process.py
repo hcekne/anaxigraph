@@ -30,18 +30,18 @@ def test_process_help_exposes_every_supported_command_family():
         "up",
         "doctor",
         "serve",
-        "scope",
+        "guide",
         "impact",
         "export",
     ):
         assert command in result.stdout
 
 
-def test_process_scan_scope_and_export_share_one_index(repository: Path, tmp_path: Path):
+def test_process_scan_guidance_and_export_share_one_index(repository: Path, tmp_path: Path):
     database = tmp_path / "process-index.db"
     scanned = _run("scan", str(repository), "--db", str(database), "--json")
     scoped = _run(
-        "scope",
+        "guide",
         str(repository),
         "--db",
         str(database),

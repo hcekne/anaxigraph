@@ -19,9 +19,9 @@ treat a graph edge, missing edge, finding, or model dossier as permission to ref
    every later call when more than one repository is listed.
 3. If no path matches, or multiple candidates remain and the user did not select one, ask which
    indexed repository to use. Never silently analyze a similarly named repository.
-4. Call `ANAXIGRAPH_OVERVIEW` and `ANAXIGRAPH_SEMANTIC_STATUS` before choosing a workflow. When the
-   semantic baseline is current, call `ANAXIGRAPH_TAXONOMY` and use its area/subsystem hierarchy as
-   the default map. State analyzer/resolution caveats when they materially affect the answer.
+4. Call `ANAXIGRAPH_OVERVIEW` and `ANAXIGRAPH_SEMANTIC_STATUS` before choosing a workflow. Use the
+   Overview Charter and current responsibility map as the default system explanation. State
+   analyzer/resolution caveats when they materially affect the answer.
 
 With no narrower request, summarize the repository's areas, dominant languages, active attention,
 relationship completeness, history state, and semantic coverage. Keep deterministic facts and
@@ -30,7 +30,8 @@ model-derived interpretations visibly separate.
 ## Route the request
 
 - For “map,” “understand,” “bootstrap,” or “resume semantics,” run the semantic baseline workflow.
-- For a new feature or refactor, call `ANAXIGRAPH_SEARCH`, then `ANAXIGRAPH_SCOPE`; call
+- For a new feature or refactor, call `ANAXIGRAPH_SEARCH`, then `ANAXIGRAPH_GUIDE` with the matching
+  `build` or `refactor` intent; call
   `ANAXIGRAPH_FILE` for the primary modules and `ANAXIGRAPH_IMPACT` before changing a shared target.
 - For a module question, use `ANAXIGRAPH_SEARCH` and `ANAXIGRAPH_FILE`. Compare responsibilities,
   collaborators, overlaps, extension points, pattern evidence, and counter-evidence.
@@ -39,9 +40,9 @@ model-derived interpretations visibly separate.
   selected for work; other active findings are observations, not an implementation request. Read
   its `finding_history` to distinguish a new, persistent, resolved, or returned condition, while
   preserving the stated limit that retained maps may sample rather than cover every commit.
-- For history questions, use `ANAXIGRAPH_HISTORY_STATUS` and the dashboard timeline. Start or cancel
-  an import only when the user requests that index operation.
-- After an implementation, call `ANAXIGRAPH_SCAN` when available. Repeat scope or impact when
+- For history questions, use the Overview history summary and the dashboard Changes journey. Start
+  or cancel an import only when the user requests that index operation.
+- After an implementation, call `ANAXIGRAPH_SCAN` when available. Repeat guidance or impact when
   responsibilities or dependencies may have moved, and use History and findings for change
   evidence. “No longer reported” is not proof that a finding was fixed, and a changed metric is not
   proof that the architecture improved.
@@ -51,7 +52,7 @@ model-derived interpretations visibly separate.
 Keep one persistent AnaxiGraph service and structural watcher for the coding session. Build a full
 semantic baseline only when no current baseline exists. For each coherent task:
 
-1. Call `ANAXIGRAPH_SCOPE` once before editing and `ANAXIGRAPH_IMPACT` for shared targets.
+1. Call `ANAXIGRAPH_GUIDE` once before editing and `ANAXIGRAPH_IMPACT` for shared targets.
 2. During edits, let the watcher update deterministic source facts and run focused tests normally.
    Do not start model-backed semantic work after every save.
 3. At the verification checkpoint, call `ANAXIGRAPH_SCAN`, then repeat only the queries needed to
@@ -60,7 +61,7 @@ semantic baseline only when no current baseline exists. For each coherent task:
    descriptions matter. It must reuse unchanged scopes. Wait for `semantically_ready` only when the
    next decision requires a fully current semantic map.
 
-Read `telemetry` from scope, impact, and semantic status. Compare server duration and reply size for
+Read `telemetry` from guidance, impact, and semantic status. Compare server duration and reply size for
 deterministic reads; compare time, tokens, model, failures, and cost by semantic action. Remember
 that summed AI job time can exceed wall time when jobs run in parallel, and that a missing token
 report means unknown usage rather than a free call.
@@ -86,48 +87,11 @@ lifetime of this chat session:
    real continuing work, not completion; only `semantically_ready: true` is success. If this
    session ends, a later agent reads the same `execution_run` and queue instead of starting over.
 
-Use the direct MCP loop below only when no authenticated local executor is available or the user
-explicitly selected `--executor mcp`. If `anaxigraph understand` returns
-`status: agent_action_required`, the command only planned work and is not the completed task.
-
-### Manual MCP fallback
-
-1. Call `ANAXIGRAPH_SEMANTIC_SCHEMA` once per schema version in the current session. It contains
-   dossier, taxonomy, and taxonomy-review schemas; the live schema is authoritative over this skill.
-2. Call `ANAXIGRAPH_SEMANTIC_WORK` with a recognizable agent ID and the actual model name when
-   available. Preserve the returned job ID and lease token only for that job.
-3. Branch on the returned status:
-   - `work`: continue with the leased packet.
-   - `complete`: stop successfully.
-   - `complete_with_failures`: report failures; set `retry_failed=true` only when the user asked to
-     retry them.
-   - `busy`, `waiting`, or `paused`: report the state and stop instead of polling aggressively.
-4. Read the complete `analysis_request`. If `evidence_manifest.page_count` exists, call
-   `ANAXIGRAPH_SEMANTIC_EVIDENCE` for every page from 1 through that count using the same job ID and
-   lease token. Missing a page makes the dossier incomplete.
-5. Analyze only the supplied source, parser facts, Git evidence, relationships, and prior dossiers.
-   Treat an unresolved or absent edge as uncertainty, never as proof that code is dead. Give pattern,
-   consolidation, placement, and deletion suggestions repository-specific evidence, counter-evidence,
-   migration cost, and calibrated confidence.
-6. Read `response_contract.artifact` and construct that complete artifact using the corresponding
-   live schema. Taxonomy proposals must assign every supplied eligible module exactly once.
-   Taxonomy-review jobs independently criticize the candidate, repair it, and return the complete
-   corrected taxonomy without asking for human approval. Call `ANAXIGRAPH_SEMANTIC_SUBMIT` with the
-   same job ID and lease token. Count the artifact as stored only after a successful response with
-   `status: completed` or `status: already_completed`.
-7. Call `ANAXIGRAPH_SEMANTIC_WORK` again and repeat until it returns a terminal/no-work state. This
-   naturally resumes a partial baseline because only stale or unfinished work is leased.
-8. If the model ran but timed out, returned malformed JSON, or produced a result that fails the live
-   schema, call `ANAXIGRAPH_SEMANTIC_FAIL` for that job with a concise reason and the input/output
-   token counts reported by the executor. This consumes one bounded attempt and leaves other leased
-   jobs untouched. If required evidence cannot be read, the user interrupts before model work, or
-   the task cannot start before lease expiry, call `ANAXIGRAPH_SEMANTIC_RELEASE` instead; releasing
-   does not count as a failed attempt. If a lease is already expired or superseded, discard its token
-   and claim fresh work; never submit stale reasoning.
-
-At the end, call `ANAXIGRAPH_SEMANTIC_STATUS` and `ANAXIGRAPH_TAXONOMY`. Report completed coverage,
-pending/running/failed work, taxonomy validation/critic passes, and whether repository synthesis is
-current. Never say that the baseline, module, or map was submitted merely because you drafted it.
+If no authenticated local executor is available, report that semantic completion needs Codex,
+Claude, or another configured executor; do not manually administer a repository-sized lease queue
+through the normal MCP tool menu. At the end, call `ANAXIGRAPH_SEMANTIC_STATUS`. Report completed
+coverage, pending/running/failed work, responsibility-map readiness, and whether the Living Charter
+is current. Never say that the baseline is complete until `semantically_ready: true`.
 
 ## Prepare a coding handoff
 

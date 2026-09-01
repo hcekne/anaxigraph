@@ -71,11 +71,37 @@ function scopeResultMarkup(value) {
     + resultList("Project rules that apply", rules);
   return agentResultHeader(
     value,
-    "Files and facts for this coding task",
+    value.intent === "refactor" ? "Architecture improvement guidance" : "Implementation guidance",
     value.goal,
     "Likely implementation files are the strongest matches. Related files may explain the behavior; this is not a suggestion to edit all of them.",
-  ) + architectureDecisionMarkup(value.architecture_decision)
+  ) + guidanceRecommendationMarkup(value)
+    + architectureDecisionMarkup(value.architecture_decision)
     + `<div class="result-columns">${lists}</div>`;
+}
+
+function guidanceRecommendationMarkup(value) {
+  const recommendation = value.recommendation || {};
+  if (!recommendation.summary) return "";
+  const confidence = recommendation.confidence || value.confidence || {};
+  const affected = guidanceAffectedFiles(value.impact_summary || {});
+  return `<section class="agent-decision-copy"><h3>Recommendation</h3>
+    ${decisionText("What to do", recommendation.summary)}
+    ${decisionText("Evidence strength", `${humanize(confidence.label || "limited")} · ${Math.round((confidence.score || 0) * 100)}%`)}
+    ${decisionList("Why", recommendation.why || [])}
+    ${decisionList("Trade-offs", recommendation.tradeoffs || [])}
+    ${decisionList("Reasons to leave the design alone", recommendation.reasons_not_to_change || [])}
+    ${decisionText("Expected migration effort", humanize(recommendation.migration_cost || "unknown"))}
+    ${decisionList("Code that may be affected", affected)}
+    ${decisionList("Important unknowns", value.unknowns || [])}
+    ${decisionList("Limits", value.caveats || [])}</section>`;
+}
+
+function guidanceAffectedFiles(impact) {
+  return [...new Set([
+    ...(impact.direct_callers || []),
+    ...(impact.dependencies || []),
+    ...(impact.transitive_candidates || []),
+  ])].slice(0, 18);
 }
 
 function impactResultMarkup(value) {

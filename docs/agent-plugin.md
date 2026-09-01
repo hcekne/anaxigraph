@@ -64,11 +64,11 @@ canonical indexed repository. It never silently chooses a similarly named reposi
 routes the request through a bounded workflow:
 
 - repository explanation uses overview, semantic status, and explicit analyzer/resolution caveats;
-- feature and refactor planning uses search, scope, file, and impact evidence;
+- feature and refactor guidance uses search, the shared guidance contract, file, and impact evidence;
 - architecture review starts with the bounded attention queue and retrieves detailed finding
   context only for a selected signal;
-- post-change verification preserves the scope packet's versioned baseline, requests an allowed
-  deterministic rescan, and passes that baseline back to the same-goal scope query for a bounded
+- post-change verification preserves the guidance packet's versioned identity, requests an allowed
+  deterministic rescan, and asks the same goal again for a bounded
   module, finding, and reviewed-pattern comparison; and
 - semantic bootstrap follows the live server contract in the exact order
   `SCHEMA -> WORK -> every EVIDENCE page -> SUBMIT`, repeating until no work remains.

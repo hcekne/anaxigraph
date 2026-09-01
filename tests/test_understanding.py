@@ -4,7 +4,7 @@ from dataclasses import replace
 
 from semantic_support import _calls, _fake_provider, _semantic_config
 
-from anaxigraph.agent import agent_scope
+from anaxigraph.agent import architecture_guidance
 from anaxigraph.config import SemanticConfig, load_config
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic import SemanticResult
@@ -70,7 +70,7 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
     assert group_language["version"] == "semantic-taxonomy-explanation-v2"
     assert group_language["what_this_group_does"]
     assert group_language["why_these_files_are_together"]
-    scope = agent_scope(
+    scope = architecture_guidance(
         database,
         repository_id=stats.repository_id,
         goal="Change Calculator behavior",

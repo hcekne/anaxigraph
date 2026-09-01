@@ -24,7 +24,7 @@ class AgentRoutes:
         self.router.add_api_route(
             "/api/findings/{finding_id}/context", self.finding_context, methods=["GET"]
         )
-        self.router.add_api_route("/api/agent-scope", self.scope, methods=["POST"])
+        self.router.add_api_route("/api/guidance", self.guidance, methods=["POST"])
         self.router.add_api_route("/api/impact", self.impact, methods=["POST"])
 
     def findings(
@@ -92,14 +92,16 @@ class AgentRoutes:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    def scope(self, request: api_support.ScopeRequest) -> dict[str, Any]:
+    def guidance(self, request: api_support.GuidanceRequest) -> dict[str, Any]:
         row = self.context.selected_repository(request.repository_id)
         try:
-            return api_support.agent_scope(
+            return api_support.architecture_guidance(
                 self.context.database,
                 repository_id=int(row["id"]),
                 goal=request.goal,
                 config=self.context.selected_config(row),
+                intent=request.intent,
+                focus=request.focus,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
