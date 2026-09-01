@@ -4459,8 +4459,8 @@ measured core product capability, not a reopened subtraction campaign.
 
 # Phase 11 — parser-backed JavaScript and TypeScript understanding
 
-**Status:** COMPLETE IN SOURCE on 1 September 2026; publication is deferred to the next deliberate
-version bump. Phase 10 is closed and Phase 10.2 remains frozen.
+**Status:** COMPLETE AND PUBLICLY VERIFIED on 1 September 2026 in AnaxiGraph `0.4.0`. Phase 10 is
+closed and Phase 10.2 remains frozen.
 
 **Goal:** make AnaxiGraph genuinely useful on modern JavaScript/TypeScript repositories without
 turning language count into a vanity metric. Python remains the reference analyzer. JavaScript,
@@ -4605,9 +4605,35 @@ The source exit gate passed on 1 September 2026:
   extractors, deterministic workspace resolver, provenance, compatibility, safety, and scale
   evidence. It is accepted Phase 11 product depth rather than Phase 10.2 cleanup debt.
 
-The already-published `0.3.0` artifact remains immutable and lexical. Publishing this source is a
-separate release decision requiring an intentional version bump; it does not leave implementation
-work open in Phase 11.
+The public release gate passed on 1 September 2026:
+
+- annotated tag `v0.4.0` resolves to exact source commit `6fdf7e6`; that commit passed all seven
+  jobs in [main CI run 33468529239](https://github.com/hcekne/anaxigraph/actions/runs/33468529239),
+  including the complete quality gate, Python 3.12, four wheel/sdist matrices, and browser contracts;
+- [GitHub release 0.4.0](https://github.com/hcekne/anaxigraph/releases/tag/v0.4.0) was published only
+  after [container run 33469214981](https://github.com/hcekne/anaxigraph/actions/runs/33469214981)
+  passed its release-tag verification and produced a public `linux/amd64` plus `linux/arm64` image;
+- the `0.4.0`, `0.4`, and `latest` image tags resolve to manifest digest
+  `sha256:3f7f3f2ed5f4bbe0b58996fe75d8fa14b7d032fe6d6d72c67133643ed1b45c3b`.
+  GitHub provenance verification passes for that exact digest, and a clean pull by digest reports
+  `AnaxiGraph 0.4.0`;
+- [release run 33470550275](https://github.com/hcekne/anaxigraph/actions/runs/33470550275)
+  built and attested the bundle once, attached the wheel, source distribution, dual-client plugin,
+  SPDX SBOM, dependency-license inventory, checksums, and release contract to GitHub, published to
+  the protected PyPI environment with short-lived OIDC identity, and passed its public-install job;
+- [PyPI 0.4.0](https://pypi.org/project/anaxigraph/0.4.0/) publishes wheel digest
+  `64776780d7a3d8d8aaa8b716f4335ff0250f7cf84a2fd54ae26e7ba88cb33ed6` and source-distribution
+  digest `c402bddd04fb1643528d255de506802653b101674668ba9d575e0444b7d87d3f`, exactly matching the
+  GitHub release assets. The published `SHA256SUMS` validates the wheel, source distribution, and
+  plugin, and GitHub attestations verify all three against the release workflow and `v0.4.0` ref;
+- an independent no-cache install from public PyPI reports `0.4.0`, installs the three exact parser
+  pins, and parses a TSX component as `builtin-typescript-tree-sitter` with status `parsed`;
+- a pre-publication evidence check caught that the container workflow's digest text used the Git
+  ref spelling `:v0.4.0` instead of the published semver image tag `:0.4.0`. The release asset was
+  corrected before publication, and commit `b8acd28` fixes and regression-tests future generation.
+
+The previously published `0.3.0` artifact remains immutable and lexical. Public `0.4.0` closes
+Phase 11 and the complete roadmap 4.2 without reopening Phase 10.2.
 
 ---
 
@@ -4742,11 +4768,14 @@ feature-admission rule.
 | 6 | **COMPLETE** | Deliver the same implementation/refactor guidance through five dashboard journeys and at most ten normal MCP tools; pass independent agent-only and human-led workflows | §10.6 |
 | 7 | **COMPLETE** | Run the fixed capability brief → independent clean-sheet proposals → blind adjudication → as-built comparison → mission filter sequence through one resumable agent-funded Improve workflow | §10.7 |
 | 8 | **COMPLETE** | Refresh only changed semantic scope and return shared architecture reassessment without a Change Contract or approval workflow | §10.8 |
-| 9 | **COMPLETE IN SOURCE** | Replace regex-oriented JavaScript/TypeScript analysis with a parser-backed, capability-honest implementation and remove the shallow path; prospective release artifacts and container behavior are validated, while publication awaits a deliberate version bump | Phase 11 |
+| 9 | **COMPLETE — PUBLICLY VERIFIED** | Replace regex-oriented JavaScript/TypeScript analysis with a parser-backed, capability-honest implementation and remove the shallow path; public 0.4.0 wheel, source distribution, plugin, SBOM, attestations, clean install, and multi-architecture container pass the release gate | Phase 11 |
 
-Only item 9 may proceed now. Later work remains pending until its preceding acceptance is recorded.
-The retained MaxOS run and a future release candidate are evidence/release gates, not independent
-product features. No additional parser expansion, adapter family, plugin framework, website, media
-support, generic operations work, warning-cleanup campaign, or dashboard family may displace this
-queue. Phase 11 is source-complete; no additional parser expansion begins without a separately
-admitted roadmap item.
+All admitted roadmap 4.2 work is complete. There is no active implementation phase or hidden
+continuation queue. The retained MaxOS run and public `0.4.0` acceptance record are evidence for the
+completed product, not independent product features. Any further parser expansion, adapter family,
+plugin framework, website, media support, generic operations work, warning-cleanup campaign, or
+dashboard family requires a separately admitted roadmap item under the feature-admission rule.
+
+Roadmap 4.2 is therefore closed on 1 September 2026. A later roadmap may build on it, but may not
+silently reopen Phase 10.2, reinterpret a nice-to-have as unfinished 4.2 work, or weaken the public
+acceptance evidence recorded above.
