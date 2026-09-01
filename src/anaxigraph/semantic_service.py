@@ -239,6 +239,25 @@ def service_fresh_eyes_review(
     return value
 
 
+def service_architecture_reassessment(
+    target: SemanticServiceTarget,
+    *,
+    from_snapshot_id: int | None = None,
+    goal: str = "",
+    timeout: float = 30,
+) -> dict[str, Any]:
+    parameters: dict[str, Any] = {"repository_id": target.repository_id}
+    if from_snapshot_id is not None:
+        parameters["from_snapshot_id"] = from_snapshot_id
+    if goal.strip():
+        parameters["goal"] = goal.strip()
+    query = urllib.parse.urlencode(parameters)
+    value = _request_json(f"{target.base_url}/api/reassessment?{query}", timeout=timeout)
+    if not isinstance(value, dict):
+        raise ValueError("AnaxiGraph service returned an invalid architecture reassessment")
+    return value
+
+
 def service_impact(
     target: SemanticServiceTarget,
     *,

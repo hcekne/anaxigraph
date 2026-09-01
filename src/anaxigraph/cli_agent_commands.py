@@ -7,10 +7,12 @@ import os
 from typing import Any
 
 from anaxigraph.agent import architecture_guidance, impact_analysis
+from anaxigraph.architecture_reassessment import architecture_reassessment
 from anaxigraph.cli_common import add_repository_arguments, ensure_current
 from anaxigraph.semantic_service import (
     discover_semantic_service,
     service_architecture_guidance,
+    service_architecture_reassessment,
     service_fresh_eyes_review,
     service_impact,
 )
@@ -63,6 +65,28 @@ def configure_agent_commands(commands: Any) -> None:
     )
     _add_service_url(fresh_eyes)
     fresh_eyes.set_defaults(handler=_fresh_eyes, db=None)
+
+    _configure_reassessment(commands)
+
+
+def _configure_reassessment(commands: Any) -> None:
+    reassess = commands.add_parser(
+        "reassess",
+        help="Explain the architecture effect of the latest compatible saved change",
+    )
+    add_repository_arguments(reassess)
+    reassess.add_argument(
+        "--from-snapshot",
+        type=int,
+        help="Optional earlier compatible snapshot (defaults to the previous changed map)",
+    )
+    reassess.add_argument(
+        "--goal",
+        default="",
+        help="Optional coding goal used to frame the before/after explanation",
+    )
+    _add_service_url(reassess)
+    reassess.set_defaults(handler=_reassess, db=None)
 
 
 def _add_service_url(parser: Any) -> None:
@@ -140,6 +164,27 @@ def _fresh_eyes(args: argparse.Namespace) -> dict[str, Any]:
             retry_failed=args.retry_failed,
         )
     return engine.fresh_eyes_status(repository_id, config.semantic)
+
+
+def _reassess(args: argparse.Namespace) -> dict[str, Any]:
+    service = _agent_service(args)
+    if service is not None:
+        return _service_result(
+            service_architecture_reassessment(
+                service,
+                from_snapshot_id=args.from_snapshot,
+                goal=args.goal,
+            ),
+            service,
+        )
+    database, repository_id, config = ensure_current(args)
+    return architecture_reassessment(
+        database,
+        repository_id=repository_id,
+        config=config,
+        from_snapshot_id=args.from_snapshot,
+        goal=args.goal,
+    )
 
 
 def _agent_service(args: argparse.Namespace) -> Any | None:

@@ -7,6 +7,7 @@ from typing import Any
 
 from anaxigraph.agent import architecture_guidance, impact_analysis
 from anaxigraph.architecture_charter import architecture_charter
+from anaxigraph.architecture_reassessment import architecture_reassessment
 from anaxigraph.config import load_config
 from anaxigraph.config_authority import effective_semantic_policy, service_config_authority
 from anaxigraph.operational_health import served_map_status
@@ -123,7 +124,8 @@ class CoreMcpTools:
                 "recommendation: where to start, whether to reuse, extend, split, consolidate, "
                 "move, delete, create, or retain code, what may be affected, reasons not to change, "
                 "focused checks, and refresh guidance. Set fresh_eyes=true to read or start the "
-                "fixed clean-sheet architecture review without adding another tool."
+                "fixed clean-sheet architecture review. Set reassess=true after an edit or scan "
+                "to explain the durable before/after architecture result without adding another tool."
             ),
         )
         self.server.add_tool(
@@ -190,9 +192,13 @@ class CoreMcpTools:
         start: bool = False,
         proposal_count: int = 2,
         retry_failed: bool = False,
+        reassess: bool = False,
+        from_snapshot_id: int | None = None,
     ) -> dict[str, Any]:
         row, root = self.context.select(repository)
         config = self.context.config_for(row, root)
+        if fresh_eyes and reassess:
+            raise ValueError("Choose either fresh_eyes or reassess, not both")
         if fresh_eyes:
             engine = SemanticEngine(self.database)
             if start:
@@ -204,8 +210,16 @@ class CoreMcpTools:
                     retry_failed=retry_failed,
                 )
             return engine.fresh_eyes_status(int(row["id"]), config.semantic)
+        if reassess:
+            return architecture_reassessment(
+                self.database,
+                repository_id=int(row["id"]),
+                config=config,
+                from_snapshot_id=from_snapshot_id,
+                goal=goal,
+            )
         if not goal.strip():
-            raise ValueError("goal is required unless fresh_eyes=true")
+            raise ValueError("goal is required unless fresh_eyes=true or reassess=true")
         return architecture_guidance(
             self.database,
             repository_id=int(row["id"]),

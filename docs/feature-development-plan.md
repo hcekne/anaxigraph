@@ -2,7 +2,7 @@
 
 **Roadmap version:** 4.2
 
-**Updated:** 31 August 2026
+**Updated:** 1 September 2026
 
 **Execution rule:** one phase is active at a time; the next phase does not begin until the current
 phase's exit gate is met.
@@ -2820,7 +2820,7 @@ promises across machines or repositories.
 
 # Phase 10 — converge on shared architecture intelligence
 
-**Status:** IN PROGRESS from 30 August 2026
+**Status:** COMPLETE on 1 September 2026
 
 **Goal:** make AnaxiGraph simpler to understand, operate, and maintain while sharpening the one
 thing it exists to do: give people and coding agents the same living understanding of a software
@@ -4346,7 +4346,7 @@ closed; this ratification is feature growth, not a reopened subtraction campaign
 
 ## 10.8 Close the continuous architecture-sidekick loop
 
-**Status:** PENDING; begins only after §10.7.
+**Status:** COMPLETE on 1 September 2026.
 
 After a coherent edit or commit, hashes and deterministic analysis identify changed modules. Only
 stale semantic scopes, affected responsibility aggregates, and Charter sections are refreshed. The
@@ -4382,6 +4382,51 @@ Acceptance:
   the regression;
 - no mandatory decision/change-management state is created along the path.
 
+### 10.8 delivery record: one shared bounded reassessment
+
+One `architecture-reassessment-v1` application response now compares the current durable snapshot
+with the last changed snapshot in the same lineage that uses a compatible analyzer contract. An
+explicit compatible earlier snapshot remains optional. The comparison reads immutable file and
+relationship facts, finding occurrences, current semantic scope states, the Living Architecture
+Charter, independently reviewed pattern evaluations, and existing change-coupling history. It
+creates no table, model request, semantic job kind, decision record, approval state, or target-code
+write.
+
+The response identifies changed modules and their conservative direct context, while the existing
+semantic planner continues to decide which of those scopes are genuinely stale from content,
+interface, relationship, dossier, aggregate, pattern, taxonomy, and Charter fingerprints. A
+one-module fixture first exposes the pending changed/affected scope, then becomes current after one
+intrinsic reread plus the affected pattern assessment and independent review. Its unchanged
+dependant descriptions, taxonomy, group synthesis, and repository synthesis are reused rather than
+rerun. If new module meaning changes an aggregate input hash, the existing group and repository
+planner queues only those affected aggregates. The response never claims that the whole repository
+needs another semantic pass.
+
+Every returned effect shares one calibrated shape: observed change, architectural consequence,
+recommendation, structured confidence, counter-evidence, reasons to leave the code alone, smallest
+safe follow-up, verification, and evidence. Deterministic and semantic fixtures cover complexity
+regression and improvement, stable-text-only changes, relationship source-line churn, placement,
+dependency changes, boundary violations, reviewed pattern fit, consolidation/duplication, and
+possible unused code. Relationship comparison deliberately ignores changed source locations when
+the architectural source/target/type/provenance link is unchanged.
+
+The same saved identity and content is exposed through `GET /api/reassessment`, `anaxigraph
+reassess`, the `reassess=true` mode of the existing `ANAXIGRAPH_GUIDE`, and the existing **Changes**
+journey. No eleventh normal MCP tool or sixth dashboard journey was added. Repository loading also
+treats reassessment as a degradable panel, so a temporarily unavailable comparison cannot leave
+the rest of the current repository dashboard stuck in a loading state.
+
+The ratified acceptance evidence is **614 Python tests** and **26 pinned-browser contracts**, plus
+Ruff, JavaScript syntax, module-size, architecture, agent-package, Compose, deterministic
+self-analysis, coverage, changed-coverage, first-user, container, and benchmark gates. On the
+self-hosted 478-module AnaxiGraph map, the read-only response compared two saved frames, bounded two
+changed modules to 15 context modules, returned about 25 KB, and completed in about 626 ms. Four
+cohesive Python modules and two dashboard assets keep every implementation file below 500 lines.
+They add **1,807 intentional production lines** for temporal/semantic evidence, calibrated advice,
+the shared application projection, transport adapters, and the human rendering. The exact
+production-source ratchet moves from 53,607 to **55,414 lines**. Phase 10.2 remains closed; this is
+measured core product capability, not a reopened subtraction campaign.
+
 ## Phase 10 exit gate
 
 - The three product promises and the actor-neutral rule are visible in onboarding, navigation,
@@ -4403,7 +4448,7 @@ Acceptance:
 - The §10.7 fresh-eyes review proves implementation-blind proposal packets, honest independent-agent
   provenance, blind adjudication, as-built comparison, mission filtering, and incremental reuse
   without adding another provider or workflow platform.
-- The latest phase-ratified **53,607-line** production ratchet remains enforced unless a later phase
+- The latest phase-ratified **55,414-line** production ratchet remains enforced unless a later phase
   explicitly ratifies necessary growth; production module count, high-fragmentation package counts,
   and public surface are governed alongside LOC rather than traded against it.
 - No Change Contract, mandatory approval/decision workflow, new product family, database, provider
@@ -4598,10 +4643,10 @@ feature-admission rule.
 | 5 | **COMPLETE** | Generate the evidence-backed Living Architecture Charter without human input, support optional visible corrections, and prove resumable agent-funded completion | §10.5 |
 | 6 | **COMPLETE** | Deliver the same implementation/refactor guidance through five dashboard journeys and at most ten normal MCP tools; pass independent agent-only and human-led workflows | §10.6 |
 | 7 | **COMPLETE** | Run the fixed capability brief → independent clean-sheet proposals → blind adjudication → as-built comparison → mission filter sequence through one resumable agent-funded Improve workflow | §10.7 |
-| 8 | **PENDING** | Refresh only changed semantic scope and return shared architecture reassessment without a Change Contract or approval workflow | §10.8 |
+| 8 | **COMPLETE** | Refresh only changed semantic scope and return shared architecture reassessment without a Change Contract or approval workflow | §10.8 |
 | 9 | **PENDING** | Replace regex-oriented JavaScript/TypeScript analysis with a parser-backed, capability-honest implementation and remove the shallow path | Phase 11 |
 
-Only item 8 may proceed now. Later items remain pending until the preceding acceptance is recorded.
+Only item 9 may proceed now. Later work remains pending until its preceding acceptance is recorded.
 The retained MaxOS run and a future release candidate are evidence/release gates, not independent
 product features. No additional parser expansion, adapter family, plugin framework, website, media
 support, generic operations work, warning-cleanup campaign, or dashboard family may displace this

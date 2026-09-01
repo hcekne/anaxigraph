@@ -193,13 +193,19 @@ The agent should follow this sequence for a feature, fix, or refactor:
    invisible.
 3. **Change.** Edit source and run focused tests through the normal coding workflow. AnaxiGraph
    observes repository source and updates its external index; it does not edit the target code.
-4. **Refresh.** Request `ANAXIGRAPH_SCAN`. Repeat guidance or impact when responsibilities or
-   dependencies may have moved, and use History and findings when you need change evidence.
+4. **Refresh and reassess.** Request `ANAXIGRAPH_SCAN`, then call
+   `ANAXIGRAPH_GUIDE(reassess=true)`. It compares the latest compatible saved maps and returns the
+   observed change, consequence, calibrated recommendation, counter-evidence, reasons to leave the
+   code alone, and the smallest safe follow-up and verification. It does not create an approval,
+   plan, or change-management record. A person sees the same result under **Changes**; the CLI form
+   is `anaxigraph reassess .`.
+   Use History when the decision needs wider introduction, recurrence, churn, or co-change context.
 
 At the end of a coherent task or commit, run
 `anaxigraph understand . --executor codex --background` if the changed AI descriptions matter.
-It refreshes stale scopes and reuses unchanged descriptions. Structural facts are available first;
-wait for `semantically_ready` only when the next decision needs a completely current AI map.
+It refreshes only stale changed and affected scopes and reuses unchanged descriptions. Structural
+reassessment is available first; ask for reassessment again after `semantically_ready` when the
+next decision needs current responsibility, duplication, pattern, or possible-unused-code evidence.
 
 Use the returned telemetry to tune the loop: guidance and impact replies report server time, payload
 size, and model-token use; semantic status groups AI work by action with current-snapshot and

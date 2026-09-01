@@ -1,0 +1,107 @@
+.reassessment-panel { margin-bottom: 1rem; }
+
+.reassessment-heading,
+.reassessment-comparison,
+.effect-heading {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.reassessment-heading > div:first-child { max-width: 60rem; }
+
+.reassessment-state {
+  background: var(--surface-subtle);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  flex: 0 0 auto;
+  font-size: .72rem;
+  font-weight: 700;
+  padding: .4rem .7rem;
+}
+
+.state-current,
+.state-no_architectural_change { border-color: var(--accent); }
+.state-semantic_refresh_pending { border-color: var(--blue); }
+
+.reassessment-comparison {
+  align-items: center;
+  background: var(--surface-subtle);
+  border: 1px solid var(--line);
+  border-radius: .8rem;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  margin: 1.2rem 0;
+  padding: .8rem 1rem;
+}
+
+.reassessment-comparison span { display: grid; gap: .15rem; min-width: 8rem; }
+.reassessment-comparison small { color: var(--muted); }
+.reassessment-comparison i { color: var(--accent); font-style: normal; }
+
+.reassessment-scope {
+  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  margin: 1rem 0;
+  padding: .8rem 0;
+}
+
+.reassessment-scope summary { cursor: pointer; font-weight: 650; }
+.reassessment-scope > div { display: inline-block; margin: .8rem 2rem 0 0; vertical-align: top; }
+.reassessment-scope ul { color: var(--muted); margin: .35rem 0; padding-left: 1.2rem; }
+
+.reassessment-effects {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr));
+  margin-top: 1.2rem;
+}
+
+.reassessment-effect,
+.reassessment-empty {
+  background: var(--surface-subtle);
+  border: 1px solid var(--line);
+  border-left: .25rem solid var(--blue);
+  border-radius: .8rem;
+  padding: 1rem;
+}
+
+.effect-regressed,
+.effect-introduced,
+.effect-worsened { border-left-color: var(--red); }
+.effect-resolved,
+.effect-improved,
+.effect-coherent_no_change { border-left-color: var(--accent); }
+.effect-candidate,
+.effect-opportunity { border-left-color: var(--graph-warm); }
+
+.effect-heading { border-bottom: 1px solid var(--line); padding-bottom: .7rem; }
+.effect-heading span { color: var(--muted); font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; }
+.effect-heading h3 { overflow-wrap: anywhere; }
+.effect-heading small { color: var(--muted); text-align: right; }
+
+.effect-statement,
+.effect-list { margin-top: .8rem; }
+.effect-statement strong,
+.effect-list strong { font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; }
+.effect-statement p { color: var(--muted); margin: .25rem 0; }
+.effect-statement.recommendation p { color: var(--text); font-weight: 600; }
+.effect-list ul { color: var(--muted); margin: .3rem 0; padding-left: 1.2rem; }
+
+.effect-follow-up {
+  background: var(--surface);
+  border-radius: .6rem;
+  margin-top: .9rem;
+  padding: .1rem .75rem .65rem;
+}
+
+.reassessment-baseline,
+.reassessment-safety { color: var(--muted); }
+.reassessment-safety { border-top: 1px solid var(--line); margin-top: 1.2rem; padding-top: .9rem; }
+
+@media (max-width: 700px) {
+  .reassessment-heading,
+  .effect-heading { flex-direction: column; }
+  .effect-heading small { text-align: left; }
+}

@@ -32,6 +32,8 @@ DASHBOARD_ASSETS = frozenset(
         "patterns-render.js",
         "patterns-view.js",
         "repository-view.js",
+        "reassessment-view.js",
+        "reassessment.css",
         "theme-boot.js",
         "workflow-events.js",
         "styles.css",

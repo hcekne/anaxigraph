@@ -52,3 +52,5 @@ def test_primary_docs_share_one_ordered_before_and_after_coding_loop():
         ]
         assert positions == sorted(positions)
         assert "not automatically an improvement" in document
+        assert "ANAXIGRAPH_GUIDE(reassess=true)" in document
+        assert "anaxigraph reassess ." in document

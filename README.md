@@ -168,13 +168,18 @@ The agent follows one sequence:
 2. **Impact** — `ANAXIGRAPH_IMPACT` shows direct dependants of the shared files before they change.
 3. **Change** — edit source and run focused tests through the normal coding workflow. AnaxiGraph
    observes the repository; it does not edit it.
-4. **Refresh** — request `ANAXIGRAPH_SCAN`. Ask for guidance or impact again when responsibilities or
-   dependencies may have moved, and use History and findings when you need change evidence.
+4. **Refresh and reassess** — request `ANAXIGRAPH_SCAN`, then call
+   `ANAXIGRAPH_GUIDE(reassess=true)`. The shared before/after response explains observed changes,
+   architectural consequences, possible improvements or regressions, reasons to leave the design
+   alone, and the smallest safe verification step. It creates no approval or change-management
+   state. The same result is visible under **Changes** or from `anaxigraph reassess .`.
+   Use History when you need the wider introduction, recurrence, churn, or co-change context.
 
 After a coherent task or commit, run `anaxigraph understand . --executor codex --background`
-once if changed AI descriptions matter. It queues only stale scopes and reuses unchanged work. The
-structural map does not need to wait for that background refresh; wait for `semantically_ready`
-only before a decision that needs the fully current AI map.
+once if changed AI descriptions matter. It queues only stale changed and affected scopes and reuses
+unchanged work. Static reassessment is available immediately; ask again after
+`semantically_ready` when the decision needs refreshed responsibility, duplication, pattern, or
+possible-unused-code evidence.
 
 Each guidance and impact reply includes server time, payload size, and model-token use. Semantic
 status groups AI jobs by action with current-snapshot and lifetime time/token totals, while scan

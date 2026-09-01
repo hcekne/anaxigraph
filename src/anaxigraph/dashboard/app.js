@@ -31,6 +31,7 @@ import { renderModuleFilters, renderModules } from "/assets/module-view.js";
 import { renderNavigation } from "/assets/navigation.js";
 import { renderOverview, scheduleSemanticPoll, selectedHierarchy } from "/assets/overview-view.js";
 import { resetPatternView, setupPatternView } from "/assets/patterns-view.js";
+import { renderReassessment, setupReassessmentView } from "/assets/reassessment-view.js";
 import {
   displaySnapshot,
   renderOnboarding,
@@ -75,7 +76,7 @@ async function loadRepository() {
     if (token !== state.repositoryLoadToken) return;
     state.overview = overview;
     configureMapLayers();
-    const [modules, graph, findings, snapshots, trends, historyInfo, semanticStatus] = await Promise.all([
+    const [modules, graph, findings, snapshots, trends, historyInfo, semanticStatus, reassessment] = await Promise.all([
       request(api("/api/modules")),
       request(api("/api/graph", {
         node_limit: 1000, edge_limit: 2000, area: "", map_layer: state.mapLayer,
@@ -85,6 +86,7 @@ async function loadRepository() {
       request(api("/api/trends")),
       request(api("/api/history")),
       request(api("/api/semantic")),
+      loadReassessment(),
     ]);
     if (token !== state.repositoryLoadToken) return;
     Object.assign(state, {
@@ -98,6 +100,7 @@ async function loadRepository() {
       trends: trends.snapshots || [],
       historyInfo,
       semanticStatus,
+      reassessment,
     });
     resetRepositoryState();
     buildGroupIndex(selectedHierarchy());
@@ -115,6 +118,22 @@ async function loadRepository() {
     renderAllViews();
   } catch (error) {
     if (token === state.repositoryLoadToken) toast(error.message, true);
+  }
+}
+
+async function loadReassessment() {
+  try {
+    return await request(api("/api/reassessment"));
+  } catch (error) {
+    return {
+      state: "unavailable",
+      plain_language: {
+        conclusion: "The current repository views loaded, but architecture reassessment is temporarily unavailable.",
+      },
+      architectural_effects: [],
+      semantic_refresh: {},
+      safety: { automatic_code_changes: false },
+    };
   }
 }
 
@@ -175,6 +194,7 @@ function renderAllViews() {
   renderSettings();
   renderFindings();
   renderHistory();
+  renderReassessment();
   renderOverlayHelp();
   renderLegend();
   layoutGraph();
@@ -186,6 +206,7 @@ setupTheme();
 renderNavigation();
 setupPatternView();
 setupFreshEyesView();
+setupReassessmentView();
 setupModuleEvents();
 setupGraphEvents();
 setupGraphRegionEvents();

@@ -225,6 +225,7 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     ):
                         assert unexplained_term not in public_help
                     assert "refresh guidance" in descriptions["ANAXIGRAPH_GUIDE"]
+                    assert "reassess=true" in descriptions["ANAXIGRAPH_GUIDE"]
                     assert "ordinary sentences" in descriptions["ANAXIGRAPH_FINDINGS"]
                     overview = await session.call_tool("ANAXIGRAPH_OVERVIEW", arguments={})
                     assert overview.isError is False

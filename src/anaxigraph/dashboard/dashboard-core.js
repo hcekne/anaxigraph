@@ -12,6 +12,7 @@ export const state = {
   trends: [],
   historyInfo: null,
   semanticStatus: null,
+  reassessment: null,
   moduleDetails: new Map(),
   selectedNode: null,
   highlightedPaths: new Set(),

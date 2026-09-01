@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 
 import anaxigraph.api_support as api_support
+from anaxigraph.architecture_reassessment import architecture_reassessment
 
 
 def agent_router(context: Any) -> APIRouter:
@@ -28,6 +29,7 @@ class AgentRoutes:
         self.router.add_api_route("/api/impact", self.impact, methods=["POST"])
         self.router.add_api_route("/api/fresh-eyes", self.fresh_eyes, methods=["GET"])
         self.router.add_api_route("/api/fresh-eyes", self.start_fresh_eyes, methods=["POST"])
+        self.router.add_api_route("/api/reassessment", self.reassessment, methods=["GET"])
 
     def findings(
         self,
@@ -136,6 +138,24 @@ class AgentRoutes:
                 self.context.selected_config(row),
                 proposal_count=request.proposal_count,
                 retry_failed=request.retry_failed,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    def reassessment(
+        self,
+        repository_id: int | None = None,
+        from_snapshot_id: int | None = Query(default=None, ge=1),
+        goal: str = Query(default="", max_length=2_000),
+    ) -> dict[str, Any]:
+        row = self.context.selected_repository(repository_id)
+        try:
+            return architecture_reassessment(
+                self.context.database,
+                repository_id=int(row["id"]),
+                config=self.context.selected_config(row),
+                from_snapshot_id=from_snapshot_id,
+                goal=goal,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
