@@ -739,12 +739,12 @@ open.
    non-functional projects as name squatting. Do not publish the near-miss `anaxi-graph`; under the
    [normalization specification](https://packaging.python.org/en/latest/specifications/name-normalization/)
    it is a distinct name, not an alias for `anaxigraph`.
-3. **COMPLETE IN SOURCE — Modernize license metadata for the next release.** Package metadata now
-   uses the SPDX expression `license = "Apache-2.0"`, declares `license-files = ["LICENSE"]`, and
-   requires `setuptools>=77` for PEP 639 support. A clean wheel/source build emits
-   `License-Expression: Apache-2.0` and `License-File: LICENSE`, with no prior license-table
-   deprecation warning. PyPI artifacts are immutable, so this correction begins with the next
-   version rather than altering 0.1.0.
+3. **COMPLETE — Modernize license metadata.** Package metadata uses the SPDX expression
+   `license = "Apache-2.0"`, declares `license-files = ["LICENSE"]`, and requires `setuptools>=77`
+   for PEP 639 support. A clean wheel/source build emits `License-Expression: Apache-2.0` and
+   `License-File: LICENSE`, with no prior license-table deprecation warning. PyPI artifacts are
+   immutable, so 0.1.0 remains unchanged; the correction shipped in 0.2.0 and remains verified in
+   the public 0.4.0 release.
 4. **COMPLETE — Make the local operating boundary explicit.** Every public setup guide leads with
    the loopback sidecar and explains the supported local and Docker paths without presenting a
    larger deployment topology as current product scope.
