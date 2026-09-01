@@ -4459,7 +4459,7 @@ measured core product capability, not a reopened subtraction campaign.
 
 # Phase 11 — parser-backed JavaScript and TypeScript understanding
 
-**Status:** PENDING; begins only after the Phase 10 exit gate.
+**Status:** IN PROGRESS since 1 September 2026; Phase 10 is closed and Phase 10.2 remains frozen.
 
 **Goal:** make AnaxiGraph genuinely useful on modern JavaScript/TypeScript repositories without
 turning language count into a vanity metric. Python remains the reference analyzer. JavaScript,
@@ -4467,6 +4467,8 @@ JSX, TypeScript, and TSX become the second deeply supported family through the e
 analyzer contract.
 
 ## 11.0 Ratify the parser and capability contract
+
+**Status:** COMPLETE on 1 September 2026.
 
 Benchmark tree-sitter as the preferred implementation against representative browser, Node,
 monorepo, decorator, JSX/TSX, CommonJS, and ECMAScript-module fixtures. Record an ADR covering wheel
@@ -4476,6 +4478,21 @@ regex analyzer is not accepted as the deep-analysis fallback.
 
 Publish an honest capability matrix for each syntax family. Extension recognition alone never means
 symbol, call, type, or dependency support.
+
+### 11.0 delivery record
+
+ADR 0005 selects the official Tree-sitter Python binding (`0.26.0`), JavaScript grammar (`0.25.0`),
+and TypeScript/TSX grammar (`0.23.2`) as exact runtime pins. The decision records license, wheel and
+container constraints, parse recovery, the two-megabyte input bound, update/security policy, cache
+invalidation, and the prohibition on a hidden regex fallback. `docs/language-support.md` publishes
+the binding per-family evidence contract and distinguishes syntax facts, repository resolution,
+type-checker certainty, and runtime behavior.
+
+The retained `parser-selection-v1` benchmark covers browser JSX, Node CommonJS, monorepo ESM,
+decorators/generics, TSX, and malformed recovery. On the recorded Linux x86-64 / Python 3.11 runner,
+all classifications passed; small samples parsed in 0.010–0.023 ms median and a 955,000-byte
+TypeScript sample in about 134 ms median. These numbers establish feasibility, not a universal
+latency promise. A focused regression contract executes the same syntax/recovery matrix in tests.
 
 ## 11.1 Produce parser-backed JavaScript/JSX facts
 
@@ -4645,7 +4662,7 @@ feature-admission rule.
 | 6 | **COMPLETE** | Deliver the same implementation/refactor guidance through five dashboard journeys and at most ten normal MCP tools; pass independent agent-only and human-led workflows | §10.6 |
 | 7 | **COMPLETE** | Run the fixed capability brief → independent clean-sheet proposals → blind adjudication → as-built comparison → mission filter sequence through one resumable agent-funded Improve workflow | §10.7 |
 | 8 | **COMPLETE** | Refresh only changed semantic scope and return shared architecture reassessment without a Change Contract or approval workflow | §10.8 |
-| 9 | **PENDING** | Replace regex-oriented JavaScript/TypeScript analysis with a parser-backed, capability-honest implementation and remove the shallow path | Phase 11 |
+| 9 | **IN PROGRESS** | Replace regex-oriented JavaScript/TypeScript analysis with a parser-backed, capability-honest implementation and remove the shallow path; parser selection and capability contract are complete | Phase 11 |
 
 Only item 9 may proceed now. Later work remains pending until its preceding acceptance is recorded.
 The retained MaxOS run and a future release candidate are evidence/release gates, not independent

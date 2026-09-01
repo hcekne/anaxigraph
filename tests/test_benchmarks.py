@@ -13,6 +13,7 @@ from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.storage import AnaxiIndex
 from benchmarks.dashboard_fixture import create_dashboard_repository
 from benchmarks.first_user import measure_first_user_path
+from benchmarks.parser_selection import measure_parser_selection
 from benchmarks.repository_factory import (
     DEFAULT_COMMITS,
     DEFAULT_FILE_COUNT,
@@ -150,6 +151,20 @@ def test_committed_benchmark_manifest_matches_generator_contract():
     assert history["final_files"] == DEFAULT_FILE_COUNT
     assert history["expected_distinct_artifact_raw_versions"] == 3_217
     assert history["expected_distinct_artifact_structural_versions"] == 3_216
+
+
+def test_parser_selection_fixture_covers_modern_syntax_and_recovery():
+    report = measure_parser_selection(iterations=1, large_repetitions=2)
+
+    assert report["passed"] is True
+    assert set(report["grammars"]) == {
+        "javascript",
+        "javascriptreact",
+        "typescript",
+        "typescriptreact",
+    }
+    assert report["cases"]["recovery-typescript"]["has_error"] is True
+    assert all(item["root_type"] == "program" for item in report["cases"].values())
 
 
 def test_dashboard_fixture_covers_stable_browser_contracts(tmp_path):

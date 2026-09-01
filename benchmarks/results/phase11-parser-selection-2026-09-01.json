@@ -1,0 +1,112 @@
+{
+  "cases": {
+    "browser-jsx": {
+      "expects_recovery": false,
+      "has_error": false,
+      "language": "javascriptreact",
+      "median_ms": 0.0147,
+      "named_children": 2,
+      "p95_ms": 0.0152,
+      "passed": true,
+      "root_type": "program",
+      "source_bytes": 118
+    },
+    "component-tsx": {
+      "expects_recovery": false,
+      "has_error": false,
+      "language": "typescriptreact",
+      "median_ms": 0.0142,
+      "named_children": 2,
+      "p95_ms": 0.0152,
+      "passed": true,
+      "root_type": "program",
+      "source_bytes": 139
+    },
+    "decorators-typescript": {
+      "expects_recovery": false,
+      "has_error": false,
+      "language": "typescript",
+      "median_ms": 0.0205,
+      "named_children": 1,
+      "p95_ms": 0.021,
+      "passed": true,
+      "root_type": "program",
+      "source_bytes": 190
+    },
+    "monorepo-esm": {
+      "expects_recovery": false,
+      "has_error": false,
+      "language": "javascript",
+      "median_ms": 0.0104,
+      "named_children": 2,
+      "p95_ms": 0.0106,
+      "passed": true,
+      "root_type": "program",
+      "source_bytes": 99
+    },
+    "node-commonjs": {
+      "expects_recovery": false,
+      "has_error": false,
+      "language": "javascript",
+      "median_ms": 0.0164,
+      "named_children": 2,
+      "p95_ms": 0.0173,
+      "passed": true,
+      "root_type": "program",
+      "source_bytes": 166
+    },
+    "recovery-typescript": {
+      "expects_recovery": true,
+      "has_error": true,
+      "language": "typescript",
+      "median_ms": 0.0229,
+      "named_children": 1,
+      "p95_ms": 0.0234,
+      "passed": true,
+      "root_type": "program",
+      "source_bytes": 92
+    }
+  },
+  "environment": {
+    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+    "python": "3.11.15",
+    "tree_sitter": "0.26.0",
+    "tree_sitter_javascript": "0.25.0",
+    "tree_sitter_typescript": "0.23.2"
+  },
+  "grammars": {
+    "javascript": {
+      "abi_version": 15,
+      "semantic_version": [
+        0,
+        25,
+        0
+      ]
+    },
+    "javascriptreact": {
+      "abi_version": 15,
+      "semantic_version": [
+        0,
+        25,
+        0
+      ]
+    },
+    "typescript": {
+      "abi_version": 14,
+      "semantic_version": null
+    },
+    "typescriptreact": {
+      "abi_version": 14,
+      "semantic_version": null
+    }
+  },
+  "iterations": 300,
+  "large_typescript": {
+    "has_error": false,
+    "median_ms": 133.6065,
+    "root_type": "program",
+    "source_bytes": 955000
+  },
+  "passed": true,
+  "report_schema_version": "parser-selection-v1"
+}

@@ -60,6 +60,19 @@ The retained measurements are in
 is runner-specific. Candidate accuracy, unexpected files, payload bounds, baseline presence, and
 one-file incremental work are the regression contracts.
 
+## JavaScript and TypeScript parser selection
+
+The Phase 11 feasibility benchmark parses representative browser JSX, Node CommonJS, monorepo ESM,
+decorator/generic TypeScript, TSX, and malformed recovery input with the exact runtime and grammar
+pins. It also parses an approximately 1 MB TypeScript input. Absolute duration is descriptive; root
+shape, valid/error classification, grammar identity, and successful recovery are contracts.
+
+```bash
+uv run python -m benchmarks.parser_selection \
+  --iterations 300 \
+  --output benchmarks/results/phase11-parser-selection-2026-09-01.json
+```
+
 ## First-user time to value
 
 The Phase 3 gate exercises the assembled local product rather than timing helper functions. Each

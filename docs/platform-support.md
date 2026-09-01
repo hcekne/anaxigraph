@@ -9,10 +9,10 @@ Engine; “local CLI” means a host Python 3.11/3.12 installation managed with 
 | Linux x86-64 · Docker | **Supported** | Primary CI, Compose validation, hardened container, dashboard/MCP, Python 3.11/3.12, Chromium contracts |
 | Linux x86-64 · local CLI | **Supported** | `up` process startup/health/clean SIGINT, external user state, scan, history, serve, MCP, semantic workers, hooks and tests |
 | Linux ARM64 · Docker | **Best effort** | A `linux/arm64` image is built with the same Dockerfile and published in the multi-architecture manifest; no native ARM runtime runner yet |
-| Linux ARM64 · local CLI | **Best effort** | No compiled runtime dependency is required today, but CI does not execute on native ARM |
+| Linux ARM64 · local CLI | **Best effort** | The pinned Tree-sitter binding and JavaScript/TypeScript grammars publish ARM64 wheels, but CI does not execute the CLI on native ARM |
 | macOS Apple silicon · Docker Desktop | **Best effort; recommended macOS path** | Uses the `linux/arm64` image and read-only bind mounts; no macOS end-to-end CI runner yet |
 | macOS Intel · Docker Desktop | **Best effort; recommended macOS path** | Uses the `linux/amd64` image; no macOS end-to-end CI runner yet |
-| macOS · local CLI | **Best effort** | Wheel/sdist install, packaged dashboard assets, initialization, and CLI startup are release-gated on Python 3.11/3.12; host serving, watching, and browser behavior are not yet end-to-end gated |
+| macOS · local CLI | **Best effort** | Wheel/sdist install, all pinned parser grammars, packaged dashboard assets, initialization, and CLI startup are release-gated on Python 3.11/3.12; host serving, watching, and browser behavior are not yet end-to-end gated |
 | WSL2 · Docker or local CLI | **Best effort** | Use a WSL2 Linux distribution and Linux containers. Keep repositories in the WSL filesystem for usable Git/scan performance |
 | Native Windows PowerShell/CMD | **Not supported yet** | Native path, process/signal, watcher, hook, and Windows-container behavior is not tested. Use WSL2 instead |
 | Windows containers | **Out of scope** | The shipped image and Compose definitions target Linux containers |
