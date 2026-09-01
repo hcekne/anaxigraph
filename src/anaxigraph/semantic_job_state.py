@@ -6,6 +6,7 @@ from collections.abc import Iterable
 from enum import StrEnum
 
 PATTERN_METADATA_RETENTION = "pattern-evaluation-v1"
+FRESH_EYES_METADATA_RETENTION = "fresh-eyes-input-v1"
 
 
 class SemanticJobState(StrEnum):
@@ -44,7 +45,8 @@ _TRANSITIONS = {
 
 _JOB_KINDS = frozenset(
     "intrinsic context synthesis taxonomy_proposal taxonomy_review "
-    "pattern_assessment pattern_review".split()
+    "pattern_assessment pattern_review fresh_proposal fresh_adjudication "
+    "fresh_comparison fresh_review".split()
 )
 
 

@@ -12,6 +12,12 @@ class GuidanceRequest(BaseModel):
     repository_id: int | None = None
 
 
+class FreshEyesRequest(BaseModel):
+    proposal_count: int = Field(default=2, ge=1, le=3)
+    retry_failed: bool = False
+    repository_id: int | None = None
+
+
 class ImpactRequest(BaseModel):
     target: str = Field(min_length=1, max_length=1_000)
     repository_id: int | None = None

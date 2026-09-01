@@ -74,6 +74,8 @@ def _page_oversized_request(
         _page_taxonomy_request(bounded, request, pages, evidence_kinds, max_chars)
     if kind.startswith("pattern_"):
         _page_pattern_request(bounded, request, pages, evidence_kinds, max_chars)
+    if kind.startswith("fresh_"):
+        _page_fresh_eyes_request(bounded, request, pages, evidence_kinds, max_chars)
     if _serialized_size(bounded) > max_chars and kind == "context":
         _page_list_field(
             bounded,
@@ -174,6 +176,42 @@ def _page_pattern_request(
             kinds,
             max_chars,
         )
+
+
+def _page_fresh_eyes_request(
+    bounded: dict[str, Any],
+    request: dict[str, Any],
+    pages: list[dict[str, Any]],
+    kinds: list[str],
+    max_chars: int,
+) -> None:
+    if isinstance(request.get("proposals"), list):
+        _page_list_field(bounded, request, "proposals", pages, kinds, max_chars)
+    current = request.get("current_system")
+    if isinstance(current, dict):
+        bounded["current_system"] = dict(current)
+        for field in (
+            "module_dossiers",
+            "area_summaries",
+            "pattern_reviews",
+            "dependency_evidence",
+            "active_findings",
+            "recent_history",
+        ):
+            if _serialized_size(bounded) <= max_chars:
+                break
+            _page_nested_list_field(
+                bounded, current, "current_system", field, pages, kinds, max_chars
+            )
+    comparison = request.get("comparison")
+    if _serialized_size(bounded) > max_chars and isinstance(comparison, dict):
+        bounded["comparison"] = dict(comparison)
+        for field in ("mappings", "candidate_changes", "current_strengths"):
+            if _serialized_size(bounded) <= max_chars:
+                break
+            _page_nested_list_field(
+                bounded, comparison, "comparison", field, pages, kinds, max_chars
+            )
 
 
 def _page_intrinsic_facts(

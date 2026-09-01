@@ -26,6 +26,8 @@ class AgentRoutes:
         )
         self.router.add_api_route("/api/guidance", self.guidance, methods=["POST"])
         self.router.add_api_route("/api/impact", self.impact, methods=["POST"])
+        self.router.add_api_route("/api/fresh-eyes", self.fresh_eyes, methods=["GET"])
+        self.router.add_api_route("/api/fresh-eyes", self.start_fresh_eyes, methods=["POST"])
 
     def findings(
         self,
@@ -114,6 +116,26 @@ class AgentRoutes:
                 repository_id=int(row["id"]),
                 target=request.target,
                 config=self.context.selected_config(row),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    def fresh_eyes(self, repository_id: int | None = None) -> dict[str, Any]:
+        row = self.context.selected_repository(repository_id)
+        config = self.context.selected_config(row)
+        return api_support.SemanticEngine(self.context.database).fresh_eyes_status(
+            int(row["id"]), config.semantic
+        )
+
+    def start_fresh_eyes(self, request: api_support.FreshEyesRequest) -> dict[str, Any]:
+        row = self.context.selected_repository(request.repository_id)
+        try:
+            return api_support.SemanticEngine(self.context.database).start_fresh_eyes_review(
+                int(row["id"]),
+                row["path"],
+                self.context.selected_config(row),
+                proposal_count=request.proposal_count,
+                retry_failed=request.retry_failed,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc

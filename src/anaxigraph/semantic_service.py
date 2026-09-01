@@ -213,6 +213,32 @@ def service_architecture_guidance(
     )
 
 
+def service_fresh_eyes_review(
+    target: SemanticServiceTarget,
+    *,
+    start: bool = False,
+    proposal_count: int = 2,
+    retry_failed: bool = False,
+    timeout: float = 30,
+) -> dict[str, Any]:
+    if start:
+        return _service_agent_request(
+            target,
+            "/api/fresh-eyes",
+            {
+                "proposal_count": proposal_count,
+                "retry_failed": retry_failed,
+                "repository_id": target.repository_id,
+            },
+            timeout=timeout,
+        )
+    query = urllib.parse.urlencode({"repository_id": target.repository_id})
+    value = _request_json(f"{target.base_url}/api/fresh-eyes?{query}", timeout=timeout)
+    if not isinstance(value, dict):
+        raise ValueError("AnaxiGraph service returned an invalid fresh-eyes review")
+    return value
+
+
 def service_impact(
     target: SemanticServiceTarget,
     *,

@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from anaxigraph.semantic_agent import SemanticAgentService
+from anaxigraph.semantic_fresh_eyes_plan import FreshEyesPlanner
+from anaxigraph.semantic_fresh_eyes_review import FreshEyesReviewService
 from anaxigraph.semantic_index_port import SemanticIndex
 from anaxigraph.semantic_leases import SemanticLeaseService
 from anaxigraph.semantic_pattern_plan import SemanticPatternPlanner
@@ -25,6 +27,7 @@ class SemanticServices:
     runner: SemanticRunnerService
     reporting: SemanticReportingService
     agent: SemanticAgentService
+    fresh_eyes: FreshEyesReviewService
 
 
 def build_semantic_services(database: SemanticIndex) -> SemanticServices:
@@ -32,12 +35,14 @@ def build_semantic_services(database: SemanticIndex) -> SemanticServices:
     persistence = SemanticPersistenceService(database)
     leases = SemanticLeaseService(database, persistence)
     evidence = SemanticEvidenceService(database)
+    fresh_eyes_planner = FreshEyesPlanner()
     planning = SemanticPlanningService(
         database,
         reporting,
         leases,
         SemanticTaxonomyPlanner(),
         SemanticPatternPlanner(),
+        fresh_eyes_planner,
     )
     return SemanticServices(
         planning=planning,
@@ -58,5 +63,11 @@ def build_semantic_services(database: SemanticIndex) -> SemanticServices:
             leases,
             evidence,
             persistence,
+        ),
+        fresh_eyes=FreshEyesReviewService(
+            database,
+            fresh_eyes_planner,
+            planning,
+            reporting,
         ),
     )

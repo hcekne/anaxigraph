@@ -94,6 +94,30 @@ class SemanticEngine:
     ) -> dict[str, Any] | None:
         return self._services.reporting.dossier(repository_id, path, snapshot_id)
 
+    def fresh_eyes_status(
+        self,
+        repository_id: int,
+        semantic: SemanticConfig | None = None,
+    ) -> dict[str, Any]:
+        return self._services.fresh_eyes.status(repository_id, semantic)
+
+    def start_fresh_eyes_review(
+        self,
+        repository_id: int,
+        repository: str | Path,
+        config: AnaxiGraphConfig,
+        *,
+        proposal_count: int = 2,
+        retry_failed: bool = False,
+    ) -> dict[str, Any]:
+        return self._services.fresh_eyes.start(
+            repository_id,
+            repository,
+            config,
+            proposal_count=proposal_count,
+            retry_failed=retry_failed,
+        )
+
     def claim_agent_work(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         return self._services.agent.claim_agent_work(*args, **kwargs)
 

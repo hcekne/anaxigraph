@@ -11,8 +11,10 @@ from anaxigraph.cli_common import add_repository_arguments, ensure_current
 from anaxigraph.semantic_service import (
     discover_semantic_service,
     service_architecture_guidance,
+    service_fresh_eyes_review,
     service_impact,
 )
+from anaxigraph.understanding import SemanticEngine
 
 
 def configure_agent_commands(commands: Any) -> None:
@@ -40,6 +42,27 @@ def configure_agent_commands(commands: Any) -> None:
     impact.add_argument("--target", required=True, help="Repository path or unique symbol")
     _add_service_url(impact)
     impact.set_defaults(handler=_impact, db=None)
+
+    fresh_eyes = commands.add_parser(
+        "fresh-eyes",
+        help="Compare the current system with independent clean-sheet architecture proposals",
+    )
+    add_repository_arguments(fresh_eyes)
+    fresh_eyes.add_argument(
+        "--start", action="store_true", help="Request and prepare the fixed review recipe"
+    )
+    fresh_eyes.add_argument(
+        "--proposals",
+        type=int,
+        choices=(1, 2, 3),
+        default=2,
+        help="Number of independent clean-sheet proposals (two is recommended)",
+    )
+    fresh_eyes.add_argument(
+        "--retry-failed", action="store_true", help="Retry failed review-stage tasks"
+    )
+    _add_service_url(fresh_eyes)
+    fresh_eyes.set_defaults(handler=_fresh_eyes, db=None)
 
 
 def _add_service_url(parser: Any) -> None:
@@ -92,6 +115,31 @@ def _impact(args: argparse.Namespace) -> dict[str, Any]:
         target=args.target,
         config=config,
     )
+
+
+def _fresh_eyes(args: argparse.Namespace) -> dict[str, Any]:
+    service = _agent_service(args)
+    if service is not None:
+        return _service_result(
+            service_fresh_eyes_review(
+                service,
+                start=args.start,
+                proposal_count=args.proposals,
+                retry_failed=args.retry_failed,
+            ),
+            service,
+        )
+    database, repository_id, config = ensure_current(args)
+    engine = SemanticEngine(database)
+    if args.start:
+        return engine.start_fresh_eyes_review(
+            repository_id,
+            args.repository,
+            config,
+            proposal_count=args.proposals,
+            retry_failed=args.retry_failed,
+        )
+    return engine.fresh_eyes_status(repository_id, config.semantic)
 
 
 def _agent_service(args: argparse.Namespace) -> Any | None:

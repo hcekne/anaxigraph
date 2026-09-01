@@ -33,6 +33,8 @@ model-derived interpretations visibly separate.
 - For a new feature or refactor, call `ANAXIGRAPH_SEARCH`, then `ANAXIGRAPH_GUIDE` with the matching
   `build` or `refactor` intent; call
   `ANAXIGRAPH_FILE` for the primary modules and `ANAXIGRAPH_IMPACT` before changing a shared target.
+- For an explicit “fresh eyes,” “clean-sheet architecture,” or independent architecture challenge,
+  run the fresh-eyes review workflow. Do not spend those tokens for an ordinary scoped change.
 - For a module question, use `ANAXIGRAPH_SEARCH` and `ANAXIGRAPH_FILE`. Compare responsibilities,
   collaborators, overlaps, extension points, pattern evidence, and counter-evidence.
 - For architecture attention, call `ANAXIGRAPH_FINDINGS` with the bounded `attention` view. Use
@@ -92,6 +94,28 @@ Claude, or another configured executor; do not manually administer a repository-
 through the normal MCP tool menu. At the end, call `ANAXIGRAPH_SEMANTIC_STATUS`. Report completed
 coverage, pending/running/failed work, responsibility-map readiness, and whether the Living Charter
 is current. Never say that the baseline is complete until `semantically_ready: true`.
+
+## Run the fixed fresh-eyes review
+
+This workflow is optional, explicit, and read-only. It challenges legacy anchoring without turning
+AnaxiGraph into a general multi-agent workflow engine.
+
+1. Call `ANAXIGRAPH_GUIDE` with `fresh_eyes=true`. If the returned state is `not_started` or `stale`
+   and the user requested the review, call it again with `start=true` and `proposal_count=2` unless
+   the user chose one or three proposals. If the state is `failed`, keep the existing proposal
+   count and call with `start=true, retry_failed=true`.
+2. Start or resume the durable host executor with
+   `anaxigraph understand <repository> --executor <executor> --background --json`. It completes any
+   missing semantic baseline, then consumes the fixed review jobs using the host agent's tokens.
+3. Poll `ANAXIGRAPH_GUIDE(fresh_eyes=true)` or `anaxigraph fresh-eyes <repository> --json`. A review
+   is complete only when `ready` is true and `state` is `current`; partial proposal or comparison
+   stages are evidence, not recommendations.
+4. Report provider/model/executor diversity honestly. Different sessions of one provider are not
+   cross-provider agreement, and AnaxiGraph can prove only the packet it supplied—not that an
+   external model had no unrelated prior context.
+5. Present the final ranked recommendations, current strengths, counter-evidence, rejected ideas,
+   migration risks, and verification. Use normal Guide/Impact before implementing any selected
+   slice. Never edit source merely because the reference design differs from the current system.
 
 ## Prepare a coding handoff
 

@@ -198,6 +198,19 @@ comparisons happen before work is queued,
 so unchanged files are not reread. See [advanced semantic operation](advanced-operations.md) for
 cost, privacy, custom-command, and refresh controls.
 
+Once the baseline is current, the same sidecar and host executor can run the optional clean-sheet
+architecture review; no extra container, database, or model credential is added:
+
+```bash
+anaxigraph fresh-eyes . --start --proposals 2
+anaxigraph understand . --executor codex --background
+anaxigraph fresh-eyes .
+```
+
+The first and last commands automatically match the host checkout to the running sidecar. The
+middle command consumes the saved review jobs with the host agent's tokens. The review is also
+visible under **Improve → Fresh eyes** and resumes from completed stages after a restart.
+
 To reconstruct history from the command line:
 
 ```bash

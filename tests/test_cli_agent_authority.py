@@ -48,3 +48,37 @@ def test_guidance_uses_the_matching_service_instead_of_a_separate_local_index(
         "intent": "build",
         "focus": "",
     }
+
+
+def test_fresh_eyes_uses_the_matching_service(repository: Path, capsys, monkeypatch):
+    target = SemanticServiceTarget("http://127.0.0.1:9999", 7, "Fixture", "/repo")
+    captured = {}
+    monkeypatch.setattr(agent_commands, "discover_semantic_service", lambda *_a, **_k: target)
+
+    def fresh_eyes(service, **options):
+        captured.update(service=service, **options)
+        return {"contract_version": "fresh-eyes-review-v1", "state": "in_progress"}
+
+    monkeypatch.setattr(agent_commands, "service_fresh_eyes_review", fresh_eyes)
+    main(
+        [
+            "fresh-eyes",
+            str(repository),
+            "--service-url",
+            target.base_url,
+            "--start",
+            "--proposals",
+            "3",
+            "--json",
+        ]
+    )
+    result = json.loads(capsys.readouterr().out)
+
+    assert result["state"] == "in_progress"
+    assert result["index"] == target.identity()
+    assert captured == {
+        "service": target,
+        "start": True,
+        "proposal_count": 3,
+        "retry_failed": False,
+    }

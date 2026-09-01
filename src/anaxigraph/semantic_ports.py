@@ -41,6 +41,18 @@ class SemanticPatternPlanningPort(Protocol):
     ) -> tuple[int, bool]: ...
 
 
+class SemanticFreshEyesPlanningPort(Protocol):
+    def plan_active(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        repository_id: int,
+        snapshot_id: int,
+        semantic: SemanticConfig,
+        retry_failed: bool,
+    ) -> tuple[int, str | None]: ...
+
+
 class SemanticEvidencePort(Protocol):
     def job_request(
         self, job: dict[str, Any], root: Path, semantic: SemanticConfig

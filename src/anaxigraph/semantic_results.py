@@ -15,6 +15,7 @@ from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION, SemanticResult
 from anaxigraph.semantic_graph import _cost, _intent_fingerprint
 from anaxigraph.semantic_index_port import SemanticIndex
 from anaxigraph.semantic_job_state import (
+    FRESH_EYES_METADATA_RETENTION,
     PATTERN_METADATA_RETENTION,
     semantic_job_transition,
     semantic_scope_status,
@@ -321,6 +322,14 @@ def _finish_job(
         retained_metadata = {
             "retention": PATTERN_METADATA_RETENTION,
             "candidate": job["metadata"].get("candidate"),
+        }
+    elif str(job["job_kind"]).startswith("fresh_"):
+        retained_metadata = {
+            "retention": FRESH_EYES_METADATA_RETENTION,
+            "stage": job["metadata"].get("stage"),
+            "slot": job["metadata"].get("slot"),
+            "input_manifest": job["metadata"].get("input_manifest"),
+            "information_boundary": job["metadata"].get("information_boundary"),
         }
     connection.execute(
         """

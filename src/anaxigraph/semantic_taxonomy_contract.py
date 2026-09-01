@@ -20,6 +20,11 @@ from anaxigraph.semantic_contract import (
     _validate_schema,
     validated_result,
 )
+from anaxigraph.semantic_fresh_eyes_contract import (
+    fresh_eyes_contract_name,
+    fresh_eyes_schema,
+    validated_fresh_eyes_response,
+)
 
 _STRINGS = {"type": "array", "items": {"type": "string"}}
 _MEMBERSHIP = {
@@ -148,6 +153,9 @@ TAXONOMY_REVIEW_SCHEMA: dict[str, Any] = {
 
 
 def response_schema(request: dict[str, Any]) -> dict[str, Any]:
+    review_schema = fresh_eyes_schema(request)
+    if review_schema is not None:
+        return review_schema
     pattern_schema = pattern_response_schema(request)
     if pattern_schema is not None:
         return pattern_schema
@@ -162,6 +170,9 @@ def response_schema(request: dict[str, Any]) -> dict[str, Any]:
 
 
 def response_contract_name(request: dict[str, Any]) -> str:
+    review_name = fresh_eyes_contract_name(request)
+    if review_name is not None:
+        return review_name
     pattern_name = pattern_response_name(request)
     if pattern_name is not None:
         return pattern_name
@@ -183,6 +194,14 @@ def validated_semantic_response(
     output_tokens: int = 0,
 ) -> SemanticResult:
     kind = str(request.get("analysis_kind") or "")
+    fresh_result = validated_fresh_eyes_response(
+        value,
+        request,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+    )
+    if fresh_result is not None:
+        return fresh_result
     if pattern_response_schema(request) is not None:
         return validated_pattern_response(
             value,

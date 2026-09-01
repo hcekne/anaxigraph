@@ -67,6 +67,9 @@ routes the request through a bounded workflow:
 - feature and refactor guidance uses search, the shared guidance contract, file, and impact evidence;
 - architecture review starts with the bounded attention queue and retrieves detailed finding
   context only for a selected signal;
+- an explicitly requested fresh-eyes review starts through the existing Guide tool, advances the
+  fixed clean-sheet proposal → blind adjudication → as-built comparison → mission-filter sequence
+  with the durable host executor, and exposes only the final ranked result as advice;
 - post-change verification preserves the guidance packet's versioned identity, requests an allowed
   deterministic rescan, and asks the same goal again for a bounded
   module, finding, and reviewed-pattern comparison; and

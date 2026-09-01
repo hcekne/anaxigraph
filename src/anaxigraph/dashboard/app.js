@@ -19,6 +19,7 @@ import {
   setupGraphRegionEvents,
 } from "/assets/graph-regions.js";
 import { drawGraph, renderLegend, renderOverlayHelp } from "/assets/graph-view.js";
+import { resetFreshEyesView, setupFreshEyesView } from "/assets/fresh-eyes-view.js";
 import {
   buildGroupIndex,
   layoutGraph,
@@ -142,6 +143,7 @@ function resetRepositoryState() {
   state.moduleSearchToken += 1;
   state.hiddenGroups.clear();
   resetPatternView();
+  resetFreshEyesView();
 }
 
 function configureMapLayers() {
@@ -183,6 +185,7 @@ state.reloadRepository = loadRepository;
 setupTheme();
 renderNavigation();
 setupPatternView();
+setupFreshEyesView();
 setupModuleEvents();
 setupGraphEvents();
 setupGraphRegionEvents();

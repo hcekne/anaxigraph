@@ -12,6 +12,7 @@ from anaxigraph.config_authority import effective_semantic_policy, service_confi
 from anaxigraph.operational_health import served_map_status
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic_mcp import current_semantic_status
+from anaxigraph.understanding import SemanticEngine
 
 
 class McpToolContext:
@@ -121,7 +122,8 @@ class CoreMcpTools:
                 "For an implementation or refactor goal, return one evidence-backed architecture "
                 "recommendation: where to start, whether to reuse, extend, split, consolidate, "
                 "move, delete, create, or retain code, what may be affected, reasons not to change, "
-                "focused checks, and refresh guidance."
+                "focused checks, and refresh guidance. Set fresh_eyes=true to read or start the "
+                "fixed clean-sheet architecture review without adding another tool."
             ),
         )
         self.server.add_tool(
@@ -180,17 +182,35 @@ class CoreMcpTools:
 
     def guidance(
         self,
-        goal: str,
+        goal: str = "",
         intent: str = "build",
         focus: str = "",
         repository: str = "",
+        fresh_eyes: bool = False,
+        start: bool = False,
+        proposal_count: int = 2,
+        retry_failed: bool = False,
     ) -> dict[str, Any]:
         row, root = self.context.select(repository)
+        config = self.context.config_for(row, root)
+        if fresh_eyes:
+            engine = SemanticEngine(self.database)
+            if start:
+                return engine.start_fresh_eyes_review(
+                    int(row["id"]),
+                    root,
+                    config,
+                    proposal_count=proposal_count,
+                    retry_failed=retry_failed,
+                )
+            return engine.fresh_eyes_status(int(row["id"]), config.semantic)
+        if not goal.strip():
+            raise ValueError("goal is required unless fresh_eyes=true")
         return architecture_guidance(
             self.database,
             repository_id=int(row["id"]),
             goal=goal,
-            config=self.context.config_for(row, root),
+            config=config,
             intent=intent,
             focus=focus,
         )

@@ -146,6 +146,23 @@ Optional principal corrections are immutable `charter_correction` semantic docum
 projection may present their declared wording, but retains the original inferred statement plus
 author, time, and rationale. A correction is never a semantic-completion prerequisite and does not
 create another architecture database, provider, or approval workflow.
+
+Fresh-eyes review is a fixed consumer of that same semantic lifecycle, not another orchestration
+platform. An explicit request creates `fresh_eyes` scope states and four existing-queue job kinds:
+one to three implementation-blind proposals, blind adjudication, as-built comparison, and the final
+mission filter. Stage packets and outputs use strict `fresh-eyes-*-v1` contracts. Proposal packets
+contain the Capability Brief, public constraints, and a hashed information-boundary manifest; the
+as-built system is introduced only after adjudication. Exact manifests remain attached to saved
+jobs so the service can reject a packet whose evidence identity changed before submission.
+
+Capability, reference, and comparison fingerprints are independent. An implementation-only change
+may reuse proposal and adjudication documents across snapshots while rebuilding comparison and
+mission filtering; a capability change invalidates the reference stages explicitly. The existing
+lease, retry, provenance, token, document, and scope-state machinery owns interruption and resume.
+There is no fresh-eyes table family, provider client, scheduler, configurable workflow DAG, or
+automatic refactor path. `FreshEyesReviewService` is the shared read/start boundary used by REST,
+CLI, dashboard, and the fresh-eyes mode of `ANAXIGRAPH_GUIDE`.
+
 The status response adds `semantic-status-explanation-v1` over those machine states. It says
 whether a worker is running now, whether saved work can finish by itself, how many included files
 have current descriptions, which whole-map work or failures remain, and what action will resume it.

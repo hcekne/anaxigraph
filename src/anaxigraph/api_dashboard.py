@@ -14,6 +14,8 @@ DASHBOARD_ASSETS = frozenset(
         "dashboard-format.js",
         "finding-controller.js",
         "findings-view.js",
+        "fresh-eyes-view.js",
+        "fresh-eyes.css",
         "graph-events.js",
         "graph-model.js",
         "graph-regions.css",

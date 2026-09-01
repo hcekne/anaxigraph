@@ -131,7 +131,7 @@ def _coverage(rows: SemanticStatusRows, semantic: SemanticConfig | None) -> Sema
 def _non_module_metrics(
     scope_counts: dict[str, dict[str, int]],
 ) -> tuple[int, int]:
-    counts = [values for key, values in scope_counts.items() if key != "module"]
+    counts = [values for key, values in scope_counts.items() if key not in {"module", "fresh_eyes"}]
     pending = sum(_pending(values) for values in counts)
     failed = sum(
         count
@@ -295,6 +295,10 @@ def _semantic_action(item: dict[str, Any]) -> dict[str, Any]:
         "taxonomy_review": "Review the responsibility map",
         "pattern_assessment": "Assess one code pattern",
         "pattern_review": "Review one pattern assessment",
+        "fresh_proposal": "Propose a clean-sheet architecture",
+        "fresh_adjudication": "Adjudicate clean-sheet proposals",
+        "fresh_comparison": "Compare the reference design with current code",
+        "fresh_review": "Filter and rank architecture improvements",
     }
     if kind == "synthesis":
         label = {

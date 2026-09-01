@@ -56,6 +56,10 @@ class SemanticEvidenceService:
             from anaxigraph.semantic_pattern_requests import pattern_request
 
             request = pattern_request(self._database, job, root, semantic)
+        elif str(job["job_kind"]).startswith("fresh_"):
+            from anaxigraph.semantic_fresh_eyes_requests import fresh_eyes_request
+
+            request = fresh_eyes_request(self._database, job)
         else:
             request = self._synthesis_request(job)
         request["writing_contract_version"] = PLAIN_LANGUAGE_CONTRACT_VERSION

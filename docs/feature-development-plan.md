@@ -200,7 +200,7 @@ regression thresholds.
 
 | Area | Current state | Consequence |
 |---|---|---|
-| Test health | 603 tests passing plus 23 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, normal/executor MCP, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, actor-neutral guidance, interrupted semantic-resume, post-change comparison, and three-size core-loop paths are regression-tested |
+| Test health | 607 tests passing plus 25 browser contracts; Ruff and every maintainability, size, complexity, coupling, and layer ratchet are clean | The complete local, Docker, normal/executor MCP, packaging, finding, history, rendered first-user, release-identity, pattern-intelligence, actor-neutral guidance, interrupted semantic-resume, fresh-eyes review, post-change comparison, and three-size core-loop paths are regression-tested |
 | Relationship evidence | Resolved, ambiguous, unresolved, and external states are persisted and explained | Strong trust foundation; dynamic wiring must continue to be identified as a blind spot |
 | Finding priority | A maximum-20 attention queue is separate from the lossless, filterable diagnostic ledger; both retain versioned risk ranking and explicit totals | Routine information-level long-function signals no longer displace actionable work, while no evidence is deleted |
 | Scope payload | Approximately 21.5 KB in the reviewed Go-analyzer scenario | Improved, but token-budget behavior needs continued regression tests |
@@ -210,8 +210,8 @@ regression thresholds.
 | Graph delivery | Versioned overview, page, neighborhood, and delta reads are bounded from SQLite through REST/MCP and the dashboard; a retained 50,000-node fixture stays within time, memory, and payload budgets | Large local indexes can be explored without a monolithic graph response |
 | Installation | PyPI and GitHub release 0.3.0 provide one-command local startup, explicit agent connection, the dual-client plugin, generated hardened Compose, and a protected OIDC release workflow; public `uvx --from anaxigraph==0.3.0 anaxigraph` and multi-architecture container artifacts are verified | The first-run distribution barrier is closed and subsequent versions can use the routine short-lived-identity release path |
 | Internal module size | Every first-party implementation module is at or below 500 physical lines; the exception list is empty | Phase 3b now locks in the completed dashboard/evaluator decomposition and adds deterministic self-analysis before further feature growth |
-| Global implementation size | 74,146 first-party source, dashboard, test, benchmark, and quality-script lines; production contains 45,893 Python lines across 235 modules plus 5,433 dashboard HTML/CSS/JavaScript lines | Phase 10.2 removed complete duplicate paths and is owner-closed; later product work keeps an exact production ratchet and must justify intentional growth without reopening subtraction for its own sake |
-| Concentration and warning pressure | Semantic code spans 57 modules/13,038 lines, persistence spans 51 modules/9,364 lines, 23 Python modules plus two dashboard assets are at least 400 lines, and the clean quality gate still reports 126 function and 20 coupling warnings | Both near-ceiling packing and small-file fragmentation are visible; another round of mechanical extraction would make the system harder to understand rather than leaner |
+| Global implementation size | 77,044 first-party source, dashboard, test, benchmark, and quality-script lines; production contains 47,813 Python lines across 240 modules plus 5,794 dashboard HTML/CSS/JavaScript lines | Phase 10.2 removed complete duplicate paths and is owner-closed; later product work keeps an exact production ratchet and must justify intentional growth without reopening subtraction for its own sake |
+| Concentration and warning pressure | Top-level semantic code spans 59 modules/14,247 lines, persistence spans 48 modules/9,526 lines, 18 Python modules plus three dashboard assets are at least 400 lines, and the clean quality gate reports 140 function and 23 coupling warnings | Both near-ceiling packing and small-file fragmentation are visible; Phase 10.2 remains closed, while the hard 500-line and coupling limits continue to prevent unbounded feature growth |
 | Public surface | The normal server exposes at most 10 task-level MCP tools, its executor endpoint exposes 7 semantic queue tools, and the dashboard presents five actor-neutral journeys | People and agents now receive the same bounded product workflow while raw lease administration and analyst operations remain deliberately separate |
 
 The modules that were oversized when this roadmap was created were:
@@ -4166,7 +4166,7 @@ work is §10.7.
 
 ## 10.7 Add the fixed fresh-eyes architecture review
 
-**Status:** PENDING; begins only after §10.6.
+**Status:** COMPLETE on 1 September 2026.
 
 Turn the method in “Fresh eyes without architectural amnesia” into one resumable, agent-funded
 review recipe beneath **Improve**. This is not a generic agent framework. It is a fixed sequence with
@@ -4301,6 +4301,49 @@ Acceptance:
 - no workflow engine, provider integration, table family, top-level navigation item, mandatory
   approval state, or automatic refactor is introduced.
 
+### 10.7 delivery record: fresh eyes without a second architecture system
+
+`fresh-eyes-recipe-v1` now runs as one explicit, resumable consumer of the existing agent-funded
+semantic queue. `FreshEyesPlanner` schedules one to three `fresh_proposal` jobs, then
+`fresh_adjudication`, `fresh_comparison`, and `fresh_review` in a fixed order. It reuses the current
+Living Architecture Charter and its behavior-only Capability Brief; it does not add a workflow
+DAG, scheduler, model provider, database table family, approval ledger, or source-editing path.
+The normal semantic baseline remains ready while this optional review is pending.
+
+Every stage has a strict versioned result schema and a retained exact input manifest. Proposal
+packets contain the Capability Brief, public constraints, quality priorities, and an explicit list
+of withheld implementation evidence. Blind adjudication sees only those proposals and the same
+brief. Current paths, responsibility map, dossiers, relationships, patterns, findings, and bounded
+history enter only for the as-built comparison. Submission recomputes the manifest identity and
+rejects superseded packets. The result states the requested isolation boundary honestly: it can
+prove what AnaxiGraph supplied, but not that an external model had no unrelated context.
+
+Capability, reference, and comparison fingerprints are stored independently in existing semantic
+scope-state fields. A fixture proves that an implementation-only snapshot reuses the exact proposal
+and adjudication documents and queues only comparison work; changing the Capability Brief queues
+new proposals and returns an explicit invalidation reason. Existing lease reconciliation, retry,
+provider/model/executor provenance, paging, strict validation, and saved documents provide restart
+and different-agent resume behavior.
+
+One `FreshEyesReviewService` now supplies the same identity, readiness, fingerprints,
+recommendations, manifests, diversity, and caveats to `GET/POST /api/fresh-eyes`,
+`anaxigraph fresh-eyes`, **Improve → Fresh eyes**, and the fresh-eyes mode of the existing
+`ANAXIGRAPH_GUIDE`. The normal MCP profile therefore remains within ten tools and the dashboard
+remains within five top-level journeys. The dashboard exposes stage progress and provenance but
+presents only the final mission-filtered recommendations as actionable advice; disagreement,
+current strengths, rejected overengineering, counter-evidence, and reasons not to proceed remain
+visible.
+
+The full Python suite passes with **607 tests**. The pinned browser runner passes the complete
+dashboard contract set, including the new stage/provenance/final-advice fixture; Ruff, JavaScript
+syntax, module-size, architecture, agent-package, Compose, and deterministic self-analysis gates
+remain required by the final phase commit. Five cohesive core modules keep every implementation
+asset within 500 lines rather than extending the already crowded semantic orchestrators. This
+phase adds **2,281 intentional production lines** for strict contracts, bounded evidence,
+fingerprint/reuse planning, the shared review projection, dashboard, and four transport adapters.
+The exact production-source ratchet moves from 51,326 to **53,607 lines**. Phase 10.2 remains
+closed; this ratification is feature growth, not a reopened subtraction campaign.
+
 ## 10.8 Close the continuous architecture-sidekick loop
 
 **Status:** PENDING; begins only after §10.7.
@@ -4360,7 +4403,7 @@ Acceptance:
 - The §10.7 fresh-eyes review proves implementation-blind proposal packets, honest independent-agent
   provenance, blind adjudication, as-built comparison, mission filtering, and incremental reuse
   without adding another provider or workflow platform.
-- The Phase 10.3-ratified 49,995-line production ratchet remains enforced unless a later phase
+- The latest phase-ratified **53,607-line** production ratchet remains enforced unless a later phase
   explicitly ratifies necessary growth; production module count, high-fragmentation package counts,
   and public surface are governed alongside LOC rather than traded against it.
 - No Change Contract, mandatory approval/decision workflow, new product family, database, provider
@@ -4554,11 +4597,11 @@ feature-admission rule.
 | 4 | **COMPLETE** | Adopt the declared/path/inferred/current responsibility vocabulary and replace duplicate lexical ranking with one bounded FTS5 query substrate | §10.4 |
 | 5 | **COMPLETE** | Generate the evidence-backed Living Architecture Charter without human input, support optional visible corrections, and prove resumable agent-funded completion | §10.5 |
 | 6 | **COMPLETE** | Deliver the same implementation/refactor guidance through five dashboard journeys and at most ten normal MCP tools; pass independent agent-only and human-led workflows | §10.6 |
-| 7 | **PENDING** | Run the fixed capability brief → independent clean-sheet proposals → blind adjudication → as-built comparison → mission filter sequence through one resumable agent-funded Improve workflow | §10.7 |
+| 7 | **COMPLETE** | Run the fixed capability brief → independent clean-sheet proposals → blind adjudication → as-built comparison → mission filter sequence through one resumable agent-funded Improve workflow | §10.7 |
 | 8 | **PENDING** | Refresh only changed semantic scope and return shared architecture reassessment without a Change Contract or approval workflow | §10.8 |
 | 9 | **PENDING** | Replace regex-oriented JavaScript/TypeScript analysis with a parser-backed, capability-honest implementation and remove the shallow path | Phase 11 |
 
-Only item 7 may proceed now. Later items remain pending until the preceding acceptance is recorded.
+Only item 8 may proceed now. Later items remain pending until the preceding acceptance is recorded.
 The retained MaxOS run and a future release candidate are evidence/release gates, not independent
 product features. No additional parser expansion, adapter family, plugin framework, website, media
 support, generic operations work, warning-cleanup campaign, or dashboard family may displace this

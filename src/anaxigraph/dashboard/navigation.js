@@ -8,13 +8,14 @@ const VIEW_JOURNEY = {
   agents: "guide",
   architecture: "improve",
   patterns: "improve",
+  "fresh-eyes": "improve",
   history: "changes",
   settings: "settings",
 };
 
 const JOURNEY_VIEWS = {
   understand: [["overview", "Charter & overview"], ["modules", "Files"], ["graph", "Graph"]],
-  improve: [["architecture", "Findings"], ["patterns", "Patterns"]],
+  improve: [["architecture", "Findings"], ["patterns", "Patterns"], ["fresh-eyes", "Fresh eyes"]],
 };
 
 const PRIMARY_JOURNEYS = [

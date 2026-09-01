@@ -5,6 +5,7 @@ from anaxigraph.api_coverage import coverage_diagnostics
 from anaxigraph.api_models import (
     CharterCorrectionRequest,
     FindingStatusRequest,
+    FreshEyesRequest,
     GuidanceRequest,
     ImpactRequest,
 )
@@ -20,6 +21,7 @@ from anaxigraph.understanding import SemanticEngine
 
 __all__ = [
     "FindingStatusRequest",
+    "FreshEyesRequest",
     "GuidanceRequest",
     "CharterCorrectionRequest",
     "HistoryJobService",

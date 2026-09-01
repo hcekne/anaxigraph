@@ -220,6 +220,42 @@ reason, proposed action, caution, verification, and independent-review summary. 
 guide explains suitability, conformance, opportunity, and confidence once, so an agent can use the
 ratings without treating them as code-quality grades or permission to refactor.
 
+## Run a fresh-eyes architecture review
+
+Use this optional workflow when you want to challenge the current architecture from first
+principles, not for every feature or ordinary refactor. It requires `semantic.provider: agent` and
+a current or resumable AI-created repository understanding.
+
+```bash
+anaxigraph fresh-eyes . --start --proposals 2
+anaxigraph understand . --executor codex --background
+anaxigraph semantic-status .
+anaxigraph fresh-eyes .
+```
+
+Use `--executor claude` when that is the authenticated host agent. The background executor first
+finishes any missing baseline understanding and then advances the durable review stages. It can be
+stopped and resumed without discarding completed proposals. `--proposals 1` reduces cost;
+`--proposals 2` is the recommended default; `--proposals 3` adds another independent view.
+
+The fixed sequence is:
+
+1. reuse the Charter's implementation-blind Capability Brief;
+2. produce isolated clean-sheet proposals without current paths, frameworks, map, findings, or
+   history;
+3. adjudicate those proposals without seeing the current implementation;
+4. compare the reference design with the current Charter, map, dossiers, graph, patterns,
+   findings, and history; and
+5. filter the differences against mission, compatibility, operational simplicity, migration cost,
+   reversibility, and verification cost.
+
+Read the shared result in **Improve → Fresh eyes**, from `anaxigraph fresh-eyes .`, or through
+`ANAXIGRAPH_GUIDE` with `fresh_eyes=true`. Set `start=true` and `proposal_count=2` in that MCP call
+to request the review. Only the final mission-filtered recommendations are advice; partial stages,
+proposal agreement, and absent clean-sheet components are never permission to rewrite or delete
+code. AnaxiGraph records the actual provider/model/executor identity and says explicitly when two
+proposals are independent sessions of one provider rather than cross-provider agreement.
+
 ## Understand findings
 
 The **Improve → Findings** view opens on at most 20 findings worth checking first. It suppresses routine

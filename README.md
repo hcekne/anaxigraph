@@ -187,6 +187,31 @@ and architecture evidence must agree. The [onboarding guide](docs/onboarding.md#
 explains the same loop; lower-level and operator workflows stay in the
 [advanced guide](docs/advanced-operations.md).
 
+## 👀 Challenge the design with fresh eyes
+
+For a major refactor, AnaxiGraph can deliberately step outside the current package layout instead
+of asking an agent already immersed in the repository to redesign what it just read. Start the
+fixed review explicitly:
+
+```bash
+anaxigraph fresh-eyes . --start --proposals 2
+anaxigraph understand . --executor codex --background
+anaxigraph fresh-eyes .
+```
+
+The clean-sheet agents receive only the behavior-only Capability Brief and external constraints—no
+current paths, frameworks, findings, history, or architecture map. A blind adjudicator preserves
+meaningful disagreement, then a repository-aware pass compares that reference design with what is
+actually built. A final mission filter keeps only small, justified recommendations and records
+reasons not to proceed. One proposal is the lower-cost mode, two is the recommended default, and
+three is optional.
+
+The connected Codex or Claude executor supplies the model context and tokens; AnaxiGraph supplies
+bounded evidence, validates each result, and resumes the saved stages after interruption. The
+dashboard exposes the same review under **Improve → Fresh eyes**. A connected agent can read or
+start it through `ANAXIGRAPH_GUIDE(fresh_eyes=true, start=true, proposal_count=2)`. Starting a
+review never edits source or automatically accepts a recommendation.
+
 ## 🐳 Durable Docker sidecar
 
 If you prefer an isolated, persistent container beside the repository:

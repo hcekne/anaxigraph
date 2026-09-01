@@ -16,6 +16,12 @@ from anaxigraph.pattern_evaluation_contract import (
 )
 from anaxigraph.semantic_agent_paging import packetize_agent_request as packetize_agent_request
 from anaxigraph.semantic_contract import DOSSIER_SCHEMA, SEMANTIC_SCHEMA_VERSION
+from anaxigraph.semantic_fresh_eyes_contract import (
+    FRESH_EYES_ADJUDICATION_SCHEMA,
+    FRESH_EYES_COMPARISON_SCHEMA,
+    FRESH_EYES_PROPOSAL_SCHEMA,
+    FRESH_EYES_REVIEW_SCHEMA,
+)
 from anaxigraph.semantic_request_support import (
     INPUT_TERM_MEANINGS,
     PLAIN_LANGUAGE_CONTRACT_VERSION,
@@ -36,15 +42,19 @@ def semantic_agent_schema() -> dict[str, Any]:
         "taxonomy_review_schema": TAXONOMY_REVIEW_SCHEMA,
         "pattern_evaluation_schema": PATTERN_EVALUATION_SCHEMA,
         "pattern_review_schema": PATTERN_REVIEW_SCHEMA,
+        "fresh_eyes_proposal_schema": FRESH_EYES_PROPOSAL_SCHEMA,
+        "fresh_eyes_adjudication_schema": FRESH_EYES_ADJUDICATION_SCHEMA,
+        "fresh_eyes_comparison_schema": FRESH_EYES_COMPARISON_SCHEMA,
+        "fresh_eyes_review_schema": FRESH_EYES_REVIEW_SCHEMA,
         "writing_contract_version": PLAIN_LANGUAGE_CONTRACT_VERSION,
         "writing_requirements": PLAIN_LANGUAGE_REQUIREMENTS,
         "input_term_meanings": INPUT_TERM_MEANINGS,
         "instructions": (
             "Return the complete JSON result named by each work packet's response_contract. The "
             "machine may call it a dossier, architecture charter, taxonomy, taxonomy review, "
-            "pattern evaluation, or pattern review; these mean a file description, whole-system "
-            "explanation, code-area map, check of that map, pattern result, or check of that "
-            "pattern result. Use only supplied source, facts read from code, and prior AI "
+            "pattern evaluation, pattern review, or fresh-eyes architecture stage; these mean a "
+            "file description, whole-system explanation, code-area map, pattern result, review, "
+            "or fixed clean-sheet comparison. Use only supplied source, facts read from code, and prior AI "
             "descriptions. A review must return the full corrected result "
             "without asking a person to approve it. Score how well a pattern fits separately from "
             "how much of it already exists and whether changing code would help. A missing direct "

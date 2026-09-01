@@ -21,6 +21,7 @@ from anaxigraph.semantic_leases import SemanticLeaseService
 from anaxigraph.semantic_module_context import plan_context_modules
 from anaxigraph.semantic_module_intrinsic import plan_intrinsic_modules
 from anaxigraph.semantic_ports import (
+    SemanticFreshEyesPlanningPort,
     SemanticIndex,
     SemanticPatternPlanningPort,
     SemanticReportingPort,
@@ -66,12 +67,14 @@ class SemanticPlanningService:
         leases: SemanticLeaseService,
         taxonomy: SemanticTaxonomyPlanner,
         patterns: SemanticPatternPlanningPort,
+        fresh_eyes: SemanticFreshEyesPlanningPort,
     ) -> None:
         self._database = database
         self._reporting = reporting
         self._leases = leases
         self._taxonomy = taxonomy
         self._patterns = patterns
+        self._fresh_eyes = fresh_eyes
 
     def plan(
         self,
@@ -196,8 +199,7 @@ class SemanticPlanningService:
         retry_failed: bool,
     ) -> tuple[int, str]:
         semantic = config.semantic
-        enqueued = 0
-        enqueued += self._plan_groups(
+        enqueued = self._plan_groups(
             connection,
             repository_id=repository_id,
             snapshot_id=snapshot_id,
@@ -226,7 +228,16 @@ class SemanticPlanningService:
             retry_failed=retry_failed,
         )
         enqueued += pattern_jobs
-        return enqueued, "patterns" if not patterns_current else "complete"
+        if not patterns_current:
+            return enqueued, "patterns"
+        review_jobs, review_stage = self._fresh_eyes.plan_active(
+            connection,
+            repository_id=repository_id,
+            snapshot_id=snapshot_id,
+            semantic=semantic,
+            retry_failed=retry_failed,
+        )
+        return enqueued + review_jobs, review_stage or "complete"
 
     def _plan_groups(
         self,

@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 import yaml
+from fresh_eyes_support import agent_fresh_eyes
 
 from anaxigraph.semantic import SemanticResult
 from anaxigraph.semantic_service import SemanticServiceTarget
@@ -235,6 +236,8 @@ def _calls(log: Path) -> list[dict[str, str]]:
 def _agent_dossier(request: dict) -> dict:
     scope = str(request.get("path") or request.get("scope_key") or "repository")
     kind = str(request.get("analysis_kind") or "semantic")
+    if kind.startswith("fresh_"):
+        return agent_fresh_eyes(request, kind)
     if kind.startswith("pattern_"):
         return _agent_pattern_response(request, kind)
     if kind.startswith("taxonomy_"):

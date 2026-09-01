@@ -19,6 +19,7 @@ test("dashboard exposes five actor-neutral journeys", async ({ page }) => {
   await page.getByRole("button", { name: "Improve", exact: true }).click();
   await expect(page.locator("#journey-subnav")).toContainText("Findings");
   await expect(page.locator("#journey-subnav")).toContainText("Patterns");
+  await expect(page.locator("#journey-subnav")).toContainText("Fresh eyes");
 });
 
 test("Constellation light is the default and theme choices persist", async ({ page }) => {

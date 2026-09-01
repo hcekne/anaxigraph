@@ -1,0 +1,129 @@
+.fresh-eyes-intro,
+.fresh-eyes-heading,
+.fresh-eyes-start,
+.fresh-eyes-diversity,
+.fresh-recommendation {
+  display: flex;
+  gap: 1rem;
+}
+
+.fresh-eyes-intro,
+.fresh-eyes-heading {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.fresh-eyes-intro > div:first-child {
+  max-width: 58rem;
+}
+
+.fresh-eyes-start {
+  align-items: end;
+  flex: 0 0 18rem;
+  flex-direction: column;
+}
+
+.fresh-eyes-start label,
+.fresh-eyes-start select,
+.fresh-eyes-start button {
+  width: 100%;
+}
+
+.fresh-eyes-stages {
+  display: grid;
+  gap: .65rem;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  margin-top: 1.25rem;
+}
+
+.fresh-stage {
+  align-items: flex-start;
+  background: var(--surface-subtle);
+  border: 1px solid var(--line);
+  border-radius: .8rem;
+  display: flex;
+  gap: .65rem;
+  min-height: 5.2rem;
+  padding: .8rem;
+}
+
+.fresh-stage > span {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  display: inline-flex;
+  flex: 0 0 1.6rem;
+  height: 1.6rem;
+  justify-content: center;
+}
+
+.fresh-stage.complete {
+  border-color: var(--accent);
+}
+
+.fresh-stage.active {
+  border-color: var(--blue);
+}
+
+.fresh-stage.failed {
+  border-color: var(--red);
+}
+
+.fresh-stage small {
+  display: block;
+  margin-top: .35rem;
+}
+
+.fresh-eyes-diversity {
+  align-items: baseline;
+  border-top: 1px solid var(--line);
+  margin-top: 1rem;
+  padding-top: .8rem;
+}
+
+.fresh-eyes-recommendations {
+  display: grid;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.fresh-recommendation {
+  align-items: flex-start;
+}
+
+.fresh-rank {
+  align-items: center;
+  background: var(--accent);
+  border-radius: 50%;
+  color: var(--on-accent);
+  display: flex;
+  flex: 0 0 2.5rem;
+  font-weight: 700;
+  height: 2.5rem;
+  justify-content: center;
+}
+
+.fresh-benefit {
+  border-left: .2rem solid var(--accent);
+  padding-left: .8rem;
+}
+
+.fresh-eyes-details ul,
+.fresh-recommendation ul {
+  color: var(--muted);
+  margin: .45rem 0 1rem;
+  padding-left: 1.25rem;
+}
+
+@media (max-width: 760px) {
+  .fresh-eyes-intro,
+  .fresh-recommendation {
+    flex-direction: column;
+  }
+
+  .fresh-eyes-start {
+    flex-basis: auto;
+    width: 100%;
+  }
+}
