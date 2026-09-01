@@ -28,6 +28,7 @@ def test_mcp_instructions_lead_with_persistent_plain_language_ai_mapping():
     assert "one saved task at a time" in opening
     assert "semantically_ready: true" in opening
     assert "Never edit repository source" in opening
+    assert "intent=understand, build, improve, redesign, or reassess" in _INSTRUCTIONS
     assert "reassess=true" in _INSTRUCTIONS
     assert "--model" not in opening
 

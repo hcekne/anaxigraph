@@ -157,6 +157,7 @@
         "anaxigraph.semantic_requests",
         "anaxigraph.semantic_results",
         "anaxigraph.semantic_runner",
+        "anaxigraph.semantic_scan_refresh",
         "anaxigraph.semantic_scope_plan",
         "anaxigraph.semantic_service_core",
         "anaxigraph.semantic_service_workflows",

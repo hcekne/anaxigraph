@@ -7,13 +7,17 @@ from typing import Any
 
 from anaxigraph.agent import architecture_guidance, impact_analysis
 from anaxigraph.architecture_charter import architecture_charter
+from anaxigraph.architecture_guidance import AGENT_JOURNEY_VERSION, agent_journey_manifest
 from anaxigraph.architecture_reassessment import architecture_reassessment
 from anaxigraph.config import load_config
 from anaxigraph.config_authority import effective_semantic_policy, service_config_authority
 from anaxigraph.operational_health import served_map_status
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic_mcp import current_semantic_status
+from anaxigraph.semantic_scan_refresh import semantic_refresh_after_scan
 from anaxigraph.understanding import SemanticEngine
+
+_GUIDE_JOURNEYS = frozenset({"understand", "build", "improve", "refactor", "redesign", "reassess"})
 
 
 class McpToolContext:
@@ -86,7 +90,9 @@ class CoreMcpTools:
                 name="ANAXIGRAPH_SCAN",
                 description=(
                     "Read the configured repository again and save a new code map. Repository "
-                    "files stay read-only; only AnaxiGraph's external index changes."
+                    "files stay read-only; only AnaxiGraph's external index changes. Set "
+                    "refresh_semantics=true after an edit to prepare only file meanings whose "
+                    "code fingerprints or architectural context changed."
                 ),
             )
 
@@ -120,12 +126,11 @@ class CoreMcpTools:
             self.guidance,
             name="ANAXIGRAPH_GUIDE",
             description=(
-                "For an implementation or refactor goal, return one evidence-backed architecture "
-                "recommendation: where to start, whether to reuse, extend, split, consolidate, "
-                "move, delete, create, or retain code, what may be affected, reasons not to change, "
-                "focused checks, and refresh guidance. Set fresh_eyes=true to read or start the "
-                "fixed clean-sheet architecture review. Set reassess=true after an edit or scan "
-                "to explain the durable before/after architecture result without adding another tool."
+                "Use one of five intents: understand the system, build a capability, improve "
+                "existing structure, redesign from a behavior-only capability brief, or reassess "
+                "a completed edit. Build and improve return placement, affected code, reasons not "
+                "to change, focused checks, and exact next actions. Redesign uses the fixed "
+                "fresh-eyes review; reassess compares compatible before and after maps."
             ),
         )
         self.server.add_tool(
@@ -141,6 +146,8 @@ class CoreMcpTools:
     def repositories(self) -> dict[str, Any]:
         targets = self.context.targets_by_path
         return {
+            "contract_version": "anaxigraph-agent-tools-v2",
+            "agent_workflow": agent_journey_manifest(),
             "repositories": [
                 {
                     "id": row["id"],
@@ -151,7 +158,7 @@ class CoreMcpTools:
                     "map_status": self.context.map_status(row, Path(row["path"])),
                 }
                 for row in self.context.visible_repositories()
-            ]
+            ],
         }
 
     def overview(self, repository: str = "") -> dict[str, Any]:
@@ -197,29 +204,17 @@ class CoreMcpTools:
     ) -> dict[str, Any]:
         row, root = self.context.select(repository)
         config = self.context.config_for(row, root)
-        if fresh_eyes and reassess:
-            raise ValueError("Choose either fresh_eyes or reassess, not both")
-        if fresh_eyes:
-            engine = SemanticEngine(self.database)
-            if start:
-                return engine.start_fresh_eyes_review(
-                    int(row["id"]),
-                    root,
-                    config,
-                    proposal_count=proposal_count,
-                    retry_failed=retry_failed,
-                )
-            return engine.fresh_eyes_status(int(row["id"]), config.semantic)
-        if reassess:
-            return architecture_reassessment(
-                self.database,
-                repository_id=int(row["id"]),
-                config=config,
-                from_snapshot_id=from_snapshot_id,
-                goal=goal,
+        selected, redesign, compare = _guide_selection(intent, fresh_eyes, reassess)
+        if selected == "understand":
+            return self._understand_journey(repository)
+        if redesign:
+            return self._redesign_journey(
+                row, root, config, goal, start, proposal_count, retry_failed
             )
+        if compare:
+            return self._reassess_journey(row, config, goal, from_snapshot_id)
         if not goal.strip():
-            raise ValueError("goal is required unless fresh_eyes=true or reassess=true")
+            raise ValueError("goal is required for build or improve guidance")
         return architecture_guidance(
             self.database,
             repository_id=int(row["id"]),
@@ -228,6 +223,60 @@ class CoreMcpTools:
             intent=intent,
             focus=focus,
         )
+
+    def _redesign_journey(
+        self,
+        row: dict[str, Any],
+        root: Path,
+        config: Any,
+        goal: str,
+        start: bool,
+        proposal_count: int,
+        retry_failed: bool,
+    ) -> dict[str, Any]:
+        engine = SemanticEngine(self.database)
+        result = (
+            engine.start_fresh_eyes_review(
+                int(row["id"]),
+                root,
+                config,
+                proposal_count=proposal_count,
+                retry_failed=retry_failed,
+            )
+            if start
+            else engine.fresh_eyes_status(int(row["id"]), config.semantic)
+        )
+        return _journey_result(result, "redesign", goal)
+
+    def _reassess_journey(
+        self,
+        row: dict[str, Any],
+        config: Any,
+        goal: str,
+        from_snapshot_id: int | None,
+    ) -> dict[str, Any]:
+        result = architecture_reassessment(
+            self.database,
+            repository_id=int(row["id"]),
+            config=config,
+            from_snapshot_id=from_snapshot_id,
+            goal=goal,
+        )
+        return _journey_result(result, "reassess", goal)
+
+    def _understand_journey(self, repository: str) -> dict[str, Any]:
+        result = self.overview(repository)
+        result["agent_journey"] = {
+            "contract_version": AGENT_JOURNEY_VERSION,
+            "intent": "understand",
+            "current_step": "understand",
+            "next_action": {
+                "tool": "ANAXIGRAPH_GUIDE",
+                "arguments": {"intent": "build", "goal": "<describe one coding goal>"},
+                "reason": "Turn the repository-wide map into one bounded implementation decision.",
+            },
+        }
+        return result
 
     def impact(self, target: str, repository: str = "") -> dict[str, Any]:
         row, root = self.context.select(repository)
@@ -238,13 +287,29 @@ class CoreMcpTools:
             config=self.context.config_for(row, root),
         )
 
-    def scan(self, repository: str = "") -> dict[str, Any]:
-        _, root = self.context.select(repository)
+    def scan(
+        self,
+        repository: str = "",
+        refresh_semantics: bool | None = None,
+    ) -> dict[str, Any]:
+        row, root = self.context.select(repository)
         target = self.context.targets_by_path.get(str(root.resolve()))
         if target is None and self.context.targets_by_path:
             raise ValueError("Repository is indexed but is not a configured scan target")
         selected_config = target.config_path if target else self.context.config_path
-        return RepositoryScanner(self.database).scan(root, config_path=selected_config).as_dict()
+        baseline = self.database.latest_snapshot(int(row["id"]))
+        stats = RepositoryScanner(self.database).scan(root, config_path=selected_config)
+        config = self.context.config_for(row, root)
+        semantic = semantic_refresh_after_scan(
+            self.database,
+            repository_id=stats.repository_id,
+            repository=root,
+            snapshot_id=stats.snapshot_id,
+            baseline_snapshot_id=int(baseline["id"]) if baseline else None,
+            config=config,
+            prepare=refresh_semantics,
+        )
+        return {**stats.as_dict(), "semantic_refresh": semantic["refresh"]}
 
 
 def _safe_relative_path(value: str) -> str:
@@ -252,3 +317,43 @@ def _safe_relative_path(value: str) -> str:
     if not normalized or normalized.startswith("../") or "/../" in f"/{normalized}/":
         raise ValueError("A repository-relative file path is required")
     return normalized
+
+
+def _guide_selection(intent: str, fresh_eyes: bool, reassess: bool) -> tuple[str, bool, bool]:
+    selected = str(intent or "build").strip().lower()
+    if selected not in _GUIDE_JOURNEYS:
+        allowed = ", ".join(sorted(_GUIDE_JOURNEYS - {"refactor"}))
+        raise ValueError(f"Guide intent must be one of: {allowed}")
+    if selected == "understand" and (fresh_eyes or reassess):
+        raise ValueError("Understand cannot be combined with fresh_eyes or reassess")
+    redesign = fresh_eyes or selected == "redesign"
+    compare = reassess or selected == "reassess"
+    if redesign and compare:
+        raise ValueError("Choose either fresh_eyes or reassess, not both")
+    return selected, redesign, compare
+
+
+def _journey_result(result: dict[str, Any], intent: str, goal: str) -> dict[str, Any]:
+    if intent == "redesign" and str(result.get("state") or "") in {"not_started", "stale"}:
+        next_action = {
+            "tool": "ANAXIGRAPH_GUIDE",
+            "arguments": {"intent": "redesign", "start": True, "proposal_count": 2},
+            "reason": "Start two independent capability-first proposals.",
+        }
+    elif intent == "reassess" and str(result.get("state") or "") == "semantic_refresh_pending":
+        next_action = (result.get("semantic_refresh") or {}).get("recommended_action") or {}
+    else:
+        next_action = result.get("next_action") or {
+            "tool": "ANAXIGRAPH_GUIDE",
+            "arguments": {"intent": "build", "goal": goal or "<describe one coding goal>"},
+            "reason": "Use the architecture result for one bounded coding decision.",
+        }
+    return {
+        **result,
+        "agent_journey": {
+            "contract_version": AGENT_JOURNEY_VERSION,
+            "intent": intent,
+            "current_step": intent,
+            "next_action": next_action,
+        },
+    }

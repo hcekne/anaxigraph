@@ -155,7 +155,9 @@ Keep one persistent AnaxiGraph service running throughout the coding session. Th
 its structural watcher internally, so ordinary saves update cheap structural facts without a second
 container or another model-backed repository pass. Build the complete AI map once when needed.
 
-Give the connected agent one concrete goal:
+Give the connected agent one concrete goal. `ANAXIGRAPH_GUIDE` is the front door: use
+`intent="understand"` for the system map, `build` for placement, `improve` for a bounded structural
+change, `redesign` for the capability-first fresh-eyes review, and `reassess` after editing.
 
 > Use AnaxiGraph to guide “add saved prompt exports.” Find the smallest relevant file set, tell me
 > where the code belongs, inspect what depends on shared files, identify the focused checks, and
@@ -163,21 +165,24 @@ Give the connected agent one concrete goal:
 
 The agent follows one sequence:
 
-1. **Guide** — `ANAXIGRAPH_GUIDE(intent="build"|"refactor")` returns one evidence-backed
+1. **Guide** — `ANAXIGRAPH_GUIDE(intent="build"|"improve")` returns one evidence-backed
    recommendation, likely files, placement, counter-reasons, bounded impact, tests, and risks.
 2. **Impact** — `ANAXIGRAPH_IMPACT` shows direct dependants of the shared files before they change.
 3. **Change** — edit source and run focused tests through the normal coding workflow. AnaxiGraph
    observes the repository; it does not edit it.
-4. **Refresh and reassess** — request `ANAXIGRAPH_SCAN`, then call
-   `ANAXIGRAPH_GUIDE(reassess=true)`. The shared before/after response explains observed changes,
+4. **Refresh and reassess** — request `ANAXIGRAPH_SCAN(refresh_semantics=true)`, finish any prepared
+   AI work, then call `ANAXIGRAPH_GUIDE(intent="reassess")`. The scan compares code fingerprints,
+   reuses unchanged file meanings, and prepares only structurally changed files plus context whose
+   interfaces or relationships changed. The shared before/after response explains observed changes,
    architectural consequences, possible improvements or regressions, reasons to leave the design
    alone, and the smallest safe verification step. It creates no approval or change-management
    state. The same result is visible under **Changes** or from `anaxigraph reassess .`.
    Use History when you need the wider introduction, recurrence, churn, or co-change context.
 
-After a coherent task or commit, run `anaxigraph understand . --executor codex --background`
-once if changed AI descriptions matter. It queues only stale changed and affected scopes and reuses
-unchanged work. Static reassessment is available immediately; ask again after
+With the default `semantic.refresh: on_scan`, an explicit scan prepares those changed and affected
+scopes automatically. `anaxigraph update . --prepare-semantics` is the explicit equivalent for a
+repository that keeps manual refresh. Run `anaxigraph understand . --executor codex --background`
+to execute the prepared work. Static reassessment is available immediately; ask again after
 `semantically_ready` when the decision needs refreshed responsibility, duplication, pattern, or
 possible-unused-code evidence.
 
@@ -214,7 +219,8 @@ three is optional.
 The connected Codex or Claude executor supplies the model context and tokens; AnaxiGraph supplies
 bounded evidence, validates each result, and resumes the saved stages after interruption. The
 dashboard exposes the same review under **Improve → Fresh eyes**. A connected agent can read or
-start it through `ANAXIGRAPH_GUIDE(fresh_eyes=true, start=true, proposal_count=2)`. Starting a
+start it through `ANAXIGRAPH_GUIDE(intent="redesign", start=true, proposal_count=2)`. The older
+`fresh_eyes=true` form remains accepted. Starting a
 review never edits source or automatically accepts a recommendation.
 
 ## 🐳 Durable Docker sidecar

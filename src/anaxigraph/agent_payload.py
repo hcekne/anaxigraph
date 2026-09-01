@@ -250,13 +250,15 @@ def _bound_scope_payload(payload: dict[str, Any], limit_bytes: int) -> dict[str,
 def _trim_scope_collections(
     payload: dict[str, Any], size: Callable[[], int], limit: int, omitted: dict[str, int]
 ) -> None:
-    for key in ("related_files", "interfaces"):
-        while size() > limit and payload[key]:
-            payload[key].pop()
-            omitted[key] += 1
+    while size() > limit and payload["related_files"]:
+        payload["related_files"].pop()
+        omitted["related_files"] += 1
     if size() > limit:
         compact_guidance_projection(payload)
         omitted["guidance_details"] = 1
+    while size() > limit and payload["interfaces"]:
+        payload["interfaces"].pop()
+        omitted["interfaces"] += 1
     _maybe_compact_decision(payload, size(), limit, omitted)
     while size() > limit and payload["known_findings"]:
         payload["known_findings"].pop()

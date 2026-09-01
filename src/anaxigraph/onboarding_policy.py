@@ -52,7 +52,7 @@ def _appended_semantic_block(content: str) -> str:
         f"{prefix}{separator}semantic:\n"
         "  enabled: true\n"
         "  provider: agent\n"
-        "  refresh: manual\n"
+        "  refresh: on_scan\n"
         "  agent_lease_seconds: 1800\n"
     )
 

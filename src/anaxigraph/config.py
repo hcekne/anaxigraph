@@ -69,7 +69,7 @@ class SemanticConfig:
     reasoning_effort: str = ""
     prompt_version: str = "v1"
     timeout_seconds: int = 300
-    refresh: str = "manual"
+    refresh: str = "on_scan"
     max_age_days: int = 0
     max_jobs_per_run: int = 100
     max_parallel_jobs: int = 1
@@ -277,7 +277,7 @@ def _semantic_config(value: Any) -> SemanticConfig:
             "semantic.provider must be agent, command, codex, or claude; AnaxiGraph no longer "
             "hosts OpenAI or Anthropic API credentials"
         )
-    refresh = str(value.get("refresh", "manual")).strip().lower().replace("-", "_")
+    refresh = str(value.get("refresh", "on_scan")).strip().lower().replace("-", "_")
     if refresh not in {"manual", "on_scan", "watch"}:
         raise ValueError("semantic.refresh must be manual, on_scan, or watch")
 

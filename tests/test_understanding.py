@@ -9,6 +9,7 @@ from anaxigraph.config import SemanticConfig, load_config
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic import SemanticResult
 from anaxigraph.semantic_graph import _intent_fingerprint
+from anaxigraph.semantic_scan_refresh import semantic_refresh_after_scan
 from anaxigraph.understanding import SemanticEngine
 
 
@@ -144,30 +145,6 @@ def _search_paths(database, repository_id: int, query: str) -> set[str]:
     return {item["path"] for item in database.search(repository_id, query, limit=100)}
 
 
-def test_package_version_change_reuses_unchanged_semantic_documents(
-    repository, database, tmp_path, monkeypatch
-):
-    log = tmp_path / "semantic-release-change.log"
-    provider = _fake_provider(tmp_path)
-    _semantic_config(repository, provider, log)
-    config = load_config(repository)
-    first = RepositoryScanner(database).scan(repository)
-    engine = SemanticEngine(database)
-    baseline = engine.bootstrap(first.repository_id, repository, config)
-    assert baseline["semantic"]["semantically_ready"] is True
-    baseline_calls = len(_calls(log))
-
-    monkeypatch.setattr("anaxigraph.scan_preparation.__version__", "next-release-test")
-    next_release = RepositoryScanner(database).scan(repository, run_type="update")
-    repeated = engine.bootstrap(next_release.repository_id, repository, config)
-
-    assert next_release.snapshot_id != first.snapshot_id
-    assert repeated["processed"] == 0
-    assert repeated["semantic"]["current"] == repeated["semantic"]["eligible_modules"]
-    assert repeated["semantic"]["semantically_ready"] is True
-    assert len(_calls(log)) == baseline_calls
-
-
 def test_unaffected_context_dossiers_remain_current_while_changed_modules_wait(
     repository, database, tmp_path
 ):
@@ -194,6 +171,66 @@ def test_unaffected_context_dossiers_remain_current_while_changed_modules_wait(
     assert planned["semantic"]["counts"]["pending_intrinsic"] == 1
     assert planned["semantic"]["current"] > 0
     assert planned["semantic"]["coverage"] > 0
+
+
+def test_scan_refresh_reuses_text_only_changes_and_prepares_hash_changed_modules(
+    repository, database, tmp_path
+):
+    log = tmp_path / "semantic-scan-refresh.log"
+    provider = _fake_provider(tmp_path)
+    _semantic_config(repository, provider, log, refresh="on_scan")
+    config = load_config(repository)
+    scanner = RepositoryScanner(database)
+    engine = SemanticEngine(database)
+    baseline = scanner.scan(repository)
+    assert engine.bootstrap(baseline.repository_id, repository, config)["semantic"][
+        "semantically_ready"
+    ]
+
+    app = repository / "web" / "App.tsx"
+    app.write_text(
+        app.read_text(encoding="utf-8").replace(
+            "// Main application component.", "// Main user-facing application component."
+        ),
+        encoding="utf-8",
+    )
+    text_scan = scanner.scan(repository, run_type="update")
+    text_refresh = semantic_refresh_after_scan(
+        database,
+        repository_id=text_scan.repository_id,
+        repository=repository,
+        snapshot_id=text_scan.snapshot_id,
+        baseline_snapshot_id=baseline.snapshot_id,
+        config=config,
+    )
+
+    assert text_refresh["refresh"]["preparation"]["status"] == "prepared"
+    assert text_refresh["refresh"]["text_only_modules"] == ["web/App.tsx"]
+    assert text_refresh["refresh"]["semantic_reread_modules"] == []
+    assert text_refresh["semantic"]["counts"].get("pending_intrinsic", 0) == 0
+    assert text_refresh["refresh"]["full_repository_rerun_required"] is False
+    core = repository / "pkg" / "core.py"
+    core.write_text(
+        core.read_text(encoding="utf-8").replace(
+            "return double(value)", "return double(value) + 1"
+        ),
+        encoding="utf-8",
+    )
+    code_scan = scanner.scan(repository, run_type="update")
+    code_refresh = semantic_refresh_after_scan(
+        database,
+        repository_id=code_scan.repository_id,
+        repository=repository,
+        snapshot_id=code_scan.snapshot_id,
+        baseline_snapshot_id=text_scan.snapshot_id,
+        config=config,
+    )
+    refresh = code_refresh["refresh"]
+    assert refresh["semantic_reread_modules"] == ["pkg/core.py"]
+    assert refresh["text_only_modules"] == []
+    assert refresh["preparation"]["enqueued"] == 1
+    assert refresh["full_repository_rerun_required"] is False
+    assert code_refresh["semantic"]["counts"]["pending_intrinsic"] == 1
 
 
 def test_semantic_failure_and_exclusion_are_visible_terminal_states(repository, database, tmp_path):

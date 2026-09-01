@@ -93,7 +93,7 @@ def _result(
         "architectural_effects": advice["effects"],
         "recommendations": _recommendations(advice["effects"], state),
         "coverage": advice["coverage"],
-        "semantic_refresh": _refresh(evidence, semantic),
+        "semantic_refresh": semantic_refresh_projection(evidence, semantic),
         "architecture_charter": _charter_reference(charter),
         "history_evidence": advice["history_evidence"],
         "evidence_work": evidence.get("work") or {},
@@ -150,7 +150,7 @@ def _without_baseline(
         "architectural_effects": [],
         "recommendations": [],
         "coverage": {},
-        "semantic_refresh": _refresh(evidence, semantic),
+        "semantic_refresh": semantic_refresh_projection(evidence, semantic),
         "architecture_charter": _charter_reference(charter),
         "history_evidence": {},
         "evidence_work": evidence.get("work") or {},
@@ -263,21 +263,74 @@ def _recommendations(effects: list[dict[str, Any]], state: str) -> list[dict[str
     return values[:12]
 
 
-def _refresh(evidence: dict[str, Any], semantic: dict[str, Any]) -> dict[str, Any]:
+def semantic_refresh_projection(
+    evidence: dict[str, Any], semantic: dict[str, Any]
+) -> dict[str, Any]:
+    """Explain the smallest semantic scope implied by one structural comparison."""
+
     scopes = evidence.get("semantic_scopes") or {}
+    changes = evidence.get("module_changes") or []
     return {
         "enabled": bool(semantic.get("enabled")),
         "snapshot_id": semantic.get("snapshot_id"),
         "state": semantic.get("state"),
         "semantically_ready": bool(semantic.get("semantically_ready")),
         "changed_modules": scopes.get("changed_modules") or [],
+        "semantic_reread_modules": _semantic_reread_modules(changes),
+        "text_only_modules": _text_only_modules(changes),
+        "removed_modules": _removed_modules(changes),
         "affected_modules": scopes.get("affected_modules") or [],
         "affected_groups": scopes.get("affected_groups") or [],
         "scope_states": scopes.get("states") or [],
         "scope_state_counts": scopes.get("state_counts") or {},
+        "comparison_caveat": evidence.get("comparison_caveat"),
         "recommended_action": semantic.get("recommended_action") or {},
-        "full_repository_rerun_required": False,
+        "full_repository_rerun_required": _full_refresh_required(semantic),
+        "hash_policy": (
+            "A file is reread when its path, parsed code-structure fingerprint, or public "
+            "interface changes. Text-only changes whose parsed structure is identical reuse "
+            "the saved file meaning. Changed relationships can refresh only neighboring context. "
+            "A changed prompt, analysis contract, age policy, or explicit full review can "
+            "separately invalidate a wider scope."
+        ),
     }
+
+
+def _full_refresh_required(semantic: dict[str, Any]) -> bool:
+    eligible = int(semantic.get("eligible_modules") or 0)
+    return eligible > 0 and int(semantic.get("pending") or 0) >= eligible
+
+
+def _semantic_reread_modules(changes: list[dict[str, Any]]) -> list[str]:
+    semantic_fields = {"presence", "path", "structural_hash", "public_interfaces_json"}
+    return sorted(
+        str(item.get("path") or "")
+        for item in changes
+        if item.get("after") is not None
+        and semantic_fields.intersection(item.get("changed_fields") or [])
+        and item.get("path")
+    )
+
+
+def _text_only_modules(changes: list[dict[str, Any]]) -> list[str]:
+    return sorted(
+        str(item.get("path") or "")
+        for item in changes
+        if item.get("after") is not None
+        and "raw_hash" in (item.get("changed_fields") or [])
+        and "structural_hash" not in (item.get("changed_fields") or [])
+        and "public_interfaces_json" not in (item.get("changed_fields") or [])
+        and "path" not in (item.get("changed_fields") or [])
+        and item.get("path")
+    )
+
+
+def _removed_modules(changes: list[dict[str, Any]]) -> list[str]:
+    return sorted(
+        str(item.get("path") or "")
+        for item in changes
+        if item.get("after") is None and item.get("path")
+    )
 
 
 def _charter_reference(charter: dict[str, Any]) -> dict[str, Any]:

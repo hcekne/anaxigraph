@@ -10,7 +10,10 @@ from mcp.client.streamable_http import streamable_http_client
 from semantic_support import _calls, _fake_provider, _semantic_config
 
 from anaxigraph.api import create_app
-from anaxigraph.architecture_reassessment import architecture_reassessment
+from anaxigraph.architecture_reassessment import (
+    architecture_reassessment,
+    semantic_refresh_projection,
+)
 from anaxigraph.cli import main
 from anaxigraph.config import load_config
 from anaxigraph.mcp_server import create_anaxi_mcp_server
@@ -75,6 +78,16 @@ def test_reassessment_bounds_one_module_change_and_explains_regression(repositor
     assert complexity["verification"]
     assert value["safety"]["decision_or_approval_state_created"] is False
     assert value["semantic_refresh"]["full_repository_rerun_required"] is False
+
+
+def test_semantic_refresh_reports_genuinely_repository_wide_invalidation():
+    refresh = semantic_refresh_projection(
+        {"module_changes": [], "semantic_scopes": {}},
+        {"enabled": True, "eligible_modules": 8, "pending": 8},
+    )
+
+    assert refresh["full_repository_rerun_required"] is True
+    assert "analysis contract" in refresh["hash_policy"]
 
 
 def test_reassessment_explains_improvement_and_coherent_no_change(repository, database):

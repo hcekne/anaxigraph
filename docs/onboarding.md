@@ -185,7 +185,8 @@ Give the connected agent one concrete goal:
 
 The agent should follow this sequence for a feature, fix, or refactor:
 
-1. **Guide.** Call `ANAXIGRAPH_GUIDE` with `intent="build"` or `intent="refactor"`. Read its one
+1. **Guide.** Call `ANAXIGRAPH_GUIDE` with `intent="build"` or `intent="improve"`. Use
+   `intent="understand"` when you first need the system map. Read its one
    recommendation, evidence strength, counter-reasons, small file list, placement, bounded impact,
    likely tests, relevant findings, and reviewed patterns.
 2. **Impact.** Call `ANAXIGRAPH_IMPACT` for shared files that may change. Inspect direct dependants
@@ -193,8 +194,9 @@ The agent should follow this sequence for a feature, fix, or refactor:
    invisible.
 3. **Change.** Edit source and run focused tests through the normal coding workflow. AnaxiGraph
    observes repository source and updates its external index; it does not edit the target code.
-4. **Refresh and reassess.** Request `ANAXIGRAPH_SCAN`, then call
-   `ANAXIGRAPH_GUIDE(reassess=true)`. It compares the latest compatible saved maps and returns the
+4. **Refresh and reassess.** Request `ANAXIGRAPH_SCAN(refresh_semantics=true)`, finish any prepared
+   semantic work, then call `ANAXIGRAPH_GUIDE(intent="reassess")`. It compares the latest compatible
+   saved maps and returns the
    observed change, consequence, calibrated recommendation, counter-evidence, reasons to leave the
    code alone, and the smallest safe follow-up and verification. It does not create an approval,
    plan, or change-management record. A person sees the same result under **Changes**; the CLI form
@@ -256,7 +258,7 @@ The fixed sequence is:
    reversibility, and verification cost.
 
 Read the shared result in **Improve → Fresh eyes**, from `anaxigraph fresh-eyes .`, or through
-`ANAXIGRAPH_GUIDE` with `fresh_eyes=true`. Set `start=true` and `proposal_count=2` in that MCP call
+`ANAXIGRAPH_GUIDE` with `intent="redesign"`. Set `start=true` and `proposal_count=2` in that MCP call
 to request the review. Only the final mission-filtered recommendations are advice; partial stages,
 proposal agreement, and absent clean-sheet components are never permission to rewrite or delete
 code. AnaxiGraph records the actual provider/model/executor identity and says explicitly when two

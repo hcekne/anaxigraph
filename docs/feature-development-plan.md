@@ -4428,6 +4428,38 @@ the shared application projection, transport adapters, and the human rendering. 
 production-source ratchet moves from 53,607 to **55,471 lines**. Phase 10.2 remains closed; this is
 measured core product capability, not a reopened subtraction campaign.
 
+### 10.8 follow-up: make the changed-code loop explicit to coding agents
+
+The normal MCP contract now presents the five architecture intents directly: **understand**,
+**build**, **improve**, **redesign**, and **reassess**. `ANAXIGRAPH_GUIDE` returns the next tool call,
+and its build/improve response carries the short post-edit sequence: impact before editing, then
+`ANAXIGRAPH_SCAN(refresh_semantics=true)` and `ANAXIGRAPH_GUIDE(intent="reassess")`. This adds no
+MCP tool, workflow engine, approval state, or second architecture model. The older `refactor`,
+`fresh_eyes=true`, and `reassess=true` spellings remain compatible aliases.
+
+Scan and update now use the existing semantic input fingerprints as the natural refresh boundary.
+A changed path, parsed code-structure hash, or public interface queues that module for a semantic
+reread. A text-only edit with the same parsed structure reuses the saved module meaning. Changed
+links may invalidate only neighboring context, and existing aggregate/pattern fingerprints decide
+whether higher scopes need work. The default semantic refresh policy is `on_scan`; with the agent
+provider this prepares durable jobs but does not silently run or charge a model. CLI callers can
+request the same behavior explicitly with `--prepare-semantics`. Every response reports that a full
+repository semantic rerun is unnecessary for an ordinary partial code change, while showing
+broader invalidation honestly when a prompt, analysis contract, age policy, explicit full review,
+or repository-wide edit actually requires it.
+
+The final suite contains 637 Python tests. A complete 636-test run passed 635 and exposed one
+obsolete documentation assertion for the old reassessment spelling; after replacing it, the
+three-test documentation module and three focused refresh/invalidation tests passed. The complete
+run retained **91.94% total coverage**, and a worktree-aware measurement covered **141/152 changed
+executable lines (92.8%)**. Pre-commit,
+self-analysis, module-size, maintainability, architecture, agent-package, Compose, hardened
+container, first-user, bounded benchmark, and all **26 pinned-browser contracts** pass. One focused
+181-line application coordinator keeps the change out of the crowded scanners and transports; no
+implementation file exceeds 500 lines and maintainability warnings fall to 175. The explicitly
+ratified production-source increase is 429 lines, moving the post-Phase-11 exact ratchet from
+57,439 to **57,868 lines**.
+
 ## Phase 10 exit gate
 
 - The three product promises and the actor-neutral rule are visible in onboarding, navigation,

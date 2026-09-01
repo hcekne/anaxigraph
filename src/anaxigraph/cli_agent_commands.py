@@ -21,15 +21,15 @@ from anaxigraph.understanding import SemanticEngine
 
 def configure_agent_commands(commands: Any) -> None:
     guidance = commands.add_parser(
-        "guide", help="Ask where to build or how to refactor using current architecture evidence"
+        "guide", help="Ask where to build or how to improve using current architecture evidence"
     )
     add_repository_arguments(guidance)
     guidance.add_argument("--goal", required=True, help="The desired implementation or improvement")
     guidance.add_argument(
         "--intent",
-        choices=("build", "refactor"),
+        choices=("build", "improve", "refactor"),
         default="build",
-        help="Whether to place new behavior or improve existing structure",
+        help="Whether to place new behavior or improve existing structure (refactor is an alias)",
     )
     guidance.add_argument(
         "--focus", default="", help="Optional file, area, or responsibility focus"

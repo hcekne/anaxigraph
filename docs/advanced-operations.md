@@ -159,6 +159,15 @@ records:
 - provider and model changes do not invalidate semantic work; they remain queryable provenance on
   jobs, documents, claims, usage, and cost records.
 
+`semantic.refresh: on_scan` is the default once AI mapping is enabled. It prepares the saved work;
+with `provider: agent`, it does not silently run a model. A connected agent can explicitly request
+the same behavior with `ANAXIGRAPH_SCAN(refresh_semantics=true)`, and the CLI equivalent is
+`anaxigraph update . --prepare-semantics`. The response lists structurally changed files, text-only
+changes that reused their meaning, affected neighboring files and groups, omitted counts, and the
+next action. It reports `full_repository_rerun_required: false` for an ordinary partial code
+change. A repository-wide edit, changed prompt/analysis contract, age policy, or explicit full
+review can honestly make that field true.
+
 Repeated reconciliation of an unchanged repository creates no new source-reading jobs. Durable
 jobs, attempts, leases, failures, token counts, and costs allow interrupted work to resume.
 Successful and failed model attempts contribute token totals when the executor reports usage. A

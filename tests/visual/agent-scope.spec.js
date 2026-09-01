@@ -170,7 +170,7 @@ test("dashboard submits actor-neutral guidance through the shared API", async ({
   await openDashboard(page);
   await page.getByRole("button", { name: "Guide", exact: true }).click();
   await page.locator("#scope-goal").fill("Simplify dashboard finding presentation");
-  await page.locator("#guidance-intent").selectOption("refactor");
+  await page.locator("#guidance-intent").selectOption("improve");
   await page.locator("#scope-focus").fill("dashboard findings");
 
   const responsePromise = page.waitForResponse((response) => (
@@ -181,7 +181,7 @@ test("dashboard submits actor-neutral guidance through the shared API", async ({
   const request = response.request().postDataJSON();
   const guidance = await response.json();
 
-  expect(request.intent).toBe("refactor");
+  expect(request.intent).toBe("improve");
   expect(request.focus).toBe("dashboard findings");
   expect(guidance.contract_version).toBe("architecture-guidance-v1");
   await expect(page.locator("#agent-result")).toContainText(guidance.recommendation.summary);

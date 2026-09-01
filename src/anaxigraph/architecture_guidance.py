@@ -7,7 +7,30 @@ import json
 from typing import Any
 
 ARCHITECTURE_GUIDANCE_VERSION = "architecture-guidance-v1"
-GUIDANCE_INTENTS = frozenset({"build", "refactor"})
+AGENT_JOURNEY_VERSION = "agent-journey-v1"
+GUIDANCE_INTENTS = frozenset({"build", "improve", "refactor"})
+
+
+def agent_journey_manifest() -> dict[str, Any]:
+    """Return the small public decision menu shared by MCP descriptions and replies."""
+
+    return {
+        "contract_version": AGENT_JOURNEY_VERSION,
+        "journeys": [
+            {"intent": "understand", "use_when": "You need the system purpose and architecture."},
+            {"intent": "build", "use_when": "You need to place new or changed behavior."},
+            {"intent": "improve", "use_when": "You need a bounded structural improvement."},
+            {"intent": "redesign", "use_when": "You want a capability-first clean-sheet review."},
+            {"intent": "reassess", "use_when": "You changed code and want a before/after verdict."},
+        ],
+        "coding_loop": [
+            "Ask ANAXIGRAPH_GUIDE about one goal.",
+            "Use ANAXIGRAPH_IMPACT before changing shared behavior.",
+            "Edit code and run focused tests in the coding environment.",
+            "Call ANAXIGRAPH_SCAN with refresh_semantics=true.",
+            "Call ANAXIGRAPH_GUIDE with intent=reassess.",
+        ],
+    }
 
 
 def guidance_projection(
@@ -36,6 +59,7 @@ def guidance_projection(
         "unknowns": _unknowns(context, charter),
         "caveats": _caveats(context, charter),
         "confidence": confidence,
+        "agent_journey": _agent_journey(context, selected_intent, recommendation),
     }
     return {"identity": _identity(context, core), **core}
 
@@ -71,6 +95,12 @@ def compact_guidance_projection(payload: dict[str, Any]) -> None:
     payload["evidence_links"] = list(payload.get("evidence_links") or [])[:3]
     payload["unknowns"] = list(payload.get("unknowns") or [])[:1]
     payload["caveats"] = list(payload.get("caveats") or [])[:1]
+    journey = payload.get("agent_journey") or {}
+    payload["agent_journey"] = {
+        key: journey.get(key)
+        for key in ("contract_version", "intent", "current_step", "next_action", "after_change")
+        if journey.get(key) not in (None, "", [])
+    }
 
 
 def _intent(value: str) -> str:
@@ -128,6 +158,40 @@ def _action(
     if intent == "build":
         return _build_action(patterns, start)
     return _refactor_action(decision, context, patterns)
+
+
+def _agent_journey(
+    context: dict[str, Any], intent: str, recommendation: dict[str, Any]
+) -> dict[str, Any]:
+    target = str(recommendation.get("starting_point") or "")
+    goal = str(context.get("goal") or "")
+    next_action = (
+        {
+            "tool": "ANAXIGRAPH_IMPACT",
+            "arguments": {"target": target},
+        }
+        if target
+        else {
+            "tool": "ANAXIGRAPH_SEARCH",
+            "arguments": {"query": goal},
+        }
+    )
+    return {
+        "contract_version": AGENT_JOURNEY_VERSION,
+        "intent": "improve" if intent == "refactor" else intent,
+        "current_step": "plan",
+        "next_action": next_action,
+        "after_change": [
+            {
+                "tool": "ANAXIGRAPH_SCAN",
+                "arguments": {"refresh_semantics": True},
+            },
+            {
+                "tool": "ANAXIGRAPH_GUIDE",
+                "arguments": {"intent": "reassess", "goal": goal},
+            },
+        ],
+    }
 
 
 def _build_action(patterns: list[dict[str, Any]], start: str) -> tuple[str, str]:

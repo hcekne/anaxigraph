@@ -71,7 +71,8 @@ function scopeResultMarkup(value) {
     + resultList("Project rules that apply", rules);
   return agentResultHeader(
     value,
-    value.intent === "refactor" ? "Architecture improvement guidance" : "Implementation guidance",
+    ["improve", "refactor"].includes(value.intent)
+      ? "Architecture improvement guidance" : "Implementation guidance",
     value.goal,
     "Likely implementation files are the strongest matches. Related files may explain the behavior; this is not a suggestion to edit all of them.",
   ) + guidanceRecommendationMarkup(value)

@@ -52,7 +52,7 @@ def _repository_policy(
     value["semantic"] = {
         "enabled": semantic_enabled,
         "provider": "agent",
-        "refresh": "manual",
+        "refresh": "on_scan",
         "max_age_days": 0,
         "max_jobs_per_run": 100,
         "max_parallel_jobs": 1,

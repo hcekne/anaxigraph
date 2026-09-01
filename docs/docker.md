@@ -159,7 +159,7 @@ AnaxiIndex:
 semantic:
   enabled: true
   provider: agent
-  refresh: manual
+  refresh: on_scan
   agent_lease_seconds: 1800
   taxonomy:
     enabled: true

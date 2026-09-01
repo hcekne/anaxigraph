@@ -102,7 +102,7 @@ Enable **Available to chat and workflow agents**, then select the connection und
 tools → Agent tools** in a Workbench chat or on an AI workflow node. A useful first call is:
 
 ```text
-Call ANAXIGRAPH_GUIDE with intent="build" or intent="refactor" for my coding goal before inspecting
+Call ANAXIGRAPH_GUIDE with intent="build" or intent="improve" for my coding goal before inspecting
 files. Stay inside the recommended context unless direct evidence requires expanding it. Call ANAXIGRAPH_IMPACT before changing a
 shared interface or protected file. Treat active findings as review signals, not permission to
 refactor. Use ANAXIGRAPH_FINDINGS with status="planned" for work I approved in the dashboard, then

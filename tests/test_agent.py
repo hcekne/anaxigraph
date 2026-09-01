@@ -35,6 +35,15 @@ def test_architecture_guidance_is_bounded_and_includes_tests_protection_and_rule
     assert value["intent"] == "build"
     assert value["recommendation"]["action"] == "extend"
     assert value["recommendation"]["starting_point"] == "pkg/core.py"
+    journey = value["agent_journey"]
+    assert journey["contract_version"] == "agent-journey-v1"
+    assert journey["intent"] == "build"
+    assert journey["next_action"] == {
+        "tool": "ANAXIGRAPH_IMPACT",
+        "arguments": {"target": "pkg/core.py"},
+    }
+    assert journey["after_change"][0]["arguments"] == {"refresh_semantics": True}
+    assert journey["after_change"][1]["arguments"]["intent"] == "reassess"
     assert value["understanding"]["charter"]["state"] == "provisional"
     assert value["impact_summary"]["target"] == "pkg/core.py"
     assert value["impact_summary"]["bounded"] is True
@@ -122,12 +131,22 @@ def test_refactor_guidance_is_distinct_and_does_not_invent_a_change(repository, 
         config=config,
         intent="refactor",
     )
+    improve = architecture_guidance(
+        database,
+        repository_id=stats.repository_id,
+        goal="Improve Calculator structure",
+        config=config,
+        intent="improve",
+    )
 
     assert build["identity"] != refactor["identity"]
     assert refactor["intent"] == "refactor"
     assert refactor["recommendation"]["action"] == "retain"
     assert refactor["recommendation"]["reasons_not_to_change"]
     assert refactor["confidence"]["label"] == "limited"
+    assert improve["intent"] == "improve"
+    assert improve["recommendation"]["action"] == "retain"
+    assert improve["agent_journey"]["intent"] == "improve"
 
 
 def test_guidance_rejects_an_unknown_intent(repository, database):

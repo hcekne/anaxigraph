@@ -16,6 +16,7 @@ from anaxigraph.architecture_charter_corrections import (
 )
 from anaxigraph.bounded_export import bounded_export
 from anaxigraph.cli_common import add_repository_arguments, default_db, ensure_current
+from anaxigraph.semantic_scan_refresh import semantic_refresh_after_scan
 
 
 def configure_repository_commands(commands: Any) -> None:
@@ -30,11 +31,25 @@ def configure_repository_commands(commands: Any) -> None:
 def _configure_scans(commands: Any) -> None:
     scan = commands.add_parser("scan", help="Build a complete current repository map")
     add_repository_arguments(scan)
+    _add_semantic_refresh_option(scan)
     scan.set_defaults(handler=_scan, run_type="scan")
 
     update = commands.add_parser("update", help="Update the saved code map for changed files")
     add_repository_arguments(update)
+    _add_semantic_refresh_option(update)
     update.set_defaults(handler=_scan, run_type="update")
+
+
+def _add_semantic_refresh_option(command: Any) -> None:
+    command.add_argument(
+        "--prepare-semantics",
+        action="store_true",
+        default=None,
+        help=(
+            "Prepare only AI descriptions invalidated by changed code fingerprints; this queues "
+            "work but does not itself run a model"
+        ),
+    )
 
 
 def _configure_review(commands: Any) -> None:
@@ -78,6 +93,8 @@ def _configure_export(commands: Any) -> None:
 
 def _scan(args: argparse.Namespace) -> dict[str, Any]:
     database = cli_services.open_index(args.db)
+    repository = database.repository(args.repository.resolve())
+    baseline = database.latest_snapshot(int(repository["id"])) if repository else None
     stats = cli_services.scanner(database).scan(
         args.repository,
         config_path=args.config,
@@ -96,14 +113,18 @@ def _scan(args: argparse.Namespace) -> dict[str, Any]:
             ),
         }
     result: dict[str, Any] = {"status": "ok", **stats.as_dict()}
-    if config.semantic.enabled and config.semantic.refresh == "on_scan":
-        result["semantic"] = cli_services.semantics(database).bootstrap(
-            stats.repository_id, args.repository, config
-        )
-    elif config.semantic.enabled:
-        result["semantic"] = cli_services.semantics(database).status(
-            stats.repository_id, config.semantic
-        )
+    semantic = semantic_refresh_after_scan(
+        database,
+        repository_id=stats.repository_id,
+        repository=args.repository,
+        snapshot_id=stats.snapshot_id,
+        baseline_snapshot_id=int(baseline["id"]) if baseline else None,
+        config=config,
+        prepare=getattr(args, "prepare_semantics", None),
+    )
+    if config.semantic.enabled:
+        result["semantic"] = semantic["semantic"]
+    result["semantic_refresh"] = semantic["refresh"]
     return result
 
 

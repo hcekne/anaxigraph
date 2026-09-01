@@ -224,9 +224,19 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                         "diagnostic ledger",
                     ):
                         assert unexplained_term not in public_help
-                    assert "refresh guidance" in descriptions["ANAXIGRAPH_GUIDE"]
-                    assert "reassess=true" in descriptions["ANAXIGRAPH_GUIDE"]
+                    assert "five intents" in descriptions["ANAXIGRAPH_GUIDE"]
+                    assert "reassess" in descriptions["ANAXIGRAPH_GUIDE"]
+                    assert "refresh_semantics=true" in descriptions["ANAXIGRAPH_SCAN"]
                     assert "ordinary sentences" in descriptions["ANAXIGRAPH_FINDINGS"]
+                    repositories = await session.call_tool("ANAXIGRAPH_REPOSITORIES", arguments={})
+                    assert repositories.isError is False
+                    assert repositories.structuredContent["contract_version"] == (
+                        "anaxigraph-agent-tools-v2"
+                    )
+                    assert {
+                        item["intent"]
+                        for item in repositories.structuredContent["agent_workflow"]["journeys"]
+                    } == {"understand", "build", "improve", "redesign", "reassess"}
                     overview = await session.call_tool("ANAXIGRAPH_OVERVIEW", arguments={})
                     assert overview.isError is False
                     assert overview.structuredContent["files"] == 8
@@ -264,9 +274,23 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                         == search.structuredContent["results"][0]["path"]
                     )
                     assert guidance.structuredContent["architecture_decision"]["snapshot_id"] > 0
+                    assert guidance.structuredContent["agent_journey"]["next_action"]["tool"] == (
+                        "ANAXIGRAPH_IMPACT"
+                    )
+                    understanding = await session.call_tool(
+                        "ANAXIGRAPH_GUIDE", arguments={"intent": "understand"}
+                    )
+                    assert understanding.isError is False
+                    assert understanding.structuredContent["architecture_charter"]
+                    assert understanding.structuredContent["agent_journey"]["intent"] == (
+                        "understand"
+                    )
                     refreshed = await session.call_tool("ANAXIGRAPH_SCAN", arguments={})
                     assert refreshed.isError is False
                     assert refreshed.structuredContent["repository_id"] == stats.repository_id
+                    assert refreshed.structuredContent["semantic_refresh"]["contract_version"] == (
+                        "semantic-scan-refresh-v1"
+                    )
                     finding_context = await session.call_tool(
                         "ANAXIGRAPH_FINDING_CONTEXT",
                         arguments={"finding_id": finding_id},

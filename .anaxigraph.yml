@@ -147,7 +147,8 @@ semantic:
   enabled: true
   provider: agent
   # Select a local executor model per `understand` run; it is provenance, not freshness policy.
-  refresh: manual
+  # Each explicit scan prepares work only for changed code fingerprints and affected context.
+  refresh: on_scan
   max_jobs_per_run: 1000
   # Independent semantic work can fan out aggressively; executor runs may choose a lower ceiling.
   max_parallel_jobs: 30
