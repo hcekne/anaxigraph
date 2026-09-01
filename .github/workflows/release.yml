@@ -142,6 +142,24 @@ jobs:
           packages-dir: dist/
           print-hash: true
 
+  publish-github:
+    name: Attach durable GitHub release assets
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download attested release bundle
+        uses: actions/download-artifact@v7
+        with:
+          name: anaxigraph-${{ needs.build.outputs.version }}-release
+          path: release
+      - name: Attach the verified bundle to the immutable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: v${{ needs.build.outputs.version }}
+        run: gh release upload "${RELEASE_TAG}" release/* --clobber --repo "${GITHUB_REPOSITORY}"
+
   verify-pypi:
     name: Verify public installation
     needs: [build, publish-pypi]

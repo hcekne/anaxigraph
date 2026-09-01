@@ -75,3 +75,5 @@ def test_release_workflow_can_probe_trusted_publishing_without_uploading():
     assert "gh-action-pypi-publish" not in probe
     assert "twine upload" not in probe
     assert "if: github.event_name == 'release'" in release
+    assert "Attach durable GitHub release assets" in release
+    assert 'gh release upload "${RELEASE_TAG}" release/* --clobber' in release

@@ -66,7 +66,8 @@ Every Python release must satisfy all of these invariants:
 - The wheel and source distribution install and execute independently on Python 3.11 and 3.12 on
   fresh Linux and macOS runners.
 - The release bundle contains SHA-256 checksums, an SPDX JSON SBOM, a dependency/license inventory,
-  and GitHub artifact attestations.
+  and GitHub artifact attestations; the verified bundle is attached to the durable GitHub release
+  rather than existing only as an expiring Actions artifact.
 - The same tag builds the multi-architecture container, whose immutable registry digest receives
   BuildKit provenance, an SBOM, and a GitHub registry attestation.
 - The Codex and Claude plugin manifests and Claude marketplace entry match `project.version`, and
