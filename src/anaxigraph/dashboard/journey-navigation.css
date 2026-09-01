@@ -2,7 +2,8 @@
   display: flex;
   gap: 0.4rem;
   padding: 0.55rem clamp(1.25rem, 4vw, 4.5rem) 0;
-  background: var(--background);
+  overflow-x: auto;
+  background: var(--bg);
 }
 
 .journey-subnav[hidden] { display: none; }
@@ -12,7 +13,7 @@
   border-radius: 999px;
   padding: 0.42rem 0.8rem;
   color: var(--muted);
-  background: var(--surface);
+  background: var(--surface-subtle);
   cursor: pointer;
   font-size: 0.76rem;
   font-weight: 650;
@@ -23,3 +24,5 @@
   color: var(--text);
   background: var(--accent-soft);
 }
+
+.journey-subnav button:hover { border-color: var(--accent-border); color: var(--text-strong); }

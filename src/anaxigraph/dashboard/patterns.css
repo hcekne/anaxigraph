@@ -24,7 +24,7 @@
 .pattern-target span:not(.pattern-level) { overflow-wrap: anywhere; color: var(--muted); font: .66rem ui-monospace, monospace; }
 .pattern-summary { margin: 0; color: var(--text); font-size: .82rem; line-height: 1.55; }
 .pattern-conclusion { padding: .8rem .9rem; border-left: 3px solid var(--accent); background: var(--accent-soft); }
-.pattern-conclusion strong, .pattern-story-grid strong, .pattern-score-story strong { color: var(--text-strong); font-size: .72rem; }
+.pattern-conclusion strong, .pattern-story-grid strong, .pattern-score-story strong { color: var(--text-strong); font-size: .82rem; }
 .pattern-conclusion p, .pattern-story-grid p, .pattern-score-story p { margin: .35rem 0 0; color: var(--text); font-size: .76rem; line-height: 1.55; }
 .pattern-story-grid, .pattern-score-story { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: .7rem; }
 .pattern-story-grid section, .pattern-score-story section { padding: .7rem; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-subtle); }
@@ -40,8 +40,8 @@
 .pattern-details summary { color: var(--blue); cursor: pointer; font-size: .7rem; font-weight: 700; }
 .pattern-evidence-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .75rem; margin-top: .75rem; }
 .pattern-evidence-grid section { padding: .65rem; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-subtle); }
-.pattern-evidence-grid h3 { color: var(--text-strong); font-size: .68rem; }
-.pattern-evidence-grid ul { margin: .4rem 0 0; padding-left: 1rem; color: var(--muted); font-size: .67rem; line-height: 1.45; }
+.pattern-evidence-grid h3 { color: var(--text-strong); font-size: .78rem; }
+.pattern-evidence-grid ul { margin: .4rem 0 0; padding-left: 1rem; color: var(--muted); font-size: .7rem; line-height: 1.45; }
 .pattern-result-footer { align-items: center; border-top: 1px solid var(--line); padding-top: .7rem; }
 .pattern-result-footer > span { color: var(--muted); font-size: .62rem; }
 .pattern-result-footer > div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .75rem; }

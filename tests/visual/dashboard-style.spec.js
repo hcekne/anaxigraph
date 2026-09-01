@@ -1,0 +1,77 @@
+import { expect, test } from "@playwright/test";
+
+async function openDashboard(page) {
+  await page.goto("/");
+  await expect(page.locator("#project-name")).not.toHaveText("Loading…");
+  await expect(page.locator("#repository-intelligence")).toBeVisible();
+}
+
+test("the Charter has a readable, contained hierarchy", async ({ page }) => {
+  await openDashboard(page);
+  const charter = page.locator("#repository-intelligence");
+
+  await expect(charter.locator(".charter-state")).toHaveText(/current|provisional|stale/i);
+  await expect(charter.locator(".charter-section")).toHaveCount(7);
+  await expect(charter.locator(".charter-section h3")).toHaveText([
+    "Observable capabilities",
+    "Responsibility areas",
+    "Important flows",
+    "Safe extension points",
+    "Coherence concerns",
+    "Unknowns and conflicts",
+    "Declared context",
+  ]);
+
+  const typeSizes = await charter.evaluate((element) => ({
+    title: Number.parseFloat(getComputedStyle(element.querySelector("h2")).fontSize),
+    section: Number.parseFloat(getComputedStyle(element.querySelector("h3")).fontSize),
+    content: Number.parseFloat(getComputedStyle(element.querySelector("li")).fontSize),
+  }));
+  expect(typeSizes.title).toBeGreaterThan(typeSizes.section);
+  expect(typeSizes.section).toBeGreaterThan(typeSizes.content);
+  expect(await charter.locator(".charter-section").evaluateAll((sections) => (
+    sections.every((section) => section.scrollWidth <= section.clientWidth + 1)
+  ))).toBe(true);
+});
+
+test("every dashboard journey stays inside desktop and phone viewports", async ({ browser }) => {
+  const views = [
+    ["overview", null],
+    ["modules", "[data-subview=modules]"],
+    ["graph", "[data-subview=graph]"],
+    ["agents", "[data-view=agents]"],
+    ["architecture", "[data-view=architecture]"],
+    ["patterns", "[data-subview=patterns]"],
+    ["fresh-eyes", "[data-subview=fresh-eyes]"],
+    ["history", "[data-view=history]"],
+    ["settings", "[data-view=settings]"],
+  ];
+
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+    const page = await browser.newPage({ viewport });
+    await openDashboard(page);
+    for (const [name, selector] of views) {
+      if (selector) await page.locator(selector).first().click();
+      await expect(page.locator(`#view-${name}`)).toBeVisible();
+      const layout = await page.evaluate(() => {
+        const view = document.querySelector(".view.active");
+        const overflow = [...view.querySelectorAll("*")].filter((element) => {
+          const style = getComputedStyle(element);
+          const intentionallyScrollable = ["auto", "scroll"].includes(style.overflowX);
+          return !intentionallyScrollable && element.scrollWidth > element.clientWidth + 2;
+        });
+        return {
+          documentFits: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+          viewFits: view.scrollWidth <= view.clientWidth + 1,
+          overflow: overflow.map((element) => element.id || element.className).slice(0, 5),
+        };
+      });
+      expect(layout, `${name} at ${viewport.width}px`).toEqual({
+        documentFits: true,
+        viewFits: true,
+        overflow: [],
+      });
+    }
+    await page.close();
+  }
+});

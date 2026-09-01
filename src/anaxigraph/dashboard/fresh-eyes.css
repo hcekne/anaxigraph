@@ -49,7 +49,7 @@
 
 .fresh-stage > span {
   align-items: center;
-  background: var(--surface);
+  background: var(--surface-detail);
   border: 1px solid var(--line);
   border-radius: 50%;
   display: inline-flex;

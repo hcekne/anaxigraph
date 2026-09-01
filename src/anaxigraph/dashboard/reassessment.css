@@ -84,13 +84,13 @@
 .effect-statement,
 .effect-list { margin-top: .8rem; }
 .effect-statement strong,
-.effect-list strong { font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; }
-.effect-statement p { color: var(--muted); margin: .25rem 0; }
+.effect-list strong { font-size: .82rem; letter-spacing: .04em; text-transform: uppercase; }
+.effect-statement p { color: var(--muted); font-size: .8rem; line-height: 1.5; margin: .25rem 0; }
 .effect-statement.recommendation p { color: var(--text); font-weight: 600; }
-.effect-list ul { color: var(--muted); margin: .3rem 0; padding-left: 1.2rem; }
+.effect-list ul { color: var(--muted); font-size: .8rem; line-height: 1.5; margin: .3rem 0; padding-left: 1.2rem; }
 
 .effect-follow-up {
-  background: var(--surface);
+  background: var(--surface-detail);
   border-radius: .6rem;
   margin-top: .9rem;
   padding: .1rem .75rem .65rem;

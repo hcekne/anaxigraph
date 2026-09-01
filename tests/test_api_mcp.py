@@ -37,6 +37,7 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert (await client.get("/")).status_code == 200
         assert (await client.get("/assets/findings-view.js")).status_code == 200
         assert (await client.get("/assets/dashboard-core.js")).status_code == 200
+        assert (await client.get("/assets/dashboard-shell.css")).status_code == 200
         assert (await client.get("/assets/graph-regions.js")).status_code == 200
         assert (await client.get("/assets/graph-regions.css")).status_code == 200
         assert (await client.get("/assets/journey-navigation.css")).status_code == 200

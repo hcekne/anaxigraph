@@ -37,7 +37,7 @@ uv run pre-commit run --hook-stage pre-push --all-files
 ```
 
 Before a pull request or release, run the single complete gate. It adds Compose validation, the
-bounded performance smoke fixture, and ten Chromium dashboard contracts against a deterministic
+bounded performance smoke fixture, and Chromium dashboard contracts against a deterministic
 repository. Docker must be running; use the branch point with `main` when the change spans several
 commits:
 
@@ -73,7 +73,20 @@ npm run test:visual
 
 These tests assert layout behavior that unit tests cannot: first-run onboarding, one architecture
 LOC bar per card, coverage warning semantics, contained graph labels, area-filter relayout, module
-review scope, and repository settings.
+review scope, repository settings, readable information hierarchy, and phone-width containment.
+
+The dashboard uses one visual hierarchy across every journey:
+
+- `h1` names the product, `h2` names a panel, and `h3` names a bounded section inside it. An
+  uppercase eyebrow supplies context; it never replaces the visible heading.
+- Normal explanations must remain readable body text. Metadata may be smaller, but a section
+  heading must not be smaller than the content it introduces.
+- Long semantic collections belong in individually bordered sections, not in an unbroken list or
+  a wall of columns. Use existing panel and surface colors from every theme.
+- Grid children use `minmax(0, 1fr)` or `min-width: 0`, and long paths and generated text wrap.
+  Only tables, code blocks, menus, and the graph may opt into horizontal scrolling.
+- Every journey must fit a 390-pixel viewport without document-level horizontal overflow. Add or
+  extend a Playwright contract whenever a new content shape could break that rule.
 
 For the container workflow, copy `.env.example` to `.env` and
 `repositories.example.yml` to `repositories.yml`, then point the registry only at repositories you

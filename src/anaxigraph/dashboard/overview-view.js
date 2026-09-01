@@ -11,7 +11,6 @@ import {
   state,
   toast,
 } from "/assets/dashboard-core.js";
-import { detailList } from "/assets/dashboard-format.js";
 import { findingCards } from "/assets/findings-view.js";
 import {
   architectureColor,
@@ -116,7 +115,13 @@ function renderRepositoryIntelligence(value) {
       ? "Saved AI understanding is visible, but changed code evidence still needs review."
     : `Created by ${semanticProviderLabel(value.provenance)}. Every claim should point back to indexed evidence; uncertainty stays visible.`;
   const purpose = value.purpose?.presented_statement || value.purpose?.statement;
-  panel.innerHTML = `<div class="panel-heading"><div><p class="eyebrow">Living Architecture Charter · ${escapeHtml(value.state)}</p><h2>What this repository does</h2><p class="panel-copy">${escapeHtml(purpose || "The Charter did not record a purpose.")}</p><p class="inspector-provenance">${escapeHtml(source)}</p></div></div><div class="repository-intelligence-grid"><div><h3>Observable capabilities</h3>${detailList(statements(value.capabilities), "No capability has enough evidence yet")}<h3>Responsibility areas</h3>${detailList(statements(value.responsibilities), "No responsibility has enough evidence yet")}</div><div><h3>Important flows</h3>${detailList(statements(value.execution_flows), "No execution flow has enough evidence yet")}<h3>Safe extension points</h3>${detailList(statements(value.extension_points), "No extension point has enough evidence yet")}</div><div><h3>Coherence concerns</h3>${detailList(statements(value.coherence_concerns), "No current coherence concern was recorded")}<h3>Unknowns and conflicts</h3>${detailList([...unknowns, ...conflicts], "No unresolved unknown or conflict was recorded")}<h3>Declared context</h3>${detailList(declared, "No human or principal correction has been added")}</div></div>`;
+  panel.innerHTML = `<header class="charter-header"><div class="charter-heading"><div><p class="eyebrow">Living Architecture Charter</p><h2>What this repository does</h2></div><span class="charter-state">${escapeHtml(humanize(value.state))}</span></div><p class="charter-purpose">${escapeHtml(purpose || "The Charter did not record a purpose.")}</p><p class="charter-provenance">${escapeHtml(source)}</p></header><div class="repository-intelligence-grid">${charterSection("Observable capabilities", statements(value.capabilities), "No capability has enough evidence yet")}${charterSection("Responsibility areas", statements(value.responsibilities), "No responsibility has enough evidence yet")}${charterSection("Important flows", statements(value.execution_flows), "No execution flow has enough evidence yet")}${charterSection("Safe extension points", statements(value.extension_points), "No extension point has enough evidence yet")}${charterSection("Coherence concerns", statements(value.coherence_concerns), "No current coherence concern was recorded", "attention")}${charterSection("Unknowns and conflicts", [...unknowns, ...conflicts], "No unresolved unknown or conflict was recorded", "question")}${charterSection("Declared context", declared, "No human or principal correction has been added")}</div>`;
+}
+
+function charterSection(title, values, empty, tone = "") {
+  const items = values.length ? values : [empty];
+  const count = values.length ? String(values.length) : "0";
+  return `<section class="charter-section${tone ? ` charter-section-${tone}` : ""}"><header><h3>${escapeHtml(title)}</h3><span aria-label="${count} recorded items">${count}</span></header><ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></section>`;
 }
 
 export function semanticProviderLabel(document = {}) {
