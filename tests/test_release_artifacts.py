@@ -29,23 +29,23 @@ def built_distributions(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path,
 
 def test_project_version_and_release_tag_are_one_contract():
     version = project_version(ROOT)
-    assert version == "0.3.0"
-    validate_tag(version, "v0.3.0")
+    validate_tag(version, f"v{version}")
     with pytest.raises(ReleaseContractError, match="does not match"):
-        validate_tag(version, "v0.2.1")
+        validate_tag(version, "v999.999.999")
 
 
 def test_built_wheel_and_sdist_preserve_runtime_and_license_contract(
     built_distributions: tuple[Path, Path],
     tmp_path: Path,
 ):
-    report = verify_distribution(ROOT, built_distributions[0], tag="v0.3.0")
+    version = project_version(ROOT)
+    report = verify_distribution(ROOT, built_distributions[0], tag=f"v{version}")
 
     assert report["name"] == "anaxigraph"
-    assert report["version"] == "0.3.0"
+    assert report["version"] == version
     assert {item["path"] for item in report["artifacts"]} == {
-        "anaxigraph-0.3.0-py3-none-any.whl",
-        "anaxigraph-0.3.0.tar.gz",
+        f"anaxigraph-{version}-py3-none-any.whl",
+        f"anaxigraph-{version}.tar.gz",
     }
     assert all(len(item["sha256"]) == 64 for item in report["artifacts"])
     assert all(len(item["parser_dependencies"]) == 3 for item in report["artifacts"])
@@ -54,7 +54,7 @@ def test_built_wheel_and_sdist_preserve_runtime_and_license_contract(
     write_checksums(report, checksums)
     lines = checksums.read_text(encoding="utf-8").splitlines()
     assert len(lines) == 2
-    assert all("  anaxigraph-0.3.0" in line for line in lines)
+    assert all(f"  anaxigraph-{version}" in line for line in lines)
 
 
 def test_release_archives_are_byte_reproducible(built_distributions: tuple[Path, Path]):

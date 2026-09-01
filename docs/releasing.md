@@ -85,32 +85,34 @@ the same contract again against the immutable tag before requesting permission t
 4. Run the complete repository gate and the release preflight:
 
    ```bash
+   ANAXIGRAPH_RELEASE_VERSION=0.4.0
    uv sync --extra dev --locked
    uv run python scripts/run_quality_gate.py --base origin/main
    uv run python scripts/build_release_artifacts.py --outdir dist
    uv run twine check dist/*
    uv run python scripts/verify_release_artifacts.py \
      --dist dist \
-     --tag v0.3.0 \
+     --tag "v${ANAXIGRAPH_RELEASE_VERSION}" \
      --check-pypi \
      --checksums /tmp/anaxigraph-SHA256SUMS
    uv run python scripts/check_agent_package.py
    mkdir -p release
    uv run python scripts/build_agent_plugin.py \
-     --output release/anaxigraph-agent-plugin-0.3.0.zip \
+     --output "release/anaxigraph-agent-plugin-${ANAXIGRAPH_RELEASE_VERSION}.zip" \
      >> /tmp/anaxigraph-SHA256SUMS
    ```
 
-   Replace `v0.3.0` with the version being prepared. The last command intentionally fails when the
-   tag and package disagree, when required package data is absent, when the license metadata
+   Set `ANAXIGRAPH_RELEASE_VERSION` to the version being prepared. The verifier intentionally fails
+   when the tag and package disagree, when required package data is absent, when the license metadata
    regresses, or when the version is already on PyPI.
 
 5. Commit the version change through a pull request and let every required check pass.
 6. Create the exact annotated tag from the protected commit and push it:
 
    ```bash
-   git tag -a v0.3.0 -m "AnaxiGraph 0.3.0"
-   git push origin v0.3.0
+   git tag -a "v${ANAXIGRAPH_RELEASE_VERSION}" \
+     -m "AnaxiGraph ${ANAXIGRAPH_RELEASE_VERSION}"
+   git push origin "v${ANAXIGRAPH_RELEASE_VERSION}"
    ```
 
 7. Draft a GitHub release for that existing tag. Review the commit and generated notes, then
@@ -128,9 +130,9 @@ included checksum file:
 
 ```bash
 sha256sum --check SHA256SUMS
-gh attestation verify anaxigraph-0.3.0-py3-none-any.whl \
+gh attestation verify anaxigraph-0.4.0-py3-none-any.whl \
   --repo hcekne/anaxigraph
-gh attestation verify oci://ghcr.io/hcekne/anaxigraph:0.3.0 \
+gh attestation verify oci://ghcr.io/hcekne/anaxigraph:0.4.0 \
   --repo hcekne/anaxigraph
 ```
 

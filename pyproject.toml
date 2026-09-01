@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "anaxigraph"
-version = "0.3.0"
+version = "0.4.0"
 description = "Shared architecture intelligence for humans and AI coding agents"
 readme = "README.md"
 requires-python = ">=3.11"
