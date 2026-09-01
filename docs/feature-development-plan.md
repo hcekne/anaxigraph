@@ -4390,7 +4390,8 @@ explicit compatible earlier snapshot remains optional. The comparison reads immu
 relationship facts, finding occurrences, current semantic scope states, the Living Architecture
 Charter, independently reviewed pattern evaluations, and existing change-coupling history. It
 creates no table, model request, semantic job kind, decision record, approval state, or target-code
-write.
+write. A bounded lineage walk skips up to eight compatible commit-only or otherwise architecturally
+unchanged frames, so routine rescans cannot hide the most recent real code change.
 
 The response identifies changed modules and their conservative direct context, while the existing
 semantic planner continues to decide which of those scopes are genuinely stale from content,
@@ -4416,15 +4417,15 @@ journey. No eleventh normal MCP tool or sixth dashboard journey was added. Repos
 treats reassessment as a degradable panel, so a temporarily unavailable comparison cannot leave
 the rest of the current repository dashboard stuck in a loading state.
 
-The ratified acceptance evidence is **614 Python tests** and **26 pinned-browser contracts**, plus
+The ratified acceptance evidence is **615 Python tests** and **26 pinned-browser contracts**, plus
 Ruff, JavaScript syntax, module-size, architecture, agent-package, Compose, deterministic
 self-analysis, coverage, changed-coverage, first-user, container, and benchmark gates. On the
 self-hosted 478-module AnaxiGraph map, the read-only response compared two saved frames, bounded two
-changed modules to 15 context modules, returned about 25 KB, and completed in about 626 ms. Four
+changed modules to 15 context modules, returned about 25 KB, and completed in about 626 ms. Five
 cohesive Python modules and two dashboard assets keep every implementation file below 500 lines.
-They add **1,807 intentional production lines** for temporal/semantic evidence, calibrated advice,
+They add **1,864 intentional production lines** for temporal/semantic evidence, calibrated advice,
 the shared application projection, transport adapters, and the human rendering. The exact
-production-source ratchet moves from 53,607 to **55,414 lines**. Phase 10.2 remains closed; this is
+production-source ratchet moves from 53,607 to **55,471 lines**. Phase 10.2 remains closed; this is
 measured core product capability, not a reopened subtraction campaign.
 
 ## Phase 10 exit gate
@@ -4448,7 +4449,7 @@ measured core product capability, not a reopened subtraction campaign.
 - The §10.7 fresh-eyes review proves implementation-blind proposal packets, honest independent-agent
   provenance, blind adjudication, as-built comparison, mission filtering, and incremental reuse
   without adding another provider or workflow platform.
-- The latest phase-ratified **55,414-line** production ratchet remains enforced unless a later phase
+- The latest phase-ratified **55,471-line** production ratchet remains enforced unless a later phase
   explicitly ratifies necessary growth; production module count, high-fragmentation package counts,
   and public surface are governed alongside LOC rather than traded against it.
 - No Change Contract, mandatory approval/decision workflow, new product family, database, provider

@@ -124,6 +124,7 @@
         "anaxigraph.relationship_builder",
         "anaxigraph.reassessment_advice",
         "anaxigraph.reassessment_evidence",
+        "anaxigraph.reassessment_lineage",
         "anaxigraph.reassessment_semantic_advice",
         "anaxigraph.repository_watch",
         "anaxigraph.scan_persistence",

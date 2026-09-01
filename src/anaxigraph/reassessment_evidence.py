@@ -7,12 +7,11 @@ import sqlite3
 from typing import Any, Mapping
 
 from anaxigraph.persistence.snapshot_catalog import resolve_snapshot
-from anaxigraph.persistence.temporal_hashing import analysis_signature
 from anaxigraph.persistence.temporal_reads import snapshot_files, snapshot_relationship_edges
+from anaxigraph.reassessment_lineage import compatible_baselines, requested_baseline
 from anaxigraph.relationships import resolution_status
 
 REASSESSMENT_EVIDENCE_VERSION = "reassessment-evidence-v1"
-_MAX_LINEAGE_DEPTH = 2_500
 
 
 def reassessment_evidence(
@@ -28,21 +27,55 @@ def reassessment_evidence(
         target = resolve_snapshot(connection, repository_id, target_snapshot_id)
         if target is None:
             return _empty(repository_id)
-        baseline = _baseline(connection, repository_id, target, baseline_snapshot_id)
         target_value = _snapshot_identity(target)
-        if baseline is None:
+        if baseline_snapshot_id is not None:
+            baseline = requested_baseline(connection, repository_id, target, baseline_snapshot_id)
+            return _comparison_packet(
+                connection,
+                repository_id,
+                baseline,
+                target,
+                requested=True,
+            )
+        packet = _latest_architectural_comparison(connection, repository_id, target)
+        if packet is None:
             return {
                 **_empty(repository_id),
                 "target_snapshot": target_value,
                 "baseline_selection": "unavailable",
             }
-        return _comparison_packet(
+        return packet
+
+
+def _latest_architectural_comparison(
+    connection: sqlite3.Connection,
+    repository_id: int,
+    target: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    first_packet = None
+    for baseline in compatible_baselines(connection, repository_id, target):
+        packet = _comparison_packet(
             connection,
             repository_id,
             baseline,
             target,
-            requested=baseline_snapshot_id is not None,
+            requested=False,
         )
+        first_packet = first_packet or packet
+        if _has_architectural_change(packet):
+            packet["baseline_selection"] = "last_architectural_change_lineage"
+            return packet
+    return first_packet
+
+
+def _has_architectural_change(packet: dict[str, Any]) -> bool:
+    counts = (packet.get("relationship_changes") or {}).get("counts") or {}
+    return bool(
+        packet.get("module_changes")
+        or packet.get("finding_changes")
+        or counts.get("added")
+        or counts.get("removed")
+    )
 
 
 def _comparison_packet(
@@ -101,48 +134,6 @@ def _empty(repository_id: int) -> dict[str, Any]:
         "finding_changes": [],
         "work": {},
     }
-
-
-def _baseline(
-    connection: sqlite3.Connection,
-    repository_id: int,
-    target: Mapping[str, Any],
-    requested: int | None,
-) -> sqlite3.Row | None:
-    if requested is not None:
-        row = resolve_snapshot(connection, repository_id, requested)
-        if row is None:
-            raise ValueError("comparison snapshot does not belong to the selected repository")
-        _require_compatible(row, target)
-        return row
-    signature = analysis_signature(str(target["metadata_json"] or "{}"))
-    fingerprint = str(target["content_fingerprint"])
-    current_id = target["base_snapshot_id"]
-    depth = 0
-    while current_id is not None and depth < _MAX_LINEAGE_DEPTH:
-        row = connection.execute(
-            "SELECT * FROM snapshots WHERE id = ? AND repository_id = ?",
-            (int(current_id), repository_id),
-        ).fetchone()
-        if row is None:
-            break
-        if (
-            analysis_signature(str(row["metadata_json"] or "{}")) == signature
-            and str(row["content_fingerprint"]) != fingerprint
-        ):
-            return row
-        current_id = row["base_snapshot_id"]
-        depth += 1
-    return None
-
-
-def _require_compatible(baseline: Mapping[str, Any], target: Mapping[str, Any]) -> None:
-    before = analysis_signature(str(baseline["metadata_json"] or "{}"))
-    after = analysis_signature(str(target["metadata_json"] or "{}"))
-    if before != after:
-        raise ValueError(
-            "comparison snapshots use different analysis contracts; choose a compatible snapshot"
-        )
 
 
 def _snapshot_identity(row: Mapping[str, Any]) -> dict[str, Any]:

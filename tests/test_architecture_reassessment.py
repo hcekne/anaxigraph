@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 
 import httpx
 import pytest
@@ -103,6 +104,35 @@ def test_reassessment_explains_improvement_and_coherent_no_change(repository, da
     assert unchanged["state"] == "no_architectural_change"
     assert unchanged["recommendations"][0]["classification"] == "coherent_no_change"
     assert harmful.snapshot_id == value["baseline_snapshot"]["id"]
+
+
+def test_reassessment_steps_past_commit_only_snapshots(repository, database):
+    first = RepositoryScanner(database).scan(repository)
+    _replace_core(repository, _complex_core())
+    changed = RepositoryScanner(database).scan(repository, run_type="update")
+    subprocess.run(["git", "-C", str(repository), "add", "pkg/core.py"], check=True)
+    subprocess.run(
+        ["git", "-C", str(repository), "commit", "-qm", "Save complex implementation"],
+        check=True,
+    )
+    committed = RepositoryScanner(database).scan(repository, run_type="update")
+
+    value = architecture_reassessment(
+        database,
+        repository_id=committed.repository_id,
+        config=load_config(repository),
+    )
+
+    assert committed.snapshot_id != changed.snapshot_id
+    assert value["target_snapshot"]["id"] == committed.snapshot_id
+    assert value["baseline_snapshot"]["id"] == first.snapshot_id
+    assert value["baseline_selection"] == "last_architectural_change_lineage"
+    assert (
+        next(item for item in value["architectural_effects"] if item["category"] == "complexity")[
+            "classification"
+        ]
+        == "worsened"
+    )
 
 
 def test_reassessment_ignores_dependency_source_line_churn(repository, database):
