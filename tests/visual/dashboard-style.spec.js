@@ -58,6 +58,24 @@ test("long finding tags wrap inside phone cards", async ({ page }) => {
   expect(layout).toEqual({ documentFits: true, previewFits: true });
 });
 
+test("long metric values stay inside their cards", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openDashboard(page);
+  const metric = page.locator(".metric").first();
+  await metric.locator("strong").evaluate((value) => {
+    value.textContent = "No-internal-references-found-for-this-module";
+  });
+
+  const layout = await metric.evaluate((card) => {
+    const value = card.querySelector("strong");
+    return {
+      cardFits: card.scrollWidth <= card.clientWidth + 1,
+      valueFits: value.scrollWidth <= value.clientWidth + 1,
+    };
+  });
+  expect(layout).toEqual({ cardFits: true, valueFits: true });
+});
+
 test("every dashboard journey stays inside desktop and phone viewports", async ({ browser }) => {
   const views = [
     ["overview", null],
@@ -98,8 +116,9 @@ test("every dashboard journey stays inside desktop and phone viewports", async (
             const identity = element.id
               ? `#${element.id}`
               : [...element.classList].map((name) => `.${name}`).join("");
+            const content = (element.textContent || "").trim().replace(/\s+/g, " ").slice(0, 50);
             return `${element.tagName.toLowerCase()}${identity} `
-              + `(${element.clientWidth}px box, ${element.scrollWidth}px content)`;
+              + `"${content}" (${element.clientWidth}px box, ${element.scrollWidth}px content)`;
           }).slice(0, 5),
         };
       });
