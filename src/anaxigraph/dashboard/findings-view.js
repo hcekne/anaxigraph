@@ -15,7 +15,8 @@ const findingTypeLabels = {
   possible_dead_code: "File may no longer be used",
 };
 
-export function findingCards(items, { glossary = {}, actions = true } = {}) {
+export function findingCards(items, { glossary = {}, actions = true, loading = false } = {}) {
+  if (loading) return '<p class="muted">Loading findings…</p>';
   if (!items.length) return '<p class="muted">No findings match this view and its filters.</p>';
   return items.map((item) => findingCard(item, glossary, actions)).join("");
 }
