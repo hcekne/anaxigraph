@@ -17,6 +17,25 @@ FRESH_EYES_COMPARISON_VERSION = "fresh-eyes-comparison-v1"
 FRESH_EYES_PROTOCOL_VERSION = "fresh-eyes-recipe-v1"
 
 
+def fresh_eyes_plan_options(plan: dict[str, Any]) -> tuple[int, int]:
+    """Read proposal count and explicit rerun generation from one plan row."""
+
+    raw = str(plan.get("interface_hash") or "2")
+    proposal_text, separator, generation_text = raw.partition(":")
+    try:
+        proposal_count = int(proposal_text)
+        generation = int(generation_text) if separator else 1
+    except ValueError:
+        return 2, 1
+    return max(1, min(3, proposal_count)), max(1, generation)
+
+
+def fresh_eyes_plan_token(proposal_count: int, generation: int) -> str:
+    """Encode small plan controls without adding model identity to semantic freshness."""
+
+    return f"{proposal_count}:{generation}"
+
+
 def _object(**properties: dict[str, Any]) -> dict[str, Any]:
     return {
         "type": "object",

@@ -219,15 +219,17 @@ def service_fresh_eyes_review(
     start: bool = False,
     proposal_count: int = 2,
     retry_failed: bool = False,
+    restart: bool = False,
     timeout: float = 30,
 ) -> dict[str, Any]:
-    if start:
+    if start or restart:
         return _service_agent_request(
             target,
             "/api/fresh-eyes",
             {
                 "proposal_count": proposal_count,
                 "retry_failed": retry_failed,
+                "restart": restart,
                 "repository_id": target.repository_id,
             },
             timeout=timeout,

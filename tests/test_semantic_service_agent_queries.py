@@ -36,6 +36,25 @@ def test_service_agent_query_helpers_send_repository_identity(monkeypatch):
     ]
 
 
+def test_service_fresh_eyes_restart_posts_an_explicit_new_generation(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        semantic_service,
+        "_request_json",
+        lambda url, **kwargs: calls.append((url, kwargs)) or {"status": "restarted"},
+    )
+
+    assert semantic_service.service_fresh_eyes_review(_target(), restart=True) == {
+        "status": "restarted"
+    }
+    assert calls[0][1]["body"] == {
+        "proposal_count": 2,
+        "retry_failed": False,
+        "restart": True,
+        "repository_id": 7,
+    }
+
+
 def test_service_agent_queries_reject_non_object_results(monkeypatch):
     monkeypatch.setattr(semantic_service, "_request_json", lambda *_args, **_kwargs: [])
 

@@ -18,6 +18,8 @@ from anaxigraph.semantic_service import (
 )
 from anaxigraph.understanding import SemanticEngine
 
+_RESTART_FRESH_EYES_HELP = "Rerun every stage after the current review completes"
+
 
 def configure_agent_commands(commands: Any) -> None:
     guidance = commands.add_parser(
@@ -63,6 +65,7 @@ def configure_agent_commands(commands: Any) -> None:
     fresh_eyes.add_argument(
         "--retry-failed", action="store_true", help="Retry failed review-stage tasks"
     )
+    fresh_eyes.add_argument("--restart", action="store_true", help=_RESTART_FRESH_EYES_HELP)
     _add_service_url(fresh_eyes)
     fresh_eyes.set_defaults(handler=_fresh_eyes, db=None)
 
@@ -147,21 +150,23 @@ def _fresh_eyes(args: argparse.Namespace) -> dict[str, Any]:
         return _service_result(
             service_fresh_eyes_review(
                 service,
-                start=args.start,
+                start=args.start or args.restart,
                 proposal_count=args.proposals,
                 retry_failed=args.retry_failed,
+                restart=args.restart,
             ),
             service,
         )
     database, repository_id, config = ensure_current(args)
     engine = SemanticEngine(database)
-    if args.start:
+    if args.start or args.restart:
         return engine.start_fresh_eyes_review(
             repository_id,
             args.repository,
             config,
             proposal_count=args.proposals,
             retry_failed=args.retry_failed,
+            restart=args.restart,
         )
     return engine.fresh_eyes_status(repository_id, config.semantic)
 

@@ -230,6 +230,12 @@ start it through `ANAXIGRAPH_GUIDE(intent="redesign", start=true, proposal_count
 `fresh_eyes=true` form remains accepted. Starting a
 review never edits source or automatically accepts a recommendation.
 
+Changing executor, model, or reasoning effort does not silently invalidate a completed review.
+When you deliberately want a new architectural judgment, run `anaxigraph fresh-eyes . --restart`
+and then run `anaxigraph understand` with your explicit runtime model and reasoning-effort choices.
+The new generation reruns every Fresh-Eyes stage while preserving the earlier documents for audit;
+it does not force unchanged module dossiers to be regenerated.
+
 ## 🐳 Durable Docker sidecar
 
 If you prefer an isolated, persistent container beside the repository:

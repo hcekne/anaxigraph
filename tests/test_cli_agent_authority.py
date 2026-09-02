@@ -69,6 +69,7 @@ def test_fresh_eyes_uses_the_matching_service(repository: Path, capsys, monkeypa
             "--start",
             "--proposals",
             "3",
+            "--restart",
             "--json",
         ]
     )
@@ -81,4 +82,5 @@ def test_fresh_eyes_uses_the_matching_service(repository: Path, capsys, monkeypa
         "start": True,
         "proposal_count": 3,
         "retry_failed": False,
+        "restart": True,
     }

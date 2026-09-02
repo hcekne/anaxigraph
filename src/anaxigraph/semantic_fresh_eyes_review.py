@@ -9,6 +9,7 @@ from typing import Any
 from anaxigraph.semantic_fresh_eyes_contract import (
     FRESH_EYES_PROTOCOL_VERSION,
     FRESH_EYES_REVIEW_VERSION,
+    fresh_eyes_plan_options,
 )
 from anaxigraph.semantic_fresh_eyes_plan import (
     FRESH_EYES_PLAN_KEY,
@@ -54,6 +55,7 @@ class FreshEyesReviewService:
         *,
         proposal_count: int = 2,
         retry_failed: bool = False,
+        restart: bool = False,
     ) -> dict[str, Any]:
         semantic = config.semantic
         if not semantic.enabled:
@@ -67,11 +69,15 @@ class FreshEyesReviewService:
             raise ValueError("Repository has not been scanned")
         snapshot_id = int(snapshot["id"])
         with self._database.transaction() as connection:
+            generation = _requested_generation(
+                connection, repository_id, snapshot_id, restart=restart
+            )
             created = self._planner.request(
                 connection,
                 repository_id=repository_id,
                 snapshot_id=snapshot_id,
                 proposal_count=proposal_count,
+                generation=generation,
             )
         plan = self._planning.plan(
             repository_id,
@@ -80,7 +86,11 @@ class FreshEyesReviewService:
             retry_failed=retry_failed,
         )
         return {
-            "status": "started" if created else "already_started",
+            "status": "restarted"
+            if restart and created
+            else "started"
+            if created
+            else "already_started",
             "plan_stage": plan.stage,
             "enqueued": plan.enqueued,
             "review": self.status(repository_id, semantic),
@@ -105,7 +115,7 @@ class FreshEyesReviewService:
             if plan is None:
                 return self._not_started(connection, repository_id, snapshot_id, semantic_status)
             plan_value = dict(plan)
-            proposal_count = max(1, min(3, int(plan_value.get("interface_hash") or 2)))
+            proposal_count, _generation = fresh_eyes_plan_options(plan_value)
             stage_rows = _stage_rows(connection, snapshot_id)
             stages = _stage_payloads(connection, stage_rows, proposal_count)
             review = _document_value(connection, plan_value.get("context_document_id"))
@@ -206,6 +216,7 @@ def _review_payload(
         "protocol_version": FRESH_EYES_PROTOCOL_VERSION,
         "repository_id": repository_id,
         "snapshot_id": snapshot_id,
+        "review_generation": fresh_eyes_plan_options(plan)[1],
         "identity": _review_identity(repository_id, snapshot_id, plan),
         "state": "current" if current else _active_state(stages, semantic_status),
         "ready": current,
@@ -243,6 +254,38 @@ def _stage_rows(connection: Any, snapshot_id: int) -> dict[str, dict[str, Any]]:
         (snapshot_id, FRESH_EYES_SCOPE, FRESH_EYES_PLAN_KEY),
     ).fetchall()
     return {str(row["scope_key"]): dict(row) for row in rows}
+
+
+def _requested_generation(
+    connection: Any, repository_id: int, snapshot_id: int, *, restart: bool
+) -> int:
+    plan = connection.execute(
+        "SELECT * FROM semantic_scope_states WHERE snapshot_id = ? AND scope_type = ? "
+        "AND scope_key = ?",
+        (snapshot_id, FRESH_EYES_SCOPE, FRESH_EYES_PLAN_KEY),
+    ).fetchone()
+    if plan is not None and restart and str(plan["status"]) != "current":
+        raise ValueError("Finish or retry the current fresh-eyes review before requesting a rerun")
+    prior = (
+        plan
+        or connection.execute(
+            "SELECT * FROM semantic_scope_states WHERE repository_id = ? AND snapshot_id != ? "
+            "AND scope_type = ? AND scope_key = ? AND status = 'current' "
+            "ORDER BY snapshot_id DESC LIMIT 1",
+            (repository_id, snapshot_id, FRESH_EYES_SCOPE, FRESH_EYES_PLAN_KEY),
+        ).fetchone()
+    )
+    if prior is None:
+        if restart:
+            raise ValueError("Start the first fresh-eyes review before requesting a rerun")
+        return 1
+    _proposal_count, generation = fresh_eyes_plan_options(dict(prior))
+    if restart and plan is not None:
+        connection.execute(
+            "DELETE FROM semantic_scope_states WHERE snapshot_id = ? AND scope_type = ?",
+            (snapshot_id, FRESH_EYES_SCOPE),
+        )
+    return generation + 1 if restart else generation
 
 
 def _stage_payloads(

@@ -9,6 +9,7 @@ from typing import Any
 from anaxigraph.semantic_config_port import SemanticConfig
 from anaxigraph.semantic_fresh_eyes_contract import (
     FRESH_EYES_PROTOCOL_VERSION,
+    fresh_eyes_plan_token,
     semantic_input_hash,
 )
 from anaxigraph.semantic_fresh_eyes_evidence import (
@@ -49,6 +50,7 @@ class FreshEyesPlanner:
         repository_id: int,
         snapshot_id: int,
         proposal_count: int,
+        generation: int = 1,
     ) -> bool:
         if proposal_count not in {1, 2, 3}:
             raise ValueError("Fresh-eyes review requires one, two, or three proposals")
@@ -63,7 +65,7 @@ class FreshEyesPlanner:
             scope_key=FRESH_EYES_PLAN_KEY,
             status="requested",
             reason="Fresh-eyes review requested; waiting for current repository understanding",
-            interface_hash=str(proposal_count),
+            interface_hash=fresh_eyes_plan_token(proposal_count, generation),
         )
         return True
 
@@ -176,7 +178,9 @@ class FreshEyesPlanner:
         documents: list[dict[str, Any]] = []
         enqueued = 0
         for slot in _PROPOSAL_SLOTS[: int(context["proposal_count"])]:
-            manifest = proposal_manifest(slot, context["capability_fingerprint"])
+            manifest = proposal_manifest(
+                slot, context["capability_fingerprint"], context["review_generation"]
+            )
             metadata = {
                 "stage": "proposal",
                 "slot": slot,
@@ -212,6 +216,7 @@ class FreshEyesPlanner:
         manifest = {
             "protocol": FRESH_EYES_PROTOCOL_VERSION,
             "stage": "blind_adjudication",
+            "review_generation": context["review_generation"],
             "capability_fingerprint": context["capability_fingerprint"],
             "proposals": proposal_documents,
             "included": ["capability_brief", "clean_sheet_proposals"],
@@ -273,6 +278,7 @@ class FreshEyesPlanner:
         manifest = {
             "protocol": FRESH_EYES_PROTOCOL_VERSION,
             "stage": "mission_filter",
+            "review_generation": context["review_generation"],
             "comparison_fingerprint": context["comparison_fingerprint"],
             "comparison": document_identity(context["comparison"]),
             "included": ["capability_brief", "as_built_comparison", "engineering_economics"],

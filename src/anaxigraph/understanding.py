@@ -109,6 +109,7 @@ class SemanticEngine:
         *,
         proposal_count: int = 2,
         retry_failed: bool = False,
+        restart: bool = False,
     ) -> dict[str, Any]:
         return self._services.fresh_eyes.start(
             repository_id,
@@ -116,6 +117,7 @@ class SemanticEngine:
             config,
             proposal_count=proposal_count,
             retry_failed=retry_failed,
+            restart=restart,
         )
 
     def claim_agent_work(self, *args: Any, **kwargs: Any) -> dict[str, Any]:

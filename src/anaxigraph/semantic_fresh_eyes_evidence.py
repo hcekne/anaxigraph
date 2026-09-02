@@ -10,6 +10,7 @@ from anaxigraph.architecture_charter_contract import CAPABILITY_BRIEF_VERSION
 from anaxigraph.persistence.semantic_evidence import semantic_inventory
 from anaxigraph.semantic_fresh_eyes_contract import (
     FRESH_EYES_PROTOCOL_VERSION,
+    fresh_eyes_plan_options,
     semantic_digest,
     semantic_input_hash,
 )
@@ -88,10 +89,12 @@ def review_context(
     if brief.get("contract_version") != CAPABILITY_BRIEF_VERSION:
         return None
     capability_identity = capability_fingerprint(brief, semantic.prompt_version)
+    proposal_count, review_generation = fresh_eyes_plan_options(plan)
     return {
         "repository_id": repository_id,
         "snapshot_id": snapshot_id,
-        "proposal_count": max(1, min(3, int(plan.get("interface_hash") or 2))),
+        "proposal_count": proposal_count,
+        "review_generation": review_generation,
         "charter": charter,
         "brief": brief,
         "capability_fingerprint": capability_identity,
@@ -158,6 +161,7 @@ def comparison_inputs(
     manifest = {
         "protocol": FRESH_EYES_PROTOCOL_VERSION,
         "stage": "as_built_comparison",
+        "review_generation": context["review_generation"],
         "reference_fingerprint": context["reference_fingerprint"],
         "comparison_fingerprint": comparison_fingerprint,
         "current_system": current_manifest,
@@ -176,10 +180,13 @@ def comparison_inputs(
     return current_system, manifest, comparison_fingerprint
 
 
-def proposal_manifest(slot: str, capability_identity: str) -> dict[str, Any]:
+def proposal_manifest(
+    slot: str, capability_identity: str, review_generation: int
+) -> dict[str, Any]:
     return {
         "protocol": FRESH_EYES_PROTOCOL_VERSION,
         "stage": "clean_sheet_proposal",
+        "review_generation": review_generation,
         "slot": slot,
         "capability_fingerprint": capability_identity,
         "included": ["capability_brief", "external_constraints", "quality_priorities"],

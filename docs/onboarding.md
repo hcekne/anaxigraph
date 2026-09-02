@@ -264,6 +264,11 @@ proposal agreement, and absent clean-sheet components are never permission to re
 code. AnaxiGraph records the actual provider/model/executor identity and says explicitly when two
 proposals are independent sessions of one provider rather than cross-provider agreement.
 
+To repeat all five stages with a deliberately selected model, use `fresh-eyes --restart` and then
+start the semantic executor with explicit `--model` and `--reasoning-effort` values. This creates a
+new auditable review generation without rereading unchanged module dossiers. Merely changing the
+runtime model does not make saved understanding stale.
+
 ## Understand findings
 
 The **Improve → Findings** view opens on at most 20 findings worth checking first. It suppresses routine

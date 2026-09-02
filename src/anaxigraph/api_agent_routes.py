@@ -138,6 +138,7 @@ class AgentRoutes:
                 self.context.selected_config(row),
                 proposal_count=request.proposal_count,
                 retry_failed=request.retry_failed,
+                restart=request.restart,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
