@@ -49,9 +49,9 @@ export function renderOverview() {
   )).join("");
   renderBars("language-bars", value.languages || []);
   renderGroupHierarchy(selectedHierarchy());
-  byId("finding-preview").innerHTML = findingCards(
-    state.findings.slice(0, 10), { glossary: state.glossary, actions: false },
-  );
+  byId("finding-preview").innerHTML = state.findingPage
+    ? findingCards(state.findings.slice(0, 10), { glossary: state.glossary, actions: false })
+    : '<p class="muted">Loading findings…</p>';
   renderSemanticNotice(semantic);
   renderRepositoryIntelligence(value.architecture_charter);
   renderGraphQualityNotice(graphQuality);

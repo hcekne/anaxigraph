@@ -10,6 +10,7 @@ import {
 } from "/assets/dashboard-core.js";
 import { mapLayerDescription, mapLayerLabel } from "/assets/dashboard-format.js";
 import {
+  reloadFindings,
   renderFindings,
   renderWorkflowGuide,
 } from "/assets/finding-controller.js";
@@ -76,12 +77,11 @@ async function loadRepository() {
     if (token !== state.repositoryLoadToken) return;
     state.overview = overview;
     configureMapLayers();
-    const [modules, graph, findings, snapshots, trends, historyInfo, semanticStatus, reassessment] = await Promise.all([
+    const [modules, graph, snapshots, trends, historyInfo, semanticStatus, reassessment] = await Promise.all([
       request(api("/api/modules")),
       request(api("/api/graph", {
         node_limit: 1000, edge_limit: 2000, area: "", map_layer: state.mapLayer,
       })),
-      request(api("/api/findings", findingParams())),
       request(api("/api/snapshots")),
       request(api("/api/trends")),
       request(api("/api/history")),
@@ -94,8 +94,8 @@ async function loadRepository() {
       graphRegion: "",
       modules,
       graph,
-      findingPage: findings,
-      findings: findings.items || [],
+      findingPage: null,
+      findings: [],
       snapshots,
       trends: trends.snapshots || [],
       historyInfo,
@@ -116,6 +116,7 @@ async function loadRepository() {
       ? "Refresh the configured read-only scan target"
       : "This repository is indexed but is not mounted as this server's scan target";
     renderAllViews();
+    void reloadFindings();
   } catch (error) {
     if (token === state.repositoryLoadToken) toast(error.message, true);
   }
@@ -135,19 +136,6 @@ async function loadReassessment() {
       safety: { automatic_code_changes: false },
     };
   }
-}
-
-function findingParams() {
-  const element = (id) => byId(id)?.value || "";
-  return {
-    view: element("finding-view-filter") || "attention",
-    status: element("finding-status-filter"),
-    severity: element("finding-severity-filter"),
-    finding_type: element("finding-type-filter"),
-    architecture_area: element("finding-area-filter"),
-    minimum_confidence: element("finding-confidence-filter") || "0",
-    module: byId("finding-module-filter")?.value.trim() || "",
-  };
 }
 
 function resetRepositoryState() {

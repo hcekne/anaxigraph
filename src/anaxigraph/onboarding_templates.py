@@ -126,7 +126,7 @@ x-anaxigraph-service: &anaxigraph-service
   cap_drop:
     - ALL
   tmpfs:
-    - /tmp:size=128m,mode=1777
+    - /tmp:size=${{ANAXIGRAPH_TMPFS_SIZE:-512m}},mode=1777
   environment:
     ANAXIGRAPH_WATCH_INTERVAL: "${{ANAXIGRAPH_WATCH_INTERVAL:-10}}"
   volumes:

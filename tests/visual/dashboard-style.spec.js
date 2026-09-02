@@ -76,6 +76,37 @@ test("long metric values stay inside their cards", async ({ page }) => {
   expect(layout).toEqual({ cardFits: true, valueFits: true });
 });
 
+test("long module descriptions stay inside table cells", async ({ page }) => {
+  await openDashboard(page);
+  await page.locator("[data-subview=modules]").first().click();
+  const summary = page.locator(".module-summary").first();
+  await expect(summary).toBeVisible();
+  await summary.evaluate((cell) => {
+    cell.textContent = "Python-module-test_claude_resume_transcript_with_an_unbroken_generated_name";
+  });
+  expect(await summary.evaluate((cell) => cell.scrollWidth <= cell.clientWidth + 1)).toBe(true);
+});
+
+test("the repository overview does not wait for the findings feed", async ({ page }) => {
+  let releaseFindings;
+  let markFindingRequested;
+  const findingGate = new Promise((resolve) => { releaseFindings = resolve; });
+  const findingRequested = new Promise((resolve) => { markFindingRequested = resolve; });
+  await page.route("**/api/findings?**", async (route) => {
+    markFindingRequested();
+    await findingGate;
+    await route.continue();
+  });
+
+  await page.goto("/");
+  await findingRequested;
+  await expect(page.locator("#project-name")).not.toHaveText("Loading…");
+  await expect(page.locator("#repository-intelligence")).toBeVisible();
+  await expect(page.locator("#finding-result-note")).toHaveText("Loading findings…");
+  releaseFindings();
+  await expect(page.locator("#finding-result-note")).not.toHaveText("Loading findings…");
+});
+
 test("every dashboard journey stays inside desktop and phone viewports", async ({ browser }) => {
   const views = [
     ["overview", null],

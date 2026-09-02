@@ -200,7 +200,7 @@
 .module-table th button { width: 100%; border: 0; padding: 0.65rem 0.7rem; color: var(--muted); background: transparent; cursor: pointer; font-size: 0.66rem; font-weight: 750; letter-spacing: .045em; text-align: inherit; text-transform: uppercase; white-space: nowrap; }
 .module-table th button:hover, .module-table th button.active { color: var(--accent); }
 .module-table th button.active::after { content: " " attr(data-direction); }
-.module-table td { max-width: 280px; padding: 0.65rem 0.7rem; border-bottom: 1px solid var(--line-soft); color: var(--text-soft); vertical-align: top; }
+.module-table td { max-width: 280px; overflow-wrap: anywhere; word-break: break-word; padding: 0.65rem 0.7rem; border-bottom: 1px solid var(--line-soft); color: var(--text-soft); vertical-align: top; }
 .module-table tbody tr.module-row { cursor: pointer; }
 .module-table tbody tr.module-row:hover td { background: var(--surface-hover); }
 .module-table td.numeric, .module-table th.numeric { text-align: right; font-variant-numeric: tabular-nums; }

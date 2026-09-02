@@ -56,6 +56,9 @@ def test_initializer_generates_reviewable_policy_and_read_only_sidecar(repositor
     assert compose_config["x-anaxigraph-service"]["environment"] == {
         "ANAXIGRAPH_WATCH_INTERVAL": "${ANAXIGRAPH_WATCH_INTERVAL:-10}"
     }
+    assert compose_config["x-anaxigraph-service"]["tmpfs"] == [
+        "/tmp:size=${ANAXIGRAPH_TMPFS_SIZE:-512m},mode=1777"
+    ]
     assert "--scan-on-start" not in compose_config["services"]["anaxigraph"]["command"]
     assert "--allow-agent-scan" in compose_config["services"]["anaxigraph"]["command"]
     assert "start_with_watch" not in result["commands"]
