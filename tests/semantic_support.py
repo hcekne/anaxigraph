@@ -63,7 +63,12 @@ class _DeterministicLifecycleProvider:
         )
 
 
-def _fake_provider(tmp_path: Path, *, fail_path: str = "") -> Path:
+def _fake_provider(
+    tmp_path: Path,
+    *,
+    fail_path: str = "",
+    intent_marker: str = "",
+) -> Path:
     provider = tmp_path / "semantic_provider.py"
     charter_json = json.dumps(_agent_charter(), separators=(",", ":"))
     provider.write_text(
@@ -75,6 +80,12 @@ request = json.load(sys.stdin)
 CHARTER_VALUE = json.loads(CHARTER_VALUE_JSON)
 path = str(request.get("path") or request.get("scope_key") or "scope")
 kind = str(request.get("analysis_kind") or "unknown")
+INTENT_MARKER = __INTENT_MARKER_VALUE__
+intrinsic_responsibilities = (request.get("intrinsic_dossier") or {}).get("responsibilities") or []
+shifted_intent = bool(INTENT_MARKER and (
+    INTENT_MARKER in str(request.get("source") or "")
+    or any(INTENT_MARKER in str(item) for item in intrinsic_responsibilities)
+))
 with open(sys.argv[1], "a", encoding="utf-8") as stream:
     stream.write(json.dumps({"path": path, "kind": kind}) + "\\n")
 if FAIL_PATH and path == FAIL_PATH and kind == "intrinsic":
@@ -119,7 +130,7 @@ def taxonomy_value():
 dossier = {
     "summary": f"{kind} understanding for {path}",
     "detailed_summary": f"Evidence-grounded {kind} dossier for {path}.",
-    "responsibilities": [f"Own {path}"],
+    "responsibilities": [f"Own {path}" + (f" for {INTENT_MARKER}" if shifted_intent else "")],
     "inputs": [],
     "outputs": [],
     "side_effects": [],
@@ -221,7 +232,9 @@ elif kind.startswith("synthesis") and request.get("scope_type") == "repository":
 else:
     value = dossier
 json.dump({"result": value, "usage": {"input_tokens": 100, "output_tokens": 40}}, sys.stdout)
-""".replace("FAIL_PATH", repr(fail_path)).replace("CHARTER_VALUE_JSON", repr(charter_json)),
+""".replace("FAIL_PATH", repr(fail_path))
+        .replace("__INTENT_MARKER_VALUE__", repr(intent_marker))
+        .replace("CHARTER_VALUE_JSON", repr(charter_json)),
         encoding="utf-8",
     )
     return provider

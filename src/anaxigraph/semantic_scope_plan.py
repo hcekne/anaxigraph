@@ -36,6 +36,7 @@ from anaxigraph.semantic_records import (
     _states,
     _upsert_state,
 )
+from anaxigraph.semantic_status_language import semantic_work_plan
 from anaxigraph.semantic_taxonomy_plan import SemanticTaxonomyPlanner
 
 
@@ -55,8 +56,17 @@ class SemanticPlan:
             "enqueued": self.enqueued,
             "active_jobs": self.active_jobs,
             "stage": self.stage,
+            "work_plan": self.work_plan(),
             "semantic": self.status,
         }
+
+    def work_plan(self) -> dict[str, Any]:
+        return semantic_work_plan(
+            self.status,
+            stage=self.stage,
+            new_jobs=self.enqueued,
+            active_jobs=self.active_jobs,
+        )
 
 
 class SemanticPlanningService:

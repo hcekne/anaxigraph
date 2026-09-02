@@ -118,6 +118,7 @@ def _preparation(
         "reason": reason,
         "enqueued": int(planning.get("planned") or 0),
         "stages": list(planning.get("stages") or []),
+        "work_plan": dict(planning.get("work_plan") or {}),
     }
 
 

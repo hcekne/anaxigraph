@@ -229,6 +229,9 @@ def test_scan_refresh_reuses_text_only_changes_and_prepares_hash_changed_modules
     assert refresh["semantic_reread_modules"] == ["pkg/core.py"]
     assert refresh["text_only_modules"] == []
     assert refresh["preparation"]["enqueued"] == 1
+    assert refresh["preparation"]["work_plan"]["mode"] == "incremental"
+    assert refresh["preparation"]["work_plan"]["modules"]["reread"] == 1
+    assert "saved fingerprint" in refresh["preparation"]["work_plan"]["explanation"]
     assert refresh["full_repository_rerun_required"] is False
     assert code_refresh["semantic"]["counts"]["pending_intrinsic"] == 1
 

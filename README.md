@@ -186,6 +186,13 @@ to execute the prepared work. Static reassessment is available immediately; ask 
 `semantically_ready` when the decision needs refreshed responsibility, duplication, pattern, or
 possible-unused-code evidence.
 
+The reviewed responsibility map has its own incremental validation boundary. It is carried forward
+when the included file inventory and map policy still match and the fraction of unchanged intrinsic
+module roles meets `semantic.taxonomy.stability_bias` (default `0.8`). New or removed files, changed
+map constraints, or broader responsibility drift trigger a fresh proposal and its configured agent
+reviews. A carried taxonomy does not suppress affected context, group, repository, or pattern work.
+Planning responses expose this decision and the currently queued cascade under `work_plan`.
+
 Each guidance and impact reply includes server time, payload size, and model-token use. Semantic
 status groups AI jobs by action with current-snapshot and lifetime time/token totals, while scan
 results and detached execution records show wall-clock duration. Successful and failed attempts

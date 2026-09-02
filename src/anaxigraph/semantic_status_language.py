@@ -34,6 +34,52 @@ def semantic_status_explanation(status: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def semantic_work_plan(
+    status: Mapping[str, Any],
+    *,
+    stage: str,
+    new_jobs: int,
+    active_jobs: int,
+) -> dict[str, Any]:
+    scopes = status.get("scope_counts") or {}
+    modules = scopes.get("module") or {}
+    eligible = _count(status.get("eligible_modules"))
+    rereads = _count(modules.get("pending_intrinsic"))
+    taxonomy = (status.get("taxonomy") or {}).get("current") or {}
+    return {
+        "mode": "full" if eligible and rereads >= eligible else "incremental",
+        "stage": stage,
+        "new_jobs": new_jobs,
+        "active_jobs": active_jobs,
+        "modules": {
+            "eligible": eligible,
+            "current": _count(status.get("current")),
+            "reread": rereads,
+            "context_refresh": _count(modules.get("pending_context")),
+        },
+        "derived_scopes": {
+            "taxonomy": _pending_scope(scopes.get("taxonomy") or {}),
+            "groups": _pending_scope(scopes.get("group") or {}),
+            "repository": _pending_scope(scopes.get("repository") or {}),
+            "patterns": _pending_scope(scopes.get("pattern") or {}),
+        },
+        "taxonomy_reuse": taxonomy.get("source"),
+        "explanation": (
+            "Only evidence whose saved fingerprint is no longer current is queued. "
+            "The reviewed responsibility map is retained when incremental validation "
+            "meets the repository's taxonomy stability policy."
+        ),
+    }
+
+
+def _pending_scope(counts: Mapping[str, Any]) -> int:
+    return sum(
+        _count(value)
+        for name, value in counts.items()
+        if name.startswith("pending_") or name == "intrinsic_current"
+    )
+
+
 def _conclusion(
     status: Mapping[str, Any],
     enabled: bool,

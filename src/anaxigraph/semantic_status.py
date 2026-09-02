@@ -400,6 +400,8 @@ def _taxonomy_document(row: dict[str, Any] | None) -> dict[str, Any] | None:
     return {
         "id": row["id"],
         "status": row["status"],
+        "source": row["source"],
+        "refresh_reason": row.get("refresh_reason"),
         "confidence": row["confidence"],
         "provider": row["provider"],
         "model": row["model"],

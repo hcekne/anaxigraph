@@ -27,14 +27,14 @@ def _bootstrap_state(
     limit: int | None,
     semantic: SemanticConfig,
     until_complete: bool,
-) -> tuple[int | None, dict[str, int], list[str]]:
+) -> tuple[int | None, dict[str, Any], list[str]]:
     bounded = max(1, limit if limit is not None else semantic.max_jobs_per_run)
     remaining = None if until_complete else bounded
     total = {"planned": 0, "processed": 0, "completed": 0, "failed": 0, "retry": 0}
     return remaining, total, []
 
 
-def _merge_run_counts(total: dict[str, int], run: dict[str, Any]) -> None:
+def _merge_run_counts(total: dict[str, Any], run: dict[str, Any]) -> None:
     for key in ("processed", "completed", "failed", "retry"):
         total[key] += int(run[key])
 
@@ -92,6 +92,16 @@ def _count_job_results(counts: dict[str, int], results: list[str]) -> None:
     counts["processed"] += len(results)
     for result in results:
         counts[result] += 1
+
+
+def _bootstrap_result(
+    total: dict[str, Any], stages: list[str], semantic: dict[str, Any]
+) -> dict[str, Any]:
+    return {
+        **total,
+        "stages": list(dict.fromkeys(stages)),
+        "semantic": semantic,
+    }
 
 
 class SemanticRunnerService:
@@ -177,22 +187,20 @@ class SemanticRunnerService:
     ) -> dict[str, Any]:
         semantic = config.semantic
         if semantic.provider == "agent" and execution_semantic is None:
-            # Connected coding agents own inference, so ordinary refreshes only prepare work.
             plan_only = True
         if execution_semantic is not None and semantic.provider != "agent":
             raise ValueError("A local agent executor can only bridge semantic.provider=agent")
         remaining, total, stages = _bootstrap_state(limit, semantic, until_complete)
-        first = True
         for _ in _bootstrap_passes(until_complete, semantic):
             plan = self._planning.plan(
                 repository_id,
                 repository,
                 config,
-                force=force and first,
+                force=force and not stages,
                 retry_failed=retry_failed,
             )
-            first = False
             total["planned"] += plan.enqueued
+            total.setdefault("work_plan", plan.work_plan())
             stages.append(plan.stage)
             if _stop_bootstrap(plan_only, plan, remaining):
                 break
@@ -212,9 +220,7 @@ class SemanticRunnerService:
                     time.sleep(2)
                     continue
                 break
-        total["stages"] = list(dict.fromkeys(stages))
-        total["semantic"] = self._reporting.status(repository_id, semantic)
-        return total
+        return _bootstrap_result(total, stages, self._reporting.status(repository_id, semantic))
 
     def _work_one(
         self,

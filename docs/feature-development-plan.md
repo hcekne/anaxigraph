@@ -4460,6 +4460,33 @@ implementation file exceeds 500 lines and maintainability warnings fall to 175. 
 ratified production-source increase is 429 lines, moving the post-Phase-11 exact ratchet from
 57,439 to **57,868 lines**.
 
+### 10.8 follow-up: validate architecture drift before rebuilding the map
+
+Taxonomy freshness now has a stable boundary separate from dossier freshness. Changed source still
+queues intrinsic work only for changed structure and context work only for affected neighbors. Once
+those dossiers are current, AnaxiGraph compares the included path set, map constraints, taxonomy
+policy, and intrinsic responsibility fingerprints with the last reviewed map. It carries the map
+forward when the inventory and policy match and the stable-role fraction meets
+`semantic.taxonomy.stability_bias`; it records the source and plain-language validation reason.
+New or removed modules, changed map constraints, a prompt/protocol change, or responsibility drift
+beyond that threshold automatically restores the existing proposal and independent-review stages.
+
+This is one additional fingerprint on the existing taxonomy scope, not a second architecture model,
+schema migration, job kind, workflow, or approval step. Group, repository, and pattern fingerprints
+still decide their own smaller cascades, so retaining a taxonomy never hides genuinely stale derived
+work. Planning and scan-refresh responses expose one `work_plan` with the initial module rereads,
+context refreshes, downstream scope counts, and whether the run is full or incremental. Executor and
+model names remain provenance and do not invalidate otherwise current understanding.
+
+Three focused contracts cover a one-module interface change, a new module, and responsibility drift
+across the configured boundary; the existing refresh contract also checks the public work plan. The
+implementation removes the former taxonomy-carry and semantic-runner size exceptions, lowers both
+remaining taxonomy-planner ratchets, and keeps every implementation file at or below 500 lines. The
+complete suite passes **640 tests at 92.07% coverage**; module-size, maintainability, architecture,
+forbidden-file, self-analysis, agent-package, JavaScript, and Compose gates pass explicitly against
+the worktree. The intentional production increase is 402 lines, moving the exact ratchet from
+57,858 to **58,260 lines** for validation, reporting, and compatibility with already-reviewed maps.
+
 ## Phase 10 exit gate
 
 - The three product promises and the actor-neutral rule are visible in onboarding, navigation,
@@ -4481,7 +4508,7 @@ ratified production-source increase is 429 lines, moving the post-Phase-11 exact
 - The §10.7 fresh-eyes review proves implementation-blind proposal packets, honest independent-agent
   provenance, blind adjudication, as-built comparison, mission filtering, and incremental reuse
   without adding another provider or workflow platform.
-- The latest phase-ratified **55,471-line** production ratchet remains enforced unless a later phase
+- The latest phase-ratified **58,260-line** production ratchet remains enforced unless a later phase
   explicitly ratifies necessary growth; production module count, high-fragmentation package counts,
   and public surface are governed alongside LOC rather than traded against it.
 - No Change Contract, mandatory approval/decision workflow, new product family, database, provider

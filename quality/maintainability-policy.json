@@ -6,7 +6,7 @@
   "production_source_budget": {
     "root": "src/anaxigraph",
     "extensions": [".py", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".css", ".html"],
-    "baseline_lines": 57858
+    "baseline_lines": 58260
   },
   "function_limits": {
     "warning_lines": 40,
@@ -29,20 +29,18 @@
     "src/anaxigraph/architecture.py::evaluate_architecture": [64, 13],
     "src/anaxigraph/architecture_persistence.py::_update_finding_lifecycle": [69, 6],
     "src/anaxigraph/config.py::_semantic_config": [53, 11],
-    "src/anaxigraph/persistence/semantic_taxonomy_carry.py::carry_taxonomy": [91, 3],
     "src/anaxigraph/registry.py::load_repository_registry": [55, 23],
     "src/anaxigraph/scanner.py::RepositoryScanner._scan": [151, 8],
     "src/anaxigraph/semantic.py::ClaudeSemanticProvider.analyze": [51, 11],
     "src/anaxigraph/semantic_contract.py::validated_result": [56, 11],
     "src/anaxigraph/semantic_records.py::_ensure_job": [59, 2],
     "src/anaxigraph/semantic_requests.py::SemanticEvidenceService._intrinsic_request": [52, 9],
-    "src/anaxigraph/semantic_runner.py::SemanticRunnerService.bootstrap": [54, 12],
     "src/anaxigraph/semantic_scope_plan.py::SemanticPlanningService.plan": [74, 6],
     "src/anaxigraph/semantic_scope_plan.py::SemanticPlanningService._plan_groups": [108, 12],
     "src/anaxigraph/semantic_scope_plan.py::SemanticPlanningService._plan_repository": [101, 10],
     "src/anaxigraph/semantic_taxonomy_identity.py::stable_taxonomy_nodes": [63, 11],
-    "src/anaxigraph/semantic_taxonomy_plan.py::SemanticTaxonomyPlanner.plan_taxonomy": [90, 7],
-    "src/anaxigraph/semantic_taxonomy_plan.py::SemanticTaxonomyPlanner._enqueue_review": [73, 5],
+    "src/anaxigraph/semantic_taxonomy_plan.py::SemanticTaxonomyPlanner.plan_taxonomy": [66, 5],
+    "src/anaxigraph/semantic_taxonomy_plan.py::SemanticTaxonomyPlanner._enqueue_review": [69, 5],
     "src/anaxigraph/semantic_taxonomy_results.py::_store_candidate": [60, 1],
     "src/anaxigraph/semantic_taxonomy_results.py::_store_review": [53, 2],
     "src/anaxigraph/semantic_taxonomy_results.py::_finalize": [89, 3],

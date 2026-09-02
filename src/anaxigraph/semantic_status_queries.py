@@ -197,10 +197,14 @@ def _repository_state(connection: sqlite3.Connection, snapshot_id: int) -> dict[
 def _taxonomy(connection: sqlite3.Connection, snapshot_id: int) -> dict[str, Any] | None:
     row = connection.execute(
         """
-        SELECT st.*,
+        SELECT st.*, ss.reason AS refresh_reason,
                (SELECT COUNT(*) FROM semantic_taxonomy_reviews str
                 WHERE str.taxonomy_id = st.id) AS stored_reviews
-        FROM semantic_taxonomies st WHERE st.snapshot_id = ?
+        FROM semantic_taxonomies st
+        LEFT JOIN semantic_scope_states ss
+          ON ss.snapshot_id = st.snapshot_id AND ss.scope_type = 'taxonomy'
+         AND ss.scope_key = CAST(st.repository_id AS TEXT)
+        WHERE st.snapshot_id = ?
         ORDER BY CASE st.status WHEN 'current' THEN 0 ELSE 1 END, st.id DESC LIMIT 1
         """,
         (snapshot_id,),

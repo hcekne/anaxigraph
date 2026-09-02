@@ -159,6 +159,15 @@ records:
 - provider and model changes do not invalidate semantic work; they remain queryable provenance on
   jobs, documents, claims, usage, and cost records.
 
+The reviewed taxonomy is not regenerated for every changed context dossier. An incremental check
+first requires the same included paths and map policy, then compares intrinsic module-role
+fingerprints with the last reviewed map. If the stable fraction meets
+`semantic.taxonomy.stability_bias` (default `0.8`), AnaxiGraph carries that reviewed map forward and
+refreshes only affected descendants and ancestors. An inventory or policy change, or responsibility
+drift beyond that boundary, automatically queues a new taxonomy proposal and its agent reviews.
+`work_plan` reports the current file, context, taxonomy, group, repository, and pattern scope before
+model execution.
+
 `semantic.refresh: on_scan` is the default once AI mapping is enabled. It prepares the saved work;
 with `provider: agent`, it does not silently run a model. A connected agent can explicitly request
 the same behavior with `ANAXIGRAPH_SCAN(refresh_semantics=true)`, and the CLI equivalent is
