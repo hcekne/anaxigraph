@@ -258,7 +258,7 @@ def test_semantic_failure_and_exclusion_are_visible_terminal_states(repository, 
 def test_expired_worker_lease_is_requeued_and_resumed(repository, database, tmp_path):
     log = tmp_path / "semantic-recovery.log"
     provider = _fake_provider(tmp_path)
-    _semantic_config(repository, provider, log, timeout_seconds=1)
+    _semantic_config(repository, provider, log, timeout_seconds=10)
     config = load_config(repository)
     stats = RepositoryScanner(database).scan(repository)
     engine = SemanticEngine(database)

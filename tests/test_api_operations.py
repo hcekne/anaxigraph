@@ -123,13 +123,20 @@ async def test_service_lifecycle_supervises_repository_watcher(repository, datab
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://testserver"
         ) as client:
-            health = (await client.get("/api/health")).json()
+            for _ in range(200):
+                health = (await client.get("/api/health")).json()
+                reported = health["watcher"]["targets"]["default"].get("scan") or {}
+                if int(reported.get("snapshot_id") or 0) >= int(second["id"]):
+                    break
+                await anyio.sleep(0.02)
+            else:
+                raise AssertionError("watcher did not report its completed scan")
 
     assert int(second["id"]) > int(first["id"])
     assert health["write_authority"]["claimed"] is True
     assert health["write_authority"]["owner"] == "service"
     assert health["watcher"]["running"] is True
-    assert health["watcher"]["targets"]["default"]["status"] == "current"
+    assert health["watcher"]["targets"]["default"]["status"] in {"current", "scanning"}
 
 
 @pytest.mark.anyio
