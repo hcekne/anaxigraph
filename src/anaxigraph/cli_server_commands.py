@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import os
 import sys
 import webbrowser
@@ -46,7 +47,14 @@ def _serve_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("--config", type=Path)
     parser.add_argument("--db", type=Path, default=default_db())
-    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help=(
+            "Address to bind (default: 127.0.0.1, this machine only); any other address makes "
+            "the unauthenticated REST API and dashboard reachable from other machines"
+        ),
+    )
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--scan-on-start", action="store_true")
     parser.add_argument(
@@ -92,14 +100,61 @@ def _serve(args: argparse.Namespace) -> None:
         repository_history_snapshots=args.history_snapshots,
         watch_interval=None if args.no_watch else args.watch_interval,
     )
-    url = f"http://{'127.0.0.1' if args.host == '0.0.0.0' else args.host}:{args.port}"
+    url = f"http://{_display_host(args.host)}:{args.port}"
     print(f"Dashboard: {url}", file=sys.stderr)
     print(f"MCP:       {url}/mcp", file=sys.stderr)
     if targets:
         print(f"Repositories: {len(targets)} configured", file=sys.stderr)
+    for line in bind_exposure_notice(
+        args.host, args.port, args.allowed_hosts, args.allow_agent_scan
+    ):
+        print(line, file=sys.stderr)
     if args.open:
         webbrowser.open(url)
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+
+
+def bind_exposure_notice(
+    host: str, port: int, allowed_hosts: list[str] | None, allow_scan: bool
+) -> list[str]:
+    """Say plainly what a non-loopback bind exposes; a loopback bind exposes nothing new."""
+
+    if _is_loopback(host):
+        return []
+    bind = f"[{host}]" if ":" in host and not host.startswith("[") else host
+    hosts = ", ".join(allowed_hosts) if allowed_hosts else "loopback names and 'anaxigraph:*'"
+    notice = [
+        f"Exposure notice: AnaxiGraph is listening on {bind}:{port}, so it is reachable from "
+        "other machines.",
+        "The REST API and dashboard have no login, so keep AnaxiGraph on loopback or behind SSH, "
+        f"never on an untrusted or shared network; only MCP checks Host headers ({hosts}).",
+    ]
+    if allow_scan:
+        notice.append(
+            "--allow-agent-scan is on, so any agent that reaches this address can start scans."
+        )
+    return notice
+
+
+def _is_loopback(host: str) -> bool:
+    if host == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host.strip("[]")).is_loopback
+    except ValueError:
+        return False
+
+
+def _display_host(host: str) -> str:
+    """Render a bind address as a URL host, sending unspecified addresses to loopback."""
+
+    try:
+        address = ipaddress.ip_address(host.strip("[]"))
+    except ValueError:
+        return host
+    if address.is_unspecified:
+        return "127.0.0.1" if address.version == 4 else "[::1]"
+    return f"[{address}]" if address.version == 6 else str(address)
 
 
 def _repository_from_env() -> Path | None:
