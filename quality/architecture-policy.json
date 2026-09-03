@@ -227,6 +227,7 @@
         "anaxigraph.semantic_background",
         "anaxigraph.semantic_background_progress",
         "anaxigraph.semantic_background_refusal",
+      "anaxigraph.semantic_background_slots",
         "anaxigraph.semantic_execution",
         "anaxigraph.semantic_mcp",
         "anaxigraph.semantic_remote_calls",
