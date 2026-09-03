@@ -145,6 +145,7 @@
         "anaxigraph.semantic_agent_protocol",
         "anaxigraph.semantic_fresh_eyes_evidence",
         "anaxigraph.semantic_fresh_eyes_generations",
+        "anaxigraph.semantic_fresh_eyes_grounding",
         "anaxigraph.semantic_fresh_eyes_plan",
         "anaxigraph.semantic_fresh_eyes_requests",
         "anaxigraph.semantic_fresh_eyes_review",

@@ -23,6 +23,7 @@ from anaxigraph.semantic_fresh_eyes_evidence import (
     reference_fingerprint,
     review_context,
 )
+from anaxigraph.semantic_fresh_eyes_grounding import write_review_grounding
 from anaxigraph.semantic_records import (
     _ensure_job,
     _latest_document,
@@ -162,6 +163,7 @@ class FreshEyesPlanner:
             return enqueued, "fresh_eyes_mission_filter"
         _finish_plan(
             connection,
+            repository_id=context["repository_id"],
             snapshot_id=context["snapshot_id"],
             review_id=int(review["id"]),
             capability=context["capability_fingerprint"],
@@ -463,6 +465,7 @@ def _update_plan_identity(
 def _finish_plan(
     connection: sqlite3.Connection,
     *,
+    repository_id: int,
     snapshot_id: int,
     review_id: int,
     capability: str,
@@ -488,4 +491,7 @@ def _finish_plan(
             FRESH_EYES_SCOPE,
             FRESH_EYES_PLAN_KEY,
         ),
+    )
+    write_review_grounding(
+        connection, repository_id=repository_id, snapshot_id=snapshot_id, review_id=review_id
     )

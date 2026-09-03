@@ -161,6 +161,17 @@ saving or withdrawing one re-run only comparison and mission filtering, and the 
 reports which declared keys the saved review actually saw. Implementation-blind stages never
 receive them.
 
+When the mission filter completes, one deterministic `fresh_grounding` document is written per
+review document, recorded with `provider = deterministic` so it is never mistaken for model output.
+It extracts the paths, symbols, findings, commits, routes, and declared Charter keys each
+recommendation cites, resolves them against the reviewed snapshot, and labels the recommendation
+`confirmed`, `needs_test`, `already_satisfied`, or `stale`. Evidence fields are free text, so the
+extraction is regular expressions and heuristics: a recommendation citing nothing checkable is
+`needs_test`, never `confirmed`, and grounding reports identifier checks, not correctness. The
+writer is idempotent because planning replays it on every pass, and `status()` only reads: it
+overlays staleness for cited files changed since the reviewed snapshot and attaches
+`grounding_summary` plus a per-recommendation `grounding` block.
+
 Capability, reference, and comparison fingerprints are independent. An implementation-only change
 may reuse proposal and adjudication documents across snapshots while rebuilding comparison and
 mission filtering; a capability change invalidates the reference stages explicitly. The existing

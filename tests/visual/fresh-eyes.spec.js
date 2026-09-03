@@ -166,6 +166,37 @@ function stage(key, label) {
   };
 }
 
+test("a stale grounding status names the citations that did not resolve", async ({ page }) => {
+  const grounded = {
+    ...reviewResult(),
+    grounding_summary: { counts: { confirmed: 0, needs_test: 0, already_satisfied: 0, stale: 1 } },
+    recommendations: [{
+      ...reviewResult().recommendations[0],
+      grounding: {
+        status: "stale",
+        reason: "Cited code changed after the review was produced: pkg/core.py.",
+        checks: [{ kind: "path", value: "pkg/core.py", field: "current_evidence", result: "changed" }],
+      },
+    }],
+  };
+  await page.route("**/api/fresh-eyes**", async (route) => {
+    await route.fulfill({ json: grounded });
+  });
+  await page.goto("/");
+  await expect(page.locator("#project-name")).not.toHaveText("Loading…");
+  await page.getByRole("button", { name: "Improve", exact: true }).click();
+  await page.getByRole("button", { name: "Fresh eyes", exact: true }).click();
+
+  const badge = page.locator(".fresh-grounding.stale");
+  await expect(badge).toContainText("Stale");
+  await expect(badge).toContainText("Cited code changed after the review was produced");
+  await expect(page.locator(".fresh-grounding-checks")).toContainText(
+    "1 citation that did not resolve",
+  );
+  await page.locator(".fresh-grounding-checks summary").click();
+  await expect(page.locator(".fresh-grounding-checks")).toContainText("path pkg/core.py — changed");
+});
+
 test("a recorded generation can be read but not restarted", async ({ page }) => {
   const superseded = {
     ...reviewResult(),
