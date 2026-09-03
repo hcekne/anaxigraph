@@ -16,6 +16,7 @@ from anaxigraph.scan_persistence import (
     ingest_git_history,
     insert_file_facts,
     insert_snapshot,
+    scan_consistency_metadata,
     upsert_artifacts,
     upsert_groups,
 )
@@ -105,6 +106,7 @@ def refresh_existing_snapshot(
 ) -> dict[str, int]:
     snapshot_id = int(snapshot["id"])
     metadata = json.loads(snapshot["metadata_json"] or "{}")
+    metadata.pop("scan_consistency", None)
     metadata.update(
         {
             "anaxigraph_version": __version__,
@@ -112,6 +114,7 @@ def refresh_existing_snapshot(
             "analysis_signature": signature,
             "config_path": str(config.config_path) if config.config_path else None,
             "working_tree_fingerprint": git_metadata.working_tree_fingerprint,
+            **scan_consistency_metadata(git_metadata),
         }
     )
     with database.transaction() as connection:

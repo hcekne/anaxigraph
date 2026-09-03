@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import anaxigraph.git as git
+from anaxigraph.scan_consistency import CHANGED_DURING_SCAN
 
 _ACTIVE_RUN_STATES = ("queued", "enumerating", "importing", "finalizing", "running")
 
@@ -24,14 +25,7 @@ def served_map_status(root: Path, snapshot: Mapping[str, Any]) -> dict[str, Any]
     metadata = _snapshot_metadata(snapshot)
     mapped_commit = str(snapshot.get("commit_sha") or "unknown")
     mapped_dirty = bool(snapshot.get("dirty"))
-    state, reason = _map_state(
-        mapped_commit,
-        mapped_dirty,
-        metadata.get("working_tree_fingerprint"),
-        checkout.commit_sha,
-        checkout.dirty,
-        checkout.working_tree_fingerprint,
-    )
+    state, reason = _map_state(mapped_commit, mapped_dirty, metadata, checkout)
     return {
         "contract_version": "served-map-status-v1",
         "state": state,
@@ -59,15 +53,19 @@ def served_map_status(root: Path, snapshot: Mapping[str, Any]) -> dict[str, Any]
 def _map_state(
     mapped_commit: str,
     mapped_dirty: bool,
-    mapped_worktree: Any,
-    checkout_commit: str,
-    checkout_dirty: bool,
-    checkout_worktree: str | None,
+    metadata: Mapping[str, Any],
+    checkout: Any,
 ) -> tuple[str, str]:
+    checkout_commit = checkout.commit_sha
+    checkout_dirty = checkout.dirty
+    checkout_worktree = checkout.working_tree_fingerprint
+    mapped_worktree = metadata.get("working_tree_fingerprint")
     if "unversioned" in {mapped_commit, checkout_commit}:
         return "uncertain", "Git could not identify both saved and current commits."
     if mapped_commit != checkout_commit:
         return "stale", f"The saved map uses {mapped_commit[:12]}, not {checkout_commit[:12]}."
+    if metadata.get("scan_consistency") == CHANGED_DURING_SCAN:
+        return "uncertain", "Files changed while this map was being scanned."
     if mapped_worktree and checkout_worktree:
         if str(mapped_worktree) == checkout_worktree:
             return "current", "The saved map matches the current commit and working files."
