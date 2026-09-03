@@ -25,6 +25,7 @@ class TwoExecutorReview:
         repository: Any,
         config: Any,
         *,
+        dossier_factory: Any,
         executors: tuple[str, ...] = TWO_EXECUTORS,
         agent_model: str = "fixture-model",
     ) -> None:
@@ -32,6 +33,7 @@ class TwoExecutorReview:
         self.repository_id = repository_id
         self.repository = repository
         self.config = config
+        self.dossier_factory = dossier_factory
         self.executors = tuple(executors)
         self.agent_model = agent_model
         self.claims: list[dict[str, Any]] = []
@@ -57,8 +59,6 @@ class TwoExecutorReview:
 
     def submit(self, packet: dict[str, Any]) -> dict[str, Any]:
         """Submit the deterministic fixture result for a claimed work packet."""
-        # semantic_support imports this module, so the dossier factory is resolved lazily.
-        from semantic_support import _agent_dossier
 
         return self.engine.submit_agent_work(
             self.repository_id,
@@ -66,7 +66,7 @@ class TwoExecutorReview:
             self.config,
             job_id=packet["job"]["id"],
             lease_token=packet["lease"]["token"],
-            dossier=_agent_dossier(packet["analysis_request"]),
+            dossier=self.dossier_factory(packet["analysis_request"]),
         )
 
     def hold_one_each(self, kind: str) -> dict[str, dict[str, Any]]:

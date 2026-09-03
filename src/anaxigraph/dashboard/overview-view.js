@@ -95,6 +95,33 @@ function renderCoverageNotice(coverage) {
   notice.innerHTML = `<strong>Required line coverage is unavailable.</strong><p>${escapeHtml(reason)}</p><details><summary>Coverage inputs · ${found}/${inputs.length} found</summary><ul class="coverage-inputs">${rows || "<li>No coverage paths are configured.</li>"}</ul></details><p class="coverage-next">Run the repository's own test or CI command first. <strong>Refresh scan</strong> only imports a report that already exists.</p>`;
 }
 
+function charterStatements(items = []) {
+  return items.map((item) => {
+    const text = item.presented_statement || item.statement || item.name;
+    if (item.disposition !== "refuted") return text;
+    const overlay = item.declared_overlay || {};
+    return { text, note: `${overlay.author || "A principal"}: ${overlay.rationale || ""}` };
+  });
+}
+
+function declaredContextLines(items = []) {
+  return (items || []).map((item) => {
+    const claim = item.statement || item.inferred_statement || item.key;
+    const label = item.mode === "refutation" ? "Declared non-issue — " : "";
+    return `${label}${claim} — ${item.author}: ${item.rationale}`;
+  });
+}
+
+function charterSourceNote(value) {
+  if (value.state === "provisional") {
+    return "Built from static scan facts only. AI review has not confirmed the product meaning yet.";
+  }
+  if (value.state === "stale") {
+    return "Saved AI understanding is visible, but changed code evidence still needs review.";
+  }
+  return `Created by ${semanticProviderLabel(value.provenance)}. Every claim should point back to indexed evidence; uncertainty stays visible.`;
+}
+
 function renderRepositoryIntelligence(value) {
   const panel = byId("repository-intelligence");
   panel.hidden = !value;
@@ -102,24 +129,11 @@ function renderRepositoryIntelligence(value) {
     panel.innerHTML = "";
     return;
   }
-  const statements = (items = []) => items.map((item) => {
-    const text = item.presented_statement || item.statement || item.name;
-    if (item.disposition !== "refuted") return text;
-    const overlay = item.declared_overlay || {};
-    return { text, note: `${overlay.author || "A principal"}: ${overlay.rationale || ""}` };
-  });
+  const statements = charterStatements;
   const unknowns = (value.unknowns || []).map((item) => item.question);
   const conflicts = (value.conflicts || []).map((item) => item.claim);
-  const declared = (value.declared_context || []).map((item) => {
-    const claim = item.statement || item.inferred_statement || item.key;
-    const label = item.mode === "refutation" ? "Declared non-issue — " : "";
-    return `${label}${claim} — ${item.author}: ${item.rationale}`;
-  });
-  const source = value.state === "provisional"
-    ? "Built from static scan facts only. AI review has not confirmed the product meaning yet."
-    : value.state === "stale"
-      ? "Saved AI understanding is visible, but changed code evidence still needs review."
-    : `Created by ${semanticProviderLabel(value.provenance)}. Every claim should point back to indexed evidence; uncertainty stays visible.`;
+  const declared = declaredContextLines(value.declared_context);
+  const source = charterSourceNote(value);
   const purpose = value.purpose?.presented_statement || value.purpose?.statement;
   panel.innerHTML = `<header class="charter-header"><div class="charter-heading"><div><p class="eyebrow">Living Architecture Charter</p><h2>What this repository does</h2></div><span class="charter-state">${escapeHtml(humanize(value.state))}</span></div><p class="charter-purpose">${escapeHtml(purpose || "The Charter did not record a purpose.")}</p><p class="charter-provenance">${escapeHtml(source)}</p>${charterWarning(value.snapshot)}</header><div class="repository-intelligence-grid">${charterSection("Observable capabilities", statements(value.capabilities), "No capability has enough evidence yet")}${charterSection("Responsibility areas", statements(value.responsibilities), "No responsibility has enough evidence yet")}${charterSection("Important flows", statements(value.execution_flows), "No execution flow has enough evidence yet")}${charterSection("Safe extension points", statements(value.extension_points), "No extension point has enough evidence yet")}${charterSection("Coherence concerns", statements(value.coherence_concerns), "No current coherence concern was recorded", "attention")}${charterSection("Unknowns and conflicts", [...unknowns, ...conflicts], "No unresolved unknown or conflict was recorded", "question")}${charterSection("Declared context", declared, "No human or principal correction has been added")}</div>`;
 }
