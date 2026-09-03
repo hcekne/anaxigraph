@@ -10,6 +10,7 @@ from anaxigraph.agent import architecture_guidance, impact_analysis
 from anaxigraph.architecture_reassessment import architecture_reassessment
 from anaxigraph.cli_common import add_repository_arguments, ensure_current
 from anaxigraph.semantic_service import (
+    FRESH_EYES_START_TIMEOUT_SECONDS,
     discover_semantic_service,
     service_architecture_guidance,
     service_architecture_reassessment,
@@ -19,6 +20,15 @@ from anaxigraph.semantic_service import (
 from anaxigraph.understanding import SemanticEngine
 
 _RESTART_FRESH_EYES_HELP = "Rerun every stage after the current review completes"
+_TIMEOUT_FRESH_EYES_HELP = (
+    "Seconds to wait for the service to accept --start or --restart while it may be planning "
+    "(service mode only; the default outlasts the index's 30-second busy window)"
+)
+_FRESH_EYES_TIMED_OUT = (
+    "AnaxiGraph service did not answer the fresh-eyes {action} within {seconds:g} s; it may still "
+    "be planning. Read the saved review state with `anaxigraph fresh-eyes {repository}` or rerun "
+    "with a longer --timeout-seconds"
+)
 
 
 def configure_agent_commands(commands: Any) -> None:
@@ -47,6 +57,11 @@ def configure_agent_commands(commands: Any) -> None:
     _add_service_url(impact)
     impact.set_defaults(handler=_impact, db=None)
 
+    _configure_fresh_eyes(commands)
+    _configure_reassessment(commands)
+
+
+def _configure_fresh_eyes(commands: Any) -> None:
     fresh_eyes = commands.add_parser(
         "fresh-eyes",
         help="Compare the current system with independent clean-sheet architecture proposals",
@@ -66,10 +81,14 @@ def configure_agent_commands(commands: Any) -> None:
         "--retry-failed", action="store_true", help="Retry failed review-stage tasks"
     )
     fresh_eyes.add_argument("--restart", action="store_true", help=_RESTART_FRESH_EYES_HELP)
+    fresh_eyes.add_argument(
+        "--timeout-seconds",
+        type=float,
+        default=FRESH_EYES_START_TIMEOUT_SECONDS,
+        help=_TIMEOUT_FRESH_EYES_HELP,
+    )
     _add_service_url(fresh_eyes)
     fresh_eyes.set_defaults(handler=_fresh_eyes, db=None)
-
-    _configure_reassessment(commands)
 
 
 def _configure_reassessment(commands: Any) -> None:
@@ -147,16 +166,7 @@ def _impact(args: argparse.Namespace) -> dict[str, Any]:
 def _fresh_eyes(args: argparse.Namespace) -> dict[str, Any]:
     service = _agent_service(args)
     if service is not None:
-        return _service_result(
-            service_fresh_eyes_review(
-                service,
-                start=args.start or args.restart,
-                proposal_count=args.proposals,
-                retry_failed=args.retry_failed,
-                restart=args.restart,
-            ),
-            service,
-        )
+        return _service_result(_service_fresh_eyes(service, args), service)
     database, repository_id, config = ensure_current(args)
     engine = SemanticEngine(database)
     if args.start or args.restart:
@@ -169,6 +179,32 @@ def _fresh_eyes(args: argparse.Namespace) -> dict[str, Any]:
             restart=args.restart,
         )
     return engine.fresh_eyes_status(repository_id, config.semantic)
+
+
+def _service_fresh_eyes(service: Any, args: argparse.Namespace) -> dict[str, Any]:
+    starting = bool(args.start or args.restart)
+    try:
+        return service_fresh_eyes_review(
+            service,
+            start=starting,
+            proposal_count=args.proposals,
+            retry_failed=args.retry_failed,
+            restart=args.restart,
+            timeout=args.timeout_seconds,
+        )
+    except OSError as exc:
+        if not starting or not _timed_out(exc):
+            raise
+        message = _FRESH_EYES_TIMED_OUT.format(
+            action="restart" if args.restart else "start",
+            seconds=args.timeout_seconds,
+            repository=args.repository,
+        )
+        raise OSError(message) from exc
+
+
+def _timed_out(error: OSError) -> bool:
+    return isinstance(error, TimeoutError) or "timed out" in str(error).lower()
 
 
 def _reassess(args: argparse.Namespace) -> dict[str, Any]:
