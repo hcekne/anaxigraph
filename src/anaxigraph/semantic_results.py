@@ -17,6 +17,7 @@ from anaxigraph.semantic_index_port import SemanticIndex
 from anaxigraph.semantic_job_state import (
     FRESH_EYES_METADATA_RETENTION,
     PATTERN_METADATA_RETENTION,
+    SemanticLeaseLost,
     semantic_job_transition,
     semantic_scope_status,
 )
@@ -59,6 +60,7 @@ class SemanticPersistenceService:
     ) -> None:
         completion = _completion(job, result, provider, semantic)
         with self._database.transaction() as connection:
+            _finish_job(connection, job, completion)
             document_id = _insert_document(
                 connection,
                 job=job,
@@ -67,7 +69,6 @@ class SemanticPersistenceService:
                 semantic=semantic,
                 completion=completion,
             )
-            _finish_job(connection, job, completion)
             if job["job_kind"] in {"taxonomy_proposal", "taxonomy_review"}:
                 complete_taxonomy_job(
                     connection,
@@ -193,12 +194,12 @@ class SemanticPersistenceService:
         status = semantic_job_transition(str(job["status"]), "retry" if retry else "fail")
         available = datetime.now(UTC) + timedelta(seconds=min(300, 2 ** int(job["attempts"])))
         with self._database.transaction() as connection:
-            connection.execute(
+            cursor = connection.execute(
                 """
                 UPDATE semantic_jobs SET status = ?, available_at = ?, completed_at = ?, error = ?,
                     input_tokens = input_tokens + ?, output_tokens = output_tokens + ?,
                     worker_id = NULL, lease_expires_at = NULL, lease_token_hash = NULL
-                WHERE id = ?
+                WHERE id = ? AND status = 'running' AND worker_id = ?
                 """,
                 (
                     status,
@@ -208,8 +209,10 @@ class SemanticPersistenceService:
                     max(0, int(input_tokens)),
                     max(0, int(output_tokens)),
                     job["id"],
+                    job["worker_id"],
                 ),
             )
+            _require_live_lease(cursor)
             state = semantic_scope_status(str(job["job_kind"]), failed=not retry)
             connection.execute(
                 """
@@ -331,12 +334,14 @@ def _finish_job(
             "input_manifest": job["metadata"].get("input_manifest"),
             "information_boundary": job["metadata"].get("information_boundary"),
         }
-    connection.execute(
+    # lease_token_hash is deliberately kept: the already_completed reply still verifies it.
+    cursor = connection.execute(
         """
         UPDATE semantic_jobs SET status = ?, completed_at = ?,
             input_tokens = input_tokens + ?, output_tokens = output_tokens + ?, estimated_cost_usd = ?,
             actual_cost_usd = ?, worker_id = NULL, lease_expires_at = NULL,
-            error = NULL, metadata_json = ? WHERE id = ?
+            error = NULL, metadata_json = ?
+        WHERE id = ? AND status = 'running' AND worker_id = ?
         """,
         (
             completion.target_status,
@@ -347,5 +352,12 @@ def _finish_job(
             completion.actual_cost,
             json.dumps(retained_metadata, sort_keys=True),
             job["id"],
+            job["worker_id"],
         ),
     )
+    _require_live_lease(cursor)
+
+
+def _require_live_lease(cursor: sqlite3.Cursor) -> None:
+    if cursor.rowcount != 1:
+        raise SemanticLeaseLost("Semantic work lease was reclaimed; claim the job again")
