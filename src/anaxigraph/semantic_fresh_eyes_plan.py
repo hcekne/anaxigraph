@@ -14,6 +14,7 @@ from anaxigraph.semantic_fresh_eyes_contract import (
 )
 from anaxigraph.semantic_fresh_eyes_evidence import (
     comparison_inputs,
+    declared_manifest,
     document_identity,
     external_constraints,
     parsed_document,
@@ -275,6 +276,7 @@ class FreshEyesPlanner:
         connection: sqlite3.Connection,
         **context: Any,
     ) -> tuple[dict[str, Any] | None, int]:
+        declared = list(context.get("declared_context") or [])
         manifest = {
             "protocol": FRESH_EYES_PROTOCOL_VERSION,
             "stage": "mission_filter",
@@ -283,6 +285,17 @@ class FreshEyesPlanner:
             "comparison": document_identity(context["comparison"]),
             "included": ["capability_brief", "as_built_comparison", "engineering_economics"],
         }
+        metadata = {
+            "stage": "mission_filter",
+            "capability_brief": context["brief"],
+            "comparison_document_id": int(context["comparison"]["id"]),
+            "input_manifest": manifest,
+            "information_boundary": {"mode": "repository_aware_mission_filter"},
+        }
+        if declared:
+            manifest["declared_context"] = declared_manifest(declared)
+            manifest["included"].append("declared_context")
+            metadata["declared_context"] = declared
         return _document_or_job(
             connection,
             repository_id=context["repository_id"],
@@ -292,13 +305,7 @@ class FreshEyesPlanner:
             reason="mission_filter_and_ranked_refactor_strategy",
             priority=15,
             evidence=manifest,
-            metadata={
-                "stage": "mission_filter",
-                "capability_brief": context["brief"],
-                "comparison_document_id": int(context["comparison"]["id"]),
-                "input_manifest": manifest,
-                "information_boundary": {"mode": "repository_aware_mission_filter"},
-            },
+            metadata=metadata,
             semantic=context["semantic"],
             retry_failed=context["retry_failed"],
         )

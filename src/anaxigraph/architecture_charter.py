@@ -9,6 +9,7 @@ from anaxigraph.architecture_charter_contract import (
     ARCHITECTURE_CHARTER_VERSION,
     CAPABILITY_BRIEF_VERSION,
 )
+from anaxigraph.architecture_charter_corrections import charter_claim
 from anaxigraph.snapshot_provenance import dirty_snapshot_caveat, snapshot_provenance
 
 _PROVENANCE_FIELDS = (
@@ -235,7 +236,7 @@ def _with_declared_context(
     for correction in corrections:
         if not correction.get("active"):
             continue
-        target = _target_claim(result, str(correction["section"]), str(correction["key"]))
+        target = charter_claim(result, str(correction["section"]), str(correction["key"]))
         overlay = _declared_overlay(correction, target)
         if target:
             _apply_overlay(target, overlay)
@@ -270,12 +271,3 @@ def _apply_overlay(target: dict[str, Any], overlay: dict[str, Any]) -> None:
     if overlay["statement"]:
         target["presented_statement"] = overlay["statement"]
     target["declared_overlay"] = overlay
-
-
-def _target_claim(charter: dict[str, Any], section: str, key: str) -> dict[str, Any] | None:
-    if section == "purpose":
-        return charter.get("purpose")
-    items = charter.get(section)
-    if not isinstance(items, list):
-        return None
-    return next((item for item in items if str(item.get("key") or "") == key), None)

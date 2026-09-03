@@ -127,7 +127,9 @@ Use the same target with `--withdraw` to stop presenting that overlay. Add `--re
 evidence, marked as a declared non-issue with the rationale beside it. Only the newest declared
 context per section and key applies, so a refutation and a reworded statement never coexist on one
 claim. Corrections live only in the external AnaxiIndex and retain author, time, rationale, and the
-original inference.
+original inference. A fresh-eyes review reads the active declared context in its as-built comparison
+and mission filter only, and reports the declared keys it saw; saving or withdrawing one re-runs
+those two stages and reuses the implementation-blind proposals.
 
 ## Recommended: install the agent workflow
 

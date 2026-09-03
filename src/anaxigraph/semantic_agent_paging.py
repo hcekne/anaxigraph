@@ -197,6 +197,7 @@ def _page_fresh_eyes_request(
             "dependency_evidence",
             "active_findings",
             "recent_history",
+            "declared_context",
         ):
             if _serialized_size(bounded) <= max_chars:
                 break
@@ -212,6 +213,8 @@ def _page_fresh_eyes_request(
             _page_nested_list_field(
                 bounded, comparison, "comparison", field, pages, kinds, max_chars
             )
+    if _serialized_size(bounded) > max_chars:
+        _page_list_field(bounded, request, "declared_context", pages, kinds, max_chars)
 
 
 def _page_intrinsic_facts(

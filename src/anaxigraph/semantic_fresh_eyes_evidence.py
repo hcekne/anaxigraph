@@ -7,6 +7,7 @@ import sqlite3
 from typing import Any
 
 from anaxigraph.architecture_charter_contract import CAPABILITY_BRIEF_VERSION
+from anaxigraph.architecture_charter_corrections import declared_context
 from anaxigraph.persistence.semantic_evidence import semantic_inventory
 from anaxigraph.semantic_fresh_eyes_contract import (
     FRESH_EYES_PROTOCOL_VERSION,
@@ -22,6 +23,7 @@ def current_system_evidence(
     repository_id: int,
     snapshot_id: int,
     charter: dict[str, Any],
+    declared: list[dict[str, Any]] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     taxonomy = _current_taxonomy(connection, snapshot_id)
     groups = _scope_documents(connection, snapshot_id, "group", 30)
@@ -57,6 +59,7 @@ def current_system_evidence(
             "included": len(history),
         },
     }
+    _add_declared_context(current, manifest, declared or [])
     return current, manifest
 
 
@@ -103,6 +106,7 @@ def review_context(
         ),
         "semantic": semantic,
         "retry_failed": retry_failed,
+        "declared_context": declared_context(connection, repository_id, charter["value"]),
     }
 
 
@@ -151,6 +155,7 @@ def comparison_inputs(
         context["repository_id"],
         context["snapshot_id"],
         context["charter"],
+        context.get("declared_context") or [],
     )
     comparison_fingerprint = semantic_digest(
         {
@@ -165,19 +170,55 @@ def comparison_inputs(
         "reference_fingerprint": context["reference_fingerprint"],
         "comparison_fingerprint": comparison_fingerprint,
         "current_system": current_manifest,
-        "included": [
-            "reference_design",
-            "current_charter",
-            "responsibility_map",
-            "area_summaries",
-            "module_dossiers",
-            "patterns",
-            "dependency_evidence",
-            "findings",
-            "history",
-        ],
+        "included": _comparison_included(current_manifest),
     }
     return current_system, manifest, comparison_fingerprint
+
+
+def declared_manifest(declared: list[dict[str, Any]]) -> dict[str, Any]:
+    """Identify the declared facts a stage saw, so saving or withdrawing one re-plans it."""
+
+    return {
+        "fingerprint": semantic_digest(declared),
+        "included": len(declared),
+        "keys": [
+            {
+                "section": entry["section"],
+                "key": entry["key"],
+                "disposition": entry["disposition"],
+                "document_id": entry["document_id"],
+            }
+            for entry in declared
+        ],
+    }
+
+
+def _add_declared_context(
+    current: dict[str, Any], manifest: dict[str, Any], declared: list[dict[str, Any]]
+) -> None:
+    """Add declared facts only when a principal saved one, so quiet repositories keep hashes."""
+
+    if not declared:
+        return
+    current["declared_context"] = declared
+    manifest["declared_context"] = declared_manifest(declared)
+
+
+def _comparison_included(current_manifest: dict[str, Any]) -> list[str]:
+    included = [
+        "reference_design",
+        "current_charter",
+        "responsibility_map",
+        "area_summaries",
+        "module_dossiers",
+        "patterns",
+        "dependency_evidence",
+        "findings",
+        "history",
+    ]
+    if current_manifest.get("declared_context"):
+        included.append("declared_context")
+    return included
 
 
 def proposal_manifest(
