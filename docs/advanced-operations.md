@@ -101,7 +101,8 @@ anaxigraph semantic-status .
 
 `--executor auto` is the default and detects when Codex or Claude invoked the command. The local
 executor is read-only and schema-constrained; AnaxiGraph records `provider: agent` plus the actual
-executor, model, and reasoning effort as provenance. `--background` owns the complete queue outside
+executor, model, and reasoning effort as provenance on the run record and on every job and
+document it produces. `--background` owns the complete queue outside
 the invoking agent session and records its PID, log, index authority, and terminal result for
 handoff through `semantic-status`. When the detached worker fails, `semantic-status` reports the
 failing cause as `last_error` and the run log holds its traceback; set `ANAXIGRAPH_DEBUG=1` to
@@ -191,7 +192,11 @@ Repeated reconciliation of an unchanged repository creates no new source-reading
 jobs, attempts, leases, failures, token counts, and costs allow interrupted work to resume.
 Successful and failed model attempts contribute token totals when the executor reports usage. A
 process killed before it emits usage remains explicitly unreported rather than being recorded as a
-zero-token call.
+zero-token call. `semantic-status` names that state per job: `reported` usage came from the
+executor, `estimated` usage is AnaxiGraph's own substitute for a configured provider that returned
+none, and `unknown` usage was never reported by anyone. Cached prompt tokens are reported beside
+the total they belong to, never added to it, and each action also lists the efforts that produced
+it, with no entry when the executor's default was used.
 
 The semantic `include` and `exclude` patterns are source-egress controls as well as scheduling
 rules. `max_jobs_per_run`, `max_parallel_jobs`, and `daily_budget_usd` bound work. Configure

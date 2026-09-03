@@ -239,9 +239,13 @@ def _coverage_payload(rows: SemanticStatusRows, coverage: SemanticCoverage) -> d
 
 
 def _usage_payload(rows: SemanticStatusRows) -> dict[str, Any]:
+    """Report the whole prompt, the cached portions of it, and the recorded cost."""
+
     return {
         "input_tokens": int(rows.usage["input_tokens"]),
         "output_tokens": int(rows.usage["output_tokens"]),
+        "cache_read_input_tokens": int(rows.usage["cache_read_input_tokens"]),
+        "cache_creation_input_tokens": int(rows.usage["cache_creation_input_tokens"]),
         "cost_usd": round(float(rows.usage["cost"]), 6),
     }
 
@@ -267,9 +271,10 @@ def _telemetry_payload(rows: SemanticStatusRows, snapshot_id: int) -> dict[str, 
                 "it can be larger than the real clock time for one semantic run."
             ),
             "token_note": (
-                "Token totals include successful and failed attempts when their executor reported "
-                "usage. A completed job with missing token counts means unknown usage, not a free "
-                "model call; a killed process may also end before it reports its final count."
+                "Every job records where its token counts came from: reported by the executor, "
+                "estimated by AnaxiGraph when a configured provider returned none, or unknown "
+                "when nobody reported any. Unknown never means a free model call. Cached prompt "
+                "tokens are part of input_tokens, not an addition to it."
             ),
         },
         "architecture": {
@@ -330,9 +335,12 @@ def _action_totals(actions: list[dict[str, Any]], count_key: str) -> dict[str, A
         "completed": 0,
         "failed": 0,
         "token_counts_reported": 0,
+        "token_counts_estimated": 0,
         "token_counts_missing": 0,
         "input_tokens": 0,
         "output_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
         "cost_usd": 0.0,
         "total_duration_ms": 0.0,
     }

@@ -103,7 +103,13 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
     assert status["execution_mode"] == "coding_agent"
     assert status["patterns"]["ready"] is True
     assert status["patterns"]["selected"] == status["patterns"]["finalized"] > 0
-    assert status["usage"] == {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
+    assert status["usage"] == {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cost_usd": 0.0,
+    }
     telemetry = status["telemetry"]
     assert telemetry["contract_version"] == "action-telemetry-v1"
     current_actions = telemetry["semantic"]["current_snapshot"]["actions"]
@@ -137,7 +143,8 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
         connection.execute(
             """
             UPDATE semantic_jobs SET input_tokens = 120, output_tokens = 30,
-                actual_cost_usd = 0.012
+                cache_read_input_tokens = 90, cache_creation_input_tokens = 20,
+                usage_source = 'reported', actual_cost_usd = 0.012
             WHERE id = (SELECT id FROM semantic_jobs WHERE job_kind = 'intrinsic'
                         AND status = 'completed' ORDER BY id LIMIT 1)
             """
@@ -169,16 +176,21 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
         for item in metered["telemetry"]["semantic"]["current_snapshot"]["actions"]
         if item["job_kind"] == "intrinsic"
     )
-    assert metered["usage"] == {
+    tokens = {
         "input_tokens": 120,
         "output_tokens": 30,
-        "cost_usd": 0.012,
+        "cache_read_input_tokens": 90,
+        "cache_creation_input_tokens": 20,
     }
-    assert intrinsic["input_tokens"] == 120
-    assert intrinsic["output_tokens"] == 30
+    totals = metered["telemetry"]["semantic"]["current_snapshot"]["totals"]
+    assert metered["usage"] == {**tokens, "cost_usd": 0.012}
+    assert {key: intrinsic[key] for key in tokens} == tokens
+    assert {key: totals[key] for key in tokens} == tokens
     assert intrinsic["cost_usd"] == 0.012
     assert intrinsic["models"] == ["test-model"]
-    assert intrinsic["token_counts_reported"] == 1
+    assert intrinsic["efforts"] == []
+    assert (intrinsic["token_counts_reported"], intrinsic["token_counts_estimated"]) == (1, 0)
+    assert (totals["token_counts_reported"], totals["token_counts_estimated"]) == (1, 0)
     assert intrinsic["token_counts_missing"] == intrinsic["completed"] - 1
     watch = next(
         item
@@ -268,7 +280,9 @@ def test_local_codex_executor_can_complete_an_agent_funded_queue(repository, dat
     sleeps = []
     monkeypatch.setattr(SemanticEngine, "run_jobs", briefly_unclaimable)
     monkeypatch.setattr("anaxigraph.semantic_runner.time.sleep", sleeps.append)
-    execution = replace(config.semantic, provider="codex", model="test-model")
+    execution = replace(
+        config.semantic, provider="codex", model="test-model", reasoning_effort="max"
+    )
     completed = SemanticEngine(database).bootstrap(
         stats.repository_id,
         repository,
@@ -291,12 +305,14 @@ def test_local_codex_executor_can_complete_an_agent_funded_queue(repository, dat
     with database.connect() as connection:
         provenance = connection.execute(
             """
-            SELECT DISTINCT source, provider, model, executor_id, executor_model
+            SELECT DISTINCT source, provider, model, executor_id, executor_model,
+                   executor_effort, usage_source
             FROM semantic_documents
             """
         ).fetchall()
+    # The host executor pays for its own tokens and reported none, so usage stays unknown.
     assert [tuple(row) for row in provenance] == [
-        ("coding_agent", "agent", "", "cli:codex", "test-model")
+        ("coding_agent", "agent", "", "cli:codex", "test-model", "max", "unknown")
     ]
 
 
@@ -463,6 +479,7 @@ def test_agent_semantic_writeback_rejects_bad_tokens_and_invalid_dossiers(reposi
         reason="model returned malformed JSON",
         input_tokens=120,
         output_tokens=30,
+        cache_read_input_tokens=90,
     )
 
     assert failed["status"] == "retry"
@@ -476,3 +493,5 @@ def test_agent_semantic_writeback_rejects_bad_tokens_and_invalid_dossiers(reposi
     )
     assert action["input_tokens"] == 120
     assert action["output_tokens"] == 30
+    assert action["cache_read_input_tokens"] == 90
+    assert action["token_counts_reported"] == 1

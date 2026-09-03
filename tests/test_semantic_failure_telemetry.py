@@ -16,6 +16,7 @@ from anaxigraph.semantic import (
     _result_from_json,
 )
 from anaxigraph.semantic_contract import SemanticAnalysisError
+from anaxigraph.semantic_usage import ProviderUsage
 from anaxigraph.understanding import SemanticEngine
 
 
@@ -41,7 +42,13 @@ def test_local_executor_records_tokens_from_a_failed_model_attempt(
         name = "codex"
 
         def analyze(self, _request):
-            raise SemanticAnalysisError("invalid model JSON", input_tokens=120, output_tokens=30)
+            raise SemanticAnalysisError(
+                "invalid model JSON",
+                input_tokens=120,
+                output_tokens=30,
+                cache_read_input_tokens=100,
+                usage_reported=True,
+            )
 
     monkeypatch.setattr("anaxigraph.semantic_runner.create_semantic_provider", lambda _: Provider())
     execution = replace(config.semantic, provider="codex", model="test-model")
@@ -58,8 +65,18 @@ def test_local_executor_records_tokens_from_a_failed_model_attempt(
     assert result["semantic"]["usage"] == {
         "input_tokens": 120,
         "output_tokens": 30,
+        "cache_read_input_tokens": 100,
+        "cache_creation_input_tokens": 0,
         "cost_usd": 0.0,
     }
+    with database.connect() as connection:
+        failed = connection.execute(
+            """
+            SELECT usage_source, cache_read_input_tokens
+            FROM semantic_jobs WHERE status = 'failed'
+            """
+        ).fetchone()
+    assert tuple(failed) == ("reported", 100)
 
 
 @pytest.mark.parametrize("failure", ["exit", "timeout"])
@@ -87,11 +104,14 @@ def test_codex_failures_keep_any_reported_usage(monkeypatch, failure):
 
 
 def test_invalid_provider_result_keeps_known_usage():
+    usage = ProviderUsage(input_tokens=44, output_tokens=9, reported=True)
+
     with pytest.raises(SemanticAnalysisError) as raised:
-        _result_from_json("not JSON", input_tokens=44, output_tokens=9)
+        _result_from_json("not JSON", usage=usage)
 
     assert raised.value.input_tokens == 44
     assert raised.value.output_tokens == 9
+    assert raised.value.usage_reported is True
 
 
 _CLAUDE_USAGE = {

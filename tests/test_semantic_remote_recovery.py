@@ -10,10 +10,11 @@ from types import SimpleNamespace
 import pytest
 
 import anaxigraph.semantic_remote_calls as remote_calls
+import anaxigraph.semantic_remote_payloads as remote_payloads
 import anaxigraph.semantic_remote_recovery as remote_recovery
 import anaxigraph.semantic_remote_worker as remote_worker
 from anaxigraph.config import SemanticConfig
-from anaxigraph.semantic_contract import SemanticAnalysisError
+from anaxigraph.semantic_contract import SemanticAnalysisError, SemanticResult
 from anaxigraph.semantic_service import SemanticServiceTarget
 
 
@@ -338,3 +339,54 @@ async def test_evidence_timeout_attempts_to_release_the_leased_packet(monkeypatc
         "ANAXIGRAPH_SEMANTIC_EVIDENCE",
         "ANAXIGRAPH_SEMANTIC_RELEASE",
     ]
+
+
+def test_host_executor_payloads_carry_effort_and_only_reported_usage():
+    packet = {"job": {"id": 7}, "lease": {"token": "lease-token"}}
+    execution = SemanticConfig(provider="claude", model="claude-test", reasoning_effort="medium")
+
+    claim = remote_payloads.claim_arguments(
+        3,
+        provider=execution.provider,
+        model=execution.model,
+        effort=execution.reasoning_effort,
+        retry_failed=True,
+    )
+
+    assert claim["agent_id"].startswith("cli:claude:")
+    assert claim["agent_model"] == "claude-test"
+    assert claim["agent_effort"] == "medium"
+    assert claim["repository"] == "3"
+
+    reported = SemanticResult(
+        {"summary": "done"},
+        0.8,
+        (),
+        input_tokens=39_002,
+        output_tokens=800,
+        cache_read_input_tokens=30_000,
+        cache_creation_input_tokens=9_000,
+        usage_reported=True,
+    )
+    submit = remote_payloads.submit_arguments(3, packet, reported)
+
+    assert submit["job_id"] == 7
+    assert submit["lease_token"] == "lease-token"
+    assert submit["input_tokens"] == 39_002
+    assert submit["cache_read_input_tokens"] == 30_000
+    assert submit["cache_creation_input_tokens"] == 9_000
+
+    silent = remote_payloads.submit_arguments(3, packet, SemanticResult({"s": 1}, 0.5, ()))
+
+    assert "input_tokens" not in silent
+    assert "cache_read_input_tokens" not in silent
+
+    failure = SemanticAnalysisError(
+        "model stopped", input_tokens=90, output_tokens=12, usage_reported=True
+    )
+    failed = remote_payloads.fail_arguments(3, packet, failure)
+
+    assert failed["reason"] == "model stopped"
+    assert (failed["input_tokens"], failed["output_tokens"]) == (90, 12)
+    assert "input_tokens" not in remote_payloads.fail_arguments(3, packet, RuntimeError("boom"))
+    assert remote_payloads.release_arguments(3, packet, "handoff")["reason"] == "handoff"

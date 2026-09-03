@@ -10,9 +10,10 @@ from anaxigraph.semantic_agent_contracts import (
     MAX_SUBMISSION_BYTES,
     SemanticAgentContractService,
 )
+from anaxigraph.semantic_contract import SemanticResult
 
 _REQUEST = {"analysis_kind": "intrinsic", "path": "module.py"}
-_ACCEPTED = object()
+_ACCEPTED = SemanticResult(value={"summary": "accepted"}, confidence=0.5, evidence=())
 
 
 @pytest.fixture
@@ -49,7 +50,7 @@ def test_submission_limit_accepts_ascii_under_limit_and_rejects_over_limit(
     under = {"summary": "x" * 999_000}
     over = {"summary": "x" * 1_000_001}
 
-    assert _validate(under) is _ACCEPTED
+    assert _validate(under).value == _ACCEPTED.value
     assert schema_validation == [under]
 
     with pytest.raises(ValueError, match=r"\d+-byte submission limit"):
@@ -60,3 +61,35 @@ def test_submission_limit_accepts_ascii_under_limit_and_rejects_over_limit(
 
 def test_submission_limit_is_below_http_body_limit():
     assert MAX_SUBMISSION_BYTES <= MAX_REQUEST_BODY_BYTES
+
+
+def test_negative_token_counts_are_refused(schema_validation):
+    with pytest.raises(ValueError, match="cannot be negative"):
+        SemanticAgentContractService().validate_submission(
+            {"summary": "ok"}, _REQUEST, input_tokens=-1, output_tokens=0
+        )
+
+    assert schema_validation == []
+
+
+def test_omitted_token_counts_are_unknown_usage_and_explicit_zeros_are_reported(
+    schema_validation,
+):
+    service = SemanticAgentContractService()
+
+    silent = service.validate_submission(
+        {"summary": "ok"}, _REQUEST, input_tokens=None, output_tokens=None
+    )
+    explicit = service.validate_submission(
+        {"summary": "ok"},
+        _REQUEST,
+        input_tokens=0,
+        output_tokens=0,
+        cache_read_input_tokens=5,
+        cache_creation_input_tokens=2,
+    )
+
+    assert silent.usage_reported is False
+    assert explicit.usage_reported is True
+    assert explicit.cache_read_input_tokens == 5
+    assert explicit.cache_creation_input_tokens == 2

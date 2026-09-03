@@ -384,6 +384,7 @@ def _provenance(document: dict[str, Any] | None) -> dict[str, Any] | None:
         "model": document.get("model"),
         "executor_id": document.get("executor_id"),
         "executor_model": document.get("executor_model"),
+        "executor_effort": document.get("executor_effort"),
         "created_at": document.get("created_at"),
     }
 

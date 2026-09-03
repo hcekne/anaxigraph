@@ -9,6 +9,7 @@ from anaxigraph.config import SemanticConfig
 from anaxigraph.semantic import (
     ClaudeSemanticProvider,
     CodexSemanticProvider,
+    _result_from_json,
 )
 from anaxigraph.semantic_usage import ProviderUsage, claude_usage, codex_usage
 
@@ -236,10 +237,59 @@ def test_claude_provider_reads_model_usage_when_usage_missing(monkeypatch):
     assert (bare.input_tokens, bare.output_tokens) == (0, 0)
 
 
+def test_a_result_reports_usage_only_when_the_executor_returned_some(monkeypatch):
+    reported = _claude_result(
+        monkeypatch,
+        {
+            "structured_output": _dossier(),
+            "usage": {
+                "input_tokens": 2,
+                "cache_creation_input_tokens": 9000,
+                "cache_read_input_tokens": 30000,
+                "output_tokens": 800,
+            },
+        },
+    )
+
+    assert reported.usage_reported is True
+    assert reported.cache_read_input_tokens == 30000
+    assert reported.cache_creation_input_tokens == 9000
+
+    silent = _claude_result(monkeypatch, {"structured_output": _dossier()})
+
+    assert silent.usage_reported is False
+    assert (silent.cache_read_input_tokens, silent.cache_creation_input_tokens) == (0, 0)
+
+
+def test_a_command_envelope_reports_usage_only_when_it_names_some():
+    dossier = _dossier()
+
+    silent = _result_from_json(json.dumps({"dossier": dossier}))
+    reported = _result_from_json(
+        json.dumps(
+            {
+                "dossier": dossier,
+                "usage": {
+                    "input_tokens": 120,
+                    "output_tokens": 30,
+                    "cache_read_input_tokens": 100,
+                },
+            }
+        )
+    )
+
+    assert silent.usage_reported is False
+    assert reported.usage_reported is True
+    assert reported.input_tokens == 120
+    assert reported.cache_read_input_tokens == 100
+
+
 def test_codex_usage_exposes_cached_input_without_double_counting():
     captured = (FIXTURES / "codex-exec-events.jsonl").read_text(encoding="utf-8")
 
-    assert codex_usage(captured) == ProviderUsage(input_tokens=14233, output_tokens=15)
+    assert codex_usage(captured) == ProviderUsage(
+        input_tokens=14233, output_tokens=15, reported=True
+    )
 
     usage = codex_usage(
         "not an event\n"
@@ -264,5 +314,6 @@ def test_codex_usage_exposes_cached_input_without_double_counting():
 def test_usage_parsers_ignore_malformed_counts_and_envelopes():
     malformed = claude_usage({"usage": {"input_tokens": "many", "output_tokens": 3}})
 
-    assert malformed == ProviderUsage(output_tokens=3)
+    assert malformed == ProviderUsage(output_tokens=3, reported=True)
     assert claude_usage("not an envelope") == ProviderUsage()
+    assert claude_usage("not an envelope").reported is False

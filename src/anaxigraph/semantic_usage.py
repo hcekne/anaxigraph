@@ -13,13 +13,15 @@ class ProviderUsage:
 
     ``input_tokens`` counts every billed prompt token, cached categories included, so Codex and
     Claude totals are comparable. ``cache_read_input_tokens`` and ``cache_creation_input_tokens``
-    are the cached portions of that total, never additions to it.
+    are the cached portions of that total, never additions to it. ``reported`` records whether the
+    executor actually returned a usage object, so a genuine zero is never confused with silence.
     """
 
     input_tokens: int = 0
     output_tokens: int = 0
     cache_read_input_tokens: int = 0
     cache_creation_input_tokens: int = 0
+    reported: bool = False
 
 
 def claude_usage(envelope: Any) -> ProviderUsage:
@@ -42,6 +44,7 @@ def claude_usage(envelope: Any) -> ProviderUsage:
         output_tokens=_count(usage, "output_tokens"),
         cache_read_input_tokens=cache_read,
         cache_creation_input_tokens=cache_creation,
+        reported=True,
     )
 
 
@@ -57,6 +60,7 @@ def _summed_model_usage(model_usage: Any) -> ProviderUsage:
         output_tokens=sum(_count(entry, "outputTokens") for entry in entries),
         cache_read_input_tokens=cache_read,
         cache_creation_input_tokens=cache_creation,
+        reported=bool(entries),
     )
 
 
@@ -80,6 +84,7 @@ def codex_usage(events: str) -> ProviderUsage:
         output_tokens=_count(usage, "output_tokens", "total_output_tokens"),
         cache_read_input_tokens=_count(usage, "cached_input_tokens"),
         cache_creation_input_tokens=_count(usage, "cache_write_input_tokens"),
+        reported=bool(usage),
     )
 
 

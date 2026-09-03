@@ -26,6 +26,7 @@ def _finish_work(
     prefix="baseline",
     requests=None,
     agent_model="fixture-model",
+    agent_effort="",
 ):
     kinds = []
     for index in range(500):
@@ -35,6 +36,7 @@ def _finish_work(
             config,
             agent_id=f"{prefix}-{index}",
             agent_model=agent_model,
+            agent_effort=agent_effort,
         )
         if packet["status"] == "complete":
             return kinds
@@ -238,6 +240,7 @@ def test_completed_review_can_be_rerun_with_new_model_without_rereading_modules(
         config,
         prefix="strong-review",
         agent_model="stronger-model",
+        agent_effort="high",
     )
 
     assert kinds == [
@@ -253,6 +256,7 @@ def test_completed_review_can_be_rerun_with_new_model_without_rereading_modules(
     assert all(
         stage["provenance"]["executor_model"] == "stronger-model" for stage in second["stages"]
     )
+    assert all(stage["provenance"]["executor_effort"] == "high" for stage in second["stages"])
     with database.connect() as connection:
         assert (
             connection.execute(

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
@@ -24,6 +23,12 @@ from anaxigraph.semantic_remote_calls import (
     tool_value,
 )
 from anaxigraph.semantic_remote_errors import failure_summary, raise_remote_failure
+from anaxigraph.semantic_remote_payloads import (
+    claim_arguments,
+    fail_arguments,
+    release_arguments,
+    submit_arguments,
+)
 from anaxigraph.semantic_remote_recovery import IdleRecovery
 from anaxigraph.semantic_request_analysis import analyze_semantic_request
 from anaxigraph.semantic_service import SemanticServiceTarget
@@ -337,12 +342,13 @@ async def _claim_wave(
         packet = await call_tool_retrying_locks(
             session,
             "ANAXIGRAPH_SEMANTIC_WORK",
-            {
-                "agent_id": f"cli:{execution.provider}:{os.getpid()}",
-                "agent_model": execution.model,
-                "retry_failed": retry_failed,
-                "repository": str(target.repository_id),
-            },
+            claim_arguments(
+                target.repository_id,
+                provider=execution.provider,
+                model=execution.model,
+                effort=execution.reasoning_effort,
+                retry_failed=retry_failed,
+            ),
             action="claim semantic work",
         )
         if packet.get("status") != "work":
@@ -388,14 +394,7 @@ async def _submit(
     return await call_tool_retrying_locks(
         session,
         "ANAXIGRAPH_SEMANTIC_SUBMIT",
-        {
-            "job_id": int(packet["job"]["id"]),
-            "lease_token": str(packet["lease"]["token"]),
-            "dossier": result.value,
-            "input_tokens": result.input_tokens,
-            "output_tokens": result.output_tokens,
-            "repository": str(target.repository_id),
-        },
+        submit_arguments(target.repository_id, packet, result),
         action="submit semantic work",
     )
 
@@ -421,14 +420,7 @@ async def _fail_packet(
     return await call_tool_retrying_locks(
         session,
         "ANAXIGRAPH_SEMANTIC_FAIL",
-        {
-            "job_id": int(packet["job"]["id"]),
-            "lease_token": str(packet["lease"]["token"]),
-            "reason": str(error)[:1_000],
-            "input_tokens": int(getattr(error, "input_tokens", 0)),
-            "output_tokens": int(getattr(error, "output_tokens", 0)),
-            "repository": str(target.repository_id),
-        },
+        fail_arguments(target.repository_id, packet, error),
         action="record failed semantic work",
     )
 
@@ -442,12 +434,7 @@ async def _release_packet(
     await call_tool_retrying_locks(
         session,
         "ANAXIGRAPH_SEMANTIC_RELEASE",
-        {
-            "job_id": int(packet["job"]["id"]),
-            "lease_token": str(packet["lease"]["token"]),
-            "reason": reason[:1_000],
-            "repository": str(target.repository_id),
-        },
+        release_arguments(target.repository_id, packet, reason),
         action="release semantic work",
     )
 

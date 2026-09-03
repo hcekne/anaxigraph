@@ -127,6 +127,8 @@ def _usage(connection: sqlite3.Connection, repository_id: int) -> sqlite3.Row:
         """
         SELECT COALESCE(SUM(input_tokens), 0) AS input_tokens,
                COALESCE(SUM(output_tokens), 0) AS output_tokens,
+               COALESCE(SUM(cache_read_input_tokens), 0) AS cache_read_input_tokens,
+               COALESCE(SUM(cache_creation_input_tokens), 0) AS cache_creation_input_tokens,
                COALESCE(SUM(CASE WHEN status = 'completed'
                    THEN COALESCE(actual_cost_usd, estimated_cost_usd, 0)
                    ELSE COALESCE(actual_cost_usd, 0) END), 0) AS cost
@@ -184,7 +186,8 @@ def _repository_state(connection: sqlite3.Connection, snapshot_id: int) -> dict[
     row = connection.execute(
         """
         SELECT ss.status, sd.id AS document_id, sd.value_json, sd.confidence, sd.provider, sd.model,
-               sd.executor_id, sd.executor_model, sd.prompt_version, sd.created_at
+               sd.executor_id, sd.executor_model, sd.executor_effort, sd.prompt_version,
+               sd.created_at
         FROM semantic_scope_states ss
         LEFT JOIN semantic_documents sd ON sd.id = ss.context_document_id
         WHERE ss.snapshot_id = ? AND ss.scope_type = 'repository'
@@ -212,6 +215,62 @@ def _taxonomy(connection: sqlite3.Connection, snapshot_id: int) -> dict[str, Any
     return dict(row) if row else None
 
 
+_SEMANTIC_ACTION_SQL = """
+SELECT scope_type, job_kind,
+       COUNT(*) AS jobs,
+       SUM(status = 'completed') AS completed,
+       SUM(status = 'running') AS running,
+       SUM(status = 'pending') AS pending,
+       SUM(status = 'retry') AS retry,
+       SUM(status = 'failed') AS failed,
+       SUM(status = 'superseded') AS superseded,
+       SUM(usage_source = 'reported') AS token_counts_reported,
+       SUM(usage_source = 'estimated') AS token_counts_estimated,
+       SUM(status = 'completed' AND usage_source = 'unknown')
+           AS token_counts_missing,
+       COALESCE(SUM(input_tokens), 0) AS input_tokens,
+       COALESCE(SUM(output_tokens), 0) AS output_tokens,
+       COALESCE(SUM(cache_read_input_tokens), 0) AS cache_read_input_tokens,
+       COALESCE(SUM(cache_creation_input_tokens), 0) AS cache_creation_input_tokens,
+       COALESCE(SUM(CASE WHEN status = 'completed'
+           THEN COALESCE(actual_cost_usd, estimated_cost_usd, 0) ELSE 0 END), 0)
+           AS cost_usd,
+       COALESCE(SUM(CASE WHEN started_at IS NOT NULL AND completed_at IS NOT NULL
+           THEN (julianday(completed_at) - julianday(started_at)) * 86400000
+           ELSE 0 END), 0) AS total_duration_ms,
+       AVG(CASE WHEN started_at IS NOT NULL AND completed_at IS NOT NULL
+           THEN (julianday(completed_at) - julianday(started_at)) * 86400000 END)
+           AS average_duration_ms,
+       MAX(CASE WHEN started_at IS NOT NULL AND completed_at IS NOT NULL
+           THEN (julianday(completed_at) - julianday(started_at)) * 86400000 END)
+           AS maximum_duration_ms,
+       GROUP_CONCAT(DISTINCT COALESCE(NULLIF(executor_model, ''), NULLIF(model, ''),
+           'unspecified')) AS models,
+       GROUP_CONCAT(DISTINCT NULLIF(executor_effort, '')) AS efforts,
+       MIN(started_at) AS first_started_at,
+       MAX(completed_at) AS last_completed_at
+FROM semantic_jobs WHERE repository_id = ?{snapshot_filter}
+GROUP BY scope_type, job_kind ORDER BY scope_type, job_kind
+"""
+
+# Counted columns that are always whole numbers, so one reader handles every NULL the same way.
+_ACTION_COUNTS = (
+    "completed",
+    "running",
+    "pending",
+    "retry",
+    "failed",
+    "superseded",
+    "token_counts_reported",
+    "token_counts_estimated",
+    "token_counts_missing",
+    "input_tokens",
+    "output_tokens",
+    "cache_read_input_tokens",
+    "cache_creation_input_tokens",
+)
+
+
 def _semantic_actions(
     connection: sqlite3.Connection,
     repository_id: int,
@@ -220,65 +279,26 @@ def _semantic_actions(
     snapshot_filter = " AND snapshot_id = ?" if snapshot_id is not None else ""
     parameters = (repository_id, snapshot_id) if snapshot_id is not None else (repository_id,)
     rows = connection.execute(
-        f"""
-        SELECT scope_type, job_kind,
-               COUNT(*) AS jobs,
-               SUM(status = 'completed') AS completed,
-               SUM(status = 'running') AS running,
-               SUM(status = 'pending') AS pending,
-               SUM(status = 'retry') AS retry,
-               SUM(status = 'failed') AS failed,
-               SUM(status = 'superseded') AS superseded,
-               SUM(input_tokens > 0 OR output_tokens > 0)
-                   AS token_counts_reported,
-               SUM(status = 'completed' AND input_tokens = 0 AND output_tokens = 0)
-                   AS token_counts_missing,
-               COALESCE(SUM(input_tokens), 0) AS input_tokens,
-               COALESCE(SUM(output_tokens), 0) AS output_tokens,
-               COALESCE(SUM(CASE WHEN status = 'completed'
-                   THEN COALESCE(actual_cost_usd, estimated_cost_usd, 0) ELSE 0 END), 0)
-                   AS cost_usd,
-               COALESCE(SUM(CASE WHEN started_at IS NOT NULL AND completed_at IS NOT NULL
-                   THEN (julianday(completed_at) - julianday(started_at)) * 86400000
-                   ELSE 0 END), 0) AS total_duration_ms,
-               AVG(CASE WHEN started_at IS NOT NULL AND completed_at IS NOT NULL
-                   THEN (julianday(completed_at) - julianday(started_at)) * 86400000 END)
-                   AS average_duration_ms,
-               MAX(CASE WHEN started_at IS NOT NULL AND completed_at IS NOT NULL
-                   THEN (julianday(completed_at) - julianday(started_at)) * 86400000 END)
-                   AS maximum_duration_ms,
-               GROUP_CONCAT(DISTINCT COALESCE(NULLIF(executor_model, ''), NULLIF(model, ''),
-                   'unspecified')) AS models,
-               MIN(started_at) AS first_started_at,
-               MAX(completed_at) AS last_completed_at
-        FROM semantic_jobs WHERE repository_id = ?{snapshot_filter}
-        GROUP BY scope_type, job_kind ORDER BY scope_type, job_kind
-        """,
+        _SEMANTIC_ACTION_SQL.format(snapshot_filter=snapshot_filter),
         parameters,
     ).fetchall()
     return [_semantic_action_row(row) for row in rows]
 
 
 def _semantic_action_row(row: sqlite3.Row) -> dict[str, Any]:
+    """Report one action group, including which efforts produced it and how usage was learned."""
+
     return {
         "scope_type": str(row["scope_type"]),
         "job_kind": str(row["job_kind"]),
         "jobs": int(row["jobs"]),
-        "completed": int(row["completed"] or 0),
-        "running": int(row["running"] or 0),
-        "pending": int(row["pending"] or 0),
-        "retry": int(row["retry"] or 0),
-        "failed": int(row["failed"] or 0),
-        "superseded": int(row["superseded"] or 0),
-        "token_counts_reported": int(row["token_counts_reported"] or 0),
-        "token_counts_missing": int(row["token_counts_missing"] or 0),
-        "input_tokens": int(row["input_tokens"] or 0),
-        "output_tokens": int(row["output_tokens"] or 0),
+        **{name: int(row[name] or 0) for name in _ACTION_COUNTS},
         "cost_usd": round(float(row["cost_usd"] or 0), 6),
         "total_duration_ms": round(max(0.0, float(row["total_duration_ms"] or 0)), 3),
         "average_duration_ms": _duration(row["average_duration_ms"]),
         "maximum_duration_ms": _duration(row["maximum_duration_ms"]),
         "models": sorted(str(row["models"] or "").split(",")) if row["models"] else [],
+        "efforts": sorted(str(row["efforts"] or "").split(",")) if row["efforts"] else [],
         "first_started_at": row["first_started_at"],
         "last_completed_at": row["last_completed_at"],
     }

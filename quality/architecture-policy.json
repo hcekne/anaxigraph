@@ -225,6 +225,7 @@
         "anaxigraph.semantic_mcp",
         "anaxigraph.semantic_remote_calls",
         "anaxigraph.semantic_remote_errors",
+        "anaxigraph.semantic_remote_payloads",
         "anaxigraph.semantic_remote_worker",
         "anaxigraph.semantic_remote_recovery",
         "anaxigraph.semantic_service",
