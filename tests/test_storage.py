@@ -55,6 +55,18 @@ def test_reopening_index_compacts_only_terminal_semantic_work_packets(repository
             "completed",
             {"candidate": candidate, "target_evidence": {"large": "discard me"}},
         ),
+        (
+            "proposal:a",
+            "fresh_proposal",
+            "completed",
+            {
+                "retention": "fresh-eyes-input-v1",
+                "stage": "proposal",
+                "slot": "a",
+                "input_manifest": {"review_generation": 2, "stage": "clean_sheet_proposal"},
+                "information_boundary": {"withheld": ["repository_paths"]},
+            },
+        ),
         ("superseded-module", "context", "superseded", {"neighbors": ["pkg/util.py"]}),
         ("failed-module", "context", "failed", {"neighbors": ["pkg/util.py"]}),
         ("pending-module", "context", "pending", {"neighbors": ["pkg/util.py"]}),
@@ -98,5 +110,10 @@ def test_reopening_index_compacts_only_terminal_semantic_work_packets(repository
         "retention": "pattern-evaluation-v1",
         "candidate": candidate,
     }
+    assert stored["proposal:a"]["input_manifest"] == {
+        "review_generation": 2,
+        "stage": "clean_sheet_proposal",
+    }
+    assert stored["proposal:a"]["information_boundary"] == {"withheld": ["repository_paths"]}
     assert stored["failed-module"] == {"neighbors": ["pkg/util.py"]}
     assert stored["pending-module"] == {"neighbors": ["pkg/util.py"]}
