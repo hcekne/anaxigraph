@@ -137,3 +137,37 @@ def test_claude_failures_keep_any_reported_usage(monkeypatch, failure):
 
     assert error.input_tokens == 39002
     assert error.output_tokens == 800
+
+
+@pytest.mark.parametrize(
+    ("stdout", "message", "input_tokens"),
+    [
+        ("not json", "valid JSON envelope", 0),
+        (json.dumps({"result": "not json", "usage": _CLAUDE_USAGE}), "contain valid JSON", 39002),
+    ],
+)
+def test_claude_malformed_output_is_reported_with_known_usage(
+    monkeypatch, stdout, message, input_tokens
+):
+    error = _claude_failure(
+        monkeypatch,
+        lambda *_args, **_kwargs: SimpleNamespace(returncode=0, stdout=stdout, stderr=""),
+    )
+
+    assert message in str(error)
+    assert error.input_tokens == input_tokens
+
+
+def test_claude_launch_failure_and_silent_exit_report_zero_usage(monkeypatch):
+    def missing(*_args, **_kwargs):
+        raise FileNotFoundError("claude")
+
+    launch = _claude_failure(monkeypatch, missing)
+    silent_exit = _claude_failure(
+        monkeypatch,
+        lambda *_args, **_kwargs: SimpleNamespace(returncode=2, stdout="", stderr="boom"),
+    )
+
+    assert "Claude semantic run failed" in str(launch)
+    assert "Claude exited with 2: boom" in str(silent_exit)
+    assert (launch.input_tokens, silent_exit.input_tokens) == (0, 0)
