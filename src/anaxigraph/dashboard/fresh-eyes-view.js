@@ -254,8 +254,23 @@ function recommendationMarkup(value) {
       · ${Math.round(Number(item.confidence || 0) * 100)}% confidence</p>
       <h2>${escapeHtml(item.title)}</h2><p>${escapeHtml(item.smallest_change)}</p>
       <p class="fresh-benefit"><strong>Expected benefit</strong> ${escapeHtml(item.expected_benefit)}</p>
+      ${groundingMarkup(item.grounding)}
       ${stringList("Reasons not to proceed", item.reasons_not_to_proceed)}
       ${stringList("How to verify", item.verification)}</div></article>`).join("");
+}
+
+function groundingMarkup(grounding) {
+  if (!grounding) return "";
+  const unresolved = (grounding.checks || []).filter((check) => check.result !== "exists");
+  const detail = unresolved.length
+    ? `<details class="fresh-grounding-checks"><summary>${unresolved.length} citation${
+      unresolved.length === 1 ? "" : "s"} that did not resolve</summary><ul>${unresolved.map(
+      (check) => `<li>${escapeHtml(`${check.kind} ${check.value} — ${check.result}`)}</li>`,
+    ).join("")}</ul></details>`
+    : "";
+  return `<p class="fresh-grounding ${escapeHtml(String(grounding.status))}">
+    <strong>${escapeHtml(humanize(grounding.status))}</strong>
+    ${escapeHtml(grounding.reason || "")}</p>${detail}`;
 }
 
 function detailMarkup(value) {

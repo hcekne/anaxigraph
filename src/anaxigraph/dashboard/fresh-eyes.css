@@ -131,6 +131,34 @@
   padding-left: .8rem;
 }
 
+.fresh-grounding {
+  background: var(--surface-detail);
+  border-left: .2rem solid var(--muted);
+  border-radius: 8px;
+  font-size: .85rem;
+  margin: .6rem 0 0;
+  padding: .5rem .8rem;
+}
+
+.fresh-grounding.confirmed {
+  border-left-color: var(--accent);
+}
+
+.fresh-grounding.already_satisfied {
+  border-left-color: var(--blue);
+}
+
+.fresh-grounding.stale {
+  border-left-color: var(--amber);
+}
+
+.fresh-grounding-checks {
+  color: var(--muted);
+  font-size: .85rem;
+  margin-top: .35rem;
+  overflow-wrap: anywhere;
+}
+
 .fresh-eyes-details ul,
 .fresh-recommendation ul {
   color: var(--muted);

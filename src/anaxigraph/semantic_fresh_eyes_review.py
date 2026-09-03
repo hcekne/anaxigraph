@@ -29,6 +29,7 @@ from anaxigraph.semantic_fresh_eyes_generations import (
     select_generation,
     stage_diversity,
 )
+from anaxigraph.semantic_fresh_eyes_grounding import with_grounding
 from anaxigraph.semantic_fresh_eyes_plan import (
     FRESH_EYES_PLAN_KEY,
     FRESH_EYES_SCOPE,
@@ -190,13 +191,14 @@ def _generation_view(
     """
 
     if generation is not None and not _selects_current(plan, generation):
-        return generation_payload(
+        recorded = generation_payload(
             connection,
             repository_id,
             select_generation(generations, generation),
             generations,
             semantic_status,
         )
+        return with_grounding(connection, recorded, review_id=_review_document(recorded))
     if plan is None:
         return _with_snapshot_provenance(
             _not_started_payload(repository_id, snapshot_id, semantic_status, generations),
@@ -219,6 +221,11 @@ def _with_snapshot_provenance(
     if caveat:
         payload["caveats"] = [caveat, *payload.get("caveats", [])]
     return payload
+
+
+def _review_document(payload: dict[str, Any]) -> Any:
+    stage = next((item for item in payload["stages"] if item["key"] == "review"), None)
+    return (stage or {}).get("document_id")
 
 
 def _selects_current(plan: dict[str, Any] | None, generation: int) -> bool:
@@ -244,10 +251,12 @@ def _current_review(
             for key, _ in FRESH_EYES_STAGES
         ],
     )
-    review = document_value(connection, plan.get("context_document_id"))
-    return _review_payload(
+    review_id = plan.get("context_document_id")
+    review = document_value(connection, review_id)
+    payload = _review_payload(
         repository_id, snapshot_id, plan, stages, review, manifests, semantic_status, generations
     )
+    return with_grounding(connection, payload, review_id=review_id)
 
 
 def _not_started_payload(

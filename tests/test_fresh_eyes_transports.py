@@ -127,12 +127,20 @@ async def test_dashboard_cli_contract_and_mcp_share_one_fresh_eyes_result(reposi
         "declared_context",
         "recommendations",
         "caveats",
+        "grounding_summary",
     ):
         assert mcp[field] == rest[field]
     assert rest["state"] == "current"
     assert rest["snapshot"]["dirty"] is True
     assert "dirty checkout" in rest["caveats"][0]
     assert rest["recommendations"][0]["action"] == "consolidate"
+    assert rest["recommendations"][0]["grounding"]["status"] == "needs_test"
+    assert rest["grounding_summary"]["counts"] == {
+        "confirmed": 0,
+        "needs_test": 1,
+        "already_satisfied": 0,
+        "stale": 0,
+    }
 
 
 @pytest.mark.anyio

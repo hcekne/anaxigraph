@@ -125,8 +125,13 @@ AnaxiGraph into a general multi-agent workflow engine.
    cross-provider agreement, and AnaxiGraph can prove only the packet it supplied—not that an
    external model had no unrelated prior context.
 5. Present the final ranked recommendations, current strengths, counter-evidence, rejected ideas,
-   migration risks, and verification. Use normal Guide/Impact before implementing any selected
-   slice. Never edit source merely because the reference design differs from the current system.
+   migration risks, and verification. Report the grounding status with each recommendation:
+   `grounding.status` is `confirmed`, `needs_test`, `already_satisfied`, or `stale`, and
+   `grounding_summary` counts them. It is a deterministic check that the cited paths, symbols,
+   findings, commits, and routes still resolve in the reviewed snapshot—never proof that the
+   recommendation is correct—so treat `needs_test` as unverified, not as wrong. Use normal
+   Guide/Impact before implementing any selected slice. Never edit source merely because the
+   reference design differs from the current system.
 6. To compare reruns, read `generations` in the reply: each recorded generation names its snapshot,
    state, executor models, and per-stage duration, output bytes, token counts, and
    `attempts_observed` (a floor, not a retry count). Read an earlier one in full with
