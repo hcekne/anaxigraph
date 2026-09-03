@@ -63,6 +63,11 @@ class SemanticAgentService:
             if job is None:
                 status = self._reporting.status(repository_id, semantic)
                 if _queue_active(status) or planned:
+                    waiting = self._leases.pinned_for_other_executors(repository_id, family)
+                    if waiting:
+                        return self._contracts.waiting_for_executor_response(
+                            status, planned_stage, waiting, root
+                        )
                     return self._contracts.no_work_response(status, planned_stage)
                 plan = self._planning.plan(
                     repository_id,

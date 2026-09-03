@@ -52,6 +52,7 @@ def test_service_fresh_eyes_restart_posts_an_explicit_new_generation(monkeypatch
         "proposal_executors": ["codex", "claude"],
         "retry_failed": False,
         "restart": True,
+        "unpin": False,
         "repository_id": 7,
     }
     assert calls[0][1]["timeout"] == 120

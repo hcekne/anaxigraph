@@ -156,9 +156,14 @@ class AgentRoutes:
         self.context.admit_operation(
             repository_id, FRESH_EYES_START_OPERATION, hold=True, cooldown_seconds=0
         )
+        engine = api_support.SemanticEngine(self.context.database)
         try:
+            if request.unpin:
+                return await asyncio.to_thread(
+                    engine.unpin_fresh_eyes_executors, repository_id, config.semantic
+                )
             return await asyncio.to_thread(
-                api_support.SemanticEngine(self.context.database).start_fresh_eyes_review,
+                engine.start_fresh_eyes_review,
                 repository_id,
                 row["path"],
                 config,

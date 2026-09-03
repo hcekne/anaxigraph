@@ -17,6 +17,7 @@ class FreshEyesRequest(BaseModel):
     proposal_executors: list[str] = Field(default_factory=list, max_length=3)
     retry_failed: bool = False
     restart: bool = False
+    unpin: bool = False
     wait: bool = True
     repository_id: int | None = None
 

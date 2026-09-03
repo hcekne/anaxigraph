@@ -150,6 +150,34 @@ def _reserved_daily_spend(
     )
 
 
+def pinned_for_other_families(
+    database: SemanticIndex, repository_id: int, family: str
+) -> list[dict[str, str]]:
+    """Name queued work this executor family may not take because another family is pinned.
+
+    Only jobs that are still queued count: a peer already running its pinned job is reported as
+    a busy queue, not as work waiting for an executor that has not started.
+    """
+
+    with database.connect() as connection:
+        snapshot_id = _current_snapshot_id(connection, repository_id)
+        if snapshot_id is None:
+            return []
+        rows = connection.execute(
+            """
+            SELECT scope_key, metadata_json FROM semantic_jobs
+            WHERE repository_id = ? AND snapshot_id = ? AND status IN ('pending', 'retry')
+            ORDER BY priority DESC, id LIMIT ?
+            """,
+            (repository_id, snapshot_id, CANDIDATE_PAGE),
+        ).fetchall()
+    return [
+        {"scope_key": str(row["scope_key"]), "required_executor": required_executor(row)}
+        for row in rows
+        if not claimable_by(row, family)
+    ]
+
+
 def claimant_family(executor_id: str | None, declared: str | None = None) -> str:
     """Name the executor family of one claimant: the declared one, else its ``cli:`` identity."""
 

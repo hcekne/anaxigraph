@@ -181,6 +181,28 @@ def _taxonomy_child(items: list[dict[str, Any]], key: str, label: str) -> dict[s
     raise ValueError(f"Semantic evidence referenced an unknown taxonomy {label}: {key}")
 
 
+WAITING_FOR_EXECUTOR = "waiting_for_executor"
+
+
+def waiting_for_executor_message(repository: Any, waiting: list[dict[str, str]]) -> str:
+    """Name the reserved work and the exact command that starts the executor it waits for.
+
+    The state is deliberately not terminal: a host worker keeps polling, because the review
+    finishes as soon as the named executor claims its slot.
+    """
+
+    families = sorted({str(item["required_executor"]) for item in waiting if item})
+    scopes = ", ".join(sorted(str(item["scope_key"]) for item in waiting if item))
+    commands = "; ".join(
+        f"anaxigraph understand {repository} --executor {family} --until-complete"
+        for family in families
+    )
+    return (
+        f"No AI task is ready for this executor. Queued work ({scopes}) is reserved for "
+        f"{', '.join(families)}. Start it with: {commands}"
+    )
+
+
 def agent_no_work_status(status: dict[str, Any]) -> str:
     """Name why no work was handed out; live or queued jobs outrank a ready baseline.
 

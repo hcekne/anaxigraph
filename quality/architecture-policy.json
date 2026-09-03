@@ -144,6 +144,7 @@
         "anaxigraph.semantic_agent_paging",
         "anaxigraph.semantic_agent_protocol",
         "anaxigraph.semantic_fresh_eyes_evidence",
+      "anaxigraph.semantic_fresh_eyes_executors",
         "anaxigraph.semantic_fresh_eyes_generations",
         "anaxigraph.semantic_fresh_eyes_grounding",
         "anaxigraph.semantic_fresh_eyes_plan",

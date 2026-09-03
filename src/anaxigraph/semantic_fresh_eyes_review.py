@@ -16,6 +16,7 @@ from anaxigraph.semantic_fresh_eyes_contract import (
     fresh_eyes_required_executor,
 )
 from anaxigraph.semantic_fresh_eyes_diversity import proposal_diversity
+from anaxigraph.semantic_fresh_eyes_executors import unpin_review_executors, waiting_executor_action
 from anaxigraph.semantic_fresh_eyes_generations import (
     FRESH_EYES_STAGES,
     capability_brief,
@@ -139,6 +140,16 @@ class FreshEyesReviewService:
             retry_failed=retry_failed,
         )
         return planned.stage, planned.enqueued
+
+    def unpin(self, repository_id: int, semantic: SemanticConfig | None = None) -> dict[str, Any]:
+        """Let any executor finish a review whose pinned executor never arrived."""
+
+        released = unpin_review_executors(self._database, repository_id)
+        return {
+            "status": "unpinned" if released else "not_pinned",
+            "unpinned": released,
+            "review": self.status(repository_id, semantic),
+        }
 
     def status(
         self,
@@ -489,7 +500,10 @@ def _next_action(
     failed = next((item for item in stages if str(item["state"]).startswith("failed")), None)
     if failed:
         return f"Retry the failed {failed['label']} task through the semantic executor."
-    return "Run the connected semantic executor until the fixed review recipe completes."
+    return (
+        waiting_executor_action(stages)
+        or "Run the connected semantic executor until the fixed review recipe completes."
+    )
 
 
 def _review_identity(repository_id: int, snapshot_id: int, plan: dict[str, Any]) -> str:

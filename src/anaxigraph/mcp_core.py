@@ -202,6 +202,7 @@ class CoreMcpTools:
         proposal_executors: str = "",
         retry_failed: bool = False,
         restart: bool = False,
+        unpin: bool = False,
         wait: bool = True,
         generation: int | None = None,
         compare_with: int | None = None,
@@ -227,6 +228,7 @@ class CoreMcpTools:
                 compare_with,
                 wait=wait,
                 proposal_executors=proposal_executors,
+                unpin=unpin,
             )
         if compare:
             return self._reassess_journey(row, config, goal, from_snapshot_id)
@@ -256,10 +258,13 @@ class CoreMcpTools:
         *,
         wait: bool = True,
         proposal_executors: str = "",
+        unpin: bool = False,
     ) -> dict[str, Any]:
         engine = SemanticEngine(self.database)
         result = (
-            engine.start_fresh_eyes_review(
+            engine.unpin_fresh_eyes_executors(int(row["id"]), config.semantic)
+            if unpin
+            else engine.start_fresh_eyes_review(
                 int(row["id"]),
                 root,
                 config,

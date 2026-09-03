@@ -5,12 +5,9 @@ from __future__ import annotations
 import json
 
 import pytest
-from fresh_eyes_support import CLAUDE_EXECUTOR, CODEX_EXECUTOR, TWO_EXECUTORS, TwoExecutorReview
-from semantic_support import _enable_agent_semantics
+from fresh_eyes_support import CLAUDE_EXECUTOR, CODEX_EXECUTOR, baseline_review
 
 from anaxigraph.cli import main
-from anaxigraph.config import load_config
-from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic_fresh_eyes_contract import (
     fresh_eyes_plan_executors,
     fresh_eyes_plan_options,
@@ -24,7 +21,6 @@ from anaxigraph.semantic_fresh_eyes_evidence import (
     current_charter,
     proposal_manifest,
 )
-from anaxigraph.understanding import SemanticEngine
 
 _PLAN_SQL = (
     "SELECT * FROM semantic_scope_states WHERE snapshot_id = ? AND scope_type = 'fresh_eyes' "
@@ -35,18 +31,6 @@ _PROPOSAL_JOBS_SQL = (
     "WHERE job_kind = 'fresh_proposal' AND snapshot_id = ? AND status IN ('pending', 'retry') "
     "ORDER BY scope_key"
 )
-
-
-def _ready_repository(repository, database) -> TwoExecutorReview:
-    """Complete the baseline with two host executors so a review can be started."""
-
-    _enable_agent_semantics(repository)
-    config = load_config(repository)
-    stats = RepositoryScanner(database).scan(repository)
-    review = TwoExecutorReview(SemanticEngine(database), stats.repository_id, repository, config)
-    baseline = review.run_until_complete()
-    assert {executor for executor, _ in baseline} == set(TWO_EXECUTORS)
-    return review
 
 
 def _plan_row(database, snapshot_id: int) -> dict:
@@ -98,7 +82,7 @@ def test_proposal_executors_are_parsed_from_a_string_or_a_list():
 def test_pinned_start_records_executors_per_slot_without_changing_stage_freshness(
     repository, database
 ):
-    review = _ready_repository(repository, database)
+    review = baseline_review(repository, database)
     snapshot_id = _snapshot_id(database, review.repository_id)
 
     started = review.engine.start_fresh_eyes_review(
@@ -163,7 +147,7 @@ def _unpinned_input_hashes(database, snapshot_id: int, prompt_version: str) -> l
 def test_an_unusable_executor_assignment_fails_before_any_job_is_queued(
     repository, database, executors, message
 ):
-    review = _ready_repository(repository, database)
+    review = baseline_review(repository, database)
     snapshot_id = _snapshot_id(database, review.repository_id)
 
     with pytest.raises(ValueError, match=message):
@@ -183,7 +167,7 @@ def test_an_unusable_executor_assignment_fails_before_any_job_is_queued(
 def test_a_restarted_generation_can_be_pinned_while_an_unpinned_review_stays_unpinned(
     repository, database
 ):
-    review = _ready_repository(repository, database)
+    review = baseline_review(repository, database)
     review.engine.start_fresh_eyes_review(
         review.repository_id, review.repository, review.config, proposal_count=2
     )
@@ -213,7 +197,7 @@ def test_a_restarted_generation_can_be_pinned_while_an_unpinned_review_stays_unp
 
 
 def test_starting_an_active_review_again_keeps_the_recorded_assignment(repository, database):
-    review = _ready_repository(repository, database)
+    review = baseline_review(repository, database)
     review.engine.start_fresh_eyes_review(
         review.repository_id,
         review.repository,
@@ -240,7 +224,7 @@ def test_starting_an_active_review_again_keeps_the_recorded_assignment(repositor
 
 
 def test_a_pinned_review_reports_the_executor_that_produced_each_proposal(repository, database):
-    review = _ready_repository(repository, database)
+    review = baseline_review(repository, database)
     review.engine.start_fresh_eyes_review(
         review.repository_id,
         review.repository,
@@ -261,7 +245,7 @@ def test_a_pinned_review_reports_the_executor_that_produced_each_proposal(reposi
 
 
 def test_cli_start_pins_each_proposal_slot_on_the_local_index(repository, database, capsys):
-    review = _ready_repository(repository, database)
+    review = baseline_review(repository, database)
     snapshot_id = _snapshot_id(database, review.repository_id)
 
     main(
