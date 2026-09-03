@@ -127,6 +127,12 @@ AnaxiGraph into a general multi-agent workflow engine.
 5. Present the final ranked recommendations, current strengths, counter-evidence, rejected ideas,
    migration risks, and verification. Use normal Guide/Impact before implementing any selected
    slice. Never edit source merely because the reference design differs from the current system.
+6. To compare reruns, read `generations` in the reply: each recorded generation names its snapshot,
+   state, executor models, and per-stage duration, output bytes, token counts, and
+   `attempts_observed` (a floor, not a retry count). Read an earlier one in full with
+   `ANAXIGRAPH_GUIDE(intent="redesign", generation=<n>)` or
+   `anaxigraph fresh-eyes <repository> --generation <n> --json`. It returns `state: superseded`
+   with `ready: false`; report it as history and never present it as the current advice.
 
 ## Prepare a coding handoff
 

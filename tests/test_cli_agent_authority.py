@@ -93,8 +93,35 @@ def test_fresh_eyes_uses_the_matching_service(
         "proposal_count": 3,
         "retry_failed": False,
         "restart": True,
+        "generation": None,
         "timeout": expected_timeout,
     }
+
+
+def test_fresh_eyes_generation_reaches_the_service_query(repository: Path, capsys, monkeypatch):
+    target = SemanticServiceTarget("http://127.0.0.1:9999", 7, "Fixture", "/repo")
+    requested = []
+    monkeypatch.setattr(agent_commands, "discover_semantic_service", lambda *_a, **_k: target)
+    monkeypatch.setattr(
+        semantic_service,
+        "_request_json",
+        lambda url, **kwargs: requested.append(url) or {"state": "superseded"},
+    )
+
+    main(
+        [
+            "fresh-eyes",
+            str(repository),
+            "--service-url",
+            target.base_url,
+            "--generation",
+            "2",
+            "--json",
+        ]
+    )
+
+    assert json.loads(capsys.readouterr().out)["state"] == "superseded"
+    assert requested == [f"{target.base_url}/api/fresh-eyes?repository_id=7&generation=2"]
 
 
 @pytest.mark.parametrize("error", [OSError("timed out"), OSError("<urlopen error timed out>")])

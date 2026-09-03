@@ -239,6 +239,13 @@ When you deliberately want a new architectural judgment, run `anaxigraph fresh-e
 The new generation reruns every Fresh-Eyes stage while preserving the earlier documents for audit;
 it does not force unchanged module dossiers to be regenerated.
 
+Every review lists the generations it has recorded, with the executor models, stage timings, output
+volume, token counts, and attempts of each. Read an earlier one in full with
+`anaxigraph fresh-eyes . --generation 2`, `GET /api/fresh-eyes?generation=2`,
+`ANAXIGRAPH_GUIDE(intent="redesign", generation=2)`, or the generation selector in
+**Improve → Fresh eyes**. A recorded generation is history: it reports `superseded` and cannot be
+started, retried, or restarted.
+
 ## 🐳 Durable Docker sidecar
 
 If you prefer an isolated, persistent container beside the repository:

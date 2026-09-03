@@ -222,6 +222,7 @@ def service_fresh_eyes_review(
     proposal_count: int = 2,
     retry_failed: bool = False,
     restart: bool = False,
+    generation: int | None = None,
     timeout: float = FRESH_EYES_START_TIMEOUT_SECONDS,
 ) -> dict[str, Any]:
     """Start, restart, or read the fresh-eyes review; ``timeout`` bounds only the start request."""
@@ -237,7 +238,10 @@ def service_fresh_eyes_review(
             },
             timeout=timeout,
         )
-    query = urllib.parse.urlencode({"repository_id": target.repository_id})
+    parameters: dict[str, Any] = {"repository_id": target.repository_id}
+    if generation is not None:
+        parameters["generation"] = generation
+    query = urllib.parse.urlencode(parameters)
     value = _request_json(
         f"{target.base_url}/api/fresh-eyes?{query}",
         timeout=min(timeout, _FRESH_EYES_STATUS_TIMEOUT_SECONDS),

@@ -51,12 +51,21 @@ def _prepare_completed_review(repository, database):
     return engine, stats.repository_id, config
 
 
-async def _rest_fresh_eyes(database, repository) -> dict[str, Any]:
+async def _rest_fresh_eyes(database, repository, query: str = "") -> dict[str, Any]:
     app = create_app(database=database, repository=repository, enable_mcp=False)
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://testserver"
     ) as client:
-        return (await client.get("/api/fresh-eyes")).json()
+        return (await client.get(f"/api/fresh-eyes{query}")).json()
+
+
+async def _rest_status(database, repository, query: str) -> tuple[int, dict[str, Any]]:
+    app = create_app(database=database, repository=repository, enable_mcp=False)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        response = await client.get(f"/api/fresh-eyes{query}")
+        return response.status_code, response.json()
 
 
 async def _mcp_guide(database, repository, arguments: dict[str, Any]) -> Any:
@@ -191,3 +200,44 @@ def test_redesign_journey_names_the_next_guide_call_for_every_review_state(state
         assert next_action["tool"] == "ANAXIGRAPH_GUIDE"
         assert next_action["arguments"] == arguments
         assert ("restart=true" in next_action["reason"]) is (state == "current")
+
+
+@pytest.mark.anyio
+async def test_rest_cli_and_mcp_agree_on_a_selected_generation(repository, database, capsys):
+    engine, repository_id, config = _prepare_completed_review(repository, database)
+    first = engine.fresh_eyes_status(repository_id, config.semantic)
+    engine.start_fresh_eyes_review(repository_id, repository, config, restart=True)
+    _complete_queue(engine, repository_id, repository, config)
+    engine.start_fresh_eyes_review(repository_id, repository, config, restart=True)
+    _complete_queue(engine, repository_id, repository, config)
+
+    rest = await _rest_fresh_eyes(database, repository, "?generation=2")
+    response = await _mcp_guide(database, repository, {"intent": "redesign", "generation": 2})
+    assert response.isError is False
+    mcp = response.structuredContent
+    cli = _cli_fresh_eyes(repository, database, capsys, "--generation", "2")
+
+    assert _review_facts(rest) == _review_facts(mcp) == _review_facts(cli)
+    for field in ("identity", "state", "ready", "recommendations", "caveats", "input_manifests"):
+        assert rest[field] == mcp[field] == cli[field]
+    assert rest["review_generation"] == 2
+    assert rest["state"] == "superseded"
+    assert rest["ready"] is False
+    assert _document_ids(rest).isdisjoint(_document_ids(first))
+    assert [item["generation"] for item in rest["generations"]] == [1, 2, 3]
+    assert mcp["agent_journey"]["next_action"]["arguments"]["intent"] == "build"
+    live = await _rest_fresh_eyes(database, repository)
+    assert live["review_generation"] == 3
+    assert live["generations"] == rest["generations"]
+
+
+@pytest.mark.anyio
+async def test_unknown_generation_is_a_bad_request_naming_the_recorded_ones(repository, database):
+    _prepare_completed_review(repository, database)
+
+    status, body = await _rest_status(database, repository, "?generation=99")
+
+    assert status == 400
+    assert "available generations: 1" in body["detail"]
+    zero_status, _ = await _rest_status(database, repository, "?generation=0")
+    assert zero_status == 422

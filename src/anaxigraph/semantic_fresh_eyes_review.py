@@ -16,12 +16,14 @@ from anaxigraph.semantic_fresh_eyes_generations import (
     capability_brief,
     document_record,
     document_value,
+    generation_payload,
     input_manifests,
     list_generations,
     payload_telemetry,
     previous_generation,
     provenance,
     review_caveats,
+    select_generation,
     stage_diversity,
 )
 from anaxigraph.semantic_fresh_eyes_plan import (
@@ -109,7 +111,11 @@ class FreshEyesReviewService:
         self,
         repository_id: int,
         semantic: SemanticConfig | None = None,
+        *,
+        generation: int | None = None,
     ) -> dict[str, Any]:
+        """Read the current review, or one recorded generation when ``generation`` is given."""
+
         snapshot = self._database.latest_snapshot(repository_id)
         if snapshot is None:
             return _missing_review(repository_id)
@@ -121,6 +127,14 @@ class FreshEyesReviewService:
                 _PLAN_ROW_SQL, (snapshot_id, FRESH_EYES_SCOPE, FRESH_EYES_PLAN_KEY)
             ).fetchone()
             plan = dict(row) if row is not None else None
+            if generation is not None and not _selects_current(plan, generation):
+                return generation_payload(
+                    connection,
+                    repository_id,
+                    select_generation(generations, generation),
+                    generations,
+                    semantic_status,
+                )
             if plan is None:
                 return _not_started_payload(
                     repository_id, snapshot_id, semantic_status, generations
@@ -128,6 +142,10 @@ class FreshEyesReviewService:
             return _current_review(
                 connection, repository_id, snapshot_id, plan, semantic_status, generations
             )
+
+
+def _selects_current(plan: dict[str, Any] | None, generation: int) -> bool:
+    return plan is not None and fresh_eyes_plan_options(plan)[1] == int(generation)
 
 
 def _current_review(
