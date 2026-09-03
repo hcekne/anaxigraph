@@ -389,7 +389,7 @@ def test_generation_index_lists_every_rerun_with_provenance(repository, database
     assert all(len(item) == 5 for item in documents)
     assert len(set().union(*documents)) == 15
     for bundle in bundles:
-        assert bundle["recommendation_count"] == 1
+        assert bundle["recommendation_count"] == (1 if bundle["generation"] == 1 else 3)
         assert bundle["rejected_idea_count"] == 1
         assert bundle["review_document_id"] in bundle["document_ids"]
         assert bundle["telemetry"]["stage_count"] == 5

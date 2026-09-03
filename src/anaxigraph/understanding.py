@@ -100,8 +100,11 @@ class SemanticEngine:
         semantic: SemanticConfig | None = None,
         *,
         generation: int | None = None,
+        compare_with: int | None = None,
     ) -> dict[str, Any]:
-        return self._services.fresh_eyes.status(repository_id, semantic, generation=generation)
+        return self._services.fresh_eyes.status(
+            repository_id, semantic, generation=generation, compare_with=compare_with
+        )
 
     def start_fresh_eyes_review(
         self,

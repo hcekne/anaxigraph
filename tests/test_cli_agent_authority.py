@@ -94,6 +94,7 @@ def test_fresh_eyes_uses_the_matching_service(
         "retry_failed": False,
         "restart": True,
         "generation": None,
+        "compare_with": None,
         "timeout": expected_timeout,
     }
 

@@ -202,6 +202,7 @@ class CoreMcpTools:
         restart: bool = False,
         wait: bool = True,
         generation: int | None = None,
+        compare_with: int | None = None,
         reassess: bool = False,
         from_snapshot_id: int | None = None,
     ) -> dict[str, Any]:
@@ -221,6 +222,7 @@ class CoreMcpTools:
                 retry_failed,
                 restart,
                 generation,
+                compare_with,
                 wait=wait,
             )
         if compare:
@@ -247,6 +249,7 @@ class CoreMcpTools:
         retry_failed: bool,
         restart: bool,
         generation: int | None = None,
+        compare_with: int | None = None,
         *,
         wait: bool = True,
     ) -> dict[str, Any]:
@@ -262,7 +265,12 @@ class CoreMcpTools:
                 plan=wait,
             )
             if start or restart
-            else engine.fresh_eyes_status(int(row["id"]), config.semantic, generation=generation)
+            else engine.fresh_eyes_status(
+                int(row["id"]),
+                config.semantic,
+                generation=generation,
+                compare_with=compare_with,
+            )
         )
         return _journey_result(result, "redesign", goal)
 

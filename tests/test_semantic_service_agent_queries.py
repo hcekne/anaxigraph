@@ -111,3 +111,17 @@ def test_json_request_encodes_post_bodies_and_empty_posts(monkeypatch):
     assert requests[0][0].headers["Content-type"] == "application/json"
     assert requests[1][0].data == b""
     assert all(timeout == 10 for _, timeout in requests)
+
+
+def test_service_fresh_eyes_read_forwards_the_generation_and_comparison(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        semantic_service,
+        "_request_json",
+        lambda url, **kwargs: calls.append((url, kwargs)) or {"status": "ok"},
+    )
+
+    semantic_service.service_fresh_eyes_review(_target(), generation=1, compare_with=2)
+
+    assert "generation=1" in calls[0][0]
+    assert "compare_with=2" in calls[0][0]

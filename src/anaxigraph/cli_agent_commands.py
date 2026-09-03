@@ -88,6 +88,12 @@ def _configure_fresh_eyes(commands: Any) -> None:
         help="Read one recorded review generation instead of the current one",
     )
     fresh_eyes.add_argument(
+        "--compare-with",
+        type=int,
+        default=None,
+        help="Add a lexical alignment against a second recorded review generation",
+    )
+    fresh_eyes.add_argument(
         "--timeout-seconds",
         type=float,
         default=FRESH_EYES_START_TIMEOUT_SECONDS,
@@ -184,7 +190,12 @@ def _fresh_eyes(args: argparse.Namespace) -> dict[str, Any]:
             retry_failed=args.retry_failed,
             restart=args.restart,
         )
-    return engine.fresh_eyes_status(repository_id, config.semantic, generation=args.generation)
+    return engine.fresh_eyes_status(
+        repository_id,
+        config.semantic,
+        generation=args.generation,
+        compare_with=args.compare_with,
+    )
 
 
 def _service_fresh_eyes(service: Any, args: argparse.Namespace) -> dict[str, Any]:
@@ -197,6 +208,7 @@ def _service_fresh_eyes(service: Any, args: argparse.Namespace) -> dict[str, Any
             retry_failed=args.retry_failed,
             restart=args.restart,
             generation=args.generation,
+            compare_with=args.compare_with,
             timeout=args.timeout_seconds,
         )
     except OSError as exc:
