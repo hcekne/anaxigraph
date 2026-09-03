@@ -106,6 +106,7 @@ class GitMetadata:
     remote_url: str | None
     default_branch: str | None
     working_tree_fingerprint: str | None = None
+    scan_consistency: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -49,12 +49,20 @@ def insert_snapshot(
                     "analysis_signature": signature,
                     "config_path": str(config.config_path) if config.config_path else None,
                     "working_tree_fingerprint": git_metadata.working_tree_fingerprint,
+                    **scan_consistency_metadata(git_metadata),
                 },
                 sort_keys=True,
             ),
         ),
     )
     return int(cursor.lastrowid)
+
+
+def scan_consistency_metadata(git_metadata: Any) -> dict[str, str]:
+    """Name a scan-time drift verdict only when the scan actually observed one."""
+
+    consistency = getattr(git_metadata, "scan_consistency", None)
+    return {"scan_consistency": consistency} if consistency else {}
 
 
 def upsert_artifacts(

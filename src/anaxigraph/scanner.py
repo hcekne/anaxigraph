@@ -11,10 +11,10 @@ from typing import Any
 from anaxigraph.analyzers import AnalyzerRegistry, builtin_registry
 from anaxigraph.config import AnaxiGraphConfig, load_config
 from anaxigraph.history_discovery import (
-    DiscoveredFile,
-    DiscoveryResult,
+    ConsistentFrame,
     apply_invalidation_plan,
     available_changes,
+    consistent_discovery,
     discover_files,
     repository_metadata,
 )
@@ -105,7 +105,7 @@ class RepositoryScanner:
         try:
             checkpoint("discovering", 0, None, None, run_id=run_id)
             signature = analysis_signature(config)
-            discovered, previous, discovery, previous_snapshot_id = self._discover_frame(
+            frame, previous, previous_snapshot_id = self._discover_frame(
                 repository_id,
                 root,
                 config,
@@ -113,10 +113,11 @@ class RepositoryScanner:
                 baseline_snapshot_id=baseline_snapshot_id,
                 previous_revision=previous_revision,
                 signature=signature,
-                progress=lambda completed, total, path: checkpoint(
-                    "discovering", completed, total, path, run_id=run_id
-                ),
+                git_metadata=git_metadata,
+                checkpoint=checkpoint,
+                run_id=run_id,
             )
+            discovered, git_metadata = list(frame.discovery.files), frame.metadata
             checkpoint("fingerprinting", 0, len(discovered), None, run_id=run_id)
             fingerprint = content_fingerprint(
                 discovered,
@@ -134,10 +135,9 @@ class RepositoryScanner:
                     existing_snapshot,
                     root,
                     config,
-                    git_metadata,
+                    frame,
                     signature,
                     revision,
-                    discovery,
                     len(discovered),
                     started,
                     checkpoint,
@@ -187,7 +187,7 @@ class RepositoryScanner:
                 reused=reused,
                 error_count=errors,
                 metadata=_run_metadata(
-                    discovery,
+                    frame,
                     duration,
                     revision,
                     deleted=committed.deleted,
@@ -235,10 +235,9 @@ class RepositoryScanner:
         snapshot: dict[str, Any],
         root: Path,
         config: AnaxiGraphConfig,
-        git_metadata: Any,
+        frame: ConsistentFrame,
         signature: str,
         revision: str | None,
-        discovery: DiscoveryResult,
         discovered: int,
         started: float,
         checkpoint: Callable[..., None],
@@ -249,7 +248,7 @@ class RepositoryScanner:
             repository_id=repository_id,
             snapshot=snapshot,
             root=root,
-            git_metadata=git_metadata,
+            git_metadata=frame.metadata,
             config=config,
             signature=signature,
             revision=revision,
@@ -262,7 +261,7 @@ class RepositoryScanner:
             status="unchanged",
             discovered=discovered,
             reused=discovered,
-            metadata=_run_metadata(discovery, duration, revision),
+            metadata=_run_metadata(frame, duration, revision),
         )
         stats = ScanStats(
             repository_id=repository_id,
@@ -289,32 +288,35 @@ class RepositoryScanner:
         baseline_snapshot_id: int | None,
         previous_revision: str | None,
         signature: str,
-        progress: Callable[[int, int, str], None] | None = None,
-    ) -> tuple[
-        list[DiscoveredFile],
-        dict[str, dict[str, Any]],
-        DiscoveryResult,
-        int | None,
-    ]:
+        git_metadata: Any,
+        checkpoint: Callable[..., None],
+        run_id: int,
+    ) -> tuple[ConsistentFrame, dict[str, dict[str, Any]], int | None]:
         latest = self.database.latest_snapshot(repository_id)
-        previous_snapshot_id = (
-            baseline_snapshot_id
-            if baseline_snapshot_id is not None or revision is not None
-            else (int(latest["id"]) if latest else None)
-        )
+        explicit_baseline = baseline_snapshot_id is not None or revision is not None
+        latest_id = int(latest["id"]) if latest else None
+        previous_snapshot_id = baseline_snapshot_id if explicit_baseline else latest_id
         with self.database.connect() as connection:
             previous = previous_analysis_records(connection, previous_snapshot_id)
-        discovery = discover_files(
+        frame = consistent_discovery(
+            lambda: discover_files(
+                root,
+                config,
+                revision=revision,
+                previous_revision=previous_revision,
+                previous=previous,
+                analysis_version=ANALYSIS_VERSION,
+                allow_carry=self._snapshot_signature(previous_snapshot_id) == signature,
+                progress=lambda completed, total, path: checkpoint(
+                    "discovering", completed, total, path, run_id=run_id
+                ),
+            ),
             root,
-            config,
             revision=revision,
-            previous_revision=previous_revision,
-            previous=previous,
-            analysis_version=ANALYSIS_VERSION,
-            allow_carry=self._snapshot_signature(previous_snapshot_id) == signature,
-            progress=progress,
+            before=git_metadata,
+            on_retry=lambda: checkpoint("rediscovering", 0, None, None, run_id=run_id),
         )
-        return list(discovery.files), previous, discovery, previous_snapshot_id
+        return frame, previous, previous_snapshot_id
 
     def _snapshot_signature(self, snapshot_id: int | None) -> str | None:
         if snapshot_id is None:
@@ -337,7 +339,7 @@ def _relationship_metadata(result: RelationshipBuildResult) -> dict[str, int]:
 
 
 def _run_metadata(
-    discovery: DiscoveryResult,
+    frame: ConsistentFrame,
     duration: int,
     revision: str | None,
     **values: Any,
@@ -345,8 +347,10 @@ def _run_metadata(
     return {
         "duration_ms": duration,
         "revision": revision,
-        "source_reads": discovery.source_reads,
-        "carried_forward": discovery.carried_forward,
+        "source_reads": frame.discovery.source_reads,
+        "carried_forward": frame.discovery.carried_forward,
+        "working_tree_rediscoveries": frame.rediscoveries,
+        "working_tree_drift": frame.drift,
         **values,
     }
 

@@ -12,6 +12,7 @@ from typing import Any, Protocol
 
 from anaxigraph import git
 from anaxigraph.languages import JAVASCRIPT_ANALYZER_LANGUAGES, detect_language
+from anaxigraph.scan_consistency import ConsistentFrame, discover_consistent_frame
 
 
 class DiscoveryConfig(Protocol):
@@ -92,6 +93,24 @@ def discover_files(
 
 def repository_metadata(root: Path, revision: str | None) -> Any:
     return git.metadata(root, revision=revision)
+
+
+def consistent_discovery(
+    discover: Callable[[], DiscoveryResult],
+    root: Path,
+    *,
+    revision: str | None,
+    before: Any,
+    on_retry: Callable[[], None] | None = None,
+) -> ConsistentFrame:
+    """Re-read working-tree metadata around a live discovery pass, rediscovering once on drift."""
+
+    return discover_consistent_frame(
+        discover,
+        (lambda: repository_metadata(root, None)) if revision is None else None,
+        before=before,
+        on_retry=on_retry,
+    )
 
 
 def available_changes(root: Path) -> list[git.GitChange]:

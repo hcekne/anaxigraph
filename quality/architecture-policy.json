@@ -69,6 +69,7 @@
         "anaxigraph.pattern_candidate_query",
         "anaxigraph.pattern_candidates",
         "anaxigraph.pattern_signals",
+        "anaxigraph.scan_consistency",
         "anaxigraph.semantic",
         "anaxigraph.semantic_taxonomy_clusters",
         "anaxigraph.semantic_taxonomy_contract",
