@@ -143,9 +143,29 @@ def test_claude_provider_is_non_persistent_tool_free_and_schema_constrained(monk
     assert captured["command"][0] == "claude"
     assert "--no-session-persistence" in captured["command"]
     assert captured["command"][captured["command"].index("--tools") + 1] == ""
+    assert "--effort" not in captured["command"]
     assert captured["kwargs"]["check"] is False
     assert result.input_tokens == 70
     assert result.output_tokens == 50
+
+
+def test_claude_provider_forwards_reasoning_effort_unvalidated(monkeypatch):
+    captured = {}
+
+    def run(command, **_kwargs):
+        captured.update(command=command)
+        return SimpleNamespace(
+            returncode=0,
+            stdout=json.dumps({"structured_output": _dossier(), "usage": {}}),
+            stderr="",
+        )
+
+    monkeypatch.setattr("anaxigraph.semantic.subprocess.run", run)
+    ClaudeSemanticProvider(
+        SemanticConfig(enabled=True, provider="claude", reasoning_effort="future-effort")
+    ).analyze({"analysis_kind": "context", "source": "untrusted"})
+
+    assert captured["command"][captured["command"].index("--effort") + 1] == "future-effort"
 
 
 def _claude_result(monkeypatch, envelope: dict[str, Any]) -> Any:

@@ -57,16 +57,20 @@ def test_agent_policy_model_cannot_pin_the_runtime_executor(monkeypatch):
     assert execution.model == ""
 
 
-def test_understand_rejects_codex_reasoning_effort_for_claude(monkeypatch):
+@pytest.mark.parametrize("executor", ["codex", "claude"])
+def test_understand_accepts_reasoning_effort_for_each_local_executor(monkeypatch, executor):
     args = argparse.Namespace(
-        executor="claude", model=None, reasoning_effort="medium", plan_only=False
+        executor=executor, model=None, reasoning_effort="medium", plan_only=False
     )
     monkeypatch.setattr(semantic_execution.shutil, "which", lambda command: f"/bin/{command}")
 
-    with pytest.raises(ValueError, match="supported only"):
-        semantic_commands._understand_execution(
-            args, SemanticConfig(enabled=True, provider="agent")
-        )
+    execution, mode = semantic_commands._understand_execution(
+        args, SemanticConfig(enabled=True, provider="agent")
+    )
+
+    assert mode == executor
+    assert execution.provider == executor
+    assert execution.reasoning_effort == "medium"
 
 
 @pytest.mark.parametrize(

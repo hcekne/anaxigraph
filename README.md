@@ -98,8 +98,9 @@ records a durable run handoff in user state, and keeps the host worker alive if 
 session exits. `semantic-status` reports whether that worker is really running, where its log is,
 whether it finished, which saved index it is using, and its model and reasoning effort. The command
 deliberately omits a model so the executor can
-use its currently supported configured default. Only pass `--model` or `--reasoning-effort` for an
-explicit runtime choice; changing either never makes an existing AI description stale. Direct MCP
+use its currently supported configured default. Only pass `--model` or `--reasoning-effort` (both
+Codex and Claude accept them) for an explicit runtime choice; changing either never makes an
+existing AI description stale. Direct MCP
 looping handles one limited task at a time when no authenticated host worker is available; it is
 not the default way to build the complete map.
 
