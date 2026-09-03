@@ -27,6 +27,10 @@ MAX_GRAPH_DEPTH = 3
 GRAPH_DELTA_VERSION = "graph-delta-v1"
 DEFAULT_GRAPH_DELTA_LIMIT = 250
 MAX_GRAPH_DELTA_LIMIT = 1_000
+# Additive availability labels: an empty graph from a never-scanned repository is a fact,
+# not a snapshot that happens to hold nothing. Unknown or foreign ids fail loud instead.
+GRAPH_UNSCANNED = "unscanned"
+GRAPH_CURRENT = "current"
 
 
 @dataclass(frozen=True, slots=True)

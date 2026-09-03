@@ -8,7 +8,9 @@ import time
 from typing import Any, Mapping
 
 from anaxigraph.graph_contract import (
+    GRAPH_CURRENT,
     GRAPH_DELTA_VERSION,
+    GRAPH_UNSCANNED,
     MAX_GRAPH_DELTA_LIMIT,
     with_graph_telemetry,
 )
@@ -35,6 +37,7 @@ def read_graph_delta(
     response = {
         "contract_version": GRAPH_DELTA_VERSION,
         "repository_id": repository_id,
+        "availability": GRAPH_CURRENT,
         "baseline_snapshot": dict(baseline),
         "target_snapshot": dict(target),
         "counts": {
@@ -60,6 +63,7 @@ def empty_graph_delta(repository_id: int) -> dict[str, Any]:
     response = {
         "contract_version": GRAPH_DELTA_VERSION,
         "repository_id": repository_id,
+        "availability": GRAPH_UNSCANNED,
         "baseline_snapshot": None,
         "target_snapshot": None,
         "counts": {"nodes": {}, "edges": {}},
