@@ -11,6 +11,7 @@ from anaxigraph.architecture_charter_corrections import declared_context
 from anaxigraph.persistence.semantic_evidence import semantic_inventory
 from anaxigraph.semantic_fresh_eyes_contract import (
     FRESH_EYES_PROTOCOL_VERSION,
+    fresh_eyes_plan_executors,
     fresh_eyes_plan_options,
     semantic_digest,
     semantic_input_hash,
@@ -97,6 +98,7 @@ def review_context(
         "repository_id": repository_id,
         "snapshot_id": snapshot_id,
         "proposal_count": proposal_count,
+        "proposal_executors": fresh_eyes_plan_executors(plan),
         "review_generation": review_generation,
         "charter": charter,
         "brief": brief,

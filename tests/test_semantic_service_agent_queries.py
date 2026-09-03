@@ -44,16 +44,19 @@ def test_service_fresh_eyes_restart_posts_an_explicit_new_generation(monkeypatch
         lambda url, **kwargs: calls.append((url, kwargs)) or {"status": "restarted"},
     )
 
-    assert semantic_service.service_fresh_eyes_review(_target(), restart=True) == {
-        "status": "restarted"
-    }
+    assert semantic_service.service_fresh_eyes_review(
+        _target(), restart=True, proposal_executors=("codex", "claude")
+    ) == {"status": "restarted"}
     assert calls[0][1]["body"] == {
         "proposal_count": 2,
+        "proposal_executors": ["codex", "claude"],
         "retry_failed": False,
         "restart": True,
         "repository_id": 7,
     }
     assert calls[0][1]["timeout"] == 120
+    semantic_service.service_fresh_eyes_review(_target(), restart=True)
+    assert calls[1][1]["body"]["proposal_executors"] == []
 
 
 def test_service_fresh_eyes_start_waits_longer_than_the_index_busy_window(database, monkeypatch):

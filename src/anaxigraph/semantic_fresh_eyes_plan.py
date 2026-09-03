@@ -10,6 +10,7 @@ from anaxigraph.semantic_config_port import SemanticConfig
 from anaxigraph.semantic_fresh_eyes_contract import (
     FRESH_EYES_PROTOCOL_VERSION,
     fresh_eyes_plan_token,
+    fresh_eyes_required_executor,
     semantic_input_hash,
 )
 from anaxigraph.semantic_fresh_eyes_evidence import (
@@ -53,9 +54,11 @@ class FreshEyesPlanner:
         snapshot_id: int,
         proposal_count: int,
         generation: int = 1,
+        proposal_executors: tuple[str, ...] = (),
     ) -> bool:
         if proposal_count not in {1, 2, 3}:
             raise ValueError("Fresh-eyes review requires one, two, or three proposals")
+        token = fresh_eyes_plan_token(proposal_count, generation, proposal_executors)
         existing = _plan_state(connection, snapshot_id)
         if existing is not None:
             return False
@@ -67,7 +70,7 @@ class FreshEyesPlanner:
             scope_key=FRESH_EYES_PLAN_KEY,
             status="requested",
             reason="Fresh-eyes review requested; waiting for current repository understanding",
-            interface_hash=fresh_eyes_plan_token(proposal_count, generation),
+            interface_hash=token,
         )
         return True
 
@@ -180,6 +183,7 @@ class FreshEyesPlanner:
     ) -> tuple[list[dict[str, Any]], int]:
         documents: list[dict[str, Any]] = []
         enqueued = 0
+        executors = tuple(context.get("proposal_executors") or ())
         for slot in _PROPOSAL_SLOTS[: int(context["proposal_count"])]:
             manifest = proposal_manifest(
                 slot, context["capability_fingerprint"], context["review_generation"]
@@ -187,6 +191,7 @@ class FreshEyesPlanner:
             metadata = {
                 "stage": "proposal",
                 "slot": slot,
+                "required_executor": fresh_eyes_required_executor(executors, f"proposal:{slot}"),
                 "capability_brief": context["brief"],
                 "external_constraints": external_constraints(context["brief"]),
                 "input_manifest": manifest,

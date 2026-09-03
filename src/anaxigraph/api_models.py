@@ -14,6 +14,7 @@ class GuidanceRequest(BaseModel):
 
 class FreshEyesRequest(BaseModel):
     proposal_count: int = Field(default=2, ge=1, le=3)
+    proposal_executors: list[str] = Field(default_factory=list, max_length=3)
     retry_failed: bool = False
     restart: bool = False
     wait: bool = True

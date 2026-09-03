@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Sequence
 from typing import Any
 
 from anaxigraph.semantic_contract import SemanticAnalysisError, SemanticResult, _validate_schema
@@ -16,24 +17,89 @@ FRESH_EYES_ADJUDICATION_VERSION = "fresh-eyes-adjudication-v1"
 FRESH_EYES_COMPARISON_VERSION = "fresh-eyes-comparison-v1"
 FRESH_EYES_PROTOCOL_VERSION = "fresh-eyes-recipe-v1"
 
+ANY_EXECUTOR = "any"
+FRESH_EYES_EXECUTORS = ("codex", "claude", ANY_EXECUTOR)
+PROPOSAL_SCOPE_PREFIX = "proposal:"
+
 
 def fresh_eyes_plan_options(plan: dict[str, Any]) -> tuple[int, int]:
     """Read proposal count and explicit rerun generation from one plan row."""
 
-    raw = str(plan.get("interface_hash") or "2")
-    proposal_text, separator, generation_text = raw.partition(":")
+    proposal_text, generation_text, _executors = _plan_token_parts(plan)
     try:
         proposal_count = int(proposal_text)
-        generation = int(generation_text) if separator else 1
+        generation = int(generation_text) if generation_text else 1
     except ValueError:
         return 2, 1
     return max(1, min(3, proposal_count)), max(1, generation)
 
 
-def fresh_eyes_plan_token(proposal_count: int, generation: int) -> str:
-    """Encode small plan controls without adding model identity to semantic freshness."""
+def fresh_eyes_plan_executors(plan: dict[str, Any]) -> tuple[str, ...]:
+    """Read the per-slot executor assignment; a two-part token records no assignment."""
 
-    return f"{proposal_count}:{generation}"
+    _proposals, _generation, executor_text = _plan_token_parts(plan)
+    named = [item.strip().lower() for item in executor_text.split(",")]
+    return tuple(item for item in named if item in FRESH_EYES_EXECUTORS)
+
+
+def fresh_eyes_required_executor(executors: Sequence[str], scope_key: str) -> str | None:
+    """Name the executor family pinned to one proposal slot, or None when any may take it."""
+
+    key = str(scope_key)
+    if not key.startswith(PROPOSAL_SCOPE_PREFIX):
+        return None
+    slot = key[len(PROPOSAL_SCOPE_PREFIX) :]
+    index = ord(slot) - ord("a") if len(slot) == 1 else -1
+    if index < 0 or index >= len(executors) or executors[index] == ANY_EXECUTOR:
+        return None
+    return str(executors[index])
+
+
+def fresh_eyes_plan_token(
+    proposal_count: int, generation: int, executors: Sequence[str] = ()
+) -> str:
+    """Encode small plan controls without adding model identity to semantic freshness.
+
+    The executor assignment names who should take each proposal slot, not which model produced
+    a result, so it stays out of every stage manifest and leaves stage input hashes unchanged.
+    """
+
+    families = proposal_executor_families(executors, proposal_count)
+    token = f"{proposal_count}:{generation}"
+    return f"{token}:{','.join(families)}" if families else token
+
+
+def proposal_executor_families(executors: Sequence[str], proposal_count: int) -> tuple[str, ...]:
+    """Validate one executor family per proposal slot before any job is queued."""
+
+    families = tuple(str(item).strip().lower() for item in executors if str(item).strip())
+    if not families:
+        return ()
+    unknown = [item for item in families if item not in FRESH_EYES_EXECUTORS]
+    if unknown:
+        raise ValueError(
+            "Fresh-eyes proposal executors must each be one of "
+            f"{', '.join(FRESH_EYES_EXECUTORS)}; received {', '.join(unknown)}"
+        )
+    if len(families) != proposal_count:
+        raise ValueError(
+            "Fresh-eyes review needs one proposal executor per slot: "
+            f"{proposal_count} proposals requested, {len(families)} executors named"
+        )
+    return families
+
+
+def parse_proposal_executors(value: Any) -> tuple[str, ...]:
+    """Read ``codex,claude`` from a CLI or MCP string, or a REST list, as executor families."""
+
+    named = value.split(",") if isinstance(value, str) else list(value or ())
+    return tuple(str(item).strip().lower() for item in named if str(item).strip())
+
+
+def _plan_token_parts(plan: dict[str, Any]) -> tuple[str, str, str]:
+    parts = str(plan.get("interface_hash") or "2").split(":")
+    padded = (*parts, "", "")
+    return padded[0], padded[1], padded[2]
 
 
 def _object(**properties: dict[str, Any]) -> dict[str, Any]:

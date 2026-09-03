@@ -221,6 +221,77 @@ def test_redesign_journey_names_the_next_guide_call_for_every_review_state(state
         assert ("restart=true" in next_action["reason"]) is (state == "current")
 
 
+async def _rest_start(database, repository, body: dict[str, Any]) -> dict[str, Any]:
+    app = create_app(database=database, repository=repository, enable_mcp=False)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        return (await client.post("/api/fresh-eyes", json=body)).json()
+
+
+def _pins(review: dict[str, Any]) -> list[tuple[str, Any]]:
+    return [(item["key"], item["required_executor"]) for item in review["stages"]]
+
+
+@pytest.mark.anyio
+async def test_rest_and_mcp_pin_the_same_executor_to_each_proposal_slot(repository, database):
+    _enable_agent_semantics(repository)
+    config = load_config(repository)
+    stats = RepositoryScanner(database).scan(repository)
+    engine = SemanticEngine(database)
+    _complete_queue(engine, stats.repository_id, repository, config)
+
+    started = await _rest_start(
+        database, repository, {"proposal_count": 2, "proposal_executors": ["codex", "claude"]}
+    )
+
+    assert started["status"] == "started"
+    expected = [
+        ("proposal:a", "codex"),
+        ("proposal:b", "claude"),
+        ("adjudication", None),
+        ("comparison", None),
+        ("review", None),
+    ]
+    assert _pins(started["review"]) == expected
+    rest = await _rest_fresh_eyes(database, repository)
+    response = await _mcp_guide(database, repository, {"fresh_eyes": True})
+    assert response.isError is False
+    assert _pins(rest) == _pins(response.structuredContent) == expected
+    _complete_queue(engine, stats.repository_id, repository, config)
+    pinned_again = await _mcp_guide(
+        database,
+        repository,
+        {
+            "intent": "redesign",
+            "start": True,
+            "restart": True,
+            "proposal_count": 2,
+            "proposal_executors": "claude,codex",
+        },
+    )
+    assert pinned_again.isError is False
+    assert pinned_again.structuredContent["status"] == "restarted"
+    assert _pins(pinned_again.structuredContent["review"])[:2] == [
+        ("proposal:a", "claude"),
+        ("proposal:b", "codex"),
+    ]
+
+
+@pytest.mark.anyio
+async def test_an_unusable_rest_executor_assignment_is_a_bad_request(repository, database):
+    _enable_agent_semantics(repository)
+    config = load_config(repository)
+    stats = RepositoryScanner(database).scan(repository)
+    _complete_queue(SemanticEngine(database), stats.repository_id, repository, config)
+
+    body = await _rest_start(
+        database, repository, {"proposal_count": 2, "proposal_executors": ["codex"]}
+    )
+
+    assert "one proposal executor per slot" in body["detail"]
+
+
 @pytest.mark.anyio
 async def test_rest_cli_and_mcp_agree_on_a_selected_generation(repository, database, capsys):
     engine, repository_id, config = _prepare_completed_review(repository, database)

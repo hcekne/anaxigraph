@@ -8,6 +8,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -220,6 +221,7 @@ def service_fresh_eyes_review(
     *,
     start: bool = False,
     proposal_count: int = 2,
+    proposal_executors: Sequence[str] = (),
     retry_failed: bool = False,
     restart: bool = False,
     generation: int | None = None,
@@ -233,6 +235,7 @@ def service_fresh_eyes_review(
             "/api/fresh-eyes",
             {
                 "proposal_count": proposal_count,
+                "proposal_executors": list(proposal_executors),
                 "retry_failed": retry_failed,
                 "restart": restart,
                 "repository_id": target.repository_id,

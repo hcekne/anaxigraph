@@ -9,6 +9,7 @@ from typing import Any
 from anaxigraph.agent import architecture_guidance, impact_analysis
 from anaxigraph.architecture_reassessment import architecture_reassessment
 from anaxigraph.cli_common import add_repository_arguments, ensure_current
+from anaxigraph.semantic_fresh_eyes_contract import parse_proposal_executors
 from anaxigraph.semantic_service import (
     FRESH_EYES_START_TIMEOUT_SECONDS,
     discover_semantic_service,
@@ -76,6 +77,14 @@ def _configure_fresh_eyes(commands: Any) -> None:
         choices=(1, 2, 3),
         default=2,
         help="Number of independent clean-sheet proposals (two is recommended)",
+    )
+    fresh_eyes.add_argument(
+        "--proposal-executors",
+        default="",
+        help=(
+            "Pin one executor family per proposal slot, for example codex,claude (use any for an "
+            "unpinned slot). Applies to a new review or a restart, never to one already planned."
+        ),
     )
     fresh_eyes.add_argument(
         "--retry-failed", action="store_true", help="Retry failed review-stage tasks"
@@ -187,6 +196,7 @@ def _fresh_eyes(args: argparse.Namespace) -> dict[str, Any]:
             args.repository,
             config,
             proposal_count=args.proposals,
+            proposal_executors=parse_proposal_executors(args.proposal_executors),
             retry_failed=args.retry_failed,
             restart=args.restart,
         )
@@ -205,6 +215,7 @@ def _service_fresh_eyes(service: Any, args: argparse.Namespace) -> dict[str, Any
             service,
             start=starting,
             proposal_count=args.proposals,
+            proposal_executors=parse_proposal_executors(args.proposal_executors),
             retry_failed=args.retry_failed,
             restart=args.restart,
             generation=args.generation,
