@@ -16,6 +16,7 @@ class FreshEyesRequest(BaseModel):
     proposal_count: int = Field(default=2, ge=1, le=3)
     retry_failed: bool = False
     restart: bool = False
+    wait: bool = True
     repository_id: int | None = None
 
 

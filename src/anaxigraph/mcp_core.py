@@ -200,6 +200,7 @@ class CoreMcpTools:
         proposal_count: int = 2,
         retry_failed: bool = False,
         restart: bool = False,
+        wait: bool = True,
         generation: int | None = None,
         reassess: bool = False,
         from_snapshot_id: int | None = None,
@@ -211,7 +212,16 @@ class CoreMcpTools:
             return self._understand_journey(repository)
         if redesign:
             return self._redesign_journey(
-                row, root, config, goal, start, proposal_count, retry_failed, restart, generation
+                row,
+                root,
+                config,
+                goal,
+                start,
+                proposal_count,
+                retry_failed,
+                restart,
+                generation,
+                wait=wait,
             )
         if compare:
             return self._reassess_journey(row, config, goal, from_snapshot_id)
@@ -237,6 +247,8 @@ class CoreMcpTools:
         retry_failed: bool,
         restart: bool,
         generation: int | None = None,
+        *,
+        wait: bool = True,
     ) -> dict[str, Any]:
         engine = SemanticEngine(self.database)
         result = (
@@ -247,6 +259,7 @@ class CoreMcpTools:
                 proposal_count=proposal_count,
                 retry_failed=retry_failed,
                 restart=restart,
+                plan=wait,
             )
             if start or restart
             else engine.fresh_eyes_status(int(row["id"]), config.semantic, generation=generation)

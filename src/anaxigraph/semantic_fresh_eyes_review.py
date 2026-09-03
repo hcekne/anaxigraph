@@ -69,7 +69,10 @@ class FreshEyesReviewService:
         proposal_count: int = 2,
         retry_failed: bool = False,
         restart: bool = False,
+        plan: bool = True,
     ) -> dict[str, Any]:
+        """Record the request; plan now, or defer planning to the next executor claim."""
+
         semantic = config.semantic
         if not semantic.enabled:
             raise ValueError("Build AI understanding before starting a fresh-eyes review")
@@ -92,11 +95,8 @@ class FreshEyesReviewService:
                 proposal_count=proposal_count,
                 generation=generation,
             )
-        plan = self._planning.plan(
-            repository_id,
-            repository,
-            config,
-            retry_failed=retry_failed,
+        stage, enqueued = self._plan_outcome(
+            repository_id, repository, config, plan=plan, retry_failed=retry_failed
         )
         return {
             "status": "restarted"
@@ -104,10 +104,36 @@ class FreshEyesReviewService:
             else "started"
             if created
             else "already_started",
-            "plan_stage": plan.stage,
-            "enqueued": plan.enqueued,
+            "plan_stage": stage,
+            "enqueued": enqueued,
             "review": self.status(repository_id, semantic),
         }
+
+    def _plan_outcome(
+        self,
+        repository_id: int,
+        repository: str | Path,
+        config: AnaxiGraphConfig,
+        *,
+        plan: bool,
+        retry_failed: bool,
+    ) -> tuple[str, int]:
+        """Plan the queue now, or report a deferred stage for the next claim to consume.
+
+        A deferred request is picked up by ``plan_active`` during the next
+        ``claim_agent_work`` call that finds the queue otherwise empty, so a busy
+        queue keeps the request ``requested`` until it drains.
+        """
+
+        if not plan:
+            return "deferred", 0
+        planned = self._planning.plan(
+            repository_id,
+            repository,
+            config,
+            retry_failed=retry_failed,
+        )
+        return planned.stage, planned.enqueued
 
     def status(
         self,

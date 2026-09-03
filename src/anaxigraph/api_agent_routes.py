@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 
 import anaxigraph.api_support as api_support
 from anaxigraph.architecture_reassessment import architecture_reassessment
+
+FRESH_EYES_START_OPERATION = "fresh_eyes_start"
 
 
 def agent_router(context: Any) -> APIRouter:
@@ -136,19 +139,37 @@ class AgentRoutes:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    def start_fresh_eyes(self, request: api_support.FreshEyesRequest) -> dict[str, Any]:
+    async def start_fresh_eyes(self, request: api_support.FreshEyesRequest) -> dict[str, Any]:
+        """Record the request under the operation gate, off the event loop.
+
+        ``wait=false`` returns once the ``requested`` transaction commits and leaves
+        planning to the next executor claim that finds the queue otherwise empty.
+        The gate holds for mutual exclusion but adds no cooldown: starting a review
+        and then rerunning it are ordinary sequential operations, and the CLI does
+        not retry a rate-limited request.
+        """
+
         row = self.context.selected_repository(request.repository_id)
+        repository_id = int(row["id"])
+        config = self.context.selected_config(row)
+        self.context.admit_operation(
+            repository_id, FRESH_EYES_START_OPERATION, hold=True, cooldown_seconds=0
+        )
         try:
-            return api_support.SemanticEngine(self.context.database).start_fresh_eyes_review(
-                int(row["id"]),
+            return await asyncio.to_thread(
+                api_support.SemanticEngine(self.context.database).start_fresh_eyes_review,
+                repository_id,
                 row["path"],
-                self.context.selected_config(row),
+                config,
                 proposal_count=request.proposal_count,
                 retry_failed=request.retry_failed,
                 restart=request.restart,
+                plan=request.wait,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+        finally:
+            self.context.finish_operation(repository_id, FRESH_EYES_START_OPERATION)
 
     def reassessment(
         self,
