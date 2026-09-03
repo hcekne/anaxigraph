@@ -15,6 +15,13 @@ from anaxigraph.semantic import SemanticResult
 from anaxigraph.storage import SCHEMA_VERSION, AnaxiIndex
 from anaxigraph.understanding import SemanticEngine
 
+USAGE_PROVENANCE_COLUMNS = {
+    "cache_read_input_tokens",
+    "cache_creation_input_tokens",
+    "usage_source",
+    "executor_effort",
+}
+
 
 def _schema_version(database: AnaxiIndex) -> int:
     with database.connect() as connection:
@@ -41,13 +48,15 @@ def test_fresh_and_current_schema_initialization_is_idempotent(tmp_path, monkeyp
     monkeypatch.setattr(initialization_module, "migrate_schema", unexpected_migration)
     second = AnaxiIndex(path)
 
-    assert SUPPORTED_SCHEMA_VERSIONS == frozenset({2, 6, 7, 8, 9, 10})
-    assert _schema_version(first) == _schema_version(second) == SCHEMA_VERSION == 10
+    assert SUPPORTED_SCHEMA_VERSIONS == frozenset({2, 6, 7, 8, 9, 10, 11})
+    assert _schema_version(first) == _schema_version(second) == SCHEMA_VERSION == 11
     assert {"base_snapshot_id", "sequence"} <= _columns(first, "snapshots")
     assert _columns(first, "file_facts")
     assert _columns(first, "snapshot_file_changes")
     assert _columns(first, "relationship_sets")
     assert "file_fact_id" in _columns(first, "semantic_jobs")
+    assert USAGE_PROVENANCE_COLUMNS <= _columns(first, "semantic_jobs")
+    assert USAGE_PROVENANCE_COLUMNS <= _columns(first, "semantic_documents")
 
 
 def test_reopening_current_schema_preserves_canonical_snapshot(repository, tmp_path):
@@ -69,7 +78,7 @@ def test_released_v2_schema_migrates_without_losing_repository_data(tmp_path):
 
     database = AnaxiIndex(path)
 
-    assert _schema_version(database) == 10
+    assert _schema_version(database) == 11
     assert database.repository(1)["name"] == "Preserved v2 repository"
     assert {"worker_id", "lease_expires_at", "lease_token_hash", "executor_id"} <= _columns(
         database, "semantic_jobs"
@@ -78,9 +87,84 @@ def test_released_v2_schema_migrates_without_losing_repository_data(tmp_path):
         database, "semantic_documents"
     )
     assert {"executor_id", "executor_model"} <= _columns(database, "semantic_claims")
+    assert USAGE_PROVENANCE_COLUMNS <= _columns(database, "semantic_jobs")
+    assert USAGE_PROVENANCE_COLUMNS <= _columns(database, "semantic_documents")
 
 
-@pytest.mark.parametrize("version", [1, 3, 4, 5, 11])
+def _write_schema_10_usage_rows(path: Path, repository_id: int, snapshot_id: int) -> None:
+    """Write jobs and documents the way schema 10 wrote them, then hide the schema-11 columns."""
+
+    rows = (
+        ("reported-cost", "completed", "codex", 0.5),
+        ("estimated-only", "completed", "codex", None),
+        ("agent-unknown", "completed", "agent", None),
+        ("failed-attempt", "failed", "codex", None),
+    )
+    with sqlite3.connect(path) as connection:
+        for scope_key, status, provider, cost in rows:
+            connection.execute(
+                """
+                INSERT INTO semantic_jobs(
+                    repository_id, snapshot_id, scope_type, scope_key, job_kind, reason, status,
+                    input_hash, provider, model, prompt_version, schema_version, input_tokens,
+                    available_at, actual_cost_usd
+                ) VALUES (?, ?, 'module', ?, 'intrinsic', 'legacy row', ?, 'hash', ?,
+                    'test-model', 'v1', 'v1', 7, '2026-09-01T00:00:00+00:00', ?)
+                """,
+                (repository_id, snapshot_id, scope_key, status, provider, cost),
+            )
+            if status != "completed":
+                continue
+            connection.execute(
+                """
+                INSERT INTO semantic_documents(
+                    repository_id, snapshot_id, scope_type, scope_key, document_kind, input_hash,
+                    intent_fingerprint, value_json, source, provider, model, prompt_version,
+                    schema_version, confidence, input_tokens, actual_cost_usd, created_at
+                ) VALUES (?, ?, 'module', ?, 'intrinsic', 'hash', 'intent', '{}', 'llm', ?,
+                    'test-model', 'v1', 'v1', 0.8, 7, ?, '2026-09-01T00:00:00+00:00')
+                """,
+                (repository_id, snapshot_id, scope_key, provider, cost),
+            )
+        for table in ("semantic_jobs", "semantic_documents"):
+            for name in sorted(USAGE_PROVENANCE_COLUMNS):
+                connection.execute(f"ALTER TABLE {table} DROP COLUMN {name}")
+        connection.execute("UPDATE schema_meta SET value = '10' WHERE key = 'schema_version'")
+
+
+def _usage_sources(database: AnaxiIndex, table: str) -> dict[str, str]:
+    with database.connect() as connection:
+        return {
+            str(row["scope_key"]): str(row["usage_source"])
+            for row in connection.execute(f"SELECT scope_key, usage_source FROM {table}")
+        }
+
+
+def test_schema_11_backfills_usage_source_on_rows_written_before_the_column(repository, tmp_path):
+    path = tmp_path / "v10-usage.db"
+    stats = RepositoryScanner(AnaxiIndex(path)).scan(repository)
+    _write_schema_10_usage_rows(path, stats.repository_id, stats.snapshot_id)
+
+    database = AnaxiIndex(path)
+
+    assert _schema_version(database) == 11
+    assert _usage_sources(database, "semantic_jobs") == {
+        "reported-cost": "reported",
+        "estimated-only": "estimated",
+        "agent-unknown": "unknown",
+        "failed-attempt": "unknown",
+    }
+    assert _usage_sources(database, "semantic_documents") == {
+        "reported-cost": "reported",
+        "estimated-only": "estimated",
+        "agent-unknown": "unknown",
+    }
+    with database.connect() as connection:
+        totals = connection.execute("SELECT SUM(input_tokens) FROM semantic_jobs").fetchone()[0]
+    assert totals == 28
+
+
+@pytest.mark.parametrize("version", [1, 3, 4, 5, 12])
 def test_untested_or_future_schema_versions_fail_closed(tmp_path, version):
     path = tmp_path / f"unsupported-{version}.db"
     with sqlite3.connect(path) as connection:

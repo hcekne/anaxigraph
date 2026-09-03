@@ -14,7 +14,7 @@ def test_doctor_proves_canonical_health_after_compaction(repository, database):
     report = inspect_index(database.path, database.connect)
 
     assert report["status"] == "healthy"
-    assert report["schema_version"] == 10
+    assert report["schema_version"] == 11
     assert report["integrity"] == "ok"
     assert report["parity"] == {
         "status": "canonical_only",

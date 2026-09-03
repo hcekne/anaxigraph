@@ -90,5 +90,5 @@ def test_backup_and_restore_cli_require_explicit_replacement_confirmation(
     assert backup_report["backup"]["path"] == str(backup_path)
     assert restore_report["status"] == "complete"
     assert restore_report["health"] == "healthy"
-    assert restore_report["final_schema_version"] == 10
+    assert restore_report["final_schema_version"] == 11
     assert AnaxiIndex(database_path).repository(stats.repository_id)["name"] == original_name

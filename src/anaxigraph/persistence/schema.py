@@ -1,6 +1,6 @@
 """Versioned AnaxiIndex compatibility schema installed before explicit migrations."""
 
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_meta (
@@ -179,6 +179,10 @@ CREATE TABLE IF NOT EXISTS semantic_documents (
     supporting_evidence_json TEXT NOT NULL DEFAULT '[]',
     input_tokens INTEGER NOT NULL DEFAULT 0,
     output_tokens INTEGER NOT NULL DEFAULT 0,
+    cache_read_input_tokens INTEGER NOT NULL DEFAULT 0,
+    cache_creation_input_tokens INTEGER NOT NULL DEFAULT 0,
+    usage_source TEXT NOT NULL DEFAULT 'unknown',
+    executor_effort TEXT,
     estimated_cost_usd REAL,
     actual_cost_usd REAL,
     created_at TEXT NOT NULL
@@ -207,6 +211,9 @@ CREATE TABLE IF NOT EXISTS semantic_jobs (
     estimated_input_tokens INTEGER NOT NULL DEFAULT 0,
     input_tokens INTEGER NOT NULL DEFAULT 0,
     output_tokens INTEGER NOT NULL DEFAULT 0,
+    cache_read_input_tokens INTEGER NOT NULL DEFAULT 0,
+    cache_creation_input_tokens INTEGER NOT NULL DEFAULT 0,
+    usage_source TEXT NOT NULL DEFAULT 'unknown',
     estimated_cost_usd REAL,
     actual_cost_usd REAL,
     available_at TEXT NOT NULL,
@@ -217,6 +224,7 @@ CREATE TABLE IF NOT EXISTS semantic_jobs (
     lease_token_hash TEXT,
     executor_id TEXT,
     executor_model TEXT,
+    executor_effort TEXT,
     error TEXT,
     metadata_json TEXT NOT NULL DEFAULT '{}'
 );
