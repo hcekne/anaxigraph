@@ -103,3 +103,63 @@ def test_a_rescanned_snapshot_reports_stale_with_the_recorded_generations(reposi
     assert stale["telemetry"]["stage_count"] == 0
     recorded = engine.fresh_eyes_status(second.repository_id, config.semantic, generation=1)
     assert recorded["recommendations"] == reviewed["recommendations"]
+
+
+def test_compare_payload_reports_alignment_between_two_generations(repository, database):
+    _enable_agent_semantics(repository)
+    config = load_config(repository)
+    stats = RepositoryScanner(database).scan(repository)
+    engine = SemanticEngine(database)
+    _finish_work(engine, stats.repository_id, repository, config, prefix="baseline")
+    engine.start_fresh_eyes_review(stats.repository_id, repository, config)
+    _finish_work(engine, stats.repository_id, repository, config, prefix="one", agent_model="m1")
+    engine.start_fresh_eyes_review(stats.repository_id, repository, config, restart=True)
+    _finish_work(engine, stats.repository_id, repository, config, prefix="two", agent_model="m2")
+
+    compared = engine.fresh_eyes_status(
+        stats.repository_id, config.semantic, generation=1, compare_with=2
+    )
+
+    assert compared["review_generation"] == 1
+    alignment = compared["alignment"]
+    assert alignment["method"] == "lexical"
+    assert alignment["contract_version"] == "fresh-eyes-alignment-v1"
+    assert alignment["left"]["review_generation"] == 1
+    assert alignment["right"]["review_generation"] == 2
+    assert alignment["left"]["state"] == "superseded"
+    assert alignment["right"]["state"] == "current"
+    assert [item["left"]["title"] for item in alignment["aligned"]] == [
+        "Consolidate duplicate orchestration"
+    ]
+    conflicts = [item["kind"] for item in alignment["conflicting"]]
+    assert conflicts == ["rejected_vs_recommended"]
+    assert alignment["conflicting"][0]["right"]["title"] == "Add a general workflow engine"
+    assert alignment["unmatched_left"] == []
+    assert [item["title"] for item in alignment["unmatched_right"]] == [
+        "Bound the working tree drift window"
+    ]
+    assert any("lexical" in caveat for caveat in alignment["caveats"])
+    assert alignment["facts"]["left"]["recommendations"] == 1
+    assert alignment["facts"]["right"]["recommendations"] == 3
+    assert len(alignment["fingerprint"]) == 64
+    plain = engine.fresh_eyes_status(stats.repository_id, config.semantic, generation=1)
+    assert "alignment" not in plain
+    assert {key: compared[key] for key in plain} == plain
+
+
+def test_comparing_a_generation_with_itself_is_labelled_as_such(repository, database):
+    _enable_agent_semantics(repository)
+    config = load_config(repository)
+    stats = RepositoryScanner(database).scan(repository)
+    engine = SemanticEngine(database)
+    _finish_work(engine, stats.repository_id, repository, config, prefix="baseline")
+    engine.start_fresh_eyes_review(stats.repository_id, repository, config)
+    _finish_work(engine, stats.repository_id, repository, config, prefix="one")
+
+    compared = engine.fresh_eyes_status(stats.repository_id, config.semantic, compare_with=1)
+
+    assert compared["alignment"]["left"] == compared["alignment"]["right"]
+    assert compared["alignment"]["caveats"][-1].startswith("Both sides name the same")
+    assert len(compared["alignment"]["aligned"]) == 1
+    with pytest.raises(ValueError, match="generation 9 was never recorded"):
+        engine.fresh_eyes_status(stats.repository_id, config.semantic, compare_with=9)

@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from functools import partial
 from pathlib import Path
 from typing import Any
 
+from anaxigraph.semantic_fresh_eyes_consensus import compare_generations
 from anaxigraph.semantic_fresh_eyes_contract import (
     FRESH_EYES_PROTOCOL_VERSION,
     FRESH_EYES_REVIEW_VERSION,
@@ -141,8 +143,9 @@ class FreshEyesReviewService:
         semantic: SemanticConfig | None = None,
         *,
         generation: int | None = None,
+        compare_with: int | None = None,
     ) -> dict[str, Any]:
-        """Read the current review, or one recorded generation when ``generation`` is given."""
+        """Read the current review, one recorded generation, or two generations side by side."""
 
         snapshot = self._database.latest_snapshot(repository_id)
         if snapshot is None:
@@ -154,26 +157,55 @@ class FreshEyesReviewService:
             row = connection.execute(
                 _PLAN_ROW_SQL, (snapshot_id, FRESH_EYES_SCOPE, FRESH_EYES_PLAN_KEY)
             ).fetchone()
-            plan = dict(row) if row is not None else None
-            if generation is not None and not _selects_current(plan, generation):
-                return generation_payload(
-                    connection,
-                    repository_id,
-                    select_generation(generations, generation),
-                    generations,
-                    semantic_status,
-                )
-            if plan is None:
-                return _with_snapshot_provenance(
-                    _not_started_payload(repository_id, snapshot_id, semantic_status, generations),
-                    snapshot,
-                )
-            return _with_snapshot_provenance(
-                _current_review(
-                    connection, repository_id, snapshot_id, plan, semantic_status, generations
-                ),
+            read = partial(
+                _generation_view,
+                connection,
+                repository_id,
+                snapshot_id,
+                dict(row) if row is not None else None,
+                semantic_status,
+                generations,
                 snapshot,
             )
+            payload = read(generation)
+            if compare_with is None:
+                return payload
+            return {**payload, "alignment": compare_generations(payload, read(compare_with))}
+
+
+def _generation_view(
+    connection: Any,
+    repository_id: int,
+    snapshot_id: int,
+    plan: dict[str, Any] | None,
+    semantic_status: dict[str, Any],
+    generations: list[dict[str, Any]],
+    snapshot: Mapping[str, Any],
+    generation: int | None,
+) -> dict[str, Any]:
+    """Build the payload of the requested recorded generation, or of the current review.
+
+    Only payloads read from the current snapshot carry its provenance; a recorded generation
+    may come from an earlier snapshot and must not be labelled with today's checkout.
+    """
+
+    if generation is not None and not _selects_current(plan, generation):
+        return generation_payload(
+            connection,
+            repository_id,
+            select_generation(generations, generation),
+            generations,
+            semantic_status,
+        )
+    if plan is None:
+        return _with_snapshot_provenance(
+            _not_started_payload(repository_id, snapshot_id, semantic_status, generations),
+            snapshot,
+        )
+    return _with_snapshot_provenance(
+        _current_review(connection, repository_id, snapshot_id, plan, semantic_status, generations),
+        snapshot,
+    )
 
 
 def _with_snapshot_provenance(

@@ -129,12 +129,13 @@ class AgentRoutes:
         self,
         repository_id: int | None = None,
         generation: int | None = Query(default=None, ge=1),
+        compare_with: int | None = Query(default=None, ge=1),
     ) -> dict[str, Any]:
         row = self.context.selected_repository(repository_id)
         config = self.context.selected_config(row)
         try:
             return api_support.SemanticEngine(self.context.database).fresh_eyes_status(
-                int(row["id"]), config.semantic, generation=generation
+                int(row["id"]), config.semantic, generation=generation, compare_with=compare_with
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc

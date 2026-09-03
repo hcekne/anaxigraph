@@ -111,7 +111,7 @@ def agent_fresh_eyes(request: dict, kind: str) -> dict:
         return _adjudication(request, design)
     if kind == "fresh_comparison":
         return _comparison()
-    return _review()
+    return _review(request)
 
 
 def _reference_design() -> dict:
@@ -232,7 +232,10 @@ def _comparison() -> dict:
     }
 
 
-def _review() -> dict:
+def _review(request: dict) -> dict:
+    """Vary the review by generation so two reruns can be compared, as two models would differ."""
+
+    generation = _review_generation(request)
     return {
         "contract_version": "fresh-eyes-review-v1",
         "summary": "Keep the sound boundary and test one small consolidation.",
@@ -257,17 +260,80 @@ def _review() -> dict:
                 "verification": ["Run semantic lifecycle tests."],
                 "reversible": True,
                 "confidence": 0.74,
-            }
+            },
+            *_rerun_recommendations(generation),
         ],
-        "rejected_ideas": [
-            {
-                "idea": "Add a general workflow engine",
-                "reason": "The fixed sequence does not justify one.",
-                "evidence": ["capability:bounded-review"],
-            }
-        ],
+        "rejected_ideas": [_rejected_idea(generation)],
         "sequence": ["Verify behavior", "Consolidate one path", "Run lifecycle tests"],
         "caveats": ["The recommendation remains optional."],
         "confidence": 0.74,
         "evidence": ["mission-filtered-comparison"],
+    }
+
+
+def _review_generation(request: dict) -> int:
+    return int((request.get("input_manifest") or {}).get("review_generation") or 1)
+
+
+def _rerun_recommendations(generation: int) -> list[dict]:
+    """A rerun proposes two more changes: one the first review rejected, and one only it names."""
+
+    if generation < 2:
+        return []
+    return [
+        _rerun_recommendation(
+            2,
+            "Add a general workflow engine",
+            "split",
+            "Run every reasoning stage on one durable engine.",
+            "semantic_runner.py drives every reasoning stage",
+        ),
+        _rerun_recommendation(
+            3,
+            "Bound the working tree drift window",
+            "move",
+            "Report trustworthy evidence for a live checkout.",
+            "scan_persistence.py records the working tree fingerprint",
+        ),
+    ]
+
+
+def _rerun_recommendation(
+    rank: int, title: str, action: str, capability: str, contract: str
+) -> dict:
+    return {
+        "rank": rank,
+        "title": title,
+        "action": action,
+        "mission_capability": capability,
+        "current_evidence": ["comparison:duplicate-flow"],
+        "reference_insight": "A rerun reads the same evidence with different words.",
+        "smallest_change": "Make the smallest change that keeps the behavior.",
+        "expected_benefit": "One fewer way for the same behavior to differ.",
+        "expected_deletions": [],
+        "protected_behavior": ["Read-only repository analysis"],
+        "affected_contracts": [contract],
+        "risks": ["The rerun may weigh the same evidence differently."],
+        "counter_evidence": [],
+        "reasons_not_to_proceed": [],
+        "dependencies": [],
+        "verification": ["Run semantic lifecycle tests."],
+        "reversible": True,
+        "confidence": 0.6,
+    }
+
+
+def _rejected_idea(generation: int) -> dict:
+    """The first review rejects exactly what a rerun goes on to recommend."""
+
+    if generation < 2:
+        return {
+            "idea": "Add a general workflow engine to run every reasoning stage",
+            "reason": "The fixed sequence does not justify one.",
+            "evidence": ["capability:bounded-review"],
+        }
+    return {
+        "idea": "Cache every reasoning stage result in memory",
+        "reason": "Durable documents already answer a repeated read.",
+        "evidence": ["capability:bounded-review"],
     }

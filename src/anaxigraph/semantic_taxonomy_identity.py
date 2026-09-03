@@ -7,6 +7,8 @@ import sqlite3
 from collections import defaultdict
 from typing import Any
 
+from anaxigraph.agent_lexicon import jaccard as _jaccard
+
 
 def stable_taxonomy_nodes(
     connection: sqlite3.Connection,
@@ -174,8 +176,3 @@ def _unique_key(value: str, used: set[str]) -> str:
 
 def _tokens(value: str) -> set[str]:
     return {item for item in re.findall(r"[a-z0-9]+", value.lower()) if len(item) > 2}
-
-
-def _jaccard(left: set[Any], right: set[Any]) -> float:
-    union = left | right
-    return len(left & right) / len(union) if union else 0.0

@@ -252,3 +252,30 @@ async def test_unknown_generation_is_a_bad_request_naming_the_recorded_ones(repo
     assert "available generations: 1" in body["detail"]
     zero_status, _ = await _rest_status(database, repository, "?generation=0")
     assert zero_status == 422
+
+
+@pytest.mark.anyio
+async def test_rest_cli_and_mcp_agree_on_a_compared_generation(repository, database, capsys):
+    engine, repository_id, config = _prepare_completed_review(repository, database)
+    engine.start_fresh_eyes_review(repository_id, repository, config, restart=True)
+    _complete_queue(engine, repository_id, repository, config)
+
+    rest = await _rest_fresh_eyes(database, repository, "?generation=1&compare_with=2")
+    response = await _mcp_guide(
+        database, repository, {"intent": "redesign", "generation": 1, "compare_with": 2}
+    )
+    assert response.isError is False
+    mcp = response.structuredContent
+    cli = _cli_fresh_eyes(repository, database, capsys, "--generation", "1", "--compare-with", "2")
+
+    assert rest["alignment"] == mcp["alignment"] == cli["alignment"]
+    assert rest["alignment"]["method"] == "lexical"
+    assert rest["alignment"]["left"]["review_generation"] == 1
+    assert rest["alignment"]["right"]["review_generation"] == 2
+    assert len(rest["alignment"]["aligned"]) == 1
+    assert [item["kind"] for item in rest["alignment"]["conflicting"]] == [
+        "rejected_vs_recommended"
+    ]
+    status, body = await _rest_status(database, repository, "?compare_with=9")
+    assert status == 400
+    assert "available generations" in body["detail"]

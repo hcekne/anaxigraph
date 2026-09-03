@@ -1,8 +1,9 @@
-"""Shared lexical vocabulary for bounded agent-scope ranking."""
+"""Shared lexical vocabulary for bounded agent-scope ranking and lexical comparison."""
 
 from __future__ import annotations
 
 import re
+from typing import Any
 
 WORD_PATTERN = re.compile(r"[A-Za-z][A-Za-z0-9_-]+")
 
@@ -71,14 +72,28 @@ def split_camel(value: str) -> str:
     return re.sub(r"[_-]+", " ", words)
 
 
-def goal_terms(value: str) -> set[str]:
-    """Return one normalized form per useful goal word plus small product-language aliases."""
+def normalized_terms(value: str) -> set[str]:
+    """Return one normalized word per useful term: camel case split, stopwords and plurals gone."""
 
     terms = set()
     for raw in WORD_PATTERN.findall(split_camel(value)):
         word = _singular_goal_word(raw.lower().replace("-", "_"))
         if word not in GOAL_STOPWORDS and len(word) > 1:
             terms.add(word)
+    return terms
+
+
+def jaccard(left: set[Any], right: set[Any]) -> float:
+    """Report set overlap as intersection over union, and 0.0 when both sets are empty."""
+
+    union = left | right
+    return len(left & right) / len(union) if union else 0.0
+
+
+def goal_terms(value: str) -> set[str]:
+    """Return one normalized form per useful goal word plus small product-language aliases."""
+
+    terms = normalized_terms(value)
     for group in GOAL_TERM_GROUPS:
         if terms & group:
             terms.update(group)

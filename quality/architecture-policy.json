@@ -39,6 +39,7 @@
         "anaxigraph.relationships",
         "anaxigraph.semantic_contract",
         "anaxigraph.semantic_config_port",
+        "anaxigraph.semantic_fresh_eyes_consensus",
         "anaxigraph.semantic_fresh_eyes_contract",
         "anaxigraph.semantic_fresh_eyes_diversity",
         "anaxigraph.semantic_freshness",
