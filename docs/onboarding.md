@@ -252,6 +252,11 @@ the request, longer than the index's busy window; pass `--timeout-seconds` to wa
 that times out reports that the service may still be planning; read `anaxigraph fresh-eyes .`
 before requesting it again instead of repeating `--restart`.
 
+One repository owns one background run, so a second `--background` launch with a different executor
+is refused and names the foreground alternative,
+`anaxigraph understand . --executor claude --until-complete`. Cross-provider review therefore means
+two host worker processes, and both only claim work when `semantic.max_parallel_jobs` is 2 or more.
+
 The fixed sequence is:
 
 1. reuse the Charter's implementation-blind Capability Brief;

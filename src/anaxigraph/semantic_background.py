@@ -23,6 +23,7 @@ from anaxigraph.semantic_background_progress import (
 from anaxigraph.semantic_background_progress import (
     report_background_progress as report_background_progress,
 )
+from anaxigraph.semantic_background_refusal import already_running, background_next_action
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,7 +81,7 @@ def launch_understand_background(
         "execution": _execution_identity(execution_mode, execution_semantic),
         "index": index,
         "execution_run": run,
-        "next_action": "Use anaxigraph semantic-status for progress; the worker survives this session.",
+        "next_action": background_next_action(run),
     }
 
 
@@ -106,7 +107,7 @@ def launch_semantic_background(spec: SemanticBackgroundSpec) -> dict[str, Any]:
     lock_path = directory / "active.lock"
     active = semantic_background_status(spec.repository)
     if active and active["active"]:
-        return {**active, "status": "already_running"}
+        return already_running(active, spec)
     if active and active.get("status") == "stalled" and not _terminate_stalled_run(active):
         return {
             **active,
@@ -116,7 +117,7 @@ def launch_semantic_background(spec: SemanticBackgroundSpec) -> dict[str, Any]:
     run_id = str(uuid.uuid4())
     if not _reserve(lock_path, latest_path, run_id):
         active = semantic_background_status(spec.repository)
-        return {**(active or {}), "status": "already_running", "active": True}
+        return already_running({**(active or {}), "active": True}, spec)
     record_path = directory / f"{run_id}.json"
     log_path = directory / f"{run_id}.log"
     record = _initial_record(spec, run_id, record_path, log_path)
