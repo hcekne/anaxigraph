@@ -81,8 +81,9 @@ lifetime of this chat session:
    effort are per-run inputs: never bake either into repository policy or invent a model name. If
    the user selected explicit runtime values, pass those exact values; otherwise omit both.
 2. Run `anaxigraph understand <repository> --executor <executor> --background --json`, adding
-   `--model <model>` and, for Codex, `--reasoning-effort <effort>` when selected. Background mode
-   implies the complete queue and survives this coding-agent session.
+   `--model <model>` and `--reasoning-effort <effort>` when selected; both Codex and Claude accept
+   the effort value as given. Background mode implies the complete queue and survives this
+   coding-agent session.
 3. Verify the returned `index` is the intended local index or sidecar service. Preserve
    `execution_run.run_id`, PID, log path, model, effort, and authority in any handoff.
 4. Call `anaxigraph semantic-status <repository> --json` for progress. A running detached worker is

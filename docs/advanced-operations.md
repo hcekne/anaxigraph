@@ -107,9 +107,11 @@ handoff through `semantic-status`. When the detached worker fails, `semantic-sta
 failing cause as `last_error` and the run log holds its traceback; set `ANAXIGRAPH_DEBUG=1` to
 print that traceback for a foreground run. The command omits a model so the executor uses its
 supported configured default. Pass `--model` and `--reasoning-effort` only for an explicit runtime
-override; executor, model, and effort are deliberately excluded from semantic freshness.
-`--executor mcp` deliberately performs planning only and returns an `agent_action_required`
-continuation contract instead of claiming semantic work completed.
+override; Codex receives the effort as `model_reasoning_effort` and Claude as `--effort`, passed
+through unvalidated so the executor itself rejects unknown levels. Executor, model, and effort are
+deliberately excluded from semantic freshness. `--executor mcp` deliberately performs planning
+only and returns an `agent_action_required` continuation contract instead of claiming semantic
+work completed.
 
 With no `--db`, the command first probes the configured/default loopback service and matches the
 repository by canonical Git remote (or exact path for a host-local service). A match makes that

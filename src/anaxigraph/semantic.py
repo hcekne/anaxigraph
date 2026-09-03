@@ -208,6 +208,8 @@ def _claude_command(config: SemanticConfig, request: dict[str, Any]) -> list[str
     ]
     if config.model:
         command.extend(("--model", config.model))
+    if config.reasoning_effort:
+        command.extend(("--effort", config.reasoning_effort))
     return command
 
 

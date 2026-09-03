@@ -78,7 +78,8 @@ anaxigraph semantic-status .
 
 Inside a Codex session the default `--executor auto` selects the authenticated Codex CLI. The
 command deliberately omits a model so Codex can use its currently supported configured default.
-Use `--model` and `--reasoning-effort` only when you explicitly select them for this run.
+Use `--model` and `--reasoning-effort` only when you explicitly select them for this run; both the
+Codex and Claude executors accept the effort value.
 `--background` starts a host
 worker that continues after the invoking coding-agent session exits; `semantic-status` reports its
 PID, log, heartbeat, exact index/config authority, progress, and terminal state. A `stalled` run

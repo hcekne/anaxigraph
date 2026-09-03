@@ -25,8 +25,9 @@ def add_semantic_execution_arguments(parser: Any) -> None:
     parser.add_argument(
         "--reasoning-effort",
         help=(
-            "Optional Codex reasoning effort for this run; the value is passed through so "
-            "new Codex effort levels do not require an AnaxiGraph release"
+            "Optional reasoning effort for this run's local codex or claude executor; the value "
+            "is passed through unvalidated so new effort levels do not require an AnaxiGraph "
+            "release"
         ),
     )
     parser.add_argument(
@@ -95,7 +96,9 @@ def _configured_provider_execution(
     if args.model:
         raise ValueError("Set semantic.model in policy for a configured model provider")
     if reasoning_effort:
-        raise ValueError("--reasoning-effort is only valid for an agent-funded Codex run")
+        raise ValueError(
+            "--reasoning-effort is only valid for an agent-funded local Codex or Claude executor"
+        )
     if parallel_jobs or timeout_seconds:
         raise ValueError(
             "--parallel-jobs and --timeout-seconds are only valid for an agent-funded local "
@@ -116,8 +119,6 @@ def _local_agent_execution(
         if args.model or reasoning_effort or parallel_jobs or timeout_seconds:
             raise ValueError("--model and --reasoning-effort require a local agent executor")
         return None, "mcp"
-    if reasoning_effort and executor != "codex":
-        raise ValueError("--reasoning-effort is supported only by --executor codex")
     if shutil.which(executor) is None:
         raise ValueError(f"The {executor} CLI is not installed or not available on PATH")
     return replace(
