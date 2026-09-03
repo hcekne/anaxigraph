@@ -9,16 +9,34 @@ from typing import Any
 
 from anaxigraph.persistence.index_parity import EDGE_FIELDS
 from anaxigraph.persistence.temporal_reads import snapshot_relationship_edges
-from anaxigraph.semantic_job_state import PATTERN_METADATA_RETENTION
+from anaxigraph.semantic_job_state import (
+    FRESH_EYES_METADATA_RETENTION,
+    PATTERN_METADATA_RETENTION,
+)
 
 COMPATIBILITY_TABLES = ("file_versions", "symbols", "relationships", "group_memberships")
 
 
 def compact_terminal_semantic_job_metadata(connection: sqlite3.Connection) -> None:
+    """Drop terminal work packets, keeping the metadata a completion deliberately retained.
+
+    Completion already narrows a finished job to a named retention (the pattern candidate, the
+    fresh-eyes input manifest and information boundary). Compaction must honour those markers:
+    the review payload reads the retained fresh-eyes manifest to prove which evidence each stage
+    received and which generation produced it, and that provenance cannot be rebuilt once erased.
+    """
+
     connection.execute(
-        "UPDATE semantic_jobs SET metadata_json = '{}' "
-        "WHERE (status = 'superseded' OR (status = 'completed' "
-        "AND job_kind != 'pattern_assessment')) AND metadata_json != '{}'"
+        """
+        UPDATE semantic_jobs SET metadata_json = '{}'
+        WHERE metadata_json != '{}' AND (
+            status = 'superseded'
+            OR (status = 'completed' AND job_kind != 'pattern_assessment'
+                AND (NOT json_valid(metadata_json)
+                     OR COALESCE(json_extract(metadata_json, '$.retention'), '') != ?))
+        )
+        """,
+        (FRESH_EYES_METADATA_RETENTION,),
     )
     connection.execute(
         """
