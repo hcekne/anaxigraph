@@ -206,6 +206,26 @@ estimates matter; otherwise token usage remains recorded without inventing a pri
 Source and comments are untrusted input. Model results remain versioned interpretations with
 provider, model, prompt/schema, evidence, and confidence rather than replacing parser facts.
 
+### Measured plan-transaction lock holds
+
+Semantic planning takes one `BEGIN IMMEDIATE` write transaction over reconciliation, inventory,
+module, context, and downstream planning, and the search-projection refresh. Every plan measures
+what that write lock cost and stores the running total for the current snapshot; `semantic status`
+reports it under `telemetry.lock_holds` beside the action totals:
+
+- `measured_transactions` — plan transactions measured for this snapshot;
+- `total_hold_ms`, `maximum_hold_ms` — time the granted write lock was held, measured from the
+  grant to the last statement before the commit, so the commit itself is not counted;
+- `waiting_transactions` — plans whose `BEGIN IMMEDIATE` waited at least a millisecond for the lock;
+- `total_lock_wait_ms`, `maximum_lock_wait_ms` — that measured wait;
+- `locked_transactions` — plans the write lock refused after the 30-second `busy_timeout`; a refused
+  plan raises and records no wait and no hold.
+
+These are measurements of what happened, not budgets, limits, or thresholds, and nothing changes
+behaviour when they grow. A plan that fails for any other reason rolls back and records nothing.
+Read `maximum_hold_ms` against the 30-second busy timeout before concluding that concurrent writers
+are being starved: only a hold above that timeout can make peers fail rather than wait.
+
 ## Optional test coverage
 
 AnaxiGraph imports existing Cobertura `coverage.xml` and LCOV `lcov.info` reports. It deliberately

@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from anaxigraph.architecture_charter_corrections import read_charter_corrections
+from anaxigraph.persistence.lock_holds import read_lock_holds
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,6 +27,7 @@ class SemanticStatusRows:
     current_semantic_actions: list[dict[str, Any]]
     lifetime_semantic_actions: list[dict[str, Any]]
     architecture_actions: list[dict[str, Any]]
+    lock_holds: dict[str, Any]
 
 
 def read_semantic_status(
@@ -54,6 +56,7 @@ def read_semantic_status(
         current_semantic_actions=_semantic_actions(connection, repository_id, snapshot_id),
         lifetime_semantic_actions=_semantic_actions(connection, repository_id),
         architecture_actions=_architecture_actions(connection, repository_id),
+        lock_holds=read_lock_holds(connection, snapshot_id),
     )
 
 

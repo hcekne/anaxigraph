@@ -277,6 +277,7 @@ def _telemetry_payload(rows: SemanticStatusRows, snapshot_id: int) -> dict[str, 
                 "tokens are part of input_tokens, not an addition to it."
             ),
         },
+        "lock_holds": _lock_hold_payload(rows),
         "architecture": {
             "lifetime": {
                 "totals": _action_totals(architecture, "runs"),
@@ -350,6 +351,21 @@ def _action_totals(actions: list[dict[str, Any]], count_key: str) -> dict[str, A
     totals["cost_usd"] = round(float(totals["cost_usd"]), 6)
     totals["total_duration_ms"] = round(float(totals["total_duration_ms"]), 3)
     return totals
+
+
+def _lock_hold_payload(rows: SemanticStatusRows) -> dict[str, Any]:
+    """Report what the plan transaction's write lock cost, as measurements only."""
+
+    return {
+        **rows.lock_holds,
+        "measurement_note": (
+            "Every semantic plan measures the wait its BEGIN IMMEDIATE spent acquiring the index "
+            "write lock and the hold from that grant to the last statement before its commit, so "
+            "the commit itself is not counted. locked_transactions counts plans the write lock "
+            "refused after the busy timeout; those record no wait and no hold. These are "
+            "measurements of what happened, not budgets or limits."
+        ),
+    }
 
 
 def _budget_payload(
