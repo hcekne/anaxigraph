@@ -8,7 +8,9 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 
 from anaxigraph.graph_contract import (
+    GRAPH_CURRENT,
     GRAPH_QUERY_VERSION,
+    GRAPH_UNSCANNED,
     GraphPageRequest,
     next_graph_cursor,
     resolve_graph_cursor,
@@ -131,6 +133,7 @@ def empty_graph_page(repository_id: int) -> dict[str, Any]:
     response = {
         "contract_version": GRAPH_QUERY_VERSION,
         "repository_id": repository_id,
+        "availability": GRAPH_UNSCANNED,
         "snapshot": None,
         "query": GraphPageRequest().filter_payload(),
         "counts": {"matching_nodes": 0, "matching_edges": 0},
@@ -159,6 +162,7 @@ def _graph_response(
     response = {
         "contract_version": GRAPH_QUERY_VERSION,
         "repository_id": repository_id,
+        "availability": GRAPH_CURRENT,
         "snapshot": dict(snapshot),
         "query": request.filter_payload(),
         "counts": {

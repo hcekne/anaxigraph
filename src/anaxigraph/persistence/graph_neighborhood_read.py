@@ -7,7 +7,9 @@ import time
 from typing import Any, Mapping
 
 from anaxigraph.graph_contract import (
+    GRAPH_CURRENT,
     GRAPH_NEIGHBORHOOD_VERSION,
+    GRAPH_UNSCANNED,
     GraphNeighborhoodRequest,
     with_graph_telemetry,
 )
@@ -67,6 +69,7 @@ def empty_graph_neighborhood(repository_id: int) -> dict[str, Any]:
     response = {
         "contract_version": GRAPH_NEIGHBORHOOD_VERSION,
         "repository_id": repository_id,
+        "availability": GRAPH_UNSCANNED,
         "snapshot": None,
         "seed": None,
         "counts": {"matching_nodes": 0, "matching_edges": 0},
@@ -235,6 +238,7 @@ def _response(
     return {
         "contract_version": GRAPH_NEIGHBORHOOD_VERSION,
         "repository_id": repository_id,
+        "availability": GRAPH_CURRENT,
         "snapshot": dict(snapshot),
         "seed": seed,
         "query": {
