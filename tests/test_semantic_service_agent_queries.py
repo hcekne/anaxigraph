@@ -53,6 +53,28 @@ def test_service_fresh_eyes_restart_posts_an_explicit_new_generation(monkeypatch
         "restart": True,
         "repository_id": 7,
     }
+    assert calls[0][1]["timeout"] == 120
+
+
+def test_service_fresh_eyes_start_waits_longer_than_the_index_busy_window(database, monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        semantic_service,
+        "_request_json",
+        lambda url, **kwargs: calls.append((url, kwargs)) or {"status": "ok"},
+    )
+    with database.connect() as connection:
+        busy_seconds = connection.execute("PRAGMA busy_timeout").fetchone()[0] / 1_000
+
+    semantic_service.service_fresh_eyes_review(_target(), start=True)
+    semantic_service.service_fresh_eyes_review(_target())
+    semantic_service.service_fresh_eyes_review(_target(), timeout=5)
+
+    assert calls[0][1]["method"] == "POST"
+    assert calls[0][1]["timeout"] == semantic_service.FRESH_EYES_START_TIMEOUT_SECONDS
+    assert calls[0][1]["timeout"] > busy_seconds
+    assert calls[1][1] == {"timeout": 30}
+    assert calls[2][1] == {"timeout": 5}
 
 
 def test_service_agent_queries_reject_non_object_results(monkeypatch):

@@ -246,6 +246,11 @@ finishes any missing baseline understanding and then advances the durable review
 stopped and resumed without discarding completed proposals. `--proposals 1` reduces cost;
 `--proposals 2` is the recommended default; `--proposals 3` adds another independent view.
 
+With a running service, `--start` and `--restart` wait up to 120 seconds for the service to accept
+the request, longer than the index's busy window; pass `--timeout-seconds` to wait longer. A start
+that times out reports that the service may still be planning; read `anaxigraph fresh-eyes .`
+before requesting it again instead of repeating `--restart`.
+
 The fixed sequence is:
 
 1. reuse the Charter's implementation-blind Capability Brief;

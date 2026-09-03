@@ -19,6 +19,8 @@ from anaxigraph.pattern_candidate_query import PatternCandidateQuery
 from anaxigraph.pattern_query import PatternEvaluationQuery
 
 DEFAULT_SERVICE_URL = "http://127.0.0.1:8765"
+FRESH_EYES_START_TIMEOUT_SECONDS = 120.0
+_FRESH_EYES_STATUS_TIMEOUT_SECONDS = 30
 
 
 @dataclass(frozen=True, slots=True)
@@ -220,8 +222,9 @@ def service_fresh_eyes_review(
     proposal_count: int = 2,
     retry_failed: bool = False,
     restart: bool = False,
-    timeout: float = 30,
+    timeout: float = FRESH_EYES_START_TIMEOUT_SECONDS,
 ) -> dict[str, Any]:
+    """Start, restart, or read the fresh-eyes review; ``timeout`` bounds only the start request."""
     if start or restart:
         return _service_agent_request(
             target,
@@ -235,7 +238,10 @@ def service_fresh_eyes_review(
             timeout=timeout,
         )
     query = urllib.parse.urlencode({"repository_id": target.repository_id})
-    value = _request_json(f"{target.base_url}/api/fresh-eyes?{query}", timeout=timeout)
+    value = _request_json(
+        f"{target.base_url}/api/fresh-eyes?{query}",
+        timeout=min(timeout, _FRESH_EYES_STATUS_TIMEOUT_SECONDS),
+    )
     if not isinstance(value, dict):
         raise ValueError("AnaxiGraph service returned an invalid fresh-eyes review")
     return value

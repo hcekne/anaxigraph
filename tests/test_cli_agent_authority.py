@@ -3,7 +3,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 import anaxigraph.cli_agent_commands as agent_commands
+import anaxigraph.semantic_service as semantic_service
 from anaxigraph.cli import main
 from anaxigraph.semantic_service import SemanticServiceTarget
 
@@ -50,7 +53,13 @@ def test_guidance_uses_the_matching_service_instead_of_a_separate_local_index(
     }
 
 
-def test_fresh_eyes_uses_the_matching_service(repository: Path, capsys, monkeypatch):
+@pytest.mark.parametrize(
+    ("timeout_arguments", "expected_timeout"),
+    [([], 120.0), (["--timeout-seconds", "300"], 300.0)],
+)
+def test_fresh_eyes_uses_the_matching_service(
+    repository: Path, capsys, monkeypatch, timeout_arguments, expected_timeout
+):
     target = SemanticServiceTarget("http://127.0.0.1:9999", 7, "Fixture", "/repo")
     captured = {}
     monkeypatch.setattr(agent_commands, "discover_semantic_service", lambda *_a, **_k: target)
@@ -70,6 +79,7 @@ def test_fresh_eyes_uses_the_matching_service(repository: Path, capsys, monkeypa
             "--proposals",
             "3",
             "--restart",
+            *timeout_arguments,
             "--json",
         ]
     )
@@ -83,4 +93,66 @@ def test_fresh_eyes_uses_the_matching_service(repository: Path, capsys, monkeypa
         "proposal_count": 3,
         "retry_failed": False,
         "restart": True,
+        "timeout": expected_timeout,
     }
+
+
+@pytest.mark.parametrize("error", [OSError("timed out"), OSError("<urlopen error timed out>")])
+def test_fresh_eyes_start_timeout_explains_that_the_service_may_still_be_planning(
+    repository: Path, capsys, monkeypatch, error
+):
+    target = SemanticServiceTarget("http://127.0.0.1:9999", 7, "Fixture", "/repo")
+    calls = []
+    monkeypatch.setattr(agent_commands, "discover_semantic_service", lambda *_a, **_k: target)
+
+    def request(url, **kwargs):
+        calls.append((url, kwargs))
+        raise error
+
+    monkeypatch.setattr(semantic_service, "_request_json", request)
+
+    with pytest.raises(SystemExit) as exit_info:
+        main(
+            [
+                "fresh-eyes",
+                str(repository),
+                "--service-url",
+                target.base_url,
+                "--restart",
+                "--timeout-seconds",
+                "0.5",
+                "--json",
+            ]
+        )
+
+    assert exit_info.value.code == 2
+    stderr = capsys.readouterr().err
+    assert "fresh-eyes restart within 0.5 s; it may still be planning" in stderr
+    assert f"`anaxigraph fresh-eyes {repository}`" in stderr
+    assert "--timeout-seconds" in stderr
+    assert [(call[1]["method"], call[1]["timeout"]) for call in calls] == [("POST", 0.5)]
+
+
+@pytest.mark.parametrize(
+    ("arguments", "error", "expected"),
+    [
+        (["--start"], OSError("connection reset"), "anaxigraph: connection reset\n"),
+        ([], OSError("timed out"), "anaxigraph: timed out\n"),
+    ],
+)
+def test_fresh_eyes_other_service_errors_keep_their_bare_message(
+    repository: Path, capsys, monkeypatch, arguments, error, expected
+):
+    target = SemanticServiceTarget("http://127.0.0.1:9999", 7, "Fixture", "/repo")
+    monkeypatch.setattr(agent_commands, "discover_semantic_service", lambda *_a, **_k: target)
+
+    def request(*_args, **_kwargs):
+        raise error
+
+    monkeypatch.setattr(semantic_service, "_request_json", request)
+
+    with pytest.raises(SystemExit) as exit_info:
+        main(["fresh-eyes", str(repository), "--service-url", target.base_url, *arguments])
+
+    assert exit_info.value.code == 2
+    assert capsys.readouterr().err == expected

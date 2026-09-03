@@ -209,7 +209,9 @@ anaxigraph fresh-eyes .
 
 The first and last commands automatically match the host checkout to the running sidecar. The
 middle command consumes the saved review jobs with the host agent's tokens. The review is also
-visible under **Improve → Fresh eyes** and resumes from completed stages after a restart.
+visible under **Improve → Fresh eyes** and resumes from completed stages after a restart. A busy
+sidecar can take a while to accept `--start`; the command waits 120 seconds by default and
+`--timeout-seconds` extends that wait.
 
 To reconstruct history from the command line:
 
