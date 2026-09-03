@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -113,6 +114,7 @@ class SemanticEngine:
         config: AnaxiGraphConfig,
         *,
         proposal_count: int = 2,
+        proposal_executors: Sequence[str] = (),
         retry_failed: bool = False,
         restart: bool = False,
         plan: bool = True,
@@ -122,6 +124,7 @@ class SemanticEngine:
             repository,
             config,
             proposal_count=proposal_count,
+            proposal_executors=proposal_executors,
             retry_failed=retry_failed,
             restart=restart,
             plan=plan,

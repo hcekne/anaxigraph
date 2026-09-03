@@ -13,6 +13,7 @@ from anaxigraph.config import load_config
 from anaxigraph.config_authority import effective_semantic_policy, service_config_authority
 from anaxigraph.operational_health import served_map_status
 from anaxigraph.scanner import RepositoryScanner
+from anaxigraph.semantic_fresh_eyes_contract import parse_proposal_executors
 from anaxigraph.semantic_mcp import current_semantic_status
 from anaxigraph.semantic_scan_refresh import semantic_refresh_after_scan
 from anaxigraph.understanding import SemanticEngine
@@ -198,6 +199,7 @@ class CoreMcpTools:
         fresh_eyes: bool = False,
         start: bool = False,
         proposal_count: int = 2,
+        proposal_executors: str = "",
         retry_failed: bool = False,
         restart: bool = False,
         wait: bool = True,
@@ -224,6 +226,7 @@ class CoreMcpTools:
                 generation,
                 compare_with,
                 wait=wait,
+                proposal_executors=proposal_executors,
             )
         if compare:
             return self._reassess_journey(row, config, goal, from_snapshot_id)
@@ -252,6 +255,7 @@ class CoreMcpTools:
         compare_with: int | None = None,
         *,
         wait: bool = True,
+        proposal_executors: str = "",
     ) -> dict[str, Any]:
         engine = SemanticEngine(self.database)
         result = (
@@ -260,6 +264,7 @@ class CoreMcpTools:
                 root,
                 config,
                 proposal_count=proposal_count,
+                proposal_executors=parse_proposal_executors(proposal_executors),
                 retry_failed=retry_failed,
                 restart=restart,
                 plan=wait,

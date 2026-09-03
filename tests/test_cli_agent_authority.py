@@ -57,8 +57,18 @@ def test_guidance_uses_the_matching_service_instead_of_a_separate_local_index(
     ("timeout_arguments", "expected_timeout"),
     [([], 120.0), (["--timeout-seconds", "300"], 300.0)],
 )
+@pytest.mark.parametrize(
+    ("executor_arguments", "expected_executors"),
+    [([], ()), (["--proposal-executors", "codex, claude"], ("codex", "claude"))],
+)
 def test_fresh_eyes_uses_the_matching_service(
-    repository: Path, capsys, monkeypatch, timeout_arguments, expected_timeout
+    repository: Path,
+    capsys,
+    monkeypatch,
+    timeout_arguments,
+    expected_timeout,
+    executor_arguments,
+    expected_executors,
 ):
     target = SemanticServiceTarget("http://127.0.0.1:9999", 7, "Fixture", "/repo")
     captured = {}
@@ -80,6 +90,7 @@ def test_fresh_eyes_uses_the_matching_service(
             "3",
             "--restart",
             *timeout_arguments,
+            *executor_arguments,
             "--json",
         ]
     )
@@ -91,6 +102,7 @@ def test_fresh_eyes_uses_the_matching_service(
         "service": target,
         "start": True,
         "proposal_count": 3,
+        "proposal_executors": expected_executors,
         "retry_failed": False,
         "restart": True,
         "generation": None,

@@ -163,6 +163,7 @@ class AgentRoutes:
                 row["path"],
                 config,
                 proposal_count=request.proposal_count,
+                proposal_executors=tuple(request.proposal_executors),
                 retry_failed=request.retry_failed,
                 restart=request.restart,
                 plan=request.wait,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -11,7 +11,9 @@ from anaxigraph.semantic_fresh_eyes_consensus import compare_generations
 from anaxigraph.semantic_fresh_eyes_contract import (
     FRESH_EYES_PROTOCOL_VERSION,
     FRESH_EYES_REVIEW_VERSION,
+    fresh_eyes_plan_executors,
     fresh_eyes_plan_options,
+    fresh_eyes_required_executor,
 )
 from anaxigraph.semantic_fresh_eyes_diversity import proposal_diversity
 from anaxigraph.semantic_fresh_eyes_generations import (
@@ -70,19 +72,18 @@ class FreshEyesReviewService:
         config: AnaxiGraphConfig,
         *,
         proposal_count: int = 2,
+        proposal_executors: Sequence[str] = (),
         retry_failed: bool = False,
         restart: bool = False,
         plan: bool = True,
     ) -> dict[str, Any]:
-        """Record the request; plan now, or defer planning to the next executor claim."""
+        """Record the request; plan now, or defer planning to the next executor claim.
 
-        semantic = config.semantic
-        if not semantic.enabled:
-            raise ValueError("Build AI understanding before starting a fresh-eyes review")
-        if semantic.provider != "agent":
-            raise ValueError(
-                "Fresh-eyes review uses the connected coding agent's tokens; set semantic.provider: agent"
-            )
+        ``proposal_executors`` pins one executor family per slot on the plan token, so a pin
+        applies to a new review or a restarted generation, never to one already planned.
+        """
+
+        semantic = _review_semantic(config)
         snapshot = self._database.latest_snapshot(repository_id)
         if snapshot is None:
             raise ValueError("Repository has not been scanned")
@@ -97,6 +98,7 @@ class FreshEyesReviewService:
                 snapshot_id=snapshot_id,
                 proposal_count=proposal_count,
                 generation=generation,
+                proposal_executors=tuple(proposal_executors),
             )
         stage, enqueued = self._plan_outcome(
             repository_id, repository, config, plan=plan, retry_failed=retry_failed
@@ -210,6 +212,19 @@ def _generation_view(
     )
 
 
+def _review_semantic(config: AnaxiGraphConfig) -> SemanticConfig:
+    """Refuse a review the connected coding agent cannot fund."""
+
+    semantic = config.semantic
+    if not semantic.enabled:
+        raise ValueError("Build AI understanding before starting a fresh-eyes review")
+    if semantic.provider != "agent":
+        raise ValueError(
+            "Fresh-eyes review uses the connected coding agent's tokens; set semantic.provider: agent"
+        )
+    return semantic
+
+
 def _with_snapshot_provenance(
     payload: dict[str, Any], snapshot: Mapping[str, Any]
 ) -> dict[str, Any]:
@@ -242,7 +257,8 @@ def _current_review(
 ) -> dict[str, Any]:
     proposal_count, _generation = fresh_eyes_plan_options(plan)
     stage_rows = _stage_rows(connection, snapshot_id)
-    stages = _stage_payloads(connection, repository_id, stage_rows, proposal_count)
+    executors = fresh_eyes_plan_executors(plan)
+    stages = _stage_payloads(connection, repository_id, stage_rows, proposal_count, executors)
     manifests = input_manifests(
         connection,
         repository_id,
@@ -401,6 +417,7 @@ def _stage_payloads(
     repository_id: int,
     rows: dict[str, dict[str, Any]],
     proposal_count: int,
+    executors: Sequence[str] = (),
 ) -> list[dict[str, Any]]:
     planned = [
         (key, label)
@@ -427,6 +444,7 @@ def _stage_payloads(
             {
                 "key": key,
                 "label": label,
+                "required_executor": fresh_eyes_required_executor(executors, key),
                 "state": row.get("status") or "waiting",
                 "reason": row.get("reason") or "Waiting for the preceding stage",
                 "document_id": document.get("id") if document else None,
