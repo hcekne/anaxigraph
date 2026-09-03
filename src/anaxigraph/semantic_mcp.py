@@ -97,6 +97,8 @@ class SemanticMcpTools:
             title="Claim one AI-mapping task",
             description=(
                 "Give this coding agent the next saved AI-mapping task for a limited lease time. "
+                "Name executor_family (for example codex or claude) to take only unpinned work or "
+                "work pinned to that executor. "
                 "Claiming changes task state in AnaxiGraph's index but never writes repository source."
             ),
             annotations=_write_annotations(idempotent=False),
@@ -170,6 +172,7 @@ class SemanticMcpTools:
         agent_id: str,
         agent_model: str = "",
         agent_effort: str = "",
+        executor_family: str = "",
         retry_failed: bool = False,
         repository: str = "",
     ) -> dict[str, Any]:
@@ -188,6 +191,7 @@ class SemanticMcpTools:
             agent_id=agent_id,
             agent_model=agent_model,
             agent_effort=agent_effort,
+            executor_family=executor_family,
             retry_failed=retry_failed,
         )
 

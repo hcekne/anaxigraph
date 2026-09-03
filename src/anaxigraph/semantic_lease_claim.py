@@ -11,8 +11,12 @@ from typing import Any
 
 from anaxigraph.clock import utc_now
 from anaxigraph.semantic_config_port import SemanticConfig
+from anaxigraph.semantic_fresh_eyes_contract import ANY_EXECUTOR
+from anaxigraph.semantic_fresh_eyes_diversity import executor_family as identity_family
 from anaxigraph.semantic_index_port import SemanticIndex
 from anaxigraph.semantic_job_state import semantic_job_bulk_transition, semantic_job_transition
+
+CANDIDATE_PAGE = 50
 
 
 def claim_next_job(
@@ -26,8 +30,9 @@ def claim_next_job(
     executor_id: str | None,
     executor_model: str | None,
     executor_effort: str | None = None,
+    executor_family: str | None = None,
 ) -> dict[str, Any] | None:
-    """Claim one eligible job while enforcing concurrency and spend admission."""
+    """Claim one eligible job while enforcing concurrency, spend, and executor admission."""
 
     with database.transaction() as connection:
         snapshot_id = _current_snapshot_id(connection, repository_id)
@@ -44,7 +49,8 @@ def claim_next_job(
         if _active_workers(connection, repository_id, now) >= semantic.max_parallel_jobs:
             return None
         spent = _reserved_daily_spend(connection, repository_id, semantic)
-        row = _next_job(connection, repository_id, snapshot_id, now)
+        family = claimant_family(executor_id, executor_family)
+        row = _next_job(connection, repository_id, snapshot_id, now, family)
         if row is None or _exceeds_budget(row, spent, semantic):
             return None
         return _claim_row(
@@ -144,21 +150,54 @@ def _reserved_daily_spend(
     )
 
 
+def claimant_family(executor_id: str | None, declared: str | None = None) -> str:
+    """Name the executor family of one claimant: the declared one, else its ``cli:`` identity."""
+
+    explicit = str(declared or "").strip().lower()
+    return explicit or identity_family(executor_id)
+
+
 def _next_job(
     connection: sqlite3.Connection,
     repository_id: int,
     snapshot_id: int,
     now: str,
+    family: str,
 ) -> sqlite3.Row | None:
-    return connection.execute(
+    """Take the first job of a small candidate page this executor family may run.
+
+    The index uses no SQLite JSON1 function anywhere, so the executor pin recorded in
+    ``metadata_json`` is read in Python. Only the at most three proposal slots of one review
+    carry a pin, so a page this size always holds an eligible job when one exists.
+    """
+
+    rows = connection.execute(
         """
         SELECT * FROM semantic_jobs
         WHERE repository_id = ? AND snapshot_id = ?
           AND status IN ('pending', 'retry') AND available_at <= ?
-        ORDER BY priority DESC, id LIMIT 1
+        ORDER BY priority DESC, id LIMIT ?
         """,
-        (repository_id, snapshot_id, now),
-    ).fetchone()
+        (repository_id, snapshot_id, now, CANDIDATE_PAGE),
+    ).fetchall()
+    return next((row for row in rows if claimable_by(row, family)), None)
+
+
+def claimable_by(row: Any, family: str) -> bool:
+    """Skip a job pinned to a different executor family; unpinned work stays first-come."""
+
+    pin = required_executor(row)
+    return not pin or pin == ANY_EXECUTOR or pin == family
+
+
+def required_executor(row: Any) -> str:
+    """Read the executor family one queued job was pinned to, if any."""
+
+    try:
+        metadata = json.loads(row["metadata_json"] or "{}")
+    except (TypeError, ValueError):
+        return ""
+    return str(metadata.get("required_executor") or "").strip().lower()
 
 
 def _exceeds_budget(row: sqlite3.Row, spent: float, semantic: SemanticConfig) -> bool:
