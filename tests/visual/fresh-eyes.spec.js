@@ -48,6 +48,30 @@ test("a failed fresh-eyes stage can be retried without changing the recipe", asy
   await expect.poll(() => retryRequested).toBe(true);
 });
 
+test("cross-provider proposals name their executor families", async ({ page }) => {
+  const crossProvider = {
+    ...reviewResult(),
+    diversity: {
+      proposal_count: 2,
+      cross_provider: true,
+      models: ["fixture-model"],
+      executor_families: ["claude", "codex"],
+    },
+    caveats: [],
+  };
+  await page.route("**/api/fresh-eyes**", async (route) => {
+    await route.fulfill({ json: crossProvider });
+  });
+  await page.goto("/");
+  await expect(page.locator("#project-name")).not.toHaveText("Loading…");
+  await page.getByRole("button", { name: "Improve", exact: true }).click();
+  await page.getByRole("button", { name: "Fresh eyes", exact: true }).click();
+
+  await expect(page.locator("#fresh-eyes-diversity")).toContainText("Proposals from claude and codex");
+  await expect(page.locator("#fresh-eyes-diversity")).toContainText("Different providers are recorded");
+  await expect(page.locator("#fresh-eyes-diversity")).not.toContainText("not cross-provider");
+});
+
 function reviewResult() {
   return {
     contract_version: "fresh-eyes-review-v1",

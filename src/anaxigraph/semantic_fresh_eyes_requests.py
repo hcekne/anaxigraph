@@ -10,6 +10,7 @@ from anaxigraph.semantic_fresh_eyes_contract import (
     FRESH_EYES_PROTOCOL_VERSION,
     semantic_input_hash,
 )
+from anaxigraph.semantic_fresh_eyes_diversity import proposal_diversity
 from anaxigraph.semantic_graph import SupersededSemanticJob
 from anaxigraph.semantic_index_port import SemanticIndex
 
@@ -133,7 +134,7 @@ def _adjudication_evidence(database: SemanticIndex, metadata: dict[str, Any]) ->
             }
             for item in proposals
         ],
-        "diversity": _diversity(proposals),
+        "diversity": proposal_diversity(proposals),
     }
 
 
@@ -164,26 +165,6 @@ def _reviewer(document: dict[str, Any]) -> dict[str, Any]:
         "model": document.get("model"),
         "executor_id": document.get("executor_id"),
         "executor_model": document.get("executor_model"),
-    }
-
-
-def _diversity(proposals: list[dict[str, Any]]) -> dict[str, Any]:
-    reviewers = [_reviewer(item) for item in proposals]
-    providers = sorted({str(item["provider"] or "unspecified") for item in reviewers})
-    models = sorted(
-        {str(item["executor_model"] or item["model"] or "unspecified") for item in reviewers}
-    )
-    executors = sorted({str(item["executor_id"] or "unspecified") for item in reviewers})
-    return {
-        "proposal_count": len(proposals),
-        "providers": providers,
-        "models": models,
-        "executors": executors,
-        "cross_provider": len(providers) > 1,
-        "independent_sessions_claimed": len(executors) == len(proposals),
-        "caveat": (
-            "Different recorded executors support diversity but cannot prove external model context."
-        ),
     }
 
 
