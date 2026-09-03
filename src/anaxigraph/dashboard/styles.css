@@ -95,6 +95,7 @@
 .charter-state { flex: 0 0 auto; padding: .35rem .6rem; border: 1px solid var(--accent-border); border-radius: 999px; color: var(--accent-strong); background: var(--accent-soft); font-size: .68rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .charter-purpose { max-width: 90ch; margin: .8rem 0 0; color: var(--text); font-size: 1rem; line-height: 1.65; }
 .charter-provenance { max-width: 100ch; margin: .7rem 0 0; color: var(--muted); font-size: .76rem; line-height: 1.5; }
+.charter-warning { max-width: 100ch; margin: .7rem 0 0; padding: .6rem .8rem; border-left: 3px solid var(--amber); border-radius: 8px; color: var(--text); background: var(--amber-soft); font-size: .8rem; line-height: 1.5; }
 .charter-section { min-width: 0; padding: 1rem; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-subtle); }
 .charter-section-attention { border-left: 3px solid var(--amber); }
 .charter-section-question { border-left: 3px solid var(--blue); }

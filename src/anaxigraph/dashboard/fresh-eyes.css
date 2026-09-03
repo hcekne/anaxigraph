@@ -86,6 +86,15 @@
 .fresh-stage-telemetry {
   color: var(--muted);
   overflow-wrap: anywhere;
+.fresh-eyes-warning {
+  background: var(--amber-soft);
+  border-left: .2rem solid var(--amber);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: .85rem;
+  line-height: 1.55;
+  margin: .9rem 0 0;
+  padding: .6rem .8rem;
 }
 
 .fresh-eyes-diversity {

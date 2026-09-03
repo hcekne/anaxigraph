@@ -189,6 +189,19 @@ agent:
     - shared/provider_manifest.json
     - backend/migrations/**
 
+semantic:
+  enabled: true
+  provider: agent
+  refresh: manual
+  max_jobs_per_run: 1000
+  max_parallel_jobs: 1
+  agent_lease_seconds: 1800
+  taxonomy:
+    enabled: true
+    review_passes: 2
+    max_areas: 12
+    max_subsystems: 30
+
 coverage:
   files:
     - backend/coverage.xml

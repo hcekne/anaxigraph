@@ -72,6 +72,41 @@ test("cross-provider proposals name their executor families", async ({ page }) =
   await expect(page.locator("#fresh-eyes-diversity")).not.toContainText("not cross-provider");
 });
 
+test("dirty snapshot banner is shown only for dirty reviews", async ({ page }) => {
+  const clean = { ...reviewResult(), snapshot: snapshot(false) };
+  const dirty = { ...reviewResult(), snapshot: snapshot(true) };
+  let payload = dirty;
+  await page.route("**/api/fresh-eyes**", async (route) => {
+    await route.fulfill({ json: payload });
+  });
+  await page.goto("/");
+  await expect(page.locator("#project-name")).not.toHaveText("Loading…");
+  await page.getByRole("button", { name: "Improve", exact: true }).click();
+  await page.getByRole("button", { name: "Fresh eyes", exact: true }).click();
+
+  const warning = page.locator("#view-fresh-eyes .fresh-eyes-warning");
+  await expect(warning).toBeVisible();
+  await expect(warning).toContainText("dirty checkout");
+  await expect(warning).toContainText("working-tree fingerprint ffffffffffff");
+
+  payload = clean;
+  await page.locator("#fresh-eyes-refresh").click();
+  await expect(warning).toHaveCount(0);
+});
+
+function snapshot(dirty) {
+  return {
+    snapshot_id: 2,
+    commit_sha: "a".repeat(40),
+    branch: "main",
+    snapshot_kind: "working_tree",
+    dirty,
+    working_tree_fingerprint: dirty ? "f".repeat(64) : null,
+    scan_consistency: null,
+    analyzed_at: "2026-09-02T10:00:00+00:00",
+  };
+}
+
 function reviewResult() {
   return {
     contract_version: "fresh-eyes-review-v1",
