@@ -25,7 +25,17 @@ from anaxigraph.persistence.temporal_reconstruction import ensure_checkpoint_pol
 from anaxigraph.persistence.temporal_relationships import compact_duplicate_relationship_sets
 from anaxigraph.persistence.temporal_schema import install_temporal_schema
 
-SUPPORTED_SCHEMA_VERSIONS = frozenset({2, 6, 7, 8, 9, 10})
+SUPPORTED_SCHEMA_VERSIONS = frozenset({2, 6, 7, 8, 9, 10, 11})
+
+# Schema 11 records how a semantic result was paid for and how hard its executor was asked to
+# think. ``input_tokens`` keeps meaning the whole prompt; the two cache columns are a breakdown of
+# that total, never an addition to it. See docs/adr/0007-semantic-usage-and-executor-provenance.md.
+_USAGE_PROVENANCE_COLUMNS = {
+    "cache_read_input_tokens": "INTEGER NOT NULL DEFAULT 0",
+    "cache_creation_input_tokens": "INTEGER NOT NULL DEFAULT 0",
+    "usage_source": "TEXT NOT NULL DEFAULT 'unknown'",
+    "executor_effort": "TEXT",
+}
 
 
 def migrate_schema(
@@ -38,6 +48,8 @@ def migrate_schema(
 
     validate_schema_version(current_version, target_version)
     _ensure_legacy_columns(connection)
+    if current_version is not None and current_version < 11:
+        _backfill_usage_source(connection)
     install_temporal_schema(connection)
     _ensure_semantic_fact_schema(connection)
     _ensure_columns(
@@ -108,6 +120,7 @@ def _ensure_legacy_columns(connection: sqlite3.Connection) -> None:
             "lease_token_hash": "TEXT",
             "executor_id": "TEXT",
             "executor_model": "TEXT",
+            **_USAGE_PROVENANCE_COLUMNS,
         },
     )
     _ensure_columns(
@@ -117,6 +130,7 @@ def _ensure_legacy_columns(connection: sqlite3.Connection) -> None:
             "previous_document_id": "INTEGER REFERENCES semantic_documents(id)",
             "executor_id": "TEXT",
             "executor_model": "TEXT",
+            **_USAGE_PROVENANCE_COLUMNS,
         },
     )
     _ensure_columns(
@@ -124,6 +138,29 @@ def _ensure_legacy_columns(connection: sqlite3.Connection) -> None:
         "semantic_claims",
         {"executor_id": "TEXT", "executor_model": "TEXT"},
     )
+
+
+def _backfill_usage_source(connection: sqlite3.Connection) -> None:
+    """Classify rows written before ``usage_source`` existed. HEURISTIC, not ground truth.
+
+    Nothing in a pre-schema-11 row records whether its executor reported usage, so the migration
+    reads the only marker the completion path left behind: ``actual_cost_usd`` was set exactly when
+    ``_completion`` treated the usage as reported, and left ``NULL`` when AnaxiGraph substituted its
+    own estimate or an agent-funded submission carried no usage. Failed attempts never received a
+    cost and therefore stay ``unknown``. Token totals are not changed.
+    """
+
+    for table in ("semantic_jobs", "semantic_documents"):
+        completed = "status = 'completed' AND " if table == "semantic_jobs" else ""
+        connection.execute(
+            f"""
+            UPDATE {table} SET usage_source = CASE
+                WHEN actual_cost_usd IS NOT NULL THEN 'reported'
+                WHEN {completed}provider != 'agent' THEN 'estimated'
+                ELSE 'unknown' END
+            WHERE usage_source = 'unknown'
+            """
+        )
 
 
 def _ensure_semantic_fact_schema(connection: sqlite3.Connection) -> None:
@@ -246,6 +283,6 @@ def _requires_materialized_frame_migration(
 ) -> bool:
     return bool(
         current_version is not None
-        and current_version not in {7, 8, 9, 10}
+        and current_version not in {7, 8, 9, 10, 11}
         and compatibility_frames
     )
