@@ -285,6 +285,20 @@ start the semantic executor with explicit `--model` and `--reasoning-effort` val
 new auditable review generation without rereading unchanged module dossiers. Merely changing the
 runtime model does not make saved understanding stale.
 
+Every review reply lists the recorded generations under `generations`, each with its snapshot,
+state, executor models, recommendation and rejected-idea counts, and a per-stage telemetry block:
+`duration_ms` measured from the claim, `output_bytes` of the stored document, reported token counts
+with a plausibility check against the packet the planner estimated, and `attempts_observed`. Treat
+`attempts_observed` as a floor rather than a retry count: a released lease decrements the counter
+and an explicit retry resets it to zero. The same telemetry appears on the stage cards in
+**Improve → Fresh eyes**.
+
+To read an earlier generation in full, add `--generation 2` to `anaxigraph fresh-eyes .`, request
+`GET /api/fresh-eyes?generation=2`, or call `ANAXIGRAPH_GUIDE(intent="redesign", generation=2)`; the
+dashboard offers the same choice as a selector beside the review heading. A recorded generation
+reports `state: superseded` with `ready: false` and cannot be started, retried, or restarted. An
+unrecorded number is refused with the list of generations that exist.
+
 ## Understand findings
 
 The **Improve → Findings** view opens on at most 20 findings worth checking first. It suppresses routine

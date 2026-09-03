@@ -76,8 +76,13 @@ function reviewResult() {
   return {
     contract_version: "fresh-eyes-review-v1",
     identity: "fresh-eyes-review-v1:1:2:abc",
+    review_generation: 2,
     state: "current",
     ready: true,
+    generations: [
+      { generation: 1, snapshot_id: 1, state: "superseded", ready: false },
+      { generation: 2, snapshot_id: 2, state: "current", ready: true },
+    ],
     stages: [
       stage("proposal:a", "Independent proposal A"),
       stage("proposal:b", "Independent proposal B"),
@@ -108,5 +113,58 @@ function reviewResult() {
 }
 
 function stage(key, label) {
-  return { key, label, state: "current", reason: "Complete" };
+  return {
+    key,
+    label,
+    state: "current",
+    reason: "Complete",
+    telemetry: {
+      key,
+      duration_ms: 431_000,
+      output_bytes: 20_480,
+      input_tokens: 235_690,
+      output_tokens: 20_055,
+      token_counts_reported: true,
+      input_tokens_plausible: true,
+      attempts_observed: 1,
+    },
+  };
 }
+
+test("a recorded generation can be read but not restarted", async ({ page }) => {
+  const superseded = {
+    ...reviewResult(),
+    review_generation: 1,
+    state: "superseded",
+    ready: false,
+    recommendations: [{
+      rank: 1,
+      title: "Split the durable queue",
+      action: "split",
+      confidence: 0.6,
+      smallest_change: "Move claiming behind its own boundary.",
+      expected_benefit: "One reason to change per module.",
+      reasons_not_to_proceed: [],
+      verification: [],
+    }],
+  };
+  await page.route("**/api/fresh-eyes**", async (route) => {
+    const url = new URL(route.request().url());
+    await route.fulfill({ json: url.searchParams.get("generation") === "1" ? superseded : reviewResult() });
+  });
+  await page.goto("/");
+  await expect(page.locator("#project-name")).not.toHaveText("Loading…");
+  await page.getByRole("button", { name: "Improve", exact: true }).click();
+  await page.getByRole("button", { name: "Fresh eyes", exact: true }).click();
+
+  await expect(page.locator(".fresh-stage").first()).toContainText("235690 in / 20055 out tokens");
+  const selector = page.locator("#fresh-eyes-generation");
+  await expect(selector).toBeVisible();
+  await selector.selectOption("1");
+  await expect(page.locator(".fresh-recommendation")).toContainText("Split the durable queue");
+  await expect(page.locator("#fresh-eyes-title")).toHaveText("Recorded earlier generation");
+  await expect(page.getByRole("button", { name: "Reading a recorded generation" })).toBeDisabled();
+  await selector.selectOption("");
+  await expect(page.locator(".fresh-recommendation")).toContainText("Consolidate duplicate orchestration");
+  await expect(page.getByRole("button", { name: "Review complete" })).toBeDisabled();
+});

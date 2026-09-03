@@ -10,6 +10,8 @@ import {
 
 let current = null;
 let loadedRepositoryId = null;
+let selectedGeneration = "";
+let liveGeneration = null;
 
 export function setupFreshEyesView() {
   if (byId("view-fresh-eyes")) return;
@@ -26,6 +28,8 @@ export function setupFreshEyesView() {
 export function resetFreshEyesView() {
   current = null;
   loadedRepositoryId = null;
+  selectedGeneration = "";
+  liveGeneration = null;
   renderWaiting();
   if (byId("view-fresh-eyes")?.classList.contains("active")) {
     window.setTimeout(loadFreshEyes, 0);
@@ -57,8 +61,11 @@ function markup() {
     </article>
     <article class="panel"><div class="fresh-eyes-heading"><div>
       <p class="eyebrow">Resumable agent-funded review</p><h2 id="fresh-eyes-title">Not started</h2>
-      </div><button id="fresh-eyes-refresh" class="secondary-button" type="button">Refresh</button>
-      </div><p id="fresh-eyes-summary" class="panel-copy"></p>
+      </div><div class="fresh-eyes-controls">
+      <label id="fresh-eyes-generation-label" hidden>Generation
+        <select id="fresh-eyes-generation"></select></label>
+      <button id="fresh-eyes-refresh" class="secondary-button" type="button">Refresh</button>
+      </div></div><p id="fresh-eyes-summary" class="panel-copy"></p>
       <div id="fresh-eyes-stages" class="fresh-eyes-stages"></div>
       <div id="fresh-eyes-diversity" class="fresh-eyes-diversity"></div></article>
     <div id="fresh-eyes-recommendations" class="fresh-eyes-recommendations"></div>
@@ -73,14 +80,19 @@ function bindEvents() {
   });
   byId("fresh-eyes-refresh").addEventListener("click", loadFreshEyes);
   byId("fresh-eyes-start").addEventListener("click", startFreshEyes);
+  byId("fresh-eyes-generation").addEventListener("change", (event) => {
+    selectedGeneration = event.target.value;
+    loadFreshEyes();
+  });
 }
 
 async function loadFreshEyes() {
   const token = state.repositoryLoadToken;
   setBusy(true);
   try {
-    const value = await request(api("/api/fresh-eyes"));
+    const value = await request(api("/api/fresh-eyes", { generation: selectedGeneration }));
     if (token !== state.repositoryLoadToken) return;
+    if (selectedGeneration === "") liveGeneration = value.review_generation ?? null;
     current = value;
     loadedRepositoryId = state.repositoryId;
     render(value);
@@ -121,6 +133,7 @@ function render(value) {
   byId("fresh-eyes-title").textContent = stateLabel(value.state);
   byId("fresh-eyes-summary").textContent = value.strategy?.summary
     || value.next_action || "No review has been requested for this saved scan.";
+  renderGenerationControl(value);
   renderStartControl(value, ready);
   byId("fresh-eyes-stages").innerHTML = stageMarkup(value.stages || []);
   byId("fresh-eyes-diversity").innerHTML = diversityMarkup(value.diversity || {});
@@ -128,13 +141,32 @@ function render(value) {
   byId("fresh-eyes-details").innerHTML = detailMarkup(value);
 }
 
+function renderGenerationControl(value) {
+  const label = byId("fresh-eyes-generation-label");
+  const select = byId("fresh-eyes-generation");
+  const numbers = [...new Set((value.generations || []).map((item) => Number(item.generation)))]
+    .sort((left, right) => right - left);
+  label.hidden = numbers.length < 2 && liveGeneration != null;
+  const options = numbers.map((number) => {
+    const live = number === liveGeneration;
+    const text = `Generation ${number} · ${live ? "current" : "recorded"}`;
+    return `<option value="${live ? "" : number}">${escapeHtml(text)}</option>`;
+  });
+  if (liveGeneration === null) options.unshift('<option value="">Current review</option>');
+  select.innerHTML = options.join("");
+  select.value = selectedGeneration;
+}
+
 function renderStartControl(value, ready = value.ready === true) {
-  const canStart = ["not_started", "stale", "failed"].includes(value.state);
-  byId("fresh-eyes-start").textContent = value.state === "failed" ? "Retry failed stage"
-    : ["not_started", "stale"].includes(value.state) ? "Start fresh-eyes review"
-      : ready ? "Review complete" : "Review in progress";
+  const live = selectedGeneration === "";
+  const canStart = live && ["not_started", "stale", "failed"].includes(value.state);
+  byId("fresh-eyes-start").textContent = !live ? "Reading a recorded generation"
+    : value.state === "failed" ? "Retry failed stage"
+      : ["not_started", "stale"].includes(value.state) ? "Start fresh-eyes review"
+        : ready ? "Review complete" : "Review in progress";
   byId("fresh-eyes-start").disabled = !canStart;
-  byId("fresh-eyes-proposal-count").disabled = !["not_started", "stale"].includes(value.state);
+  byId("fresh-eyes-proposal-count").disabled = !canStart
+    || !["not_started", "stale"].includes(value.state);
 }
 
 function stageMarkup(stages) {
@@ -237,6 +269,8 @@ function stateLabel(value) {
     waiting_for_understanding: "Waiting for repository understanding",
     failed: "A review task needs another attempt",
     stale: "Earlier review available; current scan not reviewed",
+    superseded: "Recorded earlier generation",
+    incomplete: "Recorded generation that never completed",
     not_indexed: "Repository not scanned",
     not_started: "Fresh-eyes review not started",
   }[value] || humanize(value);
@@ -244,6 +278,7 @@ function stateLabel(value) {
 
 function setBusy(busy) {
   byId("fresh-eyes-refresh").disabled = busy;
+  byId("fresh-eyes-generation").disabled = busy;
   if (busy) {
     byId("fresh-eyes-start").disabled = true;
     byId("fresh-eyes-proposal-count").disabled = true;

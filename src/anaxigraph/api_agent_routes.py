@@ -122,12 +122,19 @@ class AgentRoutes:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    def fresh_eyes(self, repository_id: int | None = None) -> dict[str, Any]:
+    def fresh_eyes(
+        self,
+        repository_id: int | None = None,
+        generation: int | None = Query(default=None, ge=1),
+    ) -> dict[str, Any]:
         row = self.context.selected_repository(repository_id)
         config = self.context.selected_config(row)
-        return api_support.SemanticEngine(self.context.database).fresh_eyes_status(
-            int(row["id"]), config.semantic
-        )
+        try:
+            return api_support.SemanticEngine(self.context.database).fresh_eyes_status(
+                int(row["id"]), config.semantic, generation=generation
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     def start_fresh_eyes(self, request: api_support.FreshEyesRequest) -> dict[str, Any]:
         row = self.context.selected_repository(request.repository_id)
