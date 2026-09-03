@@ -154,7 +154,12 @@ one to three implementation-blind proposals, blind adjudication, as-built compar
 mission filter. Stage packets and outputs use strict `fresh-eyes-*-v1` contracts. Proposal packets
 contain the Capability Brief, public constraints, and a hashed information-boundary manifest; the
 as-built system is introduced only after adjudication. Exact manifests remain attached to saved
-jobs so the service can reject a packet whose evidence identity changed before submission.
+jobs so the service can reject a packet whose evidence identity changed before submission. The two
+repository-aware stages also carry the active corrections as bounded `declared_context`, each beside
+the inferred claim it targets and marked `correct` or `refute`; a fingerprinted manifest entry makes
+saving or withdrawing one re-run only comparison and mission filtering, and the review payload
+reports which declared keys the saved review actually saw. Implementation-blind stages never
+receive them.
 
 Capability, reference, and comparison fingerprints are independent. An implementation-only change
 may reuse proposal and adjudication documents across snapshots while rebuilding comparison and

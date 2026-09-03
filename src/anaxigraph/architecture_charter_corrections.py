@@ -24,6 +24,9 @@ CORRECTABLE_SECTIONS = frozenset(
     }
 )
 CORRECTION_DISPOSITIONS = frozenset({"correct", "refute"})
+DECLARED_CONTEXT_LIMIT = 40
+_DECLARED_STATEMENT_CHARS = 400
+_DECLARED_RATIONALE_CHARS = 300
 
 
 def save_charter_correction(
@@ -168,6 +171,61 @@ def read_charter_corrections(connection: Any, repository_id: int) -> list[dict[s
             }
         )
     return sorted(result, key=lambda item: (item["section"], item["key"]))
+
+
+def declared_context(
+    connection: Any,
+    repository_id: int,
+    charter: dict[str, Any],
+    *,
+    limit: int = DECLARED_CONTEXT_LIMIT,
+) -> list[dict[str, Any]]:
+    """Return bounded active declared facts beside the inferred claims they target.
+
+    Only repository-aware evidence carries these; implementation-blind stages never do.
+    """
+
+    entries: list[dict[str, Any]] = []
+    for correction in read_charter_corrections(connection, repository_id):
+        if not correction.get("active"):
+            continue
+        entries.append(_declared_entry(correction, charter))
+        if len(entries) >= max(0, limit):
+            break
+    return entries
+
+
+def charter_claim(charter: dict[str, Any], section: str, key: str) -> dict[str, Any] | None:
+    """Find the inferred claim a declared correction targets, or None when it adds one."""
+
+    if section == "purpose":
+        claim = charter.get("purpose")
+    else:
+        items = charter.get(section)
+        claim = (
+            next((item for item in items if str(item.get("key") or "") == key), None)
+            if isinstance(items, list)
+            else None
+        )
+    return claim if isinstance(claim, dict) else None
+
+
+def _declared_entry(correction: dict[str, Any], charter: dict[str, Any]) -> dict[str, Any]:
+    target = charter_claim(charter, str(correction["section"]), str(correction["key"])) or {}
+    return {
+        "section": correction["section"],
+        "key": correction["key"],
+        "disposition": str(correction.get("disposition") or "correct"),
+        "statement": _clipped(str(correction.get("statement") or "")),
+        "inferred_statement": _clipped(str(target.get("statement") or "")),
+        "author": correction["author"],
+        "rationale": _clipped(str(correction.get("rationale") or ""), _DECLARED_RATIONALE_CHARS),
+        "document_id": correction.get("document_id"),
+    }
+
+
+def _clipped(value: str, maximum: int = _DECLARED_STATEMENT_CHARS) -> str:
+    return value if len(value) <= maximum else f"{value[:maximum]}..."
 
 
 def _disposition(value: str) -> str:

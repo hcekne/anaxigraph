@@ -14,6 +14,12 @@ from anaxigraph.semantic_fresh_eyes_diversity import proposal_diversity
 from anaxigraph.semantic_graph import SupersededSemanticJob
 from anaxigraph.semantic_index_port import SemanticIndex
 
+_DECLARED_CONTEXT_NOTE = (
+    " Any entries in declared_context are principal-declared facts about this system, each beside "
+    "the inferred claim it targets; disposition 'refute' declares that inferred claim a known "
+    "non-issue. Name the declared key when you rely on one, and dispute one only with cited "
+    "counter-evidence."
+)
 _CONTRACTS = {
     "fresh_proposal": (
         "Design a clean-sheet software architecture that delivers the supplied behavior and "
@@ -33,6 +39,7 @@ _CONTRACTS = {
         "for existing strengths and justified differences as for weaknesses. Map responsibilities, "
         "classify every material difference using the allowed result labels, and do not treat an "
         "idea's absence from the clean-sheet design as evidence that current code should be deleted."
+        + _DECLARED_CONTEXT_NOTE
     ),
     "fresh_review": (
         "Filter the comparison into a small ranked refactor strategy. Keep only changes that "
@@ -40,6 +47,7 @@ _CONTRACTS = {
         "reduction, operational simplicity, compatibility, migration risk, reversibility, and "
         "verification cost. Reject attractive overengineering. This is advice, not permission to "
         "edit code, and retaining the current design is valid when evidence supports it."
+        + _DECLARED_CONTEXT_NOTE
     ),
 }
 _INPUT_CONTRACTS = {
@@ -87,8 +95,12 @@ def _stage_evidence(
             "reference_design": adjudication["value"]["reference_design"],
             "current_system": metadata["current_system"],
         }
+    return _review_evidence(database, metadata)
+
+
+def _review_evidence(database: SemanticIndex, metadata: dict[str, Any]) -> dict[str, Any]:
     comparison = _document(database, metadata["comparison_document_id"])
-    return {
+    evidence = {
         "capability_brief": metadata["capability_brief"],
         "comparison": comparison["value"],
         "engineering_economics": {
@@ -105,6 +117,9 @@ def _stage_evidence(
             ],
         },
     }
+    if metadata.get("declared_context"):
+        evidence["declared_context"] = metadata["declared_context"]
+    return evidence
 
 
 def _proposal_evidence(metadata: dict[str, Any]) -> dict[str, Any]:

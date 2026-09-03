@@ -102,6 +102,7 @@ def _review_facts(review: dict[str, Any]) -> dict[str, Any]:
         "generation": review["review_generation"],
         "identity": review["identity"],
         "state": review["state"],
+        "declared_context": review.get("declared_context"),
         "stages": [(item["key"], item["state"], item["document_id"]) for item in review["stages"]],
     }
 
@@ -118,7 +119,15 @@ async def test_dashboard_cli_contract_and_mcp_share_one_fresh_eyes_result(reposi
     assert response.isError is False
     mcp = response.structuredContent
 
-    for field in ("identity", "state", "snapshot", "fingerprints", "recommendations", "caveats"):
+    for field in (
+        "identity",
+        "state",
+        "snapshot",
+        "fingerprints",
+        "declared_context",
+        "recommendations",
+        "caveats",
+    ):
         assert mcp[field] == rest[field]
     assert rest["state"] == "current"
     assert rest["snapshot"]["dirty"] is True

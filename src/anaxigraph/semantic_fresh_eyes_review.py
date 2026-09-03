@@ -293,6 +293,7 @@ def _review_payload(
         "strategy": review,
         "recommendations": list((review or {}).get("recommendations") or []),
         "diversity": stage_diversity(proposals),
+        "declared_context": _declared_context_echo(manifests),
         "input_manifests": manifests,
         "previous_review": previous_generation(generations),
         "generations": generations,
@@ -394,6 +395,21 @@ def _stage_payloads(
             }
         )
     return result
+
+
+def _declared_context_echo(manifests: list[dict[str, Any]]) -> dict[str, Any]:
+    """Report the declared facts the comparison stage actually saw, not today's corrections."""
+
+    for record in manifests:
+        if record["job_kind"] != "fresh_comparison":
+            continue
+        declared = (record["manifest"].get("current_system") or {}).get("declared_context") or {}
+        return {
+            "included": int(declared.get("included") or 0),
+            "fingerprint": declared.get("fingerprint"),
+            "keys": list(declared.get("keys") or []),
+        }
+    return {"included": 0, "fingerprint": None, "keys": []}
 
 
 def _active_state(stages: list[dict[str, Any]], semantic_status: dict[str, Any]) -> str:

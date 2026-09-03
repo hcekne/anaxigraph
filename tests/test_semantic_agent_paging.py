@@ -128,5 +128,42 @@ def test_agent_packetization_pages_pattern_source_and_features():
     assert rehydrate_agent_request(bounded, pages) == request
 
 
+def test_agent_packetization_pages_fresh_eyes_declared_context_last():
+    request = {
+        "analysis_kind": "fresh_comparison",
+        "current_system": {
+            "module_dossiers": _large_evidence("dossier"),
+            "declared_context": _large_evidence("declared"),
+        },
+    }
+
+    bounded, manifest, pages = packetize_agent_request(
+        request, SemanticConfig(max_source_chars=4_000)
+    )
+
+    assert manifest is not None
+    assert manifest["contains"] == [
+        "current_system.module_dossiers",
+        "current_system.declared_context",
+    ]
+    assert rehydrate_agent_request(bounded, pages) == request
+
+
+def test_agent_packetization_pages_mission_filter_declared_context_after_the_comparison():
+    request = {
+        "analysis_kind": "fresh_review",
+        "comparison": {"candidate_changes": _large_evidence("change")},
+        "declared_context": _large_evidence("declared"),
+    }
+
+    bounded, manifest, pages = packetize_agent_request(
+        request, SemanticConfig(max_source_chars=4_000)
+    )
+
+    assert manifest is not None
+    assert manifest["contains"] == ["comparison.candidate_changes", "declared_context"]
+    assert rehydrate_agent_request(bounded, pages) == request
+
+
 def _large_evidence(label: str) -> list[dict[str, str]]:
     return [{"kind": label, "detail": f"{label}-{index}-" + "x" * 2_000} for index in range(4)]
