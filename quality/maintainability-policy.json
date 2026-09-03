@@ -48,7 +48,7 @@
   "legacy_coupling": {
     "anaxigraph": [11, 0],
     "anaxigraph.api": [1, 9],
-    "anaxigraph.config": [35, 0],
+    "anaxigraph.config": [34, 0],
     "anaxigraph.models": [10, 0],
     "anaxigraph.persistence.index_facade": [1, 12],
     "anaxigraph.scanner": [5, 8],

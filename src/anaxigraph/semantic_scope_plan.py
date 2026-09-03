@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
+from anaxigraph.persistence.lock_holds import measured_plan_transaction
 from anaxigraph.persistence.search_read import refresh_search_projection
 from anaxigraph.persistence.semantic_evidence import semantic_inventory
 from anaxigraph.semantic_freshness import (
@@ -21,6 +21,8 @@ from anaxigraph.semantic_leases import SemanticLeaseService
 from anaxigraph.semantic_module_context import plan_context_modules
 from anaxigraph.semantic_module_intrinsic import plan_intrinsic_modules
 from anaxigraph.semantic_ports import (
+    AnaxiGraphConfig,
+    SemanticConfig,
     SemanticFreshEyesPlanningPort,
     SemanticIndex,
     SemanticPatternPlanningPort,
@@ -106,7 +108,7 @@ class SemanticPlanningService:
             status = self._reporting.status(repository_id, semantic)
             return SemanticPlan(repository_id, snapshot_id, 0, 0, "disabled", status)
 
-        with self._database.transaction() as connection:
+        with measured_plan_transaction(self._database.connect, snapshot_id) as connection:
             self._leases.reconcile(connection, repository_id, snapshot_id, semantic)
             inventory, relationships = semantic_inventory(connection, snapshot_id)
             enqueued = plan_intrinsic_modules(

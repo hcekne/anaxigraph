@@ -7,7 +7,8 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from anaxigraph.semantic import SemanticResult
-from anaxigraph.semantic_config_port import AnaxiGraphConfig, SemanticConfig
+from anaxigraph.semantic_config_port import AnaxiGraphConfig as AnaxiGraphConfig
+from anaxigraph.semantic_config_port import SemanticConfig as SemanticConfig
 from anaxigraph.semantic_index_port import SemanticIndex as SemanticIndex
 
 
