@@ -198,3 +198,40 @@ def test_generation_bundles_carry_the_same_stage_telemetry(repository, database)
     ]
     assert bundle["telemetry"]["output_bytes"] == review["telemetry"]["output_bytes"]
     assert bundle["telemetry"]["input_tokens"] == review["telemetry"]["input_tokens"]
+
+
+def test_the_generation_index_tolerates_unreliable_stored_rows(repository, database):
+    engine, repository_id, config = _completed_review(
+        repository, database, input_tokens=7, output_tokens=3
+    )
+    with database.transaction() as connection:
+        connection.execute(
+            "UPDATE semantic_jobs SET estimated_input_tokens = 0, started_at = 'not-a-timestamp' "
+            "WHERE scope_type = 'fresh_eyes'"
+        )
+        connection.execute(
+            """
+            INSERT INTO semantic_jobs(
+                repository_id, snapshot_id, scope_type, scope_key, job_kind, reason, status,
+                input_hash, provider, model, prompt_version, schema_version, available_at
+            )
+            SELECT repository_id, snapshot_id, 'fresh_eyes', 'unknown_stage', 'fresh_proposal',
+                   'test', 'completed', 'hash-unknown', 'agent', '', 'test-v1', 'v1', available_at
+            FROM semantic_jobs WHERE scope_type = 'fresh_eyes' LIMIT 1
+            """
+        )
+
+    review = engine.fresh_eyes_status(repository_id, config.semantic)
+
+    bundle = review["generations"][-1]
+    assert [item["key"] for item in bundle["stages"]] == [
+        "proposal:a",
+        "proposal:b",
+        "adjudication",
+        "comparison",
+        "review",
+    ]
+    assert all(item["duration_ms"] == 0 for item in bundle["telemetry"]["stages"])
+    assert bundle["telemetry"]["wall_clock_ms"] == 0
+    assert all(item["input_tokens_plausible"] for item in bundle["telemetry"]["stages"])
+    assert bundle["telemetry"]["input_tokens"] == 5 * 7
