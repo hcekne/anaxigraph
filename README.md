@@ -233,7 +233,9 @@ review never edits source or automatically accepts a recommendation.
 
 Changing executor, model, or reasoning effort does not silently invalidate a completed review.
 When you deliberately want a new architectural judgment, run `anaxigraph fresh-eyes . --restart`
-and then run `anaxigraph understand` with your explicit runtime model and reasoning-effort choices.
+(a connected agent requests the same rerun with
+`ANAXIGRAPH_GUIDE(intent="redesign", start=true, restart=true)`) and then run
+`anaxigraph understand` with your explicit runtime model and reasoning-effort choices.
 The new generation reruns every Fresh-Eyes stage while preserving the earlier documents for audit;
 it does not force unchanged module dossiers to be regenerated.
 
