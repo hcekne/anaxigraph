@@ -1,6 +1,8 @@
 # Next development actions: trustworthy multi-model architecture review
 
-**Status:** proposal for the next roadmap increment (candidate Roadmap 4.3 / Phase 12). Not admitted.
+**Status:** ADMITTED and COMPLETE as Phase 12 on 3 September 2026. See the Phase 12 section and
+acceptance record in [`feature-development-plan.md`](feature-development-plan.md). This document
+remains the detailed specification; the roadmap holds the delivery record.
 
 **Prepared:** 3 September 2026, from the snapshot-1058 three-model fresh-eyes experiment.
 
@@ -87,10 +89,10 @@ These are not features. Nothing in the tiers below can merge until they are done
 
 | # | Action | Why |
 |---:|---|---|
-| P1 | Admit this document as a roadmap section with per-item promises and gates, and ratify a new exact `production_source_budget` baseline (currently 58,346 in `quality/maintainability-policy.json`) with acceptance evidence | The roadmap closing paragraph requires a separately admitted item, and the ratchet fails on any growth |
-| P2 | Write `docs/adr/0007` covering the schema-11 usage and effort provenance columns and the widened MCP submit/fail/work contract | The cross-phase Maintainability gate requires an ADR for schema and public API decisions; drafted as [`adr/0007`](adr/0007-semantic-usage-and-executor-provenance.md) (Proposed), pending acceptance |
-| P3 | Commit or drop `docs/capabilities.md`, `docs/capabilities-brief.md`, and the `examples/maxos-agent.anaxigraph.yml` semantic block | Items below cite them; the example's `max_parallel_jobs: 1` also makes a second host worker impossible wherever two executors are documented |
-| P4 | Retain the snapshot-1058 experiment as an evidence record beside `docs/releases/0.4.0.md` and `docs/maxos-agent.md`: generations, executors, effort, stage durations, token caveats, defects surfaced, document ids | The roadmap admits work on retained run records; the facts currently live only in a sidecar SQLite file and a background-run JSON |
+| P1 | **DONE.** Admit this document as a roadmap section with per-item promises and gates, and ratify a new exact `production_source_budget` baseline (currently 58,346 in `quality/maintainability-policy.json`) with acceptance evidence | The roadmap closing paragraph requires a separately admitted item, and the ratchet fails on any growth |
+| P2 | **DONE (Accepted).** Write `docs/adr/0007` covering the schema-11 usage and effort provenance columns and the widened MCP submit/fail/work contract | The cross-phase Maintainability gate requires an ADR for schema and public API decisions; drafted as [`adr/0007`](adr/0007-semantic-usage-and-executor-provenance.md) (Proposed), pending acceptance |
+| P3 | **LEFT TO THE MAINTAINER.** Commit or drop `docs/capabilities.md`, `docs/capabilities-brief.md`, and the `examples/maxos-agent.anaxigraph.yml` semantic block | Items below cite them; the example's `max_parallel_jobs: 1` also makes a second host worker impossible wherever two executors are documented |
+| P4 | **DONE.** Retain the snapshot-1058 experiment as an evidence record beside `docs/releases/0.4.0.md` and `docs/maxos-agent.md`: generations, executors, effort, stage durations, token caveats, defects surfaced, document ids | The roadmap admits work on retained run records; the facts currently live only in a sidecar SQLite file and a background-run JSON |
 
 ## Tier 1 — now: confirmed defects and trust gaps (all S)
 

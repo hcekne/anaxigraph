@@ -4696,6 +4696,118 @@ Phase 11 and the complete roadmap 4.2 without reopening Phase 10.2.
 
 ---
 
+# Phase 12 — trustworthy multi-model architecture review
+
+**Status:** COMPLETE on 3 September 2026. Roadmap 4.2 stays closed and Phase 10.2 stays frozen;
+this is separately admitted roadmap 4.3 work under the feature-admission rule, not a reopening.
+
+**Goal:** make a fresh-eyes review something a principal can trust, compare and reproduce. Phase
+10.7 shipped the fixed review recipe. Running it three times over one snapshot with two providers
+showed that the recipe works and that the evidence around it does not: usage was recorded
+untruthfully for one executor, earlier generations were reachable only by SQL, nothing said whether
+a review came from a committed checkout, and nothing checked whether a recommendation still matched
+the code. This phase repairs that evidence layer. It adds no provider, scheduler, workflow engine,
+job kind, dashboard journey, or MCP tool.
+
+The admitted specification is [`next-development-actions.md`](next-development-actions.md); the run
+that motivated it is retained in
+[`fresh-eyes-multi-model-review-2026-09.md`](fresh-eyes-multi-model-review-2026-09.md), and the
+schema decision is [ADR 0007](adr/0007-semantic-usage-and-executor-provenance.md).
+
+## 12.1 Repair the confirmed defects and trust gaps
+
+Thirteen small changes, each with its own failable test. The agent submission limit counts UTF-8
+bytes as its constant always promised. Two AI request builders share one target-file guard, and
+stored module identity is derived by the same function as fresh analysis, each behind an equality
+test written before the refactor. The Claude executor accepts and forwards a reasoning effort and
+counts cached prompt tokens, so its recorded usage stops reading as two tokens per stage. A second
+host worker is told `busy` rather than `complete` while a peer holds a review stage, proposal
+diversity is computed from executor family rather than a constant provider name, and claim,
+complete, and fail writes are guarded by status and worker so a reclaimed job cannot be completed
+by a stale worker. Task-group failures surface their leaf cause, the fresh-eyes start timeout
+exceeds the index busy window and says the service may still be planning, every sidecar write-back
+retries lock contention, MCP can request a rerun like the CLI, and additive columns reach an index
+opened at its current version.
+
+## 12.2 Make a review reproducible and comparable
+
+Schema 11 records what each stage actually cost and who produced it: cached and uncached prompt
+tokens, an explicit usage state instead of one inferred from a zero, and the executor effort.
+Generations become first-class — enumerable with per-stage wall time, output volume and attempts,
+selectable by number through REST, CLI, MCP and the dashboard, and no longer collapsed by index
+compaction, which had been silently discarding the retained fresh-eyes job metadata on every open.
+Every review and Charter names the checkout it was read from and warns when that checkout was
+dirty. Declared context reaches the comparison and mission-filter packets, so a principal can tell
+the reviewer that an inferred concern is a known non-issue, while proposals and adjudication stay
+implementation-blind. A live working-tree scan bounds its own drift, an unknown graph snapshot id
+fails loudly instead of returning a plausible empty graph, the local `understand` path can plan
+without rescanning, a non-loopback bind says what it exposes, and the plan transaction's lock wait
+and hold are measured before anyone proposes splitting it.
+
+## 12.3 Compare two generations without pretending to judge them
+
+Two recorded generations are aligned by deterministic lexical signals into agreed, conflicting and
+unique recommendations, read side by side in the existing Fresh eyes view, and labelled `lexical`
+with the caveat that it cannot detect the same intent expressed in different words. Each
+recommendation carries a deterministic grounding report — confirmed, needs a test, already
+satisfied, or stale — computed against the reviewed snapshot and written once, so the prose is
+checked against the repository rather than trusted. A principal can refute an inferred Charter
+claim as a known non-issue without deleting the inferred evidence. One review can pin a different
+executor family to each proposal slot, claims are filtered by family, a worker waiting on the other
+executor is told so by name instead of being told the queue is complete, an explicit unpin releases
+a half-pinned review, and each executor owns its own background run slot.
+
+## Phase 12 exit gate
+
+- A fresh-eyes stage run through the Claude executor persists the sum of uncached, cache-creation
+  and cache-read prompt tokens, and keeps that usage when validation fails.
+- A second host executor started while a peer holds a running review stage is told `busy`, keeps
+  polling, and claims the next stage; the contract test fails on the pre-phase code.
+- Two proposals produced by different executor families report `cross_provider: true` on every
+  surface; two proposals from one family still report false with its caveat.
+- Status lists every recorded generation with disjoint stage document ids, exactly one current
+  bundle, and per-stage duration, output volume and attempts; a chosen generation returns its own
+  recommendations through REST, CLI and MCP alike.
+- Every review and Charter payload carries the commit, dirty flag and working-tree fingerprint, and
+  a dirty checkout earns a caveat that a commit and rescan remove.
+- Saving or withdrawing a Charter correction re-queues only the comparison and mission filter; a
+  repository with no corrections keeps byte-identical fingerprints.
+- The grounding report labels a recommendation that proposes an already-existing route
+  `already_satisfied`, labels an uncheckable recommendation `needs_test`, and writes nothing on read.
+- Opening an index at its current schema version yields every reconciled column.
+- No new provider, executor, scheduler, workflow engine, job kind, database family, dashboard
+  journey, or MCP tool was added, and no size, coupling or complexity limit was raised to fit the
+  work.
+
+### Phase 12 acceptance record
+
+The gate passed on 3 September 2026:
+
+- the complete Python suite passes with **901 tests**, up from 646, adding 24 focused test modules
+  including a two-executor harness, a lease-race contract, and captured real executor usage
+  envelopes as fixtures. Total coverage is **93.2%** and **97.8%** of the 1,841 changed executable
+  lines are covered, against the 80% floor and 85% changed-code target;
+- deterministic self-analysis passes with its **6 governed findings and 0 issues**. Three
+  regressions this phase introduced — an import cycle between two test-support modules and two
+  functions crossing the branch-count threshold — were repaired rather than accepted into the
+  baseline;
+- schema moves from **10 to 11** behind the existing backup-before-upgrade path, with a heuristic
+  backfill that is labelled as heuristic, and the supported-version set updated in the same change;
+- every implementation module stays at or below the 500-line ceiling and every shared module inside
+  the fan-in cap. Merging the last item crossed both, and the answer was to extract
+  `semantic_fresh_eyes_jobs.py` and `semantic_fresh_eyes_payload.py` and to split the deterministic
+  stage fixtures from the two-executor harness, not to raise a limit;
+- the production-source ratchet moves from **58,260** through the 4.2-ratified **58,346** to
+  **62,746 lines**. The increase is 16 new production modules for usage provenance, generation
+  enumeration and telemetry, snapshot provenance, deterministic alignment, grounding, executor
+  pinning and run slots. It is accepted phase depth, not Phase 10.2 cleanup debt.
+
+One precondition is deliberately left to the maintainer: `docs/capabilities.md`,
+`docs/capabilities-brief.md` and the uncommitted `examples/maxos-agent.anaxigraph.yml` semantic
+block are the owner's working files, and nothing in this phase depends on them.
+
+---
+
 # Nice-to-have ideas — not an implementation queue
 
 These are recorded only so they are not repeatedly rediscovered and mistaken for active work. They
@@ -4828,13 +4940,21 @@ feature-admission rule.
 | 7 | **COMPLETE** | Run the fixed capability brief → independent clean-sheet proposals → blind adjudication → as-built comparison → mission filter sequence through one resumable agent-funded Improve workflow | §10.7 |
 | 8 | **COMPLETE** | Refresh only changed semantic scope and return shared architecture reassessment without a Change Contract or approval workflow | §10.8 |
 | 9 | **COMPLETE — PUBLICLY VERIFIED** | Replace regex-oriented JavaScript/TypeScript analysis with a parser-backed, capability-honest implementation and remove the shallow path; public 0.4.0 wheel, source distribution, plugin, SBOM, attestations, clean install, and multi-architecture container pass the release gate | Phase 11 |
+| 10 | **COMPLETE** | Repair the confirmed defects and trust gaps the multi-model review experiment exposed: byte-counted submission limit, one target-file guard, one module-identity function, truthful Claude usage and effort, a peer-aware no-work status, executor-family diversity, lease-guarded writes, legible failures, and column reconciliation | §12.1 |
+| 11 | **COMPLETE** | Make a review reproducible and comparable: schema-11 usage and executor provenance, enumerable and selectable generations with per-stage telemetry, snapshot provenance and a dirty-checkout caveat, declared context in the repository-aware packets, bounded scan drift, loud missing-snapshot replies, and measured plan-transaction lock holds | §12.2 |
+| 12 | **COMPLETE** | Compare two generations without judging them: deterministic lexical alignment, a side-by-side reading view, a per-recommendation grounding report, a refute disposition for inferred Charter claims, and cross-provider proposals inside one run | §12.3 |
 
-All admitted roadmap 4.2 work is complete. There is no active implementation phase or hidden
-continuation queue. The retained MaxOS run and public `0.4.0` acceptance record are evidence for the
-completed product, not independent product features. Any further parser expansion, adapter family,
-plugin framework, website, media support, generic operations work, warning-cleanup campaign, or
-dashboard family requires a separately admitted roadmap item under the feature-admission rule.
+All admitted roadmap 4.2 work is complete, and the separately admitted Phase 12 above is complete.
+There is no active implementation phase or hidden continuation queue. The retained MaxOS run, the
+public `0.4.0` acceptance record, and the retained September 2026 multi-model review are evidence
+for the completed product, not independent product features. Any further parser expansion, adapter
+family, plugin framework, website, media support, generic operations work, warning-cleanup
+campaign, or dashboard family requires a separately admitted roadmap item under the
+feature-admission rule.
 
-Roadmap 4.2 is therefore closed on 1 September 2026. A later roadmap may build on it, but may not
-silently reopen Phase 10.2, reinterpret a nice-to-have as unfinished 4.2 work, or weaken the public
-acceptance evidence recorded above.
+Roadmap 4.2 was closed on 1 September 2026 and stays closed. Phase 12 builds on it under the
+feature-admission rule; it does not reopen Phase 10.2, reinterpret a nice-to-have as unfinished 4.2
+work, or weaken the public acceptance evidence recorded above. The deferred items that Phase 12
+deliberately did not admit — an AI adjudication job kind across generations, stable evidence
+identifiers, and feeding corrections into Charter synthesis — remain unadmitted and each names the
+evidence that would justify reopening it.
