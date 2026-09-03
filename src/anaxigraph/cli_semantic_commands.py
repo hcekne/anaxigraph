@@ -15,7 +15,7 @@ from anaxigraph.operational_health import served_map_status
 from anaxigraph.semantic_background import (
     launch_understand_background,
     report_background_progress,
-    semantic_background_status,
+    semantic_background_runs,
 )
 from anaxigraph.semantic_execution import add_semantic_execution_arguments
 from anaxigraph.semantic_execution import understand_execution as _understand_execution
@@ -395,9 +395,10 @@ def _semantic_status(args: argparse.Namespace) -> dict[str, Any]:
             **cli_services.semantics(database).status(int(row["id"]), config.semantic),
             "index": {"authority": "local", "database": str(database_path)},
         }
-    execution_run = semantic_background_status(repository)
-    if execution_run:
-        result["execution_run"] = execution_run
+    runs = semantic_background_runs(repository)
+    if runs:
+        result["execution_run"] = runs[0]
+        result["execution_runs"] = runs
     return result
 
 

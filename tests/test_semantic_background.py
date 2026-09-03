@@ -10,6 +10,7 @@ import pytest
 
 import anaxigraph.semantic_background as background
 import anaxigraph.semantic_background_progress as background_progress
+import anaxigraph.semantic_background_slots as slots
 
 
 def _spec(repository: Path) -> background.SemanticBackgroundSpec:
@@ -107,7 +108,7 @@ def test_background_command_rejects_non_durable_combinations(
 
 
 def test_background_launch_pins_authority_model_and_effort(repository, tmp_path, monkeypatch):
-    monkeypatch.setattr(background, "local_state_root", lambda: tmp_path)
+    monkeypatch.setattr(slots, "local_state_root", lambda: tmp_path)
     monkeypatch.setattr(
         background,
         "_spawn_wrapper",
@@ -140,7 +141,7 @@ def test_background_launch_pins_authority_model_and_effort(repository, tmp_path,
 
 
 def test_background_wrapper_records_terminal_result(repository, tmp_path, monkeypatch):
-    monkeypatch.setattr(background, "local_state_root", lambda: tmp_path)
+    monkeypatch.setattr(slots, "local_state_root", lambda: tmp_path)
     monkeypatch.setattr(background, "_spawn_wrapper", lambda *_args: SimpleNamespace(pid=4321))
     launched = background.launch_semantic_background(_spec(repository))
     record_path = Path(launched["record_path"])
@@ -224,7 +225,7 @@ def test_background_wrapper_records_progress_without_replacing_its_liveness(tmp_
 
 
 def test_background_launch_records_spawn_failure(repository, tmp_path, monkeypatch):
-    monkeypatch.setattr(background, "local_state_root", lambda: tmp_path)
+    monkeypatch.setattr(slots, "local_state_root", lambda: tmp_path)
 
     def fail(*_args):
         raise OSError("cannot detach")
@@ -243,9 +244,9 @@ def test_background_launch_records_spawn_failure(repository, tmp_path, monkeypat
 def test_background_status_handles_missing_corrupt_and_orphaned_state(
     repository, tmp_path, monkeypatch
 ):
-    monkeypatch.setattr(background, "local_state_root", lambda: tmp_path)
+    monkeypatch.setattr(slots, "local_state_root", lambda: tmp_path)
     assert background.semantic_background_status(repository) is None
-    directory = background._run_directory(repository)
+    directory = slots.slot_directory(repository)
     directory.mkdir(parents=True)
     latest = directory / "latest.json"
     latest.write_text("not-json", encoding="utf-8")
@@ -260,7 +261,7 @@ def test_background_status_handles_missing_corrupt_and_orphaned_state(
         ),
         encoding="utf-8",
     )
-    monkeypatch.setattr(background, "_pid_exists", lambda _pid: False)
+    monkeypatch.setattr(slots, "pid_exists", lambda _pid: False)
 
     status = background.semantic_background_status(repository)
     assert status["status"] == "interrupted"
@@ -316,7 +317,7 @@ def test_spawn_wrapper_detaches_and_redirects_to_private_log(tmp_path, monkeypat
 def test_background_wrapper_records_execution_failures(
     repository, tmp_path, monkeypatch, error, expected_status, expected_code
 ):
-    monkeypatch.setattr(background, "local_state_root", lambda: tmp_path)
+    monkeypatch.setattr(slots, "local_state_root", lambda: tmp_path)
     monkeypatch.setattr(background, "_spawn_wrapper", lambda *_args: SimpleNamespace(pid=4321))
     launched = background.launch_semantic_background(_spec(repository))
     record_path = Path(launched["record_path"])
@@ -351,28 +352,28 @@ def test_background_lock_recovers_stale_reservation_and_preserves_fresh_one(tmp_
 
 
 def test_background_process_and_time_helpers_cover_failure_modes(monkeypatch):
-    assert background._pid_exists(0) is False
+    assert slots.pid_exists(0) is False
 
     def missing(_pid, _signal):
         raise ProcessLookupError
 
     monkeypatch.setattr(background.os, "kill", missing)
-    assert background._pid_exists(99) is False
+    assert slots.pid_exists(99) is False
 
     def forbidden(_pid, _signal):
         raise PermissionError
 
     monkeypatch.setattr(background.os, "kill", forbidden)
-    assert background._pid_exists(99) is True
-    assert background._recent({}) is False
-    assert background._recent({"started_at": datetime.now(UTC).isoformat()}) is True
+    assert slots.pid_exists(99) is True
+    assert slots.recent({}) is False
+    assert slots.recent({"started_at": datetime.now(UTC).isoformat()}) is True
 
 
 def test_background_status_marks_live_process_with_expired_heartbeat_stalled(
     repository, tmp_path, monkeypatch
 ):
-    monkeypatch.setattr(background, "local_state_root", lambda: tmp_path)
-    directory = background._run_directory(repository)
+    monkeypatch.setattr(slots, "local_state_root", lambda: tmp_path)
+    directory = slots.slot_directory(repository)
     directory.mkdir(parents=True)
     latest = directory / "latest.json"
     latest.write_text(
@@ -388,8 +389,8 @@ def test_background_status_marks_live_process_with_expired_heartbeat_stalled(
         ),
         encoding="utf-8",
     )
-    monkeypatch.setattr(background, "_pid_exists", lambda _pid: True)
-    monkeypatch.setattr(background, "_process_state", lambda _pid: "S")
+    monkeypatch.setattr(slots, "pid_exists", lambda _pid: True)
+    monkeypatch.setattr(slots, "_process_state", lambda _pid: "S")
 
     status = background.semantic_background_status(repository)
 
@@ -398,8 +399,8 @@ def test_background_status_marks_live_process_with_expired_heartbeat_stalled(
 
 
 def test_background_relaunch_terminates_stalled_process(repository, tmp_path, monkeypatch):
-    monkeypatch.setattr(background, "local_state_root", lambda: tmp_path)
-    directory = background._run_directory(repository)
+    monkeypatch.setattr(slots, "local_state_root", lambda: tmp_path)
+    directory = slots.slot_directory(repository, "codex")
     directory.mkdir(parents=True)
     (directory / "latest.json").write_text(
         json.dumps(
@@ -415,8 +416,8 @@ def test_background_relaunch_terminates_stalled_process(repository, tmp_path, mo
     )
     (directory / "active.lock").write_text("old-run", encoding="utf-8")
     terminated = []
-    monkeypatch.setattr(background, "_pid_exists", lambda _pid: True)
-    monkeypatch.setattr(background, "_process_state", lambda _pid: "S")
+    monkeypatch.setattr(slots, "pid_exists", lambda _pid: True)
+    monkeypatch.setattr(slots, "_process_state", lambda _pid: "S")
     monkeypatch.setattr(
         background,
         "_terminate_stalled_run",

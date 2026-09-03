@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import signal
@@ -11,11 +10,10 @@ import sys
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from anaxigraph.local_runtime import local_database_path, local_state_root
+from anaxigraph.local_runtime import local_database_path
 from anaxigraph.semantic_background_progress import (
     PROGRESS_PATH_ENV,
     read_background_progress,
@@ -24,6 +22,27 @@ from anaxigraph.semantic_background_progress import (
     report_background_progress as report_background_progress,
 )
 from anaxigraph.semantic_background_refusal import already_running, background_next_action
+from anaxigraph.semantic_background_slots import (
+    LATEST_RECORD,
+    heartbeat_expired,
+    now,
+    pid_exists,
+    public_record,
+    recent,
+    semantic_background_runs,
+    semantic_background_status,
+    slot_directory,
+    worker_is_stopped,
+)
+
+__all__ = [
+    "SemanticBackgroundSpec",
+    "launch_semantic_background",
+    "launch_understand_background",
+    "report_background_progress",
+    "semantic_background_runs",
+    "semantic_background_status",
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,13 +118,13 @@ def _execution_identity(mode: str, execution: Any) -> dict[str, Any]:
 def launch_semantic_background(spec: SemanticBackgroundSpec) -> dict[str, Any]:
     """Start a detached CLI worker whose lifetime is independent of the invoking agent."""
 
-    directory = _run_directory(spec.repository)
+    directory = slot_directory(spec.repository, spec.executor)
     directory.mkdir(parents=True, mode=0o700, exist_ok=True)
     if os.name == "posix":
         directory.chmod(0o700)
-    latest_path = directory / "latest.json"
+    latest_path = directory / LATEST_RECORD
     lock_path = directory / "active.lock"
-    active = semantic_background_status(spec.repository)
+    active = semantic_background_status(spec.repository, spec.executor)
     if active and active["active"]:
         return already_running(active, spec)
     if active and active.get("status") == "stalled" and not _terminate_stalled_run(active):
@@ -116,7 +135,7 @@ def launch_semantic_background(spec: SemanticBackgroundSpec) -> dict[str, Any]:
         }
     run_id = str(uuid.uuid4())
     if not _reserve(lock_path, latest_path, run_id):
-        active = semantic_background_status(spec.repository)
+        active = semantic_background_status(spec.repository, spec.executor)
         return already_running({**(active or {}), "active": True}, spec)
     record_path = directory / f"{run_id}.json"
     log_path = directory / f"{run_id}.log"
@@ -128,34 +147,7 @@ def launch_semantic_background(spec: SemanticBackgroundSpec) -> dict[str, Any]:
         _finish_launch_failure(record, record_path, latest_path, lock_path, exc)
         raise RuntimeError(f"Could not start the semantic background worker: {exc}") from exc
     launched = {**record, "status": "running", "pid": process.pid}
-    return _public_record(launched)
-
-
-def semantic_background_status(repository: Path) -> dict[str, Any] | None:
-    """Read the most recent detached-run state and detect an orphaned process."""
-
-    latest_path = _run_directory(repository) / "latest.json"
-    if not latest_path.exists():
-        return None
-    try:
-        record = json.loads(latest_path.read_text(encoding="utf-8"))
-    except (OSError, ValueError, TypeError):
-        return {"status": "unreadable", "active": False, "state_path": str(latest_path)}
-    status = str(record.get("status") or "unknown")
-    pid = int(record.get("pid") or 0)
-    active = status == "starting" and _recent(record)
-    if status == "running":
-        process_alive = _pid_exists(pid)
-        stalled = process_alive and (_heartbeat_expired(record) or _worker_is_stopped(record))
-        active = process_alive and not stalled
-        if stalled:
-            record["status"] = "stalled"
-        elif not process_alive:
-            record["status"] = "interrupted"
-    elif status == "starting" and not active:
-        record["status"] = "interrupted"
-    record["active"] = active
-    return _public_record(record)
+    return public_record(launched)
 
 
 def _initial_record(
@@ -178,8 +170,8 @@ def _initial_record(
         "parallel_jobs": spec.parallel_jobs or None,
         "timeout_seconds": spec.timeout_seconds or None,
         "index": spec.index,
-        "started_at": _now(),
-        "heartbeat_at": _now(),
+        "started_at": now(),
+        "heartbeat_at": now(),
         "progress_at": None,
         "heartbeat_timeout_seconds": max(120, spec.timeout_seconds + 60),
         "stage": "starting",
@@ -253,9 +245,9 @@ def _spawn_wrapper(
 
 def _run_worker(record_path: Path, latest_path: Path, lock_path: Path) -> int:
     record = json.loads(record_path.read_text(encoding="utf-8"))
-    record.update(status="running", active=True, pid=os.getpid(), heartbeat_at=_now())
+    record.update(status="running", active=True, pid=os.getpid(), heartbeat_at=now())
     _write_state(record, record_path, latest_path)
-    print(f"AnaxiGraph semantic run {record['run_id']} started at {_now()}", flush=True)
+    print(f"AnaxiGraph semantic run {record['run_id']} started at {now()}", flush=True)
     exit_code = 1
     try:
         exit_code = _run_child(record, record_path, latest_path)
@@ -268,7 +260,7 @@ def _run_worker(record_path: Path, latest_path: Path, lock_path: Path) -> int:
         record["last_error"] = record["error"]
         exit_code = 130 if isinstance(exc, KeyboardInterrupt) else 1
     finally:
-        record.update(active=False, exit_code=exit_code, finished_at=_now())
+        record.update(active=False, exit_code=exit_code, finished_at=now())
         _write_state(record, record_path, latest_path)
         _release(lock_path, str(record["run_id"]))
     print(
@@ -288,7 +280,7 @@ def _run_child(record: dict[str, Any], record_path: Path, latest_path: Path) -> 
     while process.poll() is None:
         _sync_progress(record, record_path, latest_path)
         if time.monotonic() >= next_heartbeat:
-            record["heartbeat_at"] = _now()
+            record["heartbeat_at"] = now()
             _write_state(record, record_path, latest_path)
             next_heartbeat = time.monotonic() + 10
         time.sleep(1)
@@ -357,12 +349,12 @@ def _lock_is_active(lock_path: Path, latest_path: Path) -> bool:
         return lock_age < 60
     status = str(record.get("status") or "")
     if status == "starting":
-        return _recent(record)
+        return recent(record)
     return bool(
         status == "running"
-        and _pid_exists(int(record.get("pid") or 0))
-        and not _heartbeat_expired(record)
-        and not _worker_is_stopped(record)
+        and pid_exists(int(record.get("pid") or 0))
+        and not heartbeat_expired(record)
+        and not worker_is_stopped(record)
     )
 
 
@@ -381,65 +373,9 @@ def _finish_launch_failure(
     lock_path: Path,
     error: OSError,
 ) -> None:
-    record.update(status="failed", active=False, error=str(error), finished_at=_now())
+    record.update(status="failed", active=False, error=str(error), finished_at=now())
     _write_state(record, record_path, latest_path)
     _release(lock_path, str(record["run_id"]))
-
-
-def _public_record(record: dict[str, Any]) -> dict[str, Any]:
-    result = {key: value for key, value in record.items() if key != "command"}
-    try:
-        started = datetime.fromisoformat(str(record["started_at"]))
-        finished = (
-            datetime.fromisoformat(str(record["finished_at"]))
-            if record.get("finished_at")
-            else datetime.now(UTC)
-        )
-        result["elapsed_ms"] = round(max(0.0, (finished - started).total_seconds() * 1_000), 3)
-    except (KeyError, TypeError, ValueError):
-        result["elapsed_ms"] = None
-    return result
-
-
-def _run_directory(repository: Path) -> Path:
-    resolved = repository.expanduser().resolve()
-    digest = hashlib.sha256(str(resolved).encode("utf-8")).hexdigest()[:16]
-    return local_state_root() / "semantic-runs" / digest
-
-
-def _pid_exists(pid: int) -> bool:
-    if pid <= 0:
-        return False
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    return True
-
-
-def _worker_is_stopped(record: dict[str, Any]) -> bool:
-    worker_pid = int(record.get("worker_pid") or record.get("pid") or 0)
-    return _process_state(worker_pid) in {"T", "t", "Z", "X"}
-
-
-def _process_state(pid: int) -> str:
-    if os.name != "posix" or pid <= 0:
-        return ""
-    try:
-        return Path(f"/proc/{pid}/stat").read_text(encoding="utf-8").split()[2]
-    except (OSError, IndexError):
-        return ""
-
-
-def _heartbeat_expired(record: dict[str, Any]) -> bool:
-    try:
-        heartbeat = datetime.fromisoformat(str(record["heartbeat_at"]))
-        timeout = max(1, int(record.get("heartbeat_timeout_seconds") or 360))
-    except (KeyError, TypeError, ValueError):
-        return True
-    return (datetime.now(UTC) - heartbeat).total_seconds() > timeout
 
 
 def _terminate_stalled_run(record: dict[str, Any]) -> bool:
@@ -475,18 +411,6 @@ def _matches_background_wrapper(record: dict[str, Any]) -> bool:
         return False
     decoded = {value.decode("utf-8", errors="replace") for value in arguments if value}
     return "anaxigraph.semantic_background" in decoded and record_path in decoded
-
-
-def _recent(record: dict[str, Any], seconds: int = 60) -> bool:
-    try:
-        started = datetime.fromisoformat(str(record["started_at"]))
-    except (KeyError, TypeError, ValueError):
-        return False
-    return (datetime.now(UTC) - started).total_seconds() < seconds
-
-
-def _now() -> str:
-    return datetime.now(UTC).isoformat()
 
 
 def main(argv: list[str] | None = None) -> None:
