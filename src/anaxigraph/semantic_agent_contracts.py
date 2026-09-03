@@ -27,7 +27,7 @@ from anaxigraph.semantic_taxonomy_contract import (
     validated_agent_semantic_response,
 )
 
-_MAX_SUBMISSION_BYTES = 1_000_000
+MAX_SUBMISSION_BYTES = 1_000_000
 
 
 class SemanticAgentContractService:
@@ -73,8 +73,11 @@ class SemanticAgentContractService:
     ) -> SemanticResult:
         if input_tokens < 0 or output_tokens < 0:
             raise ValueError("Reported token counts cannot be negative")
-        if len(json.dumps(dossier, ensure_ascii=False)) > _MAX_SUBMISSION_BYTES:
-            raise ValueError("Semantic dossier exceeds the 1 MB submission limit")
+        encoded = json.dumps(dossier, ensure_ascii=False).encode("utf-8")
+        if len(encoded) > MAX_SUBMISSION_BYTES:
+            raise ValueError(
+                f"Semantic dossier exceeds the {MAX_SUBMISSION_BYTES}-byte submission limit"
+            )
         try:
             return validated_agent_semantic_response(
                 dossier,
