@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import anaxigraph.semantic_remote_calls as remote_calls
 import anaxigraph.semantic_remote_recovery as remote_recovery
 import anaxigraph.semantic_remote_worker as remote_worker
 from anaxigraph.config import SemanticConfig
@@ -218,42 +219,93 @@ async def test_one_model_failure_does_not_unwind_successful_peer_jobs(monkeypatc
     assert total["retry"] == 1
 
 
-@pytest.mark.anyio
-async def test_submission_retries_transient_sidecar_writer_contention(monkeypatch):
-    responses = iter(
-        [
-            SimpleNamespace(
-                isError=True,
-                content=[SimpleNamespace(text="database is locked")],
-                structuredContent=None,
-            ),
-            SimpleNamespace(
-                isError=False,
-                content=[],
-                structuredContent={"status": "completed"},
-            ),
-        ]
+_WRITE_BACK_PACKET = {"job": {"id": 7, "kind": "intrinsic"}, "lease": {"token": "lease"}}
+_MODEL_RESULT = SimpleNamespace(value={"summary": "done"}, input_tokens=10, output_tokens=5)
+
+
+def _error_response(text):
+    return SimpleNamespace(
+        isError=True, content=[SimpleNamespace(text=text)], structuredContent=None
     )
-    calls = []
+
+
+def _success_response(value):
+    return SimpleNamespace(isError=False, content=[], structuredContent=value)
+
+
+class _RecordingSession:
+    def __init__(self, *responses):
+        self._responses = iter(responses)
+        self.calls = []
+
+    async def call_tool(self, name, *, arguments, read_timeout_seconds):
+        self.calls.append(name)
+        return next(self._responses)
+
+
+async def _claim(session):
+    execution = SemanticConfig(provider="codex")
+    return await remote_worker._claim_wave(session, _target(), execution, 1, False)
+
+
+async def _submit(session):
+    return await remote_worker._submit(session, _target(), _WRITE_BACK_PACKET, _MODEL_RESULT)
+
+
+async def _fail(session):
+    error = RuntimeError("model broke")
+    return await remote_worker._fail_packet(session, _target(), _WRITE_BACK_PACKET, error)
+
+
+async def _release(session):
+    return await remote_worker._release_packet(
+        session, _target(), _WRITE_BACK_PACKET, "peer submit failed"
+    )
+
+
+_WORK_PACKET = {"status": "work", "job": {"id": 7}}
+_WRITE_BACKS = {
+    "ANAXIGRAPH_SEMANTIC_WORK": (_claim, _WORK_PACKET, ([_WORK_PACKET], None)),
+    "ANAXIGRAPH_SEMANTIC_SUBMIT": (_submit, {"status": "completed"}, {"status": "completed"}),
+    "ANAXIGRAPH_SEMANTIC_FAIL": (_fail, {"status": "retry"}, {"status": "retry"}),
+    "ANAXIGRAPH_SEMANTIC_RELEASE": (_release, {"status": "released"}, None),
+}
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("tool", sorted(_WRITE_BACKS))
+async def test_every_write_back_retries_transient_sidecar_writer_contention(monkeypatch, tool):
+    call, value, expected = _WRITE_BACKS[tool]
     sleeps = []
 
     async def sleep(seconds):
         sleeps.append(seconds)
 
-    class Session:
-        async def call_tool(self, name, *, arguments, read_timeout_seconds):
-            calls.append((name, arguments, read_timeout_seconds))
-            return next(responses)
+    monkeypatch.setattr(remote_calls.asyncio, "sleep", sleep)
+    session = _RecordingSession(_error_response("database is locked"), _success_response(value))
 
-    monkeypatch.setattr(remote_worker.asyncio, "sleep", sleep)
-    packet = {"job": {"id": 7}, "lease": {"token": "lease"}}
-    result = SimpleNamespace(value={"summary": "done"}, input_tokens=10, output_tokens=5)
-
-    submitted = await remote_worker._submit(Session(), _target(), packet, result)
-
-    assert submitted == {"status": "completed"}
-    assert len(calls) == 2
+    assert await call(session) == expected
+    assert session.calls == [tool, tool]
     assert sleeps == [1]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("tool", sorted(_WRITE_BACKS))
+async def test_non_lock_tool_errors_are_not_retried(monkeypatch, tool):
+    call, _value, _expected = _WRITE_BACKS[tool]
+    sleeps = []
+
+    async def sleep(seconds):
+        sleeps.append(seconds)
+
+    monkeypatch.setattr(remote_calls.asyncio, "sleep", sleep)
+    session = _RecordingSession(_error_response("lease expired"))
+
+    with pytest.raises(RuntimeError, match="lease expired"):
+        await call(session)
+
+    assert session.calls == [tool]
+    assert sleeps == []
 
 
 def _target() -> SemanticServiceTarget:
@@ -269,7 +321,7 @@ async def test_evidence_timeout_attempts_to_release_the_leased_packet(monkeypatc
             calls.append((name, arguments, read_timeout_seconds))
             if name == "ANAXIGRAPH_SEMANTIC_EVIDENCE":
                 await asyncio.Event().wait()
-            return SimpleNamespace()
+            return SimpleNamespace(isError=False, content=[], structuredContent={})
 
     packet = {
         "job": {"id": 7},
@@ -277,7 +329,7 @@ async def test_evidence_timeout_attempts_to_release_the_leased_packet(monkeypatc
         "analysis_request": {},
         "evidence_manifest": {"page_count": 1},
     }
-    monkeypatch.setattr(remote_worker, "_MCP_TOOL_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr(remote_calls, "MCP_TOOL_TIMEOUT_SECONDS", 0.01)
 
     with pytest.raises(RuntimeError, match="evidence read failed"):
         await remote_worker._wave_requests(Session(), _target(), [packet])
