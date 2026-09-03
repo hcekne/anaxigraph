@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -18,6 +17,12 @@ from anaxigraph.config import SemanticConfig
 from anaxigraph.semantic import create_semantic_provider
 from anaxigraph.semantic_agent_protocol import rehydrate_agent_request
 from anaxigraph.semantic_background_progress import report_background_progress
+from anaxigraph.semantic_remote_calls import (
+    MCP_TOOL_TIMEOUT_SECONDS,
+    call_tool,
+    call_tool_retrying_locks,
+    tool_value,
+)
 from anaxigraph.semantic_remote_errors import failure_summary, raise_remote_failure
 from anaxigraph.semantic_remote_recovery import IdleRecovery
 from anaxigraph.semantic_request_analysis import analyze_semantic_request
@@ -25,8 +30,6 @@ from anaxigraph.semantic_service import SemanticServiceTarget
 
 _TERMINAL_STATES = frozenset({"complete", "complete_with_failures", "paused"})
 _MCP_INITIALIZE_TIMEOUT_SECONDS = 20
-_MCP_TOOL_TIMEOUT_SECONDS = 60
-_SUBMIT_ATTEMPTS = 6
 
 
 def execute_remote_semantics(
@@ -81,7 +84,7 @@ async def _execute(
         async with ClientSession(
             read_stream,
             write_stream,
-            read_timeout_seconds=timedelta(seconds=_MCP_TOOL_TIMEOUT_SECONDS),
+            read_timeout_seconds=timedelta(seconds=MCP_TOOL_TIMEOUT_SECONDS),
         ) as session:
             await asyncio.wait_for(session.initialize(), timeout=_MCP_INITIALIZE_TIMEOUT_SECONDS)
             report_background_progress(stage="claiming", completed=0)
@@ -331,7 +334,7 @@ async def _claim_wave(
     packets = []
     terminal = None
     for _ in range(count):
-        result = await _call_tool(
+        packet = await call_tool_retrying_locks(
             session,
             "ANAXIGRAPH_SEMANTIC_WORK",
             {
@@ -340,8 +343,8 @@ async def _claim_wave(
                 "retry_failed": retry_failed,
                 "repository": str(target.repository_id),
             },
+            action="claim semantic work",
         )
-        packet = _tool_value(result, "claim semantic work")
         if packet.get("status") != "work":
             terminal = packet
             break
@@ -357,7 +360,7 @@ async def _request_for_packet(
     manifest = packet.get("evidence_manifest") or {}
     pages = []
     for page in range(1, int(manifest.get("page_count") or 0) + 1):
-        result = await _call_tool(
+        result = await call_tool(
             session,
             "ANAXIGRAPH_SEMANTIC_EVIDENCE",
             {
@@ -367,7 +370,7 @@ async def _request_for_packet(
                 "repository": str(target.repository_id),
             },
         )
-        pages.append(_tool_value(result, "read semantic evidence"))
+        pages.append(tool_value(result, "read semantic evidence"))
     return rehydrate_agent_request(dict(packet["analysis_request"]), pages)
 
 
@@ -382,26 +385,19 @@ async def _submit(
     packet: dict[str, Any],
     result: Any,
 ) -> dict[str, Any]:
-    for attempt in range(_SUBMIT_ATTEMPTS):
-        try:
-            response = await _call_tool(
-                session,
-                "ANAXIGRAPH_SEMANTIC_SUBMIT",
-                {
-                    "job_id": int(packet["job"]["id"]),
-                    "lease_token": str(packet["lease"]["token"]),
-                    "dossier": result.value,
-                    "input_tokens": result.input_tokens,
-                    "output_tokens": result.output_tokens,
-                    "repository": str(target.repository_id),
-                },
-            )
-            return _tool_value(response, "submit semantic work")
-        except RuntimeError as exc:
-            if "database is locked" not in str(exc).lower() or attempt == _SUBMIT_ATTEMPTS - 1:
-                raise
-            await asyncio.sleep(2**attempt)
-    raise RuntimeError("Unreachable semantic submission retry state")
+    return await call_tool_retrying_locks(
+        session,
+        "ANAXIGRAPH_SEMANTIC_SUBMIT",
+        {
+            "job_id": int(packet["job"]["id"]),
+            "lease_token": str(packet["lease"]["token"]),
+            "dossier": result.value,
+            "input_tokens": result.input_tokens,
+            "output_tokens": result.output_tokens,
+            "repository": str(target.repository_id),
+        },
+        action="submit semantic work",
+    )
 
 
 async def _release_packets(
@@ -422,7 +418,7 @@ async def _fail_packet(
     packet: dict[str, Any],
     error: BaseException,
 ) -> dict[str, Any]:
-    response = await _call_tool(
+    return await call_tool_retrying_locks(
         session,
         "ANAXIGRAPH_SEMANTIC_FAIL",
         {
@@ -433,8 +429,8 @@ async def _fail_packet(
             "output_tokens": int(getattr(error, "output_tokens", 0)),
             "repository": str(target.repository_id),
         },
+        action="record failed semantic work",
     )
-    return _tool_value(response, "record failed semantic work")
 
 
 async def _release_packet(
@@ -443,7 +439,7 @@ async def _release_packet(
     packet: dict[str, Any],
     reason: str,
 ) -> None:
-    await _call_tool(
+    await call_tool_retrying_locks(
         session,
         "ANAXIGRAPH_SEMANTIC_RELEASE",
         {
@@ -452,47 +448,14 @@ async def _release_packet(
             "reason": reason[:1_000],
             "repository": str(target.repository_id),
         },
+        action="release semantic work",
     )
 
 
 async def _semantic_status(session: ClientSession, target: SemanticServiceTarget) -> dict[str, Any]:
-    result = await _call_tool(
+    result = await call_tool(
         session,
         "ANAXIGRAPH_SEMANTIC_STATUS",
         {"repository": str(target.repository_id)},
     )
-    return _tool_value(result, "read semantic status")
-
-
-async def _call_tool(session: ClientSession, name: str, arguments: dict[str, Any]) -> Any:
-    try:
-        return await asyncio.wait_for(
-            session.call_tool(
-                name,
-                arguments=arguments,
-                read_timeout_seconds=timedelta(seconds=_MCP_TOOL_TIMEOUT_SECONDS),
-            ),
-            timeout=_MCP_TOOL_TIMEOUT_SECONDS + 1,
-        )
-    except TimeoutError as exc:
-        raise RuntimeError(
-            f"AnaxiMCP tool {name} exceeded {_MCP_TOOL_TIMEOUT_SECONDS} seconds"
-        ) from exc
-
-
-def _tool_value(result: Any, action: str) -> dict[str, Any]:
-    if result.isError:
-        message = " ".join(
-            str(getattr(item, "text", "")) for item in result.content if getattr(item, "text", "")
-        )
-        raise RuntimeError(f"AnaxiMCP could not {action}: {message[:1_000]}")
-    value = result.structuredContent
-    if isinstance(value, dict):
-        return value
-    for item in result.content:
-        text = getattr(item, "text", "")
-        if text:
-            parsed = json.loads(text)
-            if isinstance(parsed, dict):
-                return parsed
-    raise RuntimeError(f"AnaxiMCP returned no structured result while trying to {action}")
+    return tool_value(result, "read semantic status")
