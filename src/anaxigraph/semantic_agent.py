@@ -12,6 +12,7 @@ from anaxigraph.semantic_agent_contracts import (
 )
 from anaxigraph.semantic_contract import SemanticAnalysisError
 from anaxigraph.semantic_graph import SupersededSemanticJob
+from anaxigraph.semantic_lease_claim import claimant_family
 from anaxigraph.semantic_leases import SemanticLeaseService
 from anaxigraph.semantic_ports import (
     SemanticEvidencePort,
@@ -48,15 +49,17 @@ class SemanticAgentService:
         agent_id: str,
         agent_model: str = "",
         agent_effort: str = "",
+        executor_family: str = "",
         retry_failed: bool = False,
     ) -> dict[str, Any]:
         semantic = self._contracts.semantic(config)
         executor = self._contracts.identity(agent_id, agent_model, agent_effort)
+        family = claimant_family(executor[0], executor_family)
         root = Path(repository).expanduser().resolve()
         planned_stage = "queued"
         planned = False
         for _ in range(3):
-            job, token = self._claim(repository_id, semantic, executor)
+            job, token = self._claim(repository_id, semantic, executor, family)
             if job is None:
                 status = self._reporting.status(repository_id, semantic)
                 if _queue_active(status) or planned:
@@ -82,6 +85,7 @@ class SemanticAgentService:
         repository_id: int,
         semantic: SemanticConfig,
         executor: tuple[str, str, str],
+        family: str,
     ) -> tuple[dict[str, Any] | None, str]:
         executor_id, executor_model, executor_effort = executor
         token, token_hash, worker_id = self._contracts.lease_identity(executor_id)
@@ -94,6 +98,7 @@ class SemanticAgentService:
             executor_id=executor_id,
             executor_model=executor_model or None,
             executor_effort=executor_effort or None,
+            executor_family=family,
         )
         return job, token
 

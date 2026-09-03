@@ -40,6 +40,7 @@ class SemanticLeaseService:
         executor_id: str | None = None,
         executor_model: str | None = None,
         executor_effort: str | None = None,
+        executor_family: str | None = None,
     ) -> dict[str, Any] | None:
         return claim_next_job(
             self._database,
@@ -51,6 +52,7 @@ class SemanticLeaseService:
             executor_id=executor_id,
             executor_model=executor_model,
             executor_effort=executor_effort,
+            executor_family=executor_family,
         )
 
     @contextlib.contextmanager
