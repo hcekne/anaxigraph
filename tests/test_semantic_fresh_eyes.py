@@ -89,6 +89,23 @@ def test_two_host_executors_share_one_fresh_eyes_review(repository, database):
     assert [claim["status"] for claim in review.claims[-2:]] == ["complete", "complete"]
 
 
+def test_second_executor_is_told_busy_while_a_peer_holds_a_fresh_eyes_stage(repository, database):
+    review = _two_executor_review(repository, database)
+    held = review.hold_one_each("fresh_proposal")
+
+    blocked = review.claim(CODEX_EXECUTOR)
+
+    assert blocked["status"] == "busy"
+    assert blocked["semantic"]["semantically_ready"] is True
+    assert blocked["semantic"]["jobs"]["running"] == 2
+    review.submit_all(held)
+    assert [kind for _, kind in review.run_until_complete()] == [
+        "fresh_adjudication",
+        "fresh_comparison",
+        "fresh_review",
+    ]
+
+
 def test_fixed_fresh_eyes_recipe_is_resumable_blind_and_agent_funded(repository, database):
     _enable_agent_semantics(repository)
     config = load_config(repository)

@@ -182,12 +182,21 @@ def _taxonomy_child(items: list[dict[str, Any]], key: str, label: str) -> dict[s
 
 
 def agent_no_work_status(status: dict[str, Any]) -> str:
-    if status.get("semantically_ready"):
-        return "complete"
-    if int(status.get("jobs", {}).get("running", 0)):
+    """Name why no work was handed out; live or queued jobs outrank a ready baseline.
+
+    Readiness ignores fresh-eyes scopes, so a peer holding a review stage must read as ``busy``
+    and unclaimed queued work as ``waiting`` before the queue may be called ``complete``.
+    """
+
+    jobs = status.get("jobs", {})
+    if int(jobs.get("running", 0)):
         return "busy"
     if status.get("budget", {}).get("paused"):
         return "paused"
+    if int(jobs.get("pending", 0)) or int(jobs.get("retry", 0)):
+        return "waiting"
+    if status.get("semantically_ready"):
+        return "complete"
     if status.get("baseline_complete") and (
         int(status.get("failed", 0)) or int(status.get("failed_scopes", 0))
     ):

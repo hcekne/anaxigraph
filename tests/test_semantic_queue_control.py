@@ -8,6 +8,7 @@ from semantic_support import _agent_dossier
 
 from anaxigraph.config import load_config
 from anaxigraph.scanner import RepositoryScanner
+from anaxigraph.semantic_agent_protocol import agent_no_work_message, agent_no_work_status
 from anaxigraph.storage import AnaxiIndex
 from anaxigraph.understanding import SemanticEngine
 from benchmarks.repository_factory import create_history_repository
@@ -187,3 +188,21 @@ def test_status_distinguishes_expired_work(repository, database):
     jobs = engine.status(stats.repository_id, config.semantic)["jobs"]
     assert jobs["running"] == jobs["running_expired"] == jobs["reclaimable"] == 1
     assert jobs["running_live"] == 0
+
+
+def test_no_work_status_reports_live_and_queued_jobs_before_a_ready_baseline():
+    ready = {"semantically_ready": True, "baseline_complete": True, "jobs": {}}
+
+    peer_holds_review_stage = {**ready, "jobs": {"running": 1}}
+    assert agent_no_work_status(peer_holds_review_stage) == "busy"
+    assert agent_no_work_message(peer_holds_review_stage).startswith("Another coding agent")
+
+    assert agent_no_work_status({**ready, "jobs": {"pending": 1}}) == "waiting"
+    assert agent_no_work_status({**ready, "jobs": {"retry": 1}}) == "waiting"
+    assert agent_no_work_status(ready) == "complete"
+
+    paused = {"semantically_ready": False, "budget": {"paused": True}, "jobs": {"pending": 3}}
+    assert agent_no_work_status(paused) == "paused"
+    assert agent_no_work_status({**paused, "jobs": {"running": 1}}) == "busy"
+    failed = {"baseline_complete": True, "failed": 2, "jobs": {}}
+    assert agent_no_work_status(failed) == "complete_with_failures"
