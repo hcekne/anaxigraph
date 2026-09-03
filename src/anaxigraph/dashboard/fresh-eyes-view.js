@@ -144,8 +144,42 @@ function stageMarkup(stages) {
       : String(stage.state).startsWith("failed") ? "failed"
         : String(stage.state).startsWith("pending") ? "active" : "waiting";
     return `<div class="fresh-stage ${stateName}"><span>${stage.state === "current" ? "✓" : index + 1}</span>
-      <div><strong>${escapeHtml(stage.label)}</strong><small>${escapeHtml(stage.reason)}</small></div></div>`;
+      <div><strong>${escapeHtml(stage.label)}</strong><small>${escapeHtml(stage.reason)}</small>
+      ${telemetryMarkup(stage.telemetry)}</div></div>`;
   }).join("");
+}
+
+function telemetryMarkup(telemetry) {
+  if (!telemetry) return "";
+  const attempts = Number(telemetry.attempts_observed || 0);
+  const facts = [
+    telemetry.duration_ms ? duration(telemetry.duration_ms) : "",
+    telemetry.output_bytes ? `${bytes(telemetry.output_bytes)} written` : "",
+    tokenText(telemetry),
+    attempts ? `${attempts} attempt${attempts === 1 ? "" : "s"} observed` : "",
+  ].filter(Boolean);
+  if (!facts.length) return "";
+  return `<small class="fresh-stage-telemetry">${escapeHtml(facts.join(" · "))}</small>`;
+}
+
+function tokenText(telemetry) {
+  if (!telemetry.token_counts_reported) return "tokens not reported";
+  const counts = `${telemetry.input_tokens} in / ${telemetry.output_tokens} out tokens`;
+  return telemetry.input_tokens_plausible ? counts : `${counts} (input count implausible)`;
+}
+
+function duration(milliseconds) {
+  const seconds = Math.max(0, Number(milliseconds || 0)) / 1000;
+  if (seconds < 1) return `${Math.round(seconds * 1000)} ms`;
+  if (seconds < 60) return `${seconds.toFixed(1)} s`;
+  return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+}
+
+function bytes(value) {
+  const size = Math.max(0, Number(value || 0));
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 ** 2) return `${(size / 1024).toFixed(1)} KiB`;
+  return `${(size / 1024 ** 2).toFixed(1)} MiB`;
 }
 
 function diversityMarkup(diversity) {

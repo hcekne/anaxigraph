@@ -75,6 +75,11 @@
   margin-top: .35rem;
 }
 
+.fresh-stage-telemetry {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
 .fresh-eyes-diversity {
   align-items: baseline;
   border-top: 1px solid var(--line);
