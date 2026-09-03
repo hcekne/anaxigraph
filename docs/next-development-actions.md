@@ -31,6 +31,8 @@ prompt tokens. The lesson the experiment teaches is not "ask two models." It is 
 in the adjudication and verification layer: truthful provenance, enumerable generations, explicit
 disagreement, and a deterministic check of whether a recommendation still matches the source.
 
+The run is retained as an [evidence record](fresh-eyes-multi-model-review-2026-09.md) (P4).
+
 ### What the reviews got right and wrong
 
 - **Confirmed by both providers:** the 1 MB agent submission limit counts Python characters, not
