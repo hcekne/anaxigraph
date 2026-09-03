@@ -73,6 +73,26 @@ def migrate_schema(
     )
 
 
+def reconcile_additive_columns(connection: sqlite3.Connection) -> None:
+    """Add the nullable columns an index already at the current version may lack.
+
+    Column additions land in ``_ensure_legacy_columns`` without a schema-version
+    bump, and ``migrate_schema`` never runs for a same-version index, so
+    ``initialize_index`` calls this on every open. The check is one
+    ``PRAGMA table_info`` per table and each addition is a metadata-only
+    ``ALTER TABLE ... ADD COLUMN``; one write lock keeps concurrent openers
+    from adding the same column twice.
+    """
+
+    connection.execute("BEGIN IMMEDIATE")
+    try:
+        _ensure_legacy_columns(connection)
+    except BaseException:
+        connection.rollback()
+        raise
+    connection.commit()
+
+
 def _ensure_legacy_columns(connection: sqlite3.Connection) -> None:
     _ensure_columns(
         connection,

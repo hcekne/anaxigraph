@@ -4,11 +4,16 @@ import sqlite3
 from pathlib import Path
 
 import pytest
+import yaml
 
 import anaxigraph.persistence.index_initialization as initialization_module
+import anaxigraph.persistence.migrations as migrations_module
+from anaxigraph.config import load_config
 from anaxigraph.persistence import SUPPORTED_SCHEMA_VERSIONS
 from anaxigraph.scanner import RepositoryScanner
+from anaxigraph.semantic import SemanticResult
 from anaxigraph.storage import SCHEMA_VERSION, AnaxiIndex
+from anaxigraph.understanding import SemanticEngine
 
 
 def _schema_version(database: AnaxiIndex) -> int:
@@ -87,3 +92,82 @@ def test_untested_or_future_schema_versions_fail_closed(tmp_path, version):
 
     with pytest.raises(RuntimeError, match="newer than supported|no tested migration path"):
         AnaxiIndex(path)
+
+
+def _additive_columns() -> dict[str, dict[str, str]]:
+    """Record every column ``_ensure_legacy_columns`` adds without touching a database."""
+
+    recorded: dict[str, dict[str, str]] = {}
+
+    def record(_connection, table: str, definitions: dict[str, str]) -> None:
+        recorded.setdefault(table, {}).update(definitions)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(migrations_module, "_ensure_columns", record)
+        migrations_module._ensure_legacy_columns(None)
+    return recorded
+
+
+def _drop_columns(path: Path, columns: dict[str, dict[str, str]]) -> None:
+    """Turn a current-version index into one built before these columns existed."""
+
+    with sqlite3.connect(path) as connection:
+        for table, definitions in columns.items():
+            for name in definitions:
+                connection.execute(f"ALTER TABLE {table} DROP COLUMN {name}")
+
+
+def _enable_agent_provider(repository: Path) -> None:
+    config_path = repository / ".anaxigraph.yml"
+    policy = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    policy["semantic"] = {"enabled": True, "provider": "agent", "max_parallel_jobs": 1}
+    config_path.write_text(yaml.safe_dump(policy, sort_keys=False), encoding="utf-8")
+
+
+def test_current_schema_open_reconciles_columns_added_after_the_index_was_built(
+    repository, tmp_path
+):
+    path = tmp_path / "live-v10.db"
+    AnaxiIndex(path)
+    additive = _additive_columns()
+    assert additive
+    _drop_columns(path, additive)
+
+    database = AnaxiIndex(path)
+
+    assert _schema_version(database) == SCHEMA_VERSION
+    for table, definitions in additive.items():
+        assert set(definitions) <= _columns(database, table)
+    _enable_agent_provider(repository)
+    config = load_config(repository)
+    stats = RepositoryScanner(database).scan(repository)
+    engine = SemanticEngine(database)
+    engine.plan(stats.repository_id, repository, config)
+    job = engine._services.leases.claim_job(
+        stats.repository_id, config.semantic, worker_id="live-v10"
+    )
+    assert job is not None
+    engine._services.persistence.complete_job(
+        job,
+        SemanticResult({"summary": "Reconciled index"}, 0.8, ("pkg/core.py",)),
+        "agent",
+        config.semantic,
+    )
+    with database.connect() as connection:
+        completed = connection.execute(
+            "SELECT status FROM semantic_jobs WHERE id = ?", (job["id"],)
+        ).fetchone()
+    assert completed["status"] == "completed"
+
+
+def test_column_reconciliation_releases_its_write_lock_on_failure(tmp_path, monkeypatch):
+    database = AnaxiIndex(tmp_path / "locked.db")
+
+    def failing_columns(_connection):
+        raise sqlite3.OperationalError("injected column failure")
+
+    monkeypatch.setattr(migrations_module, "_ensure_legacy_columns", failing_columns)
+    with database.connect() as connection:
+        with pytest.raises(sqlite3.OperationalError, match="injected column failure"):
+            migrations_module.reconcile_additive_columns(connection)
+        assert not connection.in_transaction

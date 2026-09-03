@@ -15,6 +15,7 @@ from anaxigraph.persistence.compatibility_compaction import (
 from anaxigraph.persistence.index_backup import create_schema_backup
 from anaxigraph.persistence.migrations import (
     migrate_schema,
+    reconcile_additive_columns,
     transactional_schema_change,
     validate_schema_version,
 )
@@ -35,6 +36,7 @@ def initialize_index(
     validate_schema_version(current_version, target_version)
     if current_version == target_version:
         with connection_factory() as connection:
+            reconcile_additive_columns(connection)
             if coverage_uses_compatibility_reference(connection):
                 transactional_schema_change(
                     connection,
