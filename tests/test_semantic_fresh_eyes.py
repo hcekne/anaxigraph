@@ -357,3 +357,95 @@ def test_implementation_changes_reuse_reference_but_capability_changes_invalidat
             (third.snapshot_id,),
         ).fetchone()[0]
     assert proposal_jobs == 2
+
+
+def _generations(engine, repository_id, config):
+    return engine.fresh_eyes_status(repository_id, config.semantic)["generations"]
+
+
+def test_generation_index_lists_every_rerun_with_provenance(repository, database):
+    _enable_agent_semantics(repository)
+    config = load_config(repository)
+    stats = RepositoryScanner(database).scan(repository)
+    engine = SemanticEngine(database)
+    _finish_work(engine, stats.repository_id, repository, config)
+    engine.start_fresh_eyes_review(stats.repository_id, repository, config)
+    _finish_work(engine, stats.repository_id, repository, config, prefix="one", agent_model="m1")
+    engine.start_fresh_eyes_review(stats.repository_id, repository, config, restart=True)
+    _finish_work(engine, stats.repository_id, repository, config, prefix="two", agent_model="m2")
+    engine.start_fresh_eyes_review(stats.repository_id, repository, config, restart=True)
+    _finish_work(engine, stats.repository_id, repository, config, prefix="three", agent_model="m3")
+
+    bundles = _generations(engine, stats.repository_id, config)
+
+    assert [item["generation"] for item in bundles] == [1, 2, 3]
+    assert [item["executor_models"] for item in bundles] == [["m1"], ["m2"], ["m3"]]
+    assert [item["state"] for item in bundles] == ["superseded", "superseded", "current"]
+    assert [item["ready"] for item in bundles] == [False, False, True]
+    assert [len(item["stages"]) for item in bundles] == [5, 5, 5]
+    documents = [set(item["document_ids"]) for item in bundles]
+    assert all(len(item) == 5 for item in documents)
+    assert len(set().union(*documents)) == 15
+    for bundle in bundles:
+        assert bundle["recommendation_count"] == 1
+        assert bundle["rejected_idea_count"] == 1
+        assert bundle["review_document_id"] in bundle["document_ids"]
+        assert bundle["telemetry"]["stage_count"] == 5
+        assert all(item["duration_ms"] >= 0 for item in bundle["telemetry"]["stages"])
+        assert all(item["attempts_observed"] >= 1 for item in bundle["telemetry"]["stages"])
+    review = engine.fresh_eyes_status(stats.repository_id, config.semantic)
+    assert review["previous_review"]["generation"] == 2
+    assert review["previous_review"]["document_id"] == bundles[1]["review_document_id"]
+
+
+def test_generation_index_attributes_legacy_jobs_without_manifest_generation(repository, database):
+    _enable_agent_semantics(repository)
+    config = load_config(repository)
+    stats = RepositoryScanner(database).scan(repository)
+    engine = SemanticEngine(database)
+    _finish_work(engine, stats.repository_id, repository, config)
+    engine.start_fresh_eyes_review(stats.repository_id, repository, config)
+    _finish_work(engine, stats.repository_id, repository, config, prefix="legacy")
+    with database.transaction() as connection:
+        connection.execute(
+            "UPDATE semantic_jobs SET metadata_json = '{}' WHERE scope_type = 'fresh_eyes'"
+        )
+
+    bundles = _generations(engine, stats.repository_id, config)
+
+    assert [item["generation"] for item in bundles] == [1]
+    assert bundles[0]["state"] == "current"
+    assert len(bundles[0]["document_ids"]) == 5
+    assert engine.fresh_eyes_status(stats.repository_id, config.semantic)["input_manifests"] == []
+
+
+def test_generation_spanning_snapshots_groups_reused_proposals(repository, database):
+    _enable_agent_semantics(repository)
+    config = load_config(repository)
+    first = RepositoryScanner(database).scan(repository)
+    engine = SemanticEngine(database)
+    _finish_work(engine, first.repository_id, repository, config)
+    engine.start_fresh_eyes_review(first.repository_id, repository, config)
+    _finish_work(engine, first.repository_id, repository, config, prefix="first-review")
+    util = repository / "pkg" / "util.py"
+    util.write_text(
+        util.read_text(encoding="utf-8").replace("value * 2", "value * 3"), encoding="utf-8"
+    )
+    second = RepositoryScanner(database).scan(repository)
+    _finish_work(engine, second.repository_id, repository, config, prefix="implementation")
+    engine.start_fresh_eyes_review(second.repository_id, repository, config)
+    _finish_work(engine, second.repository_id, repository, config, prefix="second-review")
+
+    bundles = _generations(engine, second.repository_id, config)
+
+    assert [item["generation"] for item in bundles] == [1, 1]
+    assert bundles[0]["snapshot_id"] != bundles[1]["snapshot_id"]
+    assert [item["state"] for item in bundles] == ["superseded", "current"]
+    reused = [
+        item["document_id"] for item in bundles[1]["stages"] if item["key"].startswith("proposal:")
+    ]
+    assert reused == [
+        item["document_id"] for item in bundles[0]["stages"] if item["key"].startswith("proposal:")
+    ]
+    assert [item["job_status"] for item in bundles[1]["stages"][:2]] == ["reused", "reused"]
+    assert bundles[0]["review_document_id"] != bundles[1]["review_document_id"]
