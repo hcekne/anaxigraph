@@ -7,6 +7,12 @@ import {
   state,
   toast,
 } from "/assets/dashboard-core.js";
+import {
+  bytes,
+  duration,
+  renderComparison,
+  resetComparison,
+} from "/assets/fresh-eyes-compare.js";
 
 let current = null;
 let loadedRepositoryId = null;
@@ -64,13 +70,16 @@ function markup() {
       </div><div class="fresh-eyes-controls">
       <label id="fresh-eyes-generation-label" hidden>Generation
         <select id="fresh-eyes-generation"></select></label>
+      <label id="fresh-eyes-compare-label" hidden>Compare with
+        <select id="fresh-eyes-compare"></select></label>
       <button id="fresh-eyes-refresh" class="secondary-button" type="button">Refresh</button>
       </div></div><div id="fresh-eyes-snapshot"></div>
       <p id="fresh-eyes-summary" class="panel-copy"></p>
       <div id="fresh-eyes-stages" class="fresh-eyes-stages"></div>
       <div id="fresh-eyes-diversity" class="fresh-eyes-diversity"></div></article>
     <div id="fresh-eyes-recommendations" class="fresh-eyes-recommendations"></div>
-    <article id="fresh-eyes-details" class="panel fresh-eyes-details"></article>`;
+    <article id="fresh-eyes-details" class="panel fresh-eyes-details"></article>
+    <div id="fresh-eyes-compare-panel"></div>`;
 }
 
 function bindEvents() {
@@ -84,6 +93,9 @@ function bindEvents() {
   byId("fresh-eyes-generation").addEventListener("change", (event) => {
     selectedGeneration = event.target.value;
     loadFreshEyes();
+  });
+  byId("fresh-eyes-compare").addEventListener("change", () => {
+    if (current) renderComparison(current, selectedGeneration);
   });
 }
 
@@ -141,6 +153,7 @@ function render(value) {
   byId("fresh-eyes-diversity").innerHTML = diversityMarkup(value.diversity || {});
   byId("fresh-eyes-recommendations").innerHTML = recommendationMarkup(value);
   byId("fresh-eyes-details").innerHTML = detailMarkup(value);
+  renderComparison(value, selectedGeneration);
 }
 
 function renderGenerationControl(value) {
@@ -214,20 +227,6 @@ function tokenText(telemetry) {
   if (!telemetry.token_counts_reported) return "tokens not reported";
   const counts = `${telemetry.input_tokens} in / ${telemetry.output_tokens} out tokens`;
   return telemetry.input_tokens_plausible ? counts : `${counts} (input count implausible)`;
-}
-
-function duration(milliseconds) {
-  const seconds = Math.max(0, Number(milliseconds || 0)) / 1000;
-  if (seconds < 1) return `${Math.round(seconds * 1000)} ms`;
-  if (seconds < 60) return `${seconds.toFixed(1)} s`;
-  return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
-}
-
-function bytes(value) {
-  const size = Math.max(0, Number(value || 0));
-  if (size < 1024) return `${size} B`;
-  if (size < 1024 ** 2) return `${(size / 1024).toFixed(1)} KiB`;
-  return `${(size / 1024 ** 2).toFixed(1)} MiB`;
 }
 
 function diversityMarkup(diversity) {
@@ -310,6 +309,7 @@ function stateLabel(value) {
 function setBusy(busy) {
   byId("fresh-eyes-refresh").disabled = busy;
   byId("fresh-eyes-generation").disabled = busy;
+  byId("fresh-eyes-compare").disabled = busy;
   if (busy) {
     byId("fresh-eyes-start").disabled = true;
     byId("fresh-eyes-proposal-count").disabled = true;
@@ -328,4 +328,5 @@ function renderWaiting() {
   byId("fresh-eyes-diversity").innerHTML = "";
   byId("fresh-eyes-recommendations").innerHTML = "";
   byId("fresh-eyes-details").innerHTML = "";
+  resetComparison();
 }
