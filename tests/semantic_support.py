@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 import yaml
-from fresh_eyes_support import agent_fresh_eyes
+from fresh_eyes_fixtures import agent_fresh_eyes
 
 from anaxigraph.semantic import SemanticResult
 from anaxigraph.semantic_service import SemanticServiceTarget

@@ -16,6 +16,8 @@ FRESH_EYES_PROPOSAL_VERSION = "fresh-eyes-proposal-v1"
 FRESH_EYES_ADJUDICATION_VERSION = "fresh-eyes-adjudication-v1"
 FRESH_EYES_COMPARISON_VERSION = "fresh-eyes-comparison-v1"
 FRESH_EYES_PROTOCOL_VERSION = "fresh-eyes-recipe-v1"
+FRESH_EYES_SCOPE = "fresh_eyes"
+FRESH_EYES_PLAN_KEY = "plan"
 
 ANY_EXECUTOR = "any"
 FRESH_EYES_EXECUTORS = ("codex", "claude", ANY_EXECUTOR)

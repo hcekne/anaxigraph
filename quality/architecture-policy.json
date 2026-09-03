@@ -53,7 +53,9 @@
         "anaxigraph.semantic_parallel",
         "anaxigraph.semantic_job_state"
       ],
-      "may_import": ["foundation"]
+      "may_import": [
+        "foundation"
+      ]
     },
     "analysis": {
       "modules": [
@@ -82,24 +84,33 @@
         "anaxigraph.semantic_usage",
         "anaxigraph.snapshot_provenance"
       ],
-      "may_import": ["foundation", "analysis"]
+      "may_import": [
+        "foundation",
+        "analysis"
+      ]
     },
     "persistence": {
-      "modules": ["anaxigraph.persistence*", "anaxigraph.storage"],
-      "may_import": ["foundation", "persistence"]
+      "modules": [
+        "anaxigraph.persistence*",
+        "anaxigraph.storage"
+      ],
+      "may_import": [
+        "foundation",
+        "persistence"
+      ]
     },
     "application": {
       "modules": [
         "anaxigraph.agent",
         "anaxigraph.agent_change_effects",
-        "anaxigraph.agent_decomposition",
-        "anaxigraph.agent_decomposition_mapping",
         "anaxigraph.agent_decision",
         "anaxigraph.agent_decision_handoff_language",
         "anaxigraph.agent_decision_language",
         "anaxigraph.agent_decision_payload",
         "anaxigraph.agent_decision_safety",
         "anaxigraph.agent_decision_verification",
+        "anaxigraph.agent_decomposition",
+        "anaxigraph.agent_decomposition_mapping",
         "anaxigraph.agent_finding",
         "anaxigraph.agent_graph",
         "anaxigraph.agent_graph_read",
@@ -113,14 +124,14 @@
         "anaxigraph.architecture_guidance",
         "anaxigraph.architecture_reassessment",
         "anaxigraph.bounded_export",
+        "anaxigraph.environment_doctor",
+        "anaxigraph.finding_history",
         "anaxigraph.finding_transport",
         "anaxigraph.history",
         "anaxigraph.history_discovery",
         "anaxigraph.history_frames",
         "anaxigraph.history_jobs",
         "anaxigraph.index_authority",
-        "anaxigraph.environment_doctor",
-        "anaxigraph.finding_history",
         "anaxigraph.onboarding",
         "anaxigraph.onboarding_clients",
         "anaxigraph.onboarding_detection",
@@ -128,15 +139,15 @@
         "anaxigraph.onboarding_templates",
         "anaxigraph.operational_health",
         "anaxigraph.pattern_intelligence",
-        "anaxigraph.relationship_builder",
         "anaxigraph.reassessment_advice",
         "anaxigraph.reassessment_evidence",
         "anaxigraph.reassessment_lineage",
         "anaxigraph.reassessment_semantic_advice",
+        "anaxigraph.relationship_builder",
         "anaxigraph.repository_watch",
+        "anaxigraph.scan_commit",
         "anaxigraph.scan_persistence",
         "anaxigraph.scan_preparation",
-        "anaxigraph.scan_commit",
         "anaxigraph.scan_snapshot",
         "anaxigraph.scanner",
         "anaxigraph.semantic_agent",
@@ -144,9 +155,11 @@
         "anaxigraph.semantic_agent_paging",
         "anaxigraph.semantic_agent_protocol",
         "anaxigraph.semantic_fresh_eyes_evidence",
-      "anaxigraph.semantic_fresh_eyes_executors",
+        "anaxigraph.semantic_fresh_eyes_executors",
         "anaxigraph.semantic_fresh_eyes_generations",
         "anaxigraph.semantic_fresh_eyes_grounding",
+        "anaxigraph.semantic_fresh_eyes_jobs",
+        "anaxigraph.semantic_fresh_eyes_payload",
         "anaxigraph.semantic_fresh_eyes_plan",
         "anaxigraph.semantic_fresh_eyes_requests",
         "anaxigraph.semantic_fresh_eyes_review",
@@ -182,7 +195,12 @@
         "anaxigraph.trend_service",
         "anaxigraph.understanding"
       ],
-      "may_import": ["foundation", "analysis", "persistence", "application"]
+      "may_import": [
+        "foundation",
+        "analysis",
+        "persistence",
+        "application"
+      ]
     },
     "transport": {
       "modules": [
@@ -227,7 +245,7 @@
         "anaxigraph.semantic_background",
         "anaxigraph.semantic_background_progress",
         "anaxigraph.semantic_background_refusal",
-      "anaxigraph.semantic_background_slots",
+        "anaxigraph.semantic_background_slots",
         "anaxigraph.semantic_execution",
         "anaxigraph.semantic_mcp",
         "anaxigraph.semantic_remote_calls",
@@ -238,11 +256,22 @@
         "anaxigraph.semantic_service",
         "anaxigraph.up_cli"
       ],
-      "may_import": ["foundation", "analysis", "persistence", "application", "transport"]
+      "may_import": [
+        "foundation",
+        "analysis",
+        "persistence",
+        "application",
+        "transport"
+      ]
     },
     "dashboard": {
-      "modules": ["anaxigraph.dashboard"],
-      "may_import": ["foundation", "dashboard"]
+      "modules": [
+        "anaxigraph.dashboard"
+      ],
+      "may_import": [
+        "foundation",
+        "dashboard"
+      ]
     }
   },
   "legacy_layer_violations": []
