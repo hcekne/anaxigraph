@@ -10,7 +10,7 @@ from anaxigraph.semantic import (
     ClaudeSemanticProvider,
     CodexSemanticProvider,
 )
-from anaxigraph.semantic_usage import ProviderUsage, codex_usage
+from anaxigraph.semantic_usage import ProviderUsage, claude_usage, codex_usage
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -242,7 +242,8 @@ def test_codex_usage_exposes_cached_input_without_double_counting():
     assert codex_usage(captured) == ProviderUsage(input_tokens=14233, output_tokens=15)
 
     usage = codex_usage(
-        json.dumps(
+        "not an event\n"
+        + json.dumps(
             {
                 "type": "turn.completed",
                 "usage": {
@@ -258,3 +259,10 @@ def test_codex_usage_exposes_cached_input_without_double_counting():
     assert usage.input_tokens == 120
     assert usage.cache_read_input_tokens == 100
     assert usage.cache_creation_input_tokens == 5
+
+
+def test_usage_parsers_ignore_malformed_counts_and_envelopes():
+    malformed = claude_usage({"usage": {"input_tokens": "many", "output_tokens": 3}})
+
+    assert malformed == ProviderUsage(output_tokens=3)
+    assert claude_usage("not an envelope") == ProviderUsage()
