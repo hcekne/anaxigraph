@@ -224,6 +224,24 @@ actually built. A final mission filter keeps only small, justified recommendatio
 reasons not to proceed. One proposal is the lower-cost mode, two is the recommended default, and
 three is optional.
 
+Two providers can answer one review. Pin an executor family to each proposal slot, then start one
+host worker per executor; each executor owns its own background run slot for the repository:
+
+```bash
+anaxigraph fresh-eyes . --start --proposals 2 --proposal-executors codex,claude
+anaxigraph understand . --executor codex --background
+anaxigraph understand . --executor claude --background
+```
+
+A pinned slot is only handed to the executor family it names, so a worker that finds only the other
+executor's slot reports `waiting_for_executor` with the exact command that starts it and keeps
+polling instead of calling the queue complete. Both workers claim at the same time only when
+`semantic.max_parallel_jobs` is 2 or more. The review reports `cross_provider: true` only when two
+different executor families actually produced the proposals; two sessions of one provider stay
+false with the recorded caveat. A pin applies to a new review or a `--restart` generation, and
+`anaxigraph fresh-eyes . --unpin` releases every assignment when the second executor is never
+started.
+
 The connected Codex or Claude executor supplies the model context and tokens; AnaxiGraph supplies
 bounded evidence, validates each result, and resumes the saved stages after interruption. The
 dashboard exposes the same review under **Improve → Fresh eyes**. A connected agent can read or

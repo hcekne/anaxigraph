@@ -125,6 +125,35 @@ closed because the sidecar may merely be busy; it never silently selects a secon
 expose `index.authority`, database/service location, and repository selector so another agent can
 resume the exact same ledger.
 
+### One background run slot per executor
+
+Background runs are keyed by repository and executor, so a Codex worker and a Claude worker own
+separate run records, locks, and logs for the same repository and neither can corrupt the other:
+
+```bash
+anaxigraph understand . --executor codex --background
+anaxigraph understand . --executor claude --background
+anaxigraph semantic-status .
+```
+
+`semantic-status` reports every slot under `execution_runs`, running workers first, and keeps
+`execution_run` as the most relevant single record for existing handoffs. A second launch of an
+executor that already owns an active slot is still refused, and the refusal names the other
+executor's slot. Run records written before per-executor slots existed stay readable for the
+executor they name. Two workers only claim work at the same time when `semantic.max_parallel_jobs`
+is 2 or more; the claim admission gate counts running leases for the whole repository, not per
+executor.
+
+A fresh-eyes review can reserve one proposal slot per executor family
+(`anaxigraph fresh-eyes . --start --proposals 2 --proposal-executors codex,claude`). The family of
+a claimant comes from its `cli:<family>:<pid>` worker identity, or from an explicit
+`executor_family` argument on `ANAXIGRAPH_SEMANTIC_WORK`; a claimant with neither takes only
+unpinned work. A worker offered nothing but another family's reserved slot receives the
+non-terminal `waiting_for_executor` status naming that slot and the command that starts it, prints
+that line once, and keeps polling, so `--until-complete` does not exit early. `--limit` still ends
+the run as before. Release the reservation with `anaxigraph fresh-eyes . --unpin` when the second
+executor will not be started; `--restart` remains refused while a review is unfinished.
+
 The local index still scans by default before it plans. Pass `--no-scan` to plan against the saved
 local map instead: a missing or stale map returns `status=scan_required` with the same guidance and
 `map_status` the service path returns, and a current map plans without rereading source. Flipping

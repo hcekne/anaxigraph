@@ -258,10 +258,45 @@ the request, longer than the index's busy window; pass `--timeout-seconds` to wa
 that times out reports that the service may still be planning; read `anaxigraph fresh-eyes .`
 before requesting it again instead of repeating `--restart`.
 
-One repository owns one background run, so a second `--background` launch with a different executor
-is refused and names the foreground alternative,
-`anaxigraph understand . --executor claude --until-complete`. Cross-provider review therefore means
-two host worker processes, and both only claim work when `semantic.max_parallel_jobs` is 2 or more.
+### Two providers in one review
+
+Cross-provider review means two host worker processes on the same durable review. Name the executor
+family for each proposal slot when you start the review, then start one background worker per
+executor; a repository owns one background run slot per executor, so both survive the session:
+
+```bash
+anaxigraph fresh-eyes . --start --proposals 2 --proposal-executors codex,claude
+anaxigraph understand . --executor codex --background
+anaxigraph understand . --executor claude --background
+anaxigraph semantic-status .
+```
+
+`semantic-status` lists one `execution_runs` entry per executor and keeps `execution_run` as the
+most relevant single record. Both workers only claim at the same time when
+`semantic.max_parallel_jobs` is 2 or more; with a limit of 1 they take the pinned slots one after
+the other. Use `any` for a slot any executor may take, for example
+`--proposal-executors codex,any`.
+
+The dashboard's start form has no executor field, so a review started from **Improve → Fresh eyes**
+is unpinned; name the executors from the CLI, the REST body, or `ANAXIGRAPH_GUIDE`.
+
+A pinned slot is handed only to the executor family that the plan names, derived from the worker's
+`cli:<family>:<pid>` identity; a connected agent that is not a host worker can name its family with
+`executor_family` on `ANAXIGRAPH_SEMANTIC_WORK`. A worker that finds only the other executor's slot
+is told `waiting_for_executor`, with the reserved scope keys and the exact command that starts the
+missing executor, and keeps polling instead of reporting the queue complete. Assignments are
+recorded when the review is planned, so they apply to a new review or to a `--restart` generation
+and never rewrite a review already under way.
+
+If the second executor is never started, release the assignments rather than leaving the review
+half-pinned: `anaxigraph fresh-eyes . --unpin`, `POST /api/fresh-eyes {"unpin": true}`, or
+`ANAXIGRAPH_GUIDE(intent="redesign", unpin=true)` drops every pin from the plan and from the queued
+proposal jobs, so any executor can finish the review. `--restart` stays refused while a review is
+unfinished.
+
+The review reports `diversity.cross_provider: true` only when two different executor families
+actually produced the proposals. Two sessions of one provider report `false` and keep the caveat
+that different recorded executors support diversity but cannot prove external model context.
 
 The fixed sequence is:
 
