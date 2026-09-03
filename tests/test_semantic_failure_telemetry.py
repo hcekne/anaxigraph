@@ -10,7 +10,11 @@ import yaml
 
 from anaxigraph.config import SemanticConfig, load_config
 from anaxigraph.scanner import RepositoryScanner
-from anaxigraph.semantic import CodexSemanticProvider, _result_from_json
+from anaxigraph.semantic import (
+    ClaudeSemanticProvider,
+    CodexSemanticProvider,
+    _result_from_json,
+)
 from anaxigraph.semantic_contract import SemanticAnalysisError
 from anaxigraph.understanding import SemanticEngine
 
@@ -88,3 +92,48 @@ def test_invalid_provider_result_keeps_known_usage():
 
     assert raised.value.input_tokens == 44
     assert raised.value.output_tokens == 9
+
+
+_CLAUDE_USAGE = {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 9000,
+    "cache_read_input_tokens": 30000,
+    "output_tokens": 800,
+}
+
+
+def _claude_failure(monkeypatch, run) -> SemanticAnalysisError:
+    monkeypatch.setattr("anaxigraph.semantic.subprocess.run", run)
+
+    with pytest.raises(SemanticAnalysisError) as raised:
+        ClaudeSemanticProvider(SemanticConfig(provider="claude")).analyze(
+            {"analysis_kind": "intrinsic"}
+        )
+    return raised.value
+
+
+def test_claude_invalid_structured_output_keeps_summed_usage(monkeypatch):
+    envelope = json.dumps({"structured_output": ["not a dossier"], "usage": _CLAUDE_USAGE})
+
+    error = _claude_failure(
+        monkeypatch,
+        lambda *_args, **_kwargs: SimpleNamespace(returncode=0, stdout=envelope, stderr=""),
+    )
+
+    assert error.input_tokens == 39002
+    assert error.output_tokens == 800
+
+
+@pytest.mark.parametrize("failure", ["exit", "timeout"])
+def test_claude_failures_keep_any_reported_usage(monkeypatch, failure):
+    envelope = json.dumps({"type": "result", "is_error": True, "usage": _CLAUDE_USAGE})
+
+    def run(*_args, **_kwargs):
+        if failure == "timeout":
+            raise subprocess.TimeoutExpired("claude", 30, output=envelope)
+        return SimpleNamespace(returncode=1, stdout=envelope, stderr="model failed")
+
+    error = _claude_failure(monkeypatch, run)
+
+    assert error.input_tokens == 39002
+    assert error.output_tokens == 800

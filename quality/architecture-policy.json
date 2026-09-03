@@ -76,7 +76,8 @@
         "anaxigraph.semantic_taxonomy_identity",
         "anaxigraph.semantic_taxonomy_partition",
         "anaxigraph.semantic_taxonomy_runner",
-        "anaxigraph.semantic_taxonomy_validation"
+        "anaxigraph.semantic_taxonomy_validation",
+        "anaxigraph.semantic_usage"
       ],
       "may_import": ["foundation", "analysis"]
     },

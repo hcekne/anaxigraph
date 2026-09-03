@@ -10,6 +10,9 @@ from anaxigraph.semantic import (
     ClaudeSemanticProvider,
     CodexSemanticProvider,
 )
+from anaxigraph.semantic_usage import ProviderUsage, codex_usage
+
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def _dossier() -> dict[str, Any]:
@@ -76,7 +79,11 @@ def test_codex_provider_is_ephemeral_read_only_and_schema_constrained(monkeypatc
                     json.dumps(
                         {
                             "type": "turn.completed",
-                            "usage": {"input_tokens": 120, "output_tokens": 30},
+                            "usage": {
+                                "input_tokens": 120,
+                                "cached_input_tokens": 100,
+                                "output_tokens": 30,
+                            },
                         }
                     ),
                 )
@@ -139,3 +146,95 @@ def test_claude_provider_is_non_persistent_tool_free_and_schema_constrained(monk
     assert captured["kwargs"]["check"] is False
     assert result.input_tokens == 70
     assert result.output_tokens == 50
+
+
+def _claude_result(monkeypatch, envelope: dict[str, Any]) -> Any:
+    def run(_command, **_kwargs):
+        return SimpleNamespace(returncode=0, stdout=json.dumps(envelope), stderr="")
+
+    monkeypatch.setattr("anaxigraph.semantic.subprocess.run", run)
+    return ClaudeSemanticProvider(SemanticConfig(enabled=True, provider="claude")).analyze(
+        {"analysis_kind": "context", "source": "untrusted"}
+    )
+
+
+def _captured_claude_envelope() -> dict[str, Any]:
+    return json.loads((FIXTURES / "claude-print-envelope.json").read_text(encoding="utf-8"))
+
+
+def test_claude_provider_counts_cached_prompt_tokens(monkeypatch):
+    result = _claude_result(
+        monkeypatch,
+        {
+            "structured_output": _dossier(),
+            "usage": {
+                "input_tokens": 2,
+                "cache_creation_input_tokens": 9000,
+                "cache_read_input_tokens": 30000,
+                "output_tokens": 800,
+            },
+        },
+    )
+
+    assert result.input_tokens == 39002
+    assert result.output_tokens == 800
+
+
+def test_claude_provider_reads_the_captured_envelope_shape(monkeypatch):
+    envelope = _captured_claude_envelope()
+    usage = envelope["usage"]
+    envelope["structured_output"] = _dossier()
+
+    result = _claude_result(monkeypatch, envelope)
+
+    assert usage["input_tokens"] < usage["cache_read_input_tokens"]
+    assert result.input_tokens == (
+        usage["input_tokens"]
+        + usage["cache_creation_input_tokens"]
+        + usage["cache_read_input_tokens"]
+    )
+    assert result.output_tokens == usage["output_tokens"]
+
+
+def test_claude_provider_reads_model_usage_when_usage_missing(monkeypatch):
+    envelope = _captured_claude_envelope()
+    del envelope["usage"]
+    envelope["structured_output"] = _dossier()
+    per_model = list(envelope["modelUsage"].values())
+
+    result = _claude_result(monkeypatch, envelope)
+
+    assert result.input_tokens > 0
+    assert result.input_tokens == sum(
+        entry["inputTokens"] + entry["cacheCreationInputTokens"] + entry["cacheReadInputTokens"]
+        for entry in per_model
+    )
+    assert result.output_tokens == sum(entry["outputTokens"] for entry in per_model)
+
+    bare = _claude_result(monkeypatch, {"structured_output": _dossier()})
+
+    assert (bare.input_tokens, bare.output_tokens) == (0, 0)
+
+
+def test_codex_usage_exposes_cached_input_without_double_counting():
+    captured = (FIXTURES / "codex-exec-events.jsonl").read_text(encoding="utf-8")
+
+    assert codex_usage(captured) == ProviderUsage(input_tokens=14233, output_tokens=15)
+
+    usage = codex_usage(
+        json.dumps(
+            {
+                "type": "turn.completed",
+                "usage": {
+                    "input_tokens": 120,
+                    "cached_input_tokens": 100,
+                    "cache_write_input_tokens": 5,
+                    "output_tokens": 30,
+                },
+            }
+        )
+    )
+
+    assert usage.input_tokens == 120
+    assert usage.cache_read_input_tokens == 100
+    assert usage.cache_creation_input_tokens == 5
