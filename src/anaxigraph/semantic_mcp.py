@@ -169,6 +169,7 @@ class SemanticMcpTools:
         self,
         agent_id: str,
         agent_model: str = "",
+        agent_effort: str = "",
         retry_failed: bool = False,
         repository: str = "",
     ) -> dict[str, Any]:
@@ -186,6 +187,7 @@ class SemanticMcpTools:
             self.config_for(row, root),
             agent_id=agent_id,
             agent_model=agent_model,
+            agent_effort=agent_effort,
             retry_failed=retry_failed,
         )
 
@@ -211,8 +213,10 @@ class SemanticMcpTools:
         job_id: int,
         lease_token: str,
         dossier: dict[str, Any],
-        input_tokens: int = 0,
-        output_tokens: int = 0,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
+        cache_read_input_tokens: int = 0,
+        cache_creation_input_tokens: int = 0,
         repository: str = "",
     ) -> dict[str, Any]:
         row, root = self.context(repository)
@@ -225,6 +229,8 @@ class SemanticMcpTools:
             dossier=dossier,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
+            cache_read_input_tokens=cache_read_input_tokens,
+            cache_creation_input_tokens=cache_creation_input_tokens,
         )
 
     def release(
@@ -248,8 +254,10 @@ class SemanticMcpTools:
         job_id: int,
         lease_token: str,
         reason: str,
-        input_tokens: int = 0,
-        output_tokens: int = 0,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
+        cache_read_input_tokens: int = 0,
+        cache_creation_input_tokens: int = 0,
         repository: str = "",
     ) -> dict[str, Any]:
         row, root = self.context(repository)
@@ -261,6 +269,8 @@ class SemanticMcpTools:
             reason=reason,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
+            cache_read_input_tokens=cache_read_input_tokens,
+            cache_creation_input_tokens=cache_creation_input_tokens,
         )
 
     def _map_status(self, row: dict[str, Any], root: Any) -> dict[str, Any]:

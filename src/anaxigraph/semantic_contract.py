@@ -146,19 +146,35 @@ class SemanticAnalysisError(RuntimeError):
         *,
         input_tokens: int = 0,
         output_tokens: int = 0,
+        cache_read_input_tokens: int = 0,
+        cache_creation_input_tokens: int = 0,
+        usage_reported: bool = False,
     ) -> None:
         super().__init__(message)
         self.input_tokens = max(0, int(input_tokens))
         self.output_tokens = max(0, int(output_tokens))
+        self.cache_read_input_tokens = max(0, int(cache_read_input_tokens))
+        self.cache_creation_input_tokens = max(0, int(cache_creation_input_tokens))
+        self.usage_reported = bool(usage_reported)
 
 
 @dataclass(frozen=True, slots=True)
 class SemanticResult:
+    """One validated dossier and the usage its executor reported for producing it.
+
+    ``input_tokens`` is the whole prompt; the two cache counts are portions of it.
+    ``usage_reported`` is set only when the executor returned a usage object, so a reported zero
+    and an executor that said nothing are different facts rather than the same zero.
+    """
+
     value: dict[str, Any]
     confidence: float
     evidence: tuple[str, ...]
     input_tokens: int = 0
     output_tokens: int = 0
+    cache_read_input_tokens: int = 0
+    cache_creation_input_tokens: int = 0
+    usage_reported: bool = False
 
 
 class SemanticProvider(Protocol):

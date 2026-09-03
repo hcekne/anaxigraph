@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 import tempfile
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +23,8 @@ from anaxigraph.semantic_taxonomy_contract import (
     validated_semantic_response,
 )
 from anaxigraph.semantic_usage import ProviderUsage, claude_usage, codex_usage
+
+_NO_USAGE = ProviderUsage()
 
 
 def create_semantic_provider(config: SemanticConfig) -> SemanticProvider:
@@ -106,13 +109,7 @@ class CodexSemanticProvider:
                 f"Codex exited with {completed.returncode}: {completed.stderr.strip()[:1_000]}",
                 completed.stdout,
             )
-        usage = codex_usage(completed.stdout)
-        return _result_from_json(
-            message,
-            request=request,
-            input_tokens=usage.input_tokens,
-            output_tokens=usage.output_tokens,
-        )
+        return _result_from_json(message, request=request, usage=codex_usage(completed.stdout))
 
 
 def _codex_command(config: SemanticConfig, schema_path: Path, message_path: Path) -> list[str]:
@@ -143,10 +140,7 @@ def _codex_command(config: SemanticConfig, schema_path: Path, message_path: Path
 
 def _codex_failure(message: str, events: str) -> SemanticAnalysisError:
     """Keep any usage Codex streamed before the run failed."""
-    usage = codex_usage(events)
-    return SemanticAnalysisError(
-        message, input_tokens=usage.input_tokens, output_tokens=usage.output_tokens
-    )
+    return _usage_error(message, codex_usage(events))
 
 
 def _text_output(value: str | bytes | None) -> str:
@@ -186,9 +180,7 @@ class ClaudeSemanticProvider:
             )
         envelope = _claude_envelope(completed.stdout)
         usage = claude_usage(envelope)
-        return _validated_with_usage(
-            _claude_value(envelope, usage), request, usage.input_tokens, usage.output_tokens
-        )
+        return _validated_with_usage(_claude_value(envelope, usage), request, usage)
 
 
 def _claude_command(config: SemanticConfig, request: dict[str, Any]) -> list[str]:
@@ -229,11 +221,7 @@ def _claude_value(envelope: dict[str, Any], usage: ProviderUsage) -> Any:
         try:
             value = json.loads(value)
         except json.JSONDecodeError as exc:
-            raise SemanticAnalysisError(
-                "Claude result did not contain valid JSON",
-                input_tokens=usage.input_tokens,
-                output_tokens=usage.output_tokens,
-            ) from exc
+            raise _usage_error("Claude result did not contain valid JSON", usage) from exc
     return value
 
 
@@ -243,10 +231,7 @@ def _claude_failure(message: str, stdout: str) -> SemanticAnalysisError:
         envelope = json.loads(stdout)
     except json.JSONDecodeError:
         envelope = None
-    usage = claude_usage(envelope)
-    return SemanticAnalysisError(
-        message, input_tokens=usage.input_tokens, output_tokens=usage.output_tokens
-    )
+    return _usage_error(message, claude_usage(envelope))
 
 
 def _system_instruction() -> str:
@@ -272,54 +257,73 @@ def _result_from_json(
     text: str,
     *,
     request: dict[str, Any] | None = None,
-    input_tokens: int = 0,
-    output_tokens: int = 0,
+    usage: ProviderUsage = _NO_USAGE,
 ) -> SemanticResult:
     try:
         value = json.loads(text.strip())
     except json.JSONDecodeError as exc:
-        raise SemanticAnalysisError(
-            "Semantic provider did not return valid JSON",
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-        ) from exc
-    value, input_tokens, output_tokens = _result_envelope(value, input_tokens, output_tokens)
-    return _validated_with_usage(value, request or {}, input_tokens, output_tokens)
+        raise _usage_error("Semantic provider did not return valid JSON", usage) from exc
+    value, usage = _result_envelope(value, usage)
+    return _validated_with_usage(value, request or {}, usage)
 
 
-def _result_envelope(value: Any, input_tokens: int, output_tokens: int) -> tuple[Any, int, int]:
+def _result_envelope(value: Any, usage: ProviderUsage) -> tuple[Any, ProviderUsage]:
+    """Unwrap a ``dossier``/``result`` envelope and read the usage the adapter reported in it."""
+
     if not isinstance(value, dict):
-        return value, input_tokens, output_tokens
+        return value, usage
     key = next(
         (name for name in ("dossier", "result") if isinstance(value.get(name), dict)),
         None,
     )
     if key is None:
-        return value, input_tokens, output_tokens
-    usage = value.get("usage") or {}
-    return (
-        value[key],
-        int(usage.get("input_tokens") or input_tokens),
-        int(usage.get("output_tokens") or output_tokens),
+        return value, usage
+    reported = value.get("usage")
+    if not isinstance(reported, dict) or not reported:
+        return value[key], usage
+    return value[key], ProviderUsage(
+        input_tokens=int(reported.get("input_tokens") or usage.input_tokens),
+        output_tokens=int(reported.get("output_tokens") or usage.output_tokens),
+        cache_read_input_tokens=int(
+            reported.get("cache_read_input_tokens") or usage.cache_read_input_tokens
+        ),
+        cache_creation_input_tokens=int(
+            reported.get("cache_creation_input_tokens") or usage.cache_creation_input_tokens
+        ),
+        reported=True,
     )
 
 
 def _validated_with_usage(
     value: Any,
     request: dict[str, Any],
-    input_tokens: int,
-    output_tokens: int,
+    usage: ProviderUsage,
 ) -> SemanticResult:
     try:
-        return validated_semantic_response(
+        result = validated_semantic_response(
             value,
             request,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
+            input_tokens=usage.input_tokens,
+            output_tokens=usage.output_tokens,
         )
     except SemanticAnalysisError as exc:
-        if exc.input_tokens or exc.output_tokens:
-            raise
-        raise SemanticAnalysisError(
-            str(exc), input_tokens=input_tokens, output_tokens=output_tokens
-        ) from exc
+        raise _usage_error(str(exc), usage) from exc
+    return replace(
+        result,
+        cache_read_input_tokens=usage.cache_read_input_tokens,
+        cache_creation_input_tokens=usage.cache_creation_input_tokens,
+        usage_reported=usage.reported,
+    )
+
+
+def _usage_error(message: str, usage: ProviderUsage) -> SemanticAnalysisError:
+    """Carry every usage fact an executor managed to report into its failure."""
+
+    return SemanticAnalysisError(
+        message,
+        input_tokens=usage.input_tokens,
+        output_tokens=usage.output_tokens,
+        cache_read_input_tokens=usage.cache_read_input_tokens,
+        cache_creation_input_tokens=usage.cache_creation_input_tokens,
+        usage_reported=usage.reported,
+    )

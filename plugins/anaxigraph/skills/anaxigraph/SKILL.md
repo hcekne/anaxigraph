@@ -64,9 +64,11 @@ semantic baseline only when no current baseline exists. For each coherent task:
    next decision requires a fully current semantic map.
 
 Read `telemetry` from guidance, impact, and semantic status. Compare server duration and reply size for
-deterministic reads; compare time, tokens, model, failures, and cost by semantic action. Remember
-that summed AI job time can exceed wall time when jobs run in parallel, and that a missing token
-report means unknown usage rather than a free call.
+deterministic reads; compare time, tokens, model, effort, failures, and cost by semantic action.
+Remember that summed AI job time can exceed wall time when jobs run in parallel, and that each
+action separates token counts reported by the executor, estimated by AnaxiGraph, and never
+reported at all; unknown usage is never a free call. Cached prompt tokens are part of the reported
+input total rather than an addition to it.
 
 ## Build or resume semantic understanding
 
@@ -82,7 +84,8 @@ lifetime of this chat session:
    the user selected explicit runtime values, pass those exact values; otherwise omit both.
 2. Run `anaxigraph understand <repository> --executor <executor> --background --json`, adding
    `--model <model>` and `--reasoning-effort <effort>` when selected; both Codex and Claude accept
-   the effort value as given. Background mode implies the complete queue and survives this
+   the effort value as given, and the chosen effort is recorded on every job and document the run
+   completes. Background mode implies the complete queue and survives this
    coding-agent session.
 3. Verify the returned `index` is the intended local index or sidecar service. Preserve
    `execution_run.run_id`, PID, log path, model, effort, and authority in any handoff.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import secrets
+from dataclasses import replace
 from typing import Any
 
 from anaxigraph.semantic_agent_protocol import (
@@ -26,18 +27,45 @@ from anaxigraph.semantic_taxonomy_contract import (
     response_schema,
     validated_agent_semantic_response,
 )
+from anaxigraph.semantic_usage import ProviderUsage
 
 MAX_SUBMISSION_BYTES = 1_000_000
+
+
+def agent_reported_usage(
+    input_tokens: int | None,
+    output_tokens: int | None,
+    cache_read_input_tokens: int = 0,
+    cache_creation_input_tokens: int = 0,
+) -> ProviderUsage:
+    """Read the optional token arguments of one agent call as executor-neutral usage."""
+
+    prompt = int(input_tokens or 0)
+    completion = int(output_tokens or 0)
+    cache_read = int(cache_read_input_tokens or 0)
+    cache_creation = int(cache_creation_input_tokens or 0)
+    if min(prompt, completion, cache_read, cache_creation) < 0:
+        raise ValueError("Reported token counts cannot be negative")
+    return ProviderUsage(
+        input_tokens=prompt,
+        output_tokens=completion,
+        cache_read_input_tokens=cache_read,
+        cache_creation_input_tokens=cache_creation,
+        reported=input_tokens is not None or output_tokens is not None,
+    )
 
 
 class SemanticAgentContractService:
     def semantic(self, config: AnaxiGraphConfig) -> SemanticConfig:
         return agent_semantic(config)
 
-    def identity(self, agent_id: str, agent_model: str) -> tuple[str, str]:
+    def identity(
+        self, agent_id: str, agent_model: str, agent_effort: str = ""
+    ) -> tuple[str, str, str]:
         return (
             clean_agent_identity(agent_id, "agent_id"),
             clean_agent_identity(agent_model, "agent_model", required=False),
+            clean_agent_identity(agent_effort, "agent_effort", required=False),
         )
 
     def lease_identity(self, executor_id: str) -> tuple[str, str, str]:
@@ -68,25 +96,43 @@ class SemanticAgentContractService:
         dossier: dict[str, Any],
         request: dict[str, Any],
         *,
-        input_tokens: int,
-        output_tokens: int,
+        input_tokens: int | None,
+        output_tokens: int | None,
+        cache_read_input_tokens: int = 0,
+        cache_creation_input_tokens: int = 0,
     ) -> SemanticResult:
-        if input_tokens < 0 or output_tokens < 0:
-            raise ValueError("Reported token counts cannot be negative")
+        """Validate one agent submission and keep whether the agent reported usage at all.
+
+        An omitted count is silence, not zero: a submission that names neither token count is
+        recorded as unknown usage, while an explicit zero is a reported zero.
+        """
+
+        usage = agent_reported_usage(
+            input_tokens,
+            output_tokens,
+            cache_read_input_tokens,
+            cache_creation_input_tokens,
+        )
         encoded = json.dumps(dossier, ensure_ascii=False).encode("utf-8")
         if len(encoded) > MAX_SUBMISSION_BYTES:
             raise ValueError(
                 f"Semantic dossier exceeds the {MAX_SUBMISSION_BYTES}-byte submission limit"
             )
         try:
-            return validated_agent_semantic_response(
+            result = validated_agent_semantic_response(
                 dossier,
                 request,
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
+                input_tokens=usage.input_tokens,
+                output_tokens=usage.output_tokens,
             )
         except SemanticAnalysisError as exc:
             raise ValueError(str(exc)) from exc
+        return replace(
+            result,
+            cache_read_input_tokens=usage.cache_read_input_tokens,
+            cache_creation_input_tokens=usage.cache_creation_input_tokens,
+            usage_reported=usage.reported,
+        )
 
     def no_work(self, status: dict[str, Any]) -> tuple[str, str]:
         return agent_no_work_status(status), agent_no_work_message(status)

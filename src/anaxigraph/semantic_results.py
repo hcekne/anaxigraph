@@ -29,9 +29,10 @@ INSERT INTO semantic_documents(
     repository_id, snapshot_id, scope_type, scope_key, artifact_id,
     artifact_version_id, file_fact_id, previous_document_id, document_kind, input_hash,
     intent_fingerprint, value_json, source, provider, model, executor_id, executor_model,
-    prompt_version, schema_version, confidence, supporting_evidence_json, input_tokens,
-    output_tokens, estimated_cost_usd, actual_cost_usd, created_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    executor_effort, prompt_version, schema_version, confidence, supporting_evidence_json,
+    input_tokens, output_tokens, cache_read_input_tokens, cache_creation_input_tokens,
+    usage_source, estimated_cost_usd, actual_cost_usd, created_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
 
 
@@ -39,6 +40,9 @@ INSERT INTO semantic_documents(
 class _Completion:
     input_tokens: int
     output_tokens: int
+    cache_read_input_tokens: int
+    cache_creation_input_tokens: int
+    usage_source: str
     estimated_cost: float
     actual_cost: float | None
     intent: str
@@ -188,29 +192,30 @@ class SemanticPersistenceService:
         *,
         input_tokens: int = 0,
         output_tokens: int = 0,
+        cache_read_input_tokens: int = 0,
+        cache_creation_input_tokens: int = 0,
+        usage_reported: bool = False,
     ) -> bool:
         error = f"{type(exc).__name__}: {exc}"[:4_000]
         retry = int(job["attempts"]) < int(job["max_attempts"])
         status = semantic_job_transition(str(job["status"]), "retry" if retry else "fail")
         available = datetime.now(UTC) + timedelta(seconds=min(300, 2 ** int(job["attempts"])))
+        usage = _FailureUsage(
+            input_tokens=max(0, int(input_tokens)),
+            output_tokens=max(0, int(output_tokens)),
+            cache_read_input_tokens=max(0, int(cache_read_input_tokens)),
+            cache_creation_input_tokens=max(0, int(cache_creation_input_tokens)),
+            usage_source="reported" if usage_reported else "unknown",
+        )
         with self._database.transaction() as connection:
-            cursor = connection.execute(
-                """
-                UPDATE semantic_jobs SET status = ?, available_at = ?, completed_at = ?, error = ?,
-                    input_tokens = input_tokens + ?, output_tokens = output_tokens + ?,
-                    worker_id = NULL, lease_expires_at = NULL, lease_token_hash = NULL
-                WHERE id = ? AND status = 'running' AND worker_id = ?
-                """,
-                (
-                    status,
-                    available.isoformat(),
-                    None if retry else utc_now(),
-                    error,
-                    max(0, int(input_tokens)),
-                    max(0, int(output_tokens)),
-                    job["id"],
-                    job["worker_id"],
-                ),
+            cursor = _record_failed_attempt(
+                connection,
+                job,
+                status=status,
+                available_at=available.isoformat(),
+                completed_at=None if retry else utc_now(),
+                error=error,
+                usage=usage,
             )
             _require_live_lease(cursor)
             state = semantic_scope_status(str(job["job_kind"]), failed=not retry)
@@ -270,12 +275,16 @@ def _insert_document(
             semantic.model,
             job.get("executor_id"),
             job.get("executor_model"),
+            job.get("executor_effort"),
             semantic.prompt_version,
             SEMANTIC_SCHEMA_VERSION,
             result.confidence,
             json.dumps(result.evidence),
             completion.input_tokens,
             completion.output_tokens,
+            completion.cache_read_input_tokens,
+            completion.cache_creation_input_tokens,
+            completion.usage_source,
             completion.estimated_cost,
             completion.actual_cost,
             completion.now,
@@ -290,24 +299,25 @@ def _completion(
     provider: str,
     semantic: SemanticConfig,
 ) -> _Completion:
-    usage_reported = result.input_tokens > 0 or result.output_tokens > 0
+    """Record what the executor reported, or say plainly that AnaxiGraph estimated it instead.
+
+    Reporting state is never derived from token magnitude: only ``usage_reported`` decides it, so a
+    reported zero stays ``reported`` and a silent executor is ``estimated`` or ``unknown``.
+    """
+
     agent_funded = provider == "agent"
-    input_tokens = (
-        result.input_tokens
-        if usage_reported or agent_funded
-        else max(1, int(job["estimated_input_tokens"]))
-    )
-    output_tokens = (
-        result.output_tokens
-        if usage_reported or agent_funded
-        else max(1, len(json.dumps(result.value)) // 4)
-    )
+    kept = result.usage_reported or agent_funded
+    input_tokens = result.input_tokens if kept else max(1, int(job["estimated_input_tokens"]))
+    output_tokens = result.output_tokens if kept else max(1, len(json.dumps(result.value)) // 4)
     estimated_cost = _cost(input_tokens, output_tokens, semantic)
     return _Completion(
         input_tokens=input_tokens,
         output_tokens=output_tokens,
+        cache_read_input_tokens=result.cache_read_input_tokens if kept else 0,
+        cache_creation_input_tokens=result.cache_creation_input_tokens if kept else 0,
+        usage_source=_usage_source(result.usage_reported, agent_funded=agent_funded),
         estimated_cost=estimated_cost,
-        actual_cost=estimated_cost if usage_reported else None,
+        actual_cost=estimated_cost if result.usage_reported else None,
         intent=_intent_fingerprint(result.value),
         source="coding_agent" if agent_funded else "llm",
         now=utc_now(),
@@ -315,30 +325,49 @@ def _completion(
     )
 
 
-def _finish_job(
-    connection: sqlite3.Connection,
-    job: dict[str, Any],
-    completion: _Completion,
-) -> None:
-    retained_metadata = {}
+def _usage_source(usage_reported: bool, *, agent_funded: bool) -> str:
+    """Name where the stored token counts came from: the executor, AnaxiGraph, or nowhere."""
+
+    if usage_reported:
+        return "reported"
+    return "unknown" if agent_funded else "estimated"
+
+
+def _retained_metadata(job: dict[str, Any]) -> dict[str, Any]:
+    """Keep only the terminal metadata a completed job of this kind is still read for."""
+
     if job["job_kind"] == "pattern_assessment":
-        retained_metadata = {
+        return {
             "retention": PATTERN_METADATA_RETENTION,
             "candidate": job["metadata"].get("candidate"),
         }
-    elif str(job["job_kind"]).startswith("fresh_"):
-        retained_metadata = {
+    if str(job["job_kind"]).startswith("fresh_"):
+        return {
             "retention": FRESH_EYES_METADATA_RETENTION,
             "stage": job["metadata"].get("stage"),
             "slot": job["metadata"].get("slot"),
             "input_manifest": job["metadata"].get("input_manifest"),
             "information_boundary": job["metadata"].get("information_boundary"),
         }
+    return {}
+
+
+def _finish_job(
+    connection: sqlite3.Connection,
+    job: dict[str, Any],
+    completion: _Completion,
+) -> None:
     # lease_token_hash is deliberately kept: the already_completed reply still verifies it.
+    # usage_source never falls back from 'reported': earlier attempts may already have added
+    # counts their executor really reported to this row.
     cursor = connection.execute(
         """
         UPDATE semantic_jobs SET status = ?, completed_at = ?,
-            input_tokens = input_tokens + ?, output_tokens = output_tokens + ?, estimated_cost_usd = ?,
+            input_tokens = input_tokens + ?, output_tokens = output_tokens + ?,
+            cache_read_input_tokens = cache_read_input_tokens + ?,
+            cache_creation_input_tokens = cache_creation_input_tokens + ?,
+            usage_source = CASE WHEN usage_source = 'reported' THEN 'reported' ELSE ? END,
+            estimated_cost_usd = ?,
             actual_cost_usd = ?, worker_id = NULL, lease_expires_at = NULL,
             error = NULL, metadata_json = ?
         WHERE id = ? AND status = 'running' AND worker_id = ?
@@ -348,14 +377,68 @@ def _finish_job(
             completion.now,
             completion.input_tokens,
             completion.output_tokens,
+            completion.cache_read_input_tokens,
+            completion.cache_creation_input_tokens,
+            completion.usage_source,
             completion.estimated_cost,
             completion.actual_cost,
-            json.dumps(retained_metadata, sort_keys=True),
+            json.dumps(_retained_metadata(job), sort_keys=True),
             job["id"],
             job["worker_id"],
         ),
     )
     _require_live_lease(cursor)
+
+
+@dataclass(frozen=True, slots=True)
+class _FailureUsage:
+    input_tokens: int
+    output_tokens: int
+    cache_read_input_tokens: int
+    cache_creation_input_tokens: int
+    usage_source: str
+
+
+def _record_failed_attempt(
+    connection: sqlite3.Connection,
+    job: dict[str, Any],
+    *,
+    status: str,
+    available_at: str,
+    completed_at: str | None,
+    error: str,
+    usage: _FailureUsage,
+) -> sqlite3.Cursor:
+    """Accumulate a failed attempt's usage on the job and keep its reporting state honest.
+
+    Token counts accumulate across attempts, so a row that already holds counts an executor
+    reported stays ``reported`` even when a later silent attempt adds nothing to it.
+    """
+
+    return connection.execute(
+        """
+        UPDATE semantic_jobs SET status = ?, available_at = ?, completed_at = ?, error = ?,
+            input_tokens = input_tokens + ?, output_tokens = output_tokens + ?,
+            cache_read_input_tokens = cache_read_input_tokens + ?,
+            cache_creation_input_tokens = cache_creation_input_tokens + ?,
+            usage_source = CASE WHEN usage_source = 'reported' THEN 'reported' ELSE ? END,
+            worker_id = NULL, lease_expires_at = NULL, lease_token_hash = NULL
+        WHERE id = ? AND status = 'running' AND worker_id = ?
+        """,
+        (
+            status,
+            available_at,
+            completed_at,
+            error,
+            usage.input_tokens,
+            usage.output_tokens,
+            usage.cache_read_input_tokens,
+            usage.cache_creation_input_tokens,
+            usage.usage_source,
+            job["id"],
+            job["worker_id"],
+        ),
+    )
 
 
 def _require_live_lease(cursor: sqlite3.Cursor) -> None:

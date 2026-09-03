@@ -23,8 +23,8 @@ history accumulate over time.
 | `analysis_runs` | Operational audit of explicit and meaningful scan/update/review/history work plus the latest unchanged watcher heartbeat per repository |
 | `architecture_rules` | Effective built-in and configured machine-readable policy |
 | `semantic_claims` | Compact current module claims used by inventory queries |
-| `semantic_documents` | Immutable intrinsic/contextual dossiers, group synthesis, Living Architecture Charters, and optional declared Charter corrections with fingerprints, provenance, evidence, tokens, and costs |
-| `semantic_jobs` | Durable prioritized work queue with lifecycle, cost, executor, and lease evidence; full packets remain for actionable/failed work while terminal duplicate metadata is compacted |
+| `semantic_documents` | Immutable intrinsic/contextual dossiers, group synthesis, Living Architecture Charters, and optional declared Charter corrections with fingerprints, provenance, evidence, tokens with their cached split and usage state, executor effort, and costs |
+| `semantic_jobs` | Durable prioritized work queue with lifecycle, cost, executor, effort, usage state, and lease evidence; full packets remain for actionable/failed work while terminal duplicate metadata is compacted |
 | `semantic_scope_states` | Current per-snapshot semantic coverage and document pointers for modules, groups, and repository |
 | `semantic_taxonomies` | Snapshot-scoped proposal/review/finalization record with provider provenance, validation summary, facets, and temporal map changes |
 | `semantic_taxonomy_nodes` | Stable responsibility-based area and subsystem identities with evidence and confidence |
@@ -108,6 +108,18 @@ scoped to one job and lease; the completed document retains the reported executo
 audit. Unreported coding-agent token use remains zero rather than being estimated as an
 AnaxiGraph-hosted model cost.
 
+Every job and document says where its token counts came from. `usage_source` is `reported` when the
+executor returned usage, zero included; `estimated` when a configured provider returned none and
+AnaxiGraph substituted its own estimate; and `unknown` when nobody reported any, which leaves the
+counts at zero and the actual cost `NULL`. `unknown` never means a free model call.
+`input_tokens` counts the whole prompt, and `cache_read_input_tokens` plus
+`cache_creation_input_tokens` are portions of that total rather than additions to it, so sums stay
+comparable across executors. `executor_effort` records the effort the caller requested for the run;
+`NULL` means the executor's own default, never an unknown effort, and effort names differ between
+executors, so "the same effort" across two of them is nominal. Rows written before schema 11 were
+classified once by a labelled migration heuristic from the recorded actual cost; that backfill is
+not ground truth about past model calls.
+
 Findings use a rule-derived stable key. A recurring resolved finding becomes `regressed`; a finding
 not observed in the next complete architecture evaluation becomes `resolved`. Dismissed findings
 remain dismissed unless a human changes their state. Deterministic history imports record an
@@ -118,8 +130,8 @@ from an older frame created before per-frame finding observations were recorded.
 
 ## Schema evolution and compatibility
 
-Schema migrations fail closed. The current schema is 10; schemas 2, 6, 7, 8, 9, and 10 are the
-explicitly tested inputs. Versions 3–5 were never released as migration contracts and are not
+Schema migrations fail closed. The current schema is 11; schemas 2, 6, 7, 8, 9, 10, and 11 are
+the explicitly tested inputs. Versions 3–5 were never released as migration contracts and are not
 guessed at, while a future schema is never opened by an older binary. Before a schema-6 index is
 upgraded, SQLite's online-backup API creates and validates an untouched recovery copy. A committed
 `schema_migrations` audit row retains the source/target versions, backup path/checksum/size, and

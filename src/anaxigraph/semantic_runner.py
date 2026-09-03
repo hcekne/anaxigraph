@@ -239,6 +239,9 @@ class SemanticRunnerService:
             config.semantic,
             executor_id=(f"cli:{runtime_semantic.provider}" if execution_semantic else None),
             executor_model=(runtime_semantic.model or None) if execution_semantic else None,
+            executor_effort=(
+                (runtime_semantic.reasoning_effort or None) if execution_semantic else None
+            ),
         )
         if job is None:
             return None
@@ -267,6 +270,11 @@ class SemanticRunnerService:
                 exc,
                 input_tokens=max(0, int(getattr(exc, "input_tokens", 0))),
                 output_tokens=max(0, int(getattr(exc, "output_tokens", 0))),
+                cache_read_input_tokens=max(0, int(getattr(exc, "cache_read_input_tokens", 0))),
+                cache_creation_input_tokens=max(
+                    0, int(getattr(exc, "cache_creation_input_tokens", 0))
+                ),
+                usage_reported=bool(getattr(exc, "usage_reported", False)),
             )
         except SemanticLeaseLost:
             return "lease_lost"

@@ -6,7 +6,10 @@ from pathlib import Path
 from typing import Any
 
 from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
-from anaxigraph.semantic_agent_contracts import SemanticAgentContractService
+from anaxigraph.semantic_agent_contracts import (
+    SemanticAgentContractService,
+    agent_reported_usage,
+)
 from anaxigraph.semantic_contract import SemanticAnalysisError
 from anaxigraph.semantic_graph import SupersededSemanticJob
 from anaxigraph.semantic_leases import SemanticLeaseService
@@ -44,15 +47,16 @@ class SemanticAgentService:
         *,
         agent_id: str,
         agent_model: str = "",
+        agent_effort: str = "",
         retry_failed: bool = False,
     ) -> dict[str, Any]:
         semantic = self._contracts.semantic(config)
-        executor_id, executor_model = self._contracts.identity(agent_id, agent_model)
+        executor = self._contracts.identity(agent_id, agent_model, agent_effort)
         root = Path(repository).expanduser().resolve()
         planned_stage = "queued"
         planned = False
         for _ in range(3):
-            job, token = self._claim(repository_id, semantic, executor_id, executor_model)
+            job, token = self._claim(repository_id, semantic, executor)
             if job is None:
                 status = self._reporting.status(repository_id, semantic)
                 if _queue_active(status) or planned:
@@ -77,9 +81,9 @@ class SemanticAgentService:
         self,
         repository_id: int,
         semantic: SemanticConfig,
-        executor_id: str,
-        executor_model: str,
+        executor: tuple[str, str, str],
     ) -> tuple[dict[str, Any] | None, str]:
+        executor_id, executor_model, executor_effort = executor
         token, token_hash, worker_id = self._contracts.lease_identity(executor_id)
         job = self._leases.claim_job(
             repository_id,
@@ -89,6 +93,7 @@ class SemanticAgentService:
             lease_token_hash=token_hash,
             executor_id=executor_id,
             executor_model=executor_model or None,
+            executor_effort=executor_effort or None,
         )
         return job, token
 
@@ -160,8 +165,10 @@ class SemanticAgentService:
         job_id: int,
         lease_token: str,
         dossier: dict[str, Any],
-        input_tokens: int = 0,
-        output_tokens: int = 0,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
+        cache_read_input_tokens: int = 0,
+        cache_creation_input_tokens: int = 0,
     ) -> dict[str, Any]:
         semantic = self._contracts.semantic(config)
         job = self._leases.leased_agent_job(
@@ -189,6 +196,8 @@ class SemanticAgentService:
             request,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
+            cache_read_input_tokens=cache_read_input_tokens,
+            cache_creation_input_tokens=cache_creation_input_tokens,
         )
         self._persistence.complete_job(job, result, "agent", semantic)
         status = self._reporting.status(repository_id, semantic)
@@ -236,8 +245,10 @@ class SemanticAgentService:
         job_id: int,
         lease_token: str,
         reason: str,
-        input_tokens: int = 0,
-        output_tokens: int = 0,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
+        cache_read_input_tokens: int = 0,
+        cache_creation_input_tokens: int = 0,
     ) -> dict[str, Any]:
         semantic = self._contracts.semantic(config)
         job = self._leases.leased_agent_job(
@@ -249,11 +260,20 @@ class SemanticAgentService:
         if job["status"] == "completed":
             return {"status": "already_completed", "job_id": job_id}
         self._leases.validate_current_agent_job(job, repository_id, semantic)
+        usage = agent_reported_usage(
+            input_tokens,
+            output_tokens,
+            cache_read_input_tokens,
+            cache_creation_input_tokens,
+        )
         retry = self._persistence.fail_job(
             job,
             SemanticAnalysisError(reason.strip() or "Coding agent model execution failed"),
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
+            input_tokens=usage.input_tokens,
+            output_tokens=usage.output_tokens,
+            cache_read_input_tokens=usage.cache_read_input_tokens,
+            cache_creation_input_tokens=usage.cache_creation_input_tokens,
+            usage_reported=usage.reported,
         )
         return {
             "status": "retry" if retry else "failed",

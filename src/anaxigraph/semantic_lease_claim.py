@@ -25,6 +25,7 @@ def claim_next_job(
     lease_token_hash: str | None,
     executor_id: str | None,
     executor_model: str | None,
+    executor_effort: str | None = None,
 ) -> dict[str, Any] | None:
     """Claim one eligible job while enforcing concurrency and spend admission."""
 
@@ -56,6 +57,7 @@ def claim_next_job(
             lease_token_hash=lease_token_hash,
             executor_id=executor_id,
             executor_model=executor_model,
+            executor_effort=executor_effort,
         )
 
 
@@ -177,41 +179,53 @@ def _claim_row(
     lease_token_hash: str | None,
     executor_id: str | None,
     executor_model: str | None,
+    executor_effort: str | None,
 ) -> dict[str, Any] | None:
     selected_worker = worker_id or f"{os.getpid()}:{threading.get_ident()}:{int(row['id'])}"
     seconds = lease_seconds or max(90, semantic.timeout_seconds + 60)
-    expires = (datetime.now(UTC) + timedelta(seconds=seconds)).isoformat()
-    target = semantic_job_transition(str(row["status"]), "claim")
+    claimed = {
+        "status": semantic_job_transition(str(row["status"]), "claim"),
+        "worker_id": selected_worker,
+        "lease_expires_at": (datetime.now(UTC) + timedelta(seconds=seconds)).isoformat(),
+        "lease_token_hash": lease_token_hash,
+        "executor_id": executor_id,
+        "executor_model": executor_model,
+        "executor_effort": executor_effort,
+    }
+    if not _apply_claim(connection, row, claimed, now):
+        return None
+    result = dict(row)
+    result.update(claimed, attempts=int(result["attempts"]) + 1)
+    result["metadata"] = json.loads(result.pop("metadata_json") or "{}")
+    return result
+
+
+def _apply_claim(
+    connection: sqlite3.Connection,
+    row: sqlite3.Row,
+    claimed: dict[str, Any],
+    now: str,
+) -> bool:
+    """Take the job only while it still holds the status the caller read."""
+
     cursor = connection.execute(
         """
         UPDATE semantic_jobs SET status = ?, attempts = attempts + 1,
             started_at = ?, worker_id = ?, lease_expires_at = ?, error = NULL,
-            lease_token_hash = ?, executor_id = ?, executor_model = ?
+            lease_token_hash = ?, executor_id = ?, executor_model = ?, executor_effort = ?
         WHERE id = ? AND status = ?
         """,
         (
-            target,
+            claimed["status"],
             now,
-            selected_worker,
-            expires,
-            lease_token_hash,
-            executor_id,
-            executor_model,
+            claimed["worker_id"],
+            claimed["lease_expires_at"],
+            claimed["lease_token_hash"],
+            claimed["executor_id"],
+            claimed["executor_model"],
+            claimed["executor_effort"],
             int(row["id"]),
             str(row["status"]),
         ),
     )
-    if cursor.rowcount != 1:
-        return None
-    result = dict(row)
-    result.update(
-        status=target,
-        attempts=int(result["attempts"]) + 1,
-        worker_id=selected_worker,
-        lease_expires_at=expires,
-        lease_token_hash=lease_token_hash,
-        executor_id=executor_id,
-        executor_model=executor_model,
-    )
-    result["metadata"] = json.loads(result.pop("metadata_json") or "{}")
-    return result
+    return cursor.rowcount == 1

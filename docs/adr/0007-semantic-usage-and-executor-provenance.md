@@ -1,6 +1,6 @@
 # ADR 0007: Record semantic usage and executor effort as explicit provenance
 
-- Status: Proposed
+- Status: Accepted
 - Date: 3 September 2026
 - Owners: AnaxiGraph maintainers
 - Related: [`next-development-actions.md`](../next-development-actions.md) items 1.4, 1.5, 1.12,
@@ -150,6 +150,31 @@ Semantic status exposes both cache sums per action and in totals (`_action_total
 provenance and diversity blocks gain `executor_effort`. `docs/data-model.md`,
 `docs/advanced-operations.md`, `docs/onboarding.md`, `docs/capabilities.md` (once committed), and
 the plugin skill describe the three usage states and the effort column with one wording.
+
+## Implementation
+
+Plan item 2.1 landed this decision. `SCHEMA_VERSION` is 11 and `semantic_jobs` and
+`semantic_documents` carry `cache_read_input_tokens`, `cache_creation_input_tokens`,
+`usage_source`, and `executor_effort`, added both in `persistence/schema.py` and in
+`_ensure_legacy_columns`, with a migration comment that labels the `usage_source` backfill as a
+heuristic over the recorded actual cost. `SUPPORTED_SCHEMA_VERSIONS`, the version set in
+`_requires_materialized_frame_migration`, and the exact-set, schema-2 fixture, and future-version
+tests moved with the bump; the existing `create_schema_backup` still runs once before the upgrade.
+
+`ProviderUsage` gained `reported`, and `SemanticResult` and `SemanticAnalysisError` gained the two
+cache counts and `usage_reported`; the Claude, Codex, and command adapters set it only when they
+parsed a usage object. `_completion` no longer derives reporting state from token magnitude,
+`_finish_job` and `fail_job` write the new columns, and `_insert_document` copies the job's effort.
+`ANAXIGRAPH_SEMANTIC_SUBMIT` and `_FAIL` take `int | None` token counts plus the two cache counts,
+`ANAXIGRAPH_SEMANTIC_WORK` takes `agent_effort`, and the host executor's argument builders moved to
+`semantic_remote_payloads.py`, which omits the token arguments entirely when nothing was reported.
+Status telemetry counts `usage_source` directly, adds `token_counts_estimated`, both cache sums,
+and an `efforts` list per action, and totals them; fresh-eyes provenance carries `executor_effort`
+beside `executor_model`.
+
+Two deviations from the text above: cache-aware pricing stayed a named follow-up as planned, and
+`document_identity` was left unchanged because it feeds the fresh-eyes input-manifest hash, so
+adding a key there would supersede every queued review rather than describe it.
 
 ## Consequences
 

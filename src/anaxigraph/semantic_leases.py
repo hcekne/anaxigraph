@@ -39,6 +39,7 @@ class SemanticLeaseService:
         lease_token_hash: str | None = None,
         executor_id: str | None = None,
         executor_model: str | None = None,
+        executor_effort: str | None = None,
     ) -> dict[str, Any] | None:
         return claim_next_job(
             self._database,
@@ -49,6 +50,7 @@ class SemanticLeaseService:
             lease_token_hash=lease_token_hash,
             executor_id=executor_id,
             executor_model=executor_model,
+            executor_effort=executor_effort,
         )
 
     @contextlib.contextmanager
