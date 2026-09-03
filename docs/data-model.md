@@ -126,4 +126,7 @@ upgraded, SQLite's online-backup API creates and validates an untouched recovery
 completion time. `anaxigraph doctor` validates that record and exact legacy/canonical frame parity
 without modifying the index. The v2 fixture verifies repository preservation, and the schema-6
 fixture verifies exact files, symbols, relationship evidence, semantic provenance, canonical
-compaction, and temporal reconstruction across the upgrade and restore path.
+compaction, and temporal reconstruction across the upgrade and restore path. Additive nullable
+columns do not require a version bump: every open, including one of an index already at the
+current version, reconciles them under one write lock, so a live index never fails with
+`no such column` after a release that only adds columns.
