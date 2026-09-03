@@ -21,6 +21,7 @@ from anaxigraph.semantic_taxonomy_contract import (
     response_schema,
     validated_semantic_response,
 )
+from anaxigraph.semantic_usage import ProviderUsage, claude_usage, codex_usage
 
 
 def create_semantic_provider(config: SemanticConfig) -> SemanticProvider:
@@ -95,27 +96,22 @@ class CodexSemanticProvider:
                     message_path.read_text(encoding="utf-8") if completed.returncode == 0 else ""
                 )
         except subprocess.TimeoutExpired as exc:
-            input_tokens, output_tokens = _codex_usage(_text_output(exc.stdout))
-            raise SemanticAnalysisError(
-                f"Codex semantic run failed: {exc}",
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
+            raise _codex_failure(
+                f"Codex semantic run failed: {exc}", _text_output(exc.stdout)
             ) from exc
         except OSError as exc:
             raise SemanticAnalysisError(f"Codex semantic run failed: {exc}") from exc
         if completed.returncode != 0:
-            input_tokens, output_tokens = _codex_usage(completed.stdout)
-            raise SemanticAnalysisError(
+            raise _codex_failure(
                 f"Codex exited with {completed.returncode}: {completed.stderr.strip()[:1_000]}",
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
+                completed.stdout,
             )
-        input_tokens, output_tokens = _codex_usage(completed.stdout)
+        usage = codex_usage(completed.stdout)
         return _result_from_json(
             message,
             request=request,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
+            input_tokens=usage.input_tokens,
+            output_tokens=usage.output_tokens,
         )
 
 
@@ -145,18 +141,11 @@ def _codex_command(config: SemanticConfig, schema_path: Path, message_path: Path
     return command
 
 
-def _codex_usage(events: str) -> tuple[int, int]:
-    usage: dict[str, Any] = {}
-    for line in events.splitlines():
-        try:
-            event = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(event, dict) and isinstance(event.get("usage"), dict):
-            usage = event["usage"]
-    return (
-        int(usage.get("input_tokens") or usage.get("total_input_tokens") or 0),
-        int(usage.get("output_tokens") or usage.get("total_output_tokens") or 0),
+def _codex_failure(message: str, events: str) -> SemanticAnalysisError:
+    """Keep any usage Codex streamed before the run failed."""
+    usage = codex_usage(events)
+    return SemanticAnalysisError(
+        message, input_tokens=usage.input_tokens, output_tokens=usage.output_tokens
     )
 
 
@@ -175,56 +164,87 @@ class ClaudeSemanticProvider:
         self.config = config
 
     def analyze(self, request: dict[str, Any]) -> SemanticResult:
-        command = [
-            "claude",
-            "--print",
-            "--no-session-persistence",
-            "--safe-mode",
-            "--permission-mode",
-            "plan",
-            "--tools",
-            "",
-            "--output-format",
-            "json",
-            "--json-schema",
-            json.dumps(response_schema(request)),
-        ]
-        if self.config.model:
-            command.extend(("--model", self.config.model))
         try:
             completed = subprocess.run(
-                command,
+                _claude_command(self.config, request),
                 input=_prompt(request),
                 text=True,
                 capture_output=True,
                 timeout=self.config.timeout_seconds,
                 check=False,
             )
-        except (OSError, subprocess.TimeoutExpired) as exc:
+        except subprocess.TimeoutExpired as exc:
+            raise _claude_failure(
+                f"Claude semantic run failed: {exc}", _text_output(exc.stdout)
+            ) from exc
+        except OSError as exc:
             raise SemanticAnalysisError(f"Claude semantic run failed: {exc}") from exc
         if completed.returncode != 0:
-            raise SemanticAnalysisError(
-                f"Claude exited with {completed.returncode}: {completed.stderr.strip()[:1_000]}"
+            raise _claude_failure(
+                f"Claude exited with {completed.returncode}: {completed.stderr.strip()[:1_000]}",
+                completed.stdout,
             )
-        try:
-            envelope = json.loads(completed.stdout)
-        except json.JSONDecodeError as exc:
-            raise SemanticAnalysisError("Claude did not return a valid JSON envelope") from exc
-        value = envelope.get("structured_output")
-        if value is None:
-            value = envelope.get("result")
-        if isinstance(value, str):
-            try:
-                value = json.loads(value)
-            except json.JSONDecodeError as exc:
-                raise SemanticAnalysisError("Claude result did not contain valid JSON") from exc
-        usage = envelope.get("usage") or {}
-        return validated_semantic_response(
-            value,
-            request,
-            input_tokens=int(usage.get("input_tokens") or 0),
-            output_tokens=int(usage.get("output_tokens") or 0),
+        envelope = _claude_envelope(completed.stdout)
+        usage = claude_usage(envelope)
+        return _validated_with_usage(
+            _claude_value(envelope, usage), request, usage.input_tokens, usage.output_tokens
         )
+
+
+def _claude_command(config: SemanticConfig, request: dict[str, Any]) -> list[str]:
+    command = [
+        "claude",
+        "--print",
+        "--no-session-persistence",
+        "--safe-mode",
+        "--permission-mode",
+        "plan",
+        "--tools",
+        "",
+        "--output-format",
+        "json",
+        "--json-schema",
+        json.dumps(response_schema(request)),
+    ]
+    if config.model:
+        command.extend(("--model", config.model))
+    return command
+
+
+def _claude_envelope(stdout: str) -> dict[str, Any]:
+    try:
+        envelope = json.loads(stdout)
+    except json.JSONDecodeError as exc:
+        raise SemanticAnalysisError("Claude did not return a valid JSON envelope") from exc
+    return envelope if isinstance(envelope, dict) else {"result": envelope}
+
+
+def _claude_value(envelope: dict[str, Any], usage: ProviderUsage) -> Any:
+    value = envelope.get("structured_output")
+    if value is None:
+        value = envelope.get("result")
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise SemanticAnalysisError(
+                "Claude result did not contain valid JSON",
+                input_tokens=usage.input_tokens,
+                output_tokens=usage.output_tokens,
+            ) from exc
+    return value
+
+
+def _claude_failure(message: str, stdout: str) -> SemanticAnalysisError:
+    """Keep any usage Claude reported in a failed run's result envelope."""
+    try:
+        envelope = json.loads(stdout)
+    except json.JSONDecodeError:
+        envelope = None
+    usage = claude_usage(envelope)
+    return SemanticAnalysisError(
+        message, input_tokens=usage.input_tokens, output_tokens=usage.output_tokens
+    )
 
 
 def _system_instruction() -> str:

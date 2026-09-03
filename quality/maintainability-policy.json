@@ -31,7 +31,6 @@
     "src/anaxigraph/config.py::_semantic_config": [53, 11],
     "src/anaxigraph/registry.py::load_repository_registry": [55, 23],
     "src/anaxigraph/scanner.py::RepositoryScanner._scan": [151, 8],
-    "src/anaxigraph/semantic.py::ClaudeSemanticProvider.analyze": [51, 11],
     "src/anaxigraph/semantic_contract.py::validated_result": [56, 11],
     "src/anaxigraph/semantic_records.py::_ensure_job": [59, 2],
     "src/anaxigraph/semantic_scope_plan.py::SemanticPlanningService.plan": [74, 6],
