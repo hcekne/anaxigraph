@@ -153,7 +153,9 @@ def test_a_failed_and_retried_stage_reports_its_attempts_and_error(repository, d
     config = load_config(repository)
     stats = RepositoryScanner(database).scan(repository)
     engine = SemanticEngine(database)
-    review = TwoExecutorReview(engine, stats.repository_id, repository, config)
+    review = TwoExecutorReview(
+        engine, stats.repository_id, repository, config, dossier_factory=_agent_dossier
+    )
     review.run_until_complete()
     engine.start_fresh_eyes_review(stats.repository_id, repository, config)
     packet = review.claim(review.executors[0])

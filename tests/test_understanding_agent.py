@@ -4,6 +4,7 @@ from dataclasses import replace
 
 import pytest
 import yaml
+from agent_work_support import _assert_evidence_pages_readable, _charter_task
 from semantic_support import _agent_dossier
 
 from anaxigraph.architecture_charter import architecture_charter
@@ -61,27 +62,8 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
         terms = packet["analysis_request"]["input_term_meanings"]
         assert "one repository file" in terms["module"]
         assert "not a code-quality grade" in terms["complexity"]
-        request = packet["analysis_request"]
-        if request.get("scope_type") == "repository" and str(
-            request.get("analysis_kind")
-        ).startswith("synthesis"):
-            saw_charter_task = True
-            assert packet["response_contract"]["artifact"] == "architecture_charter"
-            assert "capability_brief" in packet["response_contract"]["required_fields"]
-        manifest = packet["evidence_manifest"]
-        if manifest:
-            pages = [
-                engine.agent_evidence_page(
-                    stats.repository_id,
-                    repository,
-                    config,
-                    job_id=packet["job"]["id"],
-                    lease_token=packet["lease"]["token"],
-                    page=page,
-                )
-                for page in range(1, manifest["page_count"] + 1)
-            ]
-            assert all(item["status"] == "evidence" for item in pages)
+        saw_charter_task = _charter_task(packet) or saw_charter_task
+        _assert_evidence_pages_readable(engine, stats.repository_id, repository, config, packet)
         dossier = _agent_dossier(packet["analysis_request"])
         submitted = engine.submit_agent_work(
             stats.repository_id,

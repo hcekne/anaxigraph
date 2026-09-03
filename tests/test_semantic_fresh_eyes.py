@@ -62,7 +62,13 @@ def _two_executor_review(repository, database, *, proposal_count=2) -> TwoExecut
     _enable_agent_semantics(repository)
     config = load_config(repository)
     stats = RepositoryScanner(database).scan(repository)
-    review = TwoExecutorReview(SemanticEngine(database), stats.repository_id, repository, config)
+    review = TwoExecutorReview(
+        SemanticEngine(database),
+        stats.repository_id,
+        repository,
+        config,
+        dossier_factory=_agent_dossier,
+    )
     baseline = review.run_until_complete()
     assert {executor for executor, _ in baseline} == set(TWO_EXECUTORS)
     started = review.engine.start_fresh_eyes_review(
