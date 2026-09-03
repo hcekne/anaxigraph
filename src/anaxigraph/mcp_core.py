@@ -199,6 +199,7 @@ class CoreMcpTools:
         start: bool = False,
         proposal_count: int = 2,
         retry_failed: bool = False,
+        restart: bool = False,
         reassess: bool = False,
         from_snapshot_id: int | None = None,
     ) -> dict[str, Any]:
@@ -209,7 +210,7 @@ class CoreMcpTools:
             return self._understand_journey(repository)
         if redesign:
             return self._redesign_journey(
-                row, root, config, goal, start, proposal_count, retry_failed
+                row, root, config, goal, start, proposal_count, retry_failed, restart
             )
         if compare:
             return self._reassess_journey(row, config, goal, from_snapshot_id)
@@ -233,6 +234,7 @@ class CoreMcpTools:
         start: bool,
         proposal_count: int,
         retry_failed: bool,
+        restart: bool,
     ) -> dict[str, Any]:
         engine = SemanticEngine(self.database)
         result = (
@@ -242,8 +244,9 @@ class CoreMcpTools:
                 config,
                 proposal_count=proposal_count,
                 retry_failed=retry_failed,
+                restart=restart,
             )
-            if start
+            if start or restart
             else engine.fresh_eyes_status(int(row["id"]), config.semantic)
         )
         return _journey_result(result, "redesign", goal)
@@ -333,21 +336,47 @@ def _guide_selection(intent: str, fresh_eyes: bool, reassess: bool) -> tuple[str
     return selected, redesign, compare
 
 
+def _redesign_next_action(result: dict[str, Any], goal: str) -> dict[str, Any]:
+    """Name the next ANAXIGRAPH_GUIDE call for a status or (re)start reply of the review."""
+
+    state = str(result.get("state") or (result.get("review") or {}).get("state") or "")
+    if state in {"not_started", "stale"}:
+        arguments: dict[str, Any] = {"intent": "redesign", "start": True, "proposal_count": 2}
+        reason = "Start two independent capability-first proposals."
+    elif state == "failed":
+        arguments = {"intent": "redesign", "start": True, "retry_failed": True}
+        reason = "Retry the failed review stage; the existing proposal count is kept."
+    elif state in {"waiting_for_understanding", "in_progress"}:
+        arguments = {"intent": "redesign"}
+        reason = "Run the connected semantic executor, then poll until the state is current."
+    else:
+        reason = "Use the architecture result for one bounded coding decision."
+        if state == "current":
+            reason = (
+                "Use one ranked recommendation for a bounded coding decision; pass start=true "
+                "and restart=true only when you deliberately want a new review generation."
+            )
+        return _build_next_action(goal, reason)
+    return {"tool": "ANAXIGRAPH_GUIDE", "arguments": arguments, "reason": reason}
+
+
+def _build_next_action(goal: str, reason: str) -> dict[str, Any]:
+    return {
+        "tool": "ANAXIGRAPH_GUIDE",
+        "arguments": {"intent": "build", "goal": goal or "<describe one coding goal>"},
+        "reason": reason,
+    }
+
+
 def _journey_result(result: dict[str, Any], intent: str, goal: str) -> dict[str, Any]:
-    if intent == "redesign" and str(result.get("state") or "") in {"not_started", "stale"}:
-        next_action = {
-            "tool": "ANAXIGRAPH_GUIDE",
-            "arguments": {"intent": "redesign", "start": True, "proposal_count": 2},
-            "reason": "Start two independent capability-first proposals.",
-        }
+    if intent == "redesign":
+        next_action = _redesign_next_action(result, goal)
     elif intent == "reassess" and str(result.get("state") or "") == "semantic_refresh_pending":
         next_action = (result.get("semantic_refresh") or {}).get("recommended_action") or {}
     else:
-        next_action = result.get("next_action") or {
-            "tool": "ANAXIGRAPH_GUIDE",
-            "arguments": {"intent": "build", "goal": goal or "<describe one coding goal>"},
-            "reason": "Use the architecture result for one bounded coding decision.",
-        }
+        next_action = result.get("next_action") or _build_next_action(
+            goal, "Use the architecture result for one bounded coding decision."
+        )
     return {
         **result,
         "agent_journey": {
