@@ -124,6 +124,12 @@ closed because the sidecar may merely be busy; it never silently selects a secon
 expose `index.authority`, database/service location, and repository selector so another agent can
 resume the exact same ledger.
 
+The local index still scans by default before it plans. Pass `--no-scan` to plan against the saved
+local map instead: a missing or stale map returns `status=scan_required` with the same guidance and
+`map_status` the service path returns, and a current map plans without rereading source. Flipping
+that default, so the local path scans only when asked, is a named follow-up rather than part of this
+option.
+
 ## Taxonomy policy and custom executors
 
 Taxonomy generation is on by default whenever agent-funded semantic understanding is enabled. The

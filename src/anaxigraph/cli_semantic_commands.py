@@ -11,6 +11,7 @@ from typing import Any
 import anaxigraph.cli_services as cli_services
 from anaxigraph.cli_common import add_repository_arguments
 from anaxigraph.local_runtime import local_database_path
+from anaxigraph.operational_health import served_map_status
 from anaxigraph.semantic_background import (
     launch_understand_background,
     report_background_progress,
@@ -61,6 +62,14 @@ def _configure_understand(commands: Any) -> None:
     )
     understand.add_argument(
         "--plan-only", action="store_true", help="Prepare needed AI tasks without starting a model"
+    )
+    understand.add_argument(
+        "--no-scan",
+        action="store_true",
+        help=(
+            "Plan against the saved local map without rescanning; a missing or stale map returns "
+            "status=scan_required, exactly as the service path does"
+        ),
     )
     add_semantic_execution_arguments(understand)
     understand.add_argument(
@@ -162,13 +171,12 @@ def _understand_local(
     started = time.perf_counter()
     database_path = local_database_path(repository, explicit=args.db)
     database = cli_services.open_index(database_path)
-    stats = cli_services.scanner(database).scan(
-        repository,
-        config_path=args.config,
-        run_type="semantic_bootstrap",
-    )
+    index = {"authority": "local", "database": str(database_path)}
+    repository_id, facts = _local_scan_facts(args, repository, database, database_path)
+    if repository_id is None:
+        return _scan_required_result(args, execution_mode, index, facts)
     result = cli_services.semantics(database).bootstrap(
-        stats.repository_id,
+        repository_id,
         repository,
         config,
         limit=args.limit,
@@ -186,7 +194,7 @@ def _understand_local(
         "timeout_seconds": (execution_semantic.timeout_seconds if execution_semantic else None),
         "elapsed_ms": round((time.perf_counter() - started) * 1_000, 3),
     }
-    result["index"] = {"authority": "local", "database": str(database_path)}
+    result["index"] = index
     if config.semantic.provider == "agent" and execution_semantic is None:
         result["status"] = "planned" if args.plan_only else "agent_action_required"
         result["complete"] = False
@@ -197,7 +205,42 @@ def _understand_local(
         result["status"] = "complete" if ready else "partial"
         result["complete"] = ready
         _require_requested_completion(args, result)
-    return {"scan": stats.as_dict(), **result}
+    return {"scan": facts, **result}
+
+
+def _local_scan_facts(
+    args: argparse.Namespace,
+    repository: Path,
+    database: Any,
+    database_path: Path,
+) -> tuple[int | None, dict[str, Any]]:
+    """Return the scanned repository id with scan facts, or None with scan_required guidance."""
+
+    if not args.no_scan:
+        stats = cli_services.scanner(database).scan(
+            repository,
+            config_path=args.config,
+            run_type="semantic_bootstrap",
+        )
+        return stats.repository_id, stats.as_dict()
+    row = database.repository(repository)
+    snapshot = database.latest_snapshot(int(row["id"])) if row is not None else None
+    status = served_map_status(repository, snapshot) if snapshot is not None else None
+    if row is not None and status is not None and status["state"] == "current":
+        return int(row["id"]), {}
+    return None, {
+        "map_status": status,
+        "recommended_action": _local_scan_action(repository, database_path, status),
+    }
+
+
+def _local_scan_action(repository: Path, database_path: Path, status: dict[str, Any] | None) -> str:
+    guidance = (
+        "Refresh the structural scan, then retry understand."
+        if status is not None
+        else "Run the explicit repository scan, then retry understand."
+    )
+    return f"{guidance} Run: anaxigraph scan {repository} --db {database_path}"
 
 
 def _understand_service(
@@ -210,7 +253,7 @@ def _understand_service(
     started = time.perf_counter()
     prepared = _prepare_service(args, service)
     if prepared.get("status") == "scan_required":
-        return _scan_required_service_result(args, execution_mode, service, prepared)
+        return _scan_required_result(args, execution_mode, service.identity(), prepared)
     if execution_semantic is None:
         result = {key: value for key, value in prepared.items() if key not in {"status", "scan"}}
         result["semantic"] = service_semantic_status(service)
@@ -261,12 +304,14 @@ def _prepare_service(args: argparse.Namespace, service: Any) -> dict[str, Any]:
     return result
 
 
-def _scan_required_service_result(
+def _scan_required_result(
     args: argparse.Namespace,
     execution_mode: str,
-    service: Any,
+    index: dict[str, Any],
     prepared: dict[str, Any],
 ) -> dict[str, Any]:
+    """Report a missing or stale saved map identically for the local and service authorities."""
+
     message = str(
         prepared.get("recommended_action")
         or "Run an explicit repository scan, then retry understand."
@@ -274,14 +319,17 @@ def _scan_required_service_result(
     report_background_progress(stage="scan_required", last_error=message)
     if args.until_complete:
         raise RuntimeError(f"AI mapping requires a current saved repository scan. {message}")
-    return {
+    result = {
         "scan": {},
         "status": "scan_required",
         "complete": False,
         "execution": {"mode": execution_mode},
-        "index": service.identity(),
+        "index": index,
         "recommended_action": message,
     }
+    if prepared.get("map_status") is not None:
+        result["map_status"] = prepared["map_status"]
+    return result
 
 
 def _require_requested_completion(args: argparse.Namespace, result: dict[str, Any]) -> None:
