@@ -3,6 +3,12 @@ from __future__ import annotations
 import json
 
 import pytest
+from fresh_eyes_support import (
+    CLAUDE_EXECUTOR,
+    CODEX_EXECUTOR,
+    TWO_EXECUTORS,
+    TwoExecutorReview,
+)
 from semantic_support import _agent_dossier, _enable_agent_semantics
 
 from anaxigraph.config import load_config
@@ -45,6 +51,42 @@ def _finish_work(
             dossier=_agent_dossier(packet["analysis_request"]),
         )
     raise AssertionError("Semantic work did not converge")
+
+
+def _two_executor_review(repository, database, *, proposal_count=2) -> TwoExecutorReview:
+    """Finish the baseline with both executors, then start one review for them to share."""
+    _enable_agent_semantics(repository)
+    config = load_config(repository)
+    stats = RepositoryScanner(database).scan(repository)
+    review = TwoExecutorReview(SemanticEngine(database), stats.repository_id, repository, config)
+    baseline = review.run_until_complete()
+    assert {executor for executor, _ in baseline} == set(TWO_EXECUTORS)
+    started = review.engine.start_fresh_eyes_review(
+        stats.repository_id, repository, config, proposal_count=proposal_count
+    )
+    assert started["status"] == "started"
+    return review
+
+
+def test_two_host_executors_share_one_fresh_eyes_review(repository, database):
+    review = _two_executor_review(repository, database)
+
+    stages = review.run_until_complete()
+
+    assert stages == [
+        (CODEX_EXECUTOR, "fresh_proposal"),
+        (CLAUDE_EXECUTOR, "fresh_proposal"),
+        (CODEX_EXECUTOR, "fresh_adjudication"),
+        (CLAUDE_EXECUTOR, "fresh_comparison"),
+        (CODEX_EXECUTOR, "fresh_review"),
+    ]
+    result = review.engine.fresh_eyes_status(review.repository_id, review.config.semantic)
+    assert result["state"] == "current"
+    assert [item["provenance"]["executor_id"] for item in result["proposals"]] == [
+        CODEX_EXECUTOR,
+        CLAUDE_EXECUTOR,
+    ]
+    assert [claim["status"] for claim in review.claims[-2:]] == ["complete", "complete"]
 
 
 def test_fixed_fresh_eyes_recipe_is_resumable_blind_and_agent_funded(repository, database):
