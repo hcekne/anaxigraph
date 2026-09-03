@@ -9,7 +9,7 @@ from typing import Any
 from anaxigraph.agent import architecture_guidance, impact_analysis
 from anaxigraph.architecture_reassessment import architecture_reassessment
 from anaxigraph.cli_common import add_repository_arguments, ensure_current
-from anaxigraph.semantic_fresh_eyes_contract import parse_proposal_executors
+from anaxigraph.semantic_fresh_eyes_executors import parse_proposal_executors
 from anaxigraph.semantic_service import (
     FRESH_EYES_START_TIMEOUT_SECONDS,
     discover_semantic_service,
@@ -98,6 +98,14 @@ def _configure_fresh_eyes(commands: Any) -> None:
             "it; use this when a pinned executor will not be started"
         ),
     )
+    _add_fresh_eyes_reading_arguments(fresh_eyes)
+    _add_service_url(fresh_eyes)
+    fresh_eyes.set_defaults(handler=_fresh_eyes, db=None)
+
+
+def _add_fresh_eyes_reading_arguments(fresh_eyes: Any) -> None:
+    """Options that choose which recorded review to read, and how long to wait for a start."""
+
     fresh_eyes.add_argument(
         "--generation",
         type=int,
@@ -116,8 +124,6 @@ def _configure_fresh_eyes(commands: Any) -> None:
         default=FRESH_EYES_START_TIMEOUT_SECONDS,
         help=_TIMEOUT_FRESH_EYES_HELP,
     )
-    _add_service_url(fresh_eyes)
-    fresh_eyes.set_defaults(handler=_fresh_eyes, db=None)
 
 
 def _configure_reassessment(commands: Any) -> None:

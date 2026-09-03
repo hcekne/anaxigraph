@@ -13,7 +13,7 @@ from anaxigraph.config import load_config
 from anaxigraph.config_authority import effective_semantic_policy, service_config_authority
 from anaxigraph.operational_health import served_map_status
 from anaxigraph.scanner import RepositoryScanner
-from anaxigraph.semantic_fresh_eyes_contract import parse_proposal_executors
+from anaxigraph.semantic_fresh_eyes_executors import parse_proposal_executors
 from anaxigraph.semantic_mcp import current_semantic_status
 from anaxigraph.semantic_scan_refresh import semantic_refresh_after_scan
 from anaxigraph.understanding import SemanticEngine
@@ -232,6 +232,13 @@ class CoreMcpTools:
             )
         if compare:
             return self._reassess_journey(row, config, goal, from_snapshot_id)
+        return self._build_journey(row, config, goal, intent, focus)
+
+    def _build_journey(
+        self, row: Any, config: Any, goal: str, intent: str, focus: str
+    ) -> dict[str, Any]:
+        """Answer where to build or how to improve, from the current architecture evidence."""
+
         if not goal.strip():
             raise ValueError("goal is required for build or improve guidance")
         return architecture_guidance(

@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-import json
 import sqlite3
 from typing import Any
 
 from anaxigraph.semantic_config_port import SemanticConfig
 from anaxigraph.semantic_fresh_eyes_contract import (
+    FRESH_EYES_PLAN_KEY,
     FRESH_EYES_PROTOCOL_VERSION,
+    FRESH_EYES_SCOPE,
     fresh_eyes_plan_token,
     fresh_eyes_required_executor,
     semantic_input_hash,
@@ -18,29 +19,44 @@ from anaxigraph.semantic_fresh_eyes_evidence import (
     declared_manifest,
     document_identity,
     external_constraints,
-    parsed_document,
     proposal_boundary,
     proposal_manifest,
     reference_fingerprint,
     review_context,
 )
 from anaxigraph.semantic_fresh_eyes_grounding import write_review_grounding
-from anaxigraph.semantic_records import (
-    _ensure_job,
-    _latest_document,
-    _matching_document,
-    _upsert_state,
-)
+from anaxigraph.semantic_fresh_eyes_jobs import document_or_job, upsert_state
 
-FRESH_EYES_SCOPE = "fresh_eyes"
-FRESH_EYES_PLAN_KEY = "plan"
 _PROPOSAL_SLOTS = ("a", "b", "c")
+
+
 _STAGE_CONTRACTS = {
     "fresh_proposal": "fresh-eyes-proposal-v1",
     "fresh_adjudication": "fresh-eyes-adjudication-v1",
     "fresh_comparison": "fresh-eyes-comparison-v1",
     "fresh_review": "fresh-eyes-review-v1",
 }
+
+
+def _document_or_job(
+    connection: sqlite3.Connection,
+    *,
+    job_kind: str,
+    evidence: dict[str, Any],
+    semantic: SemanticConfig,
+    **fields: Any,
+) -> tuple[dict[str, Any] | None, int]:
+    """Hash this stage's evidence, then reuse its document or queue the job."""
+
+    input_hash = semantic_input_hash(_STAGE_CONTRACTS[job_kind], semantic.prompt_version, evidence)
+    return document_or_job(
+        connection,
+        job_kind=job_kind,
+        input_hash=input_hash,
+        scope=FRESH_EYES_SCOPE,
+        semantic=semantic,
+        **fields,
+    )
 
 
 class FreshEyesPlanner:
@@ -62,7 +78,7 @@ class FreshEyesPlanner:
         existing = _plan_state(connection, snapshot_id)
         if existing is not None:
             return False
-        _upsert_state(
+        upsert_state(
             connection,
             repository_id=repository_id,
             snapshot_id=snapshot_id,
@@ -318,94 +334,6 @@ class FreshEyesPlanner:
         )
 
 
-def _document_or_job(
-    connection: sqlite3.Connection,
-    *,
-    repository_id: int,
-    snapshot_id: int,
-    scope_key: str,
-    job_kind: str,
-    reason: str,
-    priority: int,
-    evidence: dict[str, Any],
-    metadata: dict[str, Any],
-    semantic: SemanticConfig,
-    retry_failed: bool,
-) -> tuple[dict[str, Any] | None, int]:
-    input_hash = semantic_input_hash(_STAGE_CONTRACTS[job_kind], semantic.prompt_version, evidence)
-    document = _matching_document(
-        connection,
-        repository_id,
-        FRESH_EYES_SCOPE,
-        scope_key,
-        job_kind,
-        input_hash,
-        semantic,
-    )
-    if document is not None:
-        _upsert_stage(connection, repository_id, snapshot_id, scope_key, input_hash, document)
-        return parsed_document(document), 0
-    return _queue_stage_job(
-        connection,
-        repository_id=repository_id,
-        snapshot_id=snapshot_id,
-        scope_key=scope_key,
-        job_kind=job_kind,
-        reason=reason,
-        priority=priority,
-        input_hash=input_hash,
-        metadata=metadata,
-        semantic=semantic,
-        retry_failed=retry_failed,
-    )
-
-
-def _queue_stage_job(
-    connection: sqlite3.Connection,
-    *,
-    repository_id: int,
-    snapshot_id: int,
-    scope_key: str,
-    job_kind: str,
-    reason: str,
-    priority: int,
-    input_hash: str,
-    metadata: dict[str, Any],
-    semantic: SemanticConfig,
-    retry_failed: bool,
-) -> tuple[None, int]:
-    previous = _latest_document(connection, repository_id, FRESH_EYES_SCOPE, scope_key, job_kind)
-    scope_status, created, error = _ensure_job(
-        connection,
-        repository_id=repository_id,
-        snapshot_id=snapshot_id,
-        scope_type=FRESH_EYES_SCOPE,
-        scope_key=scope_key,
-        artifact_id=None,
-        artifact_version_id=None,
-        job_kind=job_kind,
-        reason=reason,
-        priority=priority,
-        input_hash=input_hash,
-        semantic=semantic,
-        estimated_input_tokens=max(400, len(json.dumps(metadata, default=str)) // 4),
-        metadata={**metadata, "previous_document_id": previous["id"] if previous else None},
-        retry_failed=retry_failed,
-    )
-    _upsert_state(
-        connection,
-        repository_id=repository_id,
-        snapshot_id=snapshot_id,
-        scope_type=FRESH_EYES_SCOPE,
-        scope_key=scope_key,
-        status=scope_status,
-        reason=error or reason,
-        context_input_hash=input_hash,
-        context_fingerprint=input_hash,
-    )
-    return None, int(created)
-
-
 def _plan_state(connection: sqlite3.Connection, snapshot_id: int) -> dict[str, Any] | None:
     row = connection.execute(
         "SELECT * FROM semantic_scope_states WHERE snapshot_id = ? AND scope_type = ? "
@@ -413,28 +341,6 @@ def _plan_state(connection: sqlite3.Connection, snapshot_id: int) -> dict[str, A
         (snapshot_id, FRESH_EYES_SCOPE, FRESH_EYES_PLAN_KEY),
     ).fetchone()
     return dict(row) if row else None
-
-
-def _upsert_stage(
-    connection: sqlite3.Connection,
-    repository_id: int,
-    snapshot_id: int,
-    scope_key: str,
-    input_hash: str,
-    document: dict[str, Any],
-) -> None:
-    _upsert_state(
-        connection,
-        repository_id=repository_id,
-        snapshot_id=snapshot_id,
-        scope_type=FRESH_EYES_SCOPE,
-        scope_key=scope_key,
-        status="current",
-        reason="Fresh-eyes stage matches its versioned evidence",
-        context_input_hash=input_hash,
-        context_fingerprint=input_hash,
-        context_document_id=int(document["id"]),
-    )
 
 
 def _update_plan_identity(

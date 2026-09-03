@@ -10,6 +10,7 @@ from anaxigraph.semantic_fresh_eyes_contract import (
     fresh_eyes_plan_executors,
     fresh_eyes_plan_options,
     fresh_eyes_plan_token,
+    parse_proposal_executors,
 )
 from anaxigraph.semantic_fresh_eyes_plan import FRESH_EYES_PLAN_KEY, FRESH_EYES_SCOPE
 from anaxigraph.semantic_index_port import SemanticIndex
@@ -22,6 +23,13 @@ _PINNED_JOBS_SQL = (
     "AND job_kind = 'fresh_proposal' AND status IN ('pending', 'retry') ORDER BY scope_key"
 )
 _DONE_STAGE_STATES = frozenset({"current", "superseded"})
+
+
+__all__ = [
+    "parse_proposal_executors",
+    "unpin_review_executors",
+    "waiting_executor_action",
+]
 
 
 def unpin_review_executors(database: SemanticIndex, repository_id: int) -> list[dict[str, str]]:
