@@ -122,8 +122,12 @@ anaxigraph charter . --correct-section purpose \
   --rationale "The outcome is not fully inferable from code."
 ```
 
-Use the same target with `--withdraw` to stop presenting that overlay. Corrections live only in the
-external AnaxiIndex and retain author, time, rationale, and the original inference.
+Use the same target with `--withdraw` to stop presenting that overlay. Add `--refute` instead of a
+`--statement` to declare an inferred claim a known non-issue: the claim stays visible and keeps its
+evidence, marked as a declared non-issue with the rationale beside it. Only the newest declared
+context per section and key applies, so a refutation and a reworded statement never coexist on one
+claim. Corrections live only in the external AnaxiIndex and retain author, time, rationale, and the
+original inference.
 
 ## Recommended: install the agent workflow
 

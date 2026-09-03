@@ -103,6 +103,10 @@
 .charter-section header span { display: grid; width: 1.65rem; height: 1.65rem; flex: 0 0 auto; place-items: center; border-radius: 50%; color: var(--muted); background: var(--surface-detail); font-size: .68rem; font-weight: 800; }
 .charter-section ul { display: grid; gap: .55rem; margin: .7rem 0 0; padding-left: 1.15rem; color: var(--text-soft); font-size: .88rem; line-height: 1.55; }
 .charter-section li::marker { color: var(--accent-strong); }
+.charter-refuted { display: grid; grid-template-columns: minmax(0, 1fr); gap: .25rem; margin-left: -1.15rem; padding: .5rem .65rem; border-radius: 8px; list-style: none; background: var(--amber-soft); }
+.charter-refuted-label { justify-self: start; padding: .1rem .45rem; border: 1px solid var(--amber); border-radius: 999px; color: var(--amber); font-size: .62rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.charter-refuted-claim { color: var(--muted); overflow-wrap: anywhere; }
+.charter-refuted-note { color: var(--muted); font-size: .78rem; line-height: 1.45; }
 
 .notice {
   margin: 0 0 1rem;

@@ -113,6 +113,7 @@ class RepositoryRoutes:
                 author=request.author,
                 rationale=request.rationale,
                 active=request.active,
+                disposition=request.disposition,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc

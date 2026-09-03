@@ -102,14 +102,19 @@ function renderRepositoryIntelligence(value) {
     panel.innerHTML = "";
     return;
   }
-  const statements = (items = []) => items.map(
-    (item) => item.presented_statement || item.statement || item.name,
-  );
+  const statements = (items = []) => items.map((item) => {
+    const text = item.presented_statement || item.statement || item.name;
+    if (item.disposition !== "refuted") return text;
+    const overlay = item.declared_overlay || {};
+    return { text, note: `${overlay.author || "A principal"}: ${overlay.rationale || ""}` };
+  });
   const unknowns = (value.unknowns || []).map((item) => item.question);
   const conflicts = (value.conflicts || []).map((item) => item.claim);
-  const declared = (value.declared_context || []).map(
-    (item) => `${item.statement} — ${item.author}: ${item.rationale}`,
-  );
+  const declared = (value.declared_context || []).map((item) => {
+    const claim = item.statement || item.inferred_statement || item.key;
+    const label = item.mode === "refutation" ? "Declared non-issue — " : "";
+    return `${label}${claim} — ${item.author}: ${item.rationale}`;
+  });
   const source = value.state === "provisional"
     ? "Built from static scan facts only. AI review has not confirmed the product meaning yet."
     : value.state === "stale"
@@ -122,7 +127,12 @@ function renderRepositoryIntelligence(value) {
 function charterSection(title, values, empty, tone = "") {
   const items = values.length ? values : [empty];
   const count = values.length ? String(values.length) : "0";
-  return `<section class="charter-section${tone ? ` charter-section-${tone}` : ""}"><header><h3>${escapeHtml(title)}</h3><span aria-label="${count} recorded items">${count}</span></header><ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></section>`;
+  return `<section class="charter-section${tone ? ` charter-section-${tone}` : ""}"><header><h3>${escapeHtml(title)}</h3><span aria-label="${count} recorded items">${count}</span></header><ul>${items.map(charterClaim).join("")}</ul></section>`;
+}
+
+function charterClaim(item) {
+  if (typeof item === "string") return `<li>${escapeHtml(item)}</li>`;
+  return `<li class="charter-refuted"><span class="charter-refuted-label">Declared non-issue</span><span class="charter-refuted-claim">${escapeHtml(item.text)}</span><span class="charter-refuted-note">${escapeHtml(item.note)}</span></li>`;
 }
 
 export function semanticProviderLabel(document = {}) {
