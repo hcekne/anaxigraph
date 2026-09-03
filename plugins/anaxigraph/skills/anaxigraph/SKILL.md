@@ -103,10 +103,17 @@ AnaxiGraph into a general multi-agent workflow engine.
 1. Call `ANAXIGRAPH_GUIDE` with `fresh_eyes=true`. If the returned state is `not_started` or `stale`
    and the user requested the review, call it again with `start=true` and `proposal_count=2` unless
    the user chose one or three proposals. If the state is `failed`, keep the existing proposal
-   count and call with `start=true, retry_failed=true`.
+   count and call with `start=true, retry_failed=true`. If the state is `current` and the user
+   deliberately wants a new architectural judgment, for example from a different model, call
+   with `start=true, restart=true`. This is the same operation as
+   `anaxigraph fresh-eyes <repository> --restart`: it reruns every stage as a new review
+   generation and keeps the earlier documents for audit. Follow `agent_journey.next_action` in
+   each reply.
 2. Start or resume the durable host executor with
-   `anaxigraph understand <repository> --executor <executor> --background --json`. It completes any
-   missing semantic baseline, then consumes the fixed review jobs using the host agent's tokens.
+   `anaxigraph understand <repository> --executor <executor> --background --json`, adding
+   `--model <model>` and, for Codex, `--reasoning-effort <effort>` when the user selected them
+   for a rerun. It completes any missing semantic baseline, then consumes the fixed review jobs
+   using the host agent's tokens.
 3. Poll `ANAXIGRAPH_GUIDE(fresh_eyes=true)` or `anaxigraph fresh-eyes <repository> --json`. A review
    is complete only when `ready` is true and `state` is `current`; partial proposal or comparison
    stages are evidence, not recommendations.
