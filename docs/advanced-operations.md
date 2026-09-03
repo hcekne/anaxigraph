@@ -103,11 +103,13 @@ anaxigraph semantic-status .
 executor is read-only and schema-constrained; AnaxiGraph records `provider: agent` plus the actual
 executor, model, and reasoning effort as provenance. `--background` owns the complete queue outside
 the invoking agent session and records its PID, log, index authority, and terminal result for
-handoff through `semantic-status`. The command omits a model so the executor uses its supported
-configured default. Pass `--model` and `--reasoning-effort` only for an explicit runtime override;
-executor, model, and effort are deliberately excluded from semantic freshness. `--executor mcp`
-deliberately performs planning only and returns an `agent_action_required` continuation contract
-instead of claiming semantic work completed.
+handoff through `semantic-status`. When the detached worker fails, `semantic-status` reports the
+failing cause as `last_error` and the run log holds its traceback; set `ANAXIGRAPH_DEBUG=1` to
+print that traceback for a foreground run. The command omits a model so the executor uses its
+supported configured default. Pass `--model` and `--reasoning-effort` only for an explicit runtime
+override; executor, model, and effort are deliberately excluded from semantic freshness.
+`--executor mcp` deliberately performs planning only and returns an `agent_action_required`
+continuation contract instead of claiming semantic work completed.
 
 With no `--db`, the command first probes the configured/default loopback service and matches the
 repository by canonical Git remote (or exact path for a host-local service). A match makes that

@@ -220,6 +220,7 @@
         "anaxigraph.semantic_background_progress",
         "anaxigraph.semantic_execution",
         "anaxigraph.semantic_mcp",
+        "anaxigraph.semantic_remote_errors",
         "anaxigraph.semantic_remote_worker",
         "anaxigraph.semantic_remote_recovery",
         "anaxigraph.semantic_service",

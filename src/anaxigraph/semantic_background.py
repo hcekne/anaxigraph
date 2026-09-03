@@ -259,7 +259,7 @@ def _run_worker(record_path: Path, latest_path: Path, lock_path: Path) -> int:
     try:
         exit_code = _run_child(record, record_path, latest_path)
         record["status"] = "completed" if exit_code == 0 else "failed"
-        if exit_code:
+        if exit_code and not record.get("last_error"):
             record["last_error"] = f"Semantic command exited with status {exit_code}"
     except BaseException as exc:
         record["status"] = "interrupted" if isinstance(exc, KeyboardInterrupt) else "failed"
