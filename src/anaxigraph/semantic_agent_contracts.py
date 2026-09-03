@@ -8,6 +8,7 @@ from dataclasses import replace
 from typing import Any
 
 from anaxigraph.semantic_agent_protocol import (
+    WAITING_FOR_EXECUTOR,
     agent_no_work_message,
     agent_no_work_status,
     agent_semantic,
@@ -15,6 +16,7 @@ from anaxigraph.semantic_agent_protocol import (
     agent_worker_fragment,
     clean_agent_identity,
     packetize_agent_request,
+    waiting_for_executor_message,
 )
 from anaxigraph.semantic_config_port import AnaxiGraphConfig, SemanticConfig
 from anaxigraph.semantic_contract import (
@@ -143,6 +145,24 @@ class SemanticAgentContractService:
             "status": no_work_status,
             "message": message,
             "plan_stage": plan_stage,
+            "recommended_action": status.get("recommended_action"),
+            "semantic": status,
+        }
+
+    def waiting_for_executor_response(
+        self,
+        status: dict[str, Any],
+        plan_stage: str,
+        waiting: list[dict[str, str]],
+        repository: Any,
+    ) -> dict[str, Any]:
+        """Report reserved work instead of a complete queue, and keep the worker polling."""
+
+        return {
+            "status": WAITING_FOR_EXECUTOR,
+            "message": waiting_for_executor_message(repository, waiting),
+            "plan_stage": plan_stage,
+            "waiting_for": waiting,
             "recommended_action": status.get("recommended_action"),
             "semantic": status,
         }

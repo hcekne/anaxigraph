@@ -16,7 +16,11 @@ from anaxigraph.semantic_config_port import SemanticConfig
 from anaxigraph.semantic_contract import SEMANTIC_SCHEMA_VERSION
 from anaxigraph.semantic_index_port import SemanticIndex
 from anaxigraph.semantic_job_state import semantic_job_transition, semantic_scope_status
-from anaxigraph.semantic_lease_claim import claim_next_job, reconcile_claimable_jobs
+from anaxigraph.semantic_lease_claim import (
+    claim_next_job,
+    pinned_for_other_families,
+    reconcile_claimable_jobs,
+)
 from anaxigraph.semantic_ports import SemanticPersistencePort
 
 
@@ -54,6 +58,11 @@ class SemanticLeaseService:
             executor_effort=executor_effort,
             executor_family=executor_family,
         )
+
+    def pinned_for_other_executors(self, repository_id: int, family: str) -> list[dict[str, str]]:
+        """Report queued work reserved for an executor family other than this claimant's."""
+
+        return pinned_for_other_families(self._database, repository_id, family)
 
     @contextlib.contextmanager
     def job_lease(self, job: dict[str, Any], semantic: SemanticConfig) -> Iterator[None]:

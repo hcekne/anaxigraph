@@ -91,6 +91,14 @@ def _configure_fresh_eyes(commands: Any) -> None:
     )
     fresh_eyes.add_argument("--restart", action="store_true", help=_RESTART_FRESH_EYES_HELP)
     fresh_eyes.add_argument(
+        "--unpin",
+        action="store_true",
+        help=(
+            "Release every executor assignment of the current review so any executor can finish "
+            "it; use this when a pinned executor will not be started"
+        ),
+    )
+    fresh_eyes.add_argument(
         "--generation",
         type=int,
         default=None,
@@ -190,6 +198,8 @@ def _fresh_eyes(args: argparse.Namespace) -> dict[str, Any]:
         return _service_result(_service_fresh_eyes(service, args), service)
     database, repository_id, config = ensure_current(args)
     engine = SemanticEngine(database)
+    if args.unpin:
+        return engine.unpin_fresh_eyes_executors(repository_id, config.semantic)
     if args.start or args.restart:
         return engine.start_fresh_eyes_review(
             repository_id,
@@ -214,6 +224,7 @@ def _service_fresh_eyes(service: Any, args: argparse.Namespace) -> dict[str, Any
         return service_fresh_eyes_review(
             service,
             start=starting,
+            unpin=args.unpin,
             proposal_count=args.proposals,
             proposal_executors=parse_proposal_executors(args.proposal_executors),
             retry_failed=args.retry_failed,

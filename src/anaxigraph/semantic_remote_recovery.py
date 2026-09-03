@@ -18,10 +18,20 @@ class IdleRecovery:
         self.snapshot_id: int | None = None
         self.polls = 0
         self.refreshed: set[int] = set()
+        self.announced: set[str] = set()
 
     def reset(self) -> None:
         self.snapshot_id = None
         self.polls = 0
+
+    def announce_once(self, message: str) -> bool:
+        """Print one line per distinct waiting message so a held run is visible but not noisy."""
+
+        if not message or message in self.announced:
+            return False
+        self.announced.add(message)
+        print(message, file=sys.stderr, flush=True)
+        return True
 
     async def recover(self, state: str, semantic: dict[str, Any]) -> dict[str, Any] | None:
         if not _stranded_queue(state, semantic):

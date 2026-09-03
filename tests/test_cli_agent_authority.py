@@ -103,12 +103,39 @@ def test_fresh_eyes_uses_the_matching_service(
         "start": True,
         "proposal_count": 3,
         "proposal_executors": expected_executors,
+        "unpin": False,
         "retry_failed": False,
         "restart": True,
         "generation": None,
         "compare_with": None,
         "timeout": expected_timeout,
     }
+
+
+def test_fresh_eyes_unpin_reaches_the_service(repository: Path, capsys, monkeypatch):
+    target = SemanticServiceTarget("http://127.0.0.1:9999", 7, "Fixture", "/repo")
+    captured = {}
+    monkeypatch.setattr(agent_commands, "discover_semantic_service", lambda *_a, **_k: target)
+
+    def fresh_eyes(service, **options):
+        captured.update(service=service, **options)
+        return {"status": "unpinned", "unpinned": [], "review": {"state": "in_progress"}}
+
+    monkeypatch.setattr(agent_commands, "service_fresh_eyes_review", fresh_eyes)
+    main(
+        [
+            "fresh-eyes",
+            str(repository),
+            "--service-url",
+            target.base_url,
+            "--unpin",
+            "--json",
+        ]
+    )
+
+    assert json.loads(capsys.readouterr().out)["status"] == "unpinned"
+    assert captured["unpin"] is True
+    assert captured["start"] is False
 
 
 def test_fresh_eyes_generation_reaches_the_service_query(repository: Path, capsys, monkeypatch):

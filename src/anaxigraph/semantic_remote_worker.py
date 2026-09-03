@@ -14,7 +14,7 @@ from mcp.client.streamable_http import streamable_http_client
 
 from anaxigraph.config import SemanticConfig
 from anaxigraph.semantic import create_semantic_provider
-from anaxigraph.semantic_agent_protocol import rehydrate_agent_request
+from anaxigraph.semantic_agent_protocol import WAITING_FOR_EXECUTOR, rehydrate_agent_request
 from anaxigraph.semantic_background_progress import report_background_progress
 from anaxigraph.semantic_remote_calls import (
     MCP_TOOL_TIMEOUT_SECONDS,
@@ -172,6 +172,8 @@ async def _wait_or_recover(
     state = str((terminal or {}).get("status") or "waiting")
     if maximum is not None or state in _TERMINAL_STATES:
         return True, latest
+    if state == WAITING_FOR_EXECUTOR:
+        recovery.announce_once(str((terminal or {}).get("message") or ""))
     prepared = await recovery.recover(state, latest)
     if prepared is not None:
         total["planned"] += int(prepared.get("enqueued") or 0)

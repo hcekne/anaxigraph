@@ -224,12 +224,13 @@ def service_fresh_eyes_review(
     proposal_executors: Sequence[str] = (),
     retry_failed: bool = False,
     restart: bool = False,
+    unpin: bool = False,
     generation: int | None = None,
     compare_with: int | None = None,
     timeout: float = FRESH_EYES_START_TIMEOUT_SECONDS,
 ) -> dict[str, Any]:
-    """Start, restart, or read the fresh-eyes review; ``timeout`` bounds only the start request."""
-    if start or restart:
+    """Start, unpin, or read the fresh-eyes review; ``timeout`` bounds only a write request."""
+    if start or restart or unpin:
         return _service_agent_request(
             target,
             "/api/fresh-eyes",
@@ -238,6 +239,7 @@ def service_fresh_eyes_review(
                 "proposal_executors": list(proposal_executors),
                 "retry_failed": retry_failed,
                 "restart": restart,
+                "unpin": unpin,
                 "repository_id": target.repository_id,
             },
             timeout=timeout,

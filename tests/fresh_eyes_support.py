@@ -4,10 +4,14 @@ from __future__ import annotations
 
 from typing import Any
 
+from anaxigraph.config import load_config
+from anaxigraph.scanner import RepositoryScanner
+from anaxigraph.understanding import SemanticEngine
+
 CODEX_EXECUTOR = "cli:codex:1"
 CLAUDE_EXECUTOR = "cli:claude:2"
 TWO_EXECUTORS = (CODEX_EXECUTOR, CLAUDE_EXECUTOR)
-_IDLE_STATES = {"complete", "busy", "waiting"}
+_IDLE_STATES = {"complete", "busy", "waiting", "waiting_for_executor"}
 
 
 class TwoExecutorReview:
@@ -101,6 +105,32 @@ class TwoExecutorReview:
                 if finished == set(self.executors):
                     return kinds
         raise AssertionError("Semantic work did not converge for the two executors")
+
+
+def baseline_review(repository: Any, database: Any) -> TwoExecutorReview:
+    """Complete the baseline understanding with both host executors, ready for one review."""
+
+    # semantic_support imports this module, so the policy fixture is resolved lazily.
+    from semantic_support import _enable_agent_semantics
+
+    _enable_agent_semantics(repository)
+    config = load_config(repository)
+    stats = RepositoryScanner(database).scan(repository)
+    review = TwoExecutorReview(SemanticEngine(database), stats.repository_id, repository, config)
+    baseline = review.run_until_complete()
+    assert {executor for executor, _ in baseline} == set(TWO_EXECUTORS)
+    return review
+
+
+def prepared_review(repository: Any, database: Any, **start: Any) -> TwoExecutorReview:
+    """Finish the baseline, then start one fresh-eyes review for both executors to share."""
+
+    review = baseline_review(repository, database)
+    started = review.engine.start_fresh_eyes_review(
+        review.repository_id, review.repository, review.config, **start
+    )
+    assert started["status"] == "started", started
+    return review
 
 
 def agent_fresh_eyes(request: dict, kind: str) -> dict:

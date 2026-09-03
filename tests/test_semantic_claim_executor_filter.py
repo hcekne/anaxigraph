@@ -5,13 +5,14 @@ from __future__ import annotations
 import json
 
 import pytest
-from fresh_eyes_support import CLAUDE_EXECUTOR, CODEX_EXECUTOR, TWO_EXECUTORS, TwoExecutorReview
-from semantic_support import _enable_agent_semantics
+from fresh_eyes_support import (
+    CLAUDE_EXECUTOR,
+    CODEX_EXECUTOR,
+    TwoExecutorReview,
+    prepared_review,
+)
 
-from anaxigraph.config import load_config
-from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic_lease_claim import claimable_by, claimant_family, required_executor
-from anaxigraph.understanding import SemanticEngine
 
 _PENDING_SQL = (
     "SELECT scope_key, status, metadata_json FROM semantic_jobs "
@@ -26,21 +27,9 @@ def _row(pin: object) -> dict:
 def _pinned_review(repository, database) -> TwoExecutorReview:
     """Finish the baseline with both executors, then start a review pinned a=codex, b=claude."""
 
-    _enable_agent_semantics(repository)
-    config = load_config(repository)
-    stats = RepositoryScanner(database).scan(repository)
-    review = TwoExecutorReview(SemanticEngine(database), stats.repository_id, repository, config)
-    baseline = review.run_until_complete()
-    assert {executor for executor, _ in baseline} == set(TWO_EXECUTORS)
-    started = review.engine.start_fresh_eyes_review(
-        stats.repository_id,
-        repository,
-        config,
-        proposal_count=2,
-        proposal_executors=("codex", "claude"),
+    return prepared_review(
+        repository, database, proposal_count=2, proposal_executors=("codex", "claude")
     )
-    assert started["status"] == "started"
-    return review
 
 
 def _pending_proposals(database) -> dict[str, str]:
@@ -146,12 +135,7 @@ def test_an_expired_pinned_lease_is_requeued_and_still_refused_to_the_wrong_fami
 
 
 def test_an_unpinned_review_is_claimed_by_whoever_asks_first(repository, database):
-    _enable_agent_semantics(repository)
-    config = load_config(repository)
-    stats = RepositoryScanner(database).scan(repository)
-    review = TwoExecutorReview(SemanticEngine(database), stats.repository_id, repository, config)
-    review.run_until_complete()
-    review.engine.start_fresh_eyes_review(stats.repository_id, repository, config, proposal_count=2)
+    review = prepared_review(repository, database, proposal_count=2)
 
     held = review.hold_one_each("fresh_proposal")
 

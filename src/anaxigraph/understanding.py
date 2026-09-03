@@ -130,6 +130,13 @@ class SemanticEngine:
             plan=plan,
         )
 
+    def unpin_fresh_eyes_executors(
+        self,
+        repository_id: int,
+        semantic: SemanticConfig | None = None,
+    ) -> dict[str, Any]:
+        return self._services.fresh_eyes.unpin(repository_id, semantic)
+
     def claim_agent_work(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         return self._services.agent.claim_agent_work(*args, **kwargs)
 

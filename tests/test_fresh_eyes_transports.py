@@ -5,6 +5,7 @@ from typing import Any
 
 import httpx
 import pytest
+from fresh_eyes_support import CODEX_EXECUTOR, TwoExecutorReview, prepared_review
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 from semantic_support import _agent_dossier, _enable_agent_semantics
@@ -258,7 +259,7 @@ async def test_rest_and_mcp_pin_the_same_executor_to_each_proposal_slot(reposito
     response = await _mcp_guide(database, repository, {"fresh_eyes": True})
     assert response.isError is False
     assert _pins(rest) == _pins(response.structuredContent) == expected
-    _complete_queue(engine, stats.repository_id, repository, config)
+    TwoExecutorReview(engine, stats.repository_id, repository, config).run_until_complete()
     pinned_again = await _mcp_guide(
         database,
         repository,
@@ -276,6 +277,28 @@ async def test_rest_and_mcp_pin_the_same_executor_to_each_proposal_slot(reposito
         ("proposal:a", "claude"),
         ("proposal:b", "codex"),
     ]
+
+
+@pytest.mark.anyio
+async def test_rest_cli_and_mcp_release_the_same_executor_pins(repository, database, capsys):
+    review = prepared_review(
+        repository, database, proposal_count=2, proposal_executors=("codex", "claude")
+    )
+    review.submit(review.claim(CODEX_EXECUTOR))
+
+    body = await _rest_start(database, repository, {"unpin": True})
+
+    assert body["status"] == "unpinned"
+    assert body["unpinned"] == [{"scope_key": "proposal:b", "required_executor": "claude"}]
+    assert _pins(body["review"])[:2] == [("proposal:a", None), ("proposal:b", None)]
+    rest = await _rest_fresh_eyes(database, repository)
+    assert _pins(rest) == _pins(body["review"])
+    response = await _mcp_guide(database, repository, {"intent": "redesign", "unpin": True})
+    assert response.isError is False
+    assert response.structuredContent["status"] == "not_pinned"
+    cli = _cli_fresh_eyes(repository, database, capsys, "--unpin")
+    assert cli["status"] == "not_pinned"
+    assert _pins(cli["review"]) == _pins(rest)
 
 
 @pytest.mark.anyio
