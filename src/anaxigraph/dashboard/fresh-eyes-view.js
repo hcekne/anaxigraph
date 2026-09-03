@@ -151,9 +151,11 @@ function stageMarkup(stages) {
 function diversityMarkup(diversity) {
   const count = Number(diversity.proposal_count || 0);
   if (!count) return "";
+  const families = (diversity.executor_families || []).filter((item) => item !== "unspecified");
+  const familyText = families.length ? `Proposals from ${families.join(" and ")}. ` : "";
   const providerText = diversity.cross_provider
-    ? "Different providers are recorded."
-    : "This is not cross-provider agreement.";
+    ? `${familyText}Different providers are recorded.`
+    : `${familyText}This is not cross-provider agreement.`;
   return `<strong>${count} proposal${count === 1 ? "" : "s"}</strong><span>${escapeHtml(providerText)}
     ${escapeHtml((diversity.models || []).join(", ") || "Model not reported")}</span>`;
 }

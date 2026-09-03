@@ -11,6 +11,7 @@ from anaxigraph.semantic_fresh_eyes_contract import (
     FRESH_EYES_REVIEW_VERSION,
     fresh_eyes_plan_options,
 )
+from anaxigraph.semantic_fresh_eyes_diversity import proposal_diversity
 from anaxigraph.semantic_fresh_eyes_plan import (
     FRESH_EYES_PLAN_KEY,
     FRESH_EYES_SCOPE,
@@ -189,7 +190,7 @@ def _not_started_payload(
         "comparison": None,
         "strategy": None,
         "recommendations": [],
-        "diversity": _empty_diversity(),
+        "diversity": proposal_diversity([]),
         "input_manifests": [],
         "previous_review": previous,
         "caveats": ["No fresh-eyes review has been requested for the current saved scan."],
@@ -388,34 +389,7 @@ def _provenance(document: dict[str, Any] | None) -> dict[str, Any] | None:
 
 
 def _proposal_diversity(proposals: list[dict[str, Any]]) -> dict[str, Any]:
-    provenance = [item.get("provenance") or {} for item in proposals]
-    providers = sorted({str(item.get("provider") or "unspecified") for item in provenance})
-    models = sorted(
-        {
-            str(item.get("executor_model") or item.get("model") or "unspecified")
-            for item in provenance
-        }
-    )
-    executors = sorted({str(item.get("executor_id") or "unspecified") for item in provenance})
-    return {
-        "proposal_count": len(proposals),
-        "providers": providers,
-        "models": models,
-        "executors": executors,
-        "cross_provider": len(providers) > 1,
-        "independent_sessions_recorded": len(executors) == len(proposals),
-    }
-
-
-def _empty_diversity() -> dict[str, Any]:
-    return {
-        "proposal_count": 0,
-        "providers": [],
-        "models": [],
-        "executors": [],
-        "cross_provider": False,
-        "independent_sessions_recorded": False,
-    }
+    return proposal_diversity([item.get("provenance") or {} for item in proposals])
 
 
 def _active_state(stages: list[dict[str, Any]], semantic_status: dict[str, Any]) -> str:

@@ -87,6 +87,11 @@ def test_two_host_executors_share_one_fresh_eyes_review(repository, database):
         CLAUDE_EXECUTOR,
     ]
     assert [claim["status"] for claim in review.claims[-2:]] == ["complete", "complete"]
+    assert result["diversity"]["cross_provider"] is True
+    assert result["diversity"]["executor_families"] == ["claude", "codex"]
+    assert "The proposals do not represent cross-provider agreement." not in result["caveats"]
+    adjudication = next(item for item in review.claims if item["kind"] == "fresh_adjudication")
+    assert adjudication["request"]["diversity"] == result["diversity"]
 
 
 def test_second_executor_is_told_busy_while_a_peer_holds_a_fresh_eyes_stage(repository, database):
