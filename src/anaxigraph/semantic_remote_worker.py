@@ -18,6 +18,7 @@ from anaxigraph.config import SemanticConfig
 from anaxigraph.semantic import create_semantic_provider
 from anaxigraph.semantic_agent_protocol import rehydrate_agent_request
 from anaxigraph.semantic_background_progress import report_background_progress
+from anaxigraph.semantic_remote_errors import failure_summary, raise_remote_failure
 from anaxigraph.semantic_remote_recovery import IdleRecovery
 from anaxigraph.semantic_request_analysis import analyze_semantic_request
 from anaxigraph.semantic_service import SemanticServiceTarget
@@ -53,12 +54,9 @@ def execute_remote_semantics(
         stage = "complete" if result.get("semantic", {}).get("semantically_ready") else "idle"
         report_background_progress(stage=stage, completed=int(result["completed"]))
         return result
-    except (ValueError, RuntimeError, OSError) as exc:
-        report_background_progress(stage="failed", last_error=str(exc))
-        raise
     except Exception as exc:
-        report_background_progress(stage="failed", last_error=str(exc))
-        raise RuntimeError(f"Remote semantic execution failed: {exc}") from exc
+        report_background_progress(stage="failed", last_error=failure_summary(exc))
+        raise_remote_failure(exc)
 
 
 async def _execute(
