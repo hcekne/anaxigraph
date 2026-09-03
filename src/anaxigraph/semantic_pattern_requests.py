@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +16,7 @@ from anaxigraph.semantic_contract import SEMANTIC_SCHEMA_VERSION
 from anaxigraph.semantic_graph import SupersededSemanticJob
 from anaxigraph.semantic_index_port import SemanticIndex
 from anaxigraph.semantic_records import _document_by_id
+from anaxigraph.semantic_target_source import read_mounted_source, require_unchanged_source
 
 
 def pattern_request(
@@ -115,16 +115,16 @@ def _source_evidence(
     path = str(target.get("path") or "")
     if not path:
         return {}
-    candidate = (root / path).resolve()
-    if not candidate.is_relative_to(root) or not candidate.is_file() or candidate.is_symlink():
-        raise SupersededSemanticJob("The file for this pattern check no longer exists")
-    raw = candidate.read_bytes()
+    raw = read_mounted_source(
+        root, path, missing="The file for this pattern check no longer exists"
+    )
     with database.connect() as connection:
         version, symbols = module_facts(
             connection, int(job["snapshot_id"]), int(job["artifact_id"])
         )
-    if version is None or version["raw_hash"] != hashlib.sha256(raw).hexdigest():
-        raise SupersededSemanticJob("The pattern target changed after this work was planned")
+    require_unchanged_source(
+        raw, version, changed="The pattern target changed after this work was planned"
+    )
     source, line_range, truncated = _bounded_source(
         raw.decode("utf-8", errors="replace"),
         target,
