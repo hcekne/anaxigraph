@@ -46,6 +46,7 @@
         "anaxigraph.semantic_index_port",
         "anaxigraph.semantic_pattern_identity",
         "anaxigraph.semantic_request_support",
+        "anaxigraph.semantic_target_source",
         "anaxigraph.semantic_parallel",
         "anaxigraph.semantic_job_state"
       ],

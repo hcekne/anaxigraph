@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -10,7 +9,6 @@ from typing import Any
 from anaxigraph.config import SemanticConfig
 from anaxigraph.persistence.semantic_evidence import module_facts, relationships_for_artifact
 from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION
-from anaxigraph.semantic_graph import SupersededSemanticJob
 from anaxigraph.semantic_index_port import SemanticIndex
 from anaxigraph.semantic_records import _document_by_id
 from anaxigraph.semantic_request_support import (
@@ -19,6 +17,7 @@ from anaxigraph.semantic_request_support import (
     PLAIN_LANGUAGE_REQUIREMENTS,
     compact_dossier,
 )
+from anaxigraph.semantic_target_source import read_mounted_source, require_unchanged_source
 
 _REPOSITORY_CHARTER_CONTRACT = (
     "Create the Living Architecture Charter for this repository. Explain its purpose, actors, "
@@ -31,6 +30,8 @@ _REPOSITORY_CHARTER_CONTRACT = (
     "leaking current file, package, framework, storage, or internal-boundary names unless one is "
     "itself a public compatibility obligation. Do not propose or approve code changes."
 )
+_TARGET_MISSING = "The target module no longer exists in the mounted tree"
+_TARGET_CHANGED = "The module changed after this semantic job was planned"
 
 
 class SemanticEvidenceService:
@@ -69,11 +70,7 @@ class SemanticEvidenceService:
 
     def _intrinsic_request(self, job: dict[str, Any], root: Path) -> dict[str, Any]:
         path = str(job["scope_key"])
-        candidate = (root / path).resolve()
-        if not candidate.is_relative_to(root) or not candidate.is_file() or candidate.is_symlink():
-            raise SupersededSemanticJob("The target module no longer exists in the mounted tree")
-        raw_content = candidate.read_bytes()
-        raw_hash = hashlib.sha256(raw_content).hexdigest()
+        raw_content = read_mounted_source(root, path, missing=_TARGET_MISSING)
         content = raw_content.decode("utf-8", errors="replace")
         with self._database.connect() as connection:
             version, symbols = module_facts(
@@ -81,10 +78,7 @@ class SemanticEvidenceService:
                 int(job["snapshot_id"]),
                 int(job["artifact_id"]),
             )
-            if version is None or version["raw_hash"] != raw_hash:
-                raise SupersededSemanticJob(
-                    "The module changed after this semantic job was planned"
-                )
+            require_unchanged_source(raw_content, version, changed=_TARGET_CHANGED)
             relations = relationships_for_artifact(
                 connection, int(job["snapshot_id"]), int(job["artifact_id"])
             )
