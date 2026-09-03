@@ -9,6 +9,7 @@ from anaxigraph.architecture_charter_contract import (
     ARCHITECTURE_CHARTER_VERSION,
     CAPABILITY_BRIEF_VERSION,
 )
+from anaxigraph.snapshot_provenance import dirty_snapshot_caveat, snapshot_provenance
 
 _PROVENANCE_FIELDS = (
     "document_id",
@@ -44,16 +45,18 @@ def _saved_charter(
     value: dict[str, Any],
 ) -> dict[str, Any]:
     snapshot_id = _snapshot_id(overview)
+    provenance = snapshot_provenance(overview.get("snapshot"))
     state = "current" if document.get("status") == "current" else "stale"
     unknowns = [str(item.get("question") or "") for item in value.get("unknowns") or []]
     conflicts = [str(item.get("claim") or "") for item in value.get("conflicts") or []]
-    caveats = [item for item in (*unknowns, *conflicts) if item]
+    caveats = _snapshot_caveats(provenance, [item for item in (*unknowns, *conflicts) if item])
     if state == "stale":
         caveats.insert(0, "The indexed evidence changed after this Charter was created.")
     return {
         **value,
         "identity": _identity(repository, snapshot_id, document.get("document_id")),
         "snapshot_id": snapshot_id,
+        "snapshot": provenance,
         "state": state,
         "complete": state == "current",
         "readiness": {
@@ -71,6 +74,7 @@ def _saved_charter(
 
 def _provisional_charter(repository: dict[str, Any], overview: dict[str, Any]) -> dict[str, Any]:
     snapshot_id = _snapshot_id(overview)
+    provenance = snapshot_provenance(overview.get("snapshot"))
     files = int(overview.get("files") or 0)
     name = str(repository.get("name") or "This repository")
     purpose = (
@@ -83,6 +87,7 @@ def _provisional_charter(repository: dict[str, Any], overview: dict[str, Any]) -
         **_provisional_content(purpose, evidence, unknowns, overview),
         "identity": _identity(repository, snapshot_id, None),
         "snapshot_id": snapshot_id,
+        "snapshot": provenance,
         "state": "provisional",
         "complete": False,
         "readiness": {
@@ -93,11 +98,21 @@ def _provisional_charter(repository: dict[str, Any], overview: dict[str, Any]) -
             ),
         },
         "provenance": {"source": "static_scan", "provider": None, "document_id": None},
-        "caveats": [
-            "Area placement describes where files sit; it does not prove what users experience.",
-            "Dynamic runtime links may be absent from the extracted dependency graph.",
-        ],
+        "caveats": _snapshot_caveats(
+            provenance,
+            [
+                "Area placement describes where files sit; it does not prove what users experience.",
+                "Dynamic runtime links may be absent from the extracted dependency graph.",
+            ],
+        ),
     }
+
+
+def _snapshot_caveats(provenance: dict[str, Any], caveats: list[str]) -> list[str]:
+    """Lead with the checkout warning so an unreproducible Charter says so first."""
+
+    caveat = dirty_snapshot_caveat(provenance)
+    return [caveat, *caveats] if caveat else list(caveats)
 
 
 def _provisional_unknowns() -> list[dict[str, Any]]:

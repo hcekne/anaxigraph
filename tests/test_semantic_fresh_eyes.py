@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import re
+import subprocess
 
 import pytest
 from fresh_eyes_support import (
@@ -449,3 +451,39 @@ def test_generation_spanning_snapshots_groups_reused_proposals(repository, datab
     ]
     assert [item["job_status"] for item in bundles[1]["stages"][:2]] == ["reused", "reused"]
     assert bundles[0]["review_document_id"] != bundles[1]["review_document_id"]
+
+
+def _snapshot_metadata(database, snapshot_id: int) -> dict:
+    with database.connect() as connection:
+        row = connection.execute(
+            "SELECT metadata_json FROM snapshots WHERE id = ?", (snapshot_id,)
+        ).fetchone()
+    return json.loads(row["metadata_json"])
+
+
+def test_fresh_eyes_review_warns_when_produced_from_a_dirty_checkout(repository, database):
+    _enable_agent_semantics(repository)
+    config = load_config(repository)
+    engine = SemanticEngine(database)
+    stats = RepositoryScanner(database).scan(repository)
+
+    dirty = engine.fresh_eyes_status(stats.repository_id, config.semantic)
+
+    provenance = dirty["snapshot"]
+    assert provenance["snapshot_id"] == stats.snapshot_id
+    assert provenance["dirty"] is True
+    assert re.fullmatch("[0-9a-f]{64}", provenance["working_tree_fingerprint"])
+    metadata = _snapshot_metadata(database, stats.snapshot_id)
+    assert provenance["working_tree_fingerprint"] == metadata["working_tree_fingerprint"]
+    assert re.fullmatch("[0-9a-f]{40}", provenance["commit_sha"])
+    assert "dirty checkout" in dirty["caveats"][0]
+    assert provenance["commit_sha"][:12] in dirty["caveats"][0]
+
+    subprocess.run(["git", "-C", str(repository), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(repository), "commit", "-qm", "Enable agent"], check=True)
+    committed = RepositoryScanner(database).scan(repository)
+    clean = engine.fresh_eyes_status(committed.repository_id, config.semantic)
+
+    assert clean["snapshot"]["dirty"] is False
+    assert clean["snapshot"]["commit_sha"] != provenance["commit_sha"]
+    assert not any("dirty checkout" in caveat for caveat in clean["caveats"])

@@ -279,6 +279,14 @@ proposal agreement, and absent clean-sheet components are never permission to re
 code. AnaxiGraph records the actual provider/model/executor identity and says explicitly when two
 proposals are independent sessions of one provider rather than cross-provider agreement.
 
+Every review and Charter also names the checkout it was read from: the commit, the branch, whether
+that checkout was dirty, and a `working_tree_fingerprint` over the uncommitted content. A result
+produced from a dirty checkout leads with a caveat and shows a banner in the dashboard, because it
+cannot be reproduced from that commit alone: a second model handed the same commit does not read
+the same code, so two reviews cannot be shown to have compared one system. Commit the changes and
+rescan before comparing reviews, or restore a checkout whose `snapshot.working_tree_fingerprint`
+matches the recorded value.
+
 To repeat all five stages with a deliberately selected model, use `fresh-eyes --restart`, or
 `ANAXIGRAPH_GUIDE(intent="redesign", start=true, restart=true)` from a connected agent, and then
 start the semantic executor with explicit `--model` and `--reasoning-effort` values. This creates a

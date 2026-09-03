@@ -422,3 +422,47 @@ def test_charter_cli_refutes_a_concern_without_a_replacement_statement(
     assert overlay["mode"] == "refutation"
     assert overlay["rationale"] == _WHY
     assert overlay["statement"] == ""
+
+
+def _dirty_overview() -> dict:
+    overview = _overview()
+    overview["snapshot"] = {
+        "id": 42,
+        "dirty": 1,
+        "commit_sha": "a" * 40,
+        "branch": "main",
+        "metadata_json": json.dumps({"working_tree_fingerprint": "f" * 64}),
+    }
+    return overview
+
+
+@pytest.mark.parametrize("status", ["current", "stale"])
+def test_charter_carries_snapshot_provenance_and_dirty_caveat(status):
+    repository = {"id": 3, "name": "Sample"}
+    document = {"status": status, "document_id": 91, "value": _agent_charter()}
+
+    provisional = architecture_charter(repository, _dirty_overview(), {})
+    saved = architecture_charter(repository, _dirty_overview(), {"architecture_charter": document})
+
+    for charter in (provisional, saved):
+        assert charter["snapshot"]["commit_sha"] == "a" * 40
+        assert charter["snapshot"]["dirty"] is True
+        assert charter["snapshot"]["working_tree_fingerprint"] == "f" * 64
+        assert any("dirty checkout" in caveat for caveat in charter["caveats"])
+    assert "dirty checkout" in provisional["caveats"][0]
+    if status == "stale":
+        assert "changed" in saved["caveats"][0]
+        assert "dirty checkout" in saved["caveats"][1]
+    else:
+        assert "dirty checkout" in saved["caveats"][0]
+
+    clean = _dirty_overview()
+    clean["snapshot"]["dirty"] = 0
+    for charter in (
+        architecture_charter(repository, clean, {}),
+        architecture_charter(repository, clean, {"architecture_charter": document}),
+        architecture_charter(repository, _overview(), {}),
+    ):
+        assert charter["snapshot"]["dirty"] is False
+        assert not any("dirty checkout" in caveat for caveat in charter["caveats"])
+    assert architecture_charter(repository, _overview(), {})["snapshot"]["snapshot_id"] == 42

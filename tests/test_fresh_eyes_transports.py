@@ -118,9 +118,11 @@ async def test_dashboard_cli_contract_and_mcp_share_one_fresh_eyes_result(reposi
     assert response.isError is False
     mcp = response.structuredContent
 
-    for field in ("identity", "state", "fingerprints", "recommendations", "caveats"):
+    for field in ("identity", "state", "snapshot", "fingerprints", "recommendations", "caveats"):
         assert mcp[field] == rest[field]
     assert rest["state"] == "current"
+    assert rest["snapshot"]["dirty"] is True
+    assert "dirty checkout" in rest["caveats"][0]
     assert rest["recommendations"][0]["action"] == "consolidate"
 
 

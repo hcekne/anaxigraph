@@ -121,7 +121,21 @@ function renderRepositoryIntelligence(value) {
       ? "Saved AI understanding is visible, but changed code evidence still needs review."
     : `Created by ${semanticProviderLabel(value.provenance)}. Every claim should point back to indexed evidence; uncertainty stays visible.`;
   const purpose = value.purpose?.presented_statement || value.purpose?.statement;
-  panel.innerHTML = `<header class="charter-header"><div class="charter-heading"><div><p class="eyebrow">Living Architecture Charter</p><h2>What this repository does</h2></div><span class="charter-state">${escapeHtml(humanize(value.state))}</span></div><p class="charter-purpose">${escapeHtml(purpose || "The Charter did not record a purpose.")}</p><p class="charter-provenance">${escapeHtml(source)}</p></header><div class="repository-intelligence-grid">${charterSection("Observable capabilities", statements(value.capabilities), "No capability has enough evidence yet")}${charterSection("Responsibility areas", statements(value.responsibilities), "No responsibility has enough evidence yet")}${charterSection("Important flows", statements(value.execution_flows), "No execution flow has enough evidence yet")}${charterSection("Safe extension points", statements(value.extension_points), "No extension point has enough evidence yet")}${charterSection("Coherence concerns", statements(value.coherence_concerns), "No current coherence concern was recorded", "attention")}${charterSection("Unknowns and conflicts", [...unknowns, ...conflicts], "No unresolved unknown or conflict was recorded", "question")}${charterSection("Declared context", declared, "No human or principal correction has been added")}</div>`;
+  panel.innerHTML = `<header class="charter-header"><div class="charter-heading"><div><p class="eyebrow">Living Architecture Charter</p><h2>What this repository does</h2></div><span class="charter-state">${escapeHtml(humanize(value.state))}</span></div><p class="charter-purpose">${escapeHtml(purpose || "The Charter did not record a purpose.")}</p><p class="charter-provenance">${escapeHtml(source)}</p>${charterWarning(value.snapshot)}</header><div class="repository-intelligence-grid">${charterSection("Observable capabilities", statements(value.capabilities), "No capability has enough evidence yet")}${charterSection("Responsibility areas", statements(value.responsibilities), "No responsibility has enough evidence yet")}${charterSection("Important flows", statements(value.execution_flows), "No execution flow has enough evidence yet")}${charterSection("Safe extension points", statements(value.extension_points), "No extension point has enough evidence yet")}${charterSection("Coherence concerns", statements(value.coherence_concerns), "No current coherence concern was recorded", "attention")}${charterSection("Unknowns and conflicts", [...unknowns, ...conflicts], "No unresolved unknown or conflict was recorded", "question")}${charterSection("Declared context", declared, "No human or principal correction has been added")}</div>`;
+}
+
+function charterWarning(snapshot) {
+  if (!snapshot?.dirty) return "";
+  const commit = snapshot.commit_sha
+    ? String(snapshot.commit_sha).slice(0, 12)
+    : "an unrecorded commit";
+  const fingerprint = snapshot.working_tree_fingerprint;
+  const traced = fingerprint
+    ? `working-tree fingerprint ${String(fingerprint).slice(0, 12)}`
+    : "no working-tree fingerprint was recorded";
+  return `<p class="charter-warning">Built from a dirty checkout of ${escapeHtml(commit)}
+    (uncommitted changes; ${escapeHtml(traced)}). This Charter cannot be reproduced from that
+    commit alone, so a second review cannot be shown to have read the same code.</p>`;
 }
 
 function charterSection(title, values, empty, tone = "") {

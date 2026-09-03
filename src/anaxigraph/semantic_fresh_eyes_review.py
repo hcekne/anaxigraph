@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +40,7 @@ from anaxigraph.semantic_ports import (
     SemanticPlanningPort,
     SemanticReportingPort,
 )
+from anaxigraph.snapshot_provenance import dirty_snapshot_caveat, snapshot_provenance
 
 _PLAN_ROW_SQL = (
     "SELECT * FROM semantic_scope_states WHERE snapshot_id = ? AND scope_type = ? AND scope_key = ?"
@@ -136,12 +138,29 @@ class FreshEyesReviewService:
                     semantic_status,
                 )
             if plan is None:
-                return _not_started_payload(
-                    repository_id, snapshot_id, semantic_status, generations
+                return _with_snapshot_provenance(
+                    _not_started_payload(repository_id, snapshot_id, semantic_status, generations),
+                    snapshot,
                 )
-            return _current_review(
-                connection, repository_id, snapshot_id, plan, semantic_status, generations
+            return _with_snapshot_provenance(
+                _current_review(
+                    connection, repository_id, snapshot_id, plan, semantic_status, generations
+                ),
+                snapshot,
             )
+
+
+def _with_snapshot_provenance(
+    payload: dict[str, Any], snapshot: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Name the checkout this review was read from, and warn when it was not committed."""
+
+    provenance_block = snapshot_provenance(snapshot)
+    payload["snapshot"] = provenance_block
+    caveat = dirty_snapshot_caveat(provenance_block)
+    if caveat:
+        payload["caveats"] = [caveat, *payload.get("caveats", [])]
+    return payload
 
 
 def _selects_current(plan: dict[str, Any] | None, generation: int) -> bool:

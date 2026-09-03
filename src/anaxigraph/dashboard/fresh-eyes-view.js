@@ -65,7 +65,8 @@ function markup() {
       <label id="fresh-eyes-generation-label" hidden>Generation
         <select id="fresh-eyes-generation"></select></label>
       <button id="fresh-eyes-refresh" class="secondary-button" type="button">Refresh</button>
-      </div></div><p id="fresh-eyes-summary" class="panel-copy"></p>
+      </div></div><div id="fresh-eyes-snapshot"></div>
+      <p id="fresh-eyes-summary" class="panel-copy"></p>
       <div id="fresh-eyes-stages" class="fresh-eyes-stages"></div>
       <div id="fresh-eyes-diversity" class="fresh-eyes-diversity"></div></article>
     <div id="fresh-eyes-recommendations" class="fresh-eyes-recommendations"></div>
@@ -134,6 +135,7 @@ function render(value) {
   byId("fresh-eyes-summary").textContent = value.strategy?.summary
     || value.next_action || "No review has been requested for this saved scan.";
   renderGenerationControl(value);
+  byId("fresh-eyes-snapshot").innerHTML = snapshotWarning(value.snapshot);
   renderStartControl(value, ready);
   byId("fresh-eyes-stages").innerHTML = stageMarkup(value.stages || []);
   byId("fresh-eyes-diversity").innerHTML = diversityMarkup(value.diversity || {});
@@ -167,6 +169,20 @@ function renderStartControl(value, ready = value.ready === true) {
   byId("fresh-eyes-start").disabled = !canStart;
   byId("fresh-eyes-proposal-count").disabled = !canStart
     || !["not_started", "stale"].includes(value.state);
+}
+
+function snapshotWarning(snapshot) {
+  if (!snapshot?.dirty) return "";
+  const commit = snapshot.commit_sha
+    ? String(snapshot.commit_sha).slice(0, 12)
+    : "an unrecorded commit";
+  const fingerprint = snapshot.working_tree_fingerprint;
+  const traced = fingerprint
+    ? `working-tree fingerprint ${String(fingerprint).slice(0, 12)}`
+    : "no working-tree fingerprint was recorded";
+  return `<p class="fresh-eyes-warning">Produced from a dirty checkout of
+    ${escapeHtml(commit)} (uncommitted changes; ${escapeHtml(traced)}). Another model given only
+    that commit would not read the same code, so this review cannot be compared as reproduced.</p>`;
 }
 
 function stageMarkup(stages) {
@@ -292,6 +308,7 @@ function renderWaiting() {
   if (!byId("fresh-eyes-title")) return;
   byId("fresh-eyes-title").textContent = "Open this view to read the current review";
   byId("fresh-eyes-summary").textContent = "The review is stored per repository and saved scan.";
+  byId("fresh-eyes-snapshot").innerHTML = "";
   byId("fresh-eyes-stages").innerHTML = "";
   byId("fresh-eyes-diversity").innerHTML = "";
   byId("fresh-eyes-recommendations").innerHTML = "";
