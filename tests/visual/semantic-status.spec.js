@@ -38,13 +38,28 @@ test("semantic progress and model-backed pattern advice use direct language", as
     responsibilities: [{ statement: "Keeps code explanations tied to current evidence." }],
     execution_flows: [{ statement: "A person asks a question and receives a bounded repository explanation." }],
     extension_points: [{ statement: "Add a new code reader through the existing reader interface." }],
-    coherence_concerns: [{ statement: "Code links created only while the program runs may be missing." }],
+    coherence_concerns: [
+      { statement: "Code links created only while the program runs may be missing." },
+      {
+        key: "temp-tables",
+        statement: "Snapshot projection may leave temporary tables behind.",
+        disposition: "refuted",
+        declared_overlay: { author: "repository owner", rationale: "The table is dropped in the same transaction." },
+      },
+    ],
     unknowns: [{ question: "Which runtime-created links are absent?" }],
     conflicts: [],
     declared_context: [{
       statement: "Keeps a continuously reviewed map for people and coding agents.",
       author: "repository owner",
       rationale: "Continuity is part of the intended product behavior.",
+    }, {
+      key: "temp-tables",
+      statement: "",
+      inferred_statement: "Snapshot projection may leave temporary tables behind.",
+      mode: "refutation",
+      author: "repository owner",
+      rationale: "The table is dropped in the same transaction.",
     }],
     provenance: { provider: "codex", model: "test-model" },
   };
@@ -127,6 +142,14 @@ test("semantic progress and model-backed pattern advice use direct language", as
   );
   await expect(page.locator("#repository-intelligence")).toContainText(
     "Keeps code explanations tied to current evidence",
+  );
+  const refuted = page.locator("#repository-intelligence .charter-refuted");
+  await expect(refuted).toHaveCount(1);
+  await expect(refuted).toContainText("Declared non-issue");
+  await expect(refuted).toContainText("Snapshot projection may leave temporary tables behind.");
+  await expect(refuted).toContainText("repository owner: The table is dropped in the same transaction.");
+  await expect(page.locator("#repository-intelligence")).toContainText(
+    "Declared non-issue — Snapshot projection may leave temporary tables behind.",
   );
   await expect(page.locator("#repository-intelligence")).toContainText(
     "A person asks a question",

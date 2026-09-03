@@ -397,3 +397,42 @@ async def test_request_limit_preserves_combined_mcp_transport(repository, databa
         "ANAXIGRAPH_SEMANTIC_RELEASE",
         "ANAXIGRAPH_SEMANTIC_FAIL",
     }
+
+
+@pytest.mark.anyio
+async def test_charter_correction_endpoint_records_and_validates_a_refutation(repository, database):
+    RepositoryScanner(database).scan(repository)
+    app = create_app(database=database, repository=repository, enable_mcp=False)
+    rationale = "storage.py:33 drops the temporary table inside the same transaction."
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        refuted = await client.post(
+            "/api/charter/corrections",
+            json={
+                "section": "coherence_concerns",
+                "key": "temp-tables",
+                "author": "test owner",
+                "rationale": rationale,
+                "disposition": "refute",
+            },
+        )
+        rejected = await client.post(
+            "/api/charter/corrections",
+            json={
+                "section": "coherence_concerns",
+                "key": "temp-tables",
+                "author": "test owner",
+                "rationale": rationale,
+                "disposition": "ignore",
+            },
+        )
+
+    assert refuted.status_code == 200
+    overlay = refuted.json()["declared_context"][0]
+    assert overlay["mode"] == "refutation"
+    assert overlay["statement"] == ""
+    assert overlay["rationale"] == rationale
+    assert rejected.status_code == 400
+    assert "disposition must be one of" in rejected.json()["detail"]

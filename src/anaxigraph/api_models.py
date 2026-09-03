@@ -35,4 +35,5 @@ class CharterCorrectionRequest(BaseModel):
     author: str = Field(min_length=1, max_length=200)
     rationale: str = Field(min_length=1, max_length=2_000)
     active: bool = True
+    disposition: str = "correct"
     repository_id: int | None = None

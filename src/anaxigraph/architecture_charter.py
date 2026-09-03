@@ -221,24 +221,40 @@ def _with_declared_context(
         if not correction.get("active"):
             continue
         target = _target_claim(result, str(correction["section"]), str(correction["key"]))
-        inferred = str(target.get("statement") or "") if target else ""
-        overlay = {
-            "document_id": correction.get("document_id"),
-            "section": correction["section"],
-            "key": correction["key"],
-            "statement": correction["statement"],
-            "inferred_statement": inferred or None,
-            "mode": "correction" if target else "addition",
-            "author": correction["author"],
-            "rationale": correction["rationale"],
-            "created_at": correction.get("created_at"),
-        }
+        overlay = _declared_overlay(correction, target)
         if target:
-            target["presented_statement"] = correction["statement"]
-            target["declared_overlay"] = overlay
+            _apply_overlay(target, overlay)
         declared.append(overlay)
     result["declared_context"] = declared
     return result
+
+
+def _declared_overlay(correction: dict[str, Any], target: dict[str, Any] | None) -> dict[str, Any]:
+    """Describe one active correction, naming refutation as its own overlay mode."""
+
+    inferred = str(target.get("statement") or "") if target else ""
+    refuted = str(correction.get("disposition") or "correct") == "refute"
+    return {
+        "document_id": correction.get("document_id"),
+        "section": correction["section"],
+        "key": correction["key"],
+        "statement": correction["statement"],
+        "inferred_statement": inferred or None,
+        "mode": "refutation" if refuted else ("correction" if target else "addition"),
+        "author": correction["author"],
+        "rationale": correction["rationale"],
+        "created_at": correction.get("created_at"),
+    }
+
+
+def _apply_overlay(target: dict[str, Any], overlay: dict[str, Any]) -> None:
+    """Mark the inferred claim without deleting or rewriting the evidence behind it."""
+
+    if overlay["mode"] == "refutation":
+        target["disposition"] = "refuted"
+    if overlay["statement"]:
+        target["presented_statement"] = overlay["statement"]
+    target["declared_overlay"] = overlay
 
 
 def _target_claim(charter: dict[str, Any], section: str, key: str) -> dict[str, Any] | None:

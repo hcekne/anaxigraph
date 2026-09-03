@@ -23,6 +23,7 @@ CORRECTABLE_SECTIONS = frozenset(
         "coherence_concerns",
     }
 )
+CORRECTION_DISPOSITIONS = frozenset({"correct", "refute"})
 
 
 def save_charter_correction(
@@ -35,36 +36,57 @@ def save_charter_correction(
     author: str,
     rationale: str,
     active: bool = True,
+    disposition: str = "correct",
 ) -> dict[str, Any]:
-    """Append one immutable declared overlay without rewriting inferred evidence."""
+    """Append one immutable declared overlay without rewriting inferred evidence.
 
-    section = _section(section)
-    key = "purpose" if section == "purpose" else _text(key, "key", 200)
-    author = _text(author, "author", 200)
-    rationale = _text(rationale, "rationale", 2_000)
-    statement = _text(statement, "statement", 4_000) if active else ""
+    `disposition` is `correct` (the default: the statement replaces or adds a claim) or
+    `refute` (the principal declares the targeted inferred claim a known non-issue; the
+    statement is then optional and the rationale carries the reason).
+    """
+
+    value = _correction_value(
+        section=section,
+        key=key,
+        statement=statement,
+        author=author,
+        rationale=rationale,
+        active=active,
+        disposition=disposition,
+    )
     snapshot = database.latest_snapshot(repository_id)
     if snapshot is None:
         raise ValueError("Repository must have a current scan before adding Charter context")
-    value = {
-        "contract_version": CORRECTION_VERSION,
-        "section": section,
-        "key": key,
-        "statement": statement,
-        "author": author,
-        "rationale": rationale,
-        "active": bool(active),
-    }
     created_at = utc_now()
     with database.transaction() as connection:
         document_id = _insert_correction(
-            connection,
-            repository_id,
-            int(snapshot["id"]),
-            value,
-            created_at,
+            connection, repository_id, int(snapshot["id"]), value, created_at
         )
     return {**value, "document_id": document_id, "created_at": created_at}
+
+
+def _correction_value(
+    *,
+    section: str,
+    key: str,
+    statement: str,
+    author: str,
+    rationale: str,
+    active: bool,
+    disposition: str,
+) -> dict[str, Any]:
+    section = _section(section)
+    disposition = _disposition(disposition)
+    return {
+        "contract_version": CORRECTION_VERSION,
+        "section": section,
+        "key": "purpose" if section == "purpose" else _text(key, "key", 200),
+        "statement": _statement(statement, active=active, disposition=disposition),
+        "author": _text(author, "author", 200),
+        "rationale": _text(rationale, "rationale", 2_000),
+        "active": bool(active),
+        "disposition": disposition,
+    }
 
 
 def _insert_correction(
@@ -111,7 +133,12 @@ def _insert_correction(
 
 
 def read_charter_corrections(connection: Any, repository_id: int) -> list[dict[str, Any]]:
-    """Return the latest declared state for each Charter target, including withdrawals."""
+    """Return the latest declared state for each Charter target, including withdrawals.
+
+    Only the newest document per `section:key` survives, so a refutation and a wording
+    correction on the same key never coexist: whichever was saved last is the declared
+    state, and the earlier one stops being presented.
+    """
 
     rows = connection.execute(
         """
@@ -141,6 +168,22 @@ def read_charter_corrections(connection: Any, repository_id: int) -> list[dict[s
             }
         )
     return sorted(result, key=lambda item: (item["section"], item["key"]))
+
+
+def _disposition(value: str) -> str:
+    disposition = str(value).strip() or "correct"
+    if disposition not in CORRECTION_DISPOSITIONS:
+        choices = ", ".join(sorted(CORRECTION_DISPOSITIONS))
+        raise ValueError(f"disposition must be one of: {choices}")
+    return disposition
+
+
+def _statement(value: str, *, active: bool, disposition: str) -> str:
+    if not active:
+        return ""
+    if disposition == "refute" and not str(value).strip():
+        return ""
+    return _text(value, "statement", 4_000)
 
 
 def _section(value: str) -> str:

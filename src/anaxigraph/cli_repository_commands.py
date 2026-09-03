@@ -79,6 +79,11 @@ def _configure_charter(commands: Any) -> None:
     charter.add_argument("--author", default="", help="Person or principal making the correction")
     charter.add_argument("--rationale", default="", help="Why the declared context is needed")
     charter.add_argument("--withdraw", action="store_true", help="Withdraw this declared overlay")
+    charter.add_argument(
+        "--refute",
+        action="store_true",
+        help="Declare the targeted inferred claim a known non-issue instead of rewording it",
+    )
     charter.set_defaults(handler=_charter)
 
 
@@ -155,6 +160,7 @@ def _charter(args: argparse.Namespace) -> dict[str, Any]:
         args.author,
         args.rationale,
         args.withdraw,
+        args.refute,
     )
     if any(correction_values) and not args.correct_section:
         raise ValueError("--correct-section is required when changing declared Charter context")
@@ -168,6 +174,7 @@ def _charter(args: argparse.Namespace) -> dict[str, Any]:
             author=args.author,
             rationale=args.rationale,
             active=not args.withdraw,
+            disposition="refute" if args.refute else "correct",
         )
     overview = database.overview(repository_id)
     semantic = cli_services.semantics(database).status(repository_id, config.semantic)

@@ -1,12 +1,19 @@
 from __future__ import annotations
 
+import json
 from copy import deepcopy
 
 import pytest
 
 from anaxigraph.architecture_charter import architecture_charter
 from anaxigraph.architecture_charter_contract import validated_architecture_charter
-from anaxigraph.architecture_charter_corrections import save_charter_correction
+from anaxigraph.architecture_charter_corrections import (
+    CORRECTION_VERSION,
+    _insert_correction,
+    read_charter_corrections,
+    save_charter_correction,
+)
+from anaxigraph.cli import main
 from anaxigraph.config import load_config
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic import SemanticAnalysisError
@@ -205,3 +212,213 @@ def test_declared_correction_overlays_inference_survives_scan_and_can_be_withdra
     assert result["declared_context"] == []
     assert "presented_statement" not in result["purpose"]
     assert result["identity"].endswith(f":c{withdrawn['document_id']}")
+
+
+_CONCERN = "Snapshot projection may leave temporary tables behind."
+_WHY = "storage.py:33 drops the temporary table inside the same transaction."
+
+
+def _charter_with_concern() -> dict:
+    value = deepcopy(_agent_charter())
+    value["coherence_concerns"] = [
+        {
+            "key": "temp-tables",
+            "name": "Temporary tables",
+            "statement": _CONCERN,
+            "related": [],
+            "entry_points": ["src/anaxigraph/storage.py"],
+            "evidence": ["snapshot projection review"],
+            "counter_evidence": [],
+            "confidence": 0.6,
+        }
+    ]
+    return {
+        "status": "current",
+        "document_id": 91,
+        "value": value,
+        "provider": "agent",
+        "created_at": "2026-09-01T12:00:00+00:00",
+    }
+
+
+def _refutation(**overrides) -> dict:
+    correction = {
+        "document_id": 7,
+        "section": "coherence_concerns",
+        "key": "temp-tables",
+        "statement": "",
+        "author": "repository owner",
+        "rationale": _WHY,
+        "active": True,
+        "disposition": "refute",
+        "created_at": "2026-09-02T09:00:00+00:00",
+    }
+    correction.update(overrides)
+    return correction
+
+
+def _projected(corrections: list[dict], document: dict | None = None) -> dict:
+    semantic = {
+        "architecture_charter": document or _charter_with_concern(),
+        "charter_corrections": corrections,
+    }
+    return architecture_charter({"id": 3, "name": "Sample"}, _overview(), semantic)
+
+
+def _scanned(tmp_path, database) -> tuple[dict, int]:
+    root = tmp_path / "refuted"
+    root.mkdir()
+    (root / "app.py").write_text("def greet():\n    return 'hello'\n", encoding="utf-8")
+    stats = RepositoryScanner(database).scan(root)
+    row = database.repository(stats.repository_id)
+    assert row is not None
+    return row, stats.repository_id
+
+
+def _stored_corrections(database, repository_id: int) -> list[dict]:
+    with database.transaction() as connection:
+        return read_charter_corrections(connection, repository_id)
+
+
+def test_refuted_concern_is_marked_and_preserved_and_can_be_withdrawn():
+    result = _projected([_refutation()])
+
+    concern = result["coherence_concerns"][0]
+    assert concern["disposition"] == "refuted"
+    assert concern["statement"] == _CONCERN
+    assert "presented_statement" not in concern
+    assert concern["declared_overlay"]["rationale"] == _WHY
+    overlay = result["declared_context"][0]
+    assert overlay["mode"] == "refutation"
+    assert overlay["inferred_statement"] == _CONCERN
+    assert overlay["author"] == "repository owner"
+
+    withdrawn = _projected([_refutation(active=False)])
+    assert withdrawn["declared_context"] == []
+    assert "disposition" not in withdrawn["coherence_concerns"][0]
+    assert withdrawn["coherence_concerns"][0]["statement"] == _CONCERN
+
+
+def test_refutation_may_replace_the_wording_or_name_a_claim_the_charter_no_longer_infers():
+    replacement = "The temporary table is dropped inside the same transaction."
+    result = _projected([_refutation(statement=replacement)])
+
+    concern = result["coherence_concerns"][0]
+    assert concern["disposition"] == "refuted"
+    assert concern["presented_statement"] == replacement
+    assert concern["statement"] == _CONCERN
+
+    unmatched = _projected([_refutation(key="renamed-after-regeneration")])
+    assert unmatched["declared_context"][0]["mode"] == "refutation"
+    assert unmatched["declared_context"][0]["inferred_statement"] is None
+    assert "disposition" not in unmatched["coherence_concerns"][0]
+
+
+def test_legacy_corrections_without_disposition_still_load(tmp_path, database):
+    row, repository_id = _scanned(tmp_path, database)
+    snapshot = database.latest_snapshot(repository_id)
+    assert snapshot is not None
+    legacy = {
+        "contract_version": CORRECTION_VERSION,
+        "section": "coherence_concerns",
+        "key": "temp-tables",
+        "statement": "Temporary tables are worth watching during projection.",
+        "author": "repository owner",
+        "rationale": "Saved before the disposition field existed.",
+        "active": True,
+    }
+    with database.transaction() as connection:
+        _insert_correction(
+            connection, repository_id, int(snapshot["id"]), legacy, "2026-08-01T00:00:00+00:00"
+        )
+
+    corrections = _stored_corrections(database, repository_id)
+    assert "disposition" not in corrections[0]
+
+    result = architecture_charter(
+        row,
+        database.overview(repository_id),
+        {"architecture_charter": _charter_with_concern(), "charter_corrections": corrections},
+    )
+    concern = result["coherence_concerns"][0]
+    assert concern["presented_statement"] == legacy["statement"]
+    assert "disposition" not in concern
+    assert result["declared_context"][0]["mode"] == "correction"
+
+
+def test_a_refutation_and_a_wording_correction_on_one_key_cannot_coexist(tmp_path, database):
+    _row, repository_id = _scanned(tmp_path, database)
+    target = {"section": "coherence_concerns", "key": "temp-tables", "author": "owner"}
+    save_charter_correction(
+        database,
+        repository_id,
+        statement="Temporary tables need a documented owner.",
+        rationale="The inferred wording was vague.",
+        **target,
+    )
+
+    save_charter_correction(database, repository_id, rationale=_WHY, disposition="refute", **target)
+    corrections = _stored_corrections(database, repository_id)
+    assert len(corrections) == 1
+    assert corrections[0]["disposition"] == "refute"
+    assert corrections[0]["statement"] == ""
+
+    save_charter_correction(
+        database,
+        repository_id,
+        statement="Temporary tables need a documented owner.",
+        rationale="The refutation was premature.",
+        **target,
+    )
+    corrections = _stored_corrections(database, repository_id)
+    assert len(corrections) == 1
+    assert corrections[0]["disposition"] == "correct"
+    assert _projected(corrections)["coherence_concerns"][0].get("disposition") is None
+
+
+def test_refute_makes_the_statement_optional_and_rejects_an_unknown_disposition(tmp_path, database):
+    _row, repository_id = _scanned(tmp_path, database)
+    target = {"section": "coherence_concerns", "key": "temp-tables", "author": "owner"}
+
+    saved = save_charter_correction(
+        database, repository_id, rationale=_WHY, disposition="refute", **target
+    )
+    assert saved["disposition"] == "refute"
+    assert saved["statement"] == ""
+
+    with pytest.raises(ValueError, match="disposition must be one of"):
+        save_charter_correction(
+            database, repository_id, rationale=_WHY, disposition="ignore", **target
+        )
+    with pytest.raises(ValueError, match="statement is required"):
+        save_charter_correction(database, repository_id, rationale=_WHY, **target)
+
+
+def test_charter_cli_refutes_a_concern_without_a_replacement_statement(
+    repository, tmp_path, capsys
+):
+    arguments = [
+        "charter",
+        str(repository),
+        "--db",
+        str(tmp_path / "refute.db"),
+        "--json",
+        "--correct-section",
+        "coherence_concerns",
+        "--key",
+        "temp-tables",
+        "--refute",
+        "--author",
+        "test owner",
+        "--rationale",
+        _WHY,
+    ]
+    main(["scan", str(repository), "--db", str(tmp_path / "refute.db"), "--json"])
+    capsys.readouterr()
+    main(arguments)
+
+    charter = json.loads(capsys.readouterr().out)
+    overlay = charter["declared_context"][0]
+    assert overlay["mode"] == "refutation"
+    assert overlay["rationale"] == _WHY
+    assert overlay["statement"] == ""
