@@ -13,6 +13,7 @@ from typing import Any
 from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
 from anaxigraph.semantic import create_semantic_provider
 from anaxigraph.semantic_graph import SupersededSemanticJob
+from anaxigraph.semantic_job_state import SemanticLeaseLost
 from anaxigraph.semantic_leases import SemanticLeaseService
 from anaxigraph.semantic_ports import (
     SemanticEvidencePort,
@@ -85,7 +86,9 @@ def _wave_execution(
 
 
 def _job_counts() -> dict[str, int]:
-    return {key: 0 for key in ("processed", "completed", "failed", "retry", "superseded")}
+    return {
+        key: 0 for key in ("processed", "completed", "failed", "retry", "superseded", "lease_lost")
+    }
 
 
 def _count_job_results(counts: dict[str, int], results: list[str]) -> None:
@@ -252,14 +255,22 @@ class SemanticRunnerService:
         except SupersededSemanticJob as exc:
             self._persistence.mark_superseded(int(job["id"]), str(exc))
             return "superseded"
+        except SemanticLeaseLost:
+            return "lease_lost"
         except Exception as exc:
+            return self._record_failure(job, exc)
+
+    def _record_failure(self, job: dict[str, Any], exc: Exception) -> str:
+        try:
             retry = self._persistence.fail_job(
                 job,
                 exc,
                 input_tokens=max(0, int(getattr(exc, "input_tokens", 0))),
                 output_tokens=max(0, int(getattr(exc, "output_tokens", 0))),
             )
-            return "retry" if retry else "failed"
+        except SemanticLeaseLost:
+            return "lease_lost"
+        return "retry" if retry else "failed"
 
     def analyze_request(
         self,

@@ -9,6 +9,10 @@ PATTERN_METADATA_RETENTION = "pattern-evaluation-v1"
 FRESH_EYES_METADATA_RETENTION = "fresh-eyes-input-v1"
 
 
+class SemanticLeaseLost(ValueError):
+    """The caller no longer holds the running lease its write depends on."""
+
+
 class SemanticJobState(StrEnum):
     PENDING = "pending"
     RETRY = "retry"

@@ -177,17 +177,17 @@ def _claim_row(
     lease_token_hash: str | None,
     executor_id: str | None,
     executor_model: str | None,
-) -> dict[str, Any]:
+) -> dict[str, Any] | None:
     selected_worker = worker_id or f"{os.getpid()}:{threading.get_ident()}:{int(row['id'])}"
     seconds = lease_seconds or max(90, semantic.timeout_seconds + 60)
     expires = (datetime.now(UTC) + timedelta(seconds=seconds)).isoformat()
     target = semantic_job_transition(str(row["status"]), "claim")
-    connection.execute(
+    cursor = connection.execute(
         """
         UPDATE semantic_jobs SET status = ?, attempts = attempts + 1,
             started_at = ?, worker_id = ?, lease_expires_at = ?, error = NULL,
             lease_token_hash = ?, executor_id = ?, executor_model = ?
-        WHERE id = ?
+        WHERE id = ? AND status = ?
         """,
         (
             target,
@@ -198,8 +198,11 @@ def _claim_row(
             executor_id,
             executor_model,
             int(row["id"]),
+            str(row["status"]),
         ),
     )
+    if cursor.rowcount != 1:
+        return None
     result = dict(row)
     result.update(
         status=target,
