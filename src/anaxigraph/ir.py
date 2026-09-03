@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
-from pathlib import PurePosixPath
 from typing import Any
 
+from anaxigraph.ir_identity import (
+    canonical_python_module,
+    module_identity_fields,
+    python_module_aliases,
+)
 from anaxigraph.languages import artifact_type, detect_language
 from anaxigraph.models import (
     IR_SCHEMA_VERSION,
@@ -43,16 +47,7 @@ __all__ = [
 
 
 def module_identity(path: str, language: str) -> ModuleIdentity:
-    normalized = path.replace("\\", "/").removeprefix("./")
-    if language == "python":
-        canonical = canonical_python_module(normalized)
-        aliases = tuple(sorted(python_module_aliases(normalized)))
-    else:
-        pure = PurePosixPath(normalized)
-        canonical = ".".join(pure.with_suffix("").parts)
-        aliases = (canonical,) if canonical else ()
-    package_name = canonical.split(".", 1)[0] if canonical else ""
-    return ModuleIdentity(normalized, language, canonical, package_name, aliases)
+    return ModuleIdentity(**module_identity_fields(path, language))
 
 
 def resolver_context(
@@ -70,28 +65,6 @@ def resolver_context(
         configured_aliases=tuple(sorted((configured_aliases or {}).items())),
         candidate_roots=tuple(sorted(set(candidate_roots))),
     )
-
-
-def canonical_python_module(path: str) -> str:
-    pure = PurePosixPath(path)
-    parts = list(pure.with_suffix("").parts)
-    if parts and parts[-1] == "__init__":
-        parts.pop()
-    return ".".join(parts)
-
-
-def python_module_aliases(path: str) -> set[str]:
-    canonical = canonical_python_module(path)
-    parts = canonical.split(".")
-    aliases = {canonical}
-    if len(parts) > 1:
-        aliases.add(".".join(parts[1:]))
-    if "src" in parts:
-        aliases.add(".".join(parts[parts.index("src") + 1 :]))
-    for marker in ("app", "lib", "server"):
-        if marker in parts:
-            aliases.add(".".join(parts[parts.index(marker) :]))
-    return {alias for alias in aliases if alias}
 
 
 def symbol_visibility(name: str) -> str:

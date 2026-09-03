@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import dataclasses
 import json
-from pathlib import PurePosixPath
 from typing import Any
 
 from anaxigraph.analyzer_capabilities import capabilities_from_dict
 from anaxigraph.analyzer_facts import AnalyzerFact
+from anaxigraph.ir_identity import module_identity_fields
 from anaxigraph.models import (
     LEGACY_IR_SCHEMA_VERSION,
     Dependency,
@@ -243,31 +243,8 @@ def _stored_context(value: dict[str, Any] | None) -> ResolverContext | None:
 
 
 def _derived_identity(path: str, language: str) -> dict[str, Any]:
-    normalized = path.replace("\\", "/").removeprefix("./")
-    pure = PurePosixPath(normalized)
-    canonical = ".".join(pure.with_suffix("").parts)
-    if language == "python":
-        parts = list(pure.with_suffix("").parts)
-        if parts and parts[-1] == "__init__":
-            parts.pop()
-        canonical = ".".join(parts)
-        aliases = {canonical}
-        if len(parts) > 1:
-            aliases.add(".".join(parts[1:]))
-        if "src" in parts:
-            aliases.add(".".join(parts[parts.index("src") + 1 :]))
-        for marker in ("app", "lib", "server"):
-            if marker in parts:
-                aliases.add(".".join(parts[parts.index(marker) :]))
-    else:
-        aliases = {canonical}
-    return {
-        "path": normalized,
-        "language": language,
-        "canonical_name": canonical,
-        "package_name": canonical.split(".", 1)[0] if canonical else "",
-        "aliases": sorted(alias for alias in aliases if alias),
-    }
+    fields = module_identity_fields(path, language)
+    return {**fields, "aliases": list(fields["aliases"])}
 
 
 def _compact_dependency(value: dict[str, Any]) -> dict[str, Any]:

@@ -21,6 +21,7 @@
         "anaxigraph.graph_contract",
         "anaxigraph.ir",
         "anaxigraph.ir_conformance",
+        "anaxigraph.ir_identity",
         "anaxigraph.ir_serialization",
         "anaxigraph.languages",
         "anaxigraph.models",
