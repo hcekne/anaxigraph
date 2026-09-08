@@ -220,13 +220,12 @@ def compact_duplicate_relationship_sets(connection: sqlite3.Connection) -> int:
         ]
         canonical_edges = _edges_by_value(connection, canonical_id)
         for duplicate_id in duplicate_ids:
-            _move_relationship_references(
+            _replace_duplicate_relationship_set(
                 connection,
                 duplicate_id=duplicate_id,
                 canonical_id=canonical_id,
                 canonical_edges=canonical_edges,
             )
-            connection.execute("DELETE FROM relationship_sets WHERE id = ?", (duplicate_id,))
             removed += 1
     for row in connection.execute("SELECT * FROM relationship_sets ORDER BY id").fetchall():
         connection.execute(
@@ -288,7 +287,7 @@ def _upsert_relationship_set(
     return set_id
 
 
-def _move_relationship_references(
+def _replace_duplicate_relationship_set(
     connection: sqlite3.Connection,
     *,
     duplicate_id: int,
@@ -311,6 +310,10 @@ def _move_relationship_references(
             f"UPDATE {table} SET relationship_set_id = ? WHERE relationship_set_id = ?",
             (canonical_id, duplicate_id),
         )
+    connection.execute(
+        "DELETE FROM relationship_edges WHERE relationship_set_id = ?", (duplicate_id,)
+    )
+    connection.execute("DELETE FROM relationship_sets WHERE id = ?", (duplicate_id,))
 
 
 def _edges_by_value(connection: sqlite3.Connection, set_id: int) -> dict[tuple[Any, ...], int]:

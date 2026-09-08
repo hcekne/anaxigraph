@@ -6,34 +6,34 @@ reopen the completed consolidation programme or introduce a new command family.
 
 ## Features and acceptance
 
-- [ ] **Reliable large review execution.** Keep small Codex requests inline; page
+- [x] **Reliable large review execution.** Keep small Codex requests inline; page
   oversized requests losslessly through private temporary evidence files. Test the
   character boundary, Unicode, every review stage, errors, timeouts, and cleanup.
   Representative packets below remain the primary defence against wasted context.
-- [ ] **Safe failure-mode judgments.** Distinguish desirable patterns from failure
+- [x] **Safe failure-mode judgments.** Distinguish desirable patterns from failure
   modes in score meanings, constraints, validation, guidance, and rendering. A
   present failure mode must never imply “retain” or “improve conformance.” Preserve
   constructive-pattern safeguards and make legacy unsafe advice visibly unusable.
-- [ ] **Honest incremental freshness.** Explain what remains reusable, what changed,
+- [x] **Honest incremental freshness.** Explain what remains reusable, what changed,
   and what is refreshing. Keep an available prior repository summary accessible
   with explicit snapshot/freshness provenance; never label it current. Prove
   repository isolation and read-only status parity across existing transports.
-- [ ] **Representative, bounded review evidence.** Replace alphabetic prefixes with
+- [x] **Representative, bounded review evidence.** Replace alphabetic prefixes with
   deterministic coverage of responsibilities, production modules, changed code,
   contracts, and boundary relationships. Bound the serialized packet, retain
   provenance and explicit selection/omission counts, and test documentation-heavy
   and oversized repositories. Never leak as-built evidence into blind stages.
-- [ ] **Grounded parent-scope pattern judgments.** Supply bounded child responsibility
+- [x] **Grounded parent-scope pattern judgments.** Supply bounded child responsibility
   and contract witnesses and internal/cross-boundary relationships at subsystem,
   area, and repository scope. Test known missed patterns and sparse candidate
   selection without increasing the catalogue or pretending static edges prove
   runtime behavior.
-- [ ] **Goal-directed coherence review.** Carry the user's review goal into saved
+- [x] **Goal-directed coherence review.** Carry the user's review goal into saved
   stage inputs and fingerprints. Respect implementation blindness, retain goals
   across resume, and invalidate only affected review work when a goal changes.
   Judge responsibility ownership, contracts, user flows, and the cost of added
   machinery through the existing review sequence and output fields.
-- [ ] **Architectural judgment evidence.** Add small positive, negative, and
+- [x] **Architectural judgment evidence.** Add small positive, negative, and
   uncertain fixtures for justified patterns, harmful structures, and no-change
   cases. Separate deterministic protocol checks from a recorded model-backed
   experiment (GPT-6 Astra, max effort). Report known-case misses, unsupported advice,
@@ -56,7 +56,7 @@ a running worker or partial architecture comparison is not completion.
 
 - [x] Resolve repository identity, preserve unrelated drafts, and inspect existing
   release/deployment instructions and protection gates.
-- [ ] Complete and verify the feature checklist above.
+- [x] Implement and run focused verification for the feature checklist above.
 - [x] Set the single Python version, lockfile, and bundled plugin versions to 0.5.0;
   record release notes and compatibility changes.
 - [ ] Open a reviewed PR and pass all protected-main checks without bypassing them.
@@ -76,7 +76,7 @@ decision here. This is a checkpoint, not a commitment to publish an unready buil
 ## Acceptance record
 
 Implementation and release verification in progress; unchecked gates above remain
-open. The Phase 13 source ratchet is **63,512 lines**, up **766 lines (1.22%)** from
+open. The Phase 13 source ratchet is **63,523 lines**, up **777 lines (1.24%)** from
 62,746. This is the exact measured cost of the admitted features, including the
 previously prepared lossless Codex fallback. One shared evidence-selection module
 serves existing review and pattern paths. No runtime dependency, schema table,
@@ -123,13 +123,25 @@ Verified locally on 8 September:
   excerpts within the 600,000-byte current-system budget. Unmapped files are reported
   separately, not counted as a fictitious responsibility. These corrections add
   exactly 20 source lines to the initial Phase 13 acceptance; no limits were relaxed.
-- Upgrade rehearsal found an unindexed per-set edge lookup: 53,743 sets repeatedly
-  scanned 474,899 edges during schema migration. Add the missing SQLite lookup index
-  before migration work and restore it on same-version opens. This adds three source
-  lines, not a new table or data model, and preserves backup, transaction, parity,
-  and foreign-key safeguards. All **38 focused migration, recovery, temporal,
-  index-doctor, and evidence-selection tests pass**. Real-index timing is recorded
-  after the corrected rehearsal completes.
+- Upgrade rehearsal found unindexed per-set edge and reference lookups: 53,743 sets
+  repeatedly scanned 474,899 edges and 539,752 coverage rows. Four narrow SQLite
+  lookup indexes now precede compaction and are restored on same-version opens.
+  The integrity gate also correctly refused duplicate cleanup that relied on
+  disabled cascade actions; that attempt rolled back. Duplicate edges are now
+  explicitly removed after their references are preserved, and affected checkpoint
+  fingerprints are rebuilt through the existing checkpoint mechanism. These
+  deployment-blocking corrections add **14 source lines** beyond the evidence
+  corrections above, without a new table or data model or any relaxed safeguard.
+- Corrected upgrade rehearsal: the **1.6 GB / 1,131-snapshot** retained copy migrated
+  from schema 10 to 11 in **39.294 s**, with zero integrity or foreign-key violations.
+  Both repository identities and current snapshots (1131 and 1128) were preserved.
+  Repository 1 retains the prior Charter from 1129, explicitly stale; semantic reuse
+  has not yet been prepared for 1131. The pristine backup and old container image
+  remain available for rollback. **34 migration, recovery, temporal, index-doctor,
+  and checkpoint tests pass**, including a duplicate-set/coverage/checkpoint fixture.
+- Production and changed-semantic verification remain open. The live service uses
+  the older executor protocol, so the one incremental GPT-6 Astra/medium refresh
+  must follow its upgrade; no incompatible worker or forced full reread was started.
 
 Record the final full-suite, model, public artifact, and deployment evidence here
 before marking this phase complete.
