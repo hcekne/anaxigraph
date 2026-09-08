@@ -59,7 +59,10 @@ a running worker or partial architecture comparison is not completion.
 - [x] Implement and run focused verification for the feature checklist above.
 - [x] Set the single Python version, lockfile, and bundled plugin versions to 0.5.0;
   record release notes and compatibility changes.
-- [ ] Open a reviewed PR and pass all protected-main checks without bypassing them.
+- [x] Open [PR #5](https://github.com/hcekne/anaxigraph/pull/5) and pass all seven
+  protected checks for implementation commit `93d1fdd`.
+- [ ] Obtain the required approving review and merge the accepted commit through
+  protected main without bypassing its gates.
 - [ ] Verify 0.5.0 is unused; create the immutable annotated `v0.5.0` tag from the
   accepted main commit and publish through the existing trusted release workflow.
 - [ ] Verify public PyPI install, wheel/sdist, plugin ZIP, checksums, SBOM,
@@ -75,9 +78,10 @@ decision here. This is a checkpoint, not a commitment to publish an unready buil
 
 ## Acceptance record
 
-Implementation and release verification in progress; unchecked gates above remain
-open. The Phase 13 source ratchet is **63,524 lines**, up **778 lines (1.24%)** from
-62,746. This is the exact measured cost of the admitted features, including the
+Implementation and isolated staging verification are complete; unchecked release
+gates above remain open. The Phase 13 source ratchet is **63,524 lines**, up
+**778 lines (1.24%)** from 62,746. This is the exact measured cost of the admitted
+features, including the
 previously prepared lossless Codex fallback. One shared evidence-selection module
 serves existing review and pattern paths. No runtime dependency, schema table,
 command family, normal MCP tool, review stage, function-limit exception, or module
@@ -85,16 +89,17 @@ size exception was added. The 500-line module and 50-line/15-complexity function
 ceilings remain unchanged. This phase does not reopen unrelated consolidation to
 offset necessary feature code.
 
-Verified locally on 8 September:
+Verified locally and in CI on 8 September:
 
 - `scripts/check_architecture.py`: zero errors.
 - `scripts/check_module_size.py`: zero errors.
 - `scripts/check_self_analysis.py`: six governed findings, zero regressions;
-  report `/tmp/anaxigraph-050-self-analysis-initial.json`.
+  final local report `/tmp/anaxigraph-050-self-analysis-final.json`, also verified
+  by the protected CI quality gate.
 - Pinned Playwright container: **40 browser contracts passed**, including updating
   a review goal without restarting blind stages.
 - Focused pattern, semantic freshness, goal durability, transport, generation,
-  source-guard, and representative-packet tests pass; full-suite acceptance pending.
+  source-guard, representative-packet, and retained-history regression tests pass.
 - The retained GPT-6 Astra/max judgment experiment passed **7/7 cases** across five
   scope levels, with zero known-positive misses and zero unsupported change
   recommendations. It reported **251,691 input / 85,977 output tokens**; monetary
@@ -110,11 +115,16 @@ Verified locally on 8 September:
 - The clean-checkout 0.5.0 wheel and sdist passed archive verification and were
   byte-identical across two builds. Linux/macOS packaging checks passed on Python
   3.11 and 3.12. No artifacts from the dirty workspace are eligible for publication.
-- Initial full-suite CI on Python 3.12 passed 945 tests and found one outdated
-  executor-pinning test expectation. It omitted the new packet-policy identity;
-  the corrected pinning/CLI tests pass **25/25**. The complete clean CI rerun remains
-  required. The local coverage report measured **93.0% total / 86.5% changed-code**,
-  above the existing 80% / 85% gates; final CI must confirm both.
+- [Implementation CI](https://github.com/hcekne/anaxigraph/actions/runs/34221557641)
+  passed every protected check at `93d1fdd`: **952 tests** on both Python 3.11 and
+  3.12, **93.35% total coverage**, and **99.08% changed-code coverage** (324/327
+  executable lines), above the unchanged 80% / 85% gates. Four Linux/macOS package
+  jobs, browser contracts, all source policies, Compose validation, hardened
+  sidecar, bounded performance smoke, and first-user checks passed. The final CI
+  first-user medians were **1.040 s** to dashboard and **1.172 s** to first dossier.
+  Coverage and performance reports are retained in its `quality-evidence` artifact.
+  This records the tested implementation; the documentation-only acceptance commit
+  must also clear protected checks before merge.
 - Read-only replay against the retained snapshot 1129 caught and corrected the
   reviewed-taxonomy envelope: the packet now represents **all 21 responsibilities**
   through **80/550 modules** (56 production, 12 test, 12 documentation) and 120
@@ -151,9 +161,24 @@ Verified locally on 8 September:
   digests match before and after for six sampled historical/current frames,
   including both repositories. The full lineage, checkpoint-hash, foreign-key,
   integrity, and semantic-reference checks pass across the retained index.
+- The clean `93d1fdd` release-candidate container passed isolated staging against
+  that retained index: version 0.5.0, healthy REST and MCP, working dashboard,
+  both repositories preserved, correctly stale prior Charter, and all index-health
+  checks passing. Read-only root, dropped capabilities, no-new-privileges,
+  read-only repository mounts, and a loopback-only port were verified. The staging
+  container was stopped and removed after validation; the backup, test index, and
+  rollback image remain. This was not a production deployment or public artifact.
+- The final structural checkpoint is snapshot **1132**: 14 changed files analyzed,
+  547 unchanged files reused, and no model jobs enqueued. No full semantic reread
+  was requested. The preflight backup captures 1131; take a fresh validated backup
+  immediately before an authorized production cutover.
 - Production and changed-semantic verification remain open. The live service uses
   the older executor protocol, so the one incremental GPT-6 Astra/medium refresh
   must follow its upgrade; no incompatible worker or forced full reread was started.
 
-Record the final full-suite, model, public artifact, and deployment evidence here
-before marking this phase complete.
+The required PR review is still absent, and the owner is the only repository
+collaborator; no maintainer bypass has been authorized. Production-target
+confirmation is also outstanding. No release tag, PyPI publication, or production
+replacement has occurred. Record accepted-main and public artifact identities,
+deployment verification, and incremental semantic progress here before marking
+this phase complete.
