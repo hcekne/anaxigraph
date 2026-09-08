@@ -76,7 +76,7 @@ decision here. This is a checkpoint, not a commitment to publish an unready buil
 ## Acceptance record
 
 Implementation and release verification in progress; unchecked gates above remain
-open. The Phase 13 source ratchet is **63,509 lines**, up **763 lines (1.22%)** from
+open. The Phase 13 source ratchet is **63,512 lines**, up **766 lines (1.22%)** from
 62,746. This is the exact measured cost of the admitted features, including the
 previously prepared lossless Codex fallback. One shared evidence-selection module
 serves existing review and pattern paths. No runtime dependency, schema table,
@@ -123,6 +123,13 @@ Verified locally on 8 September:
   excerpts within the 600,000-byte current-system budget. Unmapped files are reported
   separately, not counted as a fictitious responsibility. These corrections add
   exactly 20 source lines to the initial Phase 13 acceptance; no limits were relaxed.
+- Upgrade rehearsal found an unindexed per-set edge lookup: 53,743 sets repeatedly
+  scanned 474,899 edges during schema migration. Add the missing SQLite lookup index
+  before migration work and restore it on same-version opens. This adds three source
+  lines, not a new table or data model, and preserves backup, transaction, parity,
+  and foreign-key safeguards. All **38 focused migration, recovery, temporal,
+  index-doctor, and evidence-selection tests pass**. Real-index timing is recorded
+  after the corrected rehearsal completes.
 
 Record the final full-suite, model, public artifact, and deployment evidence here
 before marking this phase complete.

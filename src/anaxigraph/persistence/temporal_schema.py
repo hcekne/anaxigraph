@@ -170,6 +170,7 @@ TEMPORAL_SCHEMA = (
     "CREATE INDEX IF NOT EXISTS idx_file_changes_snapshot ON snapshot_file_changes(snapshot_id)",
     "CREATE INDEX IF NOT EXISTS idx_file_changes_artifact ON snapshot_file_changes(artifact_id, snapshot_id)",
     "CREATE INDEX IF NOT EXISTS idx_relationship_sets_source ON relationship_sets(source_artifact_id, id)",
+    "CREATE INDEX IF NOT EXISTS idx_relationship_edges_set ON relationship_edges(relationship_set_id)",
     "CREATE INDEX IF NOT EXISTS idx_relationship_changes_snapshot ON snapshot_relationship_changes(snapshot_id)",
     "CREATE INDEX IF NOT EXISTS idx_checkpoints_repository ON snapshot_checkpoints(repository_id, sequence)",
 )

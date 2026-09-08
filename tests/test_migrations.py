@@ -70,6 +70,46 @@ def test_reopening_current_schema_preserves_canonical_snapshot(repository, tmp_p
     assert reopened.graph(stats.repository_id)["nodes"]
 
 
+def _assert_indexed_relationship_lookup(connection):
+    plan = connection.execute(
+        "EXPLAIN QUERY PLAN SELECT * FROM relationship_edges WHERE relationship_set_id = 1"
+    ).fetchall()
+    assert "idx_relationship_edges_set" in " ".join(str(row[3]) for row in plan)
+
+
+@pytest.mark.parametrize("version", [10, 11])
+def test_relationship_lookup_index_precedes_upgrade_compaction_and_survives_reopen(
+    repository, tmp_path, monkeypatch, version
+):
+    path = tmp_path / "edge-lookup.db"
+    first = AnaxiIndex(path)
+    stats = RepositoryScanner(first).scan(repository)
+    with first.connect() as connection:
+        _assert_indexed_relationship_lookup(connection)
+        connection.execute("DROP INDEX idx_relationship_edges_set")
+        connection.execute(
+            "UPDATE schema_meta SET value = ? WHERE key = 'schema_version'", (str(version),)
+        )
+    compact = migrations_module.compact_duplicate_relationship_sets
+    calls = []
+
+    def checked_compaction(connection):
+        _assert_indexed_relationship_lookup(connection)
+        calls.append(True)
+        return compact(connection)
+
+    monkeypatch.setattr(
+        migrations_module, "compact_duplicate_relationship_sets", checked_compaction
+    )
+    reopened = AnaxiIndex(path)
+    with reopened.connect() as connection:
+        _assert_indexed_relationship_lookup(connection)
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    assert len(calls) == (1 if version == 10 else 0)
+    assert reopened.overview(stats.repository_id)["files"] == stats.discovered
+    assert reopened.graph(stats.repository_id)["nodes"]
+
+
 def test_released_v2_schema_migrates_without_losing_repository_data(tmp_path):
     path = tmp_path / "v2.db"
     fixture = Path(__file__).parent / "fixtures" / "schema-v2.sql"

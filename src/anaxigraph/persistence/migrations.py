@@ -93,12 +93,14 @@ def reconcile_additive_columns(connection: sqlite3.Connection) -> None:
     ``initialize_index`` calls this on every open. The check is one
     ``PRAGMA table_info`` per table and each addition is a metadata-only
     ``ALTER TABLE ... ADD COLUMN``; one write lock keeps concurrent openers
-    from adding the same column twice.
+    from adding the same column twice. Temporal schema installation also restores
+    additive lookup indexes without repeating data migration.
     """
 
     connection.execute("BEGIN IMMEDIATE")
     try:
         _ensure_legacy_columns(connection)
+        install_temporal_schema(connection)
     except BaseException:
         connection.rollback()
         raise
