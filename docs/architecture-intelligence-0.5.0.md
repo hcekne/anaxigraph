@@ -57,7 +57,7 @@ a running worker or partial architecture comparison is not completion.
 - [x] Resolve repository identity, preserve unrelated drafts, and inspect existing
   release/deployment instructions and protection gates.
 - [ ] Complete and verify the feature checklist above.
-- [ ] Set the single Python version, lockfile, and bundled plugin versions to 0.5.0;
+- [x] Set the single Python version, lockfile, and bundled plugin versions to 0.5.0;
   record release notes and compatibility changes.
 - [ ] Open a reviewed PR and pass all protected-main checks without bypassing them.
 - [ ] Verify 0.5.0 is unused; create the immutable annotated `v0.5.0` tag from the
@@ -95,11 +95,26 @@ Verified locally on 8 September:
   a review goal without restarting blind stages.
 - Focused pattern, semantic freshness, goal durability, transport, generation,
   source-guard, and representative-packet tests pass; full-suite acceptance pending.
-- A model-backed GPT-6 Astra/max judgment run is in progress. An initial setup
-  attempt was interrupted because fixture labels hinted at expected outcomes.
-  Those labels were anonymized before the retained run; usage from the interrupted
-  attempt is unavailable, not zero. Only the retained anonymized run can satisfy
-  the model-quality gate.
+- The retained GPT-6 Astra/max judgment experiment passed **7/7 cases** across five
+  scope levels, with zero known-positive misses and zero unsupported change
+  recommendations. It reported **251,691 input / 85,977 output tokens**; monetary
+  cost was not supplied. The [raw report](../benchmarks/results/architecture-judgment-0.5.0.json)
+  retains answers, independent reviews, fixture fingerprint, and dirty-worktree
+  provenance (the implementation was not yet committed when the run started).
+  These seven fixtures are bounded evidence, not exhaustive pattern recall.
+  An initial setup attempt was interrupted because fixture labels hinted at
+  expected outcomes. Those labels were anonymized before the retained run; usage
+  from the interrupted attempt is unavailable, not zero.
+- Container hardening and MCP sidecar smoke passed. Three first-user runs reached
+  a working dashboard in a median **1.467 s** and a first dossier in **1.632 s**.
+- The clean-checkout 0.5.0 wheel and sdist passed archive verification and were
+  byte-identical across two builds. Linux/macOS packaging checks passed on Python
+  3.11 and 3.12. No artifacts from the dirty workspace are eligible for publication.
+- Initial full-suite CI on Python 3.12 passed 945 tests and found one outdated
+  executor-pinning test expectation. It omitted the new packet-policy identity;
+  the corrected pinning/CLI tests pass **25/25**. The complete clean CI rerun remains
+  required. The local coverage report measured **93.0% total / 86.5% changed-code**,
+  above the existing 80% / 85% gates; final CI must confirm both.
 
 Record the final full-suite, model, public artifact, and deployment evidence here
 before marking this phase complete.

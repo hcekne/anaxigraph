@@ -1,0 +1,2030 @@
+{
+  "cases_expected": 7,
+  "caveat": "Small synthetic judgment check, not exhaustive architectural accuracy or proof of production behavior. No expected answers are supplied to the model.",
+  "contract": "architecture-judgment-v1",
+  "created_at": "2026-09-08T10:23:01.713387+00:00",
+  "dirty": true,
+  "fixture_fingerprint": "64479b96a72fa3d0b56ad7f13fcc38a5941d399c1cc608d5c4b81864f2b183ca",
+  "model": "gpt-6-astra",
+  "provider": "codex",
+  "reasoning_effort": "max",
+  "results": [
+    {
+      "assessment": {
+        "affected_targets": [
+          "type:fixture-c5979208d916"
+        ],
+        "alternatives": [],
+        "candidate_fingerprint": "1ca325cda86ff11056e9f7b5b3bd3b9503e99c7629127c091e5349ad381754c4",
+        "counter_evidence": [
+          "All six fields belong to one postal address.",
+          "Address has no handwritten methods or helper objects.",
+          "address.py: @dataclass(frozen=True) blocks normal field assignment after creation."
+        ],
+        "evidence": [
+          "address.py: Address stores the recipient, street, locality, region, postal code, and country as text.",
+          "The supplied observation confirms that the complete type has no separate jobs."
+        ],
+        "invalidation_conditions": [
+          "Reassess if Address gains work unrelated to describing a postal address."
+        ],
+        "invariants": [
+          "Keep all six address values available under their existing names.",
+          "Keep normal field assignment blocked after creation."
+        ],
+        "local_precedents": [],
+        "pattern_key": "god-object",
+        "prerequisites": [],
+        "presence": "absent",
+        "rationale": "Keep Address together. Its fields describe one thing, and it performs no unrelated work. There is no evidenced problem that splitting it would solve.",
+        "recommendation": "no_action",
+        "risks": [],
+        "score_contract_version": "pattern-scores-v2",
+        "scores": {
+          "applicability": {
+            "evidence": [
+              "The supplied observation says the complete type represents one postal address."
+            ],
+            "rationale": "The concern is one type doing many unrelated jobs. Address has just one job.",
+            "value": 0
+          },
+          "benefit": {
+            "evidence": [
+              "The supplied evidence describes one address record and reports no problem caused by unrelated work."
+            ],
+            "rationale": "No improvement for users is supported by splitting this record.",
+            "value": 0
+          },
+          "confidence": {
+            "evidence": [
+              "The supplied observation explicitly confirms that the whole type is shown.",
+              "No callers or tests are supplied."
+            ],
+            "rationale": "The complete source strongly supports leaving Address together. The effort and safety of a hypothetical split remain uncertain.",
+            "value": 98
+          },
+          "conformance": {
+            "evidence": [
+              "address.py: Address declares six related text fields and no handwritten methods.",
+              "The supplied observation says Address owns no helper objects."
+            ],
+            "rationale": "The complete type shows none of the harmful concentration of unrelated work.",
+            "value": 0
+          },
+          "execution_safety": {
+            "evidence": [
+              "address.py contains the complete, short type.",
+              "No calling code or tests are supplied."
+            ],
+            "rationale": "This is an uncertain estimate of change safety. The type is easy to inspect, but no callers or tests show whether a split would keep existing uses working.",
+            "value": 50
+          },
+          "migration_cost": {
+            "evidence": [
+              "address.py shows only the address record; the payload supplies no calling code."
+            ],
+            "rationale": "This is an uncertain estimate of change effort. The type is short, but no proposed split or callers are supplied to judge the work required.",
+            "value": 50
+          },
+          "opportunity": {
+            "evidence": [
+              "All six fields in address.py describe the same postal address."
+            ],
+            "rationale": "No evidence shows that splitting Address would simplify its work or its use.",
+            "value": 0
+          },
+          "suitability": {
+            "evidence": [
+              "The supplied observation confirms there are no separate jobs to split."
+            ],
+            "rationale": "Combining unrelated jobs does not explain any problem shown here.",
+            "value": 0
+          },
+          "urgency": {
+            "evidence": [
+              "The supplied observation rules out separate business jobs within Address."
+            ],
+            "rationale": "Nothing shown needs attention for combining unrelated jobs.",
+            "value": 0
+          }
+        },
+        "summary": "Address holds six text values for one postal address. It has no unrelated jobs or helper objects to split apart.",
+        "target_key": "type:fixture-c5979208d916"
+      },
+      "category": "negative",
+      "duration_seconds": 287.138,
+      "expected": [
+        "avoid",
+        "no_action"
+      ],
+      "id": "cohesive-data-is-not-god-object",
+      "level": "type",
+      "passed": true,
+      "pattern": "god-object",
+      "recommendation": "no_action",
+      "review": {
+        "candidate_fingerprint": "1ca325cda86ff11056e9f7b5b3bd3b9503e99c7629127c091e5349ad381754c4",
+        "competing_interpretations": [],
+        "confidence": 98,
+        "evaluation": {
+          "affected_targets": [
+            "type:fixture-c5979208d916"
+          ],
+          "alternatives": [
+            "Keep the existing type unchanged. The supplied evidence shows no separate job that needs its own type."
+          ],
+          "candidate_fingerprint": "1ca325cda86ff11056e9f7b5b3bd3b9503e99c7629127c091e5349ad381754c4",
+          "counter_evidence": [
+            "All six fields belong to one postal address.",
+            "Address has no handwritten methods or helper objects.",
+            "address.py: @dataclass(frozen=True) blocks normal field assignment after creation."
+          ],
+          "evidence": [
+            "address.py: Address declares text fields for the recipient, street, locality, region, postal code, and country.",
+            "The supplied observation confirms that the complete type has no separate business jobs or helper objects."
+          ],
+          "invalidation_conditions": [
+            "Reassess if Address gains work unrelated to describing a postal address."
+          ],
+          "invariants": [
+            "Keep all six address values available under their existing names.",
+            "Keep normal field assignment blocked after creation."
+          ],
+          "local_precedents": [],
+          "pattern_key": "god-object",
+          "prerequisites": [],
+          "presence": "absent",
+          "rationale": "Keep Address together. All six fields describe one thing, and the complete type performs no unrelated work. Splitting it has no demonstrated benefit.",
+          "recommendation": "no_action",
+          "risks": [],
+          "score_contract_version": "pattern-scores-v2",
+          "scores": {
+            "applicability": {
+              "evidence": [
+                "The supplied observation identifies this as the complete type and says it represents one postal address."
+              ],
+              "rationale": "This concern describes one type doing many unrelated jobs. Address only holds the parts of one postal address.",
+              "value": 0
+            },
+            "benefit": {
+              "evidence": [
+                "The supplied observation describes one postal address and rules out separate business jobs."
+              ],
+              "rationale": "No supplied evidence shows a user problem that splitting Address would solve.",
+              "value": 0
+            },
+            "confidence": {
+              "evidence": [
+                "The supplied observation confirms that the whole type is shown.",
+                "No callers or tests are supplied."
+              ],
+              "rationale": "The complete source strongly supports finding no unrelated jobs. It does not establish the safety or effort of a hypothetical split.",
+              "value": 98
+            },
+            "conformance": {
+              "evidence": [
+                "address.py: Address declares six related text fields and no handwritten methods.",
+                "The supplied observation says Address owns no helper objects."
+              ],
+              "rationale": "The complete type shows none of the unrelated work or helper objects that would support this diagnosis.",
+              "value": 0
+            },
+            "execution_safety": {
+              "evidence": [
+                "address.py contains the complete, short type.",
+                "No callers or tests are supplied."
+              ],
+              "rationale": "This is an uncertain estimate of how safely a hypothetical split could be made. The type is small, but missing callers and tests prevent checking whether existing uses would still work.",
+              "value": 50
+            },
+            "migration_cost": {
+              "evidence": [
+                "The payload supplies the Address type without callers or a proposed change."
+              ],
+              "rationale": "This is an uncertain estimate of the work and disruption of a hypothetical split. The type is short, but no proposed split or callers establish how much would need to change.",
+              "value": 50
+            },
+            "opportunity": {
+              "evidence": [
+                "All six fields in address.py describe the same postal address."
+              ],
+              "rationale": "Nothing supplied shows that splitting Address would simplify its work or its use.",
+              "value": 0
+            },
+            "suitability": {
+              "evidence": [
+                "The supplied observation says there are no separate business jobs to split."
+              ],
+              "rationale": "Combining unrelated jobs does not explain any problem shown here.",
+              "value": 0
+            },
+            "urgency": {
+              "evidence": [
+                "The complete Address type contains only related address fields."
+              ],
+              "rationale": "Nothing shown needs attention for combining unrelated jobs.",
+              "value": 0
+            }
+          },
+          "summary": "Address holds six text fields for one postal address. It has no unrelated jobs or helper objects to split apart.",
+          "target_key": "type:fixture-c5979208d916"
+        },
+        "evidence": [
+          "address.py shows six related text fields and no handwritten methods.",
+          "The supplied observation confirms that this is the complete type and that it has no independent jobs to split.",
+          "No callers, tests, or proposed split are supplied to establish change safety or effort."
+        ],
+        "issues": [],
+        "review_contract_version": "pattern-review-v1",
+        "summary": "The result correctly judges the complete Address type. Its six fields describe one postal address. Nothing supplied justifies splitting it. The safety and effort estimates for a hypothetical split remain uncertain.",
+        "verdict": "approve"
+      },
+      "stages": [
+        {
+          "cache_read_input_tokens": 0,
+          "cost_usd": null,
+          "duration_seconds": 166.273,
+          "input_tokens": 17082,
+          "kind": "pattern_assessment",
+          "output_tokens": 4545,
+          "request_bytes": 6179,
+          "usage_source": "reported"
+        },
+        {
+          "cache_read_input_tokens": 0,
+          "cost_usd": null,
+          "duration_seconds": 120.866,
+          "input_tokens": 18428,
+          "kind": "pattern_review",
+          "output_tokens": 3798,
+          "request_bytes": 10761,
+          "usage_source": "reported"
+        }
+      ]
+    },
+    {
+      "assessment": {
+        "affected_targets": [
+          "repository:fixture-b81069ad4a1c",
+          "app.py",
+          "orders/api.py"
+        ],
+        "alternatives": [
+          "Run each part as a separate program if separate releases or continued operation after another part stops becomes necessary. Neither need is reported."
+        ],
+        "candidate_fingerprint": "50e24986c63364d75749e8ddf3b7dfb204749e305cf21647d241bff8adad9d4e",
+        "counter_evidence": [
+          "Only two short source files are supplied. The table definitions, checking rules, and test code cannot be inspected here.",
+          "The parts share one running program, so stopping that program stops all three. The observations explicitly report no need to keep their failures separate."
+        ],
+        "evidence": [
+          "Observation 1: Orders, inventory, and billing run together, own separate tables, and expose a few operations.",
+          "Observation 2: Checks prevent use of another part's private tables or code and reject dependency loops.",
+          "app.py: place_order reserves inventory, creates an invoice, and completes the order inside the same group of database writes.",
+          "orders/api.py: complete inserts an order using the supplied reservation and invoice IDs.",
+          "Observation 3: Tests check that failed order completion undoes inventory and billing changes."
+        ],
+        "invalidation_conditions": [
+          "A part needs separate releases, separate growth, a separate region, or continued operation when another part fails.",
+          "The checks allow private access or dependency loops.",
+          "A failed order leaves related inventory or billing changes behind.",
+          "New evidence shows that routine changes require costly edits across several parts."
+        ],
+        "invariants": [
+          "Only the owning part directly accesses its private tables.",
+          "Parts use each other's exposed operations without reaching into private code.",
+          "A chain of parts using code from other parts must never loop back to its starting part.",
+          "Failed order completion must undo the related inventory and billing changes."
+        ],
+        "local_precedents": [
+          "app.py: place_order uses each part's exposed operation and groups their writes so they can be undone together.",
+          "orders/api.py: complete writes to the orders table using reservation and invoice IDs."
+        ],
+        "pattern_key": "modular-monolith",
+        "prerequisites": [],
+        "presence": "present",
+        "rationale": "Keeping one program fits the small team and the need for related order writes to succeed or be undone together. Separate table ownership and enforced access rules let each part control its own work. These concrete benefits support retention; merely finding the pattern would not be enough.",
+        "recommendation": "retain",
+        "risks": [
+          "Removing or bypassing the checks could let future code use another part's private tables or implementation.",
+          "A failure that stops the shared program can stop orders, inventory, and billing together."
+        ],
+        "score_contract_version": "pattern-scores-v2",
+        "scores": {
+          "applicability": {
+            "evidence": [
+              "Observation 1: One running program serves a small team. Orders, inventory, and billing own separate tables.",
+              "app.py: place_order groups inventory, billing, and order operations inside db.transaction(), so their writes can succeed or be undone together."
+            ],
+            "rationale": "Three business parts need clear ownership while running together. Keeping their related database writes together addresses a demonstrated need.",
+            "value": 95
+          },
+          "benefit": {
+            "evidence": [
+              "Observation 2 already reports enforced access rules.",
+              "Observation 3 reports tests that check whether failed order completion undoes inventory and billing changes."
+            ],
+            "rationale": "Little additional improvement from rearranging the code is supported. This does not diminish the value of the existing ownership rules and shared handling of failed writes.",
+            "value": 5
+          },
+          "confidence": {
+            "evidence": [
+              "app.py shows the shared order flow. orders/api.py shows an order write using reservation and invoice IDs.",
+              "The supplied observations describe the ownership rules and failure tests, but their code is not included."
+            ],
+            "rationale": "The observations and both code samples agree. The complete table definitions, checking rules, and tests are not supplied, which limits direct verification.",
+            "value": 90
+          },
+          "conformance": {
+            "evidence": [
+              "Observations 1 and 2 describe separate table ownership, limited exposed operations, and enforced rules about which code may use other code.",
+              "app.py calls the three exposed operations. orders/api.py writes only through transaction.orders.insert."
+            ],
+            "rationale": "The parts already own separate tables and expose a few operations. Reported checks prevent private access and loops in which parts depend on each other's code.",
+            "value": 95
+          },
+          "execution_safety": {
+            "evidence": [
+              "Observation 2: Automated checks reject forbidden access and dependency loops.",
+              "Observation 3: Tests exercise whether inventory and billing changes are undone when order completion fails."
+            ],
+            "rationale": "Reported access checks and failure tests would help verify small edits. They do not establish that every future change would be safe.",
+            "value": 85
+          },
+          "migration_cost": {
+            "evidence": [
+              "Observations 1 and 2 describe the recommended arrangement as already implemented."
+            ],
+            "rationale": "Retaining this design requires no movement of code or tables and no new running programs. This does not estimate the cost of a future redesign.",
+            "value": 0
+          },
+          "opportunity": {
+            "evidence": [
+              "Observation 2: Checks prevent access to another part's private tables or code and reject dependency loops.",
+              "Observation 3: No requirement demands separate operation of the parts."
+            ],
+            "rationale": "The desired protections already exist. No costly problem with the current arrangement is reported, so there is little support for changing it.",
+            "value": 5
+          },
+          "suitability": {
+            "evidence": [
+              "Observation 1: One running program serves a small team.",
+              "Observation 3: No part needs separate releases, separate growth, separate regions, or protection from another part's failure."
+            ],
+            "rationale": "Running the parts together fits the small team and keeps related order writes together. No requirement calls for operating the parts separately.",
+            "value": 95
+          },
+          "urgency": {
+            "evidence": [
+              "Observation 3 reports failure coverage and no requirement for independent releases, growth, regions, or continued operation after another part fails."
+            ],
+            "rationale": "No current failure or unmet need to run parts separately is reported. The supplied evidence gives no reason for an urgent redesign.",
+            "value": 5
+          }
+        },
+        "summary": "Retain the current design. Orders, inventory, and billing run together, own separate tables, and expose a few operations. Checks protect their private code and tables. No supplied fact shows that rearranging these parts would help.",
+        "target_key": "repository:fixture-b81069ad4a1c"
+      },
+      "category": "retain",
+      "duration_seconds": 476.63,
+      "expected": [
+        "retain",
+        "no_action"
+      ],
+      "id": "cohesive-modular-monolith",
+      "level": "repository",
+      "passed": true,
+      "pattern": "modular-monolith",
+      "recommendation": "retain",
+      "review": {
+        "candidate_fingerprint": "50e24986c63364d75749e8ddf3b7dfb204749e305cf21647d241bff8adad9d4e",
+        "competing_interpretations": [],
+        "confidence": 90,
+        "evaluation": {
+          "affected_targets": [
+            "repository:fixture-b81069ad4a1c",
+            "app.py",
+            "orders/api.py"
+          ],
+          "alternatives": [
+            "Keep one program with fewer access rules. No supplied evidence shows that maintaining the current rules is costly. Removing them would weaken the reported protections.",
+            "Run each part separately if it needs separate releases or must keep working when another part stops. No such need is reported. Splitting the current order flow would add work to keep failed orders from leaving inventory or billing changes behind."
+          ],
+          "candidate_fingerprint": "50e24986c63364d75749e8ddf3b7dfb204749e305cf21647d241bff8adad9d4e",
+          "counter_evidence": [
+            "Only two short source snippets are supplied. The table definitions, checking rules, and test code cannot be inspected here.",
+            "The parts share one running program, so a failure that stops it can stop all three. No requirement to keep those failures separate is reported."
+          ],
+          "evidence": [
+            "Observation 1: Orders, inventory, and billing run together, own separate tables, and offer operations for specific tasks.",
+            "Observation 2: Checks prevent access to another part's private tables or implementation code and reject chains of code use that loop back.",
+            "app.py: place_order reserves inventory, creates an invoice, and completes the order inside db.transaction().",
+            "orders/api.py: complete inserts an order using the supplied reservation and invoice identifiers.",
+            "Observation 3: Tests check that failed order completion undoes inventory and billing changes."
+          ],
+          "invalidation_conditions": [
+            "A part needs separate releases or increases in computing resources.",
+            "A part must keep running when another part or region fails.",
+            "The checks allow private access or chains of code use that loop back.",
+            "A failed order leaves related inventory or billing changes behind.",
+            "New evidence shows that routine changes require costly edits across several parts."
+          ],
+          "invariants": [
+            "Each part directly accesses only its own private tables.",
+            "Parts call each other's allowed operations without reaching into private code.",
+            "A chain of parts using other parts' code must never return to a part already in the chain.",
+            "Failed order completion must undo the related inventory and billing changes."
+          ],
+          "local_precedents": [
+            "app.py: place_order calls each part's operation and groups their database writes.",
+            "orders/api.py: complete writes an order using reservation and invoice identifiers."
+          ],
+          "pattern_key": "modular-monolith",
+          "prerequisites": [],
+          "presence": "present",
+          "rationale": "Keeping one program fits the small team and supports undoing related order writes together. Separate table ownership and reported access checks let each part control its own work. These needs involve all three parts, so judging the repository together is appropriate. No supplied problem warrants new layers or separate programs.",
+          "recommendation": "retain",
+          "risks": [
+            "Removing or bypassing the checks could let future code access another part's private tables or implementation.",
+            "A failure that stops the shared program can stop orders, inventory, and billing together."
+          ],
+          "score_contract_version": "pattern-scores-v2",
+          "scores": {
+            "applicability": {
+              "evidence": [
+                "Observation 1: One program serves a small team. Orders, inventory, and billing own separate tables.",
+                "app.py: place_order groups all three parts' work inside db.transaction(). Observation 3 reports that failed order completion undoes the inventory and billing writes."
+              ],
+              "rationale": "Three business parts run together while controlling their own tables. This closely matches the problem this design addresses. That match alone does not justify changing code.",
+              "value": 95
+            },
+            "benefit": {
+              "evidence": [
+                "Observation 2 reports enforced access rules.",
+                "Observation 3 reports tests that check whether failed order completion undoes inventory and billing changes."
+              ],
+              "rationale": "Little additional gain from rearranging the code is supported. The existing rules and handling of failed writes already provide the reported advantages.",
+              "value": 5
+            },
+            "confidence": {
+              "evidence": [
+                "app.py shows the shared order flow. orders/api.py shows an order insert using reservation and invoice identifiers.",
+                "The supplied observations describe access checks and tests for undoing writes, but their code is absent.",
+                "The payload identifies the evidence as a controlled artificial example."
+              ],
+              "rationale": "The observations and snippets agree about the order flow. The rules and tests are reported but not shown. This strongly supports the result for the supplied example without verifying the full repository.",
+              "value": 90
+            },
+            "conformance": {
+              "evidence": [
+                "Observations 1 and 2 describe separate table ownership, restricted operations, and enforced access rules.",
+                "app.py calls inventory.reserve, billing.invoice, and orders.complete.",
+                "orders/api.py: complete inserts an order using transaction.orders.insert."
+              ],
+              "rationale": "Each part reportedly owns its tables and offers operations for specific tasks. Checks block private access and chains of code use that loop back to the starting part. These closely match the design, although the full checking rules are not shown.",
+              "value": 95
+            },
+            "execution_safety": {
+              "evidence": [
+                "Observation 2: Checks reject forbidden access and chains of code use that loop back.",
+                "Observation 3: Tests check that inventory and billing changes are undone when order completion fails."
+              ],
+              "rationale": "Keeping the arrangement requires no code changes. Reported checks and tests would help verify small future edits, but their full coverage is unknown.",
+              "value": 85
+            },
+            "migration_cost": {
+              "evidence": [
+                "Observations 1 and 2 describe the recommended arrangement as already implemented."
+              ],
+              "rationale": "Keeping the design requires no movement of code or tables and no new running programs. This estimates the work for retention only. The cost of a future redesign is unknown.",
+              "value": 0
+            },
+            "opportunity": {
+              "evidence": [
+                "Observation 2: Checks prevent access to private tables and implementation code and reject chains of code use that loop back.",
+                "Observation 3: No requirement calls for operating the parts separately."
+              ],
+              "rationale": "The reported protections already exist. No costly problem shows that moving code or adding rules would help.",
+              "value": 5
+            },
+            "suitability": {
+              "evidence": [
+                "Observation 1: One deployable process serves a small team.",
+                "Observation 3: There is no requirement for separate releases, separate increases in computing resources, separate regions, or keeping parts running when another fails."
+              ],
+              "rationale": "One program fits the small team and supports undoing related writes together. No supplied requirement calls for running the parts separately.",
+              "value": 95
+            },
+            "urgency": {
+              "evidence": [
+                "Observation 3 reports tests for failed order completion and no requirement for operating the parts separately."
+              ],
+              "rationale": "No fault or unmet requirement is reported. Nothing supplied calls for an urgent redesign.",
+              "value": 5
+            }
+          },
+          "summary": "Keep the current design. Orders, inventory, and billing run together and control separate tables. Reported checks prevent access to another part's private code or tables. No supplied fact shows that changing this arrangement would help.",
+          "target_key": "repository:fixture-b81069ad4a1c"
+        },
+        "evidence": [
+          "Observations 1 and 2 describe one program with three business parts, separately owned tables, and enforced access rules.",
+          "app.py and orders/api.py agree with the reported order flow.",
+          "Observation 3 reports tests for undoing failed order writes and no requirement for running the parts separately.",
+          "The checking rules, table definitions, and test code are not supplied, which limits direct verification."
+        ],
+        "issues": [],
+        "review_contract_version": "pattern-review-v1",
+        "summary": "The result correctly considers all three business parts together and recommends keeping their current arrangement. The reported checks already protect each part's code and tables. No supplied problem justifies rearranging them.",
+        "verdict": "approve"
+      },
+      "stages": [
+        {
+          "cache_read_input_tokens": 0,
+          "cost_usd": null,
+          "duration_seconds": 218.498,
+          "input_tokens": 17193,
+          "kind": "pattern_assessment",
+          "output_tokens": 6729,
+          "request_bytes": 6876,
+          "usage_source": "reported"
+        },
+        {
+          "cache_read_input_tokens": 0,
+          "cost_usd": null,
+          "duration_seconds": 258.132,
+          "input_tokens": 18915,
+          "kind": "pattern_review",
+          "output_tokens": 7989,
+          "request_bytes": 14685,
+          "usage_source": "reported"
+        }
+      ]
+    },
+    {
+      "assessment": {
+        "affected_targets": [
+          "repository:fixture-0051297e2787"
+        ],
+        "alternatives": [],
+        "candidate_fingerprint": "11f81a5fda7387038862d9845513f8560191143179c7351b91d4ffc18d480c97",
+        "counter_evidence": [
+          "api.py:1-2 shows no implemented work or calls to another program. Since production code is missing, this cannot establish that separate services are absent."
+        ],
+        "evidence": [
+          "api.py:1-2: Calling process_order(request) immediately raises NotImplementedError, an error indicating missing behavior.",
+          "Supplied observation: Production code, callers, owners, deployment details, measured demand, failure effects, and operational capability are unavailable."
+        ],
+        "invalidation_conditions": [
+          "New evidence shows how programs run, who owns their data, and whether they can be released independently.",
+          "Measured demand, release delays, or failure effects establish a reason to separate parts of the system."
+        ],
+        "invariants": [
+          "If separate programs are introduced, each must control its own data and be releasable independently.",
+          "Calls between those programs must handle another program being unavailable."
+        ],
+        "local_precedents": [],
+        "pattern_key": "microservices",
+        "prerequisites": [
+          "Obtain the working implementation, callers, and tests.",
+          "Identify who owns each part and its data.",
+          "Establish which parts need separate releases, more running capacity, or protection from another part failing.",
+          "Establish how the team releases, monitors, and maintains running programs."
+        ],
+        "presence": "uncertain",
+        "rationale": "The function name cannot establish separate owners or release needs. No code change is justified by the supplied evidence. Zero values reflect missing support, not proof that separate programs are unnecessary or cheap to introduce.",
+        "recommendation": "insufficient_evidence",
+        "risks": [
+          "The supplied pattern warns that introducing separate programs adds ways for remote calls to fail and more work to release, monitor, and coordinate data."
+        ],
+        "score_contract_version": "pattern-scores-v2",
+        "scores": {
+          "applicability": {
+            "evidence": [
+              "Supplied observation: Ownership, deployment details, and measured demand are unavailable."
+            ],
+            "rationale": "No need for separate owners, releases, or running capacity is shown. Whether this approach addresses a real problem is unknown.",
+            "value": 0
+          },
+          "benefit": {
+            "evidence": [
+              "Supplied observation: Measured demand and independent deployment needs are unavailable."
+            ],
+            "rationale": "No measured problem or useful split is shown, so there is no supported estimate of improvement.",
+            "value": 0
+          },
+          "confidence": {
+            "evidence": [
+              "api.py:1-2 provides only an unfinished function.",
+              "Supplied observation: The working implementation and callers are unavailable."
+            ],
+            "rationale": "The function's behavior is clear, but almost nothing is known about the whole repository. A firm judgment about its design would be weak.",
+            "value": 10
+          },
+          "conformance": {
+            "evidence": [
+              "api.py:1-2: The function only raises NotImplementedError."
+            ],
+            "rationale": "The unfinished function reveals no separately released programs or independently owned data. This does not prove they are absent.",
+            "value": 0
+          },
+          "execution_safety": {
+            "evidence": [
+              "Supplied observation: The implementation and callers are unavailable.",
+              "No tests are supplied."
+            ],
+            "rationale": "Without working code, callers, or tests, there is no basis to plan and check a small change safely.",
+            "value": 0
+          },
+          "migration_cost": {
+            "evidence": [
+              "Supplied observation: The implementation, ownership, and deployment details are unavailable."
+            ],
+            "rationale": "Work and disruption cannot be estimated from this unfinished function. Zero records no supported estimate, not zero effort.",
+            "value": 0
+          },
+          "opportunity": {
+            "evidence": [
+              "Supplied observation: Only the unfinished function is supplied; deployment and failure details are unavailable."
+            ],
+            "rationale": "No problem caused by running or releasing parts together is shown. There is no supported reason to split them.",
+            "value": 0
+          },
+          "suitability": {
+            "evidence": [
+              "Supplied observation: The production implementation and operational capability are unavailable."
+            ],
+            "rationale": "The working code and team's ability to run separate programs are unknown, so a good fit is not established.",
+            "value": 0
+          },
+          "urgency": {
+            "evidence": [
+              "The supplied payload contains only an unfinished function and a statement of missing information."
+            ],
+            "rationale": "No failure in a running system, deadline, or costly delay is reported. Immediate action is not justified.",
+            "value": 0
+          }
+        },
+        "summary": "The supplied function immediately raises an error. It cannot show whether the repository uses or needs separate programs that can be released independently.",
+        "target_key": "repository:fixture-0051297e2787"
+      },
+      "category": "uncertain",
+      "duration_seconds": 454.303,
+      "expected": [
+        "insufficient_evidence"
+      ],
+      "id": "deployment-requirements-unknown",
+      "level": "repository",
+      "passed": true,
+      "pattern": "microservices",
+      "recommendation": "insufficient_evidence",
+      "review": {
+        "candidate_fingerprint": "11f81a5fda7387038862d9845513f8560191143179c7351b91d4ffc18d480c97",
+        "competing_interpretations": [],
+        "confidence": 95,
+        "evaluation": {
+          "affected_targets": [
+            "repository:fixture-0051297e2787"
+          ],
+          "alternatives": [],
+          "candidate_fingerprint": "11f81a5fda7387038862d9845513f8560191143179c7351b91d4ffc18d480c97",
+          "counter_evidence": [
+            "api.py:1-2 shows no calls to another program. Because the working code is unavailable, this does not establish that the repository lacks separately released programs."
+          ],
+          "evidence": [
+            "api.py:1-2: Calling process_order(request) raises NotImplementedError, a Python error indicating missing behavior.",
+            "Supplied observation: Working code, callers, owners, release details, measured demand, failure effects, and the ability to operate the system are unavailable."
+          ],
+          "invalidation_conditions": [
+            "New evidence shows how the programs run, who controls their data, and whether they can be released separately.",
+            "Measurements establish whether releasing or running parts together causes costly delays, capacity limits, or failures."
+          ],
+          "invariants": [
+            "If this approach is chosen, each program must control its own data and be releasable independently.",
+            "Programs that call another program must handle it being unavailable."
+          ],
+          "local_precedents": [],
+          "pattern_key": "microservices",
+          "prerequisites": [
+            "Inspect the working code, code that calls it, and tests.",
+            "Identify who controls each part and its data.",
+            "Establish which parts need separate releases, the ability to handle more work, or protection from another part failing.",
+            "Check whether the team can release separate programs, find faults, and keep them running."
+          ],
+          "presence": "uncertain",
+          "rationale": "The requested judgment covers the repository, but the evidence covers only one unfinished function. Its name cannot establish owners or release needs. The excerpt gives no basis for choosing one program or several. No code change is justified. The zero ratings record missing support or estimates; they do not establish absence, poor fit, danger, or low cost.",
+          "recommendation": "insufficient_evidence",
+          "risks": [
+            "The supplied pattern warns that separate programs add work to handle failed calls, release programs, find faults, and keep related data correct. The excerpt cannot show whether those costs would be worthwhile."
+          ],
+          "score_contract_version": "pattern-scores-v2",
+          "scores": {
+            "applicability": {
+              "evidence": [
+                "Supplied observation: Ownership, release details, and measured demand are unavailable."
+              ],
+              "rationale": "No need for separate owners, releases, or capacity to handle more work is shown. Whether this approach addresses a real problem remains unknown.",
+              "value": 0
+            },
+            "benefit": {
+              "evidence": [
+                "Supplied observation: Working code, measured demand, and release details are unavailable."
+              ],
+              "rationale": "No useful split or measured problem is established. Any improvement from separating programs remains unknown.",
+              "value": 0
+            },
+            "confidence": {
+              "evidence": [
+                "Supplied observation: Only this unfinished function is supplied.",
+                "api.py:1-2 contains no working behavior beyond raising an error."
+              ],
+              "rationale": "The supplied note explicitly lists the missing information. This strongly supports saying more evidence is needed. It does not reveal how the unseen repository is built.",
+              "value": 95
+            },
+            "conformance": {
+              "evidence": [
+                "api.py:1-2: The function body only raises an error."
+              ],
+              "rationale": "The function shows no separately released programs or separately controlled data. This does not establish whether the repository has them.",
+              "value": 0
+            },
+            "execution_safety": {
+              "evidence": [
+                "Supplied observation: Working code and callers are unavailable.",
+                "No tests are supplied."
+              ],
+              "rationale": "Working code, code that calls it, and tests are not supplied. The evidence cannot show whether a split could be made and checked safely.",
+              "value": 0
+            },
+            "migration_cost": {
+              "evidence": [
+                "Supplied observation: Working code, ownership, and release details are unavailable."
+              ],
+              "rationale": "The work and disruption of a split cannot be estimated from this function. Zero records a missing estimate, not a free change.",
+              "value": 0
+            },
+            "opportunity": {
+              "evidence": [
+                "Supplied observation: Working code, release details, and information about failures are unavailable."
+              ],
+              "rationale": "No costly problem from running or releasing parts together is shown. No useful split can be identified from this excerpt.",
+              "value": 0
+            },
+            "suitability": {
+              "evidence": [
+                "Supplied observation: The working implementation and ability to operate it are unavailable."
+              ],
+              "rationale": "The working code and the team's ability to run separate programs are unknown. A good fit cannot be established.",
+              "value": 0
+            },
+            "urgency": {
+              "evidence": [
+                "The supplied materials contain only an unfinished function and a statement of missing information."
+              ],
+              "rationale": "No running failure, costly delay, or deadline is reported. The evidence does not justify urgent action.",
+              "value": 0
+            }
+          },
+          "summary": "The supplied function immediately raises an error. It cannot show whether the repository uses or needs programs with separate owners that can be released on their own.",
+          "target_key": "repository:fixture-0051297e2787"
+        },
+        "evidence": [
+          "The requested judgment covers the repository, while api.py:1-2 supplies only an unfinished function.",
+          "The supplied observation explicitly identifies the information missing from a repository-wide judgment.",
+          "The requested evidence rating measures support for the result; the original rationale instead measures knowledge of the unseen repository."
+        ],
+        "issues": [
+          {
+            "correction": "Raise the rating for support of the limited conclusion. Keep the repository's actual design unknown.",
+            "evidence": [
+              "The original rationale discusses weak knowledge of the repository rather than support for leaving its design undecided.",
+              "Supplied observation: Only the unfinished function is available; working code, owners, and release details are unavailable."
+            ],
+            "explanation": "The original low rating measures how little is known about the repository. It should measure support for the stated result: more evidence is needed. The supplied note directly supports that result.",
+            "kind": "score_consistency",
+            "severity": "warning"
+          }
+        ],
+        "review_contract_version": "pattern-review-v1",
+        "summary": "More evidence is needed to judge the repository. The supplied facts strongly support that conclusion, so its rating for evidence strength should be higher.",
+        "verdict": "revise"
+      },
+      "stages": [
+        {
+          "cache_read_input_tokens": 0,
+          "cost_usd": null,
+          "duration_seconds": 228.444,
+          "input_tokens": 17046,
+          "kind": "pattern_assessment",
+          "output_tokens": 6698,
+          "request_bytes": 6128,
+          "usage_source": "reported"
+        },
+        {
+          "cache_read_input_tokens": 0,
+          "cost_usd": null,
+          "duration_seconds": 225.859,
+          "input_tokens": 18389,
+          "kind": "pattern_review",
+          "output_tokens": 7053,
+          "request_bytes": 11840,
+          "usage_source": "reported"
+        }
+      ]
+    },
+    {
+      "assessment": {
+        "affected_targets": [
+          "subsystem:fixture-0cab1b1bdfaa",
+          "jobs/store.py",
+          "jobs/worker.py"
+        ],
+        "alternatives": [],
+        "candidate_fingerprint": "f0847ec5c1f35692726ed72a1ee64dd40d8d6042a60e8a217ca2326caf72c482",
+        "counter_evidence": [
+          "No observed reliability fault or need for independently deployed workers supports changing the current queue.",
+          "Jobs may be delivered more than once. Callers are not promised that each effect happens exactly once.",
+          "The excerpts do not show acceptance limits, final failure recording, cancellation, worker scheduling, or the implementation of apply_once."
+        ],
+        "evidence": [
+          "Supplied observations say SQLite keeps accepted jobs through crashes and workers share them in one process.",
+          "jobs/store.py::claim chooses the lowest eligible job ID, saves a claim value and expiry time, and increments attempts in one database update.",
+          "jobs/store.py::finish marks a job done only when the supplied claim value matches its saved value.",
+          "jobs/worker.py::run_one claims a job, calls apply_once with its ID and data, then calls finish.",
+          "Supplied observations report acceptance tests for crash recovery, limits on accepted work, visible failure after three attempts, and safe repeated effects."
+        ],
+        "invalidation_conditions": [
+          "New evidence shows lost accepted jobs, harmful repeated effects, or jobs stuck without a visible final failure.",
+          "Measured demand or a new deployment requirement exceeds what the existing queue can support.",
+          "Jobs stop being independent, or every worker must receive every job."
+        ],
+        "invariants": [
+          "Every accepted job must survive crashes and eventually finish or show a final failure.",
+          "Finishing a job must require the saved value identifying its current claim.",
+          "Preserve the existing claim expiry calculation and the three-attempt limit.",
+          "Running a job again must not cause harmful repeated effects.",
+          "Keep the existing limit on accepted work.",
+          "Continue choosing the lowest eligible job ID when claiming; this does not guarantee completion in that order."
+        ],
+        "local_precedents": [],
+        "pattern_key": "work-queue",
+        "prerequisites": [],
+        "presence": "present",
+        "rationale": "Retain the queue because it fits the independent jobs and has reported tests for important failure cases. The database controls current claims and completion, while the worker passes the job ID to apply_once. These facts support keeping this design. Its mere presence would not be enough.",
+        "recommendation": "retain",
+        "risks": [
+          "A claim can expire while its worker is still running, allowing another attempt. Safe repeated effects depend on apply_once; the observations report tests for this, but its code is not supplied."
+        ],
+        "score_contract_version": "pattern-scores-v2",
+        "scores": {
+          "applicability": {
+            "evidence": [
+              "Supplied observations say jobs are independent, survive crashes in SQLite storage, and are consumed by competing workers."
+            ],
+            "rationale": "Independent saved jobs need workers to divide the work and recover unfinished jobs. A work queue directly addresses these needs.",
+            "value": 98
+          },
+          "benefit": {
+            "evidence": [
+              "Reported tests already cover recovery, limited acceptance, repeated effects, and final failure.",
+              "No observed reliability problem is supplied."
+            ],
+            "rationale": "Changing the design has little supported benefit because no missing behavior or measured problem is supplied.",
+            "value": 3
+          },
+          "confidence": {
+            "evidence": [
+              "The claim, finish, and run_one functions directly show taking a job, applying its effect, and recording completion.",
+              "The test files, worker scheduling loop, and apply_once implementation are not supplied."
+            ],
+            "rationale": "The code and supplied observations agree on the main behavior. Missing supporting implementations limit a complete check.",
+            "value": 93
+          },
+          "conformance": {
+            "evidence": [
+              "jobs/store.py::claim updates one eligible job at a time and allows expired claims to be reclaimed below three attempts.",
+              "jobs/store.py::finish requires the saved value identifying the current claim.",
+              "Supplied observations report tests for crash recovery, limits on accepted work, visible failure after three attempts, and safe repeated effects."
+            ],
+            "rationale": "The code controls claims, expiry, attempts, and completion. Reported tests cover the main failure cases, though some supporting code is absent.",
+            "value": 93
+          },
+          "execution_safety": {
+            "evidence": [
+              "Supplied observations describe checks for crashes, acceptance limits, repeated effects, and final failure.",
+              "Only the claim, finish, and run_one implementations are shown."
+            ],
+            "rationale": "Reported acceptance tests provide useful checks for small edits. Missing test files and effect code limit how fully edit safety can be judged.",
+            "value": 85
+          },
+          "migration_cost": {
+            "evidence": [
+              "The supplied observations describe an existing queue that meets the stated needs and identify no required change."
+            ],
+            "rationale": "Retaining the existing design requires no code edits or movement of stored jobs. This does not estimate the cost of a replacement.",
+            "value": 0
+          },
+          "opportunity": {
+            "evidence": [
+              "Supplied observations explicitly report no observed reliability problem or new independent deployment requirement.",
+              "Reported acceptance tests already cover the listed recovery and retry risks."
+            ],
+            "rationale": "The supplied evidence identifies no current fault or unmet need that a queue change would address.",
+            "value": 3
+          },
+          "suitability": {
+            "evidence": [
+              "Supplied observations place the competing workers in one process and identify no need for separate deployments.",
+              "jobs/store.py controls which job is claimed and whether its completion is accepted."
+            ],
+            "rationale": "The existing database supports the observed workers in one process and already controls claiming and completion.",
+            "value": 96
+          },
+          "urgency": {
+            "evidence": [
+              "Supplied observations report no current reliability problem or new deployment need."
+            ],
+            "rationale": "No supplied incident or unmet requirement supports immediate work.",
+            "value": 1
+          }
+        },
+        "summary": "Keep the existing SQLite queue. It shares independent jobs among workers, and reported tests cover crash recovery and safe repeated effects. No supplied problem justifies a change.",
+        "target_key": "subsystem:fixture-0cab1b1bdfaa"
+      },
+      "category": "retain",
+      "duration_seconds": 454.393,
+      "expected": [
+        "retain",
+        "no_action"
+      ],
+      "id": "durable-work-queue",
+      "level": "subsystem",
+      "passed": true,
+      "pattern": "work-queue",
+      "recommendation": "retain",
+      "review": {
+        "candidate_fingerprint": "f0847ec5c1f35692726ed72a1ee64dd40d8d6042a60e8a217ca2326caf72c482",
+        "competing_interpretations": [],
+        "confidence": 93,
+        "evaluation": {
+          "affected_targets": [
+            "subsystem:fixture-0cab1b1bdfaa",
+            "jobs/store.py",
+            "jobs/worker.py"
+          ],
+          "alternatives": [
+            "Keeping jobs only in memory would simplify storage, but it could lose accepted work during a crash.",
+            "Moving work to a separate queue service would add setup, transfer of saved jobs, and checks for changed failure behavior. No supplied need supports that work."
+          ],
+          "candidate_fingerprint": "f0847ec5c1f35692726ed72a1ee64dd40d8d6042a60e8a217ca2326caf72c482",
+          "counter_evidence": [
+            "The caller is promised that a job will be delivered at least once and may be delivered again. The caller is not promised that every effect happens exactly once.",
+            "The excerpts omit acceptance limits, final failure recording, cancellation, worker scheduling, and the implementation of apply_once.",
+            "The test coverage is reported in supplied observations; the test files are absent.",
+            "No observed fault or new deployment need supports changing the current queue."
+          ],
+          "evidence": [
+            "Supplied observations say accepted jobs remain saved after crashes and are shared among workers in one process.",
+            "Supplied observations say each claim or finish update is saved in full or not saved at all.",
+            "jobs/store.py::claim chooses the lowest eligible job ID. It records an attempt value and expiry time and increases the attempt count in one update.",
+            "jobs/store.py::claim allows another attempt after expiry while the attempt count is below three.",
+            "jobs/store.py::finish marks a job done only when the supplied value matches the value saved for its current attempt.",
+            "jobs/worker.py::run_one passes the job ID and payload to apply_once before calling finish.",
+            "Supplied observations report tests for crash recovery, acceptance limits, visible failure after three attempts, and safe repeated effects."
+          ],
+          "invalidation_conditions": [
+            "New evidence shows lost accepted jobs, harmful repeated effects, or jobs stuck without visible final failure.",
+            "Measured demand or a new deployment requirement exceeds what the existing queue can support.",
+            "Jobs stop being independent, or every worker must receive every job."
+          ],
+          "invariants": [
+            "Every accepted job must survive crashes and eventually finish or show a final failure.",
+            "Finishing a job must require the saved value identifying its current attempt.",
+            "Preserve the existing expiry calculation and three-attempt limit.",
+            "Running a job again must not cause harmful repeated effects.",
+            "Keep the existing limit on accepted work.",
+            "Continue choosing the lowest eligible job ID. Jobs need not finish in that order.",
+            "Preserve the caller's promise that jobs are delivered at least once and may be delivered again."
+          ],
+          "local_precedents": [],
+          "pattern_key": "work-queue",
+          "prerequisites": [],
+          "presence": "present",
+          "rationale": "Workers share independent jobs saved in SQLite. The database controls job selection and checks which attempt can report completion. Reported tests cover recovery and harmful repeated effects. These facts support keeping the existing design.",
+          "recommendation": "retain",
+          "risks": [
+            "Another worker may start a job after the current attempt expires while its first worker is still running. Safe repeated effects depend on apply_once. Tests are reported to cover this, but its implementation is absent."
+          ],
+          "score_contract_version": "pattern-scores-v2",
+          "scores": {
+            "applicability": {
+              "evidence": [
+                "Supplied observations say independent jobs are saved in SQLite and taken by competing workers in one process."
+              ],
+              "rationale": "Workers divide independent saved jobs and recover unfinished work. A work queue directly serves these needs.",
+              "value": 98
+            },
+            "benefit": {
+              "evidence": [
+                "Reported tests cover recovery, acceptance limits, safe repeated effects, and final failure.",
+                "No observed reliability problem is supplied."
+              ],
+              "rationale": "A change has little supported benefit because the supplied evidence identifies no missing behavior or measured problem.",
+              "value": 3
+            },
+            "confidence": {
+              "evidence": [
+                "jobs/worker.py::run_one takes a job, applies its effect, and records completion.",
+                "The test files, worker scheduling loop, and apply_once implementation are absent."
+              ],
+              "rationale": "The shown functions agree with the supplied observations. Missing tests and supporting implementations prevent a complete check.",
+              "value": 93
+            },
+            "conformance": {
+              "evidence": [
+                "jobs/store.py::claim chooses one eligible job, records its attempt value and expiry time, and increases its attempt count.",
+                "jobs/store.py::finish requires the value saved for the current attempt.",
+                "Supplied observations report tests for crash recovery, limits on accepted work, visible failure after three attempts, and safe repeated effects."
+              ],
+              "rationale": "The code limits attempts, permits recovery after an attempt expires, and checks which attempt can report completion. Reported tests cover important behavior whose implementation is absent.",
+              "value": 93
+            },
+            "execution_safety": {
+              "evidence": [
+                "Supplied observations report checks for crashes, acceptance limits, repeated effects, and final failure.",
+                "Only claim, finish, and run_one are shown."
+              ],
+              "rationale": "Reported tests could help check small future edits. Missing test and effect code limit this judgment; it does not establish that a replacement would be safe.",
+              "value": 85
+            },
+            "migration_cost": {
+              "evidence": [
+                "The existing queue meets the supplied needs, and no required change is identified."
+              ],
+              "rationale": "Keeping the design requires no edits or movement of saved jobs. This estimates the work of retaining it, not replacing it.",
+              "value": 0
+            },
+            "opportunity": {
+              "evidence": [
+                "Supplied observations explicitly report no reliability problem or new need for separate deployments.",
+                "Reported tests already cover recovery and repeated attempts."
+              ],
+              "rationale": "There is little evidence that changing the queue would help. No current fault or unmet requirement is supplied.",
+              "value": 3
+            },
+            "suitability": {
+              "evidence": [
+                "jobs/store.py provides claim and finish operations.",
+                "Supplied observations identify no reliability problem or need to deploy workers separately."
+              ],
+              "rationale": "The existing database manages taking and finishing jobs for the observed workers. No supplied need requires another service.",
+              "value": 96
+            },
+            "urgency": {
+              "evidence": [
+                "Supplied observations report no reliability problem or new deployment requirement."
+              ],
+              "rationale": "No supplied incident or unmet requirement calls for immediate work.",
+              "value": 1
+            }
+          },
+          "summary": "Keep the SQLite queue. Workers divide independent jobs that remain saved after crashes. Reported tests cover recovery and safe repeated effects. No supplied fault or unmet need justifies changing it.",
+          "target_key": "subsystem:fixture-0cab1b1bdfaa"
+        },
+        "evidence": [
+          "Supplied observations establish independent saved jobs shared by competing workers.",
+          "jobs/store.py shows job selection, expiry, attempt counting, and a check of the current attempt before completion.",
+          "jobs/worker.py shows taking a job, applying its effect, and recording completion.",
+          "Reported tests cover important failure cases, while the supplied observations identify no problem requiring a change."
+        ],
+        "issues": [],
+        "review_contract_version": "pattern-review-v1",
+        "summary": "Keep the existing SQLite queue. The assessment judged the right code and pattern. The code and reported tests support retaining it, and no supplied problem calls for change.",
+        "verdict": "approve"
+      },
+      "stages": [
+        {
+          "cache_read_input_tokens": 0,
+          "cost_usd": null,
+          "duration_seconds": 260.99,
+          "input_tokens": 17575,
+          "kind": "pattern_assessment",
+          "output_tokens": 7318,
+          "request_bytes": 7437,
+          "usage_source": "reported"
+        },
+        {
+          "cache_read_input_tokens": 0,
+          "cost_usd": null,
+          "duration_seconds": 193.403,
+          "input_tokens": 19002,
+          "kind": "pattern_review",
+          "output_tokens": 5907,
+          "request_bytes": 14720,
+          "usage_source": "reported"
+        }
+      ]
+    },
+    {
+      "assessment": {
+        "affected_targets": [
+          "subsystem:fixture-67f5cea3b24d",
+          "core.py",
+          "adapters/sqlite.py",
+          "adapters/http.py"
+        ],
+        "alternatives": [],
+        "candidate_fingerprint": "6839de9560f764f5d6d33de701a389fe22278f4880a04620b31e1bfc30ee602c",
+        "counter_evidence": [
+          "Only one account operation and one saving method are shown. This gives little reason to add more separating code.",
+          "The memory implementation, shared tests, and setup code are described but not supplied.",
+          "This controlled example includes no history of repeated failures or difficult changes."
+        ],
+        "evidence": [
+          "core.py: Accounts states the save method that register needs; register receives the saving object from its caller.",
+          "core.py: register rejects emails without '@' and saves other emails in lowercase.",
+          "adapters/sqlite.py: SQLiteAccounts.save passes the email separately from the SQL text and returns the inserted row's ID.",
+          "adapters/http.py: post_account reads body['email'], calls register, and returns its result under 'id'.",
+          "Supplied observations: Only the setup code selects implementations. Memory and SQLite use the same behavior tests, with no mismatch reported."
+        ],
+        "invalidation_conditions": [
+          "Reassess if account rules start importing HTTP, database, or framework packages.",
+          "Reassess if shared tests reveal different behavior between memory and SQLite.",
+          "Reassess if switching saving code repeatedly requires changes to the account rules."
+        ],
+        "invariants": [
+          "Keep HTTP, database, and framework imports out of core.py.",
+          "Keep register receiving the saving object from its caller.",
+          "For an email without '@', register must raise ValueError('email required') before saving.",
+          "For other emails, register must save email.lower() and return the save result.",
+          "SQLiteAccounts.save must pass the email separately from the SQL text and return the inserted row's ID.",
+          "post_account must read body['email'] and return the registration result under 'id'.",
+          "The shared behavior tests must require the same expected results from memory and SQLite."
+        ],
+        "local_precedents": [],
+        "pattern_key": "ports-and-adapters",
+        "prerequisites": [],
+        "presence": "present",
+        "rationale": "The small save requirement serves both reported saving choices. register owns the email check and lowercasing. The other files handle SQL and HTTP input and output. This useful separation and the reported shared tests support keeping the design. No demonstrated problem supports adding more code.",
+        "recommendation": "retain",
+        "risks": [],
+        "score_contract_version": "pattern-scores-v2",
+        "scores": {
+          "applicability": {
+            "evidence": [
+              "adapters/http.py: post_account calls register.",
+              "Supplied observations: The same core behavior runs with memory and SQLite."
+            ],
+            "rationale": "The same account rules serve an HTTP caller and two reported ways to save accounts. Keeping those jobs separate addresses a real need here, even without a current defect.",
+            "value": 92
+          },
+          "benefit": {
+            "evidence": [
+              "core.py: register checks for '@', lowercases the email, and calls the supplied save method.",
+              "Supplied observations: No technology details leaking into the core are reported."
+            ],
+            "rationale": "Further separation has little demonstrated value. The current code already keeps SQL and HTTP details out of the email checks.",
+            "value": 4
+          },
+          "confidence": {
+            "evidence": [
+              "The supplied files show the email rules, SQL insert, and HTTP function separately.",
+              "The supplied evidence identifies itself as a controlled example."
+            ],
+            "rationale": "The three source files directly support the conclusion for this example. The tests and setup code are described but not shown.",
+            "value": 92
+          },
+          "conformance": {
+            "evidence": [
+              "core.py: register calls accounts.save(email.lower()).",
+              "adapters/sqlite.py: save contains the SQL insert.",
+              "Supplied observations: The core imports no HTTP, database, or framework packages. Only the setup code chooses the implementations."
+            ],
+            "rationale": "register receives the object that saves accounts. SQL stays in SQLiteAccounts, and post_account calls the shared registration rules.",
+            "value": 96
+          },
+          "execution_safety": {
+            "evidence": [
+              "Supplied observations: The same behavior tests run with memory and SQLite.",
+              "No test source is supplied."
+            ],
+            "rationale": "The reported shared tests could check small edits against both saving choices. Their exact checks are missing, so it is unclear which failures they would catch.",
+            "value": 80
+          },
+          "migration_cost": {
+            "evidence": [
+              "The shown code already separates account rules, SQL calls, and HTTP input and output."
+            ],
+            "rationale": "Keeping the current code requires no changes. This does not estimate the work for a future rewrite.",
+            "value": 0
+          },
+          "opportunity": {
+            "evidence": [
+              "Supplied observations: Shared behavior tests run with memory and SQLite. No incompatible behavior is reported."
+            ],
+            "rationale": "No repeated problem supports changing this split. Both saving choices already use the same account rules, and no mismatch is reported.",
+            "value": 3
+          },
+          "suitability": {
+            "evidence": [
+              "core.py: Accounts declares save(email), which returns an integer.",
+              "adapters/sqlite.py: SQLiteAccounts supplies that save method."
+            ],
+            "rationale": "register needs only one save method. This small requirement supports both reported saving choices without putting SQL in the email checks.",
+            "value": 96
+          },
+          "urgency": {
+            "evidence": [
+              "Supplied observations: No incompatible behavior is reported.",
+              "No failure history or repeated editing difficulty is supplied."
+            ],
+            "rationale": "No failure or recurring change problem is reported. The evidence gives no reason to prioritize a rewrite.",
+            "value": 2
+          }
+        },
+        "summary": "Keep the current design. register checks emails and calls a supplied save method. Separate files handle SQL and HTTP.",
+        "target_key": "subsystem:fixture-67f5cea3b24d"
+      },
+      "category": "retain",
+      "duration_seconds": 373.622,
+      "expected": [
+        "retain",
+        "no_action"
+      ],
+      "id": "existing-inward-ports",
+      "level": "subsystem",
+      "passed": true,
+      "pattern": "ports-and-adapters",
+      "recommendation": "retain",
+      "review": {
+        "candidate_fingerprint": "6839de9560f764f5d6d33de701a389fe22278f4880a04620b31e1bfc30ee602c",
+        "competing_interpretations": [],
+        "confidence": 92,
+        "evaluation": {
+          "affected_targets": [
+            "subsystem:fixture-67f5cea3b24d",
+            "core.py",
+            "adapters/sqlite.py",
+            "adapters/http.py"
+          ],
+          "alternatives": [
+            "Pass a save function to register instead of an object with save. This could remove the shown Accounts declaration, but it would change what callers must pass. The current small object already supports both reported saving choices, so switching has no demonstrated benefit."
+          ],
+          "candidate_fingerprint": "6839de9560f764f5d6d33de701a389fe22278f4880a04620b31e1bfc30ee602c",
+          "counter_evidence": [
+            "Only one account operation and one saving method are shown. This limits the case for adding more separating code.",
+            "The memory implementation, tests, and setup code are described but not supplied.",
+            "This controlled example includes no history of repeated failures or difficult changes."
+          ],
+          "evidence": [
+            "core.py: Accounts lists the save method that register needs; register receives the saving object from its caller.",
+            "core.py: register rejects emails without '@' and saves other emails in lowercase.",
+            "adapters/sqlite.py: SQLiteAccounts.save passes the email separately from the database command text and returns the inserted row's ID.",
+            "adapters/http.py: post_account reads body['email'], calls register, and returns its result under 'id'.",
+            "Supplied observations: Only setup code selects implementations. Memory and SQLite use the same tests, with no mismatch reported."
+          ],
+          "invalidation_conditions": [
+            "Reassess if account rules start importing code for web requests or database access.",
+            "Reassess if tests reveal different account behavior between memory and SQLite.",
+            "Reassess if switching saving code repeatedly requires changes to the account rules."
+          ],
+          "invariants": [
+            "Keep core.py free of imports for web request handling and database access.",
+            "Keep the choice of saving code in the setup code, and pass the saving object into register.",
+            "For an email without '@', register must raise ValueError('email required') before calling save.",
+            "For other emails, register must save email.lower() and return the save result.",
+            "SQLiteAccounts.save must pass the email separately from the database command text and return the inserted row's ID.",
+            "post_account must read body['email'] and return the registration result under 'id'.",
+            "The tests run against memory and SQLite must expect the same account behavior."
+          ],
+          "local_precedents": [],
+          "pattern_key": "ports-and-adapters",
+          "prerequisites": [],
+          "presence": "present",
+          "rationale": "The three files are the right scope because together they show the account rules, database write, and call from post_account. register receives a saving object and needs only its save method. The reported memory and SQLite tests support keeping this split. Passing a save function is possible, but no demonstrated problem makes switching worthwhile.",
+          "recommendation": "retain",
+          "risks": [],
+          "score_contract_version": "pattern-scores-v2",
+          "scores": {
+            "applicability": {
+              "evidence": [
+                "adapters/http.py: post_account calls register.",
+                "Supplied observations: The same account behavior runs with memory and SQLite."
+              ],
+              "rationale": "The same account rules serve a web caller and two reported ways to save accounts. Keeping these jobs separate addresses a real need even without a current defect.",
+              "value": 92
+            },
+            "benefit": {
+              "evidence": [
+                "core.py: register checks for '@', lowercases the email, and calls the supplied save method.",
+                "The database write and input handling appear in separate supplied files."
+              ],
+              "rationale": "Further separation has little demonstrated value. The account rules already stay apart from database writes and web input handling.",
+              "value": 4
+            },
+            "confidence": {
+              "evidence": [
+                "The three supplied files show the account rules, database write, and call from post_account.",
+                "The supplied evidence identifies this as a controlled example."
+              ],
+              "rationale": "The source strongly supports keeping this supplied example. The memory code, tests, and setup code are only described, so their details remain uncertain.",
+              "value": 92
+            },
+            "conformance": {
+              "evidence": [
+                "core.py: The only import is from typing; register calls accounts.save(email.lower()).",
+                "adapters/sqlite.py: save contains the database insert.",
+                "adapters/http.py: post_account reads the email and calls register.",
+                "Supplied observations: Only the setup code chooses implementations; that code is not shown."
+              ],
+              "rationale": "register receives the saving object from its caller. Database commands and web input handling stay outside the account rules. Only the described setup code chooses which saving code to use.",
+              "value": 96
+            },
+            "execution_safety": {
+              "evidence": [
+                "Supplied observations: The same tests run with memory and SQLite.",
+                "No test source is supplied."
+              ],
+              "rationale": "If small edits become necessary, the reported tests using memory and SQLite could catch differences. Their code is absent, so which mistakes they would catch is uncertain.",
+              "value": 80
+            },
+            "migration_cost": {
+              "evidence": [
+                "The shown code already separates account rules, database writes, and web input handling."
+              ],
+              "rationale": "Keeping the current code requires no edits. This does not estimate the work of replacing it later.",
+              "value": 0
+            },
+            "opportunity": {
+              "evidence": [
+                "Supplied observations: The same behavior and tests run with memory and SQLite.",
+                "Supplied observations: No incompatible behavior is reported."
+              ],
+              "rationale": "No repeated problem supports changing this split. Both saving choices reportedly use the same rules, with no mismatch reported.",
+              "value": 3
+            },
+            "suitability": {
+              "evidence": [
+                "core.py: Accounts declares save(email), and register uses that method.",
+                "adapters/sqlite.py: SQLiteAccounts provides save.",
+                "Supplied observations: The memory version supports the same account behavior."
+              ],
+              "rationale": "One save method gives register everything it needs. Both reported saving choices fit this small requirement.",
+              "value": 96
+            },
+            "urgency": {
+              "evidence": [
+                "Supplied observations: No incompatible behavior is reported.",
+                "No failure history or repeated editing difficulty is supplied."
+              ],
+              "rationale": "No failure or repeated trouble changing these files is reported. The evidence gives no reason to prioritize a rewrite.",
+              "value": 2
+            }
+          },
+          "summary": "Keep the current design. register checks for '@', lowercases the email, and calls a supplied save method. Separate files write to the database and handle web input and results.",
+          "target_key": "subsystem:fixture-67f5cea3b24d"
+        },
+        "evidence": [
+          "core.py: register receives a saving object and uses only its save method.",
+          "adapters/sqlite.py: SQLiteAccounts holds the database write.",
+          "adapters/http.py: post_account calls the shared registration rules.",
+          "Supplied observations report two saving choices, shared tests, and separate setup code; those additional files are not shown."
+        ],
+        "issues": [
+          {
+            "correction": "Explain that passing a function could remove the shown Accounts declaration but would change what callers must pass. No demonstrated benefit justifies switching.",
+            "evidence": [
+              "core.py: Accounts declares only save, and register calls only accounts.save.",
+              "Supplied observations: Memory and SQLite already support the same account behavior."
+            ],
+            "explanation": "register uses only save, so receiving a save function directly is a reasonable simpler option. The assessment does not compare this option with the current object.",
+            "kind": "overlooked_alternative",
+            "severity": "info"
+          }
+        ],
+        "review_contract_version": "pattern-review-v1",
+        "summary": "Keep the current code. Add the missing comparison with passing a save function directly. The evidence supports the existing recommendation and scores.",
+        "verdict": "revise"
+      },
+      "stages": [
+        {
+          "cache_read_input_tokens": 0,
+          "cost_usd": null,
+          "duration_seconds": 177.077,
+          "input_tokens": 17217,
+          "kind": "pattern_assessment",
+          "output_tokens": 5552,
+          "request_bytes": 6627,
+          "usage_source": "reported"
+        },
+        {
+          "cache_read_input_tokens": 0,
+          "cost_usd": null,
+          "duration_seconds": 196.545,
+          "input_tokens": 18807,
+          "kind": "pattern_review",
+          "output_tokens": 6016,
+          "request_bytes": 13487,
+          "usage_source": "reported"
+        }
+      ]
+    },
+    {
+      "assessment": {
+        "affected_targets": [
+          "module:fixture-6de7bfc7c2dc"
+        ],
+        "alternatives": [
+          "Keep calling greet directly."
+        ],
+        "candidate_fingerprint": "5db3e24febda652371dbfe6bc243effe8116ca725c9c52772e1d3c32a42a6579",
+        "counter_evidence": [
+          "Callers require an immediate return value.",
+          "The supplied observation rules out outside reads or writes, saved work, retries, and background work.",
+          "There is no reported throughput pressure or known performance issue."
+        ],
+        "evidence": [
+          "greeting.py:2 uses name.strip() to remove blank characters from both ends of the name before building the greeting.",
+          "The supplied observation says this is the entire operation."
+        ],
+        "invalidation_conditions": [
+          "Reassess if the operation gains independent background jobs or measured processing pressure.",
+          "Reassess the timing concern if callers can accept results later."
+        ],
+        "invariants": [
+          "Return the greeting immediately during the original call.",
+          "Keep removing blank characters from both ends of the name and returning 'Hello, <trimmed name>!'."
+        ],
+        "local_precedents": [],
+        "pattern_key": "work-queue",
+        "prerequisites": [],
+        "presence": "absent",
+        "rationale": "A work queue holds jobs for separate workers to take. This operation only builds a greeting, and callers need it immediately. No supplied evidence justifies adding that machinery.",
+        "recommendation": "avoid",
+        "risks": [
+          "Queued work could delay the result and require extra code to wait for it."
+        ],
+        "score_contract_version": "pattern-scores-v2",
+        "scores": {
+          "applicability": {
+            "evidence": [
+              "greeting.py:1-2 only defines greet and returns a formatted string.",
+              "The supplied observation rules out background work and throughput pressure."
+            ],
+            "rationale": "There are no background jobs or competing tasks for a queue to distribute.",
+            "value": 0
+          },
+          "benefit": {
+            "evidence": [
+              "greeting.py:2 only trims the name and builds the greeting.",
+              "The supplied observation reports no known performance issue."
+            ],
+            "rationale": "There is no supported speed or reliability gain from handing this string operation to workers.",
+            "value": 0
+          },
+          "confidence": {
+            "evidence": [
+              "Both lines of greet are supplied.",
+              "The supplied observation explicitly describes the whole operation and its required immediate result."
+            ],
+            "rationale": "The full operation and caller timing requirement clearly support avoiding a queue. Estimates of change effort are less certain because callers are not shown.",
+            "value": 95
+          },
+          "conformance": {
+            "evidence": [
+              "greeting.py:2 directly returns f'Hello, {name.strip()}!'.",
+              "The supplied observation says this is the entire operation."
+            ],
+            "rationale": "The code returns the result directly. It neither queues jobs nor runs workers.",
+            "value": 0
+          },
+          "execution_safety": {
+            "evidence": [
+              "Callers require an immediate return value.",
+              "The only supplied source is greeting.py."
+            ],
+            "rationale": "Introducing queued work could delay the required result. No caller code or tests are supplied to check that timing change.",
+            "value": 25
+          },
+          "migration_cost": {
+            "evidence": [
+              "greeting.py:1-2 contains only a direct function return.",
+              "The supplied observation reports no existing background work or saved jobs."
+            ],
+            "rationale": "A queue would require holding jobs, running workers, and returning their results around a two-line function. The effort to change callers is unknown.",
+            "value": 40
+          },
+          "opportunity": {
+            "evidence": [
+              "The supplied observation reports no retries, background work, throughput pressure, or known performance issue."
+            ],
+            "rationale": "No observed problem would be reduced by adding queued work.",
+            "value": 0
+          },
+          "suitability": {
+            "evidence": [
+              "The supplied observation says callers require an immediate return value."
+            ],
+            "rationale": "Holding this call for a worker would add waiting without a demonstrated need.",
+            "value": 0
+          },
+          "urgency": {
+            "evidence": [
+              "The supplied observation reports no background work or processing pressure."
+            ],
+            "rationale": "Nothing supplied calls for a queue-related change now.",
+            "value": 0
+          }
+        },
+        "summary": "Keep greet as a direct call. It trims the name and returns a greeting. Callers need that result immediately, and no work needs separate workers.",
+        "target_key": "module:fixture-6de7bfc7c2dc"
+      },
+      "category": "negative",
+      "duration_seconds": 305.354,
+      "expected": [
+        "avoid",
+        "no_action"
+      ],
+      "id": "small-synchronous-operation",
+      "level": "module",
+      "passed": true,
+      "pattern": "work-queue",
+      "recommendation": "avoid",
+      "review": {
+        "candidate_fingerprint": "5db3e24febda652371dbfe6bc243effe8116ca725c9c52772e1d3c32a42a6579",
+        "competing_interpretations": [],
+        "confidence": 95,
+        "evaluation": {
+          "affected_targets": [
+            "module:fixture-6de7bfc7c2dc"
+          ],
+          "alternatives": [
+            "Keep calling greet directly."
+          ],
+          "candidate_fingerprint": "5db3e24febda652371dbfe6bc243effe8116ca725c9c52772e1d3c32a42a6579",
+          "counter_evidence": [
+            "Callers require an immediate return value.",
+            "The supplied observation rules out outside reads or writes, saved work, retries, and background work.",
+            "The supplied observation reports no difficulty keeping up with incoming work and no known performance issue."
+          ],
+          "evidence": [
+            "greeting.py:2 calls name.strip(), which removes whitespace, such as spaces and tabs, from both ends of the name.",
+            "greeting.py:2 returns f'Hello, {name.strip()}!' during the call.",
+            "The supplied observation says this is the entire operation."
+          ],
+          "invalidation_conditions": [
+            "Reassess if the operation gains independent jobs that can run later.",
+            "Reassess if measurements show that the operation cannot keep up with requests.",
+            "Reassess the timing concern if callers can accept results later."
+          ],
+          "invariants": [
+            "Return the greeting immediately during the original call.",
+            "Keep removing whitespace, meaning spaces and other blank characters, only from the ends of the name.",
+            "Keep the exact greeting format: 'Hello, <trimmed name>!'."
+          ],
+          "local_precedents": [],
+          "pattern_key": "work-queue",
+          "prerequisites": [],
+          "presence": "absent",
+          "rationale": "A work queue holds independent jobs for separate pieces of running code to take and finish. This operation only builds a greeting that callers need immediately. Keep it unchanged. The risk and effort estimates concern adding the rejected queue.",
+          "recommendation": "avoid",
+          "risks": [
+            "Adding a queue could delay the greeting and require extra code to wait for its result."
+          ],
+          "score_contract_version": "pattern-scores-v2",
+          "scores": {
+            "applicability": {
+              "evidence": [
+                "greeting.py:1-2 defines greet and directly returns a formatted string.",
+                "The supplied observation rules out background work."
+              ],
+              "rationale": "There are no separate jobs to distribute. The operation only builds one string.",
+              "value": 0
+            },
+            "benefit": {
+              "evidence": [
+                "greeting.py:2 only trims the name and builds the greeting.",
+                "The supplied observation reports no known performance issue."
+              ],
+              "rationale": "No supplied fact shows that a queue would make this string operation faster or more reliable.",
+              "value": 0
+            },
+            "confidence": {
+              "evidence": [
+                "Both lines of greet are supplied.",
+                "The supplied observation describes the entire operation and the caller timing requirement."
+              ],
+              "rationale": "The complete operation and its required immediate result strongly support this decision. Estimates about changing callers remain uncertain because their code is missing.",
+              "value": 95
+            },
+            "conformance": {
+              "evidence": [
+                "greeting.py:2 directly returns f'Hello, {name.strip()}!'.",
+                "The supplied observation says this is the entire operation."
+              ],
+              "rationale": "The function returns directly. It has no code to hold jobs or run them later.",
+              "value": 0
+            },
+            "execution_safety": {
+              "evidence": [
+                "Callers require an immediate return value.",
+                "The only supplied source is greeting.py."
+              ],
+              "rationale": "Adding a queue could delay the required result. Caller code and tests are missing, so checking the effect on callers would be uncertain.",
+              "value": 25
+            },
+            "migration_cost": {
+              "evidence": [
+                "greeting.py:1-2 contains only a direct function return.",
+                "The supplied observation reports no existing background work or saved jobs."
+              ],
+              "rationale": "Adding a queue would require holding jobs, running them separately, and returning their results. This is a rough effort estimate; caller changes are unknown.",
+              "value": 40
+            },
+            "opportunity": {
+              "evidence": [
+                "The supplied observation reports no retries, background work, excessive incoming work, or known performance issue."
+              ],
+              "rationale": "Nothing supplied shows a problem that adding a queue would solve.",
+              "value": 0
+            },
+            "suitability": {
+              "evidence": [
+                "The supplied observation says callers require an immediate return value and reports no known performance issue."
+              ],
+              "rationale": "Making the greeting wait for separate code would add delay without a stated need.",
+              "value": 0
+            },
+            "urgency": {
+              "evidence": [
+                "The supplied observation reports no background work or difficulty keeping up with incoming work."
+              ],
+              "rationale": "Nothing supplied calls for adding a queue now.",
+              "value": 0
+            }
+          },
+          "summary": "Keep greet as a direct call. It trims the name and returns a greeting. Callers need that result immediately, and no separate jobs need distributing.",
+          "target_key": "module:fixture-6de7bfc7c2dc"
+        },
+        "evidence": [
+          "greeting.py:1-2 shows the complete function trimming a name and directly returning a greeting.",
+          "The supplied observation requires an immediate result and rules out background work and known performance issues."
+        ],
+        "issues": [],
+        "review_contract_version": "pattern-review-v1",
+        "summary": "The assessment correctly favors the existing direct call. The whole operation is supplied, callers need its result immediately, and no reported problem calls for a queue.",
+        "verdict": "approve"
+      },
+      "stages": [
+        {
+          "cache_read_input_tokens": 0,
+          "cost_usd": null,
+          "duration_seconds": 151.059,
+          "input_tokens": 17322,
+          "kind": "pattern_assessment",
+          "output_tokens": 4715,
+          "request_bytes": 6278,
+          "usage_source": "reported"
+        },
+        {
+          "cache_read_input_tokens": 0,
+          "cost_usd": null,
+          "duration_seconds": 154.295,
+          "input_tokens": 18406,
+          "kind": "pattern_review",
+          "output_tokens": 4924,
+          "request_bytes": 11463,
+          "usage_source": "reported"
+        }
+      ]
+    },
+    {
+      "assessment": {
+        "affected_targets": [
+          "area:fixture-6de7599842e8",
+          "orders.py:place",
+          "http://inventory/reserve",
+          "http://billing/charge",
+          "http://confirmation/create"
+        ],
+        "alternatives": [
+          "Run the three steps as separate functions in one process. Use one database transaction, which saves all included changes together or saves none, only if it can cover every required order change.",
+          "Repair the existing service flow if that is the smaller verified way to make orders finish fully or leave no changes. Retrying requests or repairing orders later alone would not meet that promise."
+        ],
+        "candidate_fingerprint": "150387e2fa3bb793b6da627e60050131050e9319f59dc662207b2a2d2ef1c93c",
+        "counter_evidence": [
+          "Missing ways to undo or repair partial work also explain why payment remains captured. Moving calls into one process alone may leave that problem unresolved.",
+          "The shared database does not establish that it can undo a captured payment. The billing implementation is not supplied."
+        ],
+        "evidence": [
+          "orders.py:2: place sends the request to inventory/reserve.",
+          "orders.py:3: place sends the reservation to billing/charge.",
+          "orders.py:4: place creates confirmation only after the billing call returns.",
+          "Supplied observation 1: Two people maintain three services that always ship together and share one database.",
+          "Supplied observation 2: A reproduced timeout leaves payment captured without a completed order. There is no protection against repeating work, undoing partial changes, or finding and repairing incomplete orders.",
+          "Supplied observation 3: Traffic is two orders per minute, with no independent ownership, scaling, security, or regional requirement."
+        ],
+        "invalidation_conditions": [
+          "A measured need for independent scaling, releases, security, or regional operation would weaken the case for removing the affected service call.",
+          "Evidence that the reproduced timeout does not leave an unmatched captured payment would weaken the reason for an urgent payment repair.",
+          "Evidence that required changes cannot share one database transaction would rule out that repair by itself."
+        ],
+        "invariants": [
+          "Each order completes all required steps or leaves none of their changes behind.",
+          "A timeout after charging must not leave captured payment without a completed order.",
+          "Any retry added by the repair must not charge again for the same order.",
+          "Successful requests keep their existing input and result behavior.",
+          "Every retained network call has a named owner and a measured need to run separately."
+        ],
+        "local_precedents": [],
+        "pattern_key": "premature-distribution",
+        "prerequisites": [
+          "Identify every lasting change made by reservation, charging, and confirmation, and determine whether each can be undone.",
+          "Determine whether the shared database can save or discard every required order change together.",
+          "Use the reproduced timeout to check behavior before and after each small change."
+        ],
+        "presence": "present",
+        "rationale": "Customers are promised that an order completes in full or leaves no changes. The reported timeout breaks that promise, and the separate services provide no stated ownership or runtime benefit. Reduce unnecessary network steps where that helps, and verify that the correction covers payment as well as the other order changes.",
+        "recommendation": "remediate",
+        "risks": [
+          "Moving the calls into one process could still leave captured payment behind if the repair does not cover payment changes.",
+          "Adding retries without preventing repeat charges could capture payment more than once for the same order."
+        ],
+        "score_contract_version": "pattern-scores-v2",
+        "scores": {
+          "applicability": {
+            "evidence": [
+              "orders.py: place calls inventory/reserve, billing/charge, and confirmation/create in sequence over HTTP.",
+              "Supplied observations 1 and 3: The services share releases and a database, with no independent ownership, scaling, security, or regional requirement."
+            ],
+            "rationale": "One order crosses three services that have no stated need to run independently. This directly fits the problem of splitting work across machines before that split is needed.",
+            "value": 99
+          },
+          "benefit": {
+            "evidence": [
+              "Supplied observation 2: Customers are promised one complete order, but payment can remain captured without that order.",
+              "No failure frequency or response-time measurements are supplied."
+            ],
+            "rationale": "Making orders finish fully or leave no changes could prevent the reported unmatched payment. The number of affected customers and any speed improvement are unknown.",
+            "value": 94
+          },
+          "confidence": {
+            "evidence": [
+              "Supplied observation 2 reports the reproduced timeout and resulting incomplete order.",
+              "The supplied case is identified as a controlled synthetic example.",
+              "The service implementations and test output are not supplied."
+            ],
+            "rationale": "The supplied example explicitly reports both the harmful split and a reproduced payment failure. It is a synthetic example and shows only the caller, so the exact repair is less certain.",
+            "value": 95
+          },
+          "conformance": {
+            "evidence": [
+              "Supplied observation 1: A two-person product uses three synchronously called services that always ship together and share one database.",
+              "Supplied observation 3: Traffic is two orders per minute, and no independent runtime requirement is stated."
+            ],
+            "rationale": "The code strongly exhibits the harmful split: one promised order depends on three sequential network calls without gaining stated independence.",
+            "value": 98
+          },
+          "execution_safety": {
+            "evidence": [
+              "Supplied observation 2 identifies the failure point after charging and before confirmation.",
+              "Only orders.py is shown; the code that reserves stock, captures payment, and creates confirmation is absent."
+            ],
+            "rationale": "The reproduced timeout provides a concrete check for a repair. Missing service code, payment behavior, and tests limit confidence that the change can be made safely in small steps.",
+            "value": 55
+          },
+          "migration_cost": {
+            "evidence": [
+              "Supplied observation 1: The services already share a database and release schedule.",
+              "The supplied caller contains no details about service internals or how captured payments can be undone."
+            ],
+            "rationale": "A shared database and coordinated releases may reduce the work. The service sizes and payment behavior are unknown, so the amount of rewriting and release disruption remains uncertain.",
+            "value": 50
+          },
+          "opportunity": {
+            "evidence": [
+              "Supplied observation 1: All three services use one shared database and are released together.",
+              "Supplied observation 3: No requirement for a new event platform is shown.",
+              "Only the caller in orders.py is supplied."
+            ],
+            "rationale": "Shared storage and coordinated releases make running the steps together a plausible improvement. The missing service code prevents confirming how small that change could be.",
+            "value": 93
+          },
+          "suitability": {
+            "evidence": [
+              "orders.py:3: Billing runs before the confirmation call on line 4.",
+              "Supplied observation 2: A reproduced timeout after charging leaves captured payment without a completed order."
+            ],
+            "rationale": "Network calls divide charging from order completion, and a timeout between those steps causes the reported failure. Missing ways to undo or repair partial work also explain the harm.",
+            "value": 95
+          },
+          "urgency": {
+            "evidence": [
+              "Supplied observation 2: No way to undo or repair the partial order exists.",
+              "Supplied observation 3: Measured traffic is two orders per minute."
+            ],
+            "rationale": "A reproduced failure that takes payment without completing an order needs prompt attention. Low traffic does not remove that harm, but its frequency is unknown.",
+            "value": 95
+          }
+        },
+        "summary": "The flow can capture payment without completing an order. The three services ship together, share a database, and have no stated need to run separately. Fix the payment failure with the smallest verified change; removing unnecessary network calls may help.",
+        "target_key": "area:fixture-6de7599842e8"
+      },
+      "category": "remediate",
+      "duration_seconds": 475.036,
+      "expected": [
+        "remediate"
+      ],
+      "id": "unjustified-remote-transaction",
+      "level": "area",
+      "passed": true,
+      "pattern": "premature-distribution",
+      "recommendation": "remediate",
+      "review": {
+        "candidate_fingerprint": "150387e2fa3bb793b6da627e60050131050e9319f59dc662207b2a2d2ef1c93c",
+        "competing_interpretations": [],
+        "confidence": 95,
+        "evaluation": {
+          "affected_targets": [
+            "area:fixture-6de7599842e8",
+            "orders.py:place",
+            "http://inventory/reserve",
+            "http://billing/charge",
+            "http://confirmation/create"
+          ],
+          "alternatives": [
+            "Run the three steps as separate functions in one running program. Use one database transaction, which saves all included changes together or saves none, only if it covers every required order change, including payment.",
+            "Repair the existing service flow if that is the smaller verified fix. Retrying requests or repairing orders later alone would not meet the promise that an order completes fully or leaves no changes."
+          ],
+          "candidate_fingerprint": "150387e2fa3bb793b6da627e60050131050e9319f59dc662207b2a2d2ef1c93c",
+          "counter_evidence": [
+            "Missing ways to undo or repair partial work also explain the payment failure. Running the steps in one program may leave that problem unresolved.",
+            "Sharing a database does not prove that database changes can undo captured payment. The billing code is not supplied."
+          ],
+          "evidence": [
+            "orders.py:2 sends the request to inventory/reserve.",
+            "orders.py:3 sends the reservation to billing/charge.",
+            "orders.py:4 calls confirmation/create only after billing returns.",
+            "Supplied observation 1: Two people maintain three services that always release together and share one database.",
+            "Supplied observation 2: An order is promised to complete fully or leave no changes. A reproduced timeout leaves payment captured without a completed order. Nothing prevents repeated work, undoes partial changes, or finds and repairs incomplete orders.",
+            "Supplied observation 3: Traffic is two orders per minute. No independent ownership, scaling, security-isolation, or regional requirement exists."
+          ],
+          "invalidation_conditions": [
+            "A measured need for independent scaling, releases, security, or regional operation would weaken the case for removing the affected service call.",
+            "Evidence that the reported timeout does not leave captured payment without an order would weaken the reason for urgent payment repair.",
+            "Evidence that the required changes cannot all be saved or discarded together by the database would rule out a database-only repair."
+          ],
+          "invariants": [
+            "Each order completes every required step or leaves none of its changes behind.",
+            "A timeout after charging must not leave captured payment without a completed order.",
+            "Any retry added by the repair must not charge again for the same order.",
+            "Successful requests keep their existing inputs and results.",
+            "Every service call kept across the network has a named owner and a measured need to run separately."
+          ],
+          "local_precedents": [],
+          "pattern_key": "premature-distribution",
+          "prerequisites": [
+            "Identify every lasting change made by reservation, charging, and confirmation, and determine whether each can be undone.",
+            "Determine whether the shared database can save or discard every required order change together, including payment.",
+            "Turn the reproduced timeout into a repeatable check and compare behavior before and after each small change."
+          ],
+          "presence": "present",
+          "rationale": "Fix the order failure with the smallest change that passes the failure checks. Running the steps together is a reasonable option because the services share data and releases. The repair must also cover payment; fewer network calls alone do not make every order change succeed or fail together.",
+          "recommendation": "remediate",
+          "risks": [
+            "Combining the services could still leave payment captured if the repair does not cover payment changes.",
+            "Adding retries without preventing repeated charges could take payment more than once for the same order."
+          ],
+          "score_contract_version": "pattern-scores-v2",
+          "scores": {
+            "applicability": {
+              "evidence": [
+                "orders.py:2-4 sends three network requests in sequence.",
+                "Supplied observations 1 and 3 report shared releases, one database, and no independent ownership or operating requirement."
+              ],
+              "rationale": "One order crosses three services without a stated need for them to run separately. This closely fits splitting work across services before that split is needed.",
+              "value": 99
+            },
+            "benefit": {
+              "evidence": [
+                "Supplied observation 2 reports captured payment without a completed order.",
+                "No failure frequency or response-time measurements are supplied."
+              ],
+              "rationale": "A repair covering charging and order completion could prevent payments without orders. Removing network calls alone may not deliver that benefit, and the number of affected customers is unknown.",
+              "value": 94
+            },
+            "confidence": {
+              "evidence": [
+                "The supplied observations explicitly describe the unnecessary split and reproduced failure.",
+                "The case is identified as a controlled synthetic fixture, meaning an intentionally constructed test example.",
+                "The service implementations and test output are absent."
+              ],
+              "rationale": "The supplied facts strongly support this finding within the constructed example. Missing service code and test results leave the exact repair less certain.",
+              "value": 95
+            },
+            "conformance": {
+              "evidence": [
+                "Supplied observation 1 reports three services maintained by two people, released together, and sharing one database.",
+                "Supplied observation 3 reports two orders per minute and no independent operating requirement."
+              ],
+              "rationale": "The flow strongly shows the harmful split: completing one promised order requires three sequential service calls that provide no stated independence.",
+              "value": 98
+            },
+            "execution_safety": {
+              "evidence": [
+                "Supplied observation 2 identifies the failure after charging and before confirmation.",
+                "Only orders.py is shown."
+              ],
+              "rationale": "The reported timeout gives a concrete failure to test. Missing service code, payment details, and tests limit confidence that a repair can be checked safely in small steps.",
+              "value": 55
+            },
+            "migration_cost": {
+              "evidence": [
+                "Supplied observation 1 reports a shared database and release schedule.",
+                "The service implementations and details of undoing captured payments are absent."
+              ],
+              "rationale": "Shared data and releases may reduce the work. This is a rough estimate, not measured effort: service sizes, payment behavior, and release disruption are unknown.",
+              "value": 50
+            },
+            "opportunity": {
+              "evidence": [
+                "Supplied observations 1 and 2 report shared data, coordinated releases, and a reproduced payment failure.",
+                "Only the caller in orders.py is supplied."
+              ],
+              "rationale": "The reproduced payment failure gives a clear reason to improve this flow. Shared data and releases make combining steps plausible, but the supplied code does not establish a working repair.",
+              "value": 93
+            },
+            "suitability": {
+              "evidence": [
+                "orders.py:3 charges before the confirmation request on line 4.",
+                "Supplied observation 2 reports the reproduced timeout and the absence of ways to undo or repair partial work."
+              ],
+              "rationale": "Separate calls leave a point where charging has finished but order completion can time out. Missing ways to undo or repair partial work also explain why payment remains captured.",
+              "value": 95
+            },
+            "urgency": {
+              "evidence": [
+                "Supplied observation 2 reports the payment failure and no way to repair incomplete orders.",
+                "Supplied observation 3 reports two orders per minute."
+              ],
+              "rationale": "A reproduced failure that takes payment without completing an order needs prompt attention. Low traffic does not remove that harm, though its frequency is unknown.",
+              "value": 95
+            }
+          },
+          "summary": "A timeout can leave payment captured without a completed order. The three services share a database, release changes together, and have no stated need to run separately. Choose the smallest change that fixes the failure and can be checked.",
+          "target_key": "area:fixture-6de7599842e8"
+        },
+        "evidence": [
+          "orders.py:2-4 shows three sequential network calls, with charging before confirmation.",
+          "Supplied observations 1 and 3 establish shared data and releases without a need for independent operation.",
+          "Supplied observation 2 establishes the reproduced payment failure and missing protection against partial work.",
+          "The evidence is a constructed example containing only caller code, so repair details and effort remain uncertain."
+        ],
+        "issues": [],
+        "review_contract_version": "pattern-review-v1",
+        "summary": "The result correctly identifies unnecessary service calls in this order flow. It also explains that combining services alone may not fix the payment failure, and that the work required remains uncertain.",
+        "verdict": "approve"
+      },
+      "stages": [
+        {
+          "cache_read_input_tokens": 0,
+          "cost_usd": null,
+          "duration_seconds": 237.082,
+          "input_tokens": 17183,
+          "kind": "pattern_assessment",
+          "output_tokens": 7476,
+          "request_bytes": 6852,
+          "usage_source": "reported"
+        },
+        {
+          "cache_read_input_tokens": 0,
+          "cost_usd": null,
+          "duration_seconds": 237.954,
+          "input_tokens": 19126,
+          "kind": "pattern_review",
+          "output_tokens": 7257,
+          "request_bytes": 15937,
+          "usage_source": "reported"
+        }
+      ]
+    }
+  ],
+  "revision": "63d9c1ea0f9b20ec3c4aa42b74f407d49503c054",
+  "summary": {
+    "cases_completed": 7,
+    "cost_caveat": "Executor token reports are retained; subscription or monetary cost was not supplied.",
+    "cost_usd": null,
+    "input_tokens": 251691,
+    "known_positive_misses": 0,
+    "output_tokens": 85977,
+    "passed": 7,
+    "scope_levels": [
+      "area",
+      "module",
+      "repository",
+      "subsystem",
+      "type"
+    ],
+    "stages_with_unknown_usage": 0,
+    "unsupported_change_advice": 0
+  }
+}
