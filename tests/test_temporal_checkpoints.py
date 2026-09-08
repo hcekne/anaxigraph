@@ -12,6 +12,7 @@ from anaxigraph.persistence import (
     snapshot_files,
     snapshot_relationship_edges,
 )
+from anaxigraph.persistence.index_temporal_health import reconstruction_report
 from anaxigraph.storage import AnaxiIndex
 
 
@@ -132,4 +133,33 @@ def test_checkpoints_bound_reads_and_rebuild_without_changing_facts(tmp_path, da
         ).fetchone()
 
     assert [row["sequence"] for row in restored] == [15, 31]
-    assert policy[0] == "bounded-delta-v3"
+    assert policy[0] == "bounded-delta-v4"
+
+
+def test_checkpoint_upgrade_bounds_forked_lineage_not_just_sequence(tmp_path, database):
+    repository = _long_history_repository(tmp_path / "forked-history")
+    import_git_history(database, repository, every_commit=True)
+    with database.connect() as connection:
+        snapshots = [
+            int(row["id"])
+            for row in connection.execute("SELECT id FROM snapshots ORDER BY sequence")
+        ]
+        connection.execute("DELETE FROM snapshot_checkpoints")
+        connection.execute(
+            "UPDATE snapshots SET base_snapshot_id = ? WHERE id = ?",
+            (snapshots[14], snapshots[20]),
+        )
+        connection.execute(
+            "UPDATE schema_meta SET value = 'bounded-delta-v3' WHERE key = 'checkpoint_policy_version'"
+        )
+        before = _canonical_frames(connection, snapshots)
+    reopened = AnaxiIndex(database.path)
+    with reopened.connect() as connection:
+        report = reconstruction_report(connection)
+        assert report["status"] == "bounded"
+        assert report["maximum_traversed_deltas"] < CHECKPOINT_INTERVAL
+        assert _canonical_frames(connection, snapshots) == before
+        assert connection.execute(
+            "SELECT 1 FROM snapshot_checkpoints WHERE snapshot_id = ?", (snapshots[20],)
+        ).fetchone()
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []

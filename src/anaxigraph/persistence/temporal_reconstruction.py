@@ -11,7 +11,7 @@ from typing import Any
 from anaxigraph.persistence.temporal_hashing import digest
 
 CHECKPOINT_INTERVAL = 16
-CHECKPOINT_POLICY_VERSION = "bounded-delta-v3"
+CHECKPOINT_POLICY_VERSION = "bounded-delta-v4"
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,7 +74,8 @@ def refresh_checkpoint_if_due(connection: sqlite3.Connection, snapshot_id: int) 
     ).fetchone()
     if snapshot is None:
         raise RuntimeError(f"Cannot checkpoint missing snapshot {snapshot_id}")
-    if (int(snapshot["sequence"]) + 1) % CHECKPOINT_INTERVAL:
+    _checkpoint, frames = _reconstruction_path(connection, snapshot_id)
+    if (int(snapshot["sequence"]) + 1) % CHECKPOINT_INTERVAL and len(frames) < CHECKPOINT_INTERVAL:
         return False
     files, file_diagnostics = reconstruct_files_with_diagnostics(connection, snapshot_id)
     relationships, _relationship_diagnostics = reconstruct_relationships_with_diagnostics(

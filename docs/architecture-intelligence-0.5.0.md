@@ -76,7 +76,7 @@ decision here. This is a checkpoint, not a commitment to publish an unready buil
 ## Acceptance record
 
 Implementation and release verification in progress; unchecked gates above remain
-open. The Phase 13 source ratchet is **63,523 lines**, up **777 lines (1.24%)** from
+open. The Phase 13 source ratchet is **63,524 lines**, up **778 lines (1.24%)** from
 62,746. This is the exact measured cost of the admitted features, including the
 previously prepared lossless Codex fallback. One shared evidence-selection module
 serves existing review and pattern paths. No runtime dependency, schema table,
@@ -139,6 +139,18 @@ Verified locally on 8 September:
   has not yet been prepared for 1131. The pristine backup and old container image
   remain available for rollback. **34 migration, recovery, temporal, index-doctor,
   and checkpoint tests pass**, including a duplicate-set/coverage/checkpoint fixture.
+- Full index health additionally exposed an existing forked-lineage cache bug:
+  checkpoint cadence followed global sequence numbers rather than actual ancestry.
+  `bounded-delta-v4` adds the depth condition to the existing cache policy (one net
+  source line). Refreshing disposable checkpoints took **2.079 s**; all 1,131 frames
+  now pass the full health check with a maximum **15 traversed deltas**, versus 82
+  before upgrade, and zero blockers. Forked-history and migration regressions pass.
+  This rebuilds derived index caches, not AI descriptions or immutable source facts.
+- Post-upgrade counts preserve **144,274 file facts, 7,682 semantic documents,
+  6,105 semantic claims, and 539,752 coverage records**. Full file/symbol/relationship
+  digests match before and after for six sampled historical/current frames,
+  including both repositories. The full lineage, checkpoint-hash, foreign-key,
+  integrity, and semantic-reference checks pass across the retained index.
 - Production and changed-semantic verification remain open. The live service uses
   the older executor protocol, so the one incremental GPT-6 Astra/medium refresh
   must follow its upgrade; no incompatible worker or forced full reread was started.
