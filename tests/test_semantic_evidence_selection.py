@@ -1,6 +1,7 @@
 """Packet selection checks coverage, determinism, and actual serialized size."""
 
 import pytest
+from fresh_eyes_support import baseline_review
 
 from anaxigraph.semantic_evidence_selection import (
     bounded_evidence,
@@ -11,6 +12,7 @@ from anaxigraph.semantic_evidence_selection import (
     safe_review_evidence,
     select_modules,
 )
+from anaxigraph.semantic_fresh_eyes_evidence import current_charter, current_system_evidence
 
 
 def test_documentation_cannot_crowd_out_changed_production_contracts():
@@ -90,3 +92,58 @@ def test_legacy_pattern_advice_cannot_be_reintroduced_by_review_sampling():
     assert result["legacy_advice_withheld"]
     assert result["evaluation"]["recommendation"] == "insufficient_evidence"
     assert old["evaluation"]["recommendation"] == "retain"
+
+
+def test_reviewed_taxonomy_preserves_responsibility_memberships(repository, database, monkeypatch):
+    review = baseline_review(repository, database)
+    snapshot_id = database.latest_snapshot(review.repository_id)["id"]
+    with database.connect() as connection:
+        current, manifest = current_system_evidence(
+            connection, review.repository_id, snapshot_id, current_charter(connection, snapshot_id)
+        )
+    taxonomy = current["responsibility_map"]
+    assert taxonomy["areas"] and "taxonomy" not in taxonomy
+    memberships = responsibility_memberships(taxonomy)
+    assert memberships
+    for document in current["module_dossiers"]:
+        assert document["responsibility_owner"] == memberships[document["scope"]]
+    assert manifest["coverage"]["responsibilities_total"] == len(set(memberships.values()))
+    assert manifest["coverage"]["unmapped_modules"] == 0
+    monkeypatch.setattr(
+        "anaxigraph.semantic_fresh_eyes_evidence._current_taxonomy", lambda *_: None
+    )
+    with database.connect() as connection:
+        _, missing = current_system_evidence(
+            connection, review.repository_id, snapshot_id, current_charter(connection, snapshot_id)
+        )
+    assert missing["coverage"]["responsibilities_total"] == 0
+    assert missing["coverage"]["unmapped_modules"] == missing["coverage"]["current_modules"]
+
+
+def test_compaction_preserves_paths_owners_and_every_responsibility():
+    path = "src/" + "nested/" * 30 + "public_contract.py"
+    owner = "area/" + "responsibility-" * 30
+    value = {
+        "module_dossiers": [
+            {"scope": path, "responsibility_owner": owner, "summary": "x" * 20_000}
+        ],
+        "responsibility_map": {
+            "areas": [
+                {
+                    "key": f"area-{area}",
+                    "subsystems": [
+                        {"key": f"subsystem-{group}", "members": [{"path": path}] * 30}
+                        for group in range(10)
+                    ],
+                }
+                for area in range(6)
+            ]
+        },
+    }
+    selected = bounded_evidence(value, limit=40_000)
+    assert selected["module_dossiers"][0]["scope"] == path
+    assert selected["module_dossiers"][0]["responsibility_owner"] == owner
+    areas = selected["responsibility_map"]["areas"]
+    assert len(areas) == 6 and all(len(area["subsystems"]) == 10 for area in areas)
+    assert areas[0]["subsystems"][0]["members"][0]["path"] == path
+    assert evidence_bytes(selected) <= 40_000

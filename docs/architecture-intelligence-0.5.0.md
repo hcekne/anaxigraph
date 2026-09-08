@@ -76,7 +76,7 @@ decision here. This is a checkpoint, not a commitment to publish an unready buil
 ## Acceptance record
 
 Implementation and release verification in progress; unchecked gates above remain
-open. The Phase 13 source ratchet is **63,489 lines**, up **743 lines (1.18%)** from
+open. The Phase 13 source ratchet is **63,509 lines**, up **763 lines (1.22%)** from
 62,746. This is the exact measured cost of the admitted features, including the
 previously prepared lossless Codex fallback. One shared evidence-selection module
 serves existing review and pattern paths. No runtime dependency, schema table,
@@ -115,6 +115,14 @@ Verified locally on 8 September:
   the corrected pinning/CLI tests pass **25/25**. The complete clean CI rerun remains
   required. The local coverage report measured **93.0% total / 86.5% changed-code**,
   above the existing 80% / 85% gates; final CI must confirm both.
+- Read-only replay against the retained snapshot 1129 caught and corrected the
+  reviewed-taxonomy envelope: the packet now represents **all 21 responsibilities**
+  through **80/550 modules** (56 production, 12 test, 12 documentation) and 120
+  boundary/dependency links. All six areas, 21 subsystems, full paths, and owner
+  identities survive compaction; omitted evidence is counted. It retains 300-character
+  excerpts within the 600,000-byte current-system budget. Unmapped files are reported
+  separately, not counted as a fictitious responsibility. These corrections add
+  exactly 20 source lines to the initial Phase 13 acceptance; no limits were relaxed.
 
 Record the final full-suite, model, public artifact, and deployment evidence here
 before marking this phase complete.

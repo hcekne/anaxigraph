@@ -12,7 +12,15 @@ from anaxigraph.pattern_evaluation_contract import PATTERN_SCORE_CONTRACT_VERSIO
 
 EVIDENCE_SELECTION_VERSION = "representative-evidence-v1"
 REVIEW_PACKET_BYTES = 800_000
-_COLLECTIONS = {"module_dossiers", "area_summaries", "pattern_reviews", "dependency_evidence"}
+_COLLECTIONS = {
+    "module_dossiers",
+    "area_summaries",
+    "pattern_reviews",
+    "dependency_evidence",
+    "areas",
+    "subsystems",
+}
+_REFERENCES = {"scope", "path", "key", "kind", "responsibility_owner"}
 _IDENTITIES = {
     "contract",
     "schema_version",
@@ -133,7 +141,7 @@ def bounded_evidence(value: dict[str, Any], *, limit: int = REVIEW_PACKET_BYTES)
     """Keep identities intact and disclose every list/string reduction; never hide truncation."""
     if evidence_bytes(value) <= limit:
         return value
-    for text_limit, list_limit in ((600, 8), (300, 4), (120, 2), (60, 1)):
+    for text_limit, list_limit in ((600, 8), (300, 4), (300, 2), (300, 1), (120, 1), (60, 1)):
         counts = {"shortened_strings": 0, "omitted_list_entries": 0}
         result = {
             key: item if key in _IDENTITIES else _compact(item, text_limit, list_limit, counts, key)
@@ -158,6 +166,8 @@ def bounded_evidence(value: dict[str, Any], *, limit: int = REVIEW_PACKET_BYTES)
 def _compact(
     value: Any, text_limit: int, list_limit: int, counts: dict[str, int], key: str = ""
 ) -> Any:
+    if key in _REFERENCES:
+        return value
     if isinstance(value, str) and len(value) > text_limit:
         counts["shortened_strings"] += 1
         return value[:text_limit] + "… [shortened]"

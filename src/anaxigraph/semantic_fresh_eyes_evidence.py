@@ -54,7 +54,10 @@ def current_system_evidence(
         "architecture_charter": charter["value"],
         "responsibility_map": taxonomy["value"] if taxonomy else None,
         "area_summaries": [_compact_scope(item) for item in groups],
-        "module_dossiers": [_compact_scope(item) for item in modules],
+        "module_dossiers": [
+            {**_compact_scope(item), "responsibility_owner": memberships.get(item["scope_key"])}
+            for item in modules
+        ],
         "pattern_reviews": [_compact_scope(item) for item in patterns],
         "dependency_evidence": relationships,
         "active_findings": findings,
@@ -347,6 +350,8 @@ def _representative_modules(connection, snapshot_id, inventory, edges, membershi
     ]
     covered = {memberships.get(str(item["scope_key"]), "unmapped") for item in selected}
     all_groups = {memberships.get(str(item["scope_key"]), "unmapped") for item in rows}
+    covered.discard("unmapped")
+    all_groups.discard("unmapped")
     counts = {
         str(row["scope_type"]): int(row["total"])
         for row in connection.execute(
@@ -363,10 +368,11 @@ def _representative_modules(connection, snapshot_id, inventory, edges, membershi
         "roles": dict(Counter(module_role(str(item["scope_key"])) for item in selected)),
         "responsibilities_total": len(all_groups),
         "responsibilities_included": len(covered),
+        "unmapped_modules": sum(item["scope_key"] not in memberships for item in rows),
         "unrepresented_responsibilities": sorted(all_groups - covered)[:30],
         "groups_total": counts.get("group", 0),
         "patterns_total": counts.get("pattern", 0),
-        "caveat": "Only current saved descriptions are eligible. Static links do not prove runtime behavior.",
+        "caveat": "Only current saved descriptions are eligible. Unmapped files are not responsibilities. Static links do not prove runtime behavior.",
     }
 
 
@@ -397,7 +403,11 @@ def _current_taxonomy(connection: sqlite3.Connection, snapshot_id: int) -> dict[
         """,
         (snapshot_id,),
     ).fetchone()
-    return parsed_document(dict(row)) if row else None
+    if row is None:
+        return None
+    document = parsed_document(dict(row))
+    document["value"] = document["value"].get("taxonomy", document["value"])
+    return document
 
 
 def _finding_evidence(
