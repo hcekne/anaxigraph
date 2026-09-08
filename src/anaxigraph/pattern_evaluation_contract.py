@@ -7,7 +7,7 @@ from typing import Any
 
 from anaxigraph.semantic_contract import SemanticResult, _validate_schema
 
-PATTERN_SCORE_CONTRACT_VERSION = "pattern-scores-v1"
+PATTERN_SCORE_CONTRACT_VERSION = "pattern-scores-v2"
 PATTERN_REVIEW_CONTRACT_VERSION = "pattern-review-v1"
 PATTERN_SCORE_DIMENSIONS = (
     "applicability",
@@ -25,11 +25,13 @@ PATTERN_RECOMMENDATIONS = (
     "introduce",
     "improve_conformance",
     "replace",
+    "remediate",
     "avoid",
     "no_action",
     "insufficient_evidence",
 )
 PATTERN_PRESENCE = ("present", "partial", "absent", "uncertain")
+FAILURE_MODE_RECOMMENDATIONS = ("remediate", "avoid", "no_action", "insufficient_evidence")
 PATTERN_EVALUATION_LIST_FIELDS = (
     "evidence",
     "counter_evidence",
@@ -170,6 +172,12 @@ def pattern_response_schema(request: dict[str, Any]) -> dict[str, Any] | None:
     )
 
 
+def pattern_recommendations(kind: str) -> tuple[str, ...]:
+    if kind == "failure_mode":
+        return FAILURE_MODE_RECOMMENDATIONS
+    return tuple(value for value in PATTERN_RECOMMENDATIONS if value != "remediate")
+
+
 def _base_pattern_schema(kind: str) -> dict[str, Any] | None:
     return {
         "pattern_assessment": PATTERN_EVALUATION_SCHEMA,
@@ -189,6 +197,9 @@ def _bound_pattern_schema(
         "score_contract_version": PATTERN_SCORE_CONTRACT_VERSION,
     }
     evaluation = result["properties"]["evaluation"] if review else result
+    evaluation["properties"]["recommendation"]["enum"] = list(
+        pattern_recommendations(str((request.get("pattern") or {}).get("kind") or ""))
+    )
     for field, expected in identities.items():
         evaluation["properties"][field] = {"type": "string", "enum": [expected]}
     if review:
@@ -227,7 +238,7 @@ def validated_pattern_response(
     expected_fingerprint = str(request.get("candidate", {}).get("input_fingerprint") or "")
     _validate_identity(value, request, expected_fingerprint, review=kind == "pattern_review")
     evaluation = value["evaluation"] if kind == "pattern_review" else value
-    _validate_evaluation(evaluation)
+    _validate_evaluation(evaluation, str((request.get("pattern") or {}).get("kind") or ""))
     if kind == "pattern_review":
         _validate_review(value)
     confidence = int(evaluation["scores"]["confidence"]["value"]) / 100
@@ -266,10 +277,18 @@ def _validate_identity(
         raise ValueError("pattern review candidate_fingerprint does not match its candidate")
 
 
-def _validate_evaluation(value: dict[str, Any]) -> None:
+def _validate_evaluation(value: dict[str, Any], pattern_kind: str) -> None:
     if value["score_contract_version"] != PATTERN_SCORE_CONTRACT_VERSION:
         raise ValueError("unsupported pattern score contract version")
     scores = score_values(value)
+    if value["recommendation"] not in pattern_recommendations(pattern_kind):
+        raise ValueError(
+            f"recommendation is not valid for {pattern_kind or 'constructive'} pattern"
+        )
+    if pattern_kind == "failure_mode":
+        if value["recommendation"] == "remediate" and value["presence"] == "absent":
+            raise ValueError("cannot remediate an absent failure mode; use avoid or no_action")
+        return
     if scores["suitability"] >= 70 and scores["conformance"] >= 80:
         if scores["opportunity"] > 40:
             raise ValueError("high conformance and suitability cannot create high opportunity")

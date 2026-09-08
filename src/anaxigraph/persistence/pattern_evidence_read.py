@@ -33,6 +33,7 @@ from anaxigraph.persistence.pattern_evidence_inputs import (
     facts_by_artifact,
     semantic_documents,
 )
+from anaxigraph.persistence.semantic_evidence import semantic_inventory
 from anaxigraph.persistence.snapshot_projection import install_snapshot_projection
 
 
@@ -57,13 +58,12 @@ def read_pattern_evidence(
     )
     subsystem_items, area_items, repository_item = _parent_items(
         repository_name,
-        modules,
-        module_targets,
         module_items,
         subsystems,
         areas,
         snapshot_id,
         contracts,
+        semantic_inventory(connection, snapshot_id)[1],
     )
     items = tuple(
         sorted(
@@ -233,43 +233,50 @@ def _leaf_items(
 
 def _parent_items(
     repository_name: str,
-    modules: list[dict[str, Any]],
-    targets: dict[int, PatternTarget],
     module_items: dict[int, TargetEvidence],
     subsystems: dict[str, PatternTarget],
     areas: dict[str, PatternTarget],
     snapshot_id: int,
     contracts: dict[str, dict[str, Any]],
+    relationships: dict[str, list[dict[str, Any]]],
 ) -> tuple[dict[str, TargetEvidence], dict[str, TargetEvidence], TargetEvidence]:
-    subsystem_items = {
-        key: aggregate_evidence(
-            target,
-            [
-                module_items[int(module["artifact_id"])]
-                for module in modules
-                if targets[int(module["artifact_id"])].parent_key == key
-            ],
-            snapshot_id,
-            contracts,
-        )
-        for key, target in subsystems.items()
-    }
-    area_items = {
-        key: aggregate_evidence(
-            target,
-            [item for item in subsystem_items.values() if item.target.parent_key == key],
-            snapshot_id,
-            contracts,
-        )
-        for key, target in areas.items()
-    }
+    leaves = list(module_items.values())
+    subsystem_items = _aggregate_parents(
+        subsystems, leaves, leaves, relationships, snapshot_id, contracts
+    )
+    area_items = _aggregate_parents(
+        areas, list(subsystem_items.values()), leaves, relationships, snapshot_id, contracts
+    )
     repository_item = aggregate_evidence(
         repository_target(repository_name),
         list(area_items.values()),
         snapshot_id,
         contracts,
+        witnesses=leaves,
+        relationships=relationships,
     )
     return subsystem_items, area_items, repository_item
+
+
+def _aggregate_parents(targets, children, leaves, relationships, snapshot_id, contracts):
+    result = {}
+    for key, target in targets.items():
+        selected = [item for item in children if item.target.parent_key == key]
+        child_keys = {item.target.key for item in selected}
+        witnesses = [
+            item
+            for item in leaves
+            if item.target.key in child_keys or item.target.parent_key in child_keys
+        ]
+        result[key] = aggregate_evidence(
+            target,
+            selected,
+            snapshot_id,
+            contracts,
+            witnesses=witnesses,
+            relationships=relationships,
+        )
+    return result
 
 
 def _architecture_targets(

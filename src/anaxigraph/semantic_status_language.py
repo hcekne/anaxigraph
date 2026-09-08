@@ -100,6 +100,8 @@ def _conclusion(
     if failed + failed_map:
         return "AI mapping has unfinished failures and is not current."
     if state == "not_started":
+        if _mapping(status.get("freshness")).get("previous_semantic_snapshot_id"):
+            return "A previous AI map is available; incremental reuse has not been checked for this saved scan."
         return "AI mapping has not been prepared for this saved scan."
     return "AI mapping is incomplete, and no worker is running right now."
 
@@ -108,7 +110,7 @@ def _progress(enabled: bool, total: int, current: int, excluded: int) -> str:
     if not enabled:
         return "The non-AI file and direct-link map remains available."
     if not total:
-        return "No included files have been prepared for AI description yet."
+        return "No included files have been prepared for AI description for this saved scan yet."
     result = (
         f"{current} of {total} included files have a current AI description of both the file "
         "itself and its role in this repository."
@@ -232,7 +234,31 @@ def _reading_guide(status: Mapping[str, Any], total: int) -> list[str]:
             "The connected coding agent chooses its runtime model and reasoning effort. AnaxiGraph "
             "does not hardcode either one into the saved understanding of the code."
         )
-    return values
+    return [*values, *_reuse_explanation(status)]
+
+
+def _reuse_explanation(status: Mapping[str, Any]) -> list[str]:
+    freshness = _mapping(status.get("freshness"))
+    if not freshness:
+        return []
+    result = []
+    if freshness.get("reuse_checked"):
+        result.append(
+            f"This scan reuses {_count(freshness.get('intrinsic_reused'))} saved file readings and "
+            f"{_count(freshness.get('context_reused'))} complete contextual descriptions. "
+            "Only invalidated scopes need new AI work; a derived summary refresh is not a full reread."
+        )
+    elif freshness.get("previous_semantic_snapshot_id"):
+        result.append(
+            "A previous map is retained. Reuse will be checked when incremental work is prepared."
+        )
+    charter = _mapping(status.get("architecture_charter"))
+    if charter and charter.get("status") != "current":
+        result.append(
+            f"The saved repository summary from scan {charter.get('source_snapshot_id')} remains "
+            "available as stale context, not current architectural advice."
+        )
+    return result
 
 
 def _running(status: Mapping[str, Any]) -> bool:

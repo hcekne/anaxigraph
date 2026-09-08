@@ -43,6 +43,7 @@ def semantic_status_payload(
         "telemetry": _telemetry_payload(rows, snapshot_id),
         "budget": _budget_payload(rows, semantic, coverage),
         "architecture_charter": _architecture_charter_document(rows.repository_state),
+        "freshness": rows.freshness,
         "charter_corrections": rows.charter_corrections,
         "taxonomy": _taxonomy_payload(rows.taxonomy, semantic, coverage),
         "patterns": _pattern_payload(rows, semantic),
@@ -405,6 +406,7 @@ def _architecture_charter_document(state: dict[str, Any] | None) -> dict[str, An
         return None
     result = {
         "status": state["status"],
+        "source_snapshot_id": state.get("source_snapshot_id"),
         "document_id": state["document_id"],
         "value": value,
         "confidence": state["confidence"],

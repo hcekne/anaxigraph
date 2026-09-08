@@ -138,6 +138,21 @@ def test_fresh_eyes_unpin_reaches_the_service(repository: Path, capsys, monkeypa
     assert captured["start"] is False
 
 
+def test_fresh_eyes_goal_is_only_sent_when_explicit(repository: Path, capsys, monkeypatch):
+    target = SemanticServiceTarget("http://127.0.0.1:9999", 7, "Fixture", "/repo")
+    captured = {}
+    monkeypatch.setattr(agent_commands, "discover_semantic_service", lambda *_a, **_k: target)
+
+    def request(_url, **options):
+        captured.update(options)
+        return {"state": "in_progress"}
+
+    monkeypatch.setattr(semantic_service, "_request_json", request)
+    main(["fresh-eyes", str(repository), "--start", "--goal", "Clarify user contracts", "--json"])
+    capsys.readouterr()
+    assert captured["body"]["goal"] == "Clarify user contracts"
+
+
 def test_fresh_eyes_generation_reaches_the_service_query(repository: Path, capsys, monkeypatch):
     target = SemanticServiceTarget("http://127.0.0.1:9999", 7, "Fixture", "/repo")
     requested = []

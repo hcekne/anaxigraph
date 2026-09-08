@@ -5,10 +5,10 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from anaxigraph.pattern_evaluation_contract import PATTERN_SCORE_DIMENSIONS
+from anaxigraph.pattern_evaluation_contract import PATTERN_SCORE_DIMENSIONS, pattern_recommendations
 from anaxigraph.semantic_file_language import explain_specialist_terms
 
-PATTERN_LANGUAGE_VERSION = "pattern-explanation-v2"
+PATTERN_LANGUAGE_VERSION = "pattern-explanation-v3"
 
 _PATTERN_TERM_DEFINITIONS = (
     ("interface", r"\binterfaces?\b", "the names and operations other code uses"),
@@ -77,9 +77,10 @@ def pattern_explanation(
 
     name = str(pattern.get("name") or pattern.get("key") or "this pattern")
     target_name = _target_name(target)
-    recommendation = str(evaluation.get("recommendation") or "insufficient_evidence")
+    recommendation = safe_pattern_recommendation(evaluation, pattern)
+    failure_mode = pattern.get("kind") == "failure_mode"
     presence = str(evaluation.get("presence") or "uncertain")
-    return {
+    result = {
         "version": PATTERN_LANGUAGE_VERSION,
         "conclusion": _conclusion(name, target_name, recommendation),
         "what_the_pattern_name_means": _pattern_meaning(name, pattern),
@@ -94,6 +95,44 @@ def pattern_explanation(
         "score_meanings": _score_meanings(evaluation.get("scores"), name),
         "independent_review": _review_sentence(review),
     }
+    if failure_mode:
+        result.update(_failure_mode_language(evaluation, name, target_name, recommendation))
+    return result
+
+
+def safe_pattern_recommendation(evaluation: Mapping[str, Any], pattern: Mapping[str, Any]) -> str:
+    recorded = str(evaluation.get("recommendation") or "insufficient_evidence")
+    allowed = pattern_recommendations(str(pattern.get("kind") or ""))
+    return recorded if recorded in allowed else "insufficient_evidence"
+
+
+def _failure_mode_language(
+    evaluation: Mapping[str, Any], name: str, target: str, recommendation: str
+) -> dict[str, Any]:
+    meanings = _score_meanings(evaluation.get("scores"), name)
+    meanings[0]["meaning"] = (
+        "These ratings describe the fit of a failure-mode diagnosis, not a design to adopt."
+    )
+    meanings[1]["meaning"] = (
+        "Current match measures presence of the harmful structure, not code quality."
+    )
+    result = {"score_meanings": meanings}
+    if recommendation != evaluation.get("recommendation"):
+        result["conclusion"] = f"The saved advice for failure mode {name} is unsafe to act on."
+        result["what_to_do"] = (
+            "Refresh this pattern evaluation. Do not adopt or strengthen a failure mode."
+        )
+    elif recommendation == "remediate":
+        result["conclusion"] = f"Reduce the evidenced harm from {name} in {target}."
+        result["what_to_do"] = (
+            "Verify the harmful behavior, then remove its smallest cause while preserving caller "
+            "contracts. Compare the benefit with migration cost before adding any machinery."
+        )
+    elif recommendation == "insufficient_evidence":
+        result["conclusion"] = (
+            f"There is not enough evidence to diagnose or remedy {name} in {target}."
+        )
+    return result
 
 
 def _target_name(target: Mapping[str, Any]) -> str:

@@ -69,6 +69,11 @@ def _configure_fresh_eyes(commands: Any) -> None:
     )
     add_repository_arguments(fresh_eyes)
     fresh_eyes.add_argument(
+        "--goal",
+        default=None,
+        help="Focus the repository-aware comparison and review; preserves implementation-blind proposals",
+    )
+    fresh_eyes.add_argument(
         "--start", action="store_true", help="Request and prepare the fixed review recipe"
     )
     fresh_eyes.add_argument(
@@ -215,6 +220,7 @@ def _fresh_eyes(args: argparse.Namespace) -> dict[str, Any]:
             proposal_executors=parse_proposal_executors(args.proposal_executors),
             retry_failed=args.retry_failed,
             restart=args.restart,
+            **({"goal": args.goal} if args.goal is not None else {}),
         )
     return engine.fresh_eyes_status(
         repository_id,
@@ -238,6 +244,7 @@ def _service_fresh_eyes(service: Any, args: argparse.Namespace) -> dict[str, Any
             generation=args.generation,
             compare_with=args.compare_with,
             timeout=args.timeout_seconds,
+            **({"goal": args.goal} if args.goal is not None else {}),
         )
     except OSError as exc:
         if not starting or not _timed_out(exc):

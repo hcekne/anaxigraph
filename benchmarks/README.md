@@ -1,5 +1,27 @@
 # AnaxiGraph benchmark suite
 
+## Architectural judgment (opt-in model run)
+
+`architecture_judgment` evaluates seven controlled positive, negative, and uncertain
+cases through the production pattern-assessment and independent-review contracts.
+Expected answers are withheld from the model. Protocol unit tests do not establish
+model accuracy; retain a real run before claiming the architecture gate passed:
+
+```bash
+uv run python -m benchmarks.architecture_judgment \
+  --model gpt-6-astra --reasoning-effort max --parallel 2 \
+  --output benchmarks/results/architecture-judgment-0.5.0.json
+```
+
+The report records known-positive misses, unsupported change advice, covered scope
+levels, case-level rationale, duration, request bytes, and reported or unknown token
+usage. Monetary cost remains unknown unless supplied by the executor. These small
+synthetic cases test judgment under stated facts, not recognition of every pattern
+or the correctness of all production recommendations. Candidate-selection and
+representative-evidence tests are separate deterministic checks.
+
+## Performance and mechanical correctness
+
 This directory owns the reproducible Phase 0 performance and correctness baseline. Generated
 repositories and SQLite indexes always live in temporary directories; only their generator, seed,
 expected manifest, compact mixed-language fixtures, and measured JSON reports are committed.

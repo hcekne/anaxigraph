@@ -59,7 +59,9 @@ function markup() {
           constraints. A blind adjudicator combines their strongest ideas. Only then does a
           repository-aware pass compare that reference with the code and keep changes that
           materially advance the mission.</p></div>
-      <div class="fresh-eyes-start"><label>Independent proposals
+      <div class="fresh-eyes-start"><label>Review goal (optional; applied after blind design)
+        <input id="fresh-eyes-goal" maxlength="4000" placeholder="Improve consistency across user flows" />
+        </label><label>Independent proposals
         <select id="fresh-eyes-proposal-count"><option value="1">1 · lower cost</option>
           <option value="2" selected>2 · recommended</option><option value="3">3 · broader</option>
         </select></label><button id="fresh-eyes-start" class="button" type="button">
@@ -90,6 +92,7 @@ function bindEvents() {
   });
   byId("fresh-eyes-refresh").addEventListener("click", loadFreshEyes);
   byId("fresh-eyes-start").addEventListener("click", startFreshEyes);
+  byId("fresh-eyes-goal").addEventListener("input", () => current && renderStartControl(current));
   byId("fresh-eyes-generation").addEventListener("change", (event) => {
     selectedGeneration = event.target.value;
     loadFreshEyes();
@@ -127,6 +130,7 @@ async function startFreshEyes() {
         repository_id: state.repositoryId,
         proposal_count: Number(byId("fresh-eyes-proposal-count").value),
         retry_failed: current?.state === "failed",
+        goal: byId("fresh-eyes-goal").value.trim(),
       }),
     });
     if (token !== state.repositoryLoadToken) return;
@@ -143,6 +147,7 @@ async function startFreshEyes() {
 
 function render(value) {
   const ready = value.ready === true;
+  if (document.activeElement !== byId("fresh-eyes-goal")) byId("fresh-eyes-goal").value = value.review_goal || "";
   byId("fresh-eyes-title").textContent = stateLabel(value.state);
   byId("fresh-eyes-summary").textContent = value.strategy?.summary
     || value.next_action || "No review has been requested for this saved scan.";
@@ -174,11 +179,13 @@ function renderGenerationControl(value) {
 
 function renderStartControl(value, ready = value.ready === true) {
   const live = selectedGeneration === "";
-  const canStart = live && ["not_started", "stale", "failed"].includes(value.state);
+  const changedGoal = ready && byId("fresh-eyes-goal").value.trim() !== (value.review_goal || "");
+  const canStart = live && (["not_started", "stale", "failed"].includes(value.state) || changedGoal);
+  byId("fresh-eyes-goal").disabled = !live || (!ready && !canStart);
   byId("fresh-eyes-start").textContent = !live ? "Reading a recorded generation"
     : value.state === "failed" ? "Retry failed stage"
       : ["not_started", "stale"].includes(value.state) ? "Start fresh-eyes review"
-        : ready ? "Review complete" : "Review in progress";
+        : changedGoal ? "Review updated goal" : ready ? "Review complete" : "Review in progress";
   byId("fresh-eyes-start").disabled = !canStart;
   byId("fresh-eyes-proposal-count").disabled = !canStart
     || !["not_started", "stale"].includes(value.state);

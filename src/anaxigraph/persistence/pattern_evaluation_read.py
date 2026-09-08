@@ -12,7 +12,7 @@ from anaxigraph.pattern_evaluation_contract import (
     PATTERN_EXPLANATION_LIST_FIELDS,
     score_values,
 )
-from anaxigraph.pattern_language import pattern_explanation
+from anaxigraph.pattern_language import pattern_explanation, safe_pattern_recommendation
 from anaxigraph.pattern_query import PATTERN_QUERY_VERSION, PatternEvaluationQuery
 from anaxigraph.semantic_file_language import explain_specialist_terms
 
@@ -131,7 +131,8 @@ def _evaluation_item(
         "pattern": pattern,
         "candidate": _candidate_summary(candidate),
         "presence": str(evaluation.get("presence") or "uncertain"),
-        "recommendation": str(evaluation.get("recommendation") or "insufficient_evidence"),
+        "recommendation": safe_pattern_recommendation(evaluation, pattern),
+        "recorded_recommendation": str(evaluation.get("recommendation") or ""),
         "summary": _plain_text(evaluation.get("summary")),
         "rationale": _plain_text(evaluation.get("rationale")),
         "scores": score_values(evaluation),

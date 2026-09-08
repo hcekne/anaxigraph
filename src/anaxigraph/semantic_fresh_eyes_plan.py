@@ -6,12 +6,17 @@ import sqlite3
 from typing import Any
 
 from anaxigraph.semantic_config_port import SemanticConfig
+from anaxigraph.semantic_evidence_selection import EVIDENCE_SELECTION_VERSION
 from anaxigraph.semantic_fresh_eyes_contract import (
     FRESH_EYES_PLAN_KEY,
     FRESH_EYES_PROTOCOL_VERSION,
     FRESH_EYES_SCOPE,
+    fresh_eyes_plan_executors,
+    fresh_eyes_plan_goal,
+    fresh_eyes_plan_options,
     fresh_eyes_plan_token,
     fresh_eyes_required_executor,
+    review_goal_manifest,
     semantic_input_hash,
 )
 from anaxigraph.semantic_fresh_eyes_evidence import (
@@ -48,6 +53,7 @@ def _document_or_job(
 ) -> tuple[dict[str, Any] | None, int]:
     """Hash this stage's evidence, then reuse its document or queue the job."""
 
+    evidence["packet_policy"] = EVIDENCE_SELECTION_VERSION
     input_hash = semantic_input_hash(_STAGE_CONTRACTS[job_kind], semantic.prompt_version, evidence)
     return document_or_job(
         connection,
@@ -71,12 +77,15 @@ class FreshEyesPlanner:
         proposal_count: int,
         generation: int = 1,
         proposal_executors: tuple[str, ...] = (),
+        goal: str = "",
     ) -> bool:
         if proposal_count not in {1, 2, 3}:
             raise ValueError("Fresh-eyes review requires one, two, or three proposals")
-        token = fresh_eyes_plan_token(proposal_count, generation, proposal_executors)
+        token = fresh_eyes_plan_token(proposal_count, generation, proposal_executors, goal=goal)
         existing = _plan_state(connection, snapshot_id)
         if existing is not None:
+            if goal != fresh_eyes_plan_goal(existing):
+                _update_goal(connection, snapshot_id, existing, goal)
             return False
         upsert_state(
             connection,
@@ -319,6 +328,8 @@ class FreshEyesPlanner:
             manifest["declared_context"] = declared_manifest(declared)
             manifest["included"].append("declared_context")
             metadata["declared_context"] = declared
+        if context.get("review_goal"):
+            manifest["review_goal"] = review_goal_manifest(context["review_goal"])
         return _document_or_job(
             connection,
             repository_id=context["repository_id"],
@@ -332,6 +343,17 @@ class FreshEyesPlanner:
             semantic=context["semantic"],
             retry_failed=context["retry_failed"],
         )
+
+
+def _update_goal(connection, snapshot_id, plan, goal):
+    count, generation = fresh_eyes_plan_options(plan)
+    token = fresh_eyes_plan_token(count, generation, fresh_eyes_plan_executors(plan), goal=goal)
+    connection.execute(
+        "UPDATE semantic_scope_states SET interface_hash = ?, status = 'requested', "
+        "context_document_id = NULL, reason = 'Review goal changed; reuse blind reference stages' "
+        "WHERE snapshot_id = ? AND scope_type = ? AND scope_key = ?",
+        (token, snapshot_id, FRESH_EYES_SCOPE, FRESH_EYES_PLAN_KEY),
+    )
 
 
 def _plan_state(connection: sqlite3.Connection, snapshot_id: int) -> dict[str, Any] | None:

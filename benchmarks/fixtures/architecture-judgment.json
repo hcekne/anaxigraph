@@ -1,0 +1,102 @@
+{
+  "version": "architecture-judgment-v1",
+  "cases": [
+    {
+      "id": "durable-work-queue",
+      "pattern": "work-queue",
+      "level": "subsystem",
+      "category": "retain",
+      "expected": ["retain", "no_action"],
+      "facts": [
+        "The supplied jobs are independent, accepted into durable SQLite storage, and consumed by competing workers in one process.",
+        "Claim and finish use atomic transactions; updates require the current lease token. Expired leases can be reclaimed.",
+        "The production acceptance tests verify crash recovery, bounded admission, visible poison-job failure after three attempts, and idempotent effects. The caller contract promises at-least-once delivery, not exactly-once effects.",
+        "No observed reliability problem or new independent deployment requirement is supplied. Assess this existing design, not a hypothetical large-scale replacement."
+      ],
+      "sources": {
+        "jobs/store.py": "def claim(db, token, now):\n    with db:\n        return db.execute(\"UPDATE jobs SET token=?, expires=?, attempts=attempts+1 WHERE id=(SELECT id FROM jobs WHERE status='pending' AND expires < ? AND attempts < 3 ORDER BY id LIMIT 1) RETURNING id, payload\", (token, now+60, now)).fetchone()\n\ndef finish(db, job_id, token):\n    with db:\n        return db.execute(\"UPDATE jobs SET status='done' WHERE id=? AND token=?\", (job_id, token)).rowcount\n",
+        "jobs/worker.py": "def run_one(store, effects, token, now):\n    job = store.claim(token, now)\n    if job is None:\n        return False\n    job_id, payload = job\n    effects.apply_once(job_id, payload)\n    return store.finish(job_id, token)\n"
+      }
+    },
+    {
+      "id": "cohesive-modular-monolith",
+      "pattern": "modular-monolith",
+      "level": "repository",
+      "category": "retain",
+      "expected": ["retain", "no_action"],
+      "facts": [
+        "One deployable process serves a small team. Orders, inventory, and billing own separate tables and expose narrow operations.",
+        "The composition module coordinates operations in one database transaction. A checked import policy prevents private-table and cross-module implementation access and rejects cycles.",
+        "Integration tests cover rollback of inventory and billing when order completion fails. There is no requirement for independent releases, regions, scaling, or failure domains."
+      ],
+      "sources": {
+        "app.py": "def place_order(db, orders, inventory, billing, request):\n    with db.transaction() as transaction:\n        reservation = inventory.reserve(transaction, request.items)\n        invoice = billing.invoice(transaction, request.customer, reservation.total)\n        return orders.complete(transaction, reservation.id, invoice.id)\n",
+        "orders/api.py": "def complete(transaction, reservation_id, invoice_id):\n    return transaction.orders.insert(reservation_id=reservation_id, invoice_id=invoice_id)\n"
+      }
+    },
+    {
+      "id": "existing-inward-ports",
+      "pattern": "ports-and-adapters",
+      "level": "subsystem",
+      "category": "retain",
+      "expected": ["retain", "no_action"],
+      "facts": [
+        "The core has no imports from HTTP, database, or framework packages. The only composition root selects adapters.",
+        "The same core behavior and contract tests run against an in-memory fake and a SQLite implementation. HTTP is translated at the edge. No leakage or incompatible adapter behavior is reported."
+      ],
+      "sources": {
+        "core.py": "from typing import Protocol\n\nclass Accounts(Protocol):\n    def save(self, email: str) -> int: ...\n\ndef register(accounts: Accounts, email: str) -> int:\n    if '@' not in email:\n        raise ValueError('email required')\n    return accounts.save(email.lower())\n",
+        "adapters/sqlite.py": "class SQLiteAccounts:\n    def __init__(self, db):\n        self.db = db\n    def save(self, email):\n        with self.db:\n            return self.db.execute('INSERT INTO accounts(email) VALUES (?)', (email,)).lastrowid\n",
+        "adapters/http.py": "from core import register\n\ndef post_account(accounts, body):\n    return {'id': register(accounts, body['email'])}\n"
+      }
+    },
+    {
+      "id": "unjustified-remote-transaction",
+      "pattern": "premature-distribution",
+      "level": "area",
+      "category": "remediate",
+      "expected": ["remediate"],
+      "facts": [
+        "A two-person product split the following flow into three synchronously called services that are always released together and use one shared database.",
+        "The user contract promises one atomic order. A reproduced timeout after charge but before confirmation leaves payment captured with no completed order. No idempotency, rollback, or reconciliation exists.",
+        "Measured production traffic is two orders per minute. There is no independent ownership, scaling, security-isolation, or regional requirement. Prefer the smallest verified correction; a new event platform is not required by this evidence."
+      ],
+      "sources": {
+        "orders.py": "def place(http, request):\n    reservation = http.post('http://inventory/reserve', request)\n    charge = http.post('http://billing/charge', reservation)\n    return http.post('http://confirmation/create', charge)\n"
+      }
+    },
+    {
+      "id": "small-synchronous-operation",
+      "pattern": "work-queue",
+      "level": "module",
+      "category": "negative",
+      "expected": ["avoid", "no_action"],
+      "facts": [
+        "This is the entire operation. Callers require an immediate return value. It has no I/O, persistence, retries, background work, throughput pressure, or known performance issue."
+      ],
+      "sources": {"greeting.py": "def greet(name: str) -> str:\n    return f'Hello, {name.strip()}!'\n"}
+    },
+    {
+      "id": "cohesive-data-is-not-god-object",
+      "pattern": "god-object",
+      "level": "type",
+      "category": "negative",
+      "expected": ["avoid", "no_action"],
+      "facts": [
+        "This immutable record is the complete type. It represents one postal address, owns no collaborators, and has no behavior or mutable state. There are no independent business responsibilities to split."
+      ],
+      "sources": {"address.py": "from dataclasses import dataclass\n\n@dataclass(frozen=True)\nclass Address:\n    recipient: str\n    street: str\n    locality: str\n    region: str\n    postal_code: str\n    country: str\n"}
+    },
+    {
+      "id": "deployment-requirements-unknown",
+      "pattern": "microservices",
+      "level": "repository",
+      "category": "uncertain",
+      "expected": ["insufficient_evidence"],
+      "facts": [
+        "Only this interface stub is supplied. Production implementation, callers, ownership, deployment, measured load, failure domains, and operational capability are unavailable. Do not infer those facts from the function name."
+      ],
+      "sources": {"api.py": "def process_order(request):\n    raise NotImplementedError\n"}
+    }
+  ]
+}

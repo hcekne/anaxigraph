@@ -52,11 +52,16 @@ def _saved_charter(
     conflicts = [str(item.get("claim") or "") for item in value.get("conflicts") or []]
     caveats = _snapshot_caveats(provenance, [item for item in (*unknowns, *conflicts) if item])
     if state == "stale":
-        caveats.insert(0, "The indexed evidence changed after this Charter was created.")
+        source = document.get("source_snapshot_id")
+        caveats.insert(
+            0,
+            f"The indexed evidence changed; this saved Charter describes scan {source or 'unknown'}.",
+        )
     return {
         **value,
         "identity": _identity(repository, snapshot_id, document.get("document_id")),
         "snapshot_id": snapshot_id,
+        "source_snapshot_id": document.get("source_snapshot_id") or snapshot_id,
         "snapshot": provenance,
         "state": state,
         "complete": state == "current",

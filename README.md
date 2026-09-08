@@ -244,6 +244,9 @@ started.
 
 The connected Codex or Claude executor supplies the model context and tokens; AnaxiGraph supplies
 bounded evidence, validates each result, and resumes the saved stages after interruption. The
+Codex adapter delivers oversized requests through temporary evidence pages in the same isolated,
+read-only workspace, preserving the complete payload without exceeding the CLI's inline-input
+limit. The pages add no review stages and are removed on completion or a handled failure. The
 dashboard exposes the same review under **Improve → Fresh eyes**. A connected agent can read or
 start it through `ANAXIGRAPH_GUIDE(intent="redesign", start=true, proposal_count=2)`. The older
 `fresh_eyes=true` form remains accepted. Starting a

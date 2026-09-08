@@ -90,7 +90,7 @@ def test_current_projection_supports_target_and_pattern_directions(repository, d
     assert all(item["review"]["verdict"] == "approve" for item in results["items"])
     first = results["items"][0]
     language = first["plain_language"]
-    assert language["version"] == "pattern-explanation-v2"
+    assert language["version"] == "pattern-explanation-v3"
     assert language["conclusion"]
     assert language["what_the_pattern_name_means"]
     assert first["pattern"]["intent"]

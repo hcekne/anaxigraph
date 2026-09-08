@@ -21,7 +21,10 @@ from anaxigraph.persistence.temporal_files import (
     compact_file_fact_metadata,
     compact_file_placement_metadata,
 )
-from anaxigraph.persistence.temporal_reconstruction import ensure_checkpoint_policy
+from anaxigraph.persistence.temporal_reconstruction import (
+    ensure_checkpoint_policy,
+    rebuild_checkpoints,
+)
 from anaxigraph.persistence.temporal_relationships import compact_duplicate_relationship_sets
 from anaxigraph.persistence.temporal_schema import install_temporal_schema
 
@@ -57,6 +60,7 @@ def migrate_schema(
         "coverage_measurements",
         {"relationship_edge_id": "INTEGER REFERENCES relationship_edges(id) ON DELETE CASCADE"},
     )
+    _ensure_semantic_fact_indexes(connection)
     compatibility_frames = connection.execute(
         "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'file_versions'"
     ).fetchone()
@@ -78,7 +82,6 @@ def migrate_schema(
         )
         if migrated_materialized_frames:
             _legacy_migration_indexes(connection, create=False)
-    _ensure_semantic_fact_indexes(connection)
     connection.execute(
         "INSERT OR REPLACE INTO schema_meta(key, value) VALUES ('schema_version', ?)",
         (str(target_version),),
@@ -93,12 +96,15 @@ def reconcile_additive_columns(connection: sqlite3.Connection) -> None:
     ``initialize_index`` calls this on every open. The check is one
     ``PRAGMA table_info`` per table and each addition is a metadata-only
     ``ALTER TABLE ... ADD COLUMN``; one write lock keeps concurrent openers
-    from adding the same column twice.
+    from adding the same column twice. Temporal schema installation also restores
+    additive lookup indexes without repeating data migration.
     """
 
     connection.execute("BEGIN IMMEDIATE")
     try:
         _ensure_legacy_columns(connection)
+        install_temporal_schema(connection)
+        _ensure_semantic_fact_indexes(connection)
     except BaseException:
         connection.rollback()
         raise
@@ -191,8 +197,8 @@ def _compact_validated_compatibility(
     prepare_semantic_claims_for_compaction(connection)
     backfill_relationship_coverage(connection)
     retire_coverage_compatibility_reference(connection)
-    if validate_existing_projection:
-        compact_duplicate_relationship_sets(connection)
+    if validate_existing_projection and compact_duplicate_relationship_sets(connection):
+        rebuild_checkpoints(connection)
     compact_compatibility_rows(connection)
 
 
@@ -249,6 +255,8 @@ def _ensure_columns(
 
 def _ensure_semantic_fact_indexes(connection: sqlite3.Connection) -> None:
     for statement in (
+        "CREATE INDEX IF NOT EXISTS idx_coverage_relationship_edge "
+        "ON coverage_measurements(relationship_edge_id)",
         "CREATE INDEX IF NOT EXISTS idx_semantic_claims_fact "
         "ON semantic_claims(file_fact_id, claim_type)",
         "CREATE INDEX IF NOT EXISTS idx_semantic_documents_fact "

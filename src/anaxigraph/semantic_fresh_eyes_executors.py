@@ -8,6 +8,7 @@ from typing import Any
 
 from anaxigraph.semantic_fresh_eyes_contract import (
     fresh_eyes_plan_executors,
+    fresh_eyes_plan_goal,
     fresh_eyes_plan_options,
     fresh_eyes_plan_token,
     parse_proposal_executors,
@@ -60,7 +61,9 @@ def _unpin_plan(connection: sqlite3.Connection, snapshot_id: int) -> list[dict[s
         "UPDATE semantic_scope_states SET interface_hash = ? "
         "WHERE snapshot_id = ? AND scope_type = ? AND scope_key = ?",
         (
-            fresh_eyes_plan_token(proposal_count, generation),
+            fresh_eyes_plan_token(
+                proposal_count, generation, goal=fresh_eyes_plan_goal(dict(plan))
+            ),
             snapshot_id,
             FRESH_EYES_SCOPE,
             FRESH_EYES_PLAN_KEY,

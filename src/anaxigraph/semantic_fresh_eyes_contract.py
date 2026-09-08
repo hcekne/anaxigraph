@@ -58,7 +58,7 @@ def fresh_eyes_required_executor(executors: Sequence[str], scope_key: str) -> st
 
 
 def fresh_eyes_plan_token(
-    proposal_count: int, generation: int, executors: Sequence[str] = ()
+    proposal_count: int, generation: int, executors: Sequence[str] = (), *, goal: str = ""
 ) -> str:
     """Encode small plan controls without adding model identity to semantic freshness.
 
@@ -68,7 +68,29 @@ def fresh_eyes_plan_token(
 
     families = proposal_executor_families(executors, proposal_count)
     token = f"{proposal_count}:{generation}"
+    if goal:
+        return f"{token}:{','.join(families)}:{json.dumps(goal, ensure_ascii=True)}"
     return f"{token}:{','.join(families)}" if families else token
+
+
+def fresh_eyes_plan_goal(plan: dict[str, Any]) -> str:
+    parts = str(plan.get("interface_hash") or "").split(":", 3)
+    return str(json.loads(parts[3])) if len(parts) == 4 else ""
+
+
+def review_goal_manifest(goal: str) -> dict[str, str]:
+    return {"text": goal, "fingerprint": semantic_digest(goal), "boundary": "repository_aware_only"}
+
+
+def fresh_eyes_manifest_goal(manifests: list[dict[str, Any]]) -> str:
+    return next(
+        (
+            item["manifest"]["review_goal"]["text"]
+            for item in manifests
+            if item["manifest"].get("review_goal")
+        ),
+        "",
+    )
 
 
 def proposal_executor_families(executors: Sequence[str], proposal_count: int) -> tuple[str, ...]:

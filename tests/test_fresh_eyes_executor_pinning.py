@@ -8,6 +8,7 @@ import pytest
 from fresh_eyes_support import CLAUDE_EXECUTOR, CODEX_EXECUTOR, baseline_review
 
 from anaxigraph.cli import main
+from anaxigraph.semantic_evidence_selection import EVIDENCE_SELECTION_VERSION
 from anaxigraph.semantic_fresh_eyes_contract import (
     fresh_eyes_plan_executors,
     fresh_eyes_plan_options,
@@ -128,7 +129,12 @@ def _unpinned_input_hashes(database, snapshot_id: int, prompt_version: str) -> l
     identity = capability_fingerprint(charter["value"]["capability_brief"], prompt_version)
     return [
         semantic_input_hash(
-            "fresh-eyes-proposal-v1", prompt_version, proposal_manifest(slot, identity, 1)
+            "fresh-eyes-proposal-v1",
+            prompt_version,
+            {
+                **proposal_manifest(slot, identity, 1),
+                "packet_policy": EVIDENCE_SELECTION_VERSION,
+            },
         )
         for slot in ("a", "b")
     ]

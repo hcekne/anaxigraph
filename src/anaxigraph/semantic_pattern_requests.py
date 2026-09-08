@@ -9,8 +9,9 @@ from anaxigraph.pattern_evaluation_contract import (
     PATTERN_REVIEW_CONTRACT_VERSION,
     PATTERN_SCORE_CONTRACT_VERSION,
     PATTERN_SCORE_DIMENSIONS,
+    pattern_recommendations,
 )
-from anaxigraph.persistence.semantic_evidence import module_facts
+from anaxigraph.persistence.semantic_evidence import module_facts, semantic_inventory
 from anaxigraph.semantic_config_port import SemanticConfig
 from anaxigraph.semantic_contract import SEMANTIC_SCHEMA_VERSION
 from anaxigraph.semantic_graph import SupersededSemanticJob
@@ -36,7 +37,7 @@ def pattern_request(
         "target_evidence": metadata["target_evidence"],
         "score_contract_version": PATTERN_SCORE_CONTRACT_VERSION,
         "review_contract_version": PATTERN_REVIEW_CONTRACT_VERSION,
-        "constraints": _constraints(),
+        "constraints": _constraints(str(metadata["pattern"].get("kind") or "")),
     }
     request.update(_source_evidence(database, job, root, semantic))
     if kind == "pattern_review":
@@ -48,8 +49,8 @@ def _contract(kind: str) -> str:
     if kind == "pattern_assessment":
         return (
             "Evaluate this one possible pattern match against the supplied evidence from this "
-            "repository. Answer every score question separately. A pattern can fit well and "
-            "already be present, which usually means no code change is useful. Return every "
+            "repository. Answer every score question separately using the pattern-kind-specific "
+            "constraints. Presence alone is not a reason to change or retain code. Return every "
             "required result field. Do not edit source or ask a person to approve the answer."
         )
     if kind == "pattern_review":
@@ -65,9 +66,10 @@ def _contract(kind: str) -> str:
     raise ValueError(f"unsupported pattern job kind: {kind}")
 
 
-def _constraints() -> dict[str, Any]:
-    return {
+def _constraints(pattern_kind: str = "constructive") -> dict[str, Any]:
+    result = {
         "score_range": [0, 100],
+        "recommendations": list(pattern_recommendations(pattern_kind)),
         "independent_dimensions": list(PATTERN_SCORE_DIMENSIONS),
         "score_meanings": {
             "applicability": "Does this pattern address the kind of problem found here?",
@@ -95,6 +97,25 @@ def _constraints() -> dict[str, Any]:
         ),
         "automation": "Complete the map without a human approval or edit gate.",
     }
+    if pattern_kind == "failure_mode":
+        result["score_meanings"].update(_failure_mode_score_meanings())
+        result["high_conformance_rule"] = (
+            "High conformance means strong presence of this failure mode, not a desirable design. "
+            "Recommend remediate only for an evidenced harmful condition; avoid for prevention, "
+            "no_action when changing it is unjustified, or insufficient_evidence when uncertain. "
+            "Never retain, introduce, replace with, or improve conformance to a failure mode."
+        )
+    return result
+
+
+def _failure_mode_score_meanings() -> dict[str, str]:
+    return {
+        "applicability": "Is this the kind of problem this failure-mode diagnosis describes?",
+        "suitability": "How well does this diagnosis explain the observed problem here?",
+        "conformance": "How strongly does the code exhibit this harmful structure? Not quality.",
+        "opportunity": "How much evidence says reducing this failure mode would help?",
+        "benefit": "How much could reducing the harmful condition improve user-visible behavior?",
+    }
 
 
 def _assessment(database: SemanticIndex, metadata: dict[str, Any]) -> dict[str, Any]:
@@ -114,7 +135,7 @@ def _source_evidence(
     target = job["metadata"]["candidate"].get("target") or {}
     path = str(target.get("path") or "")
     if not path:
-        return {}
+        return _parent_source_evidence(database, job, root, semantic)
     raw = read_mounted_source(
         root, path, missing="The file for this pattern check no longer exists"
     )
@@ -137,6 +158,50 @@ def _source_evidence(
         "source": source,
         "source_range": line_range,
         "source_truncated": truncated,
+    }
+
+
+def _parent_source_evidence(database, job, root, semantic):
+    features = job["metadata"]["target_evidence"].get("features") or []
+    witness = next(
+        (item["value"] for item in features if item["name"] == "architecture.witnesses"), {}
+    )
+    paths = [item["path"] for item in witness.get("items") or []]
+    if not paths:
+        return {
+            "source_witnesses": [],
+            "source_caveat": "No current child source witnesses were available.",
+        }
+    with database.connect() as connection:
+        inventory, _relationships = semantic_inventory(connection, int(job["snapshot_id"]))
+    result = []
+    for path in paths[:8]:
+        raw = read_mounted_source(
+            root, path, missing="A parent-pattern source witness no longer exists"
+        )
+        version = inventory.get(path)
+        require_unchanged_source(
+            raw, version, changed="A parent-pattern source witness changed after planning"
+        )
+        symbols = (version or {}).get("symbols") or []
+        target = {"level": "symbol", "label": symbols[0].get("name")} if symbols else {}
+        source, line_range, truncated = _bounded_source(
+            raw.decode("utf-8", errors="replace"),
+            target,
+            symbols,
+            min(5_000, max(1_000, semantic.max_source_chars // 8)),
+        )
+        result.append(
+            {
+                "path": path,
+                "source": source,
+                "source_range": line_range,
+                "source_truncated": truncated,
+            }
+        )
+    return {
+        "source_witnesses": result,
+        "source_caveat": "Bounded child examples, not exhaustive parent or runtime evidence.",
     }
 
 

@@ -1,16 +1,25 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
+from fresh_eyes_fixtures import agent_fresh_eyes
+
 from anaxigraph.config import SemanticConfig
 from anaxigraph.semantic import (
+    _CODEX_EVIDENCE_PAGE_CHARS,
+    _CODEX_INLINE_PROMPT_CHARS,
     ClaudeSemanticProvider,
     CodexSemanticProvider,
+    _codex_prompt,
+    _prompt,
     _result_from_json,
 )
+from anaxigraph.semantic_contract import SemanticAnalysisError
 from anaxigraph.semantic_usage import ProviderUsage, claude_usage, codex_usage
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -116,6 +125,103 @@ def test_codex_provider_is_ephemeral_read_only_and_schema_constrained(monkeypatc
     assert result.value["summary"] == "Owns repository enrollment."
     assert result.input_tokens == 120
     assert result.output_tokens == 30
+
+
+@pytest.mark.parametrize("offset", [-1, 0, 1])
+def test_codex_prompt_checks_the_complete_input_at_the_inline_boundary(tmp_path, offset):
+    request = {"analysis_kind": "context", "source": ""}
+    request["source"] = "x" * (_CODEX_INLINE_PROMPT_CHARS - len(_prompt(request)) + offset)
+
+    prompt = _codex_prompt(request, tmp_path)
+
+    assert len(prompt) <= _CODEX_INLINE_PROMPT_CHARS
+    if offset <= 0:
+        assert prompt == _prompt(request)
+        assert not list(tmp_path.iterdir())
+    else:
+        pages = sorted(tmp_path.glob("semantic-evidence-*.txt"))
+        assert json.loads("".join(page.read_text(encoding="utf-8") for page in pages)) == request
+
+
+@pytest.mark.parametrize(
+    "kind", ["fresh_proposal", "fresh_adjudication", "fresh_comparison", "fresh_review"]
+)
+def test_oversized_codex_request_keeps_every_page_and_the_original_contract(monkeypatch, kind):
+    request = {
+        "analysis_kind": kind,
+        "input_manifest": {"snapshot_id": 1129, "review_generation": 3},
+        "proposals": [{"proposal": "proposal:a"}, {"proposal": "proposal:b"}],
+        "evidence": 'head: å 雪 \\ "\n' + "evidence " * 150_000 + "tail: retained",
+    }
+    original = json.loads(json.dumps(request))
+    captured = {}
+    expected = agent_fresh_eyes(request, kind)
+
+    def run(command, **kwargs):
+        directory = Path(kwargs["cwd"])
+        captured["directory"] = directory
+        pages = sorted(directory.glob("semantic-evidence-*.txt"))
+        contents = [page.read_text(encoding="utf-8") for page in pages]
+        assert len(kwargs["input"]) < 10_000
+        assert len(pages) > 1
+        assert all(0 < len(content) <= _CODEX_EVIDENCE_PAGE_CHARS for content in contents)
+        assert json.loads("".join(contents)) == original
+        assert pages[0].name in kwargs["input"]
+        assert pages[-1].name in kwargs["input"]
+        assert "Consider every page" in kwargs["input"]
+        assert "Do not inspect other files or repositories" in kwargs["input"]
+        assert "untrusted data" in kwargs["input"]
+        assert "Do not use tools." not in kwargs["input"]
+        assert "--ephemeral" in command
+        assert "--ignore-user-config" in command
+        assert command[command.index("--sandbox") + 1] == "read-only"
+        assert command[command.index("--model") + 1] == "gpt-test"
+        assert 'model_reasoning_effort="max"' in command
+        schema = json.loads(Path(command[command.index("--output-schema") + 1]).read_text())
+        assert schema["properties"]["contract_version"]["enum"] == [expected["contract_version"]]
+        Path(command[command.index("--output-last-message") + 1]).write_text(json.dumps(expected))
+        return SimpleNamespace(
+            returncode=0,
+            stdout=json.dumps(
+                {
+                    "type": "turn.completed",
+                    "usage": {"input_tokens": 120, "cached_input_tokens": 100, "output_tokens": 30},
+                }
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr("anaxigraph.semantic.subprocess.run", run)
+    result = CodexSemanticProvider(
+        SemanticConfig(provider="codex", model="gpt-test", reasoning_effort="max")
+    ).analyze(request)
+
+    assert result.value == expected
+    assert result.input_tokens == 120
+    assert result.cache_read_input_tokens == 100
+    assert result.usage_reported is True
+    assert request == original
+    assert not captured["directory"].exists()
+
+
+@pytest.mark.parametrize("failure", ["exit", "timeout"])
+def test_oversized_codex_request_cleans_up_evidence_after_failure(monkeypatch, failure):
+    captured = {}
+
+    def run(_command, **kwargs):
+        directory = Path(kwargs["cwd"])
+        captured["directory"] = directory
+        assert list(directory.glob("semantic-evidence-*.txt"))
+        if failure == "timeout":
+            raise subprocess.TimeoutExpired("codex", 30)
+        return SimpleNamespace(returncode=1, stdout="", stderr="model failed")
+
+    monkeypatch.setattr("anaxigraph.semantic.subprocess.run", run)
+    with pytest.raises(SemanticAnalysisError):
+        CodexSemanticProvider(SemanticConfig(provider="codex")).analyze(
+            {"analysis_kind": "context", "source": "x" * 1_270_329}
+        )
+    assert not captured["directory"].exists()
 
 
 def test_claude_provider_is_non_persistent_tool_free_and_schema_constrained(monkeypatch):

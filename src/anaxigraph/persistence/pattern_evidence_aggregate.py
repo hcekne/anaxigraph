@@ -15,6 +15,7 @@ from anaxigraph.pattern_evidence import (
     TargetEvidence,
 )
 from anaxigraph.pattern_targets import PatternTarget
+from anaxigraph.semantic_evidence_selection import module_role, representative_items, stable_order
 
 
 def aggregate_evidence(
@@ -22,6 +23,9 @@ def aggregate_evidence(
     children: list[TargetEvidence],
     snapshot_id: int,
     contracts: dict[str, dict[str, Any]],
+    *,
+    witnesses: list[TargetEvidence] | None = None,
+    relationships: dict[str, list[dict[str, Any]]] | None = None,
 ) -> TargetEvidence:
     modules = sum(
         int(_value(item, "modules.count", item.target.level == "module")) for item in children
@@ -49,6 +53,7 @@ def aggregate_evidence(
         ),
         _aggregate_coverage(children, target.key, modules),
         _capability_coverage(children, contracts, target.key, modules),
+        *_architecture_features(target, witnesses or [], relationships or {}),
     ]
     capabilities = tuple(
         sorted({value for child in children for value in child.capability_fingerprints})
@@ -60,6 +65,128 @@ def aggregate_evidence(
         input_fingerprint=_aggregate_fingerprint(target, children, capabilities, ordered),
         features=ordered,
         capability_fingerprints=capabilities,
+    )
+
+
+def _architecture_features(target, witnesses, relationships):
+    selected = representative_items(
+        [{"item": item} for item in witnesses],
+        group=lambda row: str(row["item"].target.parent_key),
+        rank=lambda row: (
+            module_role(row["item"].target.path) != "production",
+            -_value(row["item"], "graph.fan_in", 0),
+            stable_order(row["item"].target.key),
+        ),
+        limit=8,
+    )
+    selected_items = [row["item"] for row in selected]
+    return [
+        _feature(
+            "architecture.witnesses",
+            {
+                "total_modules": len(witnesses),
+                "included": len(selected_items),
+                "omitted": len(witnesses) - len(selected_items),
+                "items": [_witness(item) for item in selected_items],
+                "caveat": "Child claims are witnesses, not proof that every member or the parent follows a pattern.",
+            },
+            "semantic-dossier-and-analyzer",
+            target.key,
+        ),
+        _boundary_feature(target, witnesses, relationships),
+        *_parent_semantics(selected_items),
+    ]
+
+
+def _witness(item: TargetEvidence) -> dict[str, Any]:
+    return {
+        "path": item.target.path,
+        "input_fingerprint": item.input_fingerprint,
+        "semantic_confidence": (
+            item.feature("semantic.dossier").confidence if item.feature("semantic.dossier") else 0
+        ),
+        "responsibility_owner": item.target.parent_key,
+        "responsibilities": _texts(_value(item, "semantic.responsibilities", [])),
+        "public_contracts": _texts(_value(item, "semantic.public_contracts", [])),
+        "public_interfaces": _texts(_value(item, "interfaces.public", [])),
+        "source": [
+            ref.as_dict()
+            for feature in item.features
+            if feature.name == "semantic.dossier"
+            for ref in feature.evidence
+        ],
+    }
+
+
+def _parent_semantics(witnesses: list[TargetEvidence]) -> list[PatternFeature]:
+    result = []
+    for name in (
+        "responsibilities",
+        "public_contracts",
+        "architecture_role",
+        "extension_points",
+        "invariants",
+    ):
+        features = [item.feature(f"semantic.{name}") for item in witnesses]
+        available = [
+            item for item in features if item and item.value and item.availability != "unavailable"
+        ]
+        if not available:
+            continue
+        values = list(dict.fromkeys(text for item in available for text in _texts(item.value)))[:24]
+        references = tuple(ref for item in available for ref in item.evidence)
+        result.append(
+            PatternFeature(
+                f"semantic.{name}",
+                values,
+                min(item.confidence for item in available),
+                references,
+                "partial",
+            )
+        )
+    return result
+
+
+def _texts(value: Any) -> list[str]:
+    values = value if isinstance(value, list) else [value] if value else []
+    return [str(item)[:500] for item in values[:3]]
+
+
+def _boundary_feature(target, witnesses, relationships):
+    paths = {item.target.path for item in witnesses}
+    edges = [
+        {
+            "source": source,
+            **edge,
+            "boundary": "internal"
+            if source in paths and edge.get("path") in paths
+            else "outgoing"
+            if source in paths
+            else "incoming",
+        }
+        for source, links in relationships.items()
+        for edge in links
+        if edge.get("direction") == "uses" and (source in paths or edge.get("path") in paths)
+    ]
+    selected = representative_items(
+        edges,
+        group=lambda edge: edge["boundary"],
+        rank=lambda edge: (
+            edge["boundary"] == "internal",
+            stable_order(json.dumps(edge, sort_keys=True)),
+        ),
+        limit=24,
+    )
+    return _feature(
+        "graph.boundaries",
+        {
+            "counts": dict(Counter(edge["boundary"] for edge in edges)),
+            "relationships": selected,
+            "omitted": len(edges) - len(selected),
+            "caveat": "These are extracted static links; missing or unresolved edges are not evidence of runtime isolation.",
+        },
+        "repository-graph",
+        target.key,
     )
 
 

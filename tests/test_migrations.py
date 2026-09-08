@@ -10,6 +10,12 @@ import anaxigraph.persistence.index_initialization as initialization_module
 import anaxigraph.persistence.migrations as migrations_module
 from anaxigraph.config import load_config
 from anaxigraph.persistence import SUPPORTED_SCHEMA_VERSIONS
+from anaxigraph.persistence.temporal_hashing import digest
+from anaxigraph.persistence.temporal_reconstruction import (
+    _insert_checkpoint,
+    reconstruct_files,
+    reconstruct_relationships,
+)
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic import SemanticResult
 from anaxigraph.storage import SCHEMA_VERSION, AnaxiIndex
@@ -68,6 +74,139 @@ def test_reopening_current_schema_preserves_canonical_snapshot(repository, tmp_p
 
     assert reopened.overview(stats.repository_id)["files"] == stats.discovered
     assert reopened.graph(stats.repository_id)["nodes"]
+
+
+_RELATIONSHIP_LOOKUPS = (
+    ("relationship_edges", "relationship_set_id", "idx_relationship_edges_set"),
+    ("snapshot_relationship_changes", "relationship_set_id", "idx_relationship_changes_set"),
+    ("checkpoint_relationships", "relationship_set_id", "idx_checkpoint_relationships_set"),
+    ("coverage_measurements", "relationship_edge_id", "idx_coverage_relationship_edge"),
+)
+
+
+def _assert_indexed_relationship_lookup(connection):
+    for table, column, index in _RELATIONSHIP_LOOKUPS:
+        plan = connection.execute(
+            f"EXPLAIN QUERY PLAN SELECT * FROM {table} WHERE {column} = 1"
+        ).fetchall()
+        assert index in " ".join(str(row[3]) for row in plan)
+
+
+@pytest.mark.parametrize("version", [10, 11])
+def test_relationship_lookup_index_precedes_upgrade_compaction_and_survives_reopen(
+    repository, tmp_path, monkeypatch, version
+):
+    path = tmp_path / "edge-lookup.db"
+    first = AnaxiIndex(path)
+    stats = RepositoryScanner(first).scan(repository)
+    with first.connect() as connection:
+        _assert_indexed_relationship_lookup(connection)
+        for _table, _column, index in _RELATIONSHIP_LOOKUPS:
+            connection.execute(f"DROP INDEX {index}")
+        connection.execute(
+            "UPDATE schema_meta SET value = ? WHERE key = 'schema_version'", (str(version),)
+        )
+    compact = migrations_module.compact_duplicate_relationship_sets
+    calls = []
+
+    def checked_compaction(connection):
+        _assert_indexed_relationship_lookup(connection)
+        calls.append(True)
+        return compact(connection)
+
+    monkeypatch.setattr(
+        migrations_module, "compact_duplicate_relationship_sets", checked_compaction
+    )
+    reopened = AnaxiIndex(path)
+    with reopened.connect() as connection:
+        _assert_indexed_relationship_lookup(connection)
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    assert len(calls) == (1 if version == 10 else 0)
+    assert reopened.overview(stats.repository_id)["files"] == stats.discovered
+    assert reopened.graph(stats.repository_id)["nodes"]
+
+
+def _duplicate_record(connection, table, row, **changes):
+    values = {key: value for key, value in dict(row).items() if key != "id"}
+    values.update(changes)
+    columns = ", ".join(values)
+    placeholders = ", ".join("?" for _ in values)
+    return connection.execute(
+        f"INSERT INTO {table} ({columns}) VALUES ({placeholders})", tuple(values.values())
+    ).lastrowid
+
+
+def _legacy_duplicate_edges(connection, stats):
+    edge = connection.execute("SELECT * FROM relationship_edges ORDER BY id LIMIT 1").fetchone()
+    original = connection.execute(
+        "SELECT * FROM relationship_sets WHERE id = ?", (edge["relationship_set_id"],)
+    ).fetchone()
+    duplicate = _duplicate_record(connection, "relationship_sets", original, set_key="legacy-copy")
+    for row in connection.execute(
+        "SELECT * FROM relationship_edges WHERE relationship_set_id = ?", (original["id"],)
+    ).fetchall():
+        duplicate_edge = _duplicate_record(
+            connection, "relationship_edges", row, relationship_set_id=duplicate
+        )
+        connection.execute(
+            "INSERT INTO coverage_measurements(snapshot_id, relationship_edge_id, provider, "
+            "covered_lines, total_lines) VALUES (?, ?, 'fixture', 7, 10)",
+            (stats.snapshot_id, duplicate_edge),
+        )
+    connection.execute(
+        "UPDATE snapshot_relationship_changes SET relationship_set_id = ? WHERE relationship_set_id = ?",
+        (duplicate, original["id"]),
+    )
+    connection.execute("UPDATE snapshots SET sequence = 15 WHERE id = ?", (stats.snapshot_id,))
+    _insert_checkpoint(
+        connection,
+        stats.snapshot_id,
+        stats.repository_id,
+        15,
+        1,
+        reconstruct_files(connection, stats.snapshot_id),
+        reconstruct_relationships(connection, stats.snapshot_id),
+    )
+    connection.execute("UPDATE schema_meta SET value = '10' WHERE key = 'schema_version'")
+    return duplicate
+
+
+def test_schema_10_duplicate_cleanup_preserves_references_without_cascade(repository, tmp_path):
+    path = tmp_path / "duplicate-edges.db"
+    first = AnaxiIndex(path)
+    stats = RepositoryScanner(first).scan(repository)
+    with first.connect() as connection:
+        duplicate = _legacy_duplicate_edges(connection, stats)
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+        coverage = connection.execute("SELECT COUNT(*) FROM coverage_measurements").fetchone()[0]
+    reopened = AnaxiIndex(path)
+    with reopened.connect() as connection:
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+        assert (
+            connection.execute(
+                "SELECT 1 FROM relationship_edges WHERE relationship_set_id = ?", (duplicate,)
+            ).fetchone()
+            is None
+        )
+        assert (
+            connection.execute("SELECT COUNT(*) FROM coverage_measurements").fetchone()[0]
+            == coverage
+        )
+        assert all(
+            row[0] == 7
+            for row in connection.execute(
+                "SELECT covered_lines FROM coverage_measurements WHERE provider = 'fixture'"
+            )
+        )
+        checkpoint = connection.execute(
+            "SELECT relationship_state_hash FROM snapshot_checkpoints WHERE snapshot_id = ?",
+            (stats.snapshot_id,),
+        ).fetchone()
+        assert checkpoint is not None
+        assert checkpoint[0] == digest(
+            sorted(reconstruct_relationships(connection, stats.snapshot_id).items())
+        )
+    assert reopened.overview(stats.repository_id)["files"] == stats.discovered
 
 
 def test_released_v2_schema_migrates_without_losing_repository_data(tmp_path):
