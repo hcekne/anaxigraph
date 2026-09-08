@@ -19,7 +19,10 @@ def git(root: Path, *args: str) -> str:
 
 
 @pytest.fixture
-def repository(tmp_path):
+def repository(tmp_path, monkeypatch):
+    # A real pre-push run names the outer repository's refs, not this fixture's.
+    for name in ("PRE_COMMIT_LOCAL_BRANCH", "PRE_COMMIT_REMOTE_BRANCH"):
+        monkeypatch.delenv(name, raising=False)
     git(tmp_path, "init", "-q", "--initial-branch=main")
     git(tmp_path, "config", "user.email", "hooks@example.invalid")
     git(tmp_path, "config", "user.name", "Hook tests")
