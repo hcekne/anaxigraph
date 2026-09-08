@@ -9,9 +9,9 @@ from anaxigraph.persistence.compatibility_compaction import (
     backfill_relationship_coverage,
     compact_compatibility_rows,
     prepare_semantic_claims_for_compaction,
-    retire_coverage_compatibility_reference,
+    retire_compatibility_references,
 )
-from anaxigraph.persistence.index_parity import parity_report
+from anaxigraph.persistence.index_parity import missing_foreign_key_parents, parity_report
 from anaxigraph.persistence.semantic_fact_references import (
     backfill_semantic_fact_references,
 )
@@ -196,7 +196,7 @@ def _compact_validated_compatibility(
             )
     prepare_semantic_claims_for_compaction(connection)
     backfill_relationship_coverage(connection)
-    retire_coverage_compatibility_reference(connection)
+    retire_compatibility_references(connection)
     if validate_existing_projection and compact_duplicate_relationship_sets(connection):
         rebuild_checkpoints(connection)
     compact_compatibility_rows(connection)
@@ -217,6 +217,11 @@ def transactional_schema_change(
         connection.execute("BEGIN IMMEDIATE")
         try:
             operation(connection)
+            missing = missing_foreign_key_parents(connection)
+            if missing:
+                raise RuntimeError(
+                    f"Schema migration references missing FK parent tables: {missing}"
+                )
             violations = connection.execute("PRAGMA foreign_key_check").fetchall()
             if violations:
                 raise RuntimeError(f"Schema migration introduced {len(violations)} FK violations")

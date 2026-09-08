@@ -1,5 +1,5 @@
 minimum_pre_commit_version: "4.0.0"
-default_install_hook_types: [pre-commit]
+default_install_hook_types: [pre-commit, pre-merge-commit, pre-push]
 default_stages: [pre-commit]
 
 repos:
@@ -26,6 +26,34 @@ repos:
 
   - repo: local
     hooks:
+      - id: git-commit-policy
+        name: Protected branches and merge-commit prevention
+        entry: uv run --locked python scripts/check_git_policy.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit, pre-merge-commit]
+      - id: git-push-policy
+        name: Proposed linear history and checked-out push target
+        entry: uv run --locked python scripts/check_git_policy.py --stage push
+        language: system
+        pass_filenames: false
+        always_run: true
+        fail_fast: true
+        stages: [pre-push]
+      - id: release-record
+        name: Release status, evidence, ledger, and lockfile consistency
+        entry: uv run --locked python scripts/check_release_record.py
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: release-publication
+        name: Release record agrees with public PyPI publication
+        entry: uv run --locked python scripts/check_release_record.py --verify-pypi
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push, manual]
       - id: javascript-syntax
         name: JavaScript syntax
         entry: uv run python scripts/check_javascript_syntax.py
@@ -40,36 +68,54 @@ repos:
         entry: uv run python scripts/check_module_size.py --staged
         language: system
         pass_filenames: false
+        verbose: true
+      - id: push-module-size
+        name: Whole-repository module-size ratchet
+        entry: uv run --locked python scripts/check_module_size.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
       - id: maintainability-ratchets
         name: Production size, function complexity, coupling, and interface ratchets
         entry: uv run python scripts/check_code_quality.py --staged
         language: system
         pass_filenames: false
+        always_run: true
+        stages: [pre-commit, pre-push]
       - id: architecture-cycles
         name: Package cycles and forbidden dependencies
         entry: uv run python scripts/check_architecture.py
         language: system
         pass_filenames: false
+        always_run: true
+        stages: [pre-commit, pre-push]
       - id: agent-package
         name: Codex and Claude agent package contract
         entry: uv run python scripts/check_agent_package.py
         language: system
         pass_filenames: false
+        always_run: true
+        stages: [pre-commit, pre-push]
       - id: self-analysis-regression
         name: Deterministic AnaxiGraph self-analysis regression gate
         entry: uv run python scripts/check_self_analysis.py
         language: system
         pass_filenames: false
-        stages: [manual]
+        always_run: true
+        stages: [pre-push, manual]
       - id: python-tests
         name: Complete Python test suite and coverage floor
         entry: uv run pytest --cov=anaxigraph --cov-report=term --cov-report=xml --cov-fail-under=80
         language: system
         pass_filenames: false
-        stages: [manual]
+        always_run: true
+        require_serial: true
+        stages: [pre-push, manual]
       - id: changed-code-coverage
         name: Changed-code coverage target
-        entry: uv run python scripts/check_changed_coverage.py --base HEAD^
+        entry: uv run python scripts/check_changed_coverage.py --base origin/main --require-base
         language: system
         pass_filenames: false
-        stages: [manual]
+        always_run: true
+        stages: [pre-push, manual]

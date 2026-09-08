@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Callable, Iterator
+from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
 
 from anaxigraph.persistence.compatibility_compaction import (
     compact_terminal_semantic_job_metadata,
     coverage_uses_compatibility_reference,
-    retire_coverage_compatibility_reference,
+    retire_compatibility_references,
+    semantic_compatibility_tables,
 )
 from anaxigraph.persistence.index_backup import create_schema_backup
 from anaxigraph.persistence.migrations import (
@@ -35,13 +37,12 @@ def initialize_index(
     current_version = existing_schema_version(database_path)
     validate_schema_version(current_version, target_version)
     if current_version == target_version:
-        with connection_factory() as connection:
+        with closing(connection_factory()) as connection, connection:
             reconcile_additive_columns(connection)
-            if coverage_uses_compatibility_reference(connection):
-                transactional_schema_change(
-                    connection,
-                    retire_coverage_compatibility_reference,
-                )
+            if coverage_uses_compatibility_reference(connection) or semantic_compatibility_tables(
+                connection
+            ):
+                transactional_schema_change(connection, retire_compatibility_references)
             ensure_checkpoint_policy(connection)
             compact_terminal_semantic_job_metadata(connection)
             refresh_current_search_projections(connection)
@@ -50,7 +51,7 @@ def initialize_index(
     if current_version is not None and current_version < target_version:
         backup = create_schema_backup(database_path, schema_version=current_version)
 
-    with connection_factory() as connection:
+    with closing(connection_factory()) as connection, connection:
 
         def apply(current: sqlite3.Connection) -> None:
             for statement in schema_statements(schema):
@@ -90,7 +91,7 @@ def _record_migration(connection, backup, target_version: int) -> None:
 def existing_schema_version(database_path: Path) -> int | None:
     if not database_path.is_file() or database_path.stat().st_size == 0:
         return None
-    with sqlite3.connect(database_path) as connection:
+    with closing(sqlite3.connect(database_path)) as connection:
         table = connection.execute(
             """
             SELECT 1 FROM sqlite_master

@@ -20,6 +20,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          ref: ${{ github.sha }}
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
@@ -33,6 +34,15 @@ jobs:
           uv sync --extra dev --locked
       - name: Run tracked commit checks
         run: uv run pre-commit run --all-files
+      - name: Reject new non-linear history
+        env:
+          POLICY_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          POLICY_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          uv run python scripts/check_git_policy.py --stage history \
+            --base "${POLICY_BASE}" --head "${POLICY_HEAD}"
+      - name: Check current publication record
+        run: uv run python scripts/check_release_record.py --verify-pypi
       - name: Enforce whole-repository policies
         run: |
           uv run python scripts/check_module_size.py

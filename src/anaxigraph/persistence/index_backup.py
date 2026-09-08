@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import os
 import sqlite3
+from contextlib import closing
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -38,7 +39,7 @@ def create_schema_backup(
     source = Path(database_path).expanduser().resolve()
     destination = backup_path(source, schema_version)
     if destination.exists():
-        _validate_database(destination, expected_version=schema_version)
+        _validate_database(destination, expected_version=schema_version, immutable=True)
         return _report(destination, schema_version, reused=True)
     temporary = destination.with_name(f".{destination.name}.tmp-{os.getpid()}")
     if temporary.exists():
@@ -92,13 +93,13 @@ def restore_schema_backup(
 ) -> IndexBackup:
     destination = Path(database_path).expanduser().resolve()
     source = Path(source_backup).expanduser().resolve()
-    _validate_database(source, expected_version=expected_version)
+    _validate_database(source, expected_version=expected_version, immutable=True)
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary = destination.with_name(f".{destination.name}.restore-{os.getpid()}")
     if temporary.exists():
         temporary.unlink()
     try:
-        _sqlite_backup(source, temporary)
+        _sqlite_backup(source, temporary, immutable_source=True)
         _validate_database(temporary, expected_version=expected_version)
         temporary.replace(destination)
         _remove_sidecars(destination)
@@ -119,13 +120,13 @@ def restore_index_backup(
     source = Path(source_backup).expanduser().resolve()
     if destination == source:
         raise ValueError("Backup source must differ from the AnaxiIndex path")
-    schema_version = _validate_database(source)
+    schema_version = _validate_database(source, immutable=True)
     return restore_schema_backup(destination, source, expected_version=schema_version)
 
 
 def validate_schema_backup(path: str | Path, *, expected_version: int) -> IndexBackup:
     candidate = Path(path).expanduser().resolve()
-    _validate_database(candidate, expected_version=expected_version)
+    _validate_database(candidate, expected_version=expected_version, immutable=True)
     return _report(candidate, expected_version, reused=True)
 
 
@@ -133,22 +134,28 @@ def validate_index_backup(path: str | Path) -> IndexBackup:
     """Validate an operator backup and infer its schema version."""
 
     candidate = Path(path).expanduser().resolve()
-    schema_version = _validate_database(candidate)
+    schema_version = _validate_database(candidate, immutable=True)
     return _report(candidate, schema_version, reused=True)
 
 
-def _sqlite_backup(source: Path, destination: Path) -> None:
+def _sqlite_backup(source: Path, destination: Path, *, immutable_source: bool = False) -> None:
     if not source.is_file():
         raise ValueError(f"AnaxiIndex does not exist: {source}")
-    with sqlite3.connect(source) as origin, sqlite3.connect(destination) as target:
+    with (
+        closing(sqlite3.connect(_read_uri(source, immutable_source), uri=True)) as origin,
+        closing(sqlite3.connect(destination)) as target,
+    ):
         origin.backup(target)
+        target.execute("PRAGMA journal_mode = DELETE")
 
 
-def _validate_database(path: Path, *, expected_version: int | None = None) -> int:
+def _validate_database(
+    path: Path, *, expected_version: int | None = None, immutable: bool = False
+) -> int:
     if not path.is_file():
         raise ValueError(f"Schema backup does not exist: {path}")
-    uri = f"file:{path.as_posix()}?mode=ro"
-    with sqlite3.connect(uri, uri=True) as connection:
+    uri = _read_uri(path, immutable)
+    with closing(sqlite3.connect(uri, uri=True)) as connection:
         integrity = connection.execute("PRAGMA integrity_check").fetchone()
         if integrity is None or integrity[0] != "ok":
             raise RuntimeError(f"Schema backup failed integrity check: {path}")
@@ -163,6 +170,15 @@ def _validate_database(path: Path, *, expected_version: int | None = None) -> in
     if actual is None:
         raise RuntimeError(f"Index backup has no schema version: {path}")
     return actual
+
+
+def _read_uri(path: Path, immutable: bool) -> str:
+    if immutable:
+        for suffix in ("-wal", "-journal"):
+            journal = Path(f"{path}{suffix}")
+            if journal.exists() and journal.stat().st_size:
+                raise ValueError(f"Backup has a nonempty journal; checkpoint it first: {journal}")
+    return f"{path.as_uri()}?mode=ro" + ("&immutable=1" if immutable else "")
 
 
 def _report(path: Path, schema_version: int, *, reused: bool) -> IndexBackup:

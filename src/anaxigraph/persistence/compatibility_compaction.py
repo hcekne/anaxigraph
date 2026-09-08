@@ -124,9 +124,29 @@ def coverage_uses_compatibility_reference(connection: sqlite3.Connection) -> boo
     }
 
 
-def retire_coverage_compatibility_reference(connection: sqlite3.Connection) -> None:
+def semantic_compatibility_tables(connection: sqlite3.Connection) -> list[str]:
+    return [
+        table
+        for table in ("semantic_documents", "semantic_jobs", "semantic_scope_states")
+        if any(
+            row["table"] == "file_versions" and row["from"] == "artifact_version_id"
+            for row in connection.execute(f"PRAGMA foreign_key_list({table})")
+        )
+    ]
+
+
+def retire_compatibility_references(connection: sqlite3.Connection) -> None:
+    """Retire legacy constraints, not just their values, within the schema transaction."""
     if coverage_uses_compatibility_reference(connection):
         connection.execute("ALTER TABLE coverage_measurements DROP COLUMN relationship_id")
+    for table in semantic_compatibility_tables(connection):
+        missing = connection.execute(
+            f"SELECT 1 FROM {table} WHERE artifact_id IS NOT NULL AND file_fact_id IS NULL LIMIT 1"
+        ).fetchone()
+        if missing:
+            raise RuntimeError(f"Cannot retire {table} references without canonical file facts")
+        connection.execute(f"ALTER TABLE {table} DROP COLUMN artifact_version_id")
+        connection.execute(f"ALTER TABLE {table} ADD COLUMN artifact_version_id INTEGER")
 
 
 def compact_compatibility_rows(
