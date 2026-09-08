@@ -280,6 +280,7 @@ class CoreMcpTools:
                 retry_failed=retry_failed,
                 restart=restart,
                 plan=wait,
+                goal=goal or None,
             )
             if start or restart
             else engine.fresh_eyes_status(

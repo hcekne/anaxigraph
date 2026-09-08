@@ -22,6 +22,7 @@ from typing import Any
 from anaxigraph.semantic_fresh_eyes_contract import (
     FRESH_EYES_PROTOCOL_VERSION,
     FRESH_EYES_REVIEW_VERSION,
+    fresh_eyes_manifest_goal,
     fresh_eyes_plan_options,
 )
 from anaxigraph.semantic_fresh_eyes_diversity import proposal_diversity
@@ -439,6 +440,7 @@ def generation_payload(
         "recommendations": list((review or {}).get("recommendations") or []),
         "diversity": stage_diversity(proposals),
         "input_manifests": manifests,
+        "review_goal": fresh_eyes_manifest_goal(manifests),
         "previous_review": previous_generation(_older(generations, bundle)),
         "generations": generations,
         "telemetry": bundle["telemetry"],

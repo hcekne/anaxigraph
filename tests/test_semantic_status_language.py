@@ -119,3 +119,13 @@ def test_failures_and_budget_pause_are_described_as_blocking_work():
 )
 def test_disabled_and_unscanned_states_have_direct_conclusions(status, expected):
     assert semantic_status_explanation(status)["conclusion"] == expected
+
+
+def test_unprepared_scan_with_previous_map_explains_incremental_reuse():
+    status = _pending_status(
+        state="not_started",
+        freshness={"previous_semantic_snapshot_id": 41, "reuse_checked": False},
+    )
+    result = semantic_status_explanation(status)
+    assert "previous AI map is available" in result["conclusion"]
+    assert any("previous map is retained" in item for item in result["how_to_read_progress"])

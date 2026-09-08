@@ -7,6 +7,7 @@ from typing import Any
 from anaxigraph.semantic_fresh_eyes_contract import (
     FRESH_EYES_PROTOCOL_VERSION,
     FRESH_EYES_REVIEW_VERSION,
+    fresh_eyes_plan_goal,
     fresh_eyes_plan_options,
 )
 from anaxigraph.semantic_fresh_eyes_diversity import proposal_diversity
@@ -80,6 +81,7 @@ def review_payload(
         "repository_id": repository_id,
         "snapshot_id": snapshot_id,
         "review_generation": fresh_eyes_plan_options(plan)[1],
+        "review_goal": fresh_eyes_plan_goal(plan),
         "identity": _review_identity(repository_id, snapshot_id, plan),
         "state": "current" if current else _active_state(stages, semantic_status),
         "ready": current,

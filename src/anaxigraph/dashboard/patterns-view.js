@@ -36,6 +36,7 @@ const OPTION_LABELS = {
   introduce: "Consider adding the pattern",
   improve_conformance: "Make the existing pattern more consistent",
   replace: "Consider a different pattern",
+  remediate: "Reduce the harmful condition",
   avoid: "Do not use this pattern here",
   no_action: "No change suggested",
   insufficient_evidence: "Not enough evidence",
@@ -127,7 +128,7 @@ function patternQueryMarkup() {
         <label data-evaluation-only>Suggested action<select id="pattern-recommendation-filter">
           <option value="">Any suggested action</option>${options([
             "retain", "introduce", "improve_conformance", "replace", "avoid", "no_action",
-            "insufficient_evidence",
+            "remediate", "insufficient_evidence",
           ])}</select></label>
         <label data-evaluation-only>Order by<select id="pattern-sort-filter">${options(SCORE_ORDER, "opportunity")}
         </select></label>

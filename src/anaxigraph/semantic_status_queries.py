@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from anaxigraph.architecture_charter_contract import ARCHITECTURE_CHARTER_VERSION
 from anaxigraph.architecture_charter_corrections import read_charter_corrections
 from anaxigraph.persistence.lock_holds import read_lock_holds
 
@@ -28,6 +29,7 @@ class SemanticStatusRows:
     lifetime_semantic_actions: list[dict[str, Any]]
     architecture_actions: list[dict[str, Any]]
     lock_holds: dict[str, Any]
+    freshness: dict[str, Any] = field(default_factory=dict)
 
 
 def read_semantic_status(
@@ -50,13 +52,14 @@ def read_semantic_status(
         reserved_spend=reserved_spend,
         next_estimated_cost=_next_cost(connection, repository_id, snapshot_id),
         last_checked=_last_checked(connection, snapshot_id),
-        repository_state=_repository_state(connection, snapshot_id),
+        repository_state=_repository_state(connection, repository_id, snapshot_id),
         charter_corrections=read_charter_corrections(connection, repository_id),
         taxonomy=_taxonomy(connection, snapshot_id),
         current_semantic_actions=_semantic_actions(connection, repository_id, snapshot_id),
         lifetime_semantic_actions=_semantic_actions(connection, repository_id),
         architecture_actions=_architecture_actions(connection, repository_id),
         lock_holds=read_lock_holds(connection, snapshot_id),
+        freshness=_freshness(connection, repository_id, snapshot_id),
     )
 
 
@@ -185,19 +188,60 @@ def _last_checked(connection: sqlite3.Connection, snapshot_id: int) -> str | Non
     ).fetchone()[0]
 
 
-def _repository_state(connection: sqlite3.Connection, snapshot_id: int) -> dict[str, Any] | None:
+def _repository_state(
+    connection: sqlite3.Connection, repository_id: int, snapshot_id: int
+) -> dict[str, Any] | None:
     row = connection.execute(
         """
-        SELECT ss.status, sd.id AS document_id, sd.value_json, sd.confidence, sd.provider, sd.model,
+        SELECT ss.status, ss.snapshot_id AS source_snapshot_id,
+               sd.id AS document_id, sd.value_json, sd.confidence, sd.provider, sd.model,
                sd.executor_id, sd.executor_model, sd.executor_effort, sd.prompt_version,
                sd.created_at
         FROM semantic_scope_states ss
-        LEFT JOIN semantic_documents sd ON sd.id = ss.context_document_id
-        WHERE ss.snapshot_id = ? AND ss.scope_type = 'repository'
+        JOIN semantic_documents sd ON sd.id = ss.context_document_id
+        WHERE ss.repository_id = ? AND ss.snapshot_id <= ? AND ss.scope_type = 'repository'
+          AND json_extract(sd.value_json, '$.contract_version') = ?
+        ORDER BY ss.snapshot_id DESC LIMIT 1
         """,
-        (snapshot_id,),
+        (repository_id, snapshot_id, ARCHITECTURE_CHARTER_VERSION),
     ).fetchone()
-    return dict(row) if row else None
+    result = dict(row) if row else None
+    if result and result["source_snapshot_id"] != snapshot_id:
+        result["status"] = "stale"
+    return result
+
+
+def _freshness(
+    connection: sqlite3.Connection, repository_id: int, snapshot_id: int
+) -> dict[str, Any]:
+    prior = connection.execute(
+        """
+        SELECT MAX(snapshot_id) FROM semantic_scope_states
+        WHERE repository_id = ? AND snapshot_id < ? AND scope_type = 'module'
+          AND intrinsic_document_id IS NOT NULL
+        """,
+        (repository_id, snapshot_id),
+    ).fetchone()[0]
+    reused = connection.execute(
+        """
+        SELECT COUNT(*) AS prepared,
+               COALESCE(SUM(i.snapshot_id != ss.snapshot_id), 0) AS intrinsic_reused,
+               COALESCE(SUM(c.snapshot_id != ss.snapshot_id AND ss.status = 'current'), 0)
+                   AS context_reused
+        FROM semantic_scope_states ss
+        LEFT JOIN semantic_documents i ON i.id = ss.intrinsic_document_id
+        LEFT JOIN semantic_documents c ON c.id = ss.context_document_id
+        WHERE ss.repository_id = ? AND ss.snapshot_id = ? AND ss.scope_type = 'module'
+        """,
+        (repository_id, snapshot_id),
+    ).fetchone()
+    return {
+        "previous_semantic_snapshot_id": prior,
+        "reuse_checked": bool(reused["prepared"]),
+        "intrinsic_reused": int(reused["intrinsic_reused"]),
+        "context_reused": int(reused["context_reused"]),
+        "meaning": "Reuse counts are saved document reuse, not predictions of unchanged file content.",
+    }
 
 
 def _taxonomy(connection: sqlite3.Connection, snapshot_id: int) -> dict[str, Any] | None:

@@ -228,6 +228,7 @@ def service_fresh_eyes_review(
     generation: int | None = None,
     compare_with: int | None = None,
     timeout: float = FRESH_EYES_START_TIMEOUT_SECONDS,
+    goal: str | None = None,
 ) -> dict[str, Any]:
     """Start, unpin, or read the fresh-eyes review; ``timeout`` bounds only a write request."""
     if start or restart or unpin:
@@ -241,6 +242,7 @@ def service_fresh_eyes_review(
                 "restart": restart,
                 "unpin": unpin,
                 "repository_id": target.repository_id,
+                **({"goal": goal} if goal is not None else {}),
             },
             timeout=timeout,
         )

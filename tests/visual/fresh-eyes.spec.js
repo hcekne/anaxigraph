@@ -94,6 +94,28 @@ test("dirty snapshot banner is shown only for dirty reviews", async ({ page }) =
   await expect(warning).toHaveCount(0);
 });
 
+test("a completed review can change its goal without restarting blind stages", async ({ page }) => {
+  let submitted = null;
+  await page.route("**/api/fresh-eyes**", async (route) => {
+    if (route.request().method() === "POST") {
+      submitted = route.request().postDataJSON();
+      await route.fulfill({ json: { status: "already_started", review: { ...reviewResult(), state: "in_progress", ready: false, review_goal: submitted.goal } } });
+    } else {
+      await route.fulfill({ json: { ...reviewResult(), review_goal: "Original goal" } });
+    }
+  });
+  await page.goto("/");
+  await expect(page.locator("#project-name")).not.toHaveText("Loading…");
+  await page.getByRole("button", { name: "Improve", exact: true }).click();
+  await page.getByRole("button", { name: "Fresh eyes", exact: true }).click();
+  await expect(page.locator("#fresh-eyes-goal")).toHaveValue("Original goal");
+  await page.locator("#fresh-eyes-goal").fill("Clarify caller contracts without extra layers");
+  await page.getByRole("button", { name: "Review updated goal", exact: true }).click();
+  await expect.poll(() => submitted?.goal).toBe("Clarify caller contracts without extra layers");
+  expect(submitted.restart).toBeUndefined();
+  await expect(page.locator("#fresh-eyes-goal")).toBeDisabled();
+});
+
 function snapshot(dirty) {
   return {
     snapshot_id: 2,

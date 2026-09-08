@@ -172,6 +172,7 @@ class AgentRoutes:
                 retry_failed=request.retry_failed,
                 restart=request.restart,
                 plan=request.wait,
+                goal=request.goal,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc

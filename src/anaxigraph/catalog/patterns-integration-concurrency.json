@@ -237,10 +237,15 @@
     },
     {
       "stable_key": "work-queue",
+      "version": 2,
       "name": "Work Queue",
       "kind": "constructive",
       "intent": "Distribute independent jobs from a durable or bounded queue across competing workers.",
-      "problem_signals": [{"feature": "semantic.responsibilities", "operator": "contains", "value": "background jobs"}],
+      "problem_signals": [
+        {"feature": "semantic.responsibilities", "operator": "contains", "value": "background jobs"},
+        {"feature": "semantic.responsibilities", "operator": "contains", "value": "durable queue", "weight": 0.75},
+        {"feature": "semantic.public_contracts", "operator": "contains", "value": "lease", "weight": 0.5}
+      ],
       "supporting_evidence": [{"feature": "syntax.async_calls", "operator": "count_gte", "value": 2}],
       "counter_evidence": [{"feature": "semantic.invariants", "operator": "contains", "value": "all consumers must observe every item"}],
       "semantic_questions": ["Are jobs independent, and what are the lease, retry, poison, ordering, and duplicate contracts?"],

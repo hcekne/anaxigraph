@@ -148,13 +148,63 @@ def test_introduce_recommendation_cannot_claim_pattern_is_already_conformant():
         validated_pattern_response(evaluation, _request())
 
 
+@pytest.mark.parametrize("kind", ["pattern_assessment", "pattern_review"])
+@pytest.mark.parametrize(
+    "recommendation", ["remediate", "avoid", "no_action", "insufficient_evidence"]
+)
+def test_failure_mode_presence_does_not_require_retaining_harm(kind, recommendation):
+    request = {**_request(kind), "pattern": {"kind": "failure_mode"}}
+    evaluation = _evaluation(suitability=90, conformance=95, opportunity=90)
+    evaluation.update(presence="present", recommendation=recommendation)
+    value = _review(evaluation) if kind == "pattern_review" else evaluation
+    validated_pattern_response(value, request)
+    schema = pattern_response_schema(request)
+    fields = schema["properties"]
+    if kind == "pattern_review":
+        fields = fields["evaluation"]["properties"]
+    assert set(fields["recommendation"]["enum"]) == {
+        "remediate",
+        "avoid",
+        "no_action",
+        "insufficient_evidence",
+    }
+
+
+@pytest.mark.parametrize(
+    "recommendation", ["retain", "introduce", "replace", "improve_conformance"]
+)
+def test_failure_modes_cannot_be_recommended_as_desirable(recommendation):
+    evaluation = _evaluation()
+    evaluation["recommendation"] = recommendation
+    request = {**_request(), "pattern": {"kind": "failure_mode"}}
+    with pytest.raises(ValueError, match="not valid for failure_mode"):
+        validated_pattern_response(evaluation, request)
+
+
+def test_failure_mode_prompt_and_constructive_vocabulary_remain_distinct():
+    constraints = _constraints("failure_mode")
+    assert "harmful structure" in constraints["score_meanings"]["conformance"]
+    assert "not a desirable design" in constraints["high_conformance_rule"]
+    evaluation = _evaluation()
+    evaluation["recommendation"] = "remediate"
+    with pytest.raises(ValueError, match="not valid for constructive"):
+        validated_pattern_response(evaluation, _request())
+
+
+def test_absent_failure_mode_does_not_justify_remediation():
+    value = _evaluation()
+    value["recommendation"] = "remediate"
+    with pytest.raises(ValueError, match="absent failure mode"):
+        validated_pattern_response(value, {**_request(), "pattern": {"kind": "failure_mode"}})
+
+
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [
         ("candidate_fingerprint", "b" * 64, "candidate_fingerprint"),
         ("pattern_key", "adapter", "pattern_key"),
         ("target_key", "module:other.py", "target_key"),
-        ("score_contract_version", "pattern-scores-v2", "score contract"),
+        ("score_contract_version", "unsupported", "score contract"),
     ],
 )
 def test_assessment_identity_and_contract_must_match_candidate(field, value, message):

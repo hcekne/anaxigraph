@@ -118,6 +118,7 @@ class SemanticEngine:
         retry_failed: bool = False,
         restart: bool = False,
         plan: bool = True,
+        goal: str | None = None,
     ) -> dict[str, Any]:
         return self._services.fresh_eyes.start(
             repository_id,
@@ -128,6 +129,7 @@ class SemanticEngine:
             retry_failed=retry_failed,
             restart=restart,
             plan=plan,
+            goal=goal,
         )
 
     def unpin_fresh_eyes_executors(

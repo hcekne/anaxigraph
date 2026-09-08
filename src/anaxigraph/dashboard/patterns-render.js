@@ -174,6 +174,7 @@ function recommendationLabel(value) {
     introduce: "Consider adding this pattern",
     improve_conformance: "Make the existing pattern more consistent",
     replace: "Consider a different pattern",
+    remediate: "Reduce the harmful condition",
     avoid: "Do not use this pattern here",
     no_action: "No code change suggested",
     insufficient_evidence: "Not enough evidence",

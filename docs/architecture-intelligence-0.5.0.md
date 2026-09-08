@@ -1,0 +1,105 @@
+# Architecture intelligence — 0.5.0 feature and release list
+
+Admitted by the repository owner on 8 September 2026 as Phase 13. This strengthens
+Understand, Guide, and Keep coherent through existing product surfaces. It does not
+reopen the completed consolidation programme or introduce a new command family.
+
+## Features and acceptance
+
+- [ ] **Reliable large review execution.** Keep small Codex requests inline; page
+  oversized requests losslessly through private temporary evidence files. Test the
+  character boundary, Unicode, every review stage, errors, timeouts, and cleanup.
+  Representative packets below remain the primary defence against wasted context.
+- [ ] **Safe failure-mode judgments.** Distinguish desirable patterns from failure
+  modes in score meanings, constraints, validation, guidance, and rendering. A
+  present failure mode must never imply “retain” or “improve conformance.” Preserve
+  constructive-pattern safeguards and make legacy unsafe advice visibly unusable.
+- [ ] **Honest incremental freshness.** Explain what remains reusable, what changed,
+  and what is refreshing. Keep an available prior repository summary accessible
+  with explicit snapshot/freshness provenance; never label it current. Prove
+  repository isolation and read-only status parity across existing transports.
+- [ ] **Representative, bounded review evidence.** Replace alphabetic prefixes with
+  deterministic coverage of responsibilities, production modules, changed code,
+  contracts, and boundary relationships. Bound the serialized packet, retain
+  provenance and explicit selection/omission counts, and test documentation-heavy
+  and oversized repositories. Never leak as-built evidence into blind stages.
+- [ ] **Grounded parent-scope pattern judgments.** Supply bounded child responsibility
+  and contract witnesses and internal/cross-boundary relationships at subsystem,
+  area, and repository scope. Test known missed patterns and sparse candidate
+  selection without increasing the catalogue or pretending static edges prove
+  runtime behavior.
+- [ ] **Goal-directed coherence review.** Carry the user's review goal into saved
+  stage inputs and fingerprints. Respect implementation blindness, retain goals
+  across resume, and invalidate only affected review work when a goal changes.
+  Judge responsibility ownership, contracts, user flows, and the cost of added
+  machinery through the existing review sequence and output fields.
+- [ ] **Architectural judgment evidence.** Add small positive, negative, and
+  uncertain fixtures for justified patterns, harmful structures, and no-change
+  cases. Separate deterministic protocol checks from a recorded model-backed
+  experiment (GPT-6 Astra, max effort). Report known-case misses, unsupported advice,
+  scope coverage, and measured/unknown cost; do not promise all possible patterns.
+
+## Scope and verification discipline
+
+Reuse the current index, queue, stage contracts, pattern cards, and CLI/REST/MCP/UI
+surfaces. No new runtime dependency, generic review orchestrator, aggregate
+architecture score, catalogue-size target, or automatic source refactoring.
+Source-size and architecture gates remain binding; any justified net growth needs
+an exact measured acceptance record, not an arbitrary allowance.
+
+Run focused tests for each slice, then the full quality, changed-coverage, packaging,
+browser, benchmark, and container gates. Refresh changed semantics once at the
+coherent checkpoint, reusing unchanged scopes. Save review and token provenance;
+a running worker or partial architecture comparison is not completion.
+
+## Release and deployment ledger
+
+- [x] Resolve repository identity, preserve unrelated drafts, and inspect existing
+  release/deployment instructions and protection gates.
+- [ ] Complete and verify the feature checklist above.
+- [ ] Set the single Python version, lockfile, and bundled plugin versions to 0.5.0;
+  record release notes and compatibility changes.
+- [ ] Open a reviewed PR and pass all protected-main checks without bypassing them.
+- [ ] Verify 0.5.0 is unused; create the immutable annotated `v0.5.0` tag from the
+  accepted main commit and publish through the existing trusted release workflow.
+- [ ] Verify public PyPI install, wheel/sdist, plugin ZIP, checksums, SBOM,
+  attestations, and matching multi-architecture container digest.
+- [ ] Confirm production target, back up the retained index, deploy the verified
+  artifact while preserving both registered repositories, and verify health,
+  schema/read compatibility, MCP/dashboard behavior, and rollback availability.
+
+The target release is **0.5.0**, not complete until every release gate above is
+verified. Next release-schedule checkpoint: **15 September 2026**; review outstanding
+regressions and dependencies, decide whether a patch is warranted, and record that
+decision here. This is a checkpoint, not a commitment to publish an unready build.
+
+## Acceptance record
+
+Implementation and release verification in progress; unchecked gates above remain
+open. The Phase 13 source ratchet is **63,489 lines**, up **743 lines (1.18%)** from
+62,746. This is the exact measured cost of the admitted features, including the
+previously prepared lossless Codex fallback. One shared evidence-selection module
+serves existing review and pattern paths. No runtime dependency, schema table,
+command family, normal MCP tool, review stage, function-limit exception, or module
+size exception was added. The 500-line module and 50-line/15-complexity function
+ceilings remain unchanged. This phase does not reopen unrelated consolidation to
+offset necessary feature code.
+
+Verified locally on 8 September:
+
+- `scripts/check_architecture.py`: zero errors.
+- `scripts/check_module_size.py`: zero errors.
+- `scripts/check_self_analysis.py`: six governed findings, zero regressions;
+  report `/tmp/anaxigraph-050-self-analysis-initial.json`.
+- Pinned Playwright container: **40 browser contracts passed**, including updating
+  a review goal without restarting blind stages.
+- Focused pattern, semantic freshness, goal durability, transport, generation,
+  source-guard, and representative-packet tests pass; full-suite acceptance pending.
+- A model-backed GPT-6 Astra/max judgment run is in progress. An initial setup
+  attempt was interrupted because fixture labels hinted at expected outcomes.
+  Those labels were anonymized before the retained run; usage from the interrupted
+  attempt is unavailable, not zero. Only the retained anonymized run can satisfy
+  the model-quality gate.
+
+Record the final full-suite, model, public artifact, and deployment evidence here
+before marking this phase complete.

@@ -9,6 +9,7 @@ from anaxigraph.pattern_language import (
     _PATTERN_TERM_DEFINITIONS,
     PATTERN_LANGUAGE_VERSION,
     pattern_explanation,
+    safe_pattern_recommendation,
 )
 from anaxigraph.semantic_file_language import explain_specialist_terms
 
@@ -128,6 +129,31 @@ def test_pattern_explanation_keeps_counter_evidence_and_verification_in_the_main
 )
 def test_each_machine_recommendation_has_a_direct_human_conclusion(recommendation, expected):
     assert expected in _explanation(recommendation)["conclusion"]
+
+
+@pytest.mark.parametrize(
+    "recommendation", ["retain", "introduce", "replace", "improve_conformance"]
+)
+def test_legacy_failure_mode_advice_is_not_actionable(recommendation):
+    pattern = {"kind": "failure_mode", "name": "God Object"}
+    evaluation = _evaluation(recommendation)
+    result = pattern_explanation(evaluation, {}, {"path": "src/service.py"}, pattern)
+    assert safe_pattern_recommendation(evaluation, pattern) == "insufficient_evidence"
+    assert "unsafe to act on" in result["conclusion"]
+    assert "Refresh this pattern evaluation" in result["what_to_do"]
+    assert "harmful structure" in result["score_meanings"][1]["meaning"]
+
+
+def test_failure_mode_remediation_means_less_harm_not_better_conformance():
+    result = pattern_explanation(
+        _evaluation("remediate"),
+        {},
+        {"path": "src/service.py"},
+        {"kind": "failure_mode", "name": "God Object"},
+    )
+    assert "Reduce the evidenced harm" in result["conclusion"]
+    assert "preserving caller contracts" in result["what_to_do"]
+    assert "diagnosis, not a design to adopt" in result["score_meanings"][0]["meaning"]
 
 
 def test_no_change_result_does_not_invent_a_refactoring_step():

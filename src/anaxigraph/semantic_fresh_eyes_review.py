@@ -10,6 +10,7 @@ from typing import Any
 from anaxigraph.semantic_fresh_eyes_consensus import compare_generations
 from anaxigraph.semantic_fresh_eyes_contract import (
     fresh_eyes_plan_executors,
+    fresh_eyes_plan_goal,
     fresh_eyes_plan_options,
     fresh_eyes_required_executor,
 )
@@ -74,11 +75,10 @@ class FreshEyesReviewService:
         retry_failed: bool = False,
         restart: bool = False,
         plan: bool = True,
+        goal: str | None = None,
     ) -> dict[str, Any]:
-        """Record the request; plan now, or defer planning to the next executor claim.
-
-        ``proposal_executors`` pins one executor family per slot on the plan token, so a pin
-        applies to a new review or a restarted generation, never to one already planned.
+        """Start or resume with saved controls. Executor pins apply to new generations;
+        changing the goal refreshes only repository-aware stages.
         """
 
         semantic = _review_semantic(config)
@@ -87,6 +87,7 @@ class FreshEyesReviewService:
             raise ValueError("Repository has not been scanned")
         snapshot_id = int(snapshot["id"])
         with self._database.transaction() as connection:
+            goal = _requested_goal(connection, repository_id, snapshot_id, goal)
             generation = _requested_generation(
                 connection, repository_id, snapshot_id, restart=restart
             )
@@ -97,6 +98,7 @@ class FreshEyesReviewService:
                 proposal_count=proposal_count,
                 generation=generation,
                 proposal_executors=tuple(proposal_executors),
+                goal=goal,
             )
         stage, enqueued = self._plan_outcome(
             repository_id, repository, config, plan=plan, retry_failed=retry_failed
@@ -290,6 +292,19 @@ def _stage_rows(connection: Any, snapshot_id: int) -> dict[str, dict[str, Any]]:
         (snapshot_id, FRESH_EYES_SCOPE, FRESH_EYES_PLAN_KEY),
     ).fetchall()
     return {str(row["scope_key"]): dict(row) for row in rows}
+
+
+def _requested_goal(connection, repository_id, snapshot_id, goal):
+    if goal is not None:
+        if len(goal) > 4_000:
+            raise ValueError("Review goal must be at most 4,000 characters")
+        return goal.strip()
+    prior = connection.execute(
+        "SELECT interface_hash FROM semantic_scope_states WHERE repository_id = ? "
+        "AND snapshot_id <= ? AND scope_type = ? AND scope_key = ? ORDER BY snapshot_id DESC LIMIT 1",
+        (repository_id, snapshot_id, FRESH_EYES_SCOPE, FRESH_EYES_PLAN_KEY),
+    ).fetchone()
+    return fresh_eyes_plan_goal(dict(prior)) if prior else ""
 
 
 def _requested_generation(

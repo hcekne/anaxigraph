@@ -6,6 +6,7 @@ import json
 from typing import Any
 
 from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION
+from anaxigraph.semantic_evidence_selection import bounded_evidence
 from anaxigraph.semantic_fresh_eyes_contract import (
     FRESH_EYES_PROTOCOL_VERSION,
     semantic_input_hash,
@@ -39,6 +40,8 @@ _CONTRACTS = {
         "for existing strengths and justified differences as for weaknesses. Map responsibilities, "
         "classify every material difference using the allowed result labels, and do not treat an "
         "idea's absence from the clean-sheet design as evidence that current code should be deleted."
+        " Apply review_goal when supplied: trace the affected user flows, responsibility owners, "
+        "and caller contracts, and distinguish actual inconsistencies from justified differences."
         + _DECLARED_CONTEXT_NOTE
     ),
     "fresh_review": (
@@ -47,6 +50,8 @@ _CONTRACTS = {
         "reduction, operational simplicity, compatibility, migration risk, reversibility, and "
         "verification cost. Reject attractive overengineering. This is advice, not permission to "
         "edit code, and retaining the current design is valid when evidence supports it."
+        " Apply review_goal when supplied; tie each proposed change to an evidenced user outcome "
+        "and say what existing machinery it replaces or why extra concepts are justified."
         + _DECLARED_CONTEXT_NOTE
     ),
 }
@@ -76,7 +81,11 @@ def fresh_eyes_request(
         "information_boundary": metadata["information_boundary"],
     }
     request.update(_stage_evidence(database, kind, metadata))
-    return request
+    if kind in {"fresh_comparison", "fresh_review"} and metadata["input_manifest"].get(
+        "review_goal"
+    ):
+        request["review_goal"] = metadata["input_manifest"]["review_goal"]["text"]
+    return bounded_evidence(request)
 
 
 def _stage_evidence(

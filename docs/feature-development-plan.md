@@ -1,8 +1,8 @@
 # AnaxiGraph consecutive development plan
 
-**Roadmap version:** 4.2
+**Roadmap version:** 4.4 (4.2 remains closed)
 
-**Updated:** 1 September 2026
+**Updated:** 8 September 2026
 
 **Execution rule:** one phase is active at a time; the next phase does not begin until the current
 phase's exit gate is met.
@@ -4808,6 +4808,19 @@ block are the owner's working files, and nothing in this phase depends on them.
 
 ---
 
+# Phase 13 — coherent architecture intelligence and release 0.5.0
+
+**Status:** IN PROGRESS, separately admitted by the owner on 8 September 2026.
+Phases 10–12 remain complete. The active feature list, bounded scope, acceptance
+tests, release gates, and schedule checkpoint are maintained in
+[Architecture intelligence — 0.5.0](architecture-intelligence-0.5.0.md).
+
+This phase repairs oversized review execution and unsafe failure-mode advice,
+makes semantic reuse visible, improves representative and parent-scope evidence,
+carries the user's goal through review, and measures architectural judgment on
+small positive/negative cases. It uses existing workflows and ends with a verified
+0.5.0 PyPI release and production deployment, not merely merged source.
+
 # Nice-to-have ideas — not an implementation queue
 
 These are recorded only so they are not repeatedly rediscovered and mistaken for active work. They
@@ -4943,9 +4956,10 @@ feature-admission rule.
 | 10 | **COMPLETE** | Repair the confirmed defects and trust gaps the multi-model review experiment exposed: byte-counted submission limit, one target-file guard, one module-identity function, truthful Claude usage and effort, a peer-aware no-work status, executor-family diversity, lease-guarded writes, legible failures, and column reconciliation | §12.1 |
 | 11 | **COMPLETE** | Make a review reproducible and comparable: schema-11 usage and executor provenance, enumerable and selectable generations with per-stage telemetry, snapshot provenance and a dirty-checkout caveat, declared context in the repository-aware packets, bounded scan drift, loud missing-snapshot replies, and measured plan-transaction lock holds | §12.2 |
 | 12 | **COMPLETE** | Compare two generations without judging them: deterministic lexical alignment, a side-by-side reading view, a per-recommendation grounding report, a refute disposition for inferred Charter claims, and cross-provider proposals inside one run | §12.3 |
+| 13 | **IN PROGRESS** | Complete the bounded architecture-intelligence feature list, prove architectural judgment on known cases, and verify the 0.5.0 public release and production deployment | [Phase 13 checklist](architecture-intelligence-0.5.0.md) |
 
 All admitted roadmap 4.2 work is complete, and the separately admitted Phase 12 above is complete.
-There is no active implementation phase or hidden continuation queue. The retained MaxOS run, the
+Phase 13 is the only active implementation phase; there is no hidden continuation queue. The retained MaxOS run, the
 public `0.4.0` acceptance record, and the retained September 2026 multi-model review are evidence
 for the completed product, not independent product features. Any further parser expansion, adapter
 family, plugin framework, website, media support, generic operations work, warning-cleanup

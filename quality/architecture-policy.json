@@ -38,6 +38,7 @@
         "anaxigraph.registry",
         "anaxigraph.relationships",
         "anaxigraph.semantic_contract",
+        "anaxigraph.semantic_evidence_selection",
         "anaxigraph.semantic_config_port",
         "anaxigraph.semantic_fresh_eyes_consensus",
         "anaxigraph.semantic_fresh_eyes_contract",

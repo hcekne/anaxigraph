@@ -179,13 +179,13 @@ def pattern_evaluation():
         "execution_safety": 65, "migration_cost": 35,
     }
     return {
-        "score_contract_version": "pattern-scores-v1",
+        "score_contract_version": "pattern-scores-v2",
         "candidate_fingerprint": candidate["input_fingerprint"],
         "pattern_key": pattern_key,
         "target_key": target_key,
         "summary": f"{pattern_key} is a plausible repository-local option for {target_key}.",
         "presence": "absent",
-        "recommendation": "introduce",
+        "recommendation": "avoid" if request["pattern"]["kind"] == "failure_mode" else "introduce",
         "scores": {name: {
             "value": value,
             "rationale": f"Supplied evidence supports the {name} score.",
@@ -454,13 +454,13 @@ def _pattern_evaluation(request: dict) -> dict:
         "migration_cost": 35,
     }
     return {
-        "score_contract_version": "pattern-scores-v1",
+        "score_contract_version": "pattern-scores-v2",
         "candidate_fingerprint": candidate["input_fingerprint"],
         "pattern_key": candidate["pattern_key"],
         "target_key": target_key,
         "summary": "The selected pattern is a plausible repository-local option.",
         "presence": "absent",
-        "recommendation": "introduce",
+        "recommendation": "avoid" if request["pattern"]["kind"] == "failure_mode" else "introduce",
         "scores": {
             name: {
                 "value": value,

@@ -41,13 +41,13 @@ def _complete_queue(engine, repository_id, repository, config) -> None:
     raise AssertionError("Semantic queue did not converge")
 
 
-def _prepare_completed_review(repository, database):
+def _prepare_completed_review(repository, database, *, goal=None):
     _enable_agent_semantics(repository)
     config = load_config(repository)
     stats = RepositoryScanner(database).scan(repository)
     engine = SemanticEngine(database)
     _complete_queue(engine, stats.repository_id, repository, config)
-    engine.start_fresh_eyes_review(stats.repository_id, repository, config)
+    engine.start_fresh_eyes_review(stats.repository_id, repository, config, goal=goal)
     _complete_queue(engine, stats.repository_id, repository, config)
     return engine, stats.repository_id, config
 
@@ -113,12 +113,17 @@ def _document_ids(review: dict[str, Any]) -> set[int]:
 
 
 @pytest.mark.anyio
-async def test_dashboard_cli_contract_and_mcp_share_one_fresh_eyes_result(repository, database):
-    _prepare_completed_review(repository, database)
+async def test_dashboard_cli_contract_and_mcp_share_one_fresh_eyes_result(
+    repository, database, capsys
+):
+    goal = "Improve consistency of user flows without adding another subsystem."
+    _prepare_completed_review(repository, database, goal=goal)
     rest = await _rest_fresh_eyes(database, repository)
     response = await _mcp_guide(database, repository, {"fresh_eyes": True})
     assert response.isError is False
     mcp = response.structuredContent
+    assert mcp["review_goal"] == rest["review_goal"] == goal
+    assert _cli_fresh_eyes(repository, database, capsys)["review_goal"] == goal
 
     for field in (
         "identity",
@@ -142,6 +147,29 @@ async def test_dashboard_cli_contract_and_mcp_share_one_fresh_eyes_result(reposi
         "already_satisfied": 0,
         "stale": 0,
     }
+
+
+@pytest.mark.anyio
+async def test_review_goal_can_be_updated_through_mcp_and_rest(repository, database):
+    _prepare_completed_review(repository, database)
+    response = await _mcp_guide(
+        database,
+        repository,
+        {"intent": "redesign", "start": True, "wait": False, "goal": "Clarify API consistency"},
+    )
+    assert response.isError is False
+    assert response.structuredContent["review"]["review_goal"] == "Clarify API consistency"
+    app = create_app(database=database, repository=repository, enable_mcp=False)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        response = await client.post(
+            "/api/fresh-eyes", json={"goal": "Clarify lifecycle ownership", "wait": False}
+        )
+        assert response.status_code == 200
+        assert response.json()["review"]["review_goal"] == "Clarify lifecycle ownership"
+        response = await client.post("/api/fresh-eyes", json={"goal": "x" * 4001, "wait": False})
+        assert response.status_code == 422
 
 
 @pytest.mark.anyio

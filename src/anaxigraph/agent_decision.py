@@ -22,7 +22,7 @@ from anaxigraph.trend_service import scoped_change_coupling
 ARCHITECTURE_DECISION_VERSION = "architecture-decision-v1"
 
 _REUSE_RECOMMENDATIONS = {"retain", "no_action", "improve_conformance"}
-_OPPORTUNITY_RECOMMENDATIONS = {"introduce", "improve_conformance", "replace"}
+_OPPORTUNITY_RECOMMENDATIONS = {"introduce", "improve_conformance", "replace", "remediate"}
 
 
 def architecture_decision(
@@ -252,6 +252,8 @@ def _reviewed_pattern(item: dict[str, Any]) -> dict[str, Any] | None:
     scores = _mapping(item.get("scores"))
     recommendation = str(item.get("recommendation") or "")
     presence = str(item.get("presence") or "")
+    if _nested_text(item, "pattern", "kind") == "failure_mode" and recommendation != "remediate":
+        return None
     role = _pattern_role(presence, recommendation, scores)
     if not role:
         return None
