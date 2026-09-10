@@ -79,7 +79,8 @@ proof that a local hook independently verified GitHub approval or production.
   deployment, and restored the validated old image and index after the write failure.
 - [ ] <!-- release:production --> Successful production acceptance: **failed and
   rolled back**. Read-only health passed but semantic writes failed after migration.
-  [Incident #6](https://github.com/hcekne/anaxigraph/issues/6) remains open.
+  [Incident #6](https://github.com/hcekne/anaxigraph/issues/6) was subsequently
+  resolved by the separately verified 0.5.1 deployment on 10 September.
 
 Version **0.5.0 is published, but its production rollout is not complete**. A bypass
 must stay recorded as a bypass; a correction cannot retroactively satisfy that gate.
@@ -234,3 +235,20 @@ outcome. On 8 September 2026:
   Commit/push hooks now check machine-readable release status against the marked
   ledger, and the push/CI check compares publication with PyPI. These are consistency
   checks, not independent approval, deployment, or semantic-completion attestations.
+
+### Corrective production acceptance — 10 September
+
+The [0.5.1 release ledger](releases/0.5.1.md) records trusted public publication,
+verified reproducible artifacts, the official attested multi-architecture image,
+and successful production deployment. A fresh backup and exact retained-index
+parity preserved both repositories, 1,200 snapshots, and all 7,682 saved semantic
+documents. The live dashboard/REST/MCP checks and real GPT-6 Astra/medium semantic
+write passed; post-write full health found no missing parent tables, row violations,
+or broken canonical references. The backup and old image remain for rollback.
+
+PR #7 used an explicitly authorized independent-review override after all required
+technical checks passed. Its squash merge preserved linear history; independent
+review remains **bypassed**, not fulfilled. The historical 0.5.0 failed-rollout and
+bypassed-merge boxes above must not be retroactively checked. Changed semantics
+and the current Astra/max architecture review are tracked separately in 0.5.1;
+the older partial review at snapshot 1129 remains historical evidence.
