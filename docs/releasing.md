@@ -33,11 +33,14 @@ exact repository, workflow, and environment identity by minting and immediately 
 short-lived token without uploading.
 
 After adding or changing the publisher, test the identity without uploading an artifact by manually
-dispatching `.github/workflows/release.yml`. The diagnostic job obtains the ambient GitHub OIDC
+dispatching `.github/workflows/release.yml` against an existing release tag, for example
+`gh workflow run release.yml --ref v0.5.1`. The diagnostic job obtains the ambient GitHub OIDC
 identity, asks PyPI to mint a short-lived project token, masks it, and immediately discards it. It
-does not build or upload a distribution. Because the protected environment normally permits only
-release tags, temporarily allow the exact branch used for the probe, approve that one deployment,
-then remove the temporary branch policy after the run succeeds.
+does not build or upload a distribution, move the tag, or republish its version. Approve the
+normal environment gate for this verification-only run. The environment permits only release
+tags; do not dispatch from a branch or weaken its tag restriction for this probe. The existing
+`v0.5.0` tag was successfully used for this check on 8 September in
+[run 34243583653](https://github.com/hcekne/anaxigraph/actions/runs/34243583653).
 
 ### Protected GitHub environment
 
@@ -128,6 +131,13 @@ the same contract again against the immutable tag before requesting permission t
     deployment or rollback. Do not leave the merged candidate's "not published" language as the
     current release record. Publication, verified artifacts, a protected merge, and successful
     production acceptance are separate facts; checking one does not check the others.
+
+For a local reproducibility check, use a clean exact-tag worktree and run the build under
+`umask 022`, matching CI. Git records executable bits but not the group-write mode inherited by
+generated package files; a different mask can produce identical contents with different archive
+bytes. For SSH pushes whose full pre-push tests outlast an idle connection, use
+`git -c core.sshCommand='ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=10' push`
+without skipping hooks. Preserve any custom SSH-command configuration when adapting that example.
 
 ### Checked release record
 
