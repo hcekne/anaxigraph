@@ -20,9 +20,28 @@ node --check src/anaxigraph/dashboard/app.js
 The tracked hooks run whitespace/configuration checks, Ruff lint and formatting validation,
 JavaScript parsing, credential/generated-file protection, the 500-line module ratchet, function
 complexity and coupling ratchets, public-interface change reports, and package layer/cycle checks
-before a commit. The complete Python suite, 80% total coverage floor, and 85% changed executable
-code target run before a push. Local hooks are fast feedback; the same whole-repository policies
-run in CI and remain authoritative if someone uses `--no-verify`.
+before a commit. They also reject commits on `main`/`master`, reject local merge commits,
+and check the release record against its ledger and lockfile. Near-limit warnings for staged
+modules are visible even when the size check passes; the 500-line ceiling is unchanged.
+
+The install command installs **pre-commit, pre-merge-commit, and pre-push** hooks; rerun it after
+pulling hook changes. Before push, the complete Python suite, self-analysis regression check,
+80% total coverage floor, and 85% changed executable code target run automatically. Changed
+coverage uses the whole branch relative to `origin/main`, not just `HEAD^`; a missing base is
+an error. Run `git fetch origin main` before pushing. Whole-repository size, architecture,
+maintainability, and agent-package checks also run at push time.
+
+Push the checked-out branch with tracked changes committed. The push guard checks the target
+provided by pre-commit; **pre-commit selects one ref from a multi-ref push**, so this is not an
+all-ref server-side protection. Use one branch or tag per push. Only GitHub can enforce reviews
+and prevent administrator/API bypasses. CI rejects newly introduced merge commits using the
+actual PR head, not GitHub's synthetic test merge; existing history is not rewritten.
+
+Commit-stage release checks are offline. Push and CI additionally query the public PyPI version
+endpoint and fail on a contradiction or network error. They do not contact the semantic service,
+launch model jobs, infer deployment success, or certify approval from a link. Local hooks can be
+skipped with `--no-verify`; CI and server-side protection are still required. An administrator
+override is a recorded exception, never evidence that the bypassed gate passed.
 
 Run every commit-stage hook against the complete checkout at any time:
 

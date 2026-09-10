@@ -1,4 +1,4 @@
-"""Frame-level parity checks between compatibility rows and canonical facts."""
+"""Schema integrity and frame-level parity between compatibility and canonical facts."""
 
 from __future__ import annotations
 
@@ -60,6 +60,21 @@ EDGE_FIELDS = (
     "weight",
     "metadata_json",
 )
+
+
+def missing_foreign_key_parents(connection: sqlite3.Connection) -> list[dict[str, str]]:
+    """Find dangling declarations even when NULL values hide them from foreign_key_check."""
+    rows = connection.execute(
+        """
+        SELECT child.name AS 'table', fk."from" AS 'column', fk."table" AS parent
+        FROM sqlite_master child JOIN pragma_foreign_key_list(child.name) fk
+        WHERE child.type = 'table' AND NOT EXISTS (
+            SELECT 1 FROM sqlite_master parent
+            WHERE parent.type = 'table' AND parent.name = fk."table" COLLATE NOCASE
+        ) ORDER BY child.name, fk.id, fk.seq
+        """
+    ).fetchall()
+    return [dict(zip(("table", "column", "parent"), row, strict=True)) for row in rows]
 
 
 def parity_report(connection: sqlite3.Connection) -> dict[str, Any]:

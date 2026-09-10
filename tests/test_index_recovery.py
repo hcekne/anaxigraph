@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -14,6 +15,59 @@ from anaxigraph.persistence import (
 )
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.storage import AnaxiIndex
+
+
+def test_backup_closes_all_handles_before_atomic_restore(database, tmp_path, monkeypatch):
+    original_connect = sqlite3.connect
+    connections = []
+
+    def retained_connect(*args, **kwargs):
+        connection = original_connect(*args, **kwargs)
+        connections.append(connection)  # Do not let garbage collection hide leaked handles.
+        return connection
+
+    monkeypatch.setattr(sqlite3, "connect", retained_connect)
+    backup = create_index_backup(database.path, tmp_path / "portable.backup")
+    restore_index_backup(database.path, backup.path)
+    for connection in connections:
+        with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+            connection.execute("SELECT 1")
+    with closing(original_connect(backup.path)) as connection:
+        assert connection.execute("PRAGMA journal_mode").fetchone()[0] == "delete"
+    assert not Path(f"{backup.path}-wal").exists()
+
+
+def test_restore_accepts_a_closed_legacy_wal_backup_from_read_only_storage(database, tmp_path):
+    directory = tmp_path / "read-only"
+    directory.mkdir()
+    backup = directory / "legacy.backup"
+    with closing(database.connect()) as source, closing(sqlite3.connect(backup)) as target:
+        source.backup(target)  # Old releases retained WAL mode in the backup header.
+    before = backup.read_bytes()
+    backup.chmod(0o444)
+    directory.chmod(0o555)
+    try:
+        restored = restore_index_backup(tmp_path / "restored.db", backup)
+        assert restored.schema_version == 11
+        assert backup.read_bytes() == before
+        assert sorted(path.name for path in directory.iterdir()) == ["legacy.backup"]
+    finally:
+        directory.chmod(0o755)
+        backup.chmod(0o644)
+
+
+def test_backup_validation_refuses_to_ignore_nonempty_wal(database, tmp_path):
+    backup = create_index_backup(database.path, tmp_path / "journaled.backup")
+    with closing(sqlite3.connect(backup.path)) as connection:
+        connection.execute("PRAGMA journal_mode=WAL")
+        connection.execute("INSERT INTO schema_meta VALUES('pending-journal', 'value')")
+        connection.commit()
+        assert Path(f"{backup.path}-wal").stat().st_size > 0
+        with pytest.raises(ValueError, match="journal"):
+            validate_index_backup(backup.path)
+        with pytest.raises(ValueError, match="journal"):
+            restore_index_backup(tmp_path / "must-not-exist.db", backup.path)
+    assert not (tmp_path / "must-not-exist.db").exists()
 
 
 def test_operator_backup_round_trip_preserves_source_and_replaces_index(

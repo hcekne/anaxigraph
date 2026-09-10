@@ -9,7 +9,7 @@ from typing import Any
 
 from anaxigraph.persistence.compatibility_compaction import COMPATIBILITY_TABLES
 from anaxigraph.persistence.index_backup import validate_schema_backup
-from anaxigraph.persistence.index_parity import parity_report
+from anaxigraph.persistence.index_parity import missing_foreign_key_parents, parity_report
 from anaxigraph.persistence.index_temporal_health import (
     lineage_report,
     reconstruction_report,
@@ -27,6 +27,7 @@ def inspect_index(
     with connection_factory() as connection:
         integrity = str(connection.execute("PRAGMA integrity_check").fetchone()[0])
         foreign_keys = [tuple(row) for row in connection.execute("PRAGMA foreign_key_check")]
+        missing_parents = missing_foreign_key_parents(connection)
         schema_version = _schema_version(connection)
         migrations = _migrations(connection)
         parity = parity_report(connection)
@@ -44,12 +45,15 @@ def inspect_index(
         backup,
         semantic_references,
     )
+    if missing_parents:
+        health_blockers.append("missing_foreign_key_parents")
     return {
         "status": "healthy" if not health_blockers else "blocked",
         "database": str(database_path),
         "schema_version": schema_version,
         "integrity": integrity,
         "foreign_key_violations": len(foreign_keys),
+        "missing_foreign_key_parents": missing_parents,
         "migration": migrations[-1] if migrations else None,
         "backup": backup,
         "lineage": lineage,

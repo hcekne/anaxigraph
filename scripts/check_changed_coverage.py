@@ -162,6 +162,9 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--root", type=Path, default=Path.cwd())
     parser.add_argument("--report", type=Path, default=Path("coverage.xml"))
     parser.add_argument("--base")
+    parser.add_argument(
+        "--require-base", action="store_true", help="Fail if the Git base is missing"
+    )
     parser.add_argument("--target", type=float, default=85.0)
     parser.add_argument("--total-floor", type=float, default=80.0)
     parser.add_argument("--source-prefix", default="src/anaxigraph/")
@@ -171,6 +174,9 @@ def _parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    if args.require_base and (not args.base or not _revision_exists(args.root, args.base)):
+        print("ERROR: Changed-coverage base unavailable; fetch origin main before pushing.")
+        return 1
     result = check_changed_coverage(
         args.root,
         report=args.report,

@@ -124,6 +124,47 @@ the same contract again against the immutable tag before requesting permission t
 9. Confirm the workflow's clean public-install job and the matching container digest before
    announcing the release.
 
+10. Update the release notes and feature ledger immediately after publication and again after
+    deployment or rollback. Do not leave the merged candidate's "not published" language as the
+    current release record. Publication, verified artifacts, a protected merge, and successful
+    production acceptance are separate facts; checking one does not check the others.
+
+### Checked release record
+
+Starting with 0.5.0, the current `docs/releases/<project.version>.md` has YAML front matter:
+`version`, `ledger` (a repository-relative Markdown path), and four gate statuses with HTTPS
+`<gate>_evidence` links. The allowed statuses are:
+
+| Gate | Statuses |
+|---|---|
+| `publication` | `pending`, `published` |
+| `artifacts` | `pending`, `verified` |
+| `protected_merge` | `pending`, `verified`, `bypassed` |
+| `production` | `pending`, `verified`, `failed`, `rolled_back` |
+
+Every non-pending gate needs its evidence link. The ledger contains exactly one
+`- [ ] <!-- release:<gate> -->` entry per gate; only `published`/`verified` statuses may be checked.
+For a new version, copy this small record into its notes with pending gates, not prior evidence.
+The offline commit check enforces the record, checkbox agreement, lockfile version, and obvious
+published-but-still-draft contradictions. Existing agent-package checks cover plugin versions.
+Push and CI also compare the current version's publication status with the public PyPI endpoint:
+
+```bash
+uv run python scripts/check_release_record.py --verify-pypi
+```
+
+The check does not verify what an evidence link claims. Review counts and ancestry must be
+inspected on GitHub; deployment needs checks against the real retained index, including semantic
+**writes**, not just HTTP liveness and read-only integrity. A rolled-back release remains
+published unless PyPI actually says otherwise. A bypass remains `bypassed`, not `verified`.
+Finish semantic/review workflows separately, retaining their snapshot and executor provenance;
+never launch paid model work from a Git hook or call an older/partial review current.
+
+Use reviewed squash/rebase merges for linear history. GitHub protection must include administrators
+to prevent server-side bypass; local hooks cannot enforce that setting. Changing repository
+protection or its reviewer policy requires a separate maintainer decision. Hook installation does
+not silently change those settings or grant standing authorization for future overrides.
+
 ## Verify artifacts
 
 Download the `anaxigraph-<version>-release` workflow artifact. Check its archives against the
