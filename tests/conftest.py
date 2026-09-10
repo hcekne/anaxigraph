@@ -1,11 +1,20 @@
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
 import pytest
 
 from anaxigraph.storage import AnaxiIndex
+
+
+def pytest_sessionstart(session):
+    # Git hooks export the caller's repository location. Test subprocesses must
+    # discover their own temporary repository, never mutate the caller's index.
+    names = subprocess.check_output(["git", "rev-parse", "--local-env-vars"], text=True)
+    for name in names.splitlines():
+        os.environ.pop(name, None)
 
 
 @pytest.fixture

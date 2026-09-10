@@ -7,11 +7,32 @@ from pathlib import Path
 
 import pytest
 import yaml
+from conftest import pytest_sessionstart
 
 from scripts.check_changed_coverage import main as coverage_main
 from scripts.check_git_policy import commit_errors, history_errors, push_errors
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_session_isolates_fixture_git_from_hook_repository(tmp_path, monkeypatch):
+    outer = tmp_path / "outer"
+    outer.mkdir()
+    git(outer, "init", "-q")
+    (outer / "keep.txt").write_text("keep this staged\n")
+    git(outer, "add", ".")
+    before = (outer / ".git" / "index").read_bytes()
+    config = (outer / ".git" / "config").read_bytes()
+    monkeypatch.setenv("GIT_DIR", str(outer / ".git"))
+    monkeypatch.setenv("GIT_INDEX_FILE", str(outer / ".git" / "index"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(outer))
+    pytest_sessionstart(None)
+    inner = tmp_path / "inner"
+    subprocess.run(["git", "init", "--bare", "-q", str(inner)], check=True)
+    assert git(inner, "rev-parse", "--is-bare-repository") == "true"
+    assert (outer / ".git" / "index").read_bytes() == before
+    assert (outer / ".git" / "config").read_bytes() == config
+    assert git(outer, "diff", "--cached", "--name-only") == "keep.txt"
 
 
 def git(root: Path, *args: str) -> str:
