@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src/anaxigraph/dashboard/favicon.svg" width="112" alt="AnaxiGraph logo" />
+  <img src="https://raw.githubusercontent.com/hcekne/anaxigraph/ab8491dff04b7c3dc9ba36ca4976f3667f42d432/src/anaxigraph/dashboard/favicon.svg" width="112" alt="AnaxiGraph logo" />
 </p>
 
 <h1 align="center">AnaxiGraph</h1>
