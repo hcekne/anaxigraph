@@ -117,10 +117,13 @@ class SemanticAgentContractService:
             cache_creation_input_tokens,
         )
         encoded = json.dumps(dossier, ensure_ascii=False).encode("utf-8")
-        if len(encoded) > MAX_SUBMISSION_BYTES:
-            raise ValueError(
-                f"Semantic dossier exceeds the {MAX_SUBMISSION_BYTES}-byte submission limit"
+        limit = MAX_SUBMISSION_BYTES
+        if request.get("analysis_kind") in {"taxonomy_proposal", "taxonomy_review"}:
+            limit = min(
+                MAX_SUBMISSION_BYTES * 2, max(limit, len(request.get("modules", [])) * 1_000)
             )
+        if len(encoded) > limit:
+            raise ValueError(f"Semantic dossier exceeds the {limit}-byte submission limit")
         try:
             result = validated_agent_semantic_response(
                 dossier,
