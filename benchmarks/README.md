@@ -46,6 +46,42 @@ representative-evidence tests are separate deterministic checks.
 The saved 0.5.0 result covers the original seven cases, not the three additions. A new model run
 requires an explicit budget and a fresh output path; this fixture update is not a passing result.
 
+## Real architecture tasks, graded blind (opt-in model run)
+
+`architecture_tasks` asks real questions this repository actually faced, at the revision it
+faced them, under the same output-token budget the recorded answer was written to. A real
+answer is prose, so it is not graded by matching a label. Each task carries a recorded
+reference answer and the key points a knowledgeable answer would name.
+
+Running the tasks writes two files. The grading sheet holds the question, the key points,
+and both answers under the labels `answer-1` and `answer-2`; nothing in it says which answer
+came from where. The answers file holds that mapping. Grade the sheet without opening the
+answers file, then assemble the report:
+
+```bash
+uv run python -m benchmarks.architecture_tasks run \
+  --model YOUR_MODEL --reasoning-effort YOUR_EFFORT \
+  --sheet /tmp/anaxigraph-task-sheet.json \
+  --answers /tmp/anaxigraph-task-answers.json
+
+uv run python -m benchmarks.architecture_tasks report \
+  --sheet /tmp/anaxigraph-task-sheet.json \
+  --output /tmp/anaxigraph-task-report.json
+```
+
+Labels come from a digest of the task id and revision, so the same task is labelled the same
+way on every run and the model does not sit in the same slot across tasks. A grade that
+names a key point nobody recorded is not counted.
+
+The report leads with what each answer covered and what it missed, names every unsupported
+claim, and lists the tasks the grader was unsure about. It withholds any headline rate while
+a task was already acted on, while a reference answer was not written by a human, or while
+the grader was unsure. The committed fixture is in exactly that state today: four real tasks,
+one human reference answer, none of them held out, because the repository has already changed
+in response to all four. That makes it a rehearsal of the protocol and not a measurement.
+Recording a held-out task with a human reference answer before the work is done is what turns
+it into one.
+
 ## Performance and mechanical correctness
 
 This directory owns the reproducible Phase 0 performance and correctness baseline. Generated

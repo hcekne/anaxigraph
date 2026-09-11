@@ -65,14 +65,14 @@ def judge_case(case: dict[str, Any], provider: Any) -> dict[str, Any]:
         "expected": case["expected"],
     }
     try:
-        assessment = _run_stage(provider, request, stages)
+        assessment = run_stage(provider, request, stages)
         review_request = {
             **request,
             "analysis_kind": "pattern_review",
             "contract": _contract("pattern_review"),
             "assessment": assessment.value,
         }
-        review = _run_stage(provider, review_request, stages)
+        review = run_stage(provider, review_request, stages)
         evaluation = review.value["evaluation"]
         result.update(
             recommendation=evaluation["recommendation"],
@@ -85,7 +85,7 @@ def judge_case(case: dict[str, Any], provider: Any) -> dict[str, Any]:
     return {**result, "duration_seconds": round(time.monotonic() - started, 3), "stages": stages}
 
 
-def _run_stage(provider, request, stages):
+def run_stage(provider, request, stages):
     started = time.monotonic()
     result = provider.analyze(request)
     stages.append(
