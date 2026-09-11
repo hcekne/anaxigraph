@@ -10,6 +10,8 @@ from anaxigraph.finding_language import (
     evidence_sentences,
     finding_caveats,
     plain_language_contract,
+    priority_label,
+    rule_attention_reason,
 )
 from anaxigraph.persistence.row_decoding import decode_json_columns
 from anaxigraph.persistence.snapshot_projection import install_snapshot_projection
@@ -191,7 +193,7 @@ def finding_priority(
         finding,
     )
     actionability = _actionability(finding, module_stats, risk, reasons)
-    label = _priority_label(score)
+    label = priority_label(score)
     return {
         "priority_score": score,
         "priority_label": label,
@@ -344,16 +346,6 @@ def _risk_score(risk: _FindingRisk, *, regressed: bool) -> int:
     return min(100, score)
 
 
-def _priority_label(score: int) -> str:
-    if score >= 80:
-        return "Urgent"
-    if score >= 60:
-        return "High"
-    if score >= 35:
-        return "Medium"
-    return "Low"
-
-
 def _priority_reasons(
     severity: str,
     confidence: float,
@@ -364,7 +356,7 @@ def _priority_reasons(
     coverage: list[float],
     finding: dict[str, Any],
 ) -> list[str]:
-    reasons = [_rule_attention_reason(severity)]
+    reasons = [rule_attention_reason(severity)]
     if confidence < 1:
         reasons.append(
             "Some of the evidence is uncertain, so check the affected code before acting."
@@ -394,12 +386,3 @@ def _priority_reasons(
     if finding.get("status") == "regressed":
         reasons.append("A previous scan marked this resolved, but the condition has returned.")
     return reasons
-
-
-def _rule_attention_reason(severity: str) -> str:
-    return {
-        "critical": "The project's own rule says to check this before making more changes.",
-        "error": "The project's own rule says this is probably an architecture problem.",
-        "warning": "The project's own rule says this is worth a closer look.",
-        "info": "The project's own rule records this as useful background information.",
-    }.get(severity, "A repository rule asked AnaxiGraph to keep this visible.")

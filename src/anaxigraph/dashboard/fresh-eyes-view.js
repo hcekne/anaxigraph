@@ -274,9 +274,12 @@ function groundingMarkup(grounding) {
       (check) => `<li>${escapeHtml(`${check.kind} ${check.value} — ${check.result}`)}</li>`,
     ).join("")}</ul></details>`
     : "";
+  const behavior = (grounding.evidence_state || {}).behavior_verification || "unchecked";
   return `<p class="fresh-grounding ${escapeHtml(String(grounding.status))}">
     <strong>${escapeHtml(humanize(grounding.status))}</strong>
-    ${escapeHtml(grounding.reason || "")}</p>${detail}`;
+    ${escapeHtml(grounding.reason || "")}
+    <span class="fresh-behavior ${escapeHtml(behavior)}">behavior ${escapeHtml(behavior)}</span>
+    </p>${detail}`;
 }
 
 function detailMarkup(value) {

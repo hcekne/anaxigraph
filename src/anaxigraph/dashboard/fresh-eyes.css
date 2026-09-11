@@ -155,6 +155,26 @@
   border-left-color: var(--amber);
 }
 
+.fresh-behavior {
+  border: 1px solid var(--muted);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: .75rem;
+  margin-left: .4rem;
+  padding: .05rem .45rem;
+  white-space: nowrap;
+}
+
+.fresh-behavior.passed {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.fresh-behavior.failed {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
 .fresh-grounding-checks {
   color: var(--muted);
   font-size: .85rem;

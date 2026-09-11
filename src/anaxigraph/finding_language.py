@@ -369,6 +369,29 @@ def _status_meaning(status: str) -> str:
     }.get(status, "The repository supplied this workflow state.")
 
 
+def priority_label(score: int) -> str:
+    """Name one priority score the same way wherever a reader meets it."""
+
+    if score >= 80:
+        return "Urgent"
+    if score >= 60:
+        return "High"
+    if score >= 35:
+        return "Medium"
+    return "Low"
+
+
+def rule_attention_reason(severity: str) -> str:
+    """Say why a repository's own rule is being shown, in the project's voice."""
+
+    return {
+        "critical": "The project's own rule says to check this before making more changes.",
+        "error": "The project's own rule says this is probably an architecture problem.",
+        "warning": "The project's own rule says this is worth a closer look.",
+        "info": "The project's own rule records this as useful background information.",
+    }.get(severity, "A repository rule asked AnaxiGraph to keep this visible.")
+
+
 def _priority_guidance(label: str) -> str:
     return {
         "Urgent": "Check this before the other findings.",

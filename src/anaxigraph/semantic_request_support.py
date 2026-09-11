@@ -115,12 +115,6 @@ INPUT_TERM_MEANINGS = {
 }
 
 
-def plain_language_instruction() -> str:
-    """Return the shared writing rule as one provider instruction."""
-
-    return " ".join(PLAIN_LANGUAGE_REQUIREMENTS.values())
-
-
 def compact_dossier(value: dict[str, Any], *, detailed: bool = False) -> dict[str, Any]:
     """Keep cross-module reasoning useful without repeatedly nesting full prose."""
 

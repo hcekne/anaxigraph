@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import shutil
 from collections.abc import Mapping
 from importlib.metadata import PackageNotFoundError, version
@@ -11,6 +10,7 @@ from typing import Any
 
 import anaxigraph.git as git
 from anaxigraph.scan_consistency import CHANGED_DURING_SCAN
+from anaxigraph.snapshot_provenance import snapshot_metadata
 
 _ACTIVE_RUN_STATES = ("queued", "enumerating", "importing", "finalizing", "running")
 
@@ -22,7 +22,7 @@ def served_map_status(root: Path, snapshot: Mapping[str, Any]) -> dict[str, Any]
         checkout = git.metadata(root)
     except (git.GitError, OSError) as exc:
         return _unavailable_map_status(snapshot, exc)
-    metadata = _snapshot_metadata(snapshot)
+    metadata = snapshot_metadata(snapshot)
     mapped_commit = str(snapshot.get("commit_sha") or "unknown")
     mapped_dirty = bool(snapshot.get("dirty"))
     state, reason = _map_state(mapped_commit, mapped_dirty, metadata, checkout)
@@ -84,14 +84,6 @@ def _map_language(state: str, reason: str) -> dict[str, str]:
         else "Refresh the structural scan before relying on this map for a code change."
     )
     return {"summary": reason, "action": action}
-
-
-def _snapshot_metadata(snapshot: Mapping[str, Any]) -> dict[str, Any]:
-    try:
-        metadata = json.loads(str(snapshot.get("metadata_json") or "{}"))
-    except (TypeError, ValueError):
-        return {}
-    return metadata if isinstance(metadata, dict) else {}
 
 
 def _service_version() -> str:

@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from anaxigraph.architecture_charter_corrections import read_charter_corrections
-from anaxigraph.semantic_fresh_eyes_contract import semantic_digest
+from anaxigraph.semantic_fresh_eyes_contract import attributed_verification, semantic_digest
 from anaxigraph.semantic_fresh_eyes_references import (
     SnapshotIndex,
     cited_identifiers,
@@ -185,12 +185,14 @@ def _ground_recommendation(
         "title": str(recommendation.get("title") or ""),
         "status": status,
         "reason": reason,
-        "evidence_state": _evidence_state(checks),
+        "evidence_state": _evidence_state(checks, recommendation),
         "checks": checks,
     }
 
 
-def _evidence_state(checks: list[dict[str, Any]]) -> dict[str, str]:
+def _evidence_state(
+    checks: list[dict[str, Any]], recommendation: dict[str, Any] | None = None
+) -> dict[str, str]:
     """Say which of the three evidence questions this pass actually answered."""
 
     if not checks:
@@ -202,7 +204,7 @@ def _evidence_state(checks: list[dict[str, Any]]) -> dict[str, str]:
     return {
         "reference_resolution": resolution,
         "claim_support": _UNCHECKED,
-        "behavior_verification": _UNCHECKED,
+        "behavior_verification": attributed_verification(recommendation or {}),
     }
 
 
