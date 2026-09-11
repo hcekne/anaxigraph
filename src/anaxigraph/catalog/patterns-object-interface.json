@@ -6,24 +6,54 @@
   "defaults": {
     "schema_version": "pattern-card-v1",
     "version": 1,
-    "scope_levels": ["type", "module"],
-    "required_capabilities": [
-      {"fact": "calls", "minimum": "structural"},
-      {"fact": "constructors", "minimum": "structural"},
-      {"fact": "exports", "minimum": "structural"},
-      {"fact": "inheritance", "minimum": "structural"},
-      {"fact": "signatures", "minimum": "structural"},
-      {"fact": "symbol_kind", "minimum": "structural"}
+    "scope_levels": [
+      "type",
+      "module"
     ],
-    "relations": {"related": [], "complementary": [], "alternatives": [], "conflicts": []},
+    "required_capabilities": [
+      {
+        "fact": "calls",
+        "minimum": "structural"
+      },
+      {
+        "fact": "constructors",
+        "minimum": "structural"
+      },
+      {
+        "fact": "exports",
+        "minimum": "structural"
+      },
+      {
+        "fact": "inheritance",
+        "minimum": "structural"
+      },
+      {
+        "fact": "signatures",
+        "minimum": "structural"
+      },
+      {
+        "fact": "symbol_kind",
+        "minimum": "structural"
+      }
+    ],
+    "relations": {
+      "related": [],
+      "complementary": [],
+      "alternatives": [],
+      "conflicts": []
+    },
     "scoring": {
       "applicability": "Raise when multiple behaviors, implementations, or interface translations create a real substitution boundary.",
       "suitability": "Raise when the abstraction removes repeated conditionals or dependency knowledge from callers.",
       "conformance": "Raise when contracts, implementations, construction, and delegation match the pattern roles.",
       "opportunity": "Raise when a proven variation axis exists, current conformance is low, and the abstraction would remove more machinery than it adds."
     },
-    "migration_cautions": ["Introduce object abstractions only around multiple real implementations or a demonstrated substitution boundary."],
-    "references": ["Gamma et al., Design Patterns"]
+    "migration_cautions": [
+      "Introduce object abstractions only around multiple real implementations or a demonstrated substitution boundary."
+    ],
+    "references": [
+      "Gamma et al., Design Patterns"
+    ]
   },
   "cards": [
     {
@@ -31,224 +61,973 @@
       "name": "Abstract Factory",
       "kind": "constructive",
       "intent": "Create compatible families of related objects without coupling clients to concrete classes.",
-      "problem_signals": [{"feature": "syntax.constructors", "operator": "count_gte", "value": 3}],
-      "supporting_evidence": [{"feature": "syntax.inheritance", "operator": "count_gte", "value": 2}],
-      "counter_evidence": [{"feature": "types.count", "operator": "lte", "value": 2}],
-      "semantic_questions": ["Must clients switch an entire compatible product family together?"],
-      "benefits": ["Centralizes family selection and prevents incompatible product combinations."],
-      "liabilities": ["Adding a new product role can require changing every factory implementation."],
-      "verification_invariants": ["Each factory yields a mutually compatible product family."],
-      "relations": {"related": ["factory-method"], "alternatives": ["dependency-injection"]}
+      "problem_signals": [
+        {
+          "feature": "syntax.constructors",
+          "operator": "count_gte",
+          "value": 3
+        }
+      ],
+      "supporting_evidence": [
+        {
+          "feature": "syntax.inheritance",
+          "operator": "count_gte",
+          "value": 2
+        }
+      ],
+      "counter_evidence": [
+        {
+          "feature": "types.count",
+          "operator": "lte",
+          "value": 2
+        }
+      ],
+      "semantic_questions": [
+        "Must clients switch an entire compatible product family together?"
+      ],
+      "benefits": [
+        "Centralizes family selection and prevents incompatible product combinations."
+      ],
+      "liabilities": [
+        "Adding a new product role can require changing every factory implementation."
+      ],
+      "verification_invariants": [
+        "Each factory yields a mutually compatible product family."
+      ],
+      "relations": {
+        "related": [
+          "factory-method"
+        ],
+        "alternatives": [
+          "dependency-injection"
+        ]
+      }
     },
     {
       "stable_key": "adapter",
       "name": "Adapter",
       "kind": "constructive",
       "intent": "Translate an existing interface into the contract expected by a client.",
-      "problem_signals": [{"feature": "syntax.calls", "operator": "count_gte", "value": 2}],
-      "supporting_evidence": [{"feature": "interface.signatures", "operator": "exists"}],
-      "counter_evidence": [{"feature": "semantic.responsibilities", "operator": "contains", "value": "owns domain policy"}],
-      "semantic_questions": ["Is this boundary translating contracts rather than adding new business policy?"],
-      "benefits": ["Contains external or legacy interface differences."],
-      "liabilities": ["Can become a dumping ground for unrelated policy and validation."],
-      "verification_invariants": ["Every adapted operation preserves source semantics and target contract expectations."],
-      "relations": {"related": ["anti-corruption-layer", "facade"], "alternatives": ["bridge"]}
+      "problem_signals": [
+        {
+          "feature": "syntax.calls",
+          "operator": "count_gte",
+          "value": 2
+        }
+      ],
+      "supporting_evidence": [
+        {
+          "feature": "interface.signatures",
+          "operator": "exists"
+        }
+      ],
+      "counter_evidence": [
+        {
+          "feature": "semantic.responsibilities",
+          "operator": "contains",
+          "value": "owns domain policy"
+        }
+      ],
+      "semantic_questions": [
+        "Is this boundary translating contracts rather than adding new business policy?"
+      ],
+      "benefits": [
+        "Contains external or legacy interface differences."
+      ],
+      "liabilities": [
+        "Can become a dumping ground for unrelated policy and validation."
+      ],
+      "verification_invariants": [
+        "Every adapted operation preserves source semantics and target contract expectations."
+      ],
+      "relations": {
+        "related": [
+          "anti-corruption-layer",
+          "facade"
+        ],
+        "alternatives": [
+          "bridge"
+        ]
+      }
     },
     {
       "stable_key": "bridge",
       "name": "Bridge",
       "kind": "constructive",
       "intent": "Separate an abstraction from an independently varying implementation hierarchy.",
-      "problem_signals": [{"feature": "syntax.inheritance", "operator": "count_gte", "value": 3}],
-      "supporting_evidence": [{"feature": "syntax.calls", "operator": "count_gte", "value": 2}],
-      "counter_evidence": [{"feature": "types.count", "operator": "lte", "value": 2}],
-      "semantic_questions": ["Do abstraction and implementation represent two genuinely independent dimensions of change?"],
-      "benefits": ["Avoids a combinatorial subclass hierarchy."],
-      "liabilities": ["Adds indirection when only one dimension actually varies."],
-      "verification_invariants": ["Every supported abstraction remains compatible with every permitted implementation."],
-      "relations": {"related": ["strategy"], "alternatives": ["adapter"]}
+      "problem_signals": [
+        {
+          "feature": "syntax.inheritance",
+          "operator": "count_gte",
+          "value": 3
+        }
+      ],
+      "supporting_evidence": [
+        {
+          "feature": "syntax.calls",
+          "operator": "count_gte",
+          "value": 2
+        }
+      ],
+      "counter_evidence": [
+        {
+          "feature": "types.count",
+          "operator": "lte",
+          "value": 2
+        }
+      ],
+      "semantic_questions": [
+        "Do abstraction and implementation represent two genuinely independent dimensions of change?"
+      ],
+      "benefits": [
+        "Avoids a combinatorial subclass hierarchy."
+      ],
+      "liabilities": [
+        "Adds indirection when only one dimension actually varies."
+      ],
+      "verification_invariants": [
+        "Every supported abstraction remains compatible with every permitted implementation."
+      ],
+      "relations": {
+        "related": [
+          "strategy"
+        ],
+        "alternatives": [
+          "adapter"
+        ]
+      }
+    },
+    {
+      "stable_key": "builder",
+      "name": "Builder",
+      "kind": "constructive",
+      "intent": "Assemble an object whose construction has many optional parts, step by step.",
+      "problem_signals": [
+        {
+          "feature": "interface.signatures",
+          "operator": "count_gte",
+          "value": 6
+        }
+      ],
+      "supporting_evidence": [
+        {
+          "feature": "interface.repeated_parameter_group",
+          "operator": "count_gte",
+          "value": 2
+        }
+      ],
+      "counter_evidence": [
+        {
+          "feature": "semantic.behavior",
+          "operator": "contains",
+          "value": "keyword arguments already name every optional part"
+        }
+      ],
+      "semantic_questions": [
+        "Does a caller have to remember an assembly order the constructor does not enforce?"
+      ],
+      "benefits": [
+        "Names each optional part and keeps half-built objects out of reach."
+      ],
+      "liabilities": [
+        "A language with keyword arguments, defaults, or dataclasses often expresses this with no builder at all; adding one then buys ceremony, not clarity."
+      ],
+      "verification_invariants": [
+        "An object built through the builder is indistinguishable from one built directly."
+      ],
+      "relations": {
+        "related": [],
+        "complementary": [],
+        "alternatives": [],
+        "conflicts": []
+      }
     },
     {
       "stable_key": "composite",
       "name": "Composite",
       "kind": "constructive",
       "intent": "Treat individual objects and recursive groups through one common interface.",
-      "problem_signals": [{"feature": "syntax.inheritance", "operator": "count_gte", "value": 2}],
-      "supporting_evidence": [{"feature": "syntax.calls", "operator": "count_gte", "value": 2}],
-      "counter_evidence": [{"feature": "semantic.invariants", "operator": "contains", "value": "leaf and container semantics differ"}],
-      "semantic_questions": ["Can clients apply the same meaningful operation to leaves and containers?"],
-      "benefits": ["Makes recursive structures uniform for callers."],
-      "liabilities": ["A broad common interface can force meaningless operations onto leaves."],
-      "verification_invariants": ["Container behavior is the defined composition of child behavior."],
-      "relations": {"related": ["decorator", "visitor"]}
+      "problem_signals": [
+        {
+          "feature": "syntax.inheritance",
+          "operator": "count_gte",
+          "value": 2
+        }
+      ],
+      "supporting_evidence": [
+        {
+          "feature": "syntax.calls",
+          "operator": "count_gte",
+          "value": 2
+        }
+      ],
+      "counter_evidence": [
+        {
+          "feature": "semantic.invariants",
+          "operator": "contains",
+          "value": "leaf and container semantics differ"
+        }
+      ],
+      "semantic_questions": [
+        "Can clients apply the same meaningful operation to leaves and containers?"
+      ],
+      "benefits": [
+        "Makes recursive structures uniform for callers."
+      ],
+      "liabilities": [
+        "A broad common interface can force meaningless operations onto leaves."
+      ],
+      "verification_invariants": [
+        "Container behavior is the defined composition of child behavior."
+      ],
+      "relations": {
+        "related": [
+          "decorator",
+          "visitor"
+        ]
+      }
     },
     {
       "stable_key": "decorator",
       "name": "Decorator",
       "kind": "constructive",
       "intent": "Add composable behavior around an object while retaining its contract.",
-      "problem_signals": [{"feature": "syntax.inheritance", "operator": "count_gte", "value": 2}],
-      "supporting_evidence": [{"feature": "syntax.calls", "operator": "count_gte", "value": 2}],
-      "counter_evidence": [{"feature": "semantic.side_effects", "operator": "contains", "value": "changes core semantics"}],
-      "semantic_questions": ["Is the added responsibility independently optional and order-aware?"],
-      "benefits": ["Supports runtime composition without subclass explosion."],
-      "liabilities": ["Many wrappers can obscure execution order and identity."],
-      "verification_invariants": ["The wrapped object remains substitutable and decoration order is tested."],
-      "relations": {"related": ["composite", "proxy"], "alternatives": ["template-method"]}
+      "problem_signals": [
+        {
+          "feature": "syntax.inheritance",
+          "operator": "count_gte",
+          "value": 2
+        }
+      ],
+      "supporting_evidence": [
+        {
+          "feature": "syntax.calls",
+          "operator": "count_gte",
+          "value": 2
+        }
+      ],
+      "counter_evidence": [
+        {
+          "feature": "semantic.side_effects",
+          "operator": "contains",
+          "value": "changes core semantics"
+        }
+      ],
+      "semantic_questions": [
+        "Is the added responsibility independently optional and order-aware?"
+      ],
+      "benefits": [
+        "Supports runtime composition without subclass explosion."
+      ],
+      "liabilities": [
+        "Many wrappers can obscure execution order and identity."
+      ],
+      "verification_invariants": [
+        "The wrapped object remains substitutable and decoration order is tested."
+      ],
+      "relations": {
+        "related": [
+          "composite",
+          "proxy"
+        ],
+        "alternatives": [
+          "template-method"
+        ]
+      }
     },
     {
       "stable_key": "dependency-inversion",
       "name": "Dependency Inversion",
       "kind": "constructive",
       "intent": "Make high-level policy depend on stable abstractions rather than volatile implementation details.",
-      "problem_signals": [{"feature": "graph.fan_out", "operator": "gte", "value": 8}],
-      "supporting_evidence": [{"feature": "syntax.inheritance", "operator": "count_gte", "value": 1}],
-      "counter_evidence": [{"feature": "types.count", "operator": "lte", "value": 1}],
-      "semantic_questions": ["Is there a volatile dependency with multiple implementations or a boundary worth isolating?"],
-      "benefits": ["Stabilizes policy code across infrastructure changes."],
-      "liabilities": ["Speculative interfaces increase navigation and configuration cost."],
-      "verification_invariants": ["High-level behavior is testable against the abstraction and no implementation detail leaks through."],
-      "relations": {"related": ["ports-and-adapters", "provider-abstraction"], "complementary": ["dependency-injection"]}
+      "problem_signals": [
+        {
+          "feature": "graph.fan_out",
+          "operator": "gte",
+          "value": 8
+        }
+      ],
+      "supporting_evidence": [
+        {
+          "feature": "syntax.inheritance",
+          "operator": "count_gte",
+          "value": 1
+        }
+      ],
+      "counter_evidence": [
+        {
+          "feature": "types.count",
+          "operator": "lte",
+          "value": 1
+        }
+      ],
+      "semantic_questions": [
+        "Is there a volatile dependency with multiple implementations or a boundary worth isolating?"
+      ],
+      "benefits": [
+        "Stabilizes policy code across infrastructure changes."
+      ],
+      "liabilities": [
+        "Speculative interfaces increase navigation and configuration cost."
+      ],
+      "verification_invariants": [
+        "High-level behavior is testable against the abstraction and no implementation detail leaks through."
+      ],
+      "relations": {
+        "related": [
+          "ports-and-adapters",
+          "provider-abstraction"
+        ],
+        "complementary": [
+          "dependency-injection"
+        ]
+      }
     },
     {
       "stable_key": "facade",
       "name": "Facade",
       "kind": "constructive",
       "intent": "Offer a focused entry point over a more complex subsystem.",
-      "problem_signals": [{"feature": "graph.fan_out", "operator": "gte", "value": 8}],
-      "supporting_evidence": [{"feature": "interfaces.public", "operator": "exists"}],
-      "counter_evidence": [{"feature": "semantic.responsibilities", "operator": "contains", "value": "unrelated workflows"}],
-      "semantic_questions": ["Can the subsystem's common use cases be expressed through one cohesive boundary?"],
-      "benefits": ["Reduces client coupling and reveals supported workflows."],
-      "liabilities": ["A facade can grow into an oversized service that owns unrelated behavior."],
-      "verification_invariants": ["Facade operations preserve subsystem contracts and do not conceal required advanced access."],
-      "relations": {"related": ["adapter", "public-facade"]}
+      "problem_signals": [
+        {
+          "feature": "graph.fan_out",
+          "operator": "gte",
+          "value": 8
+        }
+      ],
+      "supporting_evidence": [
+        {
+          "feature": "interfaces.public",
+          "operator": "exists"
+        }
+      ],
+      "counter_evidence": [
+        {
+          "feature": "semantic.responsibilities",
+          "operator": "contains",
+          "value": "unrelated workflows"
+        }
+      ],
+      "semantic_questions": [
+        "Can the subsystem's common use cases be expressed through one cohesive boundary?"
+      ],
+      "benefits": [
+        "Reduces client coupling and reveals supported workflows."
+      ],
+      "liabilities": [
+        "A facade can grow into an oversized service that owns unrelated behavior."
+      ],
+      "verification_invariants": [
+        "Facade operations preserve subsystem contracts and do not conceal required advanced access."
+      ],
+      "relations": {
+        "related": [
+          "adapter",
+          "public-facade"
+        ]
+      }
     },
     {
       "stable_key": "factory-method",
       "name": "Factory Method",
       "kind": "constructive",
       "intent": "Delegate construction choice while keeping the creation protocol stable.",
-      "problem_signals": [{"feature": "syntax.constructors", "operator": "count_gte", "value": 2}],
-      "supporting_evidence": [{"feature": "syntax.inheritance", "operator": "count_gte", "value": 1}],
-      "counter_evidence": [{"feature": "types.count", "operator": "lte", "value": 1}],
-      "semantic_questions": ["Does construction vary independently from the operation that uses the object?"],
-      "benefits": ["Localizes concrete construction decisions."],
-      "liabilities": ["Subclass-based creation can be heavier than passing a callable."],
-      "verification_invariants": ["Every factory result satisfies the declared product contract."],
-      "relations": {"related": ["abstract-factory"], "alternatives": ["dependency-injection"]}
+      "problem_signals": [
+        {
+          "feature": "syntax.constructors",
+          "operator": "count_gte",
+          "value": 2
+        }
+      ],
+      "supporting_evidence": [
+        {
+          "feature": "syntax.inheritance",
+          "operator": "count_gte",
+          "value": 1
+        }
+      ],
+      "counter_evidence": [
+        {
+          "feature": "types.count",
+          "operator": "lte",
+          "value": 1
+        }
+      ],
+      "semantic_questions": [
+        "Does construction vary independently from the operation that uses the object?"
+      ],
+      "benefits": [
+        "Localizes concrete construction decisions."
+      ],
+      "liabilities": [
+        "Subclass-based creation can be heavier than passing a callable."
+      ],
+      "verification_invariants": [
+        "Every factory result satisfies the declared product contract."
+      ],
+      "relations": {
+        "related": [
+          "abstract-factory"
+        ],
+        "alternatives": [
+          "dependency-injection"
+        ]
+      }
+    },
+    {
+      "stable_key": "flyweight",
+      "name": "Flyweight",
+      "kind": "constructive",
+      "intent": "Share one immutable instance across many uses instead of repeating it.",
+      "problem_signals": [
+        {
+          "feature": "code.lines",
+          "operator": "gte",
+          "value": 200
+        }
+      ],
+      "supporting_evidence": [
+        {
+          "feature": "runtime.resource_contention",
+          "operator": "gte",
+          "value": 1
+        }
+      ],
+      "counter_evidence": [
+        {
+          "feature": "semantic.behavior",
+          "operator": "contains",
+          "value": "no measured memory pressure"
+        }
+      ],
+      "semantic_questions": [
+        "Is there a measured memory cost, and is the shared state truly immutable?"
+      ],
+      "benefits": [
+        "Removes duplicated immutable state when the duplication is measured."
+      ],
+      "liabilities": [
+        "Without a measurement this is premature: it adds a lookup and a lifetime question to save memory nobody showed was scarce. Sharing anything mutable turns it into a defect."
+      ],
+      "verification_invariants": [
+        "Shared instances are immutable, and behaviour is identical with sharing switched off."
+      ],
+      "relations": {
+        "related": [],
+        "complementary": [],
+        "alternatives": [],
+        "conflicts": []
+      }
     },
     {
       "stable_key": "god-object",
       "name": "God Object",
       "kind": "failure_mode",
       "intent": "Identify a type that centralizes many unrelated responsibilities and collaborators.",
-      "problem_signals": [{"feature": "symbol.definition_count", "operator": "gte", "value": 20}],
-      "supporting_evidence": [{"feature": "graph.fan_out", "operator": "gte", "value": 10}],
-      "counter_evidence": [{"feature": "semantic.responsibilities", "operator": "contains", "value": "single cohesive aggregate"}],
-      "semantic_questions": ["Which responsibilities change for different reasons or serve different callers?"],
-      "benefits": ["Surfaces concentrated change risk and low cohesion."],
-      "liabilities": ["Mechanical splitting can create chatty objects and broken invariants."],
-      "verification_invariants": ["Any split retains ownership of cross-responsibility invariants and transaction boundaries."],
-      "relations": {"related": ["god-module"], "alternatives": ["facade", "mediator"]}
+      "problem_signals": [
+        {
+          "feature": "symbol.definition_count",
+          "operator": "gte",
+          "value": 20
+        }
+      ],
+      "supporting_evidence": [
+        {
+          "feature": "graph.fan_out",
+          "operator": "gte",
+          "value": 10
+        }
+      ],
+      "counter_evidence": [
+        {
+          "feature": "semantic.responsibilities",
+          "operator": "contains",
+          "value": "single cohesive aggregate"
+        }
+      ],
+      "semantic_questions": [
+        "Which responsibilities change for different reasons or serve different callers?"
+      ],
+      "benefits": [
+        "Surfaces concentrated change risk and low cohesion."
+      ],
+      "liabilities": [
+        "Mechanical splitting can create chatty objects and broken invariants."
+      ],
+      "verification_invariants": [
+        "Any split retains ownership of cross-responsibility invariants and transaction boundaries."
+      ],
+      "relations": {
+        "related": [
+          "god-module"
+        ],
+        "alternatives": [
+          "facade",
+          "mediator"
+        ]
+      }
     },
     {
       "stable_key": "inappropriate-inheritance",
       "name": "Inappropriate Inheritance",
       "kind": "failure_mode",
       "intent": "Detect subtype relationships used for reuse despite weak substitutability.",
-      "problem_signals": [{"feature": "syntax.inheritance", "operator": "count_gte", "value": 1}],
-      "supporting_evidence": [{"feature": "interface.signatures", "operator": "exists"}],
-      "counter_evidence": [{"feature": "semantic.invariants", "operator": "contains", "value": "substitutable contract"}],
-      "semantic_questions": ["Can every subtype honor the base contract without disabling or redefining operations?"],
-      "benefits": ["Exposes fragile reuse and violated substitutability."],
-      "liabilities": ["Replacing inheritance can lose framework-required extension semantics."],
-      "verification_invariants": ["Every replacement preserves polymorphic behavior expected by current clients."],
-      "relations": {"alternatives": ["bridge", "composite", "strategy"]}
+      "problem_signals": [
+        {
+          "feature": "syntax.inheritance",
+          "operator": "count_gte",
+          "value": 1
+        }
+      ],
+      "supporting_evidence": [
+        {
+          "feature": "interface.signatures",
+          "operator": "exists"
+        }
+      ],
+      "counter_evidence": [
+        {
+          "feature": "semantic.invariants",
+          "operator": "contains",
+          "value": "substitutable contract"
+        }
+      ],
+      "semantic_questions": [
+        "Can every subtype honor the base contract without disabling or redefining operations?"
+      ],
+      "benefits": [
+        "Exposes fragile reuse and violated substitutability."
+      ],
+      "liabilities": [
+        "Replacing inheritance can lose framework-required extension semantics."
+      ],
+      "verification_invariants": [
+        "Every replacement preserves polymorphic behavior expected by current clients."
+      ],
+      "relations": {
+        "alternatives": [
+          "bridge",
+          "composite",
+          "strategy"
+        ]
+      }
+    },
+    {
+      "stable_key": "iterator",
+      "name": "Iterator",
+      "kind": "constructive",
+      "intent": "Walk a collection without exposing how it is stored.",
+      "problem_signals": [
+        {
+          "feature": "interface.signatures",
+          "operator": "count_gte",
+          "value": 4
+        }
+      ],
+      "supporting_evidence": [
+        {
+          "feature": "semantic.behavior",
+          "operator": "contains",
+          "value": "callers index into the internal structure"
+        }
+      ],
+      "counter_evidence": [
+        {
+          "feature": "semantic.behavior",
+          "operator": "contains",
+          "value": "the language iteration protocol already covers this"
+        }
+      ],
+      "semantic_questions": [
+        "Do callers depend on how the collection is stored rather than on its order?"
+      ],
+      "benefits": [
+        "Lets the storage change without touching every caller."
+      ],
+      "liabilities": [
+        "Python, JavaScript and TypeScript all have an iteration protocol and generators; a hand-written iterator class is usually the idiom written the long way."
+      ],
+      "verification_invariants": [
+        "Callers see the same sequence when the underlying storage is replaced."
+      ],
+      "relations": {
+        "related": [],
+        "complementary": [],
+        "alternatives": [],
+        "conflicts": []
+      }
     },
     {
       "stable_key": "leaky-abstraction",
       "name": "Leaky Abstraction",
       "kind": "failure_mode",
       "intent": "Identify an abstraction that forces callers to understand hidden implementation details.",
-      "problem_signals": [{"feature": "interfaces.public", "operator": "exists"}],
-      "supporting_evidence": [{"feature": "semantic.risks", "operator": "contains", "value": "implementation detail"}],
-      "counter_evidence": [{"feature": "semantic.public_contracts", "operator": "contains", "value": "portable contract"}],
-      "semantic_questions": ["Can callers use the abstraction correctly without knowing the selected implementation?"],
-      "benefits": ["Reveals boundaries that fail to contain volatility."],
-      "liabilities": ["Some operational characteristics cannot or should not be hidden."],
-      "verification_invariants": ["The repaired contract exposes necessary capabilities without implementation-specific coupling."],
-      "relations": {"related": ["provider-abstraction"], "alternatives": ["adapter"]}
+      "problem_signals": [
+        {
+          "feature": "interfaces.public",
+          "operator": "exists"
+        }
+      ],
+      "supporting_evidence": [
+        {
+          "feature": "semantic.risks",
+          "operator": "contains",
+          "value": "implementation detail"
+        }
+      ],
+      "counter_evidence": [
+        {
+          "feature": "semantic.public_contracts",
+          "operator": "contains",
+          "value": "portable contract"
+        }
+      ],
+      "semantic_questions": [
+        "Can callers use the abstraction correctly without knowing the selected implementation?"
+      ],
+      "benefits": [
+        "Reveals boundaries that fail to contain volatility."
+      ],
+      "liabilities": [
+        "Some operational characteristics cannot or should not be hidden."
+      ],
+      "verification_invariants": [
+        "The repaired contract exposes necessary capabilities without implementation-specific coupling."
+      ],
+      "relations": {
+        "related": [
+          "provider-abstraction"
+        ],
+        "alternatives": [
+          "adapter"
+        ]
+      }
+    },
+    {
+      "stable_key": "prototype",
+      "name": "Prototype",
+      "kind": "constructive",
+      "intent": "Produce a new object by copying a configured instance instead of rebuilding it.",
+      "problem_signals": [
+        {
+          "feature": "interface.signatures",
+          "operator": "count_gte",
+          "value": 5
+        }
+      ],
+      "supporting_evidence": [
+        {
+          "feature": "semantic.behavior",
+          "operator": "contains",
+          "value": "expensive construction repeated with small differences"
+        }
+      ],
+      "counter_evidence": [
+        {
+          "feature": "semantic.behavior",
+          "operator": "contains",
+          "value": "a standard copy facility already covers this"
+        }
+      ],
+      "semantic_questions": [
+        "Is construction genuinely expensive, and is the copy's depth defined?"
+      ],
+      "benefits": [
+        "Avoids repeating costly setup when instances differ only slightly."
+      ],
+      "liabilities": [
+        "Most languages ship copying already, and a hand-written clone tends to drift from the fields it must copy. Shallow and deep copies fail differently."
+      ],
+      "verification_invariants": [
+        "A copy shares exactly the state the contract says it shares, and no more."
+      ],
+      "relations": {
+        "related": [],
+        "complementary": [],
+        "alternatives": [],
+        "conflicts": []
+      }
     },
     {
       "stable_key": "provider-abstraction",
       "name": "Provider Abstraction",
       "kind": "constructive",
       "intent": "Define one stable provider contract for multiple interchangeable external or model implementations.",
-      "problem_signals": [{"feature": "syntax.constructors", "operator": "count_gte", "value": 2}],
-      "supporting_evidence": [{"feature": "syntax.inheritance", "operator": "count_gte", "value": 2}],
-      "counter_evidence": [{"feature": "types.count", "operator": "lte", "value": 1}],
-      "semantic_questions": ["Do at least two real providers share stable semantics, lifecycle, and error expectations?"],
-      "benefits": ["Removes provider conditionals from clients and supports runtime substitution."],
-      "liabilities": ["A lowest-common-denominator interface can hide provider-specific capabilities."],
-      "verification_invariants": ["Every provider passes the same contract suite and records provider-specific provenance separately."],
-      "relations": {"related": ["strategy", "dependency-inversion"], "complementary": ["adapter"]}
+      "problem_signals": [
+        {
+          "feature": "syntax.constructors",
+          "operator": "count_gte",
+          "value": 2
+        }
+      ],
+      "supporting_evidence": [
+        {
+          "feature": "syntax.inheritance",
+          "operator": "count_gte",
+          "value": 2
+        }
+      ],
+      "counter_evidence": [
+        {
+          "feature": "types.count",
+          "operator": "lte",
+          "value": 1
+        }
+      ],
+      "semantic_questions": [
+        "Do at least two real providers share stable semantics, lifecycle, and error expectations?"
+      ],
+      "benefits": [
+        "Removes provider conditionals from clients and supports runtime substitution."
+      ],
+      "liabilities": [
+        "A lowest-common-denominator interface can hide provider-specific capabilities."
+      ],
+      "verification_invariants": [
+        "Every provider passes the same contract suite and records provider-specific provenance separately."
+      ],
+      "relations": {
+        "related": [
+          "strategy",
+          "dependency-inversion"
+        ],
+        "complementary": [
+          "adapter"
+        ]
+      }
     },
     {
       "stable_key": "proxy",
       "name": "Proxy",
       "kind": "constructive",
       "intent": "Control access to another object while preserving its client-facing contract.",
-      "problem_signals": [{"feature": "syntax.calls", "operator": "count_gte", "value": 2}],
-      "supporting_evidence": [{"feature": "interface.signatures", "operator": "exists"}],
-      "counter_evidence": [{"feature": "semantic.responsibilities", "operator": "contains", "value": "changes domain outcome"}],
-      "semantic_questions": ["Is the added behavior access control, location, caching, or lifecycle rather than domain policy?"],
-      "benefits": ["Encapsulates access concerns behind a substitutable boundary."],
-      "liabilities": ["Remote or lazy behavior can make cost and failure less visible."],
-      "verification_invariants": ["Proxy-visible behavior matches the subject contract including error semantics."],
-      "relations": {"related": ["decorator", "cache-aside"]}
+      "problem_signals": [
+        {
+          "feature": "syntax.calls",
+          "operator": "count_gte",
+          "value": 2
+        }
+      ],
+      "supporting_evidence": [
+        {
+          "feature": "interface.signatures",
+          "operator": "exists"
+        }
+      ],
+      "counter_evidence": [
+        {
+          "feature": "semantic.responsibilities",
+          "operator": "contains",
+          "value": "changes domain outcome"
+        }
+      ],
+      "semantic_questions": [
+        "Is the added behavior access control, location, caching, or lifecycle rather than domain policy?"
+      ],
+      "benefits": [
+        "Encapsulates access concerns behind a substitutable boundary."
+      ],
+      "liabilities": [
+        "Remote or lazy behavior can make cost and failure less visible."
+      ],
+      "verification_invariants": [
+        "Proxy-visible behavior matches the subject contract including error semantics."
+      ],
+      "relations": {
+        "related": [
+          "decorator",
+          "cache-aside"
+        ]
+      }
+    },
+    {
+      "stable_key": "singleton",
+      "name": "Singleton",
+      "kind": "failure_mode",
+      "intent": "Identify one globally reachable mutable instance that callers cannot substitute.",
+      "problem_signals": [
+        {
+          "feature": "graph.fan_in",
+          "operator": "gte",
+          "value": 8
+        }
+      ],
+      "supporting_evidence": [
+        {
+          "feature": "semantic.behavior",
+          "operator": "contains",
+          "value": "global mutable instance"
+        }
+      ],
+      "counter_evidence": [
+        {
+          "feature": "semantic.architecture_constraints",
+          "operator": "contains",
+          "value": "process-wide resource with one owner"
+        }
+      ],
+      "semantic_questions": [
+        "Can a test substitute this, and what happens when two of them exist?"
+      ],
+      "benefits": [
+        "Names a dependency that cannot be replaced, which is what makes it hard to test."
+      ],
+      "liabilities": [
+        "Recorded as a failure mode, not a recommendation: it hides a dependency, serialises unrelated work, and outlives the scope that needed it. A module-level value or an injected instance is usually the smaller answer."
+      ],
+      "verification_invariants": [
+        "Every caller can be handed a substitute without changing its code."
+      ],
+      "relations": {
+        "related": [],
+        "complementary": [],
+        "alternatives": [],
+        "conflicts": []
+      }
     },
     {
       "stable_key": "state",
       "name": "State",
       "kind": "constructive",
       "intent": "Delegate behavior to explicit state objects when valid operations vary by lifecycle state.",
-      "problem_signals": [{"feature": "syntax.control_flow", "operator": "count_gte", "value": 5}],
-      "supporting_evidence": [{"feature": "syntax.inheritance", "operator": "count_gte", "value": 2}],
-      "counter_evidence": [{"feature": "semantic.invariants", "operator": "contains", "value": "two-state flag"}],
-      "semantic_questions": ["Are states stable domain concepts with distinct behavior and transition rules?"],
-      "benefits": ["Localizes state-specific behavior and transitions."],
-      "liabilities": ["Creates many types for a small or mostly data-driven lifecycle."],
-      "verification_invariants": ["Only declared transitions occur and every state preserves shared invariants."],
-      "relations": {"related": ["state-machine", "workflow-state-machine"], "alternatives": ["table-driven-dispatch"]}
+      "problem_signals": [
+        {
+          "feature": "syntax.control_flow",
+          "operator": "count_gte",
+          "value": 5
+        }
+      ],
+      "supporting_evidence": [
+        {
+          "feature": "syntax.inheritance",
+          "operator": "count_gte",
+          "value": 2
+        }
+      ],
+      "counter_evidence": [
+        {
+          "feature": "semantic.invariants",
+          "operator": "contains",
+          "value": "two-state flag"
+        }
+      ],
+      "semantic_questions": [
+        "Are states stable domain concepts with distinct behavior and transition rules?"
+      ],
+      "benefits": [
+        "Localizes state-specific behavior and transitions."
+      ],
+      "liabilities": [
+        "Creates many types for a small or mostly data-driven lifecycle."
+      ],
+      "verification_invariants": [
+        "Only declared transitions occur and every state preserves shared invariants."
+      ],
+      "relations": {
+        "related": [
+          "state-machine",
+          "workflow-state-machine"
+        ],
+        "alternatives": [
+          "table-driven-dispatch"
+        ]
+      }
     },
     {
       "stable_key": "strategy",
       "name": "Strategy",
       "kind": "constructive",
       "intent": "Encapsulate interchangeable algorithms behind one stable operation contract.",
-      "problem_signals": [{"feature": "syntax.control_flow", "operator": "count_gte", "value": 3}],
-      "supporting_evidence": [{"feature": "syntax.inheritance", "operator": "count_gte", "value": 2}],
-      "counter_evidence": [{"feature": "types.count", "operator": "lte", "value": 1}],
-      "semantic_questions": ["Do multiple real algorithms solve the same problem under the same preconditions?"],
-      "benefits": ["Makes algorithm selection explicit and removes caller conditionals."],
-      "liabilities": ["Adds object and configuration overhead for trivial variation."],
-      "verification_invariants": ["All strategies satisfy shared inputs, outputs, errors, and domain invariants."],
-      "relations": {"related": ["provider-abstraction", "table-driven-dispatch"], "alternatives": ["template-method"]}
+      "problem_signals": [
+        {
+          "feature": "syntax.control_flow",
+          "operator": "count_gte",
+          "value": 3
+        }
+      ],
+      "supporting_evidence": [
+        {
+          "feature": "syntax.inheritance",
+          "operator": "count_gte",
+          "value": 2
+        }
+      ],
+      "counter_evidence": [
+        {
+          "feature": "types.count",
+          "operator": "lte",
+          "value": 1
+        }
+      ],
+      "semantic_questions": [
+        "Do multiple real algorithms solve the same problem under the same preconditions?"
+      ],
+      "benefits": [
+        "Makes algorithm selection explicit and removes caller conditionals."
+      ],
+      "liabilities": [
+        "Adds object and configuration overhead for trivial variation."
+      ],
+      "verification_invariants": [
+        "All strategies satisfy shared inputs, outputs, errors, and domain invariants."
+      ],
+      "relations": {
+        "related": [
+          "provider-abstraction",
+          "table-driven-dispatch"
+        ],
+        "alternatives": [
+          "template-method"
+        ]
+      }
     },
     {
       "stable_key": "template-method",
       "name": "Template Method",
       "kind": "constructive",
       "intent": "Fix an algorithm skeleton while allowing selected steps to vary through overrides.",
-      "problem_signals": [{"feature": "syntax.inheritance", "operator": "count_gte", "value": 2}],
-      "supporting_evidence": [{"feature": "syntax.calls", "operator": "count_gte", "value": 3}],
-      "counter_evidence": [{"feature": "semantic.extension_points", "operator": "contains", "value": "runtime composition"}],
-      "semantic_questions": ["Is the invariant sequence more stable than the individual customizable steps?"],
-      "benefits": ["Keeps workflow order centralized while exposing narrow extension points."],
-      "liabilities": ["Inheritance couples extensions to lifecycle and protected implementation details."],
-      "verification_invariants": ["Overrides cannot bypass mandatory steps or shared cleanup."],
-      "relations": {"alternatives": ["strategy", "pipeline"], "related": ["factory-method"]}
+      "problem_signals": [
+        {
+          "feature": "syntax.inheritance",
+          "operator": "count_gte",
+          "value": 2
+        }
+      ],
+      "supporting_evidence": [
+        {
+          "feature": "syntax.calls",
+          "operator": "count_gte",
+          "value": 3
+        }
+      ],
+      "counter_evidence": [
+        {
+          "feature": "semantic.extension_points",
+          "operator": "contains",
+          "value": "runtime composition"
+        }
+      ],
+      "semantic_questions": [
+        "Is the invariant sequence more stable than the individual customizable steps?"
+      ],
+      "benefits": [
+        "Keeps workflow order centralized while exposing narrow extension points."
+      ],
+      "liabilities": [
+        "Inheritance couples extensions to lifecycle and protected implementation details."
+      ],
+      "verification_invariants": [
+        "Overrides cannot bypass mandatory steps or shared cleanup."
+      ],
+      "relations": {
+        "alternatives": [
+          "strategy",
+          "pipeline"
+        ],
+        "related": [
+          "factory-method"
+        ]
+      }
     }
   ]
 }
