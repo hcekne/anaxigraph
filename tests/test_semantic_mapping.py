@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 from semantic_support import _agent_dossier, _fake_provider, _semantic_config
 
-from anaxigraph import semantic_runner
+from anaxigraph import semantic_freshness, semantic_runner
 from anaxigraph.agent import architecture_guidance
 from anaxigraph.config import SemanticConfig, load_config, semantic_config_from_mapping
 from anaxigraph.scanner import RepositoryScanner
@@ -25,6 +25,7 @@ from anaxigraph.semantic_taxonomy_contract import (
     validated_agent_semantic_response,
     validated_semantic_response,
 )
+from anaxigraph.understandability import AGENT_REVIEW_POLICY
 from anaxigraph.understanding import SemanticEngine
 
 
@@ -175,6 +176,7 @@ def test_lean_map_finishes_and_still_supports_guidance(repository, database, tmp
             assert request["max_output_tokens"] == 4_000
             assert "understandability_policy" not in request
             assert "input_term_meanings" not in request
+            assert AGENT_REVIEW_POLICY not in json.dumps(request)
         elif request["analysis_kind"] == "taxonomy_proposal":
             assert all(
                 "architecture_role" not in module["dossier"] for module in request["modules"]
@@ -187,6 +189,7 @@ def test_lean_map_finishes_and_still_supports_guidance(repository, database, tmp
     assert guide["primary_files"][0]["summary"]
     reader = guide["architecture_decision"].get("understandability") or {"status": "unknown"}
     assert reader["status"] == "unknown"
+    monkeypatch.setattr(semantic_freshness, "AGENT_REVIEW_POLICY", "Changed review instructions")
     assert engine.bootstrap(scan.repository_id, repository, config)["processed"] == 0
 
 
@@ -207,6 +210,14 @@ def test_review_mode_refreshes_evidence_and_can_return_to_lean_mapping(
     detailed = engine.bootstrap(scan.repository_id, repository, review)
     assert detailed["semantic"]["semantically_ready"]
     assert any(item["analysis_kind"] == "pattern_review" for item in provider.requests)
+    for request in provider.requests:
+        if request["analysis_kind"] in {
+            "intrinsic",
+            "context",
+            "pattern_assessment",
+            "pattern_review",
+        }:
+            assert json.dumps(request).count(AGENT_REVIEW_POLICY) == 1
     assert (
         "understandability" in engine.dossier(scan.repository_id, "pkg/core.py")["context"]["value"]
     )

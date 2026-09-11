@@ -10,7 +10,7 @@ from typing import Any
 
 from anaxigraph.pattern_evaluation_contract import PATTERN_SCORE_CONTRACT_VERSION
 
-EVIDENCE_SELECTION_VERSION = "representative-evidence-v1"
+EVIDENCE_SELECTION_VERSION = "representative-evidence-v2"
 REVIEW_PACKET_BYTES = 800_000
 _COLLECTIONS = {
     "module_dossiers",
@@ -20,7 +20,20 @@ _COLLECTIONS = {
     "areas",
     "subsystems",
 }
-_REFERENCES = {"scope", "path", "key", "kind", "responsibility_owner"}
+_PRESERVED_FIELDS = {
+    "scope",
+    "path",
+    "key",
+    "kind",
+    "responsibility_owner",
+    "capability_brief",
+    "external_constraints",
+    "declared_context",
+    "public_contracts",
+    "invariants",
+    "protected_behavior",
+    "counter_evidence",
+}
 _IDENTITIES = {
     "contract",
     "schema_version",
@@ -143,7 +156,7 @@ def select_modules(
 
 
 def bounded_evidence(value: dict[str, Any], *, limit: int = REVIEW_PACKET_BYTES) -> dict[str, Any]:
-    """Keep identities intact and disclose every list/string reduction; never hide truncation."""
+    """Preserve identities and essential constraints before shortening supporting descriptions."""
     if evidence_bytes(value) <= limit:
         return value
     for text_limit, list_limit in ((600, 8), (300, 4), (300, 2), (300, 1), (120, 1), (60, 1)):
@@ -164,14 +177,15 @@ def bounded_evidence(value: dict[str, Any], *, limit: int = REVIEW_PACKET_BYTES)
         if evidence_bytes(result) <= limit:
             return result
     raise ValueError(
-        "Review identity metadata exceeds the evidence budget; narrow the requested evidence"
+        "Review identity metadata or essential constraints exceed the evidence budget; "
+        "narrow the requested evidence"
     )
 
 
 def _compact(
     value: Any, text_limit: int, list_limit: int, counts: dict[str, int], key: str = ""
 ) -> Any:
-    if key in _REFERENCES:
+    if key in _PRESERVED_FIELDS:
         return value
     if isinstance(value, str) and len(value) > text_limit:
         counts["shortened_strings"] += 1

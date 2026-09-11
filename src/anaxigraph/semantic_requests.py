@@ -19,7 +19,7 @@ from anaxigraph.semantic_request_support import (
     compact_dossier,
 )
 from anaxigraph.semantic_target_source import read_mounted_source, require_unchanged_source
-from anaxigraph.understandability import UNDERSTANDABILITY_POLICY
+from anaxigraph.understandability import AGENT_REVIEW_POLICY, UNDERSTANDABILITY_POLICY
 
 _REPOSITORY_CHARTER_CONTRACT = (
     "Create the Living Architecture Charter for this repository. Explain its purpose, actors, "
@@ -81,6 +81,8 @@ class SemanticEvidenceService:
         else:
             request["input_term_meanings"] = INPUT_TERM_MEANINGS
             request["understandability_policy"] = UNDERSTANDABILITY_POLICY
+        if semantic.detailed_reviews and job["job_kind"] in {"intrinsic", "context"}:
+            request["contract"] += " " + AGENT_REVIEW_POLICY
         return request
 
     def _intrinsic_request(

@@ -5,6 +5,17 @@ from __future__ import annotations
 import re
 from typing import Any
 
+AGENT_REVIEW_POLICY = (
+    "Judge a concrete maintenance task, not compliance with human-oriented design rules. "
+    "Agent performance depends on supplied context: distinguish missing context from a code "
+    "defect, and name missing evidence before proposing code changes. Keep purpose, caller "
+    "obligations, and critical details together. When existing code is supplied, compare retaining "
+    "it, improving context, and the smallest code change. Justify each added field, layer, or "
+    "tool with an actual consumer or evidenced failure; avoid speculative abstractions and catalog completion. "
+    "Existing result fields are not quotas for findings. Agent benefit remains a hypothesis "
+    "until correct task outcomes are measured in fresh sessions with comparable context and resources."
+)
+
 UNDERSTANDABILITY_VERSION = "code-understandability-v1"
 UNDERSTANDABILITY_POLICY = {
     "version": UNDERSTANDABILITY_VERSION,

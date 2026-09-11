@@ -23,6 +23,27 @@ Routine mapping produces five short fields: summary, responsibilities, essential
 source references, and confidence. Detailed assessments and pattern critique require
 `semantic.detailed_reviews: true`; they are not part of the default mapping workload.
 
+Human readability and agent effectiveness are related hypotheses, not interchangeable scores.
+The shared `AGENT_REVIEW_POLICY` in `understandability.py` qualifies detailed module reviews,
+pattern assessment/critique, and all fresh-eyes stages using their existing instruction fields.
+Compare keeping the code, improving the supplied context, and a small code change. Missing context
+is not evidence of a code defect. Every added field, layer, or tool needs an actual consumer or an
+evidenced failure; required result fields are not quotas for findings. Agent benefit needs correct
+maintenance-task outcomes in fresh sessions under comparable context and resources.
+
+The agent-review policy participates only in the identities of the reviews that use it and their
+pattern plan. Changing it does not invalidate existing routine five-field maps, introduce response
+fields, or start another review workflow. Existing results are not evidence that the new policy
+improves model behavior. The opt-in judgment fixtures include missing-context and overengineering
+cases; deterministic tests check integration, not model accuracy.
+
+When shortening oversized review packets, retain supplied capability briefs, external and declared
+constraints, public contracts, invariants, protected behavior, and counterevidence without cutting
+sentences or dropping later items in those fields. Shorten supporting descriptions first and report
+the omissions. If essential context itself cannot fit the existing byte budget, reject the packet
+and request a narrower scope; never disguise missing obligations as complete context. This protects
+those supplied fields, not evidence omitted earlier during retrieval or summaries written by a model.
+
 Language analyzers produce neutral records and never persist. Persistence does not import API or
 dashboard code. Interfaces call application services; they do not duplicate graph logic. A new
 adapter must remove provider conditionals from the scanner rather than add a second analysis path.
