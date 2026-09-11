@@ -50,26 +50,37 @@ def fixture_problems(tasks: list[dict[str, Any]]) -> list[str]:
     seen: set[str] = set()
     for index, task in enumerate(tasks):
         name = str(task.get("id") or f"task {index}")
-        missing = [field for field in _REQUIRED if field not in task]
-        if missing:
-            problems.append(f"{name}: missing {', '.join(missing)}")
-            continue
-        if name in seen:
-            problems.append(f"{name}: duplicate task id")
+        problems.extend(f"{name}: {issue}" for issue in _task_problems(task, name in seen))
         seen.add(name)
-        reference = task["reference"]
-        if len(reference.get("key_points") or []) < 2:
-            problems.append(f"{name}: fewer than two key points to grade against")
-        if str(reference.get("author_kind")) not in _AUTHOR_KINDS:
-            problems.append(f"{name}: author_kind must be one of {', '.join(_AUTHOR_KINDS)}")
-        for field in ("answer", "author", "recorded_at", "recorded_from"):
-            if not str(reference.get(field) or "").strip():
-                problems.append(f"{name}: reference answer has no {field}")
-        if not task["held_out"] and not str(task.get("disclosure") or "").strip():
-            problems.append(f"{name}: a task that is not held out must say why")
-        if not int(task["budget"].get("max_output_tokens") or 0):
-            problems.append(f"{name}: no output-token budget to match the reference answer")
     return problems
+
+
+def _task_problems(task: dict[str, Any], duplicate: bool) -> list[str]:
+    missing = [field for field in _REQUIRED if field not in task]
+    if missing:
+        return [f"missing {', '.join(missing)}"]
+    reference = task["reference"]
+    checks = [
+        (duplicate, "duplicate task id"),
+        (len(reference.get("key_points") or []) < 2, "fewer than two key points to grade against"),
+        (
+            str(reference.get("author_kind")) not in _AUTHOR_KINDS,
+            f"author_kind must be one of {', '.join(_AUTHOR_KINDS)}",
+        ),
+        (
+            not task["held_out"] and not str(task.get("disclosure") or "").strip(),
+            "a task that is not held out must say why",
+        ),
+        (
+            not int(task["budget"].get("max_output_tokens") or 0),
+            "no output-token budget to match the reference answer",
+        ),
+    ]
+    checks.extend(
+        (not str(reference.get(field) or "").strip(), f"reference answer has no {field}")
+        for field in ("answer", "author", "recorded_at", "recorded_from")
+    )
+    return [issue for failed, issue in checks if failed]
 
 
 def task_request(task: dict[str, Any]) -> dict[str, Any]:
@@ -211,18 +222,33 @@ def merge_grades(tasks: list[dict[str, Any]], sheet: dict[str, Any]) -> list[dic
     return merged
 
 
+def _withheld_reasons(merged: list[dict[str, Any]]) -> list[str]:
+    """Every reason a rate computed from these grades would mislead a reader."""
+
+    reasons = [
+        (not merged, "no graded tasks"),
+        (
+            any(not item["held_out"] for item in merged),
+            "some tasks were already acted on, so they rehearse the protocol only",
+        ),
+        (
+            any(item["reference_author_kind"] != "human" for item in merged),
+            "some reference answers were not written by a human expert",
+        ),
+        (
+            any(
+                source["grader_uncertain"] for item in merged for source in item["sources"].values()
+            ),
+            "the grader was not confident on at least one answer",
+        ),
+    ]
+    return [reason for failed, reason in reasons if failed]
+
+
 def task_summary(merged: list[dict[str, Any]]) -> dict[str, Any]:
     """Report what was covered and what was missed first, and say what this cannot support."""
 
-    withheld = []
-    if not merged:
-        withheld.append("no graded tasks")
-    if any(not item["held_out"] for item in merged):
-        withheld.append("some tasks were already acted on, so they rehearse the protocol only")
-    if any(item["reference_author_kind"] != "human" for item in merged):
-        withheld.append("some reference answers were not written by a human expert")
-    if any(source["grader_uncertain"] for item in merged for source in item["sources"].values()):
-        withheld.append("the grader was not confident on at least one answer")
+    withheld = _withheld_reasons(merged)
     summary: dict[str, Any] = {
         "tasks_graded": len(merged),
         "held_out_tasks": sum(item["held_out"] for item in merged),
