@@ -101,7 +101,21 @@ _TASK = _object(
     counter_evidence=_STRINGS,
     verification=_TEXT,
     confidence={"type": "number", "minimum": 0, "maximum": 1},
+    caller_obligations={
+        "type": "array",
+        "items": _TEXT,
+        "maxItems": 6,
+        "description": (
+            "What every caller must already know or guarantee because this interface does not "
+            "enforce it: an ordering rule, a precondition, a resource the caller must release, "
+            "or a detail the caller must repeat. Obligations a caller cannot discover from the "
+            "interface are the cost this task pays; an empty list means none were found, which "
+            "is not the same as none existing."
+        ),
+    },
 )
+# Optional: assessments saved before this field remain valid and are not re-requested.
+_TASK["required"] = [name for name in _TASK["required"] if name != "caller_obligations"]
 UNDERSTANDABILITY_SCHEMA = _object(
     contract_version={"type": "string", "enum": [UNDERSTANDABILITY_VERSION]},
     tasks={"type": "array", "items": _TASK, "maxItems": 3},

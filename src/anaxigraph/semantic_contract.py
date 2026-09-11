@@ -223,7 +223,11 @@ def _validated_understandability(value: Any) -> dict[str, Any]:
             raise SemanticAnalysisError(
                 "understandability tasks require concrete evidence and checks"
             )
-        if any(not item.strip() for item in (*task["evidence"], *task["counter_evidence"])):
+        obligations = task.get("caller_obligations") or ()
+        if any(
+            not item.strip()
+            for item in (*task["evidence"], *task["counter_evidence"], *obligations)
+        ):
             raise SemanticAnalysisError("understandability evidence cannot be blank")
         if not 0 <= task["confidence"] <= 1:
             raise SemanticAnalysisError(
