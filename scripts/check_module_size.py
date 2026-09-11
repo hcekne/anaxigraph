@@ -45,6 +45,7 @@ def check_repository(
     policy = json.loads((root / policy_path).read_text(encoding="utf-8"))
     selected = paths if paths is not None else _tracked_files(root)
     legacy = {item["path"]: item for item in policy["legacy_exceptions"]}
+    legacy.update({item["path"]: item for item in policy.get("cohesive_exceptions", [])})
     implementation_extensions = set(policy["implementation_extensions"])
     issues: list[SizeIssue] = []
     for raw_path in sorted(set(selected)):
@@ -59,6 +60,7 @@ def check_repository(
             issues.extend(_check_asset(candidate, path, policy))
     if paths is None:
         issues.extend(_validate_legacy_entries(root, policy, today or date.today()))
+        issues.extend(_validate_cohesive_entries(root, policy))
     return sorted(issues, key=lambda item: (item.level != "error", item.path, item.message))
 
 
@@ -76,7 +78,13 @@ def _check_implementation(
     issues: list[SizeIssue] = []
     if lines >= warning_limit and lines <= hard_limit:
         issues.append(
-            SizeIssue(path, lines, "warning", f"approaching the {hard_limit}-line ceiling")
+            SizeIssue(
+                path,
+                lines,
+                "warning",
+                f"approaching the {hard_limit}-line ceiling",
+                _boundary_advice(candidate),
+            )
         )
     if lines <= hard_limit:
         if exception is not None:
@@ -89,7 +97,7 @@ def _check_implementation(
                 )
             )
         return issues
-    suggestions = _extraction_suggestions(candidate)
+    suggestions = _boundary_advice(candidate)
     if test_file:
         issues.append(
             SizeIssue(
@@ -106,7 +114,8 @@ def _check_implementation(
                 path,
                 lines,
                 "error",
-                f"new implementation module exceeds the hard {hard_limit}-line ceiling",
+                f"new implementation module exceeds the hard {hard_limit}-line ceiling; "
+                "split it or record a reviewed cohesive exception",
                 suggestions,
             )
         )
@@ -180,24 +189,99 @@ def _validate_legacy_entries(root: Path, policy: dict[str, Any], today: date) ->
     return issues
 
 
-def _extraction_suggestions(path: Path) -> tuple[str, ...]:
-    if path.suffix == ".py":
-        try:
-            tree = ast.parse(path.read_text(encoding="utf-8"))
-        except (OSError, SyntaxError, UnicodeError):
-            return ()
-        boundaries = []
-        for node in tree.body:
-            if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
-                span = max(1, int(getattr(node, "end_lineno", node.lineno)) - node.lineno + 1)
-                boundaries.append(
-                    (span, type(node).__name__.removesuffix("Def").lower(), node.name)
+def _validate_cohesive_entries(root: Path, policy: dict[str, Any]) -> list[SizeIssue]:
+    """Hold a retained boundary to a claim someone can check, not a number.
+
+    A cohesive exception says a split would be worse. That is only reviewable if it names
+    the decision the module hides and the change tasks that would have to touch both halves,
+    so both are required and an entry whose module no longer needs it is an error.
+    """
+
+    issues: list[SizeIssue] = []
+    for item in policy.get("cohesive_exceptions", []):
+        path = item["path"]
+        candidate = root / path
+        if not candidate.is_file():
+            issues.append(SizeIssue(path, 0, "error", "cohesive exception names a missing file"))
+            continue
+        lines = _physical_lines(candidate)
+        if len(str(item.get("hidden_decision") or "").split()) < 5:
+            issues.append(
+                SizeIssue(path, lines, "error", "cohesive exception states no hidden decision")
+            )
+        if len(item.get("crossing_tasks") or []) < 2:
+            issues.append(
+                SizeIssue(
+                    path,
+                    lines,
+                    "error",
+                    "cohesive exception names fewer than two change tasks that a split would "
+                    "spread across two modules",
                 )
-        return tuple(
-            f"extract cohesive {kind} `{name}` ({span} lines)"
-            for span, kind, name in sorted(boundaries, reverse=True)[:3]
+            )
+        if not str(item.get("reviewed_on") or "").strip():
+            issues.append(SizeIssue(path, lines, "error", "cohesive exception is not dated"))
+    return issues
+
+
+def _boundary_advice(path: Path) -> tuple[str, ...]:
+    """Judge a split by whether one change would cross it, not by which parts are longest.
+
+    Extracting the longest definition is a size argument. It can leave two modules that
+    must be edited together, which is harder to change than the one module it replaced.
+    So the question asked here is whether any part of this module is reached from nothing
+    else in it. If nothing is, the boundary is doing its job and the honest record is a
+    reviewed exception rather than a split.
+    """
+
+    if path.suffix != ".py":
+        return ("name the routes, renderers, or query families that change for different reasons",)
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError, UnicodeError):
+        return ()
+    groups = sorted(_reference_groups(tree), key=lambda group: (-len(group), sorted(group)))
+    if len(groups) < 2:
+        return (
+            "no seam found: every definition here is reached from the others, so a split would "
+            "spread one change across two modules; record a reviewed cohesive exception instead",
         )
-    return ("extract a cohesive route, renderer, state manager, or query family",)
+    return tuple(
+        f"seam: {', '.join(sorted(group)[:4])}"
+        f"{' and more' if len(group) > 4 else ''} is reached from nothing else in this module"
+        for group in groups[1:4]
+    )
+
+
+def _reference_groups(tree: ast.Module) -> list[set[str]]:
+    """Group the module's own names by what reaches what, shared constants included."""
+
+    defined: dict[str, ast.AST] = {}
+    for node in tree.body:
+        if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            defined[node.name] = node
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    defined[target.id] = node
+    parent = dict.fromkeys(defined)
+
+    def root(name: str) -> str:
+        while parent[name] != name:
+            parent[name] = parent[parent[name]]
+            name = parent[name]
+        return name
+
+    for name in defined:
+        parent[name] = name
+    for name, node in defined.items():
+        for child in ast.walk(node):
+            if isinstance(child, ast.Name) and child.id in defined and child.id != name:
+                parent[root(child.id)] = root(name)
+    groups: dict[str, set[str]] = {}
+    for name in defined:
+        groups.setdefault(root(name), set()).add(name)
+    return list(groups.values())
 
 
 def _physical_lines(path: Path) -> int:

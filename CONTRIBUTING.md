@@ -73,7 +73,21 @@ The baselines in `quality/module-size-policy.json` and
 `quality/maintainability-policy.json` are shrinking ratchets, not permanent allowances. The latter
 also records the combined production Python/dashboard line budget. When production source or a
 legacy module, function, or coupling value decreases, lower its recorded baseline in the same
-change. Once an exception is within the normal limit, remove it. If an AnaxiIndex contains current
+change. Once an exception is within the normal limit, remove it.
+
+A size ceiling is a prompt to look, not a verdict. When a module is over the ceiling, the
+checker reports whether any part of it is reached from nothing else, because extracting the
+longest definition can leave two modules that must be edited together. When there is no such
+seam, the boundary is the right one and the honest record is a `cohesive_exceptions` entry in
+`quality/module-size-policy.json`: the decision the module hides, at least two change tasks a
+split would spread across two modules, and the date it was reviewed. Unlike a legacy exception
+it does not expire, because a cohesive boundary is not temporary, but it is checked: it fails
+if the module outgrows its baseline, if it drops back within the limit, or if the justification
+is missing. The quality checker asks the opposite question too, naming a module whose public
+functions all forward to one neighbour and that serves at most one caller, so inlining is
+weighed alongside splitting.
+
+If an AnaxiIndex contains current
 semantic dossiers, maintainers can also produce a non-authorizing cohesion review with:
 
 ```bash

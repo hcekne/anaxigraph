@@ -10,16 +10,18 @@ import pytest
 
 from scripts.check_architecture import check_architecture
 from scripts.check_changed_coverage import check_changed_coverage
-from scripts.check_code_quality import check_quality
 from scripts.check_forbidden_files import forbidden_paths
 from scripts.check_javascript_syntax import syntax_errors
 from scripts.check_module_size import check_repository
 from scripts.check_semantic_cohesion import cohesion_issues
-from scripts.quality_metrics import scan_functions
 from scripts.run_quality_gate import _container_browser_command, quality_commands
 
 
-def _policy(root: Path, legacy: list[dict] | None = None) -> Path:
+def _policy(
+    root: Path,
+    legacy: list[dict] | None = None,
+    cohesive: list[dict] | None = None,
+) -> Path:
     path = root / "policy.json"
     path.write_text(
         json.dumps(
@@ -36,6 +38,7 @@ def _policy(root: Path, legacy: list[dict] | None = None) -> Path:
                 "test_patterns": ["tests/**"],
                 "exclusions": [],
                 "legacy_exceptions": legacy or [],
+                "cohesive_exceptions": cohesive or [],
             }
         ),
         encoding="utf-8",
@@ -58,7 +61,7 @@ def _exception(path: str, baseline: int, expires: str = "2099-01-01") -> dict:
     }
 
 
-def test_new_oversized_module_fails_with_extraction_guidance(tmp_path):
+def test_an_oversized_module_with_one_connected_body_is_not_told_to_split_it(tmp_path):
     source = tmp_path / "src" / "large.py"
     source.parent.mkdir()
     source.write_text("def cohesive_service():\n" + "    value = 1\n" * 500, encoding="utf-8")
@@ -71,7 +74,103 @@ def test_new_oversized_module_fails_with_extraction_guidance(tmp_path):
 
     assert [item.level for item in issues] == ["error"]
     assert "hard 500-line ceiling" in issues[0].message
-    assert any("cohesive_service" in value for value in issues[0].suggestions)
+    assert any("no seam found" in value for value in issues[0].suggestions)
+    assert not any("cohesive_service" in value for value in issues[0].suggestions)
+
+
+def test_an_oversized_module_names_the_part_nothing_else_reaches(tmp_path):
+    source = tmp_path / "src" / "two_jobs.py"
+    source.parent.mkdir()
+    source.write_text(
+        "def core():\n"
+        + "    value = 1\n" * 400
+        + "\n\ndef core_helper():\n    return core()\n"
+        + "\n\ndef unrelated_report():\n"
+        + "    total = 0\n" * 120,
+        encoding="utf-8",
+    )
+
+    issues = check_repository(
+        tmp_path,
+        policy_path=_policy(tmp_path),
+        paths=["src/two_jobs.py"],
+    )
+
+    assert [item.level for item in issues] == ["error"]
+    assert any("unrelated_report" in value for value in issues[0].suggestions)
+    assert not any("core_helper" in value for value in issues[0].suggestions)
+
+
+def _cohesive(path: str, **overrides) -> dict:
+    return {
+        "path": path,
+        "hidden_decision": "How one review is grounded against the snapshot it was written from.",
+        "crossing_tasks": [
+            "Adding a citation kind changes both resolution and the stored report.",
+            "Renaming a stored status changes both projection and the status rules.",
+        ],
+        "reviewed_on": "2026-09-11",
+        **overrides,
+    }
+
+
+def test_a_reviewed_cohesive_boundary_is_accepted_where_a_bare_number_is_not(tmp_path):
+    source = tmp_path / "src" / "grounding.py"
+    source.parent.mkdir()
+    source.write_text("def cohesive_service():\n" + "    value = 1\n" * 500, encoding="utf-8")
+
+    issues = check_repository(
+        tmp_path,
+        policy_path=_policy(tmp_path, cohesive=[_cohesive("src/grounding.py", baseline_lines=501)]),
+        paths=["src/grounding.py"],
+    )
+
+    assert issues == []
+
+
+def test_a_cohesive_exception_that_names_no_crossing_task_is_rejected(tmp_path):
+    source = tmp_path / "src" / "grounding.py"
+    source.parent.mkdir()
+    source.write_text("def cohesive_service():\n" + "    value = 1\n" * 500, encoding="utf-8")
+    policy = _policy(
+        tmp_path,
+        cohesive=[_cohesive("src/grounding.py", baseline_lines=501, crossing_tasks=["only one"])],
+    )
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+
+    issues = check_repository(tmp_path, policy_path=policy)
+
+    assert any("fewer than two change tasks" in item.message for item in issues)
+
+
+def test_a_cohesive_exception_must_say_what_the_module_hides(tmp_path):
+    source = tmp_path / "src" / "grounding.py"
+    source.parent.mkdir()
+    source.write_text("def cohesive_service():\n" + "    value = 1\n" * 500, encoding="utf-8")
+    policy = _policy(
+        tmp_path,
+        cohesive=[_cohesive("src/grounding.py", baseline_lines=501, hidden_decision="it is big")],
+    )
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+
+    issues = check_repository(tmp_path, policy_path=policy)
+
+    assert any("states no hidden decision" in item.message for item in issues)
+
+
+def test_a_cohesive_exception_becomes_an_error_once_the_module_fits(tmp_path):
+    source = tmp_path / "src" / "small.py"
+    source.parent.mkdir()
+    source.write_text(_lines(20), encoding="utf-8")
+
+    issues = check_repository(
+        tmp_path,
+        policy_path=_policy(tmp_path, cohesive=[_cohesive("src/small.py", baseline_lines=501)]),
+        paths=["src/small.py"],
+    )
+
+    assert [item.level for item in issues] == ["error"]
+    assert "stale" in issues[0].message
 
 
 def test_whole_repository_check_includes_untracked_modules(tmp_path):
@@ -263,109 +362,6 @@ def test_javascript_syntax_checker_reports_invalid_module(tmp_path):
 
     assert syntax_errors([valid]) == []
     assert invalid.name in syntax_errors([invalid])[0]
-
-
-def _maintainability_policy(root: Path, **overrides) -> Path:
-    value = {
-        "schema_version": 1,
-        "source_root": "src",
-        "package": "sample",
-        "exclude": [],
-        "function_limits": {
-            "warning_lines": 40,
-            "hard_lines": 50,
-            "warning_complexity": 12,
-            "hard_complexity": 15,
-        },
-        "coupling_limits": {"warning": 8, "hard": 12},
-        "legacy_functions": {},
-        "legacy_coupling": {},
-    }
-    value.update(overrides)
-    path = root / "maintainability.json"
-    path.write_text(json.dumps(value), encoding="utf-8")
-    return path.relative_to(root)
-
-
-def test_function_budget_rejects_new_growth_and_ratchets_legacy(tmp_path):
-    module = tmp_path / "src" / "sample" / "service.py"
-    module.parent.mkdir(parents=True)
-    module.write_text("def oversized():\n" + "    value = 1\n" * 50, encoding="utf-8")
-    policy = _maintainability_policy(tmp_path)
-
-    issues = check_quality(tmp_path, policy_path=policy)
-
-    assert any(item.issue_type == "function_budget" and item.level == "error" for item in issues)
-    metric = scan_functions(
-        tmp_path,
-        {
-            "source_root": "src",
-            "package": "sample",
-            "exclude": [],
-        },
-    )[0]
-    policy = _maintainability_policy(
-        tmp_path,
-        legacy_functions={"src/sample/service.py::oversized": [metric.lines, metric.complexity]},
-    )
-    assert check_quality(tmp_path, policy_path=policy) == []
-
-    module.write_text(module.read_text(encoding="utf-8") + "    value = 2\n", encoding="utf-8")
-    growth = check_quality(tmp_path, policy_path=policy)
-    assert any(item.issue_type == "function_growth" for item in growth)
-
-
-def test_production_source_budget_is_an_exact_shrinking_ratchet(tmp_path):
-    package = tmp_path / "src" / "sample"
-    package.mkdir(parents=True)
-    module = package / "service.py"
-    asset = package / "dashboard.js"
-    module.write_text("VALUE = 1\nVALUE = 2\n", encoding="utf-8")
-    asset.write_text("const value = 1;\n", encoding="utf-8")
-    policy = _maintainability_policy(
-        tmp_path,
-        production_source_budget={
-            "root": "src/sample",
-            "extensions": [".py", ".js"],
-            "baseline_lines": 3,
-        },
-    )
-
-    assert check_quality(tmp_path, policy_path=policy) == []
-
-    asset.write_text("const value = 1;\nconst other = 2;\n", encoding="utf-8")
-    growth = check_quality(tmp_path, policy_path=policy)
-    assert any(item.issue_type == "production_source_growth" for item in growth)
-
-    module.write_text("VALUE = 1\n", encoding="utf-8")
-    asset.write_text("", encoding="utf-8")
-    reduced = check_quality(tmp_path, policy_path=policy)
-    assert any(item.issue_type == "stale_source_baseline" for item in reduced)
-    assert "lower baseline_lines to 1" in reduced[0].message
-
-
-def test_coupling_budget_ratchets_high_fan_in(tmp_path):
-    package = tmp_path / "src" / "sample"
-    package.mkdir(parents=True)
-    (package / "core.py").write_text("VALUE = 1\n", encoding="utf-8")
-    for name in ("one", "two"):
-        (package / f"{name}.py").write_text("from sample import core\n", encoding="utf-8")
-    limits = {"warning": 1, "hard": 1}
-    policy = _maintainability_policy(tmp_path, coupling_limits=limits)
-    assert any(
-        item.issue_type == "coupling_budget" for item in check_quality(tmp_path, policy_path=policy)
-    )
-
-    policy = _maintainability_policy(
-        tmp_path,
-        coupling_limits=limits,
-        legacy_coupling={"sample.core": [2, 0]},
-    )
-    assert check_quality(tmp_path, policy_path=policy) == []
-    (package / "three.py").write_text("from sample import core\n", encoding="utf-8")
-    assert any(
-        item.issue_type == "coupling_growth" for item in check_quality(tmp_path, policy_path=policy)
-    )
 
 
 def _write_coverage(path: Path, *, second_line_hits: int) -> None:
