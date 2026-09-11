@@ -123,7 +123,7 @@ class SemanticReportingService:
         snapshot = (
             self._database.latest_snapshot(repository_id)
             if snapshot_id is None
-            else self._database._resolve_snapshot(repository_id, snapshot_id)
+            else self._database.resolve_snapshot(repository_id, snapshot_id)
         )
         if snapshot is None:
             return None

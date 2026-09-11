@@ -259,7 +259,7 @@ class AnaxiIndex:
             )
 
     def overview(self, repository_id: int, snapshot_id: int | None = None) -> dict[str, Any]:
-        snapshot = self._resolve_snapshot(repository_id, snapshot_id)
+        snapshot = self.resolve_snapshot(repository_id, snapshot_id)
         if snapshot is None:
             return {"repository_id": repository_id, "snapshot": None}
         with self.connect() as connection:
@@ -268,7 +268,7 @@ class AnaxiIndex:
     def semantic_taxonomy(
         self, repository_id: int, snapshot_id: int | None = None
     ) -> dict[str, Any] | None:
-        snapshot = self._resolve_snapshot(repository_id, snapshot_id)
+        snapshot = self.resolve_snapshot(repository_id, snapshot_id)
         if snapshot is None:
             return None
         with self.connect() as connection:
@@ -286,7 +286,7 @@ class AnaxiIndex:
         offset: int = 0,
     ) -> list[dict[str, Any]]:
         """Return the file-level intelligence ledger for inventory views and agents."""
-        snapshot = self._resolve_snapshot(repository_id, snapshot_id)
+        snapshot = self.resolve_snapshot(repository_id, snapshot_id)
         if snapshot is None:
             return []
         with self.connect() as connection:
@@ -305,7 +305,7 @@ class AnaxiIndex:
     ) -> dict[str, Any]:
         """Return reusable multi-level facts for sparse pattern evaluation."""
 
-        snapshot = self._resolve_snapshot(repository_id, snapshot_id)
+        snapshot = self.resolve_snapshot(repository_id, snapshot_id)
         if snapshot is None:
             return persistence.empty_pattern_evidence(repository_id)
         with self.connect() as connection:
@@ -315,7 +315,7 @@ class AnaxiIndex:
                 int(snapshot["id"]),
             ).as_dict()
 
-    def _resolve_snapshot(self, repository_id: int, snapshot_id: int | None) -> sqlite3.Row | None:
+    def resolve_snapshot(self, repository_id: int, snapshot_id: int | None) -> sqlite3.Row | None:
         with self.connect() as connection:
             return persistence.resolve_snapshot(connection, repository_id, snapshot_id)
 
@@ -365,7 +365,7 @@ class AnaxiIndex:
     def file_details(
         self, repository_id: int, path: str, snapshot_id: int | None = None
     ) -> dict[str, Any] | None:
-        snapshot = self._resolve_snapshot(repository_id, snapshot_id)
+        snapshot = self.resolve_snapshot(repository_id, snapshot_id)
         if snapshot is None:
             return None
         with self.connect() as connection:
@@ -377,7 +377,7 @@ class AnaxiIndex:
             )
 
     def search(self, repository_id: int, query: str, *, limit: int = 30) -> list[dict[str, Any]]:
-        snapshot = self._resolve_snapshot(repository_id, None)
+        snapshot = self.resolve_snapshot(repository_id, None)
         if snapshot is None:
             return []
         with self.connect() as connection:
@@ -396,7 +396,7 @@ class AnaxiIndex:
         statuses: tuple[str, ...] = (),
         limit: int = 500,
     ) -> list[dict[str, Any]]:
-        snapshot = self._resolve_snapshot(repository_id, None)
+        snapshot = self.resolve_snapshot(repository_id, None)
         snapshot_id = int(snapshot["id"]) if snapshot is not None else None
         with self.connect() as connection:
             return persistence.read_findings(
@@ -416,7 +416,7 @@ class AnaxiIndex:
     ) -> dict[str, Any]:
         """Return a bounded attention or diagnostic page with exact ledger totals."""
 
-        snapshot = self._resolve_snapshot(repository_id, None)
+        snapshot = self.resolve_snapshot(repository_id, None)
         snapshot_id = int(snapshot["id"]) if snapshot is not None else None
         with self.connect() as connection:
             return persistence.read_finding_page(
@@ -428,7 +428,7 @@ class AnaxiIndex:
             )
 
     def finding(self, repository_id: int, finding_id: int) -> dict[str, Any] | None:
-        snapshot = self._resolve_snapshot(repository_id, None)
+        snapshot = self.resolve_snapshot(repository_id, None)
         snapshot_id = int(snapshot["id"]) if snapshot is not None else None
         with self.connect() as connection:
             return persistence.read_finding(connection, repository_id, finding_id, snapshot_id)

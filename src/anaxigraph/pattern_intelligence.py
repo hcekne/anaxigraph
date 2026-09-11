@@ -31,7 +31,7 @@ class PatternIntelligenceService:
         request: PatternEvaluationQuery | None = None,
     ) -> dict[str, Any]:
         query = request or PatternEvaluationQuery()
-        snapshot = self.database._resolve_snapshot(repository_id, snapshot_id)
+        snapshot = self.database.resolve_snapshot(repository_id, snapshot_id)
         if snapshot is None:
             return empty_pattern_evaluations(repository_id, query)
         with self.database.connect() as connection:
@@ -52,7 +52,7 @@ class PatternIntelligenceService:
         catalog = bundled_pattern_catalog()
         if catalog.card(request.pattern) is None:
             raise ValueError(f"unknown pattern key: {request.pattern}")
-        snapshot = self.database._resolve_snapshot(repository_id, snapshot_id)
+        snapshot = self.database.resolve_snapshot(repository_id, snapshot_id)
         if snapshot is None:
             return empty_pattern_candidates(repository_id, request)
         selected, plan_ready, projection = self._candidate_inputs(
