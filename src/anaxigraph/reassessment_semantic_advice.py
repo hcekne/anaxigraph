@@ -129,8 +129,8 @@ def pattern_effect_spec(item: dict[str, Any]) -> dict[str, Any] | None:
         ),
         "confidence": reported_confidence(scores.get("confidence"), scale=100),
         "basis": "independently reviewed pattern evaluation",
-        "counter_evidence": _strings(details.get("counter_evidence"), 4),
-        "reasons_to_leave_alone": _strings(details.get("counter_evidence"), 4)
+        "counter_evidence": reassessment_strings(details.get("counter_evidence"), 4),
+        "reasons_to_leave_alone": reassessment_strings(details.get("counter_evidence"), 4)
         or ["A pattern adds cost when the problem signal is weak or already contained."],
         "follow_up": (
             "Inspect local precedents and verify the pattern solves a measured problem before "
@@ -146,7 +146,7 @@ def pattern_effect_spec(item: dict[str, Any]) -> dict[str, Any] | None:
 
 def _consolidation_spec(path: str, value: dict[str, Any]) -> dict[str, Any]:
     recommendation = str(value.get("recommendation"))
-    counter = _strings(value.get("counter_evidence"), 4)
+    counter = reassessment_strings(value.get("counter_evidence"), 4)
     return {
         "category": "duplication",
         "classification": "opportunity",
@@ -177,7 +177,7 @@ def _consolidation_spec(path: str, value: dict[str, Any]) -> dict[str, Any]:
         ),
         "evidence": [
             {"kind": "semantic_dossier", "reference": path, "detail": item}
-            for item in _strings(value.get("evidence"), 5)
+            for item in reassessment_strings(value.get("evidence"), 5)
         ],
     }
 
@@ -196,7 +196,7 @@ def _consolidation_observation(value: dict[str, Any], recommendation: str) -> st
 
 def _dead_code_spec(path: str, value: dict[str, Any]) -> dict[str, Any]:
     subject = str(value.get("path_or_symbol") or path)
-    counter = _strings(value.get("counter_evidence"), 4)
+    counter = reassessment_strings(value.get("counter_evidence"), 4)
     return {
         "category": "possible_unused_code",
         "classification": "candidate",
@@ -234,11 +234,13 @@ def _pattern_evidence(pattern: dict[str, Any], details: dict[str, Any]) -> list[
     reference = str(pattern.get("key") or "")
     return [
         {"kind": "pattern", "reference": reference, "detail": value}
-        for value in _strings(details.get("evidence"), 5)
+        for value in reassessment_strings(details.get("evidence"), 5)
     ]
 
 
-def _strings(values: Any, limit: int) -> list[str]:
+def reassessment_strings(values: Any, limit: int) -> list[str]:
+    """Bound a free-text list once for every reassessment projection."""
+
     if not isinstance(values, (list, tuple)):
         return []
     return [str(value)[:1_000] for value in values if str(value).strip()][:limit]

@@ -268,14 +268,14 @@ def _score_meanings(scores: Any, pattern_name: str) -> list[dict[str, Any]]:
                 "pattern_fit": values["suitability"],
             },
             (
-                f"Evidence that this problem exists is {_strength(values['applicability'])}, and "
-                f"{pattern_name}'s fit for this code is {_strength(values['suitability'])}."
+                f"Evidence that this problem exists is {strength_band(values['applicability'])}, and "
+                f"{pattern_name}'s fit for this code is {strength_band(values['suitability'])}."
             ),
         ),
         _meaning(
             "What already exists",
             {"current_match": values["conformance"]},
-            f"The code's current match to the pattern is {_strength(values['conformance'])}.",
+            f"The code's current match to the pattern is {strength_band(values['conformance'])}.",
         ),
         _meaning(
             "Value and timing",
@@ -285,8 +285,8 @@ def _score_meanings(scores: Any, pattern_name: str) -> list[dict[str, Any]]:
                 "urgency": values["urgency"],
             },
             (
-                f"Evidence that a change would help is {_strength(values['opportunity'])}; the "
-                f"expected benefit is {_strength(values['benefit'])} and the urgency is "
+                f"Evidence that a change would help is {strength_band(values['opportunity'])}; the "
+                f"expected benefit is {strength_band(values['benefit'])} and the urgency is "
                 f"{_level(values['urgency'])}."
             ),
         ),
@@ -311,7 +311,7 @@ def _change_score_meanings(values: Mapping[str, int]) -> list[dict[str, Any]]:
             "Strength of evidence",
             {"evidence_strength": values["confidence"]},
             (
-                f"The evidence supporting this evaluation is {_strength(values['confidence'])}; "
+                f"The evidence supporting this evaluation is {strength_band(values['confidence'])}; "
                 "the number measures support for the conclusion, not code quality."
             ),
         ),
@@ -335,7 +335,7 @@ def _meaning(label: str, scores: dict[str, int], meaning: str) -> dict[str, Any]
     return {"label": label, "scores": scores, "meaning": meaning}
 
 
-def _strength(value: int) -> str:
+def strength_band(value: int) -> str:
     if value >= 70:
         return "strong"
     if value >= 40:

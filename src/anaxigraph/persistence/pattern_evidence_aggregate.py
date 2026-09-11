@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 from collections import Counter
 from typing import Any
@@ -15,6 +14,7 @@ from anaxigraph.pattern_evidence import (
     TargetEvidence,
 )
 from anaxigraph.pattern_targets import PatternTarget
+from anaxigraph.persistence.temporal_hashing import digest
 from anaxigraph.semantic_evidence_selection import module_role, representative_items, stable_order
 
 
@@ -196,7 +196,7 @@ def _aggregate_fingerprint(
     capabilities: tuple[str, ...],
     features: tuple[PatternFeature, ...],
 ) -> str:
-    return _digest(
+    return digest(
         {
             "version": PATTERN_EVIDENCE_VERSION,
             "target": target.key,
@@ -311,8 +311,3 @@ def _feature(name: str, value: Any, source: str, locator: str) -> PatternFeature
 def _value(item: TargetEvidence, name: str, default: Any) -> Any:
     feature = item.feature(name)
     return feature.value if feature is not None else default
-
-
-def _digest(value: Any) -> str:
-    encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), default=str).encode()
-    return hashlib.sha256(encoded).hexdigest()

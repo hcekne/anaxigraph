@@ -6,7 +6,7 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
-from anaxigraph.semantic_file_language import explain_specialist_terms
+from anaxigraph.semantic_file_language import bounded_confidence, explain_specialist_terms
 
 SEMANTIC_TAXONOMY_LANGUAGE_VERSION = "semantic-taxonomy-explanation-v2"
 
@@ -36,7 +36,7 @@ def semantic_taxonomy_explanation(node: Mapping[str, Any]) -> dict[str, Any]:
     responsibility = _plain_sentence(node.get("responsibility"))
     description = _plain_sentence(node.get("description"))
     rationale = _plain_sentence(_visible_group_words(node.get("rationale")))
-    confidence = _confidence(node.get("confidence"))
+    confidence = bounded_confidence(node.get("confidence"))
     display_name = _plain_name(label)
     return {
         "version": SEMANTIC_TAXONOMY_LANGUAGE_VERSION,
@@ -63,7 +63,7 @@ def semantic_taxonomy_assignment_explanation(assignment: Mapping[str, Any]) -> d
     subsystem = _plain_name(
         str(assignment.get("subsystem_name") or assignment.get("subsystem") or "code group")
     )
-    confidence = _confidence(assignment.get("confidence"))
+    confidence = bounded_confidence(assignment.get("confidence"))
     destination = subsystem if subsystem == area else f"{subsystem}, inside {area}"
     reason = (
         "Repository map configuration explicitly puts this file in this group."
@@ -135,13 +135,6 @@ def _matching_case(replacement: str, offset: int) -> str:
     if offset == 0:
         return replacement[:1].upper() + replacement[1:]
     return replacement
-
-
-def _confidence(value: Any) -> float:
-    try:
-        return max(0.0, min(1.0, float(value or 0)))
-    except (TypeError, ValueError):
-        return 0.0
 
 
 def _confidence_meaning(confidence: float) -> str:

@@ -166,7 +166,7 @@ def semantic_file_explanation(path: str, semantic: Mapping[str, Any]) -> dict[st
     role, related_files = _role_and_related_files(semantic.get("architecture_role"), subject_kind)
     placement = _placement(semantic.get("placement_guidance"))
     changed = _change_summary(semantic.get("change_summary"))
-    confidence = _confidence(semantic.get("confidence"))
+    confidence = bounded_confidence(semantic.get("confidence"))
     return {
         "version": SEMANTIC_FILE_LANGUAGE_VERSION,
         "conclusion": _conclusion(path, status, subject_kind),
@@ -348,7 +348,7 @@ def _missing_role(status: str, subject_kind: str) -> str:
     return f"The AI map does not have an up-to-date description of what this {subject} does."
 
 
-def _confidence(value: Any) -> float:
+def bounded_confidence(value: Any) -> float:
     try:
         return max(0.0, min(1.0, float(value or 0)))
     except (TypeError, ValueError):

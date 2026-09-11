@@ -7,8 +7,10 @@ import json
 from typing import Any
 
 from anaxigraph.finding_language import finding_caveats
+from anaxigraph.guidance import confidence_label
 from anaxigraph.reassessment_semantic_advice import (
     pattern_effect_spec,
+    reassessment_strings,
     reported_confidence,
     semantic_effect_specs,
 )
@@ -81,7 +83,7 @@ def _finding_effect(finding: dict[str, Any]) -> dict[str, Any]:
     classification = _finding_classification(finding, resolved)
     subject, summary, action = _finding_terms(finding, finding_type)
     language = _finding_transition_language(finding, summary, action, resolved)
-    caveats = _strings(finding_caveats(finding_type), 4)
+    caveats = reassessment_strings(finding_caveats(finding_type), 4)
     return _effect(
         category=_FINDING_CATEGORIES.get(finding_type, "boundary_coherence"),
         classification=classification,
@@ -126,7 +128,7 @@ def _finding_transition_language(
             finding.get("explanation") or "The change may weaken the current design."
         ),
         "recommendation": action,
-        "reasons": _strings(finding_caveats(str(finding.get("finding_type") or "")), 3),
+        "reasons": reassessment_strings(finding_caveats(str(finding.get("finding_type") or "")), 3),
         "follow_up": action,
     }
 
@@ -141,7 +143,7 @@ def _finding_evidence(finding: dict[str, Any]) -> list[dict[str, Any]]:
     reference = str(finding.get("stable_key") or "")
     return [
         {"kind": "finding", "reference": reference, "detail": value}
-        for value in _strings(finding.get("evidence"), 5)
+        for value in reassessment_strings(finding.get("evidence"), 5)
     ]
 
 
@@ -338,7 +340,7 @@ def _responsibility_effect(
         recommendation="Confirm the new responsibility is cohesive and not already owned by a related module.",
         confidence=reported_confidence(right.get("confidence")),
         basis="current module dossier compared with its prior dossier",
-        counter_evidence=_strings(right.get("risks"), 3),
+        counter_evidence=reassessment_strings(right.get("risks"), 3),
         reasons_to_leave_alone=[
             "A wording change alone is not proof that code should move or split."
         ],
@@ -420,17 +422,9 @@ def _confidence(score: float | None, basis: str) -> dict[str, Any]:
     """
 
     if score is None:
-        return {"score": None, "label": "unknown", "basis": basis}
+        return {"score": None, "label": confidence_label(None), "basis": basis}
     bounded = round(min(1.0, max(0.0, score)), 3)
-    if bounded == 0:
-        label = "none"
-    elif bounded >= 0.8:
-        label = "high"
-    elif bounded >= 0.55:
-        label = "medium"
-    else:
-        label = "limited"
-    return {"score": bounded, "label": label, "basis": basis}
+    return {"score": bounded, "label": confidence_label(bounded), "basis": basis}
 
 
 def _coverage(
@@ -492,9 +486,3 @@ def _effect_sort_key(item: dict[str, Any]) -> tuple[int, float, str, str]:
         str(item["category"]),
         str(item["subject"]),
     )
-
-
-def _strings(values: Any, limit: int) -> list[str]:
-    if not isinstance(values, (list, tuple)):
-        return []
-    return [str(value)[:1_000] for value in values if str(value).strip()][:limit]
