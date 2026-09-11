@@ -24,7 +24,7 @@ def resolved_graph_snapshot(
     implicit lookup may come back empty, which means the repository was never scanned.
     """
 
-    snapshot = index._resolve_snapshot(repository_id, snapshot_id)
+    snapshot = index.resolve_snapshot(repository_id, snapshot_id)
     if snapshot is None and snapshot_id is not None:
         raise ValueError(f"{label} snapshot does not belong to the repository")
     return snapshot
