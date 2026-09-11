@@ -116,6 +116,23 @@ OVERLAYS = {
 }
 
 
+def confidence_label(score: float | None) -> str:
+    """Name one confidence the same way on every surface.
+
+    ``None`` means no confidence was recorded, which is not the same as a recorded zero.
+    """
+
+    if score is None:
+        return "unknown"
+    if score == 0:
+        return "none"
+    if score >= 0.8:
+        return "high"
+    if score >= 0.55:
+        return "medium"
+    return "limited"
+
+
 def product_glossary() -> dict[str, Any]:
     return {
         "product": _product_terms(),

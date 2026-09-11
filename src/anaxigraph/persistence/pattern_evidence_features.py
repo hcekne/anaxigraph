@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 from collections import defaultdict
 from typing import Any
@@ -19,6 +18,7 @@ from anaxigraph.persistence.pattern_evidence_inputs import (
     capability_confidence,
     parse_status,
 )
+from anaxigraph.persistence.temporal_hashing import digest
 
 
 def module_evidence(
@@ -43,7 +43,7 @@ def module_evidence(
     ]
     capability_fingerprints = (str(capability["fingerprint"]),) if capability else ()
     ordered = tuple(sorted(features, key=lambda item: item.name))
-    fingerprint = _digest(
+    fingerprint = digest(
         {
             "version": PATTERN_EVIDENCE_VERSION,
             "target": target.key,
@@ -150,7 +150,7 @@ def symbol_evidence(
             matching, target.key
         )
         ordered = tuple(sorted(features, key=lambda item: item.name))
-        fingerprint = _digest(
+        fingerprint = digest(
             {
                 "version": PATTERN_EVIDENCE_VERSION,
                 "target": target.key,
@@ -333,8 +333,3 @@ def _feature(
         (EvidenceReference(source, locator),) if confidence > 0 else (),
         "available" if confidence > 0 else "unavailable",
     )
-
-
-def _digest(value: Any) -> str:
-    encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), default=str).encode()
-    return hashlib.sha256(encoded).hexdigest()

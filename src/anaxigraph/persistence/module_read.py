@@ -12,6 +12,7 @@ from anaxigraph.architecture_vocabulary import (
     architecture_layers,
     architecture_placement,
 )
+from anaxigraph.persistence.graph_read import group_parents
 from anaxigraph.persistence.semantic_taxonomy_read import taxonomy_assignments
 from anaxigraph.persistence.snapshot_projection import install_snapshot_projection
 from anaxigraph.semantic_file_language import semantic_file_explanation
@@ -87,7 +88,7 @@ def read_modules(
         artifact_ids=artifact_ids,
     )
     selected = tuple(int(row["artifact_id"]) for row in rows)
-    parents = _group_parents(connection, repository_id)
+    parents = group_parents(connection, repository_id)
     claims = _claims_by_artifact(connection, snapshot_id, selected)
     semantic_states = _semantic_states(connection, snapshot_id, selected)
     semantic_assignments = taxonomy_assignments(connection, snapshot_id, artifact_ids=selected)
@@ -135,23 +136,6 @@ def _module_rows(
         sql,
         parameters,
     ).fetchall()
-
-
-def _group_parents(
-    connection: sqlite3.Connection,
-    repository_id: int,
-) -> dict[str, str | None]:
-    rows = connection.execute(
-        """
-        SELECT name, parent_name FROM groups WHERE repository_id = ?
-        ORDER BY CASE source WHEN 'declared' THEN 0 ELSE 1 END
-        """,
-        (repository_id,),
-    ).fetchall()
-    result: dict[str, str | None] = {}
-    for row in rows:
-        result.setdefault(str(row["name"]), row["parent_name"])
-    return result
 
 
 def _claims_by_artifact(

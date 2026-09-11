@@ -6,6 +6,8 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from anaxigraph.pattern_language import strength_band
+
 PATTERN_CANDIDATE_LANGUAGE_VERSION = "pattern-candidate-explanation-v2"
 PATTERN_CANDIDATE_DETAIL_LANGUAGE_VERSION = "pattern-candidate-detail-explanation-v2"
 
@@ -87,7 +89,7 @@ def candidate_signal_explanation(value: Mapping[str, Any]) -> dict[str, Any]:
         "evidence_strength": {
             "value": confidence,
             "meaning": (
-                f"Support for this observation is {_strength(confidence)} ({confidence} out of "
+                f"Support for this observation is {strength_band(confidence)} ({confidence} out of "
                 "100). This measures evidence for the observation, not code quality or pattern "
                 "quality."
             ),
@@ -298,14 +300,6 @@ def _ratio(value: Any) -> float:
         return max(0.0, min(1.0, float(value or 0)))
     except (TypeError, ValueError):
         return 0.0
-
-
-def _strength(value: int) -> str:
-    if value >= 70:
-        return "strong"
-    if value >= 40:
-        return "mixed"
-    return "weak"
 
 
 def _required_detail(fact: str, level: str) -> str:

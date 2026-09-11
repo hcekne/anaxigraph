@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 import sqlite3
 from collections import defaultdict
 from typing import Any
@@ -35,6 +33,7 @@ from anaxigraph.persistence.pattern_evidence_inputs import (
 )
 from anaxigraph.persistence.semantic_evidence import semantic_inventory
 from anaxigraph.persistence.snapshot_projection import install_snapshot_projection
+from anaxigraph.persistence.temporal_hashing import digest
 
 
 def read_pattern_evidence(
@@ -160,7 +159,7 @@ def _projection(
     contracts: dict[str, dict[str, Any]],
     items: tuple[TargetEvidence, ...],
 ) -> PatternEvidenceProjection:
-    fingerprint = _digest(
+    fingerprint = digest(
         {
             "version": PATTERN_EVIDENCE_VERSION,
             "contracts": contracts,
@@ -313,11 +312,6 @@ def _architecture_targets(
 
 def _label(value: str) -> str:
     return value.replace("-", " ").replace("_", " ").title()
-
-
-def _digest(value: Any) -> str:
-    encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), default=str).encode()
-    return hashlib.sha256(encoded).hexdigest()
 
 
 _SYMBOL_SQL = """

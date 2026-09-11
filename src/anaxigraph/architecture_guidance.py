@@ -6,6 +6,8 @@ import hashlib
 import json
 from typing import Any
 
+from anaxigraph.guidance import confidence_label
+
 ARCHITECTURE_GUIDANCE_VERSION = "architecture-guidance-v1"
 AGENT_JOURNEY_VERSION = "agent-journey-v1"
 GUIDANCE_INTENTS = frozenset({"build", "improve", "refactor"})
@@ -54,7 +56,7 @@ def guidance_projection(
         confidence = {
             **confidence,
             "score": score,
-            "label": "high" if score >= 0.8 else "medium" if score >= 0.55 else "limited",
+            "label": confidence_label(score),
         }
     core = {
         "contract_version": ARCHITECTURE_GUIDANCE_VERSION,
@@ -386,7 +388,7 @@ def _confidence(context: dict[str, Any], charter: dict[str, Any]) -> dict[str, A
         score = min(score, 0.6)
     return {
         "score": score,
-        "label": "high" if score >= 0.8 else "medium" if score >= 0.55 else "limited",
+        "label": confidence_label(score),
         "basis": status or "insufficient evidence",
     }
 
