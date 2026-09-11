@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "confidence-or-opportunity",
+      "repository": "anaxigraph",
+      "revision": "a8bf33a1fff065c7dcb63f3362936e4e4eecdcd6",
+      "question": "Reassessment advice presents a number called confidence for each pattern effect. The pattern record carries both an opportunity score and a confidence score out of 100. What should the advice report, and what should it report when the source recorded no confidence at all?",
+      "mission": "Tell a reader what changed in their architecture and how far to trust it.",
+      "held_out": false,
+      "disclosure": "This task was acted on in b39a3501572c8a9177ba253feaafef3393f4256c, so it rehearses the grading protocol and is not evidence about any model's accuracy.",
+      "budget": {
+        "max_output_tokens": 6000
+      },
+      "facts": [
+        "pattern_effect_spec read scores['opportunity'] and reported it under the key confidence.",
+        "A pattern record may carry confidence 0, a positive confidence, or no confidence key.",
+        "Unused-code advice read the whole dossier's confidence rather than the candidate's own.",
+        "A consolidation assessment records a strength score out of 100 and no confidence."
+      ],
+      "sources": {},
+      "reference": {
+        "answer": "Report the confidence the source actually recorded and nothing else. An opportunity score answers how much there is to gain, not how sure anyone is, so presenting it as confidence overstates every finding. Keep three states distinct: a recorded number, a recorded zero, and no recorded value, because a reader treats an unknown differently from a measured zero. Take each item's own confidence rather than the enclosing dossier's. Where a source records a strength score and no confidence, show the score as a score, say it is not a confidence, and leave the confidence unknown.",
+        "key_points": [
+          "An opportunity score must never be reported as confidence.",
+          "A recorded zero and an absent value stay distinct rather than collapsing.",
+          "Each item's own confidence is used, not the enclosing record's.",
+          "A strength score is labelled as a score and does not become a confidence."
+        ],
+        "author": "four-book review panel (Codex and Claude), adjudicated",
+        "author_kind": "model_panel",
+        "recorded_at": "2026-09-11",
+        "recorded_from": "docs/reviews/books-2026-09-11/00-synthesis-and-refactoring-plan.md, finding F1"
+      }
+    },
+    {
+      "id": "resolved-name-is-not-a-verified-claim",
+      "repository": "anaxigraph",
+      "revision": "b39a3501572c8a9177ba253feaafef3393f4256c",
+      "question": "Fresh-eyes grounding resolves the identifiers a recommendation cites against the snapshot and marks the recommendation confirmed when they all exist. Is that the right status, and if not what should grounding report?",
+      "mission": "Tell a reader how far a review's claims were actually checked.",
+      "held_out": false,
+      "disclosure": "This task was acted on in ae75414601f82949e2c4f599fbcb7d46542adf08, so it rehearses the grading protocol and is not evidence about any model's accuracy.",
+      "budget": {
+        "max_output_tokens": 6000
+      },
+      "facts": [
+        "Grounding resolved cited paths and symbols against the snapshot index.",
+        "A recommendation whose citations all resolved was stored with status confirmed.",
+        "Nothing in the pass read what the code does or ran any test."
+      ],
+      "sources": {},
+      "reference": {
+        "answer": "Resolving a name proves the name exists, nothing more. Calling that confirmed invites a reader to treat an unchecked claim as checked. Grounding should say which of three separate questions it answered: whether the references resolve, whether the claim about the code is supported, and whether the behavior was verified. Only the first is answered here, so the status should name reference resolution and the other two should read as unchecked until something actually checks them.",
+        "key_points": [
+          "A resolved reference is not a verified claim and must not be labelled confirmed.",
+          "Reference resolution, claim support, and behavior verification are separate questions.",
+          "The two questions this pass does not answer are reported as unchecked rather than omitted."
+        ],
+        "author": "four-book review panel (Codex and Claude), adjudicated",
+        "author_kind": "model_panel",
+        "recorded_at": "2026-09-11",
+        "recorded_from": "docs/reviews/books-2026-09-11/00-synthesis-and-refactoring-plan.md, finding F2"
+      }
+    },
+    {
+      "id": "cohesive-module-over-the-ceiling",
+      "repository": "anaxigraph",
+      "revision": "0173781db14d294229daa2651ac72f9744623e11",
+      "question": "A module is approaching the 500-line ceiling. The size checker's advice is to extract its longest definitions. Is that the right advice, and what should the policy do when a module over the ceiling is genuinely cohesive?",
+      "mission": "Keep the codebase easy to change, not merely easy to measure.",
+      "held_out": false,
+      "disclosure": "This task was acted on in 2bf49ef429cb6634d8e25b1d7ae3940b52f5612d, so it rehearses the grading protocol and is not evidence about any model's accuracy.",
+      "budget": {
+        "max_output_tokens": 6000
+      },
+      "facts": [
+        "The checker ranked top-level definitions by line span and named the three longest.",
+        "Legacy exceptions exist but expire and are meant to shrink.",
+        "Some modules over the threshold have no part that is reached from nothing else."
+      ],
+      "sources": {},
+      "reference": {
+        "answer": "Extracting the longest definition is a size argument, and it can leave two modules that must be edited together, which is harder to change than the one it replaced. The question to ask is whether any part of the module is reached from nothing else in it. Where such a part exists, name it. Where none does, say so and stop recommending a split. A cohesive module over the ceiling should be recorded as a reviewable exception that states the decision it hides and the change tasks a split would spread across two modules, and that exception should not expire, because a cohesive boundary is not temporary.",
+        "key_points": [
+          "Extracting the longest definition is a size argument, not a cohesion argument.",
+          "A split is judged by whether a change would have to cross it.",
+          "A cohesive module over the ceiling is recorded as a reviewable, justified exception.",
+          "The justification names the hidden decision and the tasks a split would spread."
+        ],
+        "author": "four-book review panel (Codex and Claude), adjudicated",
+        "author_kind": "model_panel",
+        "recorded_at": "2026-09-11",
+        "recorded_from": "docs/reviews/books-2026-09-11/00-synthesis-and-refactoring-plan.md, work item R9"
+      }
+    },
+    {
+      "id": "paying-for-a-feature-in-lines",
+      "repository": "anaxigraph",
+      "revision": "93e643f2d356f6deb9c35c202cb5812c5e131bf3",
+      "question": "A requested capability needs roughly ninety new lines in the package. The line budget is a ratchet that fails the build when production source grows. What should happen?",
+      "mission": "Add capability without making the codebase harder to hold in your head.",
+      "held_out": false,
+      "disclosure": "The reference answer is a standing instruction from the repository owner given during the work it governs, so it rehearses the protocol rather than testing a held-out question.",
+      "budget": {
+        "max_output_tokens": 6000
+      },
+      "facts": [
+        "The ratchet fails when src/anaxigraph grows above its recorded baseline.",
+        "Raising the baseline is possible and is recorded with a written note.",
+        "The repository has duplicated helpers that could be removed instead."
+      ],
+      "sources": {},
+      "reference": {
+        "answer": "Look for code to remove first, and do that work before raising anything. Growth is acceptable when the change genuinely improves the codebase, so the budget is not a reason to refuse a good feature or to ask permission before doing the work. What is not acceptable is raising the baseline quietly: report the net line change and say what was removed to pay for it.",
+        "key_points": [
+          "Search for removable code before raising the budget.",
+          "Growth is acceptable when the change genuinely improves the codebase.",
+          "The net line change is reported rather than absorbed silently."
+        ],
+        "author": "repository owner",
+        "author_kind": "human",
+        "recorded_at": "2026-09-11",
+        "recorded_from": "repository owner instruction recorded during the four-book work items"
+      }
+    }
+  ]
+}
