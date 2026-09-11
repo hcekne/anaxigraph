@@ -18,6 +18,7 @@ def _semantic_config(repository: Path, provider: Path, log: Path, **overrides) -
     value = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     value["semantic"] = {
         "enabled": True,
+        "detailed_reviews": True,  # Existing lifecycle fixtures exercise the full review workflow.
         "provider": "command",
         "command": [sys.executable, str(provider), str(log)],
         "prompt_version": "test-v1",
@@ -34,6 +35,7 @@ def _enable_agent_semantics(repository: Path) -> None:
     policy = yaml.safe_load(path.read_text(encoding="utf-8"))
     policy["semantic"] = {
         "enabled": True,
+        "detailed_reviews": True,
         "provider": "agent",
         "max_parallel_jobs": 16,
         "agent_lease_seconds": 120,
@@ -128,6 +130,7 @@ def taxonomy_value():
     }
 
 dossier = {
+    "understandability": {"contract_version": "code-understandability-v1", "tasks": []},
     "summary": f"{kind} understanding for {path}",
     "detailed_summary": f"Evidence-grounded {kind} dossier for {path}.",
     "responsibilities": [f"Own {path}" + (f" for {INTENT_MARKER}" if shifted_intent else "")],
@@ -231,6 +234,8 @@ elif kind.startswith("synthesis") and request.get("scope_type") == "repository":
     value = CHARTER_VALUE
 else:
     value = dossier
+    if not request.get("detailed_reviews"):
+        value = {key: value[key] for key in ("summary", "responsibilities", "public_contracts", "evidence", "confidence")}
 json.dump({"result": value, "usage": {"input_tokens": 100, "output_tokens": 40}}, sys.stdout)
 """.replace("FAIL_PATH", repr(fail_path))
         .replace("__INTENT_MARKER_VALUE__", repr(intent_marker))
@@ -257,9 +262,10 @@ def _agent_dossier(request: dict) -> dict:
         return _agent_taxonomy(request, kind)
     if kind.startswith("synthesis") and request.get("scope_type") == "repository":
         return _agent_charter()
-    return {
+    value = {
         "summary": f"{kind} understanding for {scope}",
         "detailed_summary": f"Evidence-grounded {kind} dossier for {scope}.",
+        "understandability": {"contract_version": "code-understandability-v1", "tasks": []},
         "responsibilities": [f"Own {scope}"],
         "inputs": [],
         "outputs": [],
@@ -289,6 +295,12 @@ def _agent_dossier(request: dict) -> dict:
         "evidence": [scope],
         "confidence": 0.9,
     }
+    if not request.get("detailed_reviews"):
+        return {
+            key: value[key]
+            for key in ("summary", "responsibilities", "public_contracts", "evidence", "confidence")
+        }
+    return value
 
 
 def _agent_taxonomy(request: dict, kind: str) -> dict:

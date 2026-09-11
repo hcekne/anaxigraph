@@ -8,6 +8,21 @@ classes only where identity or lifecycle is real: the database handle, analyzer 
 and external provider. Keep filesystem, Git, subprocess, database, and network effects behind
 their existing modules.
 
+Optimize for a competent newcomer completing maintenance tasks using the repository itself.
+The assessment policy and task contract live in
+[`understandability.py`](../src/anaxigraph/understandability.py). Guidance uses current task evidence,
+reader benefit, migration cost, and contrary evidence; reassessment compares the same task across
+compatible assessments. These are inferred hypotheses until reader trials verify them. Keep domain
+glossaries, decision rationale, operating constraints, and thin navigation to owners and tests.
+Express fragile calling conventions and hidden invariants in names, interfaces, types, or tests
+where that simplifies real work. File size and documentation volume do not establish improvement.
+The assessment policy participates in semantic input hashes, so upgrading from older assessments
+requires a semantic refresh even for unchanged source. Reader assessments do not redefine module
+responsibility identities; changed source refreshes its own contextual assessment.
+Routine mapping produces five short fields: summary, responsibilities, essential public contracts,
+source references, and confidence. Detailed assessments and pattern critique require
+`semantic.detailed_reviews: true`; they are not part of the default mapping workload.
+
 Language analyzers produce neutral records and never persist. Persistence does not import API or
 dashboard code. Interfaces call application services; they do not duplicate graph logic. A new
 adapter must remove provider conditionals from the scanner rather than add a second analysis path.

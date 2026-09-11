@@ -316,6 +316,7 @@ def _semantic_payload(path: str, state: dict[str, Any] | None) -> dict[str, Any]
         "architecture_role": value.get("architecture_role") or "",
         "pattern_opportunities": value.get("pattern_opportunities") or [],
         "consolidation_assessment": value.get("consolidation_assessment") or "",
+        "understandability": value.get("understandability"),
         "dead_code_candidates": value.get("dead_code_candidates") or [],
         "placement_guidance": value.get("placement_guidance") or "",
         "change_summary": value.get("change_summary") or "",

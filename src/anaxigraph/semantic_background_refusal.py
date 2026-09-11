@@ -1,39 +1,25 @@
-"""Refusal guidance when a detached semantic worker already owns a repository."""
+"""Handoff guidance for detached semantic workers."""
 
 from __future__ import annotations
 
 from typing import Any
 
 DEFAULT_NEXT_ACTION = (
-    "Use anaxigraph semantic-status for progress; the worker survives this session."
+    "The background worker owns scheduling, retries, and progress and survives this session. "
+    "Return the run id to the user; check anaxigraph semantic-status <repository> --compact "
+    "only when requested or after at least 300 seconds. Do not create supervisor scripts, "
+    "poll in an LLM loop, or infer worker health from the short-lived understand command."
 )
-_OTHER_EXECUTORS = {"codex": "claude", "claude": "codex"}
 
 
 def already_running(active: dict[str, Any], spec: Any) -> dict[str, Any]:
-    """Refuse a second run in one executor's slot, naming the other executor's own slot.
+    """Return the existing run without starting a competing coordinator."""
 
-    Every executor owns a separate background run slot for a repository, so the way to add a
-    second host worker is to start a different executor, not to wait for this one.
-    """
-
-    record = {**active, "status": "already_running"}
-    running = str(active.get("executor") or "")
-    if not running:
-        return record
-    repository = str(spec.repository.expanduser().resolve())
-    other = _OTHER_EXECUTORS.get(running, "")
-    alternative = (
-        f"anaxigraph understand {repository} --executor {other} --background"
-        if other
-        else f"anaxigraph understand {repository} --until-complete"
-    )
-    record["recommended_action"] = (
-        f"A background {running} worker already owns this repository's {running} slot, and one "
-        f"executor has one background run. Start a second host executor in its own slot: "
-        f"{alternative}"
-    )
-    return record
+    return {
+        **active,
+        "status": "already_running",
+        "recommended_action": f"Reuse this {spec.executor} run. {DEFAULT_NEXT_ACTION}",
+    }
 
 
 def background_next_action(run: dict[str, Any]) -> str:

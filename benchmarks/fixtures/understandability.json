@@ -1,0 +1,21 @@
+{
+  "common_files": {
+    "GLOSSARY.md": "An order specifies a SKU (inventory identifier), quantity, unit price, and shipping method. The returned total includes shipping.\n",
+    "README.md": "The public entry point is checkout.submit(order, sink). The sink reserves inventory.\n",
+    "DECISIONS.md": "Validate an order before reserving inventory so rejected orders have no reservation side effects.\n"
+  },
+  "before": {
+    "owner": "util.py::check",
+    "files": {
+      "checkout.py": "from util import calc, check\n\ndef submit(order, sink):\n    check(order)\n    result = calc(order)\n    sink.reserve(order['sku'], order['qty'])\n    return result\n",
+      "util.py": "def check(x):\n    if x['qty'] <= 0:\n        raise ValueError('Invalid quantity')\n    if x['shipping'] != 'standard':\n        raise ValueError('Unsupported shipping')\n\ndef calc(x):\n    return x['qty'] * x['price'] + 5\n"
+    }
+  },
+  "after": {
+    "owner": "orders.py::validate_order",
+    "files": {
+      "checkout.py": "from orders import order_total, validate_order\n\ndef submit(order, sink):\n    validate_order(order)\n    result = order_total(order)\n    sink.reserve(order['sku'], order['qty'])\n    return result\n",
+      "orders.py": "SHIPPING_FEES = {'standard': 5}\n\ndef validate_order(order):\n    if order['qty'] <= 0:\n        raise ValueError('Invalid quantity')\n    if order['shipping'] not in SHIPPING_FEES:\n        raise ValueError('Unsupported shipping')\n\ndef order_total(order):\n    return order['qty'] * order['price'] + SHIPPING_FEES[order['shipping']]\n"
+    }
+  }
+}

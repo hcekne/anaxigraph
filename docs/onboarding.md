@@ -65,30 +65,40 @@ target code.
 
 Use this sentence in the coding-agent chat:
 
-> Use AnaxiGraph to build or resume the AI-created code map for this repository, using your own
-> model context and tokens. Start the background coding-agent worker, do not edit source while
-> mapping, and monitor it until the status says the map is up to date.
+> Use AnaxiGraph to build or resume the AI-created code map for this repository. Choose an
+> explicit economical worker model, start or reuse the background run, and return its run ID.
+> Let the worker manage the queue. Check compact progress when I ask; do not supervise it in an
+> LLM loop or edit source while mapping.
 
 Codex processes the saved AI task list from one background host command:
 
 ```bash
-anaxigraph understand . --executor codex --background
-anaxigraph semantic-status .
+anaxigraph understand . --executor codex --model '<worker-model>' --parallel-jobs 32 --background --json
+anaxigraph semantic-status . --compact --json
 ```
 
-Inside a Codex session the default `--executor auto` selects the authenticated Codex CLI. The
-command deliberately omits a model so Codex can use its currently supported configured default.
-Use `--model` and `--reasoning-effort` only when you explicitly select them for this run; both the
-Codex and Claude executors accept the effort value.
+Replace `<worker-model>` with your chosen Codex model; for Claude Haiku workers, use
+`--executor claude --model haiku`. Choose the worker model explicitly to avoid inheriting an
+expensive CLI default. The caller's conversation is not sent to workers. The repository's
+`max_parallel_jobs` must allow the requested concurrency; all executors share that total ceiling.
+Inside a Codex session the default `--executor auto` selects the authenticated Codex CLI.
+Both executors also accept an explicit `--reasoning-effort` for this run.
 `--background` starts a host
 worker that continues after the invoking coding-agent session exits; `semantic-status` reports its
-PID, log, heartbeat, exact index/config authority, progress, and terminal state. A `stalled` run
+run ID, log, heartbeat, index authority, progress, and terminal state; full status also includes
+process and configuration details. `already_running` means reuse the existing run. Return its
+handle and let ordinary software manage scheduling and retries. Read compact status on request or
+no more often than every five minutes; never infer failure from a missing `anaxigraph understand`
+process or create an LLM supervision loop. A `stalled` run
 can be relaunched with the same command and resumes saved completed work. Use direct MCP work only
 as a one-task-at-a-time fallback when no authenticated host worker exists;
 `agent_action_required` means the connected agent must keep working and is not completion.
 
-Each worker claims one task for a limited time, reads its evidence, and submits a result that must
-match the required JSON shape. It continues through file descriptions, an inferred responsibility grouping of
+Each worker claims one task for a limited time, reads its evidence, and returns five fields:
+a short English summary, responsibilities, essential caller-visible behavior, evidence, and
+confidence. The 100–200-word target is flexible for complex code. Confirmed output truncation gets
+one retry with more room, with both calls counted. Rich code reviews are opt-in. The workflow
+continues through file descriptions, an inferred responsibility grouping of
 files, separate AI checks and revisions, and the whole-repository Living Architecture Charter. The
 Charter explains purpose, observable capabilities, responsibilities, flows, contracts, invariants,
 extension points, patterns, coherence concerns, conflicts, and unknowns. Its Capability Brief
@@ -244,7 +254,7 @@ a current or resumable AI-created repository understanding.
 ```bash
 anaxigraph fresh-eyes . --start --proposals 2
 anaxigraph understand . --executor codex --background
-anaxigraph semantic-status .
+anaxigraph semantic-status . --compact --json
 anaxigraph fresh-eyes .
 ```
 
@@ -268,11 +278,11 @@ executor; a repository owns one background run slot per executor, so both surviv
 anaxigraph fresh-eyes . --start --proposals 2 --proposal-executors codex,claude
 anaxigraph understand . --executor codex --background
 anaxigraph understand . --executor claude --background
-anaxigraph semantic-status .
+anaxigraph semantic-status . --compact --json
 ```
 
-`semantic-status` lists one `execution_runs` entry per executor and keeps `execution_run` as the
-most relevant single record. Both workers only claim at the same time when
+`semantic-status` lists one `execution_runs` entry per executor; full status also keeps
+`execution_run` as the most relevant single record. Both workers only claim at the same time when
 `semantic.max_parallel_jobs` is 2 or more; with a limit of 1 they take the pinned slots one after
 the other. Use `any` for a slot any executor may take, for example
 `--proposal-executors codex,any`.

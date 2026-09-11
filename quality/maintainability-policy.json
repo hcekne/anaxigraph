@@ -16,7 +16,7 @@
       ".css",
       ".html"
     ],
-    "baseline_lines": 63585
+    "baseline_lines": 64297
   },
   "function_limits": {
     "warning_lines": 40,
@@ -33,7 +33,10 @@
     "coupling_identity": "module maps to [fan-in, fan-out]",
     "production_source_budget": "Combined first-party Python and dashboard source. Lower baseline_lines whenever simplification reduces it; intentional phase growth requires acceptance evidence and a ratified new exact baseline.",
     "owner": "maintainers",
-    "removal": "Lower each baseline in the same change that reduces it; remove it once within limits. Remaining analyzer debt belongs to Phase 4B, agent and semantic-taxonomy orchestration debt is retired during Phase 6, and temporal/dashboard debt belongs to Phase 7. Every other legacy entry remains a continuous exact no-growth ratchet."
+    "removal": "Lower each baseline in the same change that reduces it; remove it once within limits. Remaining analyzer debt belongs to Phase 4B, agent and semantic-taxonomy orchestration debt is retired during Phase 6, and temporal/dashboard debt belongs to Phase 7. Every other legacy entry remains a continuous exact no-growth ratchet.",
+    "understandability_extension": "Authorized maintenance-task assessment across the existing semantic, guidance, reassessment, and file-detail surfaces. Acceptance: tests/test_understandability.py and tests/visual/understandability.spec.js; no new runtime service, endpoint, MCP tool, or database table.",
+    "lean_mapping_extension": "Authorized five-field default mapping, compact intermediate descriptions, concise file and graph displays, and explicit detailed_reviews policy. Acceptance: tests/test_semantic_mapping.py covers mode transitions, retained history, and completed maps without pattern jobs; tests/visual/understandability.spec.js covers concise file and graph descriptions at desktop and phone widths. Existing endpoints, services, and tables are reused.",
+    "durable_mapping_extension": "Authorized follow-up replaces rigid mapping length caps with flexible writing guidance and one output-truncation recovery per attempt, preserves reported recovery usage, joins active queues, waits through preparation contention, and defaults MCP progress/schema reads to compact responses. Adds 184 production lines relative to the accepted lean-mapping baseline. Acceptance: tests/test_semantic_output_recovery.py, tests/test_semantic_durable_workflow.py, tests/test_semantic_remote_recovery.py (32 and 48 concurrent workers), tests/test_api_mcp.py, and tests/test_semantic_background.py. Adds one semantic policy setting and optional arguments to existing CLI/MCP/REST reads; no new runtime service, endpoint, MCP tool, or table."
   },
   "legacy_functions": {
     "src/anaxigraph/architecture.py::evaluate_architecture": [
@@ -55,10 +58,6 @@
     "src/anaxigraph/scanner.py::RepositoryScanner._scan": [
       151,
       8
-    ],
-    "src/anaxigraph/semantic_contract.py::validated_result": [
-      56,
-      11
     ],
     "src/anaxigraph/semantic_records.py::_ensure_job": [
       59,

@@ -13,11 +13,13 @@ from anaxigraph.semantic_index_port import SemanticIndex
 from anaxigraph.semantic_records import _document_by_id
 from anaxigraph.semantic_request_support import (
     INPUT_TERM_MEANINGS,
+    MAPPING_REQUIREMENTS,
     PLAIN_LANGUAGE_CONTRACT_VERSION,
     PLAIN_LANGUAGE_REQUIREMENTS,
     compact_dossier,
 )
 from anaxigraph.semantic_target_source import read_mounted_source, require_unchanged_source
+from anaxigraph.understandability import UNDERSTANDABILITY_POLICY
 
 _REPOSITORY_CHARTER_CONTRACT = (
     "Create the Living Architecture Charter for this repository. Explain its purpose, actors, "
@@ -46,7 +48,7 @@ class SemanticEvidenceService:
     ) -> dict[str, Any]:
         request: dict[str, Any]
         if job["job_kind"] == "intrinsic":
-            request = self._intrinsic_request(job, root)
+            request = self._intrinsic_request(job, root, semantic)
         elif job["job_kind"] == "context":
             request = self._context_request(job, semantic)
         elif job["job_kind"] in {"taxonomy_proposal", "taxonomy_review"}:
@@ -62,13 +64,28 @@ class SemanticEvidenceService:
 
             request = fresh_eyes_request(self._database, job)
         else:
-            request = self._synthesis_request(job)
+            request = self._synthesis_request(job, semantic)
+        lean = (
+            not semantic.detailed_reviews
+            and job["job_kind"] in {"intrinsic", "context", "synthesis"}
+            and job["scope_type"] != "repository"
+        )
+        request["detailed_reviews"] = semantic.detailed_reviews
+        request["max_output_tokens"] = semantic.max_output_tokens
         request["writing_contract_version"] = PLAIN_LANGUAGE_CONTRACT_VERSION
-        request["writing_requirements"] = PLAIN_LANGUAGE_REQUIREMENTS
-        request["input_term_meanings"] = INPUT_TERM_MEANINGS
+        request["writing_requirements"] = (
+            MAPPING_REQUIREMENTS if lean else PLAIN_LANGUAGE_REQUIREMENTS
+        )
+        if lean:
+            request["contract"] = MAPPING_REQUIREMENTS["purpose"]
+        else:
+            request["input_term_meanings"] = INPUT_TERM_MEANINGS
+            request["understandability_policy"] = UNDERSTANDABILITY_POLICY
         return request
 
-    def _intrinsic_request(self, job: dict[str, Any], root: Path) -> dict[str, Any]:
+    def _intrinsic_request(
+        self, job: dict[str, Any], root: Path, semantic: SemanticConfig
+    ) -> dict[str, Any]:
         path = str(job["scope_key"])
         raw_content = read_mounted_source(root, path, missing=_TARGET_MISSING)
         content = raw_content.decode("utf-8", errors="replace")
@@ -103,7 +120,8 @@ class SemanticEvidenceService:
                 "Describe what this file does using only its supplied source, named code parts, "
                 "and direct links to other files. Explain behavior callers rely on and places "
                 "intentionally designed for adding behavior. Leave repository-wide pattern, "
-                "combine-or-separate, placement, and deletion judgments empty until the next pass."
+                "combine-or-separate, placement, and deletion judgments empty until the next pass. "
+                "Use change_summary only to describe a meaning change from previous_dossier."
             ),
             "schema_version": SEMANTIC_SCHEMA_VERSION,
             "analysis_kind": "intrinsic",
@@ -111,7 +129,7 @@ class SemanticEvidenceService:
             "language": version["language"],
             "deterministic_facts": _intrinsic_facts(version, symbols, relations, history),
             "source": content,
-            "previous_dossier": previous["value"] if previous else None,
+            "previous_dossier": _previous_value(previous, semantic),
         }
 
     def _context_request(self, job: dict[str, Any], semantic: SemanticConfig) -> dict[str, Any]:
@@ -142,10 +160,12 @@ class SemanticEvidenceService:
             "schema_version": SEMANTIC_SCHEMA_VERSION,
             "analysis_kind": "context",
             "path": job["scope_key"],
-            "intrinsic_dossier": intrinsic["value"],
+            "intrinsic_dossier": compact_dossier(
+                intrinsic["value"], detailed=semantic.detailed_reviews
+            ),
             "relationships": relations,
             "neighbor_dossiers": neighbors,
-            "previous_dossier": previous["value"] if previous else None,
+            "previous_dossier": _previous_value(previous, semantic),
         }
 
     def _neighbor_dossiers(
@@ -170,12 +190,14 @@ class SemanticEvidenceService:
                     {
                         "path": path,
                         "confidence": document["confidence"],
-                        "dossier": compact_dossier(document["value"]),
+                        "dossier": compact_dossier(
+                            document["value"], detailed=semantic.detailed_reviews
+                        ),
                     }
                 )
         return result
 
-    def _synthesis_request(self, job: dict[str, Any]) -> dict[str, Any]:
+    def _synthesis_request(self, job: dict[str, Any], semantic: SemanticConfig) -> dict[str, Any]:
         with self._database.connect() as connection:
             documents = [
                 _document_by_id(connection, int(document_id))
@@ -208,14 +230,26 @@ class SemanticEvidenceService:
                     "scope": item["scope_key"],
                     "kind": item["document_kind"],
                     "confidence": item["confidence"],
-                    "value": compact_dossier(item["value"]),
+                    "value": compact_dossier(item["value"], detailed=semantic.detailed_reviews),
                 }
                 for item in documents
             ],
             "missing_children": job["metadata"].get("missing_members", [])[:100],
             "missing_child_count": len(job["metadata"].get("missing_members", [])),
-            "previous_dossier": previous["value"] if previous else None,
+            "previous_dossier": _previous_value(previous, semantic, repository=repository),
         }
+
+
+def _previous_value(
+    document: dict[str, Any] | None, semantic: SemanticConfig, *, repository: bool = False
+) -> dict[str, Any] | None:
+    if document is None:
+        return None
+    return (
+        document["value"]
+        if repository
+        else compact_dossier(document["value"], detailed=semantic.detailed_reviews)
+    )
 
 
 def _intrinsic_facts(

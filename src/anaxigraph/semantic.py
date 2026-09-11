@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import tempfile
 from dataclasses import replace
@@ -192,6 +193,20 @@ class ClaudeSemanticProvider:
             completed = subprocess.run(
                 _claude_command(self.config, request),
                 input=_prompt(request),
+                env={
+                    **os.environ,
+                    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": str(
+                        min(
+                            max(
+                                self.config.max_output_tokens,
+                                self.config.max_output_tokens_on_retry,
+                            )
+                            if request.get("output_recovery")
+                            else self.config.max_output_tokens,
+                            int(request.get("max_output_tokens") or self.config.max_output_tokens),
+                        )
+                    ),
+                },
                 text=True,
                 capture_output=True,
                 timeout=self.config.timeout_seconds,
@@ -244,6 +259,16 @@ def _claude_envelope(stdout: str) -> dict[str, Any]:
 
 
 def _claude_value(envelope: dict[str, Any], usage: ProviderUsage) -> Any:
+    if envelope.get("stop_reason") == "max_tokens":
+        raise _usage_error(
+            "Claude stopped at max_tokens before completing its result",
+            usage,
+            output_truncated=True,
+        )
+    if envelope.get("is_error"):
+        raise _usage_error(
+            str(envelope.get("errors") or envelope.get("result") or "Claude run failed"), usage
+        )
     value = envelope.get("structured_output")
     if value is None:
         value = envelope.get("result")
@@ -261,12 +286,12 @@ def _claude_failure(message: str, stdout: str) -> SemanticAnalysisError:
         envelope = json.loads(stdout)
     except json.JSONDecodeError:
         envelope = None
+    if isinstance(envelope, dict) and envelope.get("is_error"):
+        message += f": {envelope.get('errors') or envelope.get('result') or ''}"
     return _usage_error(message, claude_usage(envelope))
 
 
 def _system_instruction(*, evidence_files: bool = False) -> str:
-    from anaxigraph.semantic_request_support import plain_language_instruction
-
     tools = (
         "Use tools only to read the supplied semantic-evidence-*.txt files in the current "
         "directory. Do not inspect other files or repositories, search, or access the network."
@@ -279,15 +304,31 @@ def _system_instruction(*, evidence_files: bool = False) -> str:
         f"{tools} Do not modify files or invent dependencies. "
         "Return the requested strict JSON artifact with "
         "concise statements supported by the supplied evidence. "
-        f"{plain_language_instruction()} "
-        "For file-description work, when a previous_dossier is "
-        "supplied, change_summary must state how meaning changed; otherwise it must be empty. "
+        "Write short, concrete English sentences. State each fact once. Stay within the supplied "
+        "output budget and finish the JSON object. "
         "Use empty strings or arrays when evidence is insufficient."
     )
 
 
 def _prompt(request: dict[str, Any]) -> str:
-    return f"{_system_instruction()}\n\nANAXIGRAPH_PAYLOAD\n{json.dumps(request)}"
+    stable = (
+        "schema_version",
+        "analysis_kind",
+        "detailed_reviews",
+        "contract",
+        "writing_contract_version",
+        "writing_requirements",
+        "input_term_meanings",
+        "understandability_policy",
+        "max_output_tokens",
+    )
+    ordered = {key: request[key] for key in stable if key in request}
+    ordered.update(
+        {key: value for key, value in request.items() if key not in stable and key != "source"}
+    )
+    if "source" in request:
+        ordered["source"] = request["source"]
+    return f"{_system_instruction()}\n\nANAXIGRAPH_PAYLOAD\n{json.dumps(ordered, ensure_ascii=False, separators=(',', ':'))}"
 
 
 def _result_from_json(
@@ -300,7 +341,10 @@ def _result_from_json(
         value = json.loads(text.strip())
     except json.JSONDecodeError as exc:
         raise _usage_error("Semantic provider did not return valid JSON", usage) from exc
+    truncated = isinstance(value, dict) and value.get("stop_reason") == "max_tokens"
     value, usage = _result_envelope(value, usage)
+    if truncated:
+        raise _usage_error("Semantic provider stopped at max_tokens", usage, output_truncated=True)
     return _validated_with_usage(value, request or {}, usage)
 
 
@@ -353,7 +397,9 @@ def _validated_with_usage(
     )
 
 
-def _usage_error(message: str, usage: ProviderUsage) -> SemanticAnalysisError:
+def _usage_error(
+    message: str, usage: ProviderUsage, *, output_truncated: bool = False
+) -> SemanticAnalysisError:
     """Carry every usage fact an executor managed to report into its failure."""
 
     return SemanticAnalysisError(
@@ -363,4 +409,6 @@ def _usage_error(message: str, usage: ProviderUsage) -> SemanticAnalysisError:
         cache_read_input_tokens=usage.cache_read_input_tokens,
         cache_creation_input_tokens=usage.cache_creation_input_tokens,
         usage_reported=usage.reported,
+        output_truncated=output_truncated
+        or ("response exceeded" in message.lower() and "output token" in message.lower()),
     )

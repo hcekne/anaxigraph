@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from anaxigraph.understandability import actionable_task, assessment_tasks
+
 
 def semantic_effect_specs(evidence: dict[str, Any]) -> list[dict[str, Any]]:
     result = []
     for change in evidence.get("module_changes") or []:
+        result.extend(_understandability_specs(change))
         after = change.get("after") or {}
         semantic = after.get("semantic") or {}
         path = str(change.get("path") or "")
@@ -21,6 +24,70 @@ def semantic_effect_specs(evidence: dict[str, Any]) -> list[dict[str, Any]]:
             if isinstance(candidate, dict):
                 result.append(_dead_code_spec(path, candidate, semantic))
     return result
+
+
+def _understandability_specs(change: dict[str, Any]) -> list[dict[str, Any]]:
+    before = (change.get("before") or {}).get("semantic") or {}
+    after = (change.get("after") or {}).get("semantic") or {}
+    previous = {item["key"]: item for item in assessment_tasks(before)}
+    result = []
+    for task in assessment_tasks(after):
+        old = previous.get(task["key"])
+        comparable = _comparable_reader_task(old, task)
+        if comparable and old["status"] != task["status"]:
+            label = "improved" if task["status"] == "clear" else "worsened"
+            result.append(_reader_effect(change["path"], task, label, old))
+        elif comparable and task["status"] == "clear":
+            result.append(_reader_effect(change["path"], task, "coherent_no_change", old))
+        elif actionable_task(task):
+            result.append(_reader_effect(change["path"], task, "opportunity"))
+    return result
+
+
+def _comparable_reader_task(before: dict[str, Any] | None, after: dict[str, Any]) -> bool:
+    if not before or before["task"] != after["task"]:
+        return False
+    return (
+        before["status"] != "unknown"
+        and after["status"] != "unknown"
+        and min(before["confidence"], after["confidence"]) >= 0.7
+    )
+
+
+def _reader_effect(
+    path: str, task: dict[str, Any], classification: str, before: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    retain = classification in {"improved", "coherent_no_change"}
+    observation = f"AI assessment of '{task['task']}': {task['status']}."
+    if before:
+        observation += f" The previous assessment was {before['status']}."
+    return {
+        "category": "understandability",
+        "classification": classification,
+        "subject": f"{path}::{task['key']}",
+        "observation": observation,
+        "consequence": "Current evidence continues to support this task."
+        if classification == "coherent_no_change"
+        else task["expected_benefit"] or "This task may require less outside explanation.",
+        "recommendation": "Retain the clearer code if task checks pass."
+        if retain
+        else task["smallest_change"],
+        "confidence": min(task["confidence"], before["confidence"] if before else 1),
+        "basis": "inferred maintenance-task assessments, not measured reader performance",
+        "counter_evidence": task["counter_evidence"],
+        "reasons_to_leave_alone": task["counter_evidence"]
+        or ["Domain complexity and concise rationale can remain necessary."],
+        "follow_up": task["verification"],
+        "verification": (
+            f"{task['verification']} Compare correctness on this task in fresh contexts using "
+            "the repository and thin docs without AnaxiGraph explanations; repeat under the same resources."
+        ),
+        "evidence": [
+            {"kind": "semantic_dossier", "reference": path, "detail": f"{side}: {item}"}
+            for side, value in (("before", before or {}), ("after", task))
+            for item in value.get("evidence") or []
+        ],
+    }
 
 
 def pattern_effect_spec(item: dict[str, Any]) -> dict[str, Any] | None:

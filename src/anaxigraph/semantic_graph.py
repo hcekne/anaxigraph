@@ -100,7 +100,7 @@ def _intent_fingerprint(value: dict[str, Any]) -> str:
         | {
             "architecture_role": " ".join(
                 str(value.get("architecture_role") or "").split()
-            ).casefold()
+            ).casefold(),
         }
     )
 

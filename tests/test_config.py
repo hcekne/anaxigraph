@@ -130,7 +130,7 @@ def test_hosted_api_key_provider_is_rejected(tmp_path: Path, provider: str):
         encoding="utf-8",
     )
 
-    with pytest.raises(ValueError, match="no longer hosts"):
+    with pytest.raises(ValueError, match="credentials stay with the executor"):
         load_config(tmp_path)
 
 

@@ -19,31 +19,32 @@ def _spec(repository: Path, executor: str) -> background.SemanticBackgroundSpec:
     )
 
 
-def test_same_executor_refusal_names_the_other_executors_slot(repository: Path):
+def test_same_executor_reuses_the_run_without_proposing_a_competitor(repository: Path):
     record = refusal.already_running(
         {"executor": "codex", "active": True}, _spec(repository, "codex")
     )
 
     action = record["recommended_action"]
     assert record["status"] == "already_running"
-    assert f"anaxigraph understand {repository.resolve()}" in action
-    assert "--executor claude --background" in action
-    assert "codex slot" in action
+    assert "Reuse this codex run" in action
+    assert "--compact" in action
+    assert "supervisor" in action
+    assert "--executor claude" not in action
 
 
-def test_a_refusal_without_a_recorded_executor_stays_a_bare_record(repository: Path):
+def test_startup_races_still_return_reuse_guidance(repository: Path):
     record = refusal.already_running({"active": True}, _spec(repository, "codex"))
 
     assert record["status"] == "already_running"
-    assert "recommended_action" not in record
+    assert "Reuse this codex run" in record["recommended_action"]
 
 
-def test_an_unknown_executor_falls_back_to_the_foreground_command(repository: Path):
+def test_an_unknown_executor_keeps_the_existing_run(repository: Path):
     record = refusal.already_running(
         {"executor": "gemini", "active": True}, _spec(repository, "gemini")
     )
 
-    assert "--until-complete" in record["recommended_action"]
+    assert "Reuse this gemini run" in record["recommended_action"]
 
 
 def test_refusal_guidance_replaces_the_progress_hint_in_next_action():
@@ -63,7 +64,7 @@ def test_a_second_run_of_the_same_executor_is_refused(
 
     assert refused["status"] == "already_running"
     assert refused["executor"] == "codex"
-    assert "--executor claude --background" in refused["recommended_action"]
+    assert "Reuse this codex run" in refused["recommended_action"]
 
 
 def test_background_handoff_surfaces_the_refusal_as_the_next_action(repository: Path, monkeypatch):
@@ -84,4 +85,4 @@ def test_background_handoff_surfaces_the_refusal_as_the_next_action(repository: 
     result = background.launch_understand_background(args, repository, execution, "claude", None)
 
     assert result["status"] == "already_running"
-    assert "--executor codex --background" in result["next_action"]
+    assert "Reuse this claude run" in result["next_action"]

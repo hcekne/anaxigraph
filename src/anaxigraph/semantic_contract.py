@@ -6,7 +6,10 @@ import json
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-SEMANTIC_SCHEMA_VERSION = "repository-understanding-v5"
+from anaxigraph.semantic_request_support import MAPPING_SCHEMA
+from anaxigraph.understandability import UNDERSTANDABILITY_SCHEMA
+
+SEMANTIC_SCHEMA_VERSION = "repository-understanding-v7"
 
 _STRING_ARRAY = {"type": "array", "items": {"type": "string"}}
 _PATTERN_OPPORTUNITY = {
@@ -25,17 +28,6 @@ _PATTERN_OPPORTUNITY = {
         },
         "preconditions": _STRING_ARRAY,
     },
-    "required": [
-        "name",
-        "scope",
-        "score",
-        "confidence",
-        "rationale",
-        "evidence",
-        "counter_evidence",
-        "migration_cost",
-        "preconditions",
-    ],
     "additionalProperties": False,
 }
 _CONSOLIDATION_ASSESSMENT = {
@@ -51,14 +43,6 @@ _CONSOLIDATION_ASSESSMENT = {
         "evidence": _STRING_ARRAY,
         "counter_evidence": _STRING_ARRAY,
     },
-    "required": [
-        "recommendation",
-        "score",
-        "rationale",
-        "candidates",
-        "evidence",
-        "counter_evidence",
-    ],
     "additionalProperties": False,
 }
 _DEAD_CODE_CANDIDATE = {
@@ -71,14 +55,6 @@ _DEAD_CODE_CANDIDATE = {
         "counter_evidence": _STRING_ARRAY,
         "verification": {"type": "string"},
     },
-    "required": [
-        "path_or_symbol",
-        "confidence",
-        "rationale",
-        "reachability_evidence",
-        "counter_evidence",
-        "verification",
-    ],
     "additionalProperties": False,
 }
 DOSSIER_SCHEMA: dict[str, Any] = {
@@ -100,6 +76,7 @@ DOSSIER_SCHEMA: dict[str, Any] = {
         "similar_modules": _STRING_ARRAY,
         "pattern_opportunities": {"type": "array", "items": _PATTERN_OPPORTUNITY},
         "consolidation_assessment": _CONSOLIDATION_ASSESSMENT,
+        "understandability": UNDERSTANDABILITY_SCHEMA,
         "dead_code_candidates": {"type": "array", "items": _DEAD_CODE_CANDIDATE},
         "placement_guidance": {"type": "string"},
         "testing_guidance": _STRING_ARRAY,
@@ -108,33 +85,17 @@ DOSSIER_SCHEMA: dict[str, Any] = {
         "evidence": _STRING_ARRAY,
         "confidence": {"type": "number", "minimum": 0, "maximum": 1},
     },
-    "required": [
-        "summary",
-        "detailed_summary",
-        "responsibilities",
-        "inputs",
-        "outputs",
-        "side_effects",
-        "public_contracts",
-        "invariants",
-        "architecture_role",
-        "domain_concepts",
-        "collaborators",
-        "overlaps",
-        "extension_points",
-        "similar_modules",
-        "pattern_opportunities",
-        "consolidation_assessment",
-        "dead_code_candidates",
-        "placement_guidance",
-        "testing_guidance",
-        "change_summary",
-        "risks",
-        "evidence",
-        "confidence",
-    ],
     "additionalProperties": False,
 }
+
+
+for _schema in (
+    DOSSIER_SCHEMA,
+    _PATTERN_OPPORTUNITY,
+    _CONSOLIDATION_ASSESSMENT,
+    _DEAD_CODE_CANDIDATE,
+):
+    _schema["required"] = list(_schema["properties"])
 
 
 class SemanticAnalysisError(RuntimeError):
@@ -149,6 +110,7 @@ class SemanticAnalysisError(RuntimeError):
         cache_read_input_tokens: int = 0,
         cache_creation_input_tokens: int = 0,
         usage_reported: bool = False,
+        output_truncated: bool = False,
     ) -> None:
         super().__init__(message)
         self.input_tokens = max(0, int(input_tokens))
@@ -156,6 +118,7 @@ class SemanticAnalysisError(RuntimeError):
         self.cache_read_input_tokens = max(0, int(cache_read_input_tokens))
         self.cache_creation_input_tokens = max(0, int(cache_creation_input_tokens))
         self.usage_reported = bool(usage_reported)
+        self.output_truncated = output_truncated
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,6 +146,19 @@ class SemanticProvider(Protocol):
     def analyze(self, request: dict[str, Any]) -> SemanticResult: ...
 
 
+def validated_mapping(value: Any, *, input_tokens: int, output_tokens: int) -> SemanticResult:
+    _validate_schema(value, MAPPING_SCHEMA, "dossier")
+    if not value["summary"].strip() or not 0 <= value["confidence"] <= 1:
+        raise SemanticAnalysisError("Mapping requires a summary and finite confidence")
+    return SemanticResult(
+        value=value,
+        confidence=float(value["confidence"]),
+        evidence=tuple(value["evidence"]),
+        input_tokens=max(0, input_tokens),
+        output_tokens=max(0, output_tokens),
+    )
+
+
 def validated_result(
     value: Any,
     *,
@@ -204,23 +180,9 @@ def validated_result(
         "placement_guidance": str(value.get("placement_guidance") or "")[:4_000],
         "change_summary": str(value.get("change_summary") or "")[:4_000],
     }
-    for key in (
-        "responsibilities",
-        "inputs",
-        "outputs",
-        "side_effects",
-        "public_contracts",
-        "invariants",
-        "domain_concepts",
-        "collaborators",
-        "overlaps",
-        "extension_points",
-        "similar_modules",
-        "testing_guidance",
-        "risks",
-        "evidence",
-    ):
-        normalized[key] = list(_strings(value.get(key)))
+    for key, field_schema in DOSSIER_SCHEMA["properties"].items():
+        if field_schema == _STRING_ARRAY:
+            normalized[key] = list(_strings(value.get(key)))
     normalized["pattern_opportunities"] = list(
         _pattern_opportunities(value.get("pattern_opportunities"))
     )
@@ -231,6 +193,8 @@ def validated_result(
         _dead_code_candidates(value.get("dead_code_candidates"))
     )
     normalized["confidence"] = confidence
+    if "understandability" in value:
+        normalized["understandability"] = _validated_understandability(value["understandability"])
     evidence = tuple(normalized["evidence"])
     return SemanticResult(
         value=normalized,
@@ -239,6 +203,33 @@ def validated_result(
         input_tokens=max(0, input_tokens),
         output_tokens=max(0, output_tokens),
     )
+
+
+def _validated_understandability(value: Any) -> dict[str, Any]:
+    _validate_schema(value, UNDERSTANDABILITY_SCHEMA, "understandability")
+    keys = [task["key"].strip() for task in value["tasks"]]
+    if len(keys) != len(set(keys)) or any(not key for key in keys):
+        raise SemanticAnalysisError("understandability task keys must be nonempty and unique")
+    for task in value["tasks"]:
+        required = ["task"]
+        if task["status"] != "unknown":
+            required.extend(("evidence", "knowledge_sources", "verification"))
+        if task["status"] == "obstructed":
+            required.extend(("obstacle", "smallest_change", "expected_benefit"))
+        if any(
+            not str(task[key]).strip() if isinstance(task[key], str) else not task[key]
+            for key in required
+        ):
+            raise SemanticAnalysisError(
+                "understandability tasks require concrete evidence and checks"
+            )
+        if any(not item.strip() for item in (*task["evidence"], *task["counter_evidence"])):
+            raise SemanticAnalysisError("understandability evidence cannot be blank")
+        if not 0 <= task["confidence"] <= 1:
+            raise SemanticAnalysisError(
+                "understandability confidence must be finite and between 0 and 1"
+            )
+    return value
 
 
 def _validate_schema(value: Any, schema: dict[str, Any], path: str) -> None:

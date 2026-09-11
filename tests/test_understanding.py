@@ -122,16 +122,22 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
     new_calls = _calls(log)[first_call_count:]
     assert new_calls[0] == {"path": "pkg/core.py", "kind": "intrinsic"}
     assert {item["kind"] for item in new_calls[1:]} == {
+        "context",
+        "synthesis",
         "pattern_assessment",
         "pattern_review",
     }
-    assert {item["path"] for item in new_calls[1:]} <= {"pkg/core.py", "scope"}
+    assert [item["path"] for item in new_calls if item["kind"] == "context"] == ["pkg/core.py"]
+    assert {item["path"] for item in new_calls[1:] if item["kind"] != "synthesis"} <= {
+        "pkg/core.py",
+        "scope",
+    }
     assert sum(item["kind"] == "pattern_assessment" for item in new_calls) == sum(
         item["kind"] == "pattern_review" for item in new_calls
     )
-    carried_map = database.semantic_taxonomy(changed.repository_id)
-    assert carried_map["source"] == "carried_semantic_taxonomy"
-    assert [item["name"] for item in carried_map["hierarchy"]] == [
+    retained_map = database.semantic_taxonomy(changed.repository_id)
+    assert retained_map["source"] == "incrementally_validated_taxonomy"
+    assert [item["name"] for item in retained_map["hierarchy"]] == [
         item["name"] for item in semantic_map["hierarchy"]
     ]
     dossier = SemanticEngine(database).dossier(changed.repository_id, "pkg/core.py")

@@ -48,6 +48,8 @@ class SemanticPatternPlanner:
         semantic: SemanticConfig,
         retry_failed: bool,
     ) -> tuple[int, bool]:
+        if not semantic.detailed_reviews:
+            return 0, True
         catalog = bundled_pattern_catalog()
         plan_hash = pattern_plan_input_hash(
             semantic.prompt_version,
@@ -75,18 +77,7 @@ class SemanticPatternPlanner:
             projection=projection,
             plan=plan,
         )
-        _upsert_state(
-            connection,
-            repository_id=repository_id,
-            snapshot_id=snapshot_id,
-            scope_type="pattern_plan",
-            scope_key=PATTERN_PLAN_SCOPE,
-            status="current",
-            reason=f"Sparse candidate plan selected {len(plan.candidates)} pattern pairs",
-            context_input_hash=plan_hash,
-            context_fingerprint=plan.fingerprint,
-            interface_hash=str(len(plan.candidates)),
-        )
+        _save_candidate_plan(connection, repository_id, snapshot_id, plan_hash, plan)
         return enqueued, patterns_complete(connection, snapshot_id, len(plan.candidates))
 
     def _plan_selected(
@@ -164,6 +155,23 @@ class SemanticPatternPlanner:
             metadata,
             retry_failed,
         )
+
+
+def _save_candidate_plan(
+    connection: sqlite3.Connection, repository_id: int, snapshot_id: int, plan_hash: str, plan: Any
+) -> None:
+    _upsert_state(
+        connection,
+        repository_id=repository_id,
+        snapshot_id=snapshot_id,
+        scope_type="pattern_plan",
+        scope_key=PATTERN_PLAN_SCOPE,
+        status="current",
+        reason=f"Sparse candidate plan selected {len(plan.candidates)} pattern pairs",
+        context_input_hash=plan_hash,
+        context_fingerprint=plan.fingerprint,
+        interface_hash=str(len(plan.candidates)),
+    )
 
 
 def _ensure_assessment(

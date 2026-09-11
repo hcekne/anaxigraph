@@ -15,6 +15,7 @@ from anaxigraph.semantic_fresh_eyes_contract import ANY_EXECUTOR
 from anaxigraph.semantic_fresh_eyes_diversity import executor_family as identity_family
 from anaxigraph.semantic_index_port import SemanticIndex
 from anaxigraph.semantic_job_state import semantic_job_bulk_transition, semantic_job_transition
+from anaxigraph.semantic_pattern_state import remove_obsolete_candidates
 
 CANDIDATE_PAGE = 50
 
@@ -78,6 +79,12 @@ def reconcile_claimable_jobs(
     """Atomically heal expired work and retire jobs from older snapshots."""
 
     current = now or utc_now()
+    if not semantic.detailed_reviews:
+        remove_obsolete_candidates(connection, snapshot_id, set())
+        connection.execute(
+            "DELETE FROM semantic_scope_states WHERE snapshot_id = ? AND scope_type = 'pattern_plan'",
+            (snapshot_id,),
+        )
     stale_before = (
         datetime.now(UTC) - timedelta(seconds=max(90, semantic.timeout_seconds + 60))
     ).isoformat()

@@ -14,7 +14,7 @@ def test_semantic_readiness_waits_for_the_pattern_plan_and_its_jobs():
     }
     unplanned = _coverage(
         SimpleNamespace(**base, scope_counts={"repository": {"current": 1}}),
-        SemanticConfig(enabled=True),
+        SemanticConfig(enabled=True, detailed_reviews=True),
     )
     reviewing = _coverage(
         SimpleNamespace(
@@ -25,7 +25,7 @@ def test_semantic_readiness_waits_for_the_pattern_plan_and_its_jobs():
                 "pattern": {"current": 1, "pending_pattern_review": 1},
             },
         ),
-        SemanticConfig(enabled=True),
+        SemanticConfig(enabled=True, detailed_reviews=True),
     )
 
     assert unplanned.semantically_ready is False

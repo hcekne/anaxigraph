@@ -60,6 +60,10 @@ class IdleRecovery:
             )
         except (OSError, ValueError) as exc:
             raise RuntimeError(f"Could not recover the stranded semantic queue: {exc}") from exc
+        if prepared.get("status") == "preparing":
+            self.polls = 0
+            await asyncio.sleep(5)
+            return None
         self.refreshed.add(snapshot_id)
         self.reset()
         print(

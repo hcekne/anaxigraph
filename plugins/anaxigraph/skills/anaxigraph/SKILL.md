@@ -19,8 +19,8 @@ treat a graph edge, missing edge, finding, or model dossier as permission to ref
    every later call when more than one repository is listed.
 3. If no path matches, or multiple candidates remain and the user did not select one, ask which
    indexed repository to use. Never silently analyze a similarly named repository.
-4. Call `ANAXIGRAPH_OVERVIEW` and `ANAXIGRAPH_SEMANTIC_STATUS` before choosing a workflow. Use the
-   Overview Charter and current responsibility map as the default system explanation. State
+4. For mapping or progress, use the compact default `ANAXIGRAPH_SEMANTIC_STATUS`. For an architecture
+   question, call `ANAXIGRAPH_OVERVIEW` and use its Charter and responsibility map. State
    analyzer/resolution caveats when they materially affect the answer.
 
 With no narrower request, summarize the repository's areas, dominant languages, active attention,
@@ -63,7 +63,8 @@ semantic baseline only when no current baseline exists. For each coherent task:
    descriptions matter. It must reuse unchanged scopes. Wait for `semantically_ready` only when the
    next decision requires a fully current semantic map.
 
-Read `telemetry` from guidance, impact, and semantic status. Compare server duration and reply size for
+Read detailed semantic `telemetry` with `ANAXIGRAPH_SEMANTIC_STATUS(details=true)` only when cost or
+performance diagnostics are needed. Compare server duration and reply size for
 deterministic reads; compare time, tokens, model, effort, failures, and cost by semantic action.
 Remember that summed AI job time can exceed wall time when jobs run in parallel, and that each
 action separates token counts reported by the executor, estimated by AnaxiGraph, and never
@@ -79,25 +80,39 @@ For a full baseline or resume request, prefer the durable host executor whenever
 Codex or Claude CLI is available. Do not manually consume a repository-sized queue inside the
 lifetime of this chat session:
 
-1. Select the local executor from the current client or the user's instruction. Model and reasoning
-   effort are per-run inputs: never bake either into repository policy or invent a model name. If
-   the user selected explicit runtime values, pass those exact values; otherwise omit both.
-2. Run `anaxigraph understand <repository> --executor <executor> --background --json`, adding
-   `--model <model>` and `--reasoning-effort <effort>` when selected; both Codex and Claude accept
-   the effort value as given, and the chosen effort is recorded on every job and document the run
-   completes. Background mode implies the complete queue and survives this
-   coding-agent session.
-3. Verify the returned `index` is the intended local index or sidecar service. Preserve
-   `execution_run.run_id`, PID, log path, model, effort, and authority in any handoff.
-4. Call `anaxigraph semantic-status <repository> --json` for progress. A running detached worker is
-   real continuing work, not completion; only `semantically_ready: true` is success. If this
-   session ends, a later agent reads the same `execution_run` and queue instead of starting over.
+1. Select the authorized executor and an economical worker model explicitly, independently of the
+   model hosting this chat. Respect exact user choices and installed model names. Pass model and
+   optional reasoning effort as runtime arguments; do not send this conversation to the workers.
+2. Launch once: `anaxigraph understand <repository> --executor <executor> --model <model>
+   --parallel-jobs <slots> --background --json`. A runner supports 30+ concurrent model jobs, up to
+   the repository's shared `semantic.max_parallel_jobs`. Multiple executors may share that capacity.
+3. Verify the returned index authority and preserve `execution_run.run_id`, executor, model, and
+   log path. Treat `already_running` as successful reuse of that run, not a reason to launch a
+   competing executor. The runner owns leases, retries, scheduling, and progress.
+4. Return the run handle and let the caller's session end. Check progress on user request or after
+   `poll_after_seconds` (normally 300), using `ANAXIGRAPH_SEMANTIC_STATUS` or
+   `anaxigraph semantic-status <repository> --compact --json`. Avoid repeated LLM turns to monitor
+   unchanged state. Only `semantically_ready: true` means the complete map is ready.
+
+For a selected repository, the MCP status argument is `repository` (a path or ID string), for
+example `ANAXIGRAPH_SEMANTIC_STATUS(repository="7")`; `repository_id` is the REST argument.
+
+Do not create supervisor scripts, restart loops, or process-name checks. The `understand` command
+returns while `anaxigraph.semantic_background` continues. Use its durable run record, heartbeat,
+and queue status. Let the runner wait through preparation contention; do not relaunch on HTTP 409.
+Resume an interrupted run with the same command and index; completed jobs are reused. Inspect
+bounded error details only when a terminal error requires action. Read full logs only to diagnose it.
+
+Keep routine output to five fields and concise English. Treat 100–200 words as a flexible target;
+preserve extra essential behavior for complex code. Fetch a manual task's schema using its
+`response_contract.schema_arguments`, once per artifact, instead of loading every review schema.
 
 If no authenticated local executor is available, report that semantic completion needs Codex,
 Claude, or another configured executor; do not manually administer a repository-sized lease queue
-through the normal MCP tool menu. At the end, call `ANAXIGRAPH_SEMANTIC_STATUS`. Report completed
-coverage, pending/running/failed work, responsibility-map readiness, and whether the Living Charter
-is current. Never say that the baseline is complete until `semantically_ready: true`.
+through the normal MCP tool menu. When reporting progress, use the latest receipt or compact status;
+do not make another call solely to end the turn. Report supplied coverage and pending/running/failed
+work. Use `details=true` only when responsibility-map or Charter details are needed. Never say that
+the baseline is complete until `semantically_ready: true`.
 
 ## Run the fixed fresh-eyes review
 
@@ -118,7 +133,8 @@ AnaxiGraph into a general multi-agent workflow engine.
    `--model <model>` and, for Codex, `--reasoning-effort <effort>` when the user selected them
    for a rerun. It completes any missing semantic baseline, then consumes the fixed review jobs
    using the host agent's tokens.
-3. Poll `ANAXIGRAPH_GUIDE(fresh_eyes=true)` or `anaxigraph fresh-eyes <repository> --json`. A review
+3. Check `ANAXIGRAPH_GUIDE(fresh_eyes=true)` or `anaxigraph fresh-eyes <repository> --json` on request
+   or after at least five minutes; let the background worker own continuous progress. A review
    is complete only when `ready` is true and `state` is `current`; partial proposal or comparison
    stages are evidence, not recommendations.
 4. Report provider/model/executor diversity honestly. Different sessions of one provider are not

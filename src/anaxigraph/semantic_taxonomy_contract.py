@@ -18,6 +18,7 @@ from anaxigraph.semantic_contract import (
     DOSSIER_SCHEMA,
     SemanticResult,
     _validate_schema,
+    validated_mapping,
     validated_result,
 )
 from anaxigraph.semantic_fresh_eyes_contract import (
@@ -25,6 +26,7 @@ from anaxigraph.semantic_fresh_eyes_contract import (
     fresh_eyes_schema,
     validated_fresh_eyes_response,
 )
+from anaxigraph.semantic_request_support import MAPPING_SCHEMA
 
 _STRINGS = {"type": "array", "items": {"type": "string"}}
 _MEMBERSHIP = {
@@ -166,7 +168,7 @@ def response_schema(request: dict[str, Any]) -> dict[str, Any]:
         return TAXONOMY_REVIEW_SCHEMA
     if kind.startswith("taxonomy_"):
         return TAXONOMY_SCHEMA
-    return DOSSIER_SCHEMA
+    return DOSSIER_SCHEMA if request.get("detailed_reviews") else MAPPING_SCHEMA
 
 
 def response_contract_name(request: dict[str, Any]) -> str:
@@ -183,7 +185,7 @@ def response_contract_name(request: dict[str, Any]) -> str:
         return "taxonomy_review"
     if kind.startswith("taxonomy_"):
         return "taxonomy"
-    return "dossier"
+    return "review_dossier" if request.get("detailed_reviews") else "dossier"
 
 
 def validated_semantic_response(
@@ -217,6 +219,8 @@ def validated_semantic_response(
             output_tokens=output_tokens,
         )
     if not kind.startswith("taxonomy_"):
+        if request.get("detailed_reviews") is False:
+            return validated_mapping(value, input_tokens=input_tokens, output_tokens=output_tokens)
         return validated_result(value, input_tokens=input_tokens, output_tokens=output_tokens)
     review = kind.startswith("taxonomy_review")
     schema = TAXONOMY_REVIEW_SCHEMA if review else TAXONOMY_SCHEMA

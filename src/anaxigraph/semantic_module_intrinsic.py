@@ -83,6 +83,7 @@ def _module_inputs(
         "analysis_contract": module.get("analysis_contract"),
         "structural_hash": module["structural_hash"],
         "interface_hash": interface_hash,
+        "detailed_reviews": semantic.detailed_reviews,
     }
     return _IntrinsicModule(
         path=path,

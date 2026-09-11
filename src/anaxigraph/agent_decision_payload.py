@@ -7,6 +7,7 @@ from typing import Any
 from anaxigraph.agent_decision_handoff_language import compact_explanation
 from anaxigraph.agent_decomposition import compact_decomposition
 from anaxigraph.agent_task_path import compact_task_path
+from anaxigraph.understandability import compact_understandability
 
 
 def compact_architecture_decision(decision: dict[str, Any]) -> dict[str, Any]:
@@ -22,6 +23,8 @@ def compact_architecture_decision(decision: dict[str, Any]) -> dict[str, Any]:
     }
     if history := _compact_history_evidence(decision):
         result["history_evidence"] = history
+    if (decision.get("understandability") or {}).get("items"):
+        result["understandability"] = compact_understandability(decision["understandability"])
     _add_nonempty_counts(result, decision, patterns, decomposition)
     if verification := _compact_verification(decision.get("verification")):
         result["verification"] = verification

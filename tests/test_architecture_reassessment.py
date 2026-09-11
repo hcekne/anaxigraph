@@ -304,12 +304,14 @@ def test_incremental_refresh_keeps_charter_current_without_repo_wide_rerun(
     new_calls = _calls(log)[baseline_calls:]
     assert new_calls[0] == {"path": "pkg/core.py", "kind": "intrinsic"}
     assert {item["kind"] for item in new_calls[1:]} == {
+        "context",
+        "synthesis",
         "pattern_assessment",
         "pattern_review",
     }
-    assert not {"context", "synthesis", "taxonomy_proposal", "taxonomy_review"} & {
-        item["kind"] for item in new_calls
-    }
+    # Changed source refreshes its reader evidence even when responsibility is unchanged.
+    assert [item["path"] for item in new_calls if item["kind"] == "context"] == ["pkg/core.py"]
+    assert not {"taxonomy_proposal", "taxonomy_review"} & {item["kind"] for item in new_calls}
 
 
 def test_cli_reads_the_same_saved_reassessment(repository, database, capsys):

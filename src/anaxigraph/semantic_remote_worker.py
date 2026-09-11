@@ -445,6 +445,6 @@ async def _semantic_status(session: ClientSession, target: SemanticServiceTarget
     result = await call_tool(
         session,
         "ANAXIGRAPH_SEMANTIC_STATUS",
-        {"repository": str(target.repository_id)},
+        {"repository": str(target.repository_id), "details": True},
     )
     return tool_value(result, "read semantic status")

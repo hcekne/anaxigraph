@@ -8,6 +8,7 @@ from mcp.types import ToolAnnotations
 
 from anaxigraph.operational_health import served_map_status
 from anaxigraph.semantic_agent_protocol import semantic_agent_schema
+from anaxigraph.semantic_reporting import compact_semantic_status
 from anaxigraph.understanding import SemanticEngine
 
 
@@ -60,9 +61,10 @@ class SemanticMcpTools:
             self.status,
             name="ANAXIGRAPH_SEMANTIC_STATUS",
             description=(
-                "Report how much of the AI-created code map is up to date, which tasks are waiting "
-                "or failed, whether a worker is actually running, token and cost totals, and the "
-                "current whole-repository AI description."
+                "Read compact AI-mapping progress, live leases, concurrency limit, and usage. "
+                "Background workers own scheduling and recovery. Check on request or at most "
+                "once per five minutes; do not supervise with an LLM polling/relaunch loop. "
+                "Use details=true only when full saved descriptions or diagnostics are needed."
             ),
         )
 
@@ -84,8 +86,9 @@ class SemanticMcpTools:
             name="ANAXIGRAPH_SEMANTIC_SCHEMA",
             title="Read the required AI-result shapes",
             description=(
-                "Read the exact JSON shapes for file descriptions, the AI-created code-area map, "
-                "pattern checks, and their separate AI reviews before processing mapping tasks."
+                "Read only the artifact named by a claimed task's response_contract. Defaults "
+                "to dossier; use artifact=all only for protocol inspection. For large queues, "
+                "launch a background executor instead of processing tasks in the caller's context."
             ),
             annotations=_read_annotations(),
         )
@@ -146,13 +149,13 @@ class SemanticMcpTools:
             annotations=_write_annotations(idempotent=False),
         )
 
-    def status(self, repository: str = "") -> dict[str, Any]:
+    def status(self, repository: str = "", details: bool = False) -> dict[str, Any]:
         row, root = self.context(repository)
         config = self.config_for(row, root)
         result = current_semantic_status(self.database, int(row["id"]), config.semantic)
         result["map_status"] = self._map_status(row, root)
         result.update(self.config_contract(row, root, config))
-        return result
+        return result if details else compact_semantic_status(result)
 
     def taxonomy(self, repository: str = "") -> dict[str, Any]:
         row, root = self.context(repository)
@@ -164,8 +167,8 @@ class SemanticMcpTools:
         value["map_status"] = self._map_status(row, root)
         return value
 
-    def schema(self) -> dict[str, Any]:
-        return semantic_agent_schema()
+    def schema(self, artifact: str = "dossier") -> dict[str, Any]:
+        return semantic_agent_schema(artifact)
 
     def work(
         self,

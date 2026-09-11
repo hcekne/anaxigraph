@@ -69,15 +69,15 @@ def _recommended_action(
     if rows.jobs.get("running_live", 0):
         return {
             "kind": "monitor",
-            "command": "anaxigraph semantic-status <repository>",
-            "message": "An AI worker is running now; watch the saved progress until it finishes.",
+            "command": "anaxigraph semantic-status <repository> --compact --json",
+            "message": "Workers own progress and recovery. Return to the user; check again on request or after five minutes.",
         }
     if remaining >= 50:
         return {
             "kind": "durable_host_executor",
-            "command": "anaxigraph understand <repository> --executor codex --background",
-            "status_command": "anaxigraph semantic-status <repository>",
-            "message": "Use a background coding-agent worker for this repository-sized set of tasks.",
+            "command": "anaxigraph understand <repository> --executor <codex-or-claude> --model <worker-model> --background",
+            "status_command": "anaxigraph semantic-status <repository> --compact --json",
+            "message": "Launch once with an authorized worker model and the desired parallel slots; no LLM supervisor is needed.",
         }
     return {
         "kind": "bounded_mcp_fallback",
@@ -95,7 +95,7 @@ def _coverage(rows: SemanticStatusRows, semantic: SemanticConfig | None) -> Sema
     current = rows.counts.get("current", 0)
     failed = sum(rows.counts.get(key, 0) for key in FAILED_SEMANTIC_SCOPE_STATES)
     pending = _pending(rows.counts)
-    pending_scopes, failed_scopes = _non_module_metrics(rows.scope_counts)
+    pending_scopes, failed_scopes = _non_module_metrics(rows.scope_counts, semantic)
     repository_ready = _repository_charter_ready(rows.repository_state)
     taxonomy_enabled = bool(semantic and semantic.enabled and semantic.taxonomy.enabled)
     taxonomy_ready = bool(rows.taxonomy and rows.taxonomy["status"] == "current")
@@ -131,8 +131,12 @@ def _coverage(rows: SemanticStatusRows, semantic: SemanticConfig | None) -> Sema
 
 def _non_module_metrics(
     scope_counts: dict[str, dict[str, int]],
+    semantic: SemanticConfig | None,
 ) -> tuple[int, int]:
-    counts = [values for key, values in scope_counts.items() if key not in {"module", "fresh_eyes"}]
+    ignored = {"module", "fresh_eyes"}
+    if semantic and not semantic.detailed_reviews:
+        ignored.update(("pattern", "pattern_plan"))
+    counts = [values for key, values in scope_counts.items() if key not in ignored]
     pending = sum(_pending(values) for values in counts)
     failed = sum(
         count
@@ -175,6 +179,8 @@ def _patterns_ready(
 ) -> bool:
     if not semantic or not semantic.enabled:
         return False
+    if not semantic.detailed_reviews:
+        return True
     counts = rows.scope_counts.get("pattern", {})
     plan_counts = rows.scope_counts.get("pattern_plan", {})
     return (
@@ -199,6 +205,7 @@ def _identity_payload(
 ) -> dict[str, Any]:
     return {
         "enabled": bool(semantic and semantic.enabled),
+        "detailed_reviews": bool(semantic and semantic.detailed_reviews),
         "provider": semantic.provider if semantic else None,
         "model": semantic.model if semantic else None,
         "execution_mode": (
@@ -470,7 +477,7 @@ def _pattern_payload(
     failed = counts.get("failed_pattern", 0)
     planned = bool(plan_counts.get("current"))
     return {
-        "enabled": bool(semantic and semantic.enabled),
+        "enabled": bool(semantic and semantic.enabled and semantic.detailed_reviews),
         "planned": planned,
         "ready": _patterns_ready(rows, semantic),
         "selected": selected,

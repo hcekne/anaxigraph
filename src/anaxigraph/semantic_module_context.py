@@ -97,6 +97,8 @@ def _module_inputs(
         return None
     evidence = {
         "intrinsic_intent": plan.intents.get(path, ""),
+        "intrinsic_source": state.get("intrinsic_input_hash"),
+        "detailed_reviews": plan.semantic.detailed_reviews,
         "group": module.get("declared_group") or module.get("inferred_group"),
         "relationships": neighbors,
     }

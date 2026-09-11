@@ -9,6 +9,9 @@ from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from anaxigraph.semantic_request_support import MAPPING_REQUIREMENTS, MAPPING_SCHEMA
+from anaxigraph.understandability import UNDERSTANDABILITY_POLICY
+
 MODULE_INTRINSIC_CONTRACT = "module-intrinsic-v1"
 MODULE_CONTEXT_CONTRACT = "module-context-v1"
 GROUP_SYNTHESIS_CONTRACT = "group-synthesis-v1"
@@ -37,6 +40,8 @@ def semantic_input_hash(
         {
             "input_contract": contract,
             "prompt": prompt_version,
+            "mapping_contract": semantic_digest([MAPPING_SCHEMA, MAPPING_REQUIREMENTS]),
+            "understandability_policy": semantic_digest(UNDERSTANDABILITY_POLICY),
             "evidence": dict(evidence),
         }
     )
@@ -79,6 +84,8 @@ def legacy_input_matches(
                 "prompt": record.get("prompt_version"),
                 "provider": record.get("provider"),
                 "model": record.get("model"),
+                "mapping_contract": semantic_digest([MAPPING_SCHEMA, MAPPING_REQUIREMENTS]),
+                "understandability_policy": semantic_digest(UNDERSTANDABILITY_POLICY),
                 **dict(variant),
             }
         )

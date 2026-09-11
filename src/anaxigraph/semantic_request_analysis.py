@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from typing import Any
 
 from anaxigraph.architecture_charter_contract import compact_architecture_charter
 from anaxigraph.config import SemanticConfig
-from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION, SemanticResult
+from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION, SemanticAnalysisError, SemanticResult
 from anaxigraph.semantic_graph import _source_chunks
 from anaxigraph.semantic_parallel import parallel_map
 from anaxigraph.semantic_request_support import compact_dossier
@@ -24,6 +25,7 @@ def analyze_semantic_request(
 ) -> SemanticResult:
     """Execute a request with bounded chunking independent of index location."""
 
+    provider = _OutputRecovery(provider, semantic)
     if request["analysis_kind"] == "taxonomy_proposal":
         return analyze_taxonomy_proposal(provider, request, semantic)
     if request["analysis_kind"] == "taxonomy_review":
@@ -34,6 +36,50 @@ def analyze_semantic_request(
     if request["analysis_kind"] != "intrinsic" or len(source) <= semantic.max_source_chars:
         return provider.analyze(request)
     return _analyze_intrinsic_chunks(provider, request, semantic, source)
+
+
+class _OutputRecovery:
+    """Retry confirmed output truncation once, preserving the schema and all reported usage."""
+
+    def __init__(self, provider: Any, semantic: SemanticConfig) -> None:
+        self.provider, self.semantic = provider, semantic
+
+    def analyze(self, request: dict[str, Any]) -> SemanticResult:
+        try:
+            return self.provider.analyze(request)
+        except SemanticAnalysisError as exc:
+            limit = int(request.get("max_output_tokens") or self.semantic.max_output_tokens)
+            ceiling = self.semantic.max_output_tokens_on_retry
+            if not exc.output_truncated or ceiling <= limit:
+                raise
+            previous = exc
+        retry = {
+            **request,
+            "max_output_tokens": min(limit * 2, ceiling),
+            "output_recovery": "The previous response hit its output limit. Return complete JSON; keep each statement concise.",
+        }
+        try:
+            result = self.provider.analyze(retry)
+        except SemanticAnalysisError as exc:
+            for key, value in _combined_usage(exc, previous).items():
+                setattr(exc, key, value)
+            raise
+        return replace(result, **_combined_usage(result, previous))
+
+
+def _combined_usage(result: Any, previous: SemanticAnalysisError) -> dict[str, Any]:
+    return {
+        **{
+            key: getattr(result, key) + getattr(previous, key)
+            for key in (
+                "input_tokens",
+                "output_tokens",
+                "cache_read_input_tokens",
+                "cache_creation_input_tokens",
+            )
+        },
+        "usage_reported": result.usage_reported and previous.usage_reported,
+    }
 
 
 def _analyze_intrinsic_chunks(
@@ -61,12 +107,9 @@ def _analyze_intrinsic_chunks(
     input_tokens = sum(result.input_tokens for result in results)
     output_tokens = sum(result.output_tokens for result in results)
     synthesis = {
-        "contract": request["contract"],
+        **{key: value for key, value in request.items() if key != "source"},
         "schema_version": SEMANTIC_SCHEMA_VERSION,
         "analysis_kind": "intrinsic_synthesis",
-        "path": request.get("path"),
-        "language": request.get("language"),
-        "deterministic_facts": request.get("deterministic_facts"),
         "chunk_dossiers": partials,
     }
     result = provider.analyze(synthesis)
@@ -187,7 +230,7 @@ def _partial_dossier(index: int, result: SemanticResult) -> dict[str, Any]:
     value = (
         compact_architecture_charter(result.value)
         if result.value.get("contract_version") == "architecture-charter-v1"
-        else compact_dossier(result.value)
+        else compact_dossier(result.value, detailed="detailed_summary" in result.value)
     )
     return {
         "scope": f"semantic-chunk-{index}",
