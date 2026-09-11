@@ -126,14 +126,17 @@ def test_bundled_catalog_is_complete_compact_and_multilevel():
     levels = {level for card in catalog.cards for level in card.scope_levels}
 
     assert catalog.catalog_version == BUNDLED_PATTERN_CATALOG_VERSION
-    assert len(catalog.cards) == 128
+    assert len(catalog.cards) == 133
     assert catalog.source_bytes < MAX_BUNDLED_CATALOG_BYTES
     assert len(catalog.fingerprint) == 64
     assert set(families) == EXPECTED_FAMILIES
-    assert set(families.values()) == {16}
+    # Families are no longer an equal split: object_interface carries the Gang of Four
+    # vocabulary, including the five entries added so a reader can name what they see.
+    assert min(families.values()) == 16
+    assert families["object_interface"] == 21
     assert levels == set(PATTERN_TARGET_LEVELS)
     assert {card.kind for card in catalog.cards} == PATTERN_KINDS
-    assert catalog.as_dict()["total"] == 128
+    assert catalog.as_dict()["total"] == 133
 
 
 def test_every_bundled_card_has_the_versioned_pattern_contract():
