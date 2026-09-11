@@ -21,6 +21,7 @@ CORRECTABLE_SECTIONS = frozenset(
         "extension_points",
         "patterns",
         "coherence_concerns",
+        "definitions",
     }
 )
 CORRECTION_DISPOSITIONS = frozenset({"correct", "refute"})

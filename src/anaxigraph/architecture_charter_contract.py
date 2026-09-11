@@ -44,6 +44,34 @@ _NAMED_CLAIM = _object(
     evidence=_EVIDENCE,
     counter_evidence=_STRINGS,
     confidence=_CONFIDENCE,
+    owner_scope={
+        **_STRING,
+        "description": (
+            "The area or subsystem that owns this rule, when the evidence names one. Leave it "
+            "out when ownership is unclear rather than inferring it from a file path."
+        ),
+    },
+)
+# Optional: claims recorded before ownership existed stay valid and are not re-requested.
+_NAMED_CLAIM["required"] = [n for n in _NAMED_CLAIM["required"] if n != "owner_scope"]
+
+_DEFINITION = _object(
+    term=_STRING,
+    meaning=_STRING,
+    scope={
+        **_STRING,
+        "description": "Where this meaning holds. One term may mean different things elsewhere.",
+    },
+    evidence=_EVIDENCE,
+    distinct_from={
+        "type": "array",
+        "items": _STRING,
+        "maxItems": 6,
+        "description": (
+            "Other scopes that use the same term for a different thing. Recording the difference "
+            "keeps a deliberate distinction from being merged away."
+        ),
+    },
 )
 _UNKNOWN = _object(question=_STRING, why_it_matters=_STRING, evidence_needed=_EVIDENCE)
 _CONFLICT = _object(
@@ -85,7 +113,20 @@ ARCHITECTURE_CHARTER_SCHEMA: dict[str, Any] = _object(
     capability_brief=CAPABILITY_BRIEF_SCHEMA,
     confidence=_CONFIDENCE,
     evidence=_EVIDENCE,
+    definitions={
+        "type": "array",
+        "items": _DEFINITION,
+        "maxItems": 24,
+        "description": (
+            "Terms whose meaning is scoped. Record one only when the evidence establishes it; "
+            "ask for the missing domain knowledge instead of inventing a meaning from names."
+        ),
+    },
 )
+# Optional: charters saved before scoped definitions stay valid.
+ARCHITECTURE_CHARTER_SCHEMA["required"] = [
+    n for n in ARCHITECTURE_CHARTER_SCHEMA["required"] if n != "definitions"
+]
 
 _INTERNAL_PATH = re.compile(
     r"(?:^|\W)(?:src/|tests?/|packages?/|[\w.-]+\.(?:py|js|jsx|ts|tsx|rs|go|java))(?:$|\W)",
