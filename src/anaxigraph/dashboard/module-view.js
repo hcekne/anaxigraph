@@ -8,6 +8,7 @@ import {
   state,
 } from "/assets/dashboard-core.js";
 import {
+  conciseMappingMarkup,
   consolidationMarkup,
   deadCodeList,
   detailList,
@@ -15,6 +16,7 @@ import {
   patternOpportunityExplanation,
   patternOpportunityLabel,
   patternOpportunityList,
+  understandabilityMarkup,
 } from "/assets/dashboard-format.js";
 
 export function renderModuleFilters() {
@@ -214,7 +216,9 @@ function semanticPanelMarkup(item, detail) {
     language.conclusion,
     "The AI map has not described this file yet.",
   );
-  return `<div><h3>AI map</h3><p>${escapeHtml(mapState)}</p><h3>What this file does</h3><p>${escapeHtml(summary)}</p>${optionalSection("Role in this repository", role)}${optionalSection("What changed in this AI description", changed)}<h3>Files with related or overlapping work</h3>${optionalParagraph(language.related_file_evidence)}${detailList(related, "The AI map did not identify related or overlapping files")}<h3>Places designed for adding behavior</h3>${detailList(extensionPoints, "The AI map did not identify a specific place for adding behavior")}<h3>Patterns that may fit</h3>${patternOpportunityList(value.pattern_opportunities)}${consolidationMarkup(value.consolidation_assessment)}${optionalSection("Where related work belongs", placement)}<h3>Code that may no longer be used</h3>${deadCodeList(value.dead_code_candidates)}<h3>Risks and uncertainty</h3>${detailList(risks, "The AI map did not record a specific risk")}</div>`;
+  const concise = conciseMappingMarkup(value);
+  if (concise) return `<div><h3>AI map</h3><p>${escapeHtml(mapState)}</p>${concise}</div>`;
+  return `<div><h3>AI map</h3><p>${escapeHtml(mapState)}</p><h3>What this file does</h3><p>${escapeHtml(summary)}</p>${optionalSection("Role in this repository", role)}${optionalSection("What changed in this AI description", changed)}<h3>Files with related or overlapping work</h3>${optionalParagraph(language.related_file_evidence)}${detailList(related, "The AI map did not identify related or overlapping files")}<h3>Places designed for adding behavior</h3>${detailList(extensionPoints, "The AI map did not identify a specific place for adding behavior")}<h3>Patterns that may fit</h3>${patternOpportunityList(value.pattern_opportunities)}${consolidationMarkup(value.consolidation_assessment)}${understandabilityMarkup(value.understandability, detail.semantic_state?.status)}${optionalSection("Where related work belongs", placement)}<h3>Code that may no longer be used</h3>${deadCodeList(value.dead_code_candidates)}<h3>Risks and uncertainty</h3>${detailList(risks, "The AI map did not record a specific risk")}</div>`;
 }
 
 function preferredText(...values) {

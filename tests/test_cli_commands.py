@@ -171,7 +171,10 @@ def test_semantic_handlers_plan_report_and_resume(repository: Path, tmp_path: Pa
     assert requires_agent["status"] == "agent_action_required"
     assert requires_agent["complete"] is False
     assert requires_agent["next_action"]["kind"] == "connected_agent_semantic_loop"
-    assert "must not report" in requires_agent["next_action"]["instruction"]
+    assert (
+        "Report completion only after status='complete'"
+        in requires_agent["next_action"]["instruction"]
+    )
     assert status["enabled"] is True
 
 

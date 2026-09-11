@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src/anaxigraph/dashboard/favicon.svg" width="112" alt="AnaxiGraph logo" />
+  <img src="https://raw.githubusercontent.com/hcekne/anaxigraph/ab8491dff04b7c3dc9ba36ca4976f3667f42d432/src/anaxigraph/dashboard/favicon.svg" width="112" alt="AnaxiGraph logo" />
 </p>
 
 <h1 align="center">AnaxiGraph</h1>
@@ -77,16 +77,21 @@ codex
 
 ### 4. Ask it to build the AI-created code map
 
-> Use AnaxiGraph to build or resume the AI-created code map for this repository, using your own
-> model context and tokens. Start the background coding-agent worker, do not edit source while
-> mapping, and monitor it until the status says the map is up to date.
+> Use AnaxiGraph to build or resume the AI-created code map for this repository. Choose an
+> explicit economical worker model, start or reuse the background run, and return its run ID.
+> Let the worker manage the queue. Check compact progress when I ask; do not supervise it in an
+> LLM loop or edit source while mapping.
 
 The durable command survives the invoking Codex session:
 
 ```bash
-anaxigraph understand . --executor codex --background
-anaxigraph semantic-status .
+anaxigraph understand . --executor codex --model '<worker-model>' --parallel-jobs 32 --background --json
+anaxigraph semantic-status . --compact --json
 ```
+
+Replace `<worker-model>` with your chosen Codex model. For Claude Haiku workers, use
+`--executor claude --model haiku`. The repository's `max_parallel_jobs` setting limits total
+concurrency across executors; raise it to at least 32 for 32 simultaneous jobs.
 
 With `semantic.provider: agent`, `understand` auto-detects an invoking Codex or Claude session and
 uses that authenticated local CLI as a read-only semantic executor. Use `--executor codex` or
@@ -96,11 +101,12 @@ the agent still has work to do—until it has submitted every task. `--backgroun
 complete saved task list,
 records a durable run handoff in user state, and keeps the host worker alive if the coding-agent
 session exits. `semantic-status` reports whether that worker is really running, where its log is,
-whether it finished, which saved index it is using, and its model and reasoning effort. The command
-deliberately omits a model so the executor can
-use its currently supported configured default. Only pass `--model` or `--reasoning-effort` (both
-Codex and Claude accept them) for an explicit runtime choice; changing either never makes an
-existing AI description stale. Direct MCP
+whether it finished, which saved index it is using, and its model and reasoning effort. Choose
+`--model` explicitly to avoid inheriting an expensive CLI default; optional `--reasoning-effort`
+is also a runtime choice. Changing either never makes an existing AI description stale.
+`already_running` returns the existing run. Return that handle and check compact status on request
+or no more often than every five minutes; ordinary software handles waiting, scheduling, and
+retries. Direct MCP
 looping handles one limited task at a time when no authenticated host worker is available; it is
 not the default way to build the complete map.
 
@@ -112,8 +118,9 @@ invalid inventory fails closed instead of silently choosing another index. `--db
 selects a standalone index, and `--service-url` explicitly selects a service. Every command result
 reports the chosen `index.authority` and physical/service identity for unambiguous handoff.
 
-That is the key cost model: **the connected coding agent does the reasoning with its own tokens**.
-AnaxiGraph needs no model key in `provider: agent` mode. It gives the agent a limited page of
+That is the key cost model: **the chosen workers spend model tokens on code understanding**.
+The caller can launch cheaper workers without passing its conversation to them. AnaxiGraph needs
+no model key in `provider: agent` mode. It gives each worker a limited page of
 evidence for one file or code area at a time, checks the returned structured description, records
 which worker and model created it, and resumes unfinished work in a later session. Once every file
 has a current description, the same workflow automatically proposes a

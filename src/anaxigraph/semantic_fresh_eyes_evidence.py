@@ -483,6 +483,8 @@ def _compact_scope(document: dict[str, Any]) -> dict[str, Any]:
         "value": (
             safe_review_evidence(document["value"])
             if document["document_kind"] == "pattern_review"
-            else compact_dossier(document["value"])
+            else compact_dossier(
+                document["value"], detailed="detailed_summary" in document["value"]
+            )
         ),
     }

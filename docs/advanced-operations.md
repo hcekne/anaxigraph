@@ -95,9 +95,27 @@ When an authenticated Codex or Claude CLI is available, one command can execute 
 `provider: agent` queue without an API key in AnaxiGraph:
 
 ```bash
-anaxigraph understand . --executor codex --background
-anaxigraph semantic-status .
+anaxigraph understand . --executor claude --model haiku --parallel-jobs 32 --background --json
+anaxigraph semantic-status . --compact --json
 ```
+
+Routine mapping uses five fields: a short summary, responsibilities, essential caller contracts,
+source references, and confidence. Ordinary files target 100–200 words total; simple files need
+less and complex files may need more. Field lengths and list counts do not reject extra essential
+behavior. Detailed refactoring and understandability reports and pattern assessment/critique
+jobs are opt-in. Set `semantic.detailed_reviews: true` in the authoritative repository policy and
+run `understand` to request them; restore `false` for lean mapping. Changing this setting refreshes
+the affected description contracts. Saved historical reviews remain available.
+
+Calls use `semantic.max_output_tokens` (4,000 by default). A confirmed output cutoff gets one
+automatic retry with twice the headroom, up to `semantic.max_output_tokens_on_retry` (8,000 by
+default), preserving the five-field schema and counting both calls' reported usage. Set the retry
+ceiling equal to the initial ceiling to disable expansion. Malformed shapes and unrelated errors
+do not trigger this extra call. Claude receives the ceiling through `CLAUDE_CODE_MAX_OUTPUT_TOKENS`;
+other executors receive it in the work packet. These are per-call limits; aggregate usage can be
+higher across chunks, job attempts, and calls inside the CLI. Incomplete results are never stored
+as successful descriptions. Persistent provider or service errors remain visible and resumable.
+The source-size threshold is unchanged: lowering it can create more chunk and reduction calls.
 
 `--executor auto` is the default and detects when Codex or Claude invoked the command. The local
 executor is read-only and schema-constrained; AnaxiGraph records `provider: agent` plus the actual
@@ -106,9 +124,10 @@ document it produces. `--background` owns the complete queue outside
 the invoking agent session and records its PID, log, index authority, and terminal result for
 handoff through `semantic-status`. When the detached worker fails, `semantic-status` reports the
 failing cause as `last_error` and the run log holds its traceback; set `ANAXIGRAPH_DEBUG=1` to
-print that traceback for a foreground run. The command omits a model so the executor uses its
-supported configured default. Pass `--model` and `--reasoning-effort` only for an explicit runtime
-override; Codex receives the effort as `model_reasoning_effort` and Claude as `--effort`, passed
+print that traceback for a foreground run. Select an authorized economical worker model explicitly
+with `--model`; omitting it uses the CLI default, which may be expensive. The invoking agent's
+conversation is not part of each job. Codex receives optional effort as `model_reasoning_effort`
+and Claude as `--effort`, passed
 through unvalidated so the executor itself rejects unknown levels. Executor, model, and effort are
 deliberately excluded from semantic freshness. `--executor mcp` deliberately performs planning
 only and returns an `agent_action_required` continuation contract instead of claiming semantic
@@ -131,18 +150,36 @@ Background runs are keyed by repository and executor, so a Codex worker and a Cl
 separate run records, locks, and logs for the same repository and neither can corrupt the other:
 
 ```bash
-anaxigraph understand . --executor codex --background
-anaxigraph understand . --executor claude --background
-anaxigraph semantic-status .
+anaxigraph understand . --executor codex --model '<worker-model>' --parallel-jobs 16 --background
+anaxigraph understand . --executor claude --model haiku --parallel-jobs 16 --background
+anaxigraph semantic-status . --compact --json
 ```
 
+Replace `<worker-model>` with the Codex model selected for the run.
+
 `semantic-status` reports every slot under `execution_runs`, running workers first, and keeps
-`execution_run` as the most relevant single record for existing handoffs. A second launch of an
-executor that already owns an active slot is still refused, and the refusal names the other
-executor's slot. Run records written before per-executor slots existed stay readable for the
+`execution_run` as the most relevant single record for existing handoffs. A repeated launch returns
+`already_running` and the existing run handle without starting another worker. Run records written
+before per-executor slots existed stay readable for the
 executor they name. Two workers only claim work at the same time when `semantic.max_parallel_jobs`
 is 2 or more; the claim admission gate counts running leases for the whole repository, not per
 executor.
+
+Use as many concurrent jobs as the provider and repository policy support, including 32 or 48.
+`--parallel-jobs` selects each executor's share of the common ceiling; for example, two executors
+can each request 16 slots under `semantic.max_parallel_jobs: 32`. Existing queue work is joined
+without repeating preparation. A busy preparation is waited out with backoff inside the runner;
+the lock is scoped to the repository and shared by its executors. Startup preparation still busy
+after ten minutes reports a service-health error instead of spawning more processes.
+
+The calling LLM should launch once and return the run handle. Do not create supervisor scripts,
+search for an `understand` process, or repeatedly restart a worker: the short-lived command hands
+off to `anaxigraph.semantic_background`. Read progress on user request or after the returned
+`poll_after_seconds` (normally 300). The MCP status tool defaults to compact counters, usage, and
+actions; use `details=true` only for diagnostics. CLI `semantic-status --compact --json` also
+includes host run records. REST offers `GET /api/semantic?compact=true`. No model is called to
+schedule jobs, wait, or count progress. Avoid sending full logs or status documents back through
+the expensive calling model. A started background run is not a completed semantic map.
 
 A fresh-eyes review can reserve one proposal slot per executor family
 (`anaxigraph fresh-eyes . --start --proposals 2 --proposal-executors codex,claude`). The family of

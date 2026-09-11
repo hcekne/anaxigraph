@@ -15,6 +15,16 @@ export function detailList(values = [], empty = "No data") {
   return `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("") || `<li>${escapeHtml(empty)}</li>`}</ul>`;
 }
 
+export function conciseMappingMarkup(value) {
+  if (!value.summary || !Array.isArray(value.public_contracts) || "detailed_summary" in value) return "";
+  const sections = [
+    ["Responsibilities", value.responsibilities],
+    ["Key behavior callers rely on", value.public_contracts],
+    ["Source references", value.evidence],
+  ];
+  return `<h3>What this file does</h3><p>${escapeHtml(value.summary)}</p>${sections.filter(([, items]) => items?.length).map(([title, items]) => `<h3>${escapeHtml(title)}</h3>${detailList(items)}`).join("")}`;
+}
+
 export function patternOpportunityLabel(item) {
   if (!item || typeof item !== "object") return String(item || "Unnamed pattern");
   return item.name || "Unnamed pattern";
@@ -86,6 +96,22 @@ export function deadCodeList(values = []) {
     ].map(sentence).join(" ");
   });
   return detailList(descriptions, "AnaxiGraph did not find code that appears unused");
+}
+
+export function understandabilityMarkup(value, status) {
+  if (!value) return "";
+  const title = "<h3>Understanding this code without AnaxiGraph</h3>";
+  if (status !== "current" || value.contract_version !== "code-understandability-v1") {
+    return `${title}<p>The saved task assessment needs a current review.</p>`;
+  }
+  const tasks = value.tasks || [];
+  if (!tasks.length) return `${title}<p>No maintenance tasks have been assessed yet.</p>`;
+  const cards = tasks.map((task) => {
+    const statusText = { clear: "Appears clear", obstructed: "An obstacle was identified", unknown: "Evidence is insufficient" }[task.status] || "Evidence is insufficient";
+    const explanation = [task.obstacle, task.smallest_change, task.expected_benefit, task.verification].filter(Boolean);
+    return `<section class="reassessment-effect"><strong>${escapeHtml(task.task)}</strong><p>${escapeHtml(statusText)}</p>${detailList(explanation, "Inspect the cited evidence before drawing a conclusion.")}<p>Source evidence</p>${detailList(task.evidence, "No source witness supplied")}<p>Reasons to keep the current design</p>${detailList(task.counter_evidence, "No contrary evidence recorded")}</section>`;
+  });
+  return `${title}<p>These are AI assessments. Reader performance has not been measured.</p>${cards.join("")}`;
 }
 
 function consolidationConclusion(value) {

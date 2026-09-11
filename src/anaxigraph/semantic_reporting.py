@@ -11,6 +11,78 @@ from anaxigraph.semantic_status import semantic_status_payload
 from anaxigraph.semantic_status_language import semantic_status_explanation
 from anaxigraph.semantic_status_queries import read_semantic_status
 
+_PROGRESS_KEYS = (
+    "enabled",
+    "state",
+    "snapshot_id",
+    "semantically_ready",
+    "baseline_complete",
+    "current",
+    "eligible_modules",
+    "pending",
+    "failed",
+    "pending_scopes",
+    "failed_scopes",
+    "jobs",
+    "usage",
+    "budget",
+    "recommended_action",
+    "preparing",
+    "index",
+    "config_authority",
+)
+
+
+def compact_semantic_status(status: dict[str, Any]) -> dict[str, Any]:
+    """Return progress and handoff facts without resending saved architecture documents."""
+
+    result = {key: status[key] for key in _PROGRESS_KEYS if key in status}
+    result["map_status"] = {
+        key: value
+        for key, value in (status.get("map_status") or {}).items()
+        if key in {"state", "safe_to_plan", "scan_recommended"}
+    }
+    policy = status.get("semantic_policy") or {}
+    result["semantic_policy"] = {
+        key: policy[key]
+        for key in (
+            "enabled",
+            "provider",
+            "detailed_reviews",
+            "max_parallel_jobs",
+            "max_output_tokens",
+            "max_output_tokens_on_retry",
+        )
+        if key in policy
+    }
+    result["parallel_jobs_limit"] = policy.get(
+        "max_parallel_jobs", status.get("parallel_jobs_limit")
+    )
+    result["execution_runs"] = [
+        {
+            key: run[key]
+            for key in (
+                "run_id",
+                "status",
+                "active",
+                "executor",
+                "model",
+                "stage",
+                "completed",
+                "heartbeat_at",
+                "last_error",
+                "log_path",
+            )
+            if key in run
+        }
+        for run in status.get("execution_runs", [])
+    ]
+    result["poll_after_seconds"] = 0 if status.get("semantically_ready") else 300
+    result["monitoring"] = (
+        "Background workers own progress and recovery. Return the run id; check again on request or after the suggested interval. No LLM polling loop or supervisor script is needed."
+    )
+    return result
+
 
 class SemanticReportingService:
     def __init__(self, database: SemanticIndex) -> None:

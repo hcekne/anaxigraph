@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException
 import anaxigraph.api_support as api_support
 from anaxigraph.config_authority import effective_semantic_policy, service_config_authority
 from anaxigraph.operational_health import served_map_status
+from anaxigraph.semantic_reporting import compact_semantic_status
 from anaxigraph.semantic_status_language import semantic_status_explanation
 
 
@@ -26,7 +27,7 @@ class SemanticRoutes:
         self.router.add_api_route("/api/semantic/prepare", self.prepare, methods=["POST"])
         self.router.add_api_route("/api/semantic/refresh", self.refresh, methods=["POST"])
 
-    def status(self, repository_id: int | None = None) -> dict[str, Any]:
+    def status(self, repository_id: int | None = None, compact: bool = False) -> dict[str, Any]:
         row = self.context.selected_repository(repository_id)
         target = self.context.target_for_path(Path(row["path"]))
         config = self.context.selected_config(row)
@@ -35,10 +36,14 @@ class SemanticRoutes:
         )
         result["map_status"] = self._map_status(row)
         result["worker"] = self.context.semantic_refresh.status_for(Path(row["path"]))
+        result["preparing"] = any(
+            item["repository_id"] == int(row["id"]) and item["operation"] == "semantic_prepare"
+            for item in self.context.operation_gate.snapshot()["active"]
+        )
         result["config_authority"] = service_config_authority(Path(row["path"]), target, config)
         result["semantic_policy"] = effective_semantic_policy(config.semantic)
         result["plain_language"] = semantic_status_explanation(result)
-        return result
+        return compact_semantic_status(result) if compact else result
 
     async def prepare(
         self,

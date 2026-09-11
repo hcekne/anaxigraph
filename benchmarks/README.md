@@ -1,5 +1,27 @@
 # AnaxiGraph benchmark suite
 
+## Repository reader tasks (opt-in model run)
+
+`understandability` compares three maintenance tasks across two behaviorally equivalent synthetic
+implementations: locate validation, trace an invalid order, and add express shipping. Every trial
+uses a fresh ephemeral Codex CLI session with user configuration ignored. It receives only one
+implementation and the same thin glossary, decision, and navigation docs; expected answers and
+change checks are withheld. Generated changes run in a restricted Docker container with no network
+or writable host mount. The image must already exist locally; its resolved image ID is recorded.
+
+```bash
+uv run python -m benchmarks.understandability \
+  --model YOUR_MODEL --reasoning-effort YOUR_EFFORT --trials 3 \
+  --verification-image YOUR_LOCAL_PYTHON_IMAGE \
+  --output /tmp/anaxigraph-reader-trials.json
+```
+
+The report retains each answer, correctness, errors, reported token usage, and reader/total time.
+Compare correctness first and effort across successful repeated trials with the same runtime.
+All fixture source is supplied, so this is a bounded maintenance experiment rather than a search
+or navigation study. It establishes neither a universal code-quality score nor production reader
+performance. Unit tests verify the harness and behavioral checks; they are not model trial results.
+
 ## Architectural judgment (opt-in model run)
 
 `architecture_judgment` evaluates seven controlled positive, negative, and uncertain

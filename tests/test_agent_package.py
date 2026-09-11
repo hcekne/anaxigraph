@@ -24,13 +24,16 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_mcp_instructions_lead_with_persistent_plain_language_ai_mapping():
     opening = _INSTRUCTIONS[:512]
 
-    assert "complete AI-created code map" in opening
-    assert "one saved task at a time" in opening
-    assert "semantically_ready: true" in opening
-    assert "Never edit repository source" in opening
+    assert "repository-wide AI mapping" in opening
+    assert "--model <worker-model>" in opening
+    assert "--background" in opening
+    assert "30+ concurrent model jobs" in _INSTRUCTIONS
+    assert "already_running" in _INSTRUCTIONS
+    assert "Never edit repository source" in _INSTRUCTIONS
+    assert "semantically_ready" in _INSTRUCTIONS
+    assert "no more often" in _INSTRUCTIONS
     assert "intent=understand, build, improve, redesign, or reassess" in _INSTRUCTIONS
     assert "reassess=true" in _INSTRUCTIONS
-    assert "--model" not in opening
 
 
 def test_shared_agent_package_is_versioned_and_contract_complete():
@@ -119,7 +122,7 @@ async def test_skill_semantic_release_resume_evidence_and_submit_contract(reposi
                 async with ClientSession(read_stream, write_stream) as session:
                     schema = await session.call_tool("ANAXIGRAPH_SEMANTIC_SCHEMA", arguments={})
                     assert (
-                        schema.structuredContent["schema_version"] == "repository-understanding-v5"
+                        schema.structuredContent["schema_version"] == "repository-understanding-v7"
                     )
                     first = await _claim(session)
                     manifest = first["evidence_manifest"]
@@ -173,33 +176,8 @@ async def _claim(session: ClientSession) -> dict:
 def _dossier(scope: str) -> dict:
     return {
         "summary": f"Agent understanding for {scope}",
-        "detailed_summary": f"Evidence-grounded dossier for {scope}.",
         "responsibilities": [f"Own {scope}"],
-        "inputs": [],
-        "outputs": [],
-        "side_effects": [],
         "public_contracts": [],
-        "invariants": [],
-        "architecture_role": "agent package contract fixture",
-        "domain_concepts": [],
-        "collaborators": [],
-        "overlaps": [],
-        "extension_points": [],
-        "similar_modules": [],
-        "pattern_opportunities": [],
-        "consolidation_assessment": {
-            "recommendation": "insufficient_evidence",
-            "score": 0,
-            "rationale": "",
-            "candidates": [],
-            "evidence": [],
-            "counter_evidence": [],
-        },
-        "dead_code_candidates": [],
-        "placement_guidance": "",
-        "testing_guidance": [],
-        "change_summary": "",
-        "risks": [],
         "evidence": [scope],
         "confidence": 0.9,
     }

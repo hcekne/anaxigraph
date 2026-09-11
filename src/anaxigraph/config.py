@@ -63,6 +63,7 @@ class SemanticTaxonomyConfig:
 @dataclass(frozen=True, slots=True)
 class SemanticConfig:
     enabled: bool = False
+    detailed_reviews: bool = False
     provider: str = "agent"
     command: tuple[str, ...] = ()
     model: str = ""
@@ -77,6 +78,7 @@ class SemanticConfig:
     max_source_chars: int = 100_000
     max_context_modules: int = 24
     max_output_tokens: int = 4_000
+    max_output_tokens_on_retry: int = 8_000
     agent_lease_seconds: int = 1_800
     daily_budget_usd: float | None = None
     input_cost_per_million: float = 0.0
@@ -274,8 +276,7 @@ def _semantic_config(value: Any) -> SemanticConfig:
     provider = str(value.get("provider", "agent")).strip().lower()
     if provider not in {"agent", "command", "codex", "claude"}:
         raise ValueError(
-            "semantic.provider must be agent, command, codex, or claude; AnaxiGraph no longer "
-            "hosts OpenAI or Anthropic API credentials"
+            "semantic.provider must be agent, command, codex, or claude; credentials stay with the executor"
         )
     refresh = str(value.get("refresh", "on_scan")).strip().lower().replace("-", "_")
     if refresh not in {"manual", "on_scan", "watch"}:
@@ -287,8 +288,7 @@ def _semantic_config(value: Any) -> SemanticConfig:
             raise ValueError(f"semantic.{name} must be at least {minimum}")
         return result
 
-    budget_value = value.get("daily_budget_usd")
-    budget = float(budget_value) if budget_value is not None else None
+    budget = float(raw) if (raw := value.get("daily_budget_usd")) is not None else None
     if budget is not None and budget < 0:
         raise ValueError("semantic.daily_budget_usd cannot be negative")
     input_cost = float(value.get("input_cost_per_million", 0.0))
@@ -297,6 +297,7 @@ def _semantic_config(value: Any) -> SemanticConfig:
         raise ValueError("semantic token costs cannot be negative")
     return SemanticConfig(
         enabled=bool(value.get("enabled", False)),
+        detailed_reviews=_semantic_reviews(value.get("detailed_reviews", False)),
         provider=provider,
         command=_tuple_of_strings(value.get("command")),
         model=str(value.get("model", "")),
@@ -311,6 +312,7 @@ def _semantic_config(value: Any) -> SemanticConfig:
         max_source_chars=integer("max_source_chars", 100_000, 4_000),
         max_context_modules=integer("max_context_modules", 24, 1),
         max_output_tokens=integer("max_output_tokens", 4_000, 256),
+        max_output_tokens_on_retry=integer("max_output_tokens_on_retry", 8_000, 256),
         agent_lease_seconds=integer("agent_lease_seconds", 1_800, 60),
         daily_budget_usd=budget,
         input_cost_per_million=input_cost,
@@ -319,6 +321,12 @@ def _semantic_config(value: Any) -> SemanticConfig:
         exclude=_tuple_of_strings(value.get("exclude")) or SemanticConfig().exclude,
         taxonomy=_semantic_taxonomy_config(value.get("taxonomy")),
     )
+
+
+def _semantic_reviews(value: Any) -> bool:
+    if not isinstance(value, bool):
+        raise ValueError("semantic.detailed_reviews must be true or false")
+    return value
 
 
 def semantic_config_from_mapping(value: Any) -> SemanticConfig:

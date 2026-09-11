@@ -97,6 +97,12 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert semantic["recommended_action"]["kind"] == "enable_semantics"
         assert semantic["semantic_policy"] == repositories[0]["semantic_policy"]
         assert semantic["config_authority"] == repositories[0]["config_authority"]
+        compact = (await client.get("/api/semantic", params={"compact": True})).json()
+        assert compact["jobs"] == semantic["jobs"]
+        assert compact["preparing"] is False
+        assert compact["parallel_jobs_limit"] == semantic["semantic_policy"]["max_parallel_jobs"]
+        assert "architecture_charter" not in compact
+        assert "telemetry" not in compact
         assert (await client.get("/api/taxonomy")).status_code == 404
         disabled_refresh = await client.post("/api/semantic/refresh")
         assert disabled_refresh.status_code == 400

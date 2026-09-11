@@ -20,6 +20,7 @@ from anaxigraph.semantic_background import (
 from anaxigraph.semantic_execution import add_semantic_execution_arguments
 from anaxigraph.semantic_execution import understand_execution as _understand_execution
 from anaxigraph.semantic_remote_worker import execute_remote_semantics
+from anaxigraph.semantic_reporting import compact_semantic_status
 from anaxigraph.semantic_service import (
     discover_semantic_service,
     prepare_semantic_service,
@@ -35,7 +36,7 @@ def configure_semantic_commands(commands: Any) -> None:
 def _configure_understand(commands: Any) -> None:
     understand = commands.add_parser(
         "understand",
-        help="Build or refresh AI descriptions of files, code areas, and coding-pattern matches",
+        help="Build or refresh concise AI descriptions of files and code areas",
     )
     add_repository_arguments(understand)
     budget = understand.add_mutually_exclusive_group()
@@ -49,7 +50,7 @@ def _configure_understand(commands: Any) -> None:
         action="store_true",
         help=(
             "Continue until every required file description, code-area grouping, repository "
-            "summary, and pattern result is complete"
+            "summary, and requested review is complete"
         ),
     )
     understand.add_argument(
@@ -88,6 +89,11 @@ def _configure_status(commands: Any) -> None:
         help="Show how much of the AI-created code map is current and what work remains",
     )
     add_repository_arguments(status)
+    status.add_argument(
+        "--compact",
+        action="store_true",
+        help="Return progress and run handles without saved descriptions",
+    )
     status.add_argument(
         "--service-url",
         help=(
@@ -294,11 +300,27 @@ def _understand_service(
 
 def _prepare_service(args: argparse.Namespace, service: Any) -> dict[str, Any]:
     report_background_progress(stage="preparing", completed=0)
-    result = prepare_semantic_service(
-        service,
-        force=args.force,
-        retry_failed=args.retry_failed,
-    )
+    if args.executor != "mcp" and not any((args.force, args.retry_failed, args.plan_only)):
+        status = service_semantic_status(service)
+        if (status.get("map_status") or {}).get("state") == "current" and any(
+            int((status.get("jobs") or {}).get(key, 0)) for key in ("pending", "retry", "running")
+        ):
+            return {"status": "joined", "semantic": status}
+    deadline, delay = time.monotonic() + 600, 5
+    while True:
+        result = prepare_semantic_service(service, force=args.force, retry_failed=args.retry_failed)
+        if result.get("status") != "preparing":
+            break
+        report_background_progress(stage="waiting_for_preparation", completed=0)
+        while True:
+            if time.monotonic() >= deadline:
+                raise RuntimeError(
+                    "Semantic preparation stayed busy for 10 minutes; inspect service health."
+                )
+            time.sleep(delay)
+            delay = min(30, delay * 2)
+            if not service_semantic_status(service).get("preparing"):
+                break
     if result.get("status") != "scan_required":
         report_background_progress(stage="executing", completed=0)
     return result
@@ -354,13 +376,14 @@ def _mcp_continuation(
         "kind": "connected_agent_semantic_loop",
         "repository": str(repository.expanduser().resolve()),
         "instruction": (
-            "The AI-created code map has not been built. The connected coding agent must keep "
-            "requesting, reading, and submitting the saved AI tasks. It must not report this "
-            "command as complete until ANAXIGRAPH_SEMANTIC_WORK returns status='complete'."
+            "Mapping is pending. Prefer a durable host executor with an explicit worker model "
+            "and --background for large queues; it owns parallel execution without an LLM "
+            "supervisor. Use this manual work loop only when a host executor is unavailable or "
+            "explicitly requested. Report completion only after status='complete'."
         ),
         "sequence": [
-            "ANAXIGRAPH_SEMANTIC_SCHEMA once",
             "ANAXIGRAPH_SEMANTIC_WORK",
+            "ANAXIGRAPH_SEMANTIC_SCHEMA with response_contract.schema_arguments once per artifact",
             "ANAXIGRAPH_SEMANTIC_EVIDENCE for every requested page",
             "ANAXIGRAPH_SEMANTIC_SUBMIT",
             "repeat ANAXIGRAPH_SEMANTIC_WORK until complete",
@@ -383,7 +406,10 @@ def _semantic_status(args: argparse.Namespace) -> dict[str, Any]:
         else None
     )
     if service is not None:
-        result = {**service_semantic_status(service), "index": service.identity()}
+        result = {
+            **service_semantic_status(service, compact=args.compact),
+            "index": service.identity(),
+        }
     else:
         database_path = local_database_path(repository, explicit=args.db)
         database = cli_services.open_index(database_path)
@@ -394,12 +420,13 @@ def _semantic_status(args: argparse.Namespace) -> dict[str, Any]:
         result = {
             **cli_services.semantics(database).status(int(row["id"]), config.semantic),
             "index": {"authority": "local", "database": str(database_path)},
+            "semantic_policy": {"max_parallel_jobs": config.semantic.max_parallel_jobs},
         }
     runs = semantic_background_runs(repository)
     if runs:
         result["execution_run"] = runs[0]
         result["execution_runs"] = runs
-    return result
+    return compact_semantic_status(result) if args.compact else result
 
 
 def _service_discovery_enabled(args: argparse.Namespace) -> bool:

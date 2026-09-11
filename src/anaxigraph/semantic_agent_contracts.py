@@ -86,6 +86,7 @@ class SemanticAgentContractService:
         return {
             "schema_version": SEMANTIC_SCHEMA_VERSION,
             "schema_tool": "ANAXIGRAPH_SEMANTIC_SCHEMA",
+            "schema_arguments": {"artifact": response_contract_name(request)},
             "artifact": response_contract_name(request),
             "required_fields": list(schema["required"]),
         }
@@ -187,8 +188,8 @@ class SemanticAgentContractService:
         return {
             "status": "work",
             "message": (
-                "Analyze this evidence with the coding agent already running in the "
-                "repository. Do not modify source as part of semantic mapping."
+                "Analyze this task's supplied evidence in the selected worker context. "
+                "Do not attach the caller's conversation or modify repository source."
             ),
             "job": {
                 "id": int(job["id"]),

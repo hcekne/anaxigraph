@@ -24,6 +24,8 @@ from anaxigraph.semantic_fresh_eyes_contract import (
 )
 from anaxigraph.semantic_request_support import (
     INPUT_TERM_MEANINGS,
+    MAPPING_REQUIREMENTS,
+    MAPPING_SCHEMA,
     PLAIN_LANGUAGE_CONTRACT_VERSION,
     PLAIN_LANGUAGE_REQUIREMENTS,
 )
@@ -33,10 +35,11 @@ from anaxigraph.semantic_taxonomy_contract import (
 )
 
 
-def semantic_agent_schema() -> dict[str, Any]:
-    return {
+def semantic_agent_schema(artifact: str = "all") -> dict[str, Any]:
+    result = {
         "schema_version": SEMANTIC_SCHEMA_VERSION,
-        "dossier_schema": DOSSIER_SCHEMA,
+        "dossier_schema": MAPPING_SCHEMA,
+        "review_dossier_schema": DOSSIER_SCHEMA,
         "architecture_charter_schema": ARCHITECTURE_CHARTER_SCHEMA,
         "taxonomy_schema": TAXONOMY_SCHEMA,
         "taxonomy_review_schema": TAXONOMY_REVIEW_SCHEMA,
@@ -60,6 +63,19 @@ def semantic_agent_schema() -> dict[str, Any]:
             "how much of it already exists and whether changing code would help. A missing direct "
             "code link does not prove code is unused. Do not change repository files while mapping."
         ),
+    }
+    if artifact == "all":
+        return result
+    key = f"{artifact}_schema"
+    if key not in result:
+        raise ValueError(f"Unknown semantic artifact: {artifact}")
+    return {
+        "schema_version": SEMANTIC_SCHEMA_VERSION,
+        "artifact": artifact,
+        key: result[key],
+        "writing_requirements": MAPPING_REQUIREMENTS
+        if artifact == "dossier"
+        else PLAIN_LANGUAGE_REQUIREMENTS,
     }
 
 

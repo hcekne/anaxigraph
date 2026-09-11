@@ -4,7 +4,46 @@ from __future__ import annotations
 
 from typing import Any
 
-PLAIN_LANGUAGE_CONTRACT_VERSION = "plain-language-v2"
+from anaxigraph.understandability import compact_understandability
+
+MAPPING_REQUIREMENTS = {
+    "purpose": "Describe what the code does and the essential behavior callers depend on.",
+    "writing": (
+        "Use short, concrete English sentences. Aim for 100–200 words total; simple files need "
+        "less. This is a flexible target: include more words or items when complex code has "
+        "additional essential behavior. Preserve meaning and complete the result. State each "
+        "fact once. Use real code names and cite supplied paths or symbols. "
+        "Put essential invariants and side effects in public_contracts. Do not repeat signatures, "
+        "imports, or other facts already supplied by the code reader."
+    ),
+    "scope": (
+        "Do not propose refactors, patterns, consolidation, deletion, or understandability reviews. "
+        "Use empty lists when there is no supported claim. Confidence describes evidence, not code quality."
+    ),
+}
+MAPPING_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "summary": {"type": "string", "minLength": 1},
+        "responsibilities": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+        "public_contracts": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+        "evidence": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    },
+    "required": ["summary", "responsibilities", "public_contracts", "evidence", "confidence"],
+    "additionalProperties": False,
+}
+
+PLAIN_LANGUAGE_CONTRACT_VERSION = "plain-language-v3"
 
 PLAIN_LANGUAGE_REQUIREMENTS = {
     "audience": (
@@ -55,6 +94,10 @@ INPUT_TERM_MEANINGS = {
     "architecture_role": "How the described code helps the rest of this repository work.",
     "placement_guidance": "Advice about where code with a related job should be added.",
     "consolidation": "A suggestion to combine overlapping code or separate unrelated jobs.",
+    "understandability": (
+        "An evidence-based assessment of maintenance tasks using the repository itself; "
+        "it is not measured reader performance or a code-quality grade."
+    ),
     "snapshot_id": (
         "The numeric id of one saved repository scan. It identifies a version; it is not a score."
     ),
@@ -78,9 +121,17 @@ def plain_language_instruction() -> str:
     return " ".join(PLAIN_LANGUAGE_REQUIREMENTS.values())
 
 
-def compact_dossier(value: dict[str, Any]) -> dict[str, Any]:
+def compact_dossier(value: dict[str, Any], *, detailed: bool = False) -> dict[str, Any]:
     """Keep cross-module reasoning useful without repeatedly nesting full prose."""
 
+    if not detailed:
+        return {
+            "summary": value.get("summary", ""),
+            "responsibilities": value.get("responsibilities", []),
+            "public_contracts": value.get("public_contracts", []),
+            "evidence": value.get("evidence", []),
+            "confidence": value.get("confidence"),
+        }
     return {
         "summary": str(value.get("summary") or "")[:2_000],
         "responsibilities": _compact_strings(value, "responsibilities"),
@@ -94,6 +145,7 @@ def compact_dossier(value: dict[str, Any]) -> dict[str, Any]:
         "similar_modules": _compact_strings(value, "similar_modules"),
         "pattern_opportunities": _compact_patterns(value),
         "consolidation_assessment": _compact_consolidation(value),
+        "understandability": compact_understandability(value.get("understandability")),
         "dead_code_candidates": _compact_dead_code(value),
         "placement_guidance": str(value.get("placement_guidance") or "")[:2_000],
         "risks": _compact_strings(value, "risks"),

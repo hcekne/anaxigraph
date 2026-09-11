@@ -22,6 +22,7 @@ REASSESSMENT_CATEGORIES = (
     "pattern_fit",
     "boundary_coherence",
     "possible_unused_code",
+    "understandability",
 )
 
 _FINDING_CATEGORIES = {
@@ -430,7 +431,16 @@ def _coverage(
             if category in represented
             else "waiting_for_semantic_refresh"
             if pending
-            and category in {"responsibility", "duplication", "pattern_fit", "possible_unused_code"}
+            and category
+            in {
+                "responsibility",
+                "duplication",
+                "pattern_fit",
+                "possible_unused_code",
+                "understandability",
+            }
+            else "insufficient_evidence"
+            if category == "understandability"
             else "no_change_observed"
         )
         for category in REASSESSMENT_CATEGORIES

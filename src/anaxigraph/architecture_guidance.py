@@ -45,9 +45,17 @@ def guidance_projection(
     selected_intent = _intent(intent)
     recommendation = _recommendation(context, selected_intent)
     understanding = _understanding(context, selected_intent, focus, charter)
-    impact = _impact(context)
+    impact = _impact(context, recommendation)
     evidence = _evidence_links(context, charter)
     confidence = _confidence(context, charter)
+    reader_task = recommendation.get("reader_task") or {}
+    if reader_task:
+        score = min(confidence["score"], reader_task["confidence"])
+        confidence = {
+            **confidence,
+            "score": score,
+            "label": "high" if score >= 0.8 else "medium" if score >= 0.55 else "limited",
+        }
     core = {
         "contract_version": ARCHITECTURE_GUIDANCE_VERSION,
         "intent": selected_intent,
@@ -73,18 +81,7 @@ def compact_guidance_projection(payload: dict[str, Any]) -> None:
         for key in ("summary", "charter")
         if understanding.get(key) not in (None, "", [])
     }
-    recommendation = payload.get("recommendation") or {}
-    payload["recommendation"] = {
-        key: recommendation.get(key)
-        for key in (
-            "action",
-            "summary",
-            "starting_point",
-            "migration_cost",
-            "confidence",
-        )
-        if recommendation.get(key) not in (None, "", [])
-    }
+    payload["recommendation"] = _compact_recommendation(payload.get("recommendation") or {})
     impact = payload.get("impact_summary") or {}
     payload["impact_summary"] = {
         **{key: impact.get(key) for key in ("target", "bounded")},
@@ -101,6 +98,34 @@ def compact_guidance_projection(payload: dict[str, Any]) -> None:
         for key in ("contract_version", "intent", "current_step", "next_action", "after_change")
         if journey.get(key) not in (None, "", [])
     }
+
+
+def _compact_recommendation(recommendation: dict[str, Any]) -> dict[str, Any]:
+    result = {
+        key: recommendation.get(key)
+        for key in (
+            "action",
+            "summary",
+            "starting_point",
+            "migration_cost",
+            "confidence",
+            "reader_task",
+            "verification",
+        )
+        if recommendation.get(key) not in (None, "", [])
+    }
+    if task := result.get("reader_task"):
+        result["reader_task"] = {
+            **task,
+            "task": task["task"][:160],
+            "evidence": _strings(task["evidence"], limit=2),
+        }
+        result["summary"] = result["summary"][:240]
+        result["verification"] = result["verification"][:240]
+        result["reasons_not_to_change"] = _strings(
+            recommendation.get("reasons_not_to_change"), limit=2
+        )
+    return result
 
 
 def _intent(value: str) -> str:
@@ -139,6 +164,10 @@ def _recommendation(context: dict[str, Any], intent: str) -> dict[str, Any]:
     placement = decision.get("placement") or {}
     start = str(placement.get("preferred_path") or "")
     action, evidence = _action(decision, context, intent, start)
+    tasks = (decision.get("understandability") or {}).get("items") or []
+    candidate = next((item for item in tasks if item.get("actionable")), None)
+    if intent != "build" and action != "move" and candidate:
+        return _reader_recommendation(candidate)
     why = _why(decision, evidence)
     return {
         "action": action,
@@ -148,6 +177,20 @@ def _recommendation(context: dict[str, Any], intent: str) -> dict[str, Any]:
         "tradeoffs": _tradeoffs(decision),
         "reasons_not_to_change": _reasons_not_to_change(decision, action),
         "migration_cost": _migration_cost(context, action),
+    }
+
+
+def _reader_recommendation(task: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "action": "refactor",
+        "summary": task["smallest_change"],
+        "starting_point": task["path"],
+        "why": [task["obstacle"], task["expected_benefit"]],
+        "tradeoffs": task["counter_evidence"],
+        "reasons_not_to_change": task["counter_evidence"],
+        "migration_cost": task["migration_cost"],
+        "reader_task": {key: task[key] for key in ("key", "task", "confidence", "evidence")},
+        "verification": task["verification"],
     }
 
 
@@ -287,10 +330,8 @@ def _reasons_not_to_change(decision: dict[str, Any], action: str) -> list[str]:
     return _strings(values, limit=5)
 
 
-def _impact(context: dict[str, Any]) -> dict[str, Any]:
-    module = ((context.get("architecture_decision") or {}).get("task_path") or {}).get(
-        "module"
-    ) or {}
+def _impact(context: dict[str, Any], recommendation: dict[str, Any]) -> dict[str, Any]:
+    module = _impact_module(context, recommendation)
     return {
         "target": module.get("path"),
         "direct_callers": list(module.get("callers_to_check") or [])[:12],
@@ -304,6 +345,17 @@ def _impact(context: dict[str, Any]) -> dict[str, Any]:
         ],
         "bounded": True,
     }
+
+
+def _impact_module(context: dict[str, Any], recommendation: dict[str, Any]) -> dict[str, Any]:
+    decision = context.get("architecture_decision") or {}
+    if task := recommendation.get("reader_task"):
+        return next(
+            item
+            for item in (decision.get("understandability") or {}).get("items") or []
+            if item["key"] == task["key"] and item["path"] == recommendation["starting_point"]
+        )
+    return (decision.get("task_path") or {}).get("module") or {}
 
 
 def _evidence_links(context: dict[str, Any], charter: dict[str, Any]) -> list[dict[str, Any]]:

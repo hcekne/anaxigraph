@@ -123,6 +123,7 @@ def _semantic_file(row: Any, value: dict[str, Any], path: str) -> dict[str, Any]
         "similar_modules": _semantic_field(value, "similar_modules", []),
         "pattern_opportunities": _semantic_field(value, "pattern_opportunities", [])[:5],
         "consolidation_assessment": value.get("consolidation_assessment"),
+        "understandability": value.get("understandability"),
         "dead_code_candidates": _semantic_field(value, "dead_code_candidates", [])[:5],
         "testing_guidance": _semantic_field(value, "testing_guidance", []),
         "risks": _semantic_field(value, "risks", []),

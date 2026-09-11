@@ -57,7 +57,7 @@ def _modules(
 
 
 def _taxonomy_dossier(value: dict[str, Any]) -> dict[str, Any]:
-    compact = compact_dossier(value)
+    compact = compact_dossier(value, detailed="detailed_summary" in value)
     return {
         key: compact.get(key)
         for key in (
@@ -72,6 +72,7 @@ def _taxonomy_dossier(value: dict[str, Any]) -> dict[str, Any]:
             "placement_guidance",
             "confidence",
         )
+        if key in compact
     }
 
 

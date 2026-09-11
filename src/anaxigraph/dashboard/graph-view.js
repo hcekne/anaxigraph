@@ -11,11 +11,13 @@ import {
   state,
 } from "/assets/dashboard-core.js";
 import {
+  conciseMappingMarkup,
   consolidationMarkup,
   deadCodeList,
   detailList,
   formatDate,
   patternOpportunityList,
+  understandabilityMarkup,
 } from "/assets/dashboard-format.js";
 import {
   effectiveGroup,
@@ -338,6 +340,8 @@ function semanticSection(semantic, value, detail) {
     return `<h3>AI map</h3><p class="muted">${escapeHtml(conclusion)}</p>`;
   }
   const conclusion = firstText(language.conclusion, "The AI map has described this file.");
+  const concise = conciseMappingMarkup(value);
+  if (concise) return `<h3>AI map</h3><p class="muted">${escapeHtml(conclusion)}</p>${concise}`;
   const role = firstText(
     language.role_in_repository,
     value.architecture_role,
@@ -349,7 +353,7 @@ function semanticSection(semantic, value, detail) {
   const extensionPoints = firstList(language.places_for_adding_behavior, value.extension_points);
   const risks = firstList(language.risks_and_uncertainty, value.risks);
   const related = [...(value.similar_modules ?? []), ...(value.overlaps ?? [])];
-  return `<h3>AI map</h3><p class="muted">${escapeHtml(conclusion)}</p><h3>Role in this repository</h3><p class="muted">${escapeHtml(role)}</p>${optionalMutedSection("What changed in this AI description", changed)}<h3>Jobs this file is responsible for</h3>${detailList(jobs, "The AI map did not record specific jobs for this file")}<h3>Files with related or overlapping work</h3>${optionalMutedParagraph(language.related_file_evidence)}${detailList(related, "The AI map did not identify related or overlapping files")}<h3>Patterns that may fit</h3>${patternOpportunityList(value.pattern_opportunities)}${consolidationMarkup(value.consolidation_assessment)}${optionalMutedSection("Where related work belongs", placement)}<h3>Code that may no longer be used</h3>${deadCodeList(value.dead_code_candidates)}<h3>Places designed for adding behavior</h3>${detailList(extensionPoints, "The AI map did not identify a specific place for adding behavior")}<h3>Risks and uncertainty</h3>${detailList(risks, "The AI map did not record a specific risk")}`;
+  return `<h3>AI map</h3><p class="muted">${escapeHtml(conclusion)}</p><h3>Role in this repository</h3><p class="muted">${escapeHtml(role)}</p>${optionalMutedSection("What changed in this AI description", changed)}<h3>Jobs this file is responsible for</h3>${detailList(jobs, "The AI map did not record specific jobs for this file")}<h3>Files with related or overlapping work</h3>${optionalMutedParagraph(language.related_file_evidence)}${detailList(related, "The AI map did not identify related or overlapping files")}<h3>Patterns that may fit</h3>${patternOpportunityList(value.pattern_opportunities)}${consolidationMarkup(value.consolidation_assessment)}${understandabilityMarkup(value.understandability, detail.semantic_state?.status)}${optionalMutedSection("Where related work belongs", placement)}<h3>Code that may no longer be used</h3>${deadCodeList(value.dead_code_candidates)}<h3>Places designed for adding behavior</h3>${detailList(extensionPoints, "The AI map did not identify a specific place for adding behavior")}<h3>Risks and uncertainty</h3>${detailList(risks, "The AI map did not record a specific risk")}`;
 }
 
 function firstText(...values) {

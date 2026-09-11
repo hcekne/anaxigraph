@@ -145,6 +145,7 @@ coverage:
 # configured model. See docs/onboarding.md before enabling it.
 semantic:
   enabled: true
+  detailed_reviews: false
   provider: agent
   # Select a local executor model per `understand` run; it is provenance, not freshness policy.
   # Each explicit scan prepares work only for changed code fingerprints and affected context.

@@ -25,6 +25,7 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
         "enabled": True,
         "provider": "agent",
         "prompt_version": "agent-test-v1",
+        "detailed_reviews": True,
         "max_source_chars": 4_000,
         "max_parallel_jobs": 1,
         "agent_lease_seconds": 120,
@@ -53,9 +54,9 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
         if packet["status"] == "complete":
             break
         assert packet["status"] == "work"
-        assert packet["response_contract"]["schema_version"] == "repository-understanding-v5"
+        assert packet["response_contract"]["schema_version"] == "repository-understanding-v7"
         writing = packet["analysis_request"]["writing_requirements"]
-        assert packet["analysis_request"]["writing_contract_version"] == "plain-language-v2"
+        assert packet["analysis_request"]["writing_contract_version"] == "plain-language-v3"
         assert "smart twelve-year-old" in writing["audience"]
         assert "what the number can and cannot mean" in writing["score_rule"]
         assert "reread every sentence" in writing["final_review"]
@@ -221,6 +222,7 @@ def test_local_codex_executor_can_complete_an_agent_funded_queue(repository, dat
         "enabled": True,
         "provider": "agent",
         "prompt_version": "agent-cli-test-v1",
+        "detailed_reviews": True,
         "max_parallel_jobs": 1,
     }
     (repository / ".anaxigraph.yml").write_text(

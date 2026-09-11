@@ -263,6 +263,7 @@ def _module_side(item: dict[str, Any] | None) -> dict[str, Any] | None:
             "placement_guidance": value.get("placement_guidance"),
             "pattern_opportunities": value.get("pattern_opportunities") or [],
             "consolidation_assessment": value.get("consolidation_assessment"),
+            "understandability": value.get("understandability"),
             "dead_code_candidates": value.get("dead_code_candidates") or [],
             "risks": value.get("risks") or [],
         },

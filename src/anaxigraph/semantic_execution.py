@@ -20,7 +20,7 @@ def add_semantic_execution_arguments(parser: Any) -> None:
     )
     parser.add_argument(
         "--model",
-        help="Optional model override for this local codex/claude execution",
+        help="Worker model; choose explicitly for unattended mapping to avoid an expensive CLI default",
     )
     parser.add_argument(
         "--reasoning-effort",
@@ -48,8 +48,8 @@ def add_semantic_execution_arguments(parser: Any) -> None:
         "--detach",
         action="store_true",
         help=(
-            "Run every required task in a background Codex or Claude process that continues "
-            "after this shell exits"
+            "Start or reuse a durable runner for parallel tasks. It owns retries and progress "
+            "after this shell exits; no supervisor script or LLM polling loop is needed"
         ),
     )
 

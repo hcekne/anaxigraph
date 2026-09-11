@@ -137,7 +137,7 @@ def test_intrinsic_request_supersedes_a_job_whose_target_is_gone_or_changed(
 
     with pytest.raises(SupersededSemanticJob) as raised:
         SemanticEvidenceService(database)._intrinsic_request(
-            _job(stats, artifact_id, "intrinsic", path), repository.resolve()
+            _job(stats, artifact_id, "intrinsic", path), repository.resolve(), SemanticConfig()
         )
     assert str(raised.value) == expected
 

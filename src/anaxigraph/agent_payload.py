@@ -430,6 +430,7 @@ def _file_summary(item: dict[str, Any]) -> dict[str, Any]:
                 "placement_guidance",
                 "pattern_opportunities",
                 "consolidation_assessment",
+                "understandability",
                 "dead_code_candidates",
                 "risks",
             )

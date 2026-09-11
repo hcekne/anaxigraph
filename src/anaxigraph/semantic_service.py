@@ -160,11 +160,16 @@ def prepare_semantic_service(
             "retry_failed": str(retry_failed).lower(),
         }
     )
-    value = _request_json_with_retries(
-        f"{target.base_url}/api/semantic/prepare?{query}",
-        method="POST",
-        timeout=timeout,
-    )
+    try:
+        value = _request_json_with_retries(
+            f"{target.base_url}/api/semantic/prepare?{query}", method="POST", timeout=timeout
+        )
+    except ValueError as exc:
+        if "HTTP 429" not in str(exc) and not (
+            "HTTP 409" in str(exc) and "semantic_prepare is already running" in str(exc)
+        ):
+            raise
+        return {"status": "preparing", "retry_after_seconds": 5}
     if not isinstance(value, dict):
         raise ValueError("AnaxiGraph service returned an invalid semantic preparation result")
     return value
@@ -175,6 +180,8 @@ def _request_json_with_retries(url: str, **options: Any) -> Any:
         try:
             return _request_json(url, **options)
         except (OSError, ValueError) as exc:
+            if "/api/semantic/prepare?" in url and "HTTP 429" in str(exc):
+                raise
             transient = isinstance(exc, OSError) or any(
                 marker in str(exc)
                 for marker in ("HTTP 429", "HTTP 500", "HTTP 502", "HTTP 503", "HTTP 504")
@@ -186,9 +193,11 @@ def _request_json_with_retries(url: str, **options: Any) -> Any:
 
 
 def service_semantic_status(
-    target: SemanticServiceTarget, *, timeout: float = 10
+    target: SemanticServiceTarget, *, timeout: float = 10, compact: bool = False
 ) -> dict[str, Any]:
-    query = urllib.parse.urlencode({"repository_id": target.repository_id})
+    query = urllib.parse.urlencode(
+        {"repository_id": target.repository_id, **({"compact": "true"} if compact else {})}
+    )
     value = _request_json(f"{target.base_url}/api/semantic?{query}", timeout=timeout)
     if not isinstance(value, dict):
         raise ValueError("AnaxiGraph service returned an invalid semantic status")

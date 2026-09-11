@@ -357,6 +357,7 @@ def test_scanner_resolves_tsconfig_workspace_ambiguous_and_dynamic_evidence(
             "metadata": {},
         },
         root,
+        SemanticConfig(),
     )
     contract = request["deterministic_facts"]["analysis_contract"]
     assert contract["analyzer"] == "builtin-typescript-tree-sitter"

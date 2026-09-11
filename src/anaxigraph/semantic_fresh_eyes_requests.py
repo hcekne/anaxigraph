@@ -14,6 +14,7 @@ from anaxigraph.semantic_fresh_eyes_contract import (
 from anaxigraph.semantic_fresh_eyes_diversity import proposal_diversity
 from anaxigraph.semantic_graph import SupersededSemanticJob
 from anaxigraph.semantic_index_port import SemanticIndex
+from anaxigraph.understandability import UNDERSTANDABILITY_POLICY
 
 _DECLARED_CONTEXT_NOTE = (
     " Any entries in declared_context are principal-declared facts about this system, each beside "
@@ -79,6 +80,7 @@ def fresh_eyes_request(
         "analysis_kind": kind,
         "input_manifest": metadata["input_manifest"],
         "information_boundary": metadata["information_boundary"],
+        "understandability_policy": UNDERSTANDABILITY_POLICY,
     }
     request.update(_stage_evidence(database, kind, metadata))
     if kind in {"fresh_comparison", "fresh_review"} and metadata["input_manifest"].get(
@@ -118,11 +120,13 @@ def _review_evidence(database: SemanticIndex, metadata: dict[str, Any]) -> dict[
                 "deleting or consolidating code when behavior is preserved",
                 "reversible steps with explicit verification",
                 "retaining good existing decisions",
+                "making representative maintenance tasks easier using the repository itself",
             ],
             "reject": [
                 "speculative infrastructure",
                 "rewrites without capability benefit",
                 "new abstractions whose migration cost exceeds likely value",
+                "file splitting or documentation deletion without a concrete reader benefit",
             ],
         },
     }

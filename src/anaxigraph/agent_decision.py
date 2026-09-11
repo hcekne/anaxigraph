@@ -18,6 +18,7 @@ from anaxigraph.agent_decomposition import decomposition_advice
 from anaxigraph.agent_task_path import task_path
 from anaxigraph.pattern_intelligence import PatternIntelligenceService
 from anaxigraph.trend_service import scoped_change_coupling
+from anaxigraph.understandability import understandability_advice
 
 ARCHITECTURE_DECISION_VERSION = "architecture-decision-v1"
 
@@ -87,6 +88,7 @@ def build_architecture_decision(
         "task_path": route,
         "placement": _placement(preferred, interfaces, reviewed_patterns),
         "change_constraints": _change_constraints(primary_files),
+        "understandability": understandability_advice(primary_files, goal),
         "patterns": _pattern_packet(reviewed_patterns),
         **_structural_advice(
             primary_files,

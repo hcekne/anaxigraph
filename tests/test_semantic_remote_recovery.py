@@ -136,11 +136,14 @@ async def test_wave_shares_parallel_budget_and_submits_fast_jobs_first(monkeypat
 
 
 @pytest.mark.anyio
-async def test_wave_runs_thirty_model_calls_without_the_default_thread_cap(monkeypatch):
-    barrier = threading.Barrier(30)
+@pytest.mark.parametrize("parallel_jobs", [32, 48])
+async def test_wave_runs_many_model_calls_without_the_default_thread_cap(
+    monkeypatch, parallel_jobs
+):
+    barrier = threading.Barrier(parallel_jobs)
     packets = [
         {"job": {"id": index, "kind": "intrinsic"}, "lease": {"token": str(index)}}
-        for index in range(30)
+        for index in range(parallel_jobs)
     ]
 
     async def request(_session, _target, packet):
@@ -148,7 +151,7 @@ async def test_wave_runs_thirty_model_calls_without_the_default_thread_cap(monke
 
     def analyze(request_value, execution):
         assert execution.max_parallel_jobs == 1
-        barrier.wait(timeout=2)
+        barrier.wait(timeout=5)
         return SimpleNamespace(
             value={"index": request_value["index"]}, input_tokens=1, output_tokens=1
         )
@@ -164,13 +167,13 @@ async def test_wave_runs_thirty_model_calls_without_the_default_thread_cap(monke
     await remote_worker._execute_wave(
         object(),
         _target(),
-        SemanticConfig(provider="codex", max_parallel_jobs=30),
+        SemanticConfig(provider="codex", max_parallel_jobs=parallel_jobs),
         packets,
         total,
         {},
     )
 
-    assert total["processed"] == total["completed"] == 30
+    assert total["processed"] == total["completed"] == parallel_jobs
 
 
 @pytest.mark.anyio

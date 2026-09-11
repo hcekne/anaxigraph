@@ -26,9 +26,14 @@ _IDENTITIES = {
     "schema_version",
     "protocol_version",
     "analysis_kind",
+    "detailed_reviews",
+    "max_output_tokens",
+    "writing_contract_version",
+    "writing_requirements",
     "input_manifest",
     "information_boundary",
     "review_goal",
+    "understandability_policy",
 }
 
 
