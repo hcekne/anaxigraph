@@ -63,6 +63,23 @@ def test_submission_limit_is_below_http_body_limit():
     assert MAX_SUBMISSION_BYTES <= MAX_REQUEST_BODY_BYTES
 
 
+@pytest.mark.parametrize("kind", ["taxonomy_proposal", "taxonomy_review"])
+def test_large_repository_taxonomy_fits_without_raising_single_file_limit(schema_validation, kind):
+    request = {"analysis_kind": kind, "modules": [{"path": f"m{i}.py"} for i in range(2018)]}
+    service = SemanticAgentContractService()
+    dossier = {"summary": "x" * 1_500_000}
+    result = service.validate_submission(dossier, request, input_tokens=1, output_tokens=1)
+    assert result.value == _ACCEPTED.value
+    assert result.usage_reported is True
+    with pytest.raises(ValueError, match="submission limit"):
+        _validate(dossier)
+    with pytest.raises(ValueError, match="submission limit"):
+        service.validate_submission(
+            {"summary": "x" * MAX_REQUEST_BODY_BYTES}, request, input_tokens=1, output_tokens=1
+        )
+    assert schema_validation == [dossier]
+
+
 def test_negative_token_counts_are_refused(schema_validation):
     with pytest.raises(ValueError, match="cannot be negative"):
         SemanticAgentContractService().validate_submission(

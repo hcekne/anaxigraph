@@ -9,7 +9,7 @@
       "name": "anaxigraph",
       "source": "./plugins/anaxigraph",
       "description": "Architecture and semantic grounding for Claude Code",
-      "version": "0.6.0",
+      "version": "0.6.1",
       "author": {
         "name": "AnaxiGraph contributors"
       },
