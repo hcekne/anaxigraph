@@ -16,7 +16,7 @@
       ".css",
       ".html"
     ],
-    "baseline_lines": 64482
+    "baseline_lines": 64524
   },
   "function_limits": {
     "warning_lines": 40,
@@ -43,7 +43,8 @@
     "grounding_evidence_states": "User-requested correction: fresh-eyes grounding separates reference resolution from claim support and behavior verification. 'confirmed' becomes 'references_resolved', a proposed name that already resolves becomes 'name_already_present' rather than 'already_satisfied', and every grounded recommendation states all three evidence levels. Contract moves to fresh-eyes-grounding-v2; reports written under v1 are still read and projected forward without inventing evidence. Adds 115 production lines including the semantic_fresh_eyes_references extraction that keeps both modules under the ceiling; no new endpoint, service, dependency, or model stage. Acceptance: tests/test_semantic_fresh_eyes_grounding.py covers the separated statuses, the name-match case, and legacy readability; tests/test_fresh_eyes_transports.py and tests/visual/fresh-eyes.spec.js follow the renamed counts.",
     "shared_conversions": "R3: one confidence label in guidance.py used by architecture guidance and reassessment, one bounded free-text list reader, one confidence clamp, one group-parent reader, one persistence digest, and one strength band. Consolidated only byte-identical duplicates: the three JSON-schema object helpers stay separate because a shared home inverts the contract dependency order, and the 70/40 bands in pattern_language answer different questions. Net production source falls 64503 -> 64469.",
     "semantic_job_port": "R4: the semantic persistence port stops publishing a member none of its thirteen consumers used, and stops publishing a private snapshot resolver that application modules were reaching into. Lifecycle behaviour, atomicity, and the deliberate difference between latest_snapshot and resolve_snapshot are unchanged. Net production source 64469 -> 64466.",
-    "caller_obligations": "R5: the maintenance-task assessment records what a caller must know or guarantee because the interface does not enforce it. Optional field, so assessments saved before it stay valid and no repository re-map is forced: it lives in the response schema, and semantic_input_hash is byte-identical before and after. Adds 18 production lines; no new endpoint, service, dependency, model stage, or aggregate quality score. Acceptance: tests/test_caller_obligations.py."
+    "caller_obligations": "R5: the maintenance-task assessment records what a caller must know or guarantee because the interface does not enforce it. Optional field, so assessments saved before it stay valid and no repository re-map is forced: it lives in the response schema, and semantic_input_hash is byte-identical before and after. Adds 18 production lines; no new endpoint, service, dependency, model stage, or aggregate quality score. Acceptance: tests/test_caller_obligations.py.",
+    "scoped_domain_meaning": "R6: a Charter claim may name the area that owns a rule, and the Charter may record terms whose meaning is scoped, including the other scopes that use the same word for a different thing. Both optional, so charters saved before them stay valid; semantic_input_hash is byte-identical so no re-synthesis is forced. A principal can declare a scoped meaning through the existing correction path rather than have one inferred from names. Adds 42 production lines; no new endpoint, service, table, or model stage. Acceptance: tests/test_domain_definitions.py."
   },
   "legacy_functions": {
     "src/anaxigraph/architecture.py::evaluate_architecture": [
