@@ -8,7 +8,7 @@ from semantic_support import _agent_dossier, _enable_agent_semantics
 
 from anaxigraph.config import load_config
 from anaxigraph.scanner import RepositoryScanner
-from anaxigraph.semantic_fresh_eyes_grounding import read_review_grounding
+from anaxigraph.semantic_fresh_eyes_grounding import GROUNDING_CAVEAT, read_review_grounding
 from anaxigraph.understanding import SemanticEngine
 
 
@@ -150,7 +150,7 @@ def _latest_review_id(connection) -> int:
     return int(row["id"])
 
 
-def test_confirmed_needs_test_and_already_satisfied_statuses(repository, database):
+def test_reference_resolution_is_reported_separately_from_claim_support(repository, database):
     values = {
         "fresh_comparison": _comparison(
             [_candidate("Consolidate duplicate orchestration", "already_satisfies")]
@@ -181,7 +181,12 @@ def test_confirmed_needs_test_and_already_satisfied_statuses(repository, databas
     result = engine.fresh_eyes_status(repository_id, config.semantic)
 
     grounded = _grounding(result)
-    assert grounded[1]["status"] == "confirmed"
+    assert grounded[1]["status"] == "references_resolved"
+    assert grounded[1]["evidence_state"] == {
+        "reference_resolution": "resolved",
+        "claim_support": "unchecked",
+        "behavior_verification": "unchecked",
+    }
     assert {
         (check["kind"], check["value"], check["result"]) for check in grounded[1]["checks"]
     } == {
@@ -194,28 +199,31 @@ def test_confirmed_needs_test_and_already_satisfied_statuses(repository, databas
     assert grounded[3] == {
         "status": "needs_test",
         "reason": "The recommendation cites no checkable identifier.",
+        "evidence_state": {
+            "reference_resolution": "none_cited",
+            "claim_support": "unchecked",
+            "behavior_verification": "unchecked",
+        },
         "checks": [],
     }
     assert grounded[4]["status"] == "already_satisfied"
     assert "already_satisfies" in grounded[4]["reason"]
     summary = result["grounding_summary"]
     assert summary["counts"] == {
-        "confirmed": 1,
-        "needs_test": 2,
+        "references_resolved": 1,
+        "name_already_present": 0,
         "already_satisfied": 1,
+        "needs_test": 2,
         "stale": 0,
     }
     assert (
         summary["reviewed_snapshot_id"] == summary["current_snapshot_id"] == result["snapshot_id"]
     )
     assert "regular-expression identifier extraction" in summary["method"]
-    assert (
-        "Grounding checks identifiers only; it does not prove a recommendation is correct."
-        in result["caveats"]
-    )
+    assert GROUNDING_CAVEAT in result["caveats"]
 
 
-def test_a_recommendation_proposing_an_existing_route_is_already_satisfied(repository, database):
+def test_an_existing_name_is_reported_as_a_name_match_not_as_satisfied(repository, database):
     (repository / "web" / "api_routes.ts").write_text(
         "export function prepare(): string {\n  return 'ready';\n}\n", encoding="utf-8"
     )
@@ -235,8 +243,10 @@ def test_a_recommendation_proposing_an_existing_route_is_already_satisfied(repos
     result = engine.fresh_eyes_status(repository_id, config.semantic)
 
     grounded = _grounding(result)[1]
-    assert grounded["status"] == "already_satisfied"
-    assert grounded["reason"] == "The proposed route /api/semantic/prepare already exists."
+    assert grounded["status"] == "name_already_present"
+    assert "already exists by name" in grounded["reason"]
+    assert "Read what it does" in grounded["reason"]
+    assert grounded["evidence_state"]["claim_support"] == "unchecked"
     assert ("route", "/api/semantic/prepare", "exists") in {
         (check["kind"], check["value"], check["result"]) for check in grounded["checks"]
     }
@@ -269,7 +279,10 @@ def test_rescan_of_cited_file_marks_recommendation_stale_without_new_model_work(
             snapshot_id=reviewed_snapshot,
             review_id=review_id,
         )
-    assert [item["status"] for item in before["recommendations"]] == ["confirmed", "needs_test"]
+    assert [item["status"] for item in before["recommendations"]] == [
+        "references_resolved",
+        "needs_test",
+    ]
 
     (repository / "pkg" / "core.py").write_text(
         '"""Public calculation service."""\n\n'
@@ -299,9 +312,10 @@ def test_rescan_of_cited_file_marks_recommendation_stale_without_new_model_work(
     assert after["summary"]["current_snapshot_id"] == stats.snapshot_id
     assert after["summary"]["reviewed_snapshot_id"] == reviewed_snapshot
     assert after["summary"]["counts"] == {
-        "confirmed": 0,
-        "needs_test": 1,
+        "references_resolved": 0,
+        "name_already_present": 0,
         "already_satisfied": 0,
+        "needs_test": 1,
         "stale": 1,
     }
     assert engine.fresh_eyes_status(repository_id)["state"] == "stale"
@@ -340,3 +354,68 @@ def test_grounding_document_is_written_once_and_reads_do_not_write(repository, d
         )
         assert row["input_tokens"] == 0
         assert row["previous_document_id"] == _latest_review_id(connection)
+
+
+def test_a_report_written_under_the_previous_contract_stays_readable(repository, database):
+    """A contract bump changes the stored identity; an earlier report must not disappear."""
+
+    engine, repository_id, config = _reviewed(repository, database)
+    result = engine.fresh_eyes_status(repository_id, config.semantic)
+    review_id = result["recommendations"][0]["grounding"] and _review_document_id(
+        database, repository_id
+    )
+
+    with database.transaction() as connection:
+        row = connection.execute(
+            "SELECT id, value_json FROM semantic_documents WHERE document_kind = 'fresh_grounding'"
+        ).fetchone()
+        value = json.loads(row["value_json"])
+        value["contract_version"] = "fresh-eyes-grounding-v1"
+        for item in value["recommendations"]:
+            item.pop("evidence_state", None)
+            if item["status"] == "references_resolved":
+                item["status"] = "confirmed"
+        connection.execute(
+            "UPDATE semantic_documents SET value_json = ?, input_hash = ? WHERE id = ?",
+            (
+                json.dumps(value),
+                _legacy_hash(review_id),
+                row["id"],
+            ),
+        )
+
+    with database.connect() as connection:
+        restored = read_review_grounding(
+            connection,
+            repository_id=repository_id,
+            snapshot_id=result["snapshot_id"],
+            review_id=review_id,
+        )
+
+    assert restored is not None
+    assert restored["contract_version"] == "fresh-eyes-grounding-v1"
+    statuses = {item["status"] for item in restored["recommendations"]}
+    assert "confirmed" not in statuses
+    assert all("evidence_state" in item for item in restored["recommendations"])
+    assert all(
+        item["evidence_state"]["claim_support"] == "unchecked"
+        for item in restored["recommendations"]
+    )
+
+
+def _review_document_id(database, repository_id: int) -> int:
+    with database.connect() as connection:
+        row = connection.execute(
+            "SELECT id FROM semantic_documents WHERE repository_id = ? AND document_kind = "
+            "'fresh_review' ORDER BY id DESC LIMIT 1",
+            (repository_id,),
+        ).fetchone()
+    return int(row["id"])
+
+
+def _legacy_hash(review_id: int) -> str:
+    from anaxigraph.semantic_fresh_eyes_contract import semantic_digest
+
+    return semantic_digest(
+        {"contract": "fresh-eyes-grounding-v1", "review_document_id": int(review_id)}
+    )

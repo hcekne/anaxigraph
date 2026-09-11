@@ -142,11 +142,12 @@
   padding: .5rem .8rem;
 }
 
-.fresh-grounding.confirmed {
+.fresh-grounding.references_resolved {
   border-left-color: var(--accent);
 }
 
-.fresh-grounding.already_satisfied {
+.fresh-grounding.already_satisfied,
+.fresh-grounding.name_already_present {
   border-left-color: var(--blue);
 }
 

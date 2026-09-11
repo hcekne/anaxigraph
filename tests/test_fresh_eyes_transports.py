@@ -142,9 +142,10 @@ async def test_dashboard_cli_contract_and_mcp_share_one_fresh_eyes_result(
     assert rest["recommendations"][0]["action"] == "consolidate"
     assert rest["recommendations"][0]["grounding"]["status"] == "needs_test"
     assert rest["grounding_summary"]["counts"] == {
-        "confirmed": 0,
-        "needs_test": 1,
+        "references_resolved": 0,
+        "name_already_present": 0,
         "already_satisfied": 0,
+        "needs_test": 1,
         "stale": 0,
     }
 

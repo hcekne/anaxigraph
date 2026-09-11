@@ -9,18 +9,20 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from anaxigraph.architecture_charter_corrections import (
-    CORRECTABLE_SECTIONS,
-    read_charter_corrections,
-)
-from anaxigraph.persistence.temporal_reads import snapshot_files, symbols_for_files
+from anaxigraph.architecture_charter_corrections import read_charter_corrections
 from anaxigraph.semantic_fresh_eyes_contract import semantic_digest
+from anaxigraph.semantic_fresh_eyes_references import (
+    SnapshotIndex,
+    cited_identifiers,
+    resolve_identifier,
+    snapshot_index,
+)
 
-FRESH_EYES_GROUNDING_VERSION = "fresh-eyes-grounding-v1"
+FRESH_EYES_GROUNDING_VERSION = "fresh-eyes-grounding-v2"
+LEGACY_GROUNDING_VERSIONS = ("fresh-eyes-grounding-v1",)
 GROUNDING_SCOPE_TYPE = "fresh_eyes"
 GROUNDING_SCOPE_KEY = "grounding"
 GROUNDING_DOCUMENT_KIND = "fresh_grounding"
@@ -29,7 +31,8 @@ GROUNDING_METHOD = (
     "reviewed snapshot's files, symbols, findings, commits, routes, and declared context"
 )
 GROUNDING_CAVEAT = (
-    "Grounding checks identifiers only; it does not prove a recommendation is correct."
+    "Grounding resolves references only. It does not support the recommendation's claim and it "
+    "does not verify behavior."
 )
 GROUNDING_CAVEATS = (
     GROUNDING_CAVEAT,
@@ -38,28 +41,17 @@ GROUNDING_CAVEATS = (
     "name can resolve against unrelated code.",
 )
 
-_FIELDS = ("current_evidence", "affected_contracts", "expected_deletions", "smallest_change")
-_STATUSES = ("confirmed", "needs_test", "already_satisfied", "stale")
-_ENDPOINT_HINTS = ("api", "route", "endpoint", "handler", "controller", "server")
-_INTRODUCES = re.compile(r"\b(add|adds|introduce|introduces|create|creates|expose|exposes|new)\b")
-_SECTIONS = "|".join(sorted(CORRECTABLE_SECTIONS))
-_SUFFIXES = "py|pyi|js|jsx|mjs|cjs|ts|tsx|rs|go|java|rb|kt|css|html|sql|toml|md|json|ya?ml"
-_PATTERNS = tuple(
-    (kind, re.compile(expression))
-    for kind, expression in (
-        ("finding", r"(?<![\w:.-])([a-z][\w.-]*:[0-9a-f]{20})(?!\w)"),
-        ("declared", rf"(?<![\w.-])((?:{_SECTIONS}):[\w.-]+)(?!\w)"),
-        ("path", rf"(?<![\w/.-])((?:[\w.-]+/)*[\w.-]+\.(?:{_SUFFIXES}))(?![\w/-])"),
-        ("route", r"(?<!\w)(/(?:api|v[0-9])/[A-Za-z0-9_{}/-]+)"),
-        ("commit", r"(?<!\w)([0-9a-f]{7,40})(?!\w)"),
-        (
-            "symbol",
-            r"`([A-Za-z_][\w.]*)(?:\(\))?`"
-            r"|(?<![\w.])((?:[A-Za-z_]\w*\.)+[A-Za-z_]\w*)(?![\w.])"
-            r"|(?<![\w.])([a-z][a-z0-9]*(?:_[a-z0-9]+)+)(?![\w.])",
-        ),
-    )
+_STATUSES = (
+    "references_resolved",
+    "name_already_present",
+    "already_satisfied",
+    "needs_test",
+    "stale",
 )
+# Reference resolution, claim support, and behavior verification are different evidence states.
+# Only the first is checked here, so the other two are reported as unchecked rather than implied.
+_UNCHECKED = "unchecked"
+_INTRODUCES = re.compile(r"\b(add|adds|introduce|introduces|create|creates|expose|exposes|new)\b")
 _STORED_SQL = """
 SELECT id, value_json FROM semantic_documents
 WHERE repository_id = ? AND scope_type = ? AND scope_key = ? AND document_kind = ?
@@ -83,17 +75,6 @@ JOIN snapshots s ON s.id = c.snapshot_id
 WHERE s.repository_id = ? AND c.snapshot_id > ? AND c.snapshot_id <= ?
   AND c.artifact_id IN ({placeholders})
 """
-
-
-@dataclass(frozen=True, slots=True)
-class _Snapshot:
-    """What one reviewed snapshot can resolve, reconstructed once per grounding report."""
-
-    # Files are keyed by full path and by unambiguous basename; symbols by name and suffix.
-    files: dict[str, int]
-    symbols: frozenset[str]
-    endpoints: frozenset[str]
-    declared: frozenset[str]
 
 
 def write_review_grounding(
@@ -131,10 +112,9 @@ def read_review_grounding(
 
     if not review_id:
         return None
-    stored = _stored(connection, repository_id, _grounding_hash(int(review_id)))
-    if stored is None:
+    value = _stored_value(connection, repository_id, int(review_id))
+    if value is None:
         return None
-    value = json.loads(stored["value_json"] or "{}")
     return _with_staleness(connection, repository_id, value, int(snapshot_id))
 
 
@@ -169,7 +149,7 @@ def ground_review(
 ) -> dict[str, Any]:
     """Label every recommendation from the identifiers it cites, and say how that was decided."""
 
-    index = _snapshot_index(connection, snapshot_id, declared_context)
+    index = snapshot_index(connection, snapshot_id, declared_context)
     candidates = (comparison_value or {}).get("candidate_changes") or []
     classifications = {
         _normalized(item.get("title")): str(item.get("classification") or "") for item in candidates
@@ -191,13 +171,13 @@ def ground_review(
 def _ground_recommendation(
     connection: Any,
     repository_id: int,
-    index: _Snapshot,
+    index: SnapshotIndex,
     recommendation: dict[str, Any],
     classifications: dict[str, str],
 ) -> dict[str, Any]:
     checks = [
-        _check(connection, repository_id, index, kind, value, field)
-        for kind, value, field in _identifiers(recommendation)
+        resolve_identifier(connection, repository_id, index, kind, value, field)
+        for kind, value, field in cited_identifiers(recommendation)
     ]
     status, reason = _status(recommendation, checks, classifications)
     return {
@@ -205,74 +185,25 @@ def _ground_recommendation(
         "title": str(recommendation.get("title") or ""),
         "status": status,
         "reason": reason,
+        "evidence_state": _evidence_state(checks),
         "checks": checks,
     }
 
 
-def _identifiers(recommendation: dict[str, Any]) -> list[tuple[str, str, str]]:
-    """Extract each distinct checkable identifier once, naming the field that cited it."""
+def _evidence_state(checks: list[dict[str, Any]]) -> dict[str, str]:
+    """Say which of the three evidence questions this pass actually answered."""
 
-    seen: set[tuple[str, str]] = set()
-    result: list[tuple[str, str, str]] = []
-    for field in _FIELDS:
-        value = recommendation.get(field)
-        for text in [value] if isinstance(value, str) else list(value or ()):
-            for kind, identifier in _extract(str(text)):
-                if (kind, identifier) not in seen:
-                    seen.add((kind, identifier))
-                    result.append((kind, identifier, field))
-    return result
-
-
-def _extract(text: str) -> list[tuple[str, str]]:
-    """Match the most specific identifier shapes first, removing each match before the next."""
-
-    found: list[tuple[str, str]] = []
-    remaining = text
-    for kind, pattern in _PATTERNS:
-        for match in pattern.finditer(remaining):
-            value = next((group for group in match.groups() if group), "")
-            if kind == "commit" and not any(character.isdigit() for character in value):
-                continue
-            if kind == "symbol" and "." in value and value.islower() and "_" not in value:
-                continue
-            found.append((kind, value))
-        remaining = pattern.sub(" ", remaining)
-    return found
-
-
-def _check(
-    connection: Any, repository_id: int, index: _Snapshot, kind: str, value: str, field: str
-) -> dict[str, Any]:
-    check: dict[str, Any] = {"kind": kind, "value": value, "field": field, "result": "missing"}
-    if kind == "path":
-        artifact = index.files.get(value) or index.files.get(value.rsplit("/", 1)[-1])
-        if artifact is not None:
-            check.update({"result": "exists", "artifact_id": artifact})
-    elif kind == "symbol":
-        check["result"] = _found(value in index.symbols)
-    elif kind == "route":
-        tail = value.rstrip("/").rsplit("/", 1)[-1]
-        check["result"] = _found(value in index.endpoints or tail in index.endpoints)
-    elif kind == "declared":
-        check["result"] = _found(value in index.declared)
-    elif kind == "finding":
-        check["result"] = _row(connection, "findings", "stable_key = ?", repository_id, value)
+    if not checks:
+        resolution = "none_cited"
+    elif any(check["result"] != "exists" for check in checks):
+        resolution = "unresolved"
     else:
-        check["result"] = _row(connection, "git_changes", "commit_sha LIKE ?", repository_id, value)
-    return check
-
-
-def _found(resolved: bool) -> str:
-    return "exists" if resolved else "missing"
-
-
-def _row(connection: Any, table: str, clause: str, repository_id: int, value: str) -> str:
-    row = connection.execute(
-        f"SELECT 1 FROM {table} WHERE repository_id = ? AND {clause} LIMIT 1",
-        (repository_id, f"{value}%" if "LIKE" in clause else value),
-    ).fetchone()
-    return _found(row is not None)
+        resolution = "resolved"
+    return {
+        "reference_resolution": resolution,
+        "claim_support": _UNCHECKED,
+        "behavior_verification": _UNCHECKED,
+    }
 
 
 def _status(
@@ -280,8 +211,10 @@ def _status(
 ) -> tuple[str, str]:
     resolved = [check for check in checks if check["result"] == "exists"]
     missing = [check for check in checks if check["result"] == "missing"]
-    if satisfied := _already_satisfied(recommendation, resolved, classifications):
+    if satisfied := _already_satisfied(recommendation, classifications):
         return "already_satisfied", satisfied
+    if present := _name_already_present(recommendation, resolved):
+        return "name_already_present", present
     if not checks:
         return "needs_test", "The recommendation cites no checkable identifier."
     if missing:
@@ -290,16 +223,25 @@ def _status(
             f"{len(resolved)} of {len(checks)} cited identifiers resolve in the reviewed "
             f"snapshot; {names} could not be found."
         )
-    return "confirmed", f"All {len(checks)} cited identifiers resolve in the reviewed snapshot."
+    return "references_resolved", (
+        f"All {len(checks)} cited identifiers resolve in the reviewed snapshot. That locates the "
+        "recommendation in real code; it does not support its claim."
+    )
 
 
-def _already_satisfied(
-    recommendation: dict[str, Any], resolved: list[dict[str, Any]], classifications: dict[str, str]
-) -> str:
+def _already_satisfied(recommendation: dict[str, Any], classifications: dict[str, str]) -> str:
+    """Report only a judgment another stage actually made, never one inferred from a name."""
+
     if classifications.get(_normalized(recommendation.get("title"))) == "already_satisfies":
         return "The comparison stage classified the matching candidate already_satisfies."
     if str(recommendation.get("action") or "") == "retain":
         return "The recommendation asks to retain what the repository already does."
+    return ""
+
+
+def _name_already_present(recommendation: dict[str, Any], resolved: list[dict[str, Any]]) -> str:
+    """A proposed name that already resolves is worth reading, but it is not proof of behavior."""
+
     introduced = [
         check
         for check in resolved
@@ -307,49 +249,16 @@ def _already_satisfied(
     ]
     smallest = str(recommendation.get("smallest_change") or "").lower()
     if introduced and _INTRODUCES.search(smallest):
-        return f"The proposed {introduced[0]['kind']} {introduced[0]['value']} already exists."
+        return (
+            f"The proposed {introduced[0]['kind']} {introduced[0]['value']} already exists by "
+            "name. Read what it does before treating the recommendation as already satisfied."
+        )
+    return ""
     return ""
 
 
 def _normalized(value: Any) -> str:
     return " ".join(str(value or "").lower().split())
-
-
-def _snapshot_index(connection: Any, snapshot_id: int, declared_context: Any) -> _Snapshot:
-    files = snapshot_files(connection, snapshot_id, expand_metadata=False)
-    paths = {str(item["path"]): int(item["artifact_id"]) for item in files}
-    bases: dict[str, int] = {}
-    ambiguous: set[str] = set()
-    for path, artifact in paths.items():
-        if bases.setdefault(path.rsplit("/", 1)[-1], artifact) != artifact:
-            ambiguous.add(path.rsplit("/", 1)[-1])
-    resolved = {name: artifact for name, artifact in bases.items() if name not in ambiguous}
-    resolved.update(paths)
-    names, endpoints = _symbol_index(symbols_for_files(connection, files))
-    declared = {
-        f"{item['section']}:{item['key']}"
-        for item in declared_context or ()
-        if isinstance(item, dict) and item.get("active", True)
-    }
-    return _Snapshot(resolved, frozenset(names), frozenset(endpoints), frozenset(declared))
-
-
-def _symbol_index(symbols: list[dict[str, Any]]) -> tuple[set[str], set[str]]:
-    """Index symbols by name and qualified-name suffix, and name the ones a route can reach."""
-
-    names: set[str] = set()
-    endpoints: set[str] = set()
-    for symbol in symbols:
-        name = str(symbol["name"])
-        names.add(name)
-        parts = str(symbol["qualified_name"]).split(".")
-        names.update(".".join(parts[index:]) for index in range(len(parts)))
-        if "/" in name:
-            endpoints.add(name.rsplit(" ", 1)[-1])
-        path = str(symbol.get("path") or "").lower()
-        if str(symbol["symbol_type"]) == "api_endpoint" or any(h in path for h in _ENDPOINT_HINTS):
-            endpoints.add(name)
-    return names, endpoints
 
 
 def _summary(grounded: list[dict[str, Any]], reviewed: int, current: int) -> dict[str, Any]:
@@ -405,6 +314,11 @@ def _stale(item: dict[str, Any], changed: frozenset[int]) -> dict[str, Any]:
         **item,
         "status": "stale",
         "reason": f"Cited code changed after the review was produced: {named}.",
+        "evidence_state": {
+            "reference_resolution": "changed",
+            "claim_support": _UNCHECKED,
+            "behavior_verification": _UNCHECKED,
+        },
         "checks": [
             {**check, "result": "changed"} if check.get("artifact_id") in changed else check
             for check in checks
@@ -416,14 +330,58 @@ def _for_rank(by_rank: dict[int, dict[str, Any]], recommendation: dict[str, Any]
     grounded = by_rank.get(int(recommendation.get("rank") or 0))
     if grounded is None:
         reason = "This recommendation was not part of the grounded review document."
-        return {"status": "needs_test", "reason": reason, "checks": []}
+        return {
+            "status": "needs_test",
+            "reason": reason,
+            "evidence_state": {
+                "reference_resolution": "none_cited",
+                "claim_support": _UNCHECKED,
+                "behavior_verification": _UNCHECKED,
+            },
+            "checks": [],
+        }
     return {key: value for key, value in grounded.items() if key not in {"rank", "title"}}
 
 
-def _grounding_hash(review_id: int) -> str:
-    return semantic_digest(
-        {"contract": FRESH_EYES_GROUNDING_VERSION, "review_document_id": int(review_id)}
-    )
+def _stored_value(connection: Any, repository_id: int, review_id: int) -> dict[str, Any] | None:
+    """Read this contract's report, falling back to one a previous contract wrote.
+
+    A version bump changes the stored identity, so an older report would otherwise disappear.
+    Earlier reports stay readable and keep the contract version they were written under; their
+    status names are projected onto the current vocabulary without inventing evidence.
+    """
+
+    for contract in (FRESH_EYES_GROUNDING_VERSION, *LEGACY_GROUNDING_VERSIONS):
+        stored = _stored(connection, repository_id, _grounding_hash(review_id, contract))
+        if stored is None:
+            continue
+        value = json.loads(stored["value_json"] or "{}")
+        return value if contract == FRESH_EYES_GROUNDING_VERSION else _projected(value)
+    return None
+
+
+def _projected(value: dict[str, Any]) -> dict[str, Any]:
+    """Carry an earlier report forward: rename what it claimed, add nothing it did not check."""
+
+    return {
+        **value,
+        "recommendations": [_projected_item(item) for item in value.get("recommendations") or []],
+    }
+
+
+def _projected_item(item: dict[str, Any]) -> dict[str, Any]:
+    checks = item.get("checks") or []
+    status = str(item.get("status") or "")
+    reason = str(item.get("reason") or "")
+    if status == "confirmed":
+        status = "references_resolved"
+    elif status == "already_satisfied" and "already exists" in reason:
+        status = "name_already_present"
+    return {**item, "status": status, "evidence_state": _evidence_state(checks)}
+
+
+def _grounding_hash(review_id: int, contract: str = FRESH_EYES_GROUNDING_VERSION) -> str:
+    return semantic_digest({"contract": contract, "review_document_id": int(review_id)})
 
 
 def _value(connection: Any, document_id: Any) -> dict[str, Any] | None:

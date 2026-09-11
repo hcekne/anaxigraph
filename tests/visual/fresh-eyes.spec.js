@@ -191,7 +191,7 @@ function stage(key, label) {
 test("a stale grounding status names the citations that did not resolve", async ({ page }) => {
   const grounded = {
     ...reviewResult(),
-    grounding_summary: { counts: { confirmed: 0, needs_test: 0, already_satisfied: 0, stale: 1 } },
+    grounding_summary: { counts: { references_resolved: 0, name_already_present: 0, already_satisfied: 0, needs_test: 0, stale: 1 } },
     recommendations: [{
       ...reviewResult().recommendations[0],
       grounding: {
