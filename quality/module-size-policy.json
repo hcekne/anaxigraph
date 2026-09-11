@@ -8,7 +8,14 @@
     "asset_warning": 400,
     "asset_hard": 500
   },
-  "implementation_extensions": [".py", ".js", ".jsx", ".mjs", ".ts", ".tsx"],
+  "implementation_extensions": [
+    ".py",
+    ".js",
+    ".jsx",
+    ".mjs",
+    ".ts",
+    ".tsx"
+  ],
   "test_patterns": [
     "tests/**",
     "test/**",
@@ -19,5 +26,6 @@
     "**/*_test.py"
   ],
   "exclusions": [],
-  "legacy_exceptions": []
+  "legacy_exceptions": [],
+  "cohesive_exceptions": []
 }

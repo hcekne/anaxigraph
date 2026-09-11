@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import subprocess
 from dataclasses import dataclass
@@ -56,6 +57,7 @@ def check_quality(
         package=policy["package"],
     )
     issues.extend(_coupling_issues(graph, policy))
+    issues.extend(_shallow_module_issues(root, graph, policy))
     if baseline:
         paths = changed_paths if changed_paths is not None else _changed_paths(root, baseline)
         issues.extend(_interface_changes(root, baseline, paths, policy))
@@ -188,6 +190,66 @@ def _legacy_function_issues(
             )
         ]
     return []
+
+
+def _shallow_module_issues(
+    root: Path, graph: dict[str, set[str]], policy: dict[str, Any]
+) -> list[QualityIssue]:
+    """Name a module that only renames one neighbour, so inlining is judged too.
+
+    Every other rule here pushes work apart. This one asks the opposite question: does
+    this module hide a decision, or does it add a name and a hop? A module whose public
+    functions all forward, which depends on exactly one module inside the package, and
+    which serves at most one caller, hides nothing. Three cases are deliberately left
+    alone: forwarding to several collaborators is a facade; forwarding outside the package
+    hides the library being used; and forwarding for several callers states a shared
+    decision once, which is what a boundary is for.
+    """
+
+    source_root = root / str(policy["source_root"])
+    incoming: dict[str, int] = dict.fromkeys(graph, 0)
+    for targets in graph.values():
+        for target in targets:
+            incoming[target] = incoming.get(target, 0) + 1
+    issues: list[QualityIssue] = []
+    for module, targets in sorted(graph.items()):
+        candidate = source_root / (module.replace(".", "/") + ".py")
+        if len(targets) != 1 or incoming.get(module, 0) > 1 or not candidate.is_file():
+            continue
+        try:
+            tree = ast.parse(candidate.read_text(encoding="utf-8"))
+        except (OSError, SyntaxError, UnicodeError):
+            continue
+        if any(isinstance(node, ast.ClassDef) for node in tree.body):
+            continue
+        public = [
+            node
+            for node in tree.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and not node.name.startswith("_")
+        ]
+        if public and all(_forwards(node) for node in public):
+            issues.append(
+                QualityIssue(
+                    "warning",
+                    "shallow_module",
+                    module,
+                    f"every public function forwards to {next(iter(targets))} and nothing else; "
+                    "inline it unless this name hides a decision the caller should not know",
+                )
+            )
+    return issues
+
+
+def _forwards(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    body = [
+        item
+        for item in node.body
+        if not (isinstance(item, ast.Expr) and isinstance(item.value, ast.Constant))
+    ]
+    return (
+        len(body) == 1 and isinstance(body[0], ast.Return) and isinstance(body[0].value, ast.Call)
+    )
 
 
 def _coupling_issues(graph: dict[str, set[str]], policy: dict[str, Any]) -> list[QualityIssue]:
