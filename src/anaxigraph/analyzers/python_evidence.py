@@ -6,6 +6,7 @@ import ast
 from pathlib import PurePosixPath
 
 from anaxigraph.analyzer_facts import AnalyzerFact
+from anaxigraph.analyzers.python_syntax import format_annotation, node_name
 
 _CONTROL_FLOW = (ast.If, ast.For, ast.While, ast.Match)
 _SIDE_EFFECT_ROOTS = {
@@ -53,7 +54,7 @@ class _EvidenceVisitor(ast.NodeVisitor):
         self._documentation(node, subject, "symbol_documentation")
         self._decorators(node, subject)
         for base in node.bases:
-            name = _name(base)
+            name = node_name(base)
             if name:
                 self._emit("inheritance", name, base, subject=subject)
                 if name.rsplit(".", 1)[-1] in {"Generic", "Protocol"}:
@@ -131,7 +132,7 @@ class _EvidenceVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Raise(self, node: ast.Raise) -> None:
-        value = _name(node.exc) or "raise"
+        value = node_name(node.exc) or "raise"
         self._emit("error_handling", value, node)
         self.generic_visit(node)
 
@@ -144,7 +145,7 @@ class _EvidenceVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
-        annotation = _unparse(node.annotation)
+        annotation = format_annotation(node.annotation)
         if annotation:
             self._emit("annotations", annotation, node)
         self._mutation(node.target, node)
@@ -160,7 +161,7 @@ class _EvidenceVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> None:
-        name = _name(node.func)
+        name = node_name(node.func)
         root = name.split(".", 1)[0]
         if root in _SIDE_EFFECT_ROOTS:
             self._emit(
@@ -186,7 +187,7 @@ class _EvidenceVisitor(ast.NodeVisitor):
         self, node: ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef, subject: str
     ) -> None:
         for decorator in node.decorator_list:
-            value = _name(decorator.func if isinstance(decorator, ast.Call) else decorator)
+            value = node_name(decorator.func if isinstance(decorator, ast.Call) else decorator)
             if not value:
                 continue
             self._emit("decorators", value, decorator, subject=subject)
@@ -207,10 +208,10 @@ class _EvidenceVisitor(ast.NodeVisitor):
         if node.args.kwarg:
             arguments.append(node.args.kwarg)
         for argument in arguments:
-            value = _unparse(argument.annotation)
+            value = format_annotation(argument.annotation)
             if value:
                 self._emit("annotations", f"{argument.arg}: {value}", argument, subject=subject)
-        returns = _unparse(node.returns)
+        returns = format_annotation(node.returns)
         if returns:
             self._emit("annotations", f"return: {returns}", node.returns, subject=subject)
 
@@ -226,7 +227,7 @@ class _EvidenceVisitor(ast.NodeVisitor):
 
     def _mutation(self, target: ast.AST, node: ast.AST, *, force: bool = False) -> None:
         if force or isinstance(target, (ast.Attribute, ast.Subscript)):
-            value = _name(target) or type(target).__name__.lower()
+            value = node_name(target) or type(target).__name__.lower()
             self._emit("mutation", value, node)
 
     def _qualified(self, name: str) -> str:
@@ -276,28 +277,6 @@ def _is_test_path(path: str) -> bool:
 def _is_main_guard(node: ast.AST) -> bool:
     if not isinstance(node, ast.Compare) or len(node.ops) != 1 or len(node.comparators) != 1:
         return False
-    left = _name(node.left)
+    left = node_name(node.left)
     right = node.comparators[0]
     return left == "__name__" and isinstance(right, ast.Constant) and right.value == "__main__"
-
-
-def _name(node: ast.AST | None) -> str:
-    if isinstance(node, ast.Name):
-        return node.id
-    if isinstance(node, ast.Attribute):
-        parent = _name(node.value)
-        return f"{parent}.{node.attr}" if parent else node.attr
-    if isinstance(node, ast.Subscript):
-        return _name(node.value)
-    if isinstance(node, ast.Call):
-        return _name(node.func)
-    return ""
-
-
-def _unparse(node: ast.AST | None) -> str:
-    if node is None:
-        return ""
-    try:
-        return ast.unparse(node)
-    except (TypeError, ValueError):
-        return ""

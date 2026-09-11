@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -38,11 +39,22 @@ def reconstruct_files_with_diagnostics(
     connection: sqlite3.Connection,
     snapshot_id: int | None,
 ) -> tuple[dict[int, dict[str, Any]], ReconstructionDiagnostics]:
+    return _replay(connection, snapshot_id, _checkpoint_files, _apply_file_changes)
+
+
+def _replay(
+    connection: sqlite3.Connection,
+    snapshot_id: int | None,
+    checkpoint: Callable[[sqlite3.Connection, int | None], Any],
+    apply_frame: Callable[[sqlite3.Connection, Any, Any], None],
+) -> tuple[Any, ReconstructionDiagnostics]:
+    """Rebuild one snapshot the only way this store knows: a checkpoint plus later frames."""
+
     started = time.perf_counter()
     checkpoint_id, frames = _reconstruction_path(connection, snapshot_id)
-    state = _checkpoint_files(connection, checkpoint_id)
+    state = checkpoint(connection, checkpoint_id)
     for frame in reversed(frames):
-        _apply_file_changes(connection, state, frame)
+        apply_frame(connection, state, frame)
     return state, _diagnostics(started, snapshot_id, frames, checkpoint_id, len(state))
 
 
@@ -58,12 +70,7 @@ def reconstruct_relationships_with_diagnostics(
     connection: sqlite3.Connection,
     snapshot_id: int | None,
 ) -> tuple[dict[int, int], ReconstructionDiagnostics]:
-    started = time.perf_counter()
-    checkpoint_id, frames = _reconstruction_path(connection, snapshot_id)
-    state = _checkpoint_relationships(connection, checkpoint_id)
-    for frame in reversed(frames):
-        _apply_relationship_changes(connection, state, frame)
-    return state, _diagnostics(started, snapshot_id, frames, checkpoint_id, len(state))
+    return _replay(connection, snapshot_id, _checkpoint_relationships, _apply_relationship_changes)
 
 
 def refresh_checkpoint_if_due(connection: sqlite3.Connection, snapshot_id: int) -> bool:

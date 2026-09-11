@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import os
 import sys
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from typing import Any
 
+from anaxigraph.cli_common import default_db
 from anaxigraph.environment_doctor import inspect_environment
 from anaxigraph.finding_transport import collect_finding_ledger, query_findings
 from anaxigraph.guidance import FINDING_STATUSES
@@ -59,7 +59,7 @@ def configure_operational_commands(
     )
     doctor_parser.add_argument("repository", nargs="?", type=Path, default=Path.cwd())
     doctor_parser.add_argument("--config", type=Path)
-    doctor_parser.add_argument("--db", type=Path, default=_default_db())
+    doctor_parser.add_argument("--db", type=Path, default=default_db())
     doctor_parser.add_argument("--service-url", help="Dashboard/API root to probe")
     doctor_parser.add_argument("--client", choices=["codex", "claude"])
     doctor_parser.add_argument("--connect-scope", choices=["user", "project"], default="user")
@@ -130,11 +130,3 @@ def doctor(args: Namespace) -> dict[str, Any]:
         connection_scope=args.connect_scope,
         expected_mcp_url=args.mcp_url,
     )
-
-
-def _default_db() -> Path:
-    configured = os.environ.get("ANAXIGRAPH_DB")
-    if configured:
-        return Path(configured).expanduser()
-    state_root = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state"))
-    return state_root / "anaxigraph" / "anaxi-index.db"

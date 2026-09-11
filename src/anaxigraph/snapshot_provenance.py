@@ -26,7 +26,7 @@ def snapshot_provenance(row: Mapping[str, Any] | None) -> dict[str, Any]:
     """Name the commit and working-tree state one saved snapshot was analyzed from."""
 
     values = row or {}
-    metadata = _snapshot_metadata(values)
+    metadata = snapshot_metadata(values)
     return {
         "snapshot_id": _optional_int(values.get("id")),
         "commit_sha": _optional_text(values.get("commit_sha")),
@@ -61,7 +61,9 @@ def dirty_snapshot_caveat(provenance: Mapping[str, Any]) -> str | None:
     )
 
 
-def _snapshot_metadata(row: Mapping[str, Any]) -> dict[str, Any]:
+def snapshot_metadata(row: Mapping[str, Any]) -> dict[str, Any]:
+    """Read a snapshot row's metadata, treating unreadable JSON as no metadata."""
+
     try:
         metadata = json.loads(str(row.get("metadata_json") or "{}"))
     except (TypeError, ValueError):

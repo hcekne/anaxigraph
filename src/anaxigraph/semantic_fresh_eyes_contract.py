@@ -234,6 +234,53 @@ FRESH_EYES_COMPARISON_SCHEMA: dict[str, Any] = _object(
     evidence=_EVIDENCE,
 )
 
+_VERIFICATION_RESULT = _object(
+    status={
+        "type": "string",
+        "enum": ["unverified", "passed", "failed"],
+        "description": (
+            "Whether the check was actually run. It stays unverified unless a tool that ran it "
+            "supplied the outcome; a structural improvement is not a result."
+        ),
+    },
+    revision={
+        **_STRING,
+        "description": (
+            "The revision the result belongs to. A result from another revision is not evidence "
+            "about this one."
+        ),
+    },
+    source={**_STRING, "description": "What produced the result, for example a test command."},
+    observed_at=_STRING,
+)
+_TRANSFORMATION = _object(
+    target={**_STRING, "description": "The exact path or symbol the change applies to."},
+    preconditions={
+        "type": "array",
+        "items": _STRING,
+        "maxItems": 6,
+        "description": "What must already hold before the first step is safe.",
+    },
+    sequence={
+        "type": "array",
+        "items": _STRING,
+        "maxItems": 8,
+        "description": "Small ordered steps, each leaving the code working.",
+    },
+    preserved_behavior={
+        **_STRING,
+        "description": "The observable behavior that must be identical afterwards.",
+    },
+    verification_command={
+        **_STRING,
+        "description": "The check that would establish the behavior was preserved.",
+    },
+    rollback={**_STRING, "description": "How to undo the change if the check fails."},
+    result=_VERIFICATION_RESULT,
+)
+# A recommendation may carry a plan without anyone having run it yet.
+_TRANSFORMATION["required"] = [n for n in _TRANSFORMATION["required"] if n != "result"]
+
 _ACTIONS = ["retain", "move", "split", "consolidate", "delete", "refactor"]
 _RECOMMENDATION = _object(
     rank={"type": "integer", "minimum": 1},
@@ -254,7 +301,26 @@ _RECOMMENDATION = _object(
     verification=_STRINGS,
     reversible={"type": "boolean"},
     confidence=_CONFIDENCE,
+    transformation=_TRANSFORMATION,
 )
+# Optional: reviews saved before the transformation block stay valid.
+_RECOMMENDATION["required"] = [n for n in _RECOMMENDATION["required"] if n != "transformation"]
+
+
+def attributed_verification(recommendation: dict[str, Any]) -> str:
+    """Report a behavior check only when a tool ran it and said which revision it ran on.
+
+    A plan without a result, or a result with no revision, stays unchecked: a structural
+    improvement and a model's agreement are not observations of behavior.
+    """
+
+    result = ((recommendation or {}).get("transformation") or {}).get("result") or {}
+    status = str(result.get("status") or "unverified")
+    if status in {"passed", "failed"} and str(result.get("revision") or "").strip():
+        return status
+    return "unchecked"
+
+
 FRESH_EYES_REVIEW_SCHEMA: dict[str, Any] = _object(
     contract_version={"type": "string", "enum": [FRESH_EYES_REVIEW_VERSION]},
     summary=_STRING,
