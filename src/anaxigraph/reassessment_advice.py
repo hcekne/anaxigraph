@@ -9,6 +9,7 @@ from typing import Any
 from anaxigraph.finding_language import finding_caveats
 from anaxigraph.reassessment_semantic_advice import (
     pattern_effect_spec,
+    reported_confidence,
     semantic_effect_specs,
 )
 
@@ -88,7 +89,7 @@ def _finding_effect(finding: dict[str, Any]) -> dict[str, Any]:
         observation=language["observation"],
         consequence=language["consequence"],
         recommendation=language["recommendation"],
-        confidence=float(finding.get("confidence") or 0.5),
+        confidence=reported_confidence(finding.get("confidence")),
         basis=f"deterministic finding {finding_type}",
         counter_evidence=caveats,
         reasons_to_leave_alone=language["reasons"],
@@ -335,7 +336,7 @@ def _responsibility_effect(
             or "Its role in the repository changed."
         ),
         recommendation="Confirm the new responsibility is cohesive and not already owned by a related module.",
-        confidence=float(right.get("confidence") or 0.6),
+        confidence=reported_confidence(right.get("confidence")),
         basis="current module dossier compared with its prior dossier",
         counter_evidence=_strings(right.get("risks"), 3),
         reasons_to_leave_alone=[
@@ -384,7 +385,7 @@ def _effect(
     observation: str,
     consequence: str,
     recommendation: str,
-    confidence: float,
+    confidence: float | None,
     basis: str,
     counter_evidence: list[str],
     reasons_to_leave_alone: list[str],
@@ -410,13 +411,26 @@ def _effect(
     return {"id": f"reassessment:{identity}", **core}
 
 
-def _confidence(score: float, basis: str) -> dict[str, Any]:
+def _confidence(score: float | None, basis: str) -> dict[str, Any]:
+    """Keep an unmeasured confidence unknown; never let a default invent optimism.
+
+    A missing score and a reported zero mean different things to a reader, and both
+    differ from a low-but-measured score. Callers pass ``None`` only when the source
+    recorded no confidence at all.
+    """
+
+    if score is None:
+        return {"score": None, "label": "unknown", "basis": basis}
     bounded = round(min(1.0, max(0.0, score)), 3)
-    return {
-        "score": bounded,
-        "label": "high" if bounded >= 0.8 else "medium" if bounded >= 0.55 else "limited",
-        "basis": basis,
-    }
+    if bounded == 0:
+        label = "none"
+    elif bounded >= 0.8:
+        label = "high"
+    elif bounded >= 0.55:
+        label = "medium"
+    else:
+        label = "limited"
+    return {"score": bounded, "label": label, "basis": basis}
 
 
 def _coverage(

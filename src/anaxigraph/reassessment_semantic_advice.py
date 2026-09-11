@@ -22,7 +22,7 @@ def semantic_effect_specs(evidence: dict[str, Any]) -> list[dict[str, Any]]:
             result.append(_consolidation_spec(path, consolidation))
         for candidate in semantic.get("dead_code_candidates") or []:
             if isinstance(candidate, dict):
-                result.append(_dead_code_spec(path, candidate, semantic))
+                result.append(_dead_code_spec(path, candidate))
     return result
 
 
@@ -90,6 +90,22 @@ def _reader_effect(
     }
 
 
+def reported_confidence(value: Any, *, scale: float = 1.0) -> float | None:
+    """Return a confidence a source actually recorded, preserving zero and absence.
+
+    A missing field and a reported zero mean different things to a reader. Callers
+    must not substitute a midpoint for an unmeasured confidence, and must not pass a
+    strength or opportunity score here: those answer a different question.
+    """
+
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return float(value) / scale
+    except (TypeError, ValueError):
+        return None
+
+
 def pattern_effect_spec(item: dict[str, Any]) -> dict[str, Any] | None:
     recommendation = str(item.get("recommendation") or "insufficient_evidence")
     if recommendation in {"no_action", "retain", "insufficient_evidence"}:
@@ -97,7 +113,7 @@ def pattern_effect_spec(item: dict[str, Any]) -> dict[str, Any] | None:
     target = item.get("target") or {}
     pattern = item.get("pattern") or {}
     details = item.get("details") or {}
-    score = float((item.get("scores") or {}).get("opportunity") or 0)
+    scores = item.get("scores") or {}
     name = pattern.get("name") or pattern.get("key")
     return {
         "category": "pattern_fit",
@@ -111,7 +127,7 @@ def pattern_effect_spec(item: dict[str, Any]) -> dict[str, Any] | None:
             f"{recommendation.replace('_', ' ').capitalize()} {name} only through a bounded "
             "behavior-preserving step."
         ),
-        "confidence": min(0.95, max(0.2, score / 100)),
+        "confidence": reported_confidence(scores.get("confidence"), scale=100),
         "basis": "independently reviewed pattern evaluation",
         "counter_evidence": _strings(details.get("counter_evidence"), 4),
         "reasons_to_leave_alone": _strings(details.get("counter_evidence"), 4)
@@ -135,9 +151,7 @@ def _consolidation_spec(path: str, value: dict[str, Any]) -> dict[str, Any]:
         "category": "duplication",
         "classification": "opportunity",
         "subject": path,
-        "observation": str(
-            value.get("rationale") or f"The dossier sees a possible {recommendation} candidate."
-        ),
+        "observation": _consolidation_observation(value, recommendation),
         "consequence": (
             "Related responsibilities may be duplicated or divided at an awkward boundary."
         ),
@@ -145,8 +159,11 @@ def _consolidation_spec(path: str, value: dict[str, Any]) -> dict[str, Any]:
             f"Test a bounded {recommendation}; do not change both modules until contracts and "
             "behavior agree."
         ),
-        "confidence": min(0.9, max(0.2, float(value.get("score") or 50) / 100)),
-        "basis": "current semantic consolidation assessment",
+        "confidence": reported_confidence(value.get("confidence"), scale=100),
+        "basis": (
+            "current semantic consolidation assessment; it records a strength score, "
+            "not a confidence"
+        ),
         "counter_evidence": counter,
         "reasons_to_leave_alone": counter
         or ["Distinct invariants can justify similar-looking code."],
@@ -165,7 +182,19 @@ def _consolidation_spec(path: str, value: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _dead_code_spec(path: str, value: dict[str, Any], semantic: dict[str, Any]) -> dict[str, Any]:
+def _consolidation_observation(value: dict[str, Any], recommendation: str) -> str:
+    """Keep the consolidation strength score visible without presenting it as confidence."""
+
+    stated = str(
+        value.get("rationale") or f"The dossier sees a possible {recommendation} candidate."
+    )
+    score = value.get("score")
+    if score is None:
+        return stated
+    return f"{stated} Consolidation strength score {int(score)} of 100."
+
+
+def _dead_code_spec(path: str, value: dict[str, Any]) -> dict[str, Any]:
     subject = str(value.get("path_or_symbol") or path)
     counter = _strings(value.get("counter_evidence"), 4)
     return {
@@ -185,8 +214,8 @@ def _dead_code_spec(path: str, value: dict[str, Any], semantic: dict[str, Any]) 
             "Treat this only as a deletion candidate until source, configuration, registration, "
             "and tests all agree."
         ),
-        "confidence": float(semantic.get("confidence") or 0.5),
-        "basis": "current semantic dossier",
+        "confidence": reported_confidence(value.get("confidence")),
+        "basis": "confidence recorded for this unused-code candidate",
         "counter_evidence": counter,
         "reasons_to_leave_alone": counter
         or ["Reflection, plugins, templates, and deployment configuration can hide use."],

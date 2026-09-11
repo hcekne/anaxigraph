@@ -109,7 +109,7 @@ function effectCard(effect) {
   return `<article class="reassessment-effect effect-${escapeHtml(effect.classification)}">
     <div class="effect-heading"><div><span>${escapeHtml(humanize(effect.category))}</span>
       <h3>${escapeHtml(effect.subject)}</h3></div>
-      <small>${escapeHtml(humanize(effect.classification))} · ${escapeHtml(confidence.label || "limited")} confidence</small></div>
+      <small>${escapeHtml(humanize(effect.classification))} · ${escapeHtml(confidence.label || "unknown")} confidence</small></div>
     ${statement("What changed", effect.observed_change)}
     ${statement("Why it may matter", effect.architectural_consequence)}
     ${statement("Recommendation", effect.recommendation, "recommendation")}
