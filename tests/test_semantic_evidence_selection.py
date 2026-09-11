@@ -94,6 +94,37 @@ def test_legacy_pattern_advice_cannot_be_reintroduced_by_review_sampling():
     assert old["evaluation"]["recommendation"] == "retain"
 
 
+@pytest.mark.parametrize(
+    "field",
+    [
+        "capability_brief",
+        "external_constraints",
+        "declared_context",
+        "public_contracts",
+        "invariants",
+        "protected_behavior",
+        "counter_evidence",
+    ],
+)
+def test_compaction_preserves_late_constraints_and_counterevidence(field):
+    constraints = [f"Required behavior {index}" for index in range(12)]
+    constraints.append("Caller obligation. " * 80 + "Never charge before reserving inventory.")
+    value = {
+        "current_system": {field: constraints},
+        "supporting_description": "Background explanation. " * 2_000,
+    }
+    selected = bounded_evidence(value, limit=6_000)
+    assert selected["current_system"][field] == constraints
+    assert evidence_bytes(selected) <= 6_000
+    assert selected["evidence_limits"]["shortened_strings"] == 1
+    assert value["current_system"][field] == constraints
+
+
+def test_oversized_essential_context_is_rejected_instead_of_misrepresented():
+    with pytest.raises(ValueError, match="essential constraints"):
+        bounded_evidence({"public_contracts": ["critical " * 1_000]}, limit=1_000)
+
+
 def test_reviewed_taxonomy_preserves_responsibility_memberships(repository, database, monkeypatch):
     review = baseline_review(repository, database)
     snapshot_id = database.latest_snapshot(review.repository_id)["id"]

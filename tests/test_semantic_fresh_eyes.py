@@ -16,6 +16,7 @@ from semantic_support import _agent_dossier, _enable_agent_semantics
 from anaxigraph.config import load_config
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic_fresh_eyes_contract import fresh_eyes_plan_options
+from anaxigraph.understandability import AGENT_REVIEW_POLICY
 from anaxigraph.understanding import SemanticEngine
 
 
@@ -102,6 +103,9 @@ def test_two_host_executors_share_one_fresh_eyes_review(repository, database):
     assert "The proposals do not represent cross-provider agreement." not in result["caveats"]
     adjudication = next(item for item in review.claims if item["kind"] == "fresh_adjudication")
     assert adjudication["request"]["diversity"] == result["diversity"]
+    for claim in review.claims:
+        if str(claim.get("kind", "")).startswith("fresh_"):
+            assert claim["request"]["contract"].count(AGENT_REVIEW_POLICY) == 1
 
 
 def test_second_executor_is_told_busy_while_a_peer_holds_a_fresh_eyes_stage(repository, database):

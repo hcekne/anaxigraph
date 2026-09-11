@@ -18,6 +18,7 @@ from anaxigraph.semantic_graph import SupersededSemanticJob
 from anaxigraph.semantic_index_port import SemanticIndex
 from anaxigraph.semantic_records import _document_by_id
 from anaxigraph.semantic_target_source import read_mounted_source, require_unchanged_source
+from anaxigraph.understandability import AGENT_REVIEW_POLICY
 
 
 def pattern_request(
@@ -89,7 +90,8 @@ def _constraints(pattern_kind: str = "constructive") -> dict[str, Any]:
             "High suitability plus high conformance describes a retained example, not a high "
             "refactoring opportunity."
         ),
-        "evidence_rule": "Cite supplied facts and explicitly record counter-evidence.",
+        "evidence_rule": "Cite supplied facts and explicitly record counter-evidence. "
+        + AGENT_REVIEW_POLICY,
         "language_rule": (
             "Write summaries, reasons, evidence, cautions, and verification rules in short, "
             "ordinary sentences that a smart twelve-year-old and another coding agent can both "

@@ -24,15 +24,17 @@ performance. Unit tests verify the harness and behavioral checks; they are not m
 
 ## Architectural judgment (opt-in model run)
 
-`architecture_judgment` evaluates seven controlled positive, negative, and uncertain
+`architecture_judgment` evaluates ten controlled positive, negative, and uncertain
 cases through the production pattern-assessment and independent-review contracts.
+The agent-specific cases cover retaining a sufficient five-field map, withholding code changes
+when relevant context is missing, and recognizing a callable strategy without adding a hierarchy.
 Expected answers are withheld from the model. Protocol unit tests do not establish
 model accuracy; retain a real run before claiming the architecture gate passed:
 
 ```bash
 uv run python -m benchmarks.architecture_judgment \
   --model gpt-6-astra --reasoning-effort max --parallel 2 \
-  --output benchmarks/results/architecture-judgment-0.5.0.json
+  --output /tmp/anaxigraph-agent-judgment.json
 ```
 
 The report records known-positive misses, unsupported change advice, covered scope
@@ -41,6 +43,8 @@ usage. Monetary cost remains unknown unless supplied by the executor. These smal
 synthetic cases test judgment under stated facts, not recognition of every pattern
 or the correctness of all production recommendations. Candidate-selection and
 representative-evidence tests are separate deterministic checks.
+The saved 0.5.0 result covers the original seven cases, not the three additions. A new model run
+requires an explicit budget and a fresh output path; this fixture update is not a passing result.
 
 ## Performance and mechanical correctness
 

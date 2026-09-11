@@ -14,7 +14,7 @@ from anaxigraph.semantic_fresh_eyes_contract import (
 from anaxigraph.semantic_fresh_eyes_diversity import proposal_diversity
 from anaxigraph.semantic_graph import SupersededSemanticJob
 from anaxigraph.semantic_index_port import SemanticIndex
-from anaxigraph.understandability import UNDERSTANDABILITY_POLICY
+from anaxigraph.understandability import AGENT_REVIEW_POLICY, UNDERSTANDABILITY_POLICY
 
 _DECLARED_CONTEXT_NOTE = (
     " Any entries in declared_context are principal-declared facts about this system, each beside "
@@ -74,7 +74,7 @@ def fresh_eyes_request(
     metadata = job["metadata"]
     _validate_manifest(job, metadata)
     request = {
-        "contract": _CONTRACTS[kind],
+        "contract": _CONTRACTS[kind] + " " + AGENT_REVIEW_POLICY,
         "schema_version": SEMANTIC_SCHEMA_VERSION,
         "protocol_version": FRESH_EYES_PROTOCOL_VERSION,
         "analysis_kind": kind,

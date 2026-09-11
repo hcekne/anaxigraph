@@ -88,6 +88,51 @@
       "sources": {"address.py": "from dataclasses import dataclass\n\n@dataclass(frozen=True)\nclass Address:\n    recipient: str\n    street: str\n    locality: str\n    region: str\n    postal_code: str\n    country: str\n"}
     },
     {
+      "id": "compact-five-field-agent-map",
+      "pattern": "facade",
+      "level": "module",
+      "category": "retain",
+      "expected": ["retain", "no_action"],
+      "facts": [
+        "This is the complete routine map response. Its five fields cover the documented consumers: orientation, responsibility lookup, caller obligations, source lookup, and evidence confidence.",
+        "Optional review details remain available through the existing detail reader. The routine response does not promise an exhaustive architecture review.",
+        "A proposal would require every routine response to contain 24 sections for possible future agent questions. No current consumer, missed obligation, or failed maintenance task requiring those additional sections is supplied."
+      ],
+      "sources": {
+        "map_view.py": "def describe(record):\n    return {key: record[key] for key in ('summary', 'responsibilities', 'public_contracts', 'evidence', 'confidence')}\n"
+      }
+    },
+    {
+      "id": "missing-agent-context-is-not-a-code-defect",
+      "pattern": "facade",
+      "level": "module",
+      "category": "uncertain",
+      "expected": ["insufficient_evidence"],
+      "facts": [
+        "An agent received this wrapper and a generated description that says only 'handles checkout'. It could not explain payment ordering or failure behavior.",
+        "The called orders module, its public contract, and its tests were omitted from the supplied context. Whether those rules are well expressed in the repository is unknown.",
+        "The proposal is to add a new checkout abstraction because the agent's description lacked those details. No source evidence about the existing implementation's responsibilities or defects is available."
+      ],
+      "sources": {
+        "checkout.py": "from orders import place_order\n\ndef checkout(request):\n    return place_order(request)\n"
+      }
+    },
+    {
+      "id": "callable-policy-does-not-need-a-hierarchy",
+      "pattern": "strategy",
+      "level": "module",
+      "category": "retain",
+      "expected": ["retain", "no_action"],
+      "facts": [
+        "The function argument is the existing variation boundary. Callers select one of two real discount policies; no subclass identity, mutable policy state, plugin discovery, or lifecycle is required.",
+        "Both policies and their caller are supplied together. The existing contract checks cover both totals and confirm that each supplied policy is called once.",
+        "A proposal would replace these callables with an abstract base, concrete subclasses, a registry, and a factory so agents can recognize a familiar named pattern. No failed task or missing behavior justifying those additions is supplied."
+      ],
+      "sources": {
+        "pricing.py": "def total(subtotal, discount):\n    return subtotal - discount(subtotal)\n\ndef regular(subtotal):\n    return 0\n\ndef member(subtotal):\n    return subtotal * 0.1\n\ndef checkout(subtotal, is_member):\n    return total(subtotal, member if is_member else regular)\n"
+      }
+    },
+    {
       "id": "deployment-requirements-unknown",
       "pattern": "microservices",
       "level": "repository",

@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import replace
 
+import pytest
 from semantic_support import _agent_dossier, _calls, _fake_provider, _semantic_config
 from test_understandability import assessment, reader_task
 
@@ -13,6 +14,61 @@ from anaxigraph.config import load_config
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic_contract import SemanticResult
 from anaxigraph.understanding import SemanticEngine
+
+
+@pytest.mark.parametrize(
+    "contract",
+    [
+        "module-intrinsic-v1",
+        "module-context-v1",
+        "group-synthesis-v1",
+        "architecture-charter-v1",
+        "taxonomy-proposal-v1",
+        "taxonomy-review-v1",
+    ],
+)
+def test_agent_review_policy_preserves_existing_routine_input_hashes(contract, monkeypatch):
+    evidence = {"path": "pkg/core.py", "detailed_reviews": False}
+    expected = semantic_freshness.semantic_digest(
+        {
+            "input_contract": contract,
+            "prompt": "v1",
+            "mapping_contract": semantic_freshness.semantic_digest(
+                [
+                    semantic_freshness.MAPPING_SCHEMA,
+                    semantic_freshness.MAPPING_REQUIREMENTS,
+                ]
+            ),
+            "understandability_policy": semantic_freshness.semantic_digest(
+                semantic_freshness.UNDERSTANDABILITY_POLICY
+            ),
+            "evidence": evidence,
+        }
+    )
+    assert semantic_freshness.semantic_input_hash(contract, "v1", evidence) == expected
+    monkeypatch.setattr(semantic_freshness, "AGENT_REVIEW_POLICY", "Revised agent review")
+    assert semantic_freshness.semantic_input_hash(contract, "v1", evidence) == expected
+
+
+@pytest.mark.parametrize(
+    "contract",
+    [
+        "module-intrinsic-v1",
+        "module-context-v1",
+        "pattern-plan-v1",
+        "pattern-assessment-v1",
+        "pattern-independent-review-v1",
+        "fresh-eyes-proposal-v1",
+        "fresh-eyes-adjudication-v1",
+        "fresh-eyes-comparison-v1",
+        "fresh-eyes-review-v1",
+    ],
+)
+def test_agent_review_policy_changes_only_relevant_review_identity(contract, monkeypatch):
+    evidence = {"detailed_reviews": True}
+    before = semantic_freshness.semantic_input_hash(contract, "v1", evidence)
+    monkeypatch.setattr(semantic_freshness, "AGENT_REVIEW_POLICY", "Revised agent review")
+    assert semantic_freshness.semantic_input_hash(contract, "v1", evidence) != before
 
 
 def test_policy_change_requeues_unchanged_source_and_then_reuses_it(
