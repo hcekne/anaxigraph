@@ -123,6 +123,7 @@ def _plan_module(plan: _ContextPlan, item: _ContextModule) -> int:
         item.input_hash,
         plan.semantic,
         legacy_evidence=item.evidence,
+        intrinsic_document_id=item.intrinsic_id,
     )
     expired = document is not None and is_expired(
         document["created_at"], plan.semantic.max_age_days

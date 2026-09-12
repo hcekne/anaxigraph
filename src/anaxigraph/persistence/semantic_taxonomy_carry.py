@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from anaxigraph.clock import utc_now
-from anaxigraph.semantic_freshness import legacy_input_matches
+from anaxigraph.semantic_freshness import TAXONOMY_PROPOSAL_CONTRACT, legacy_input_matches
 
 
 @dataclass(frozen=True, slots=True)
@@ -314,6 +314,7 @@ def _matching_taxonomy(
             taxonomy,
             legacy_evidence,
             prompt_version=prompt_version,
+            input_contract=TAXONOMY_PROPOSAL_CONTRACT,
         ):
             return row
     return None
