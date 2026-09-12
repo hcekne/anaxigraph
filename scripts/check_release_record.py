@@ -20,6 +20,8 @@ GATES = {
     "production": ("pending", "verified", "failed", "rolled_back"),
 }
 COMPLETE = {"published", "verified"}
+CHANGELOG_BLOCK = re.compile(r"<!-- changelog -->\s*```json\s*(\{.*?\})\s*```", re.DOTALL)
+CHANGELOG_LIMITS = {"summary": 60, "description": 400}
 PENDING_LANGUAGE = re.compile(
     r"release candidate|do not interpret this draft|publication (?:is )?(?:still )?pending",
     re.IGNORECASE,
@@ -45,6 +47,7 @@ def check_release_record(root: Path, *, verify_pypi: bool = False) -> list[str]:
         if not isinstance(record, dict) or record.get("version") != version:
             raise ValueError("release record version must match project.version")
         errors.extend(_gate_errors(root, record))
+        errors.extend(_changelog_errors(body))
         if record.get("publication") == "published" and PENDING_LANGUAGE.search(body):
             errors.append(
                 "Published release notes still contain draft/publication-pending language."
@@ -58,6 +61,37 @@ def check_release_record(root: Path, *, verify_pypi: bool = False) -> list[str]:
         return errors
     except (OSError, ValueError, KeyError, TypeError, yaml.YAMLError) as exc:
         return [f"Cannot verify release record: {exc}"]
+
+
+def _changelog_errors(body: str) -> list[str]:
+    """Require the release to carry the entry the website publishes.
+
+    The agent that writes the release knows what it built. Re-deriving that later from
+    squashed commit subjects loses most of it, and asking a service to guess costs a
+    credential for a worse answer. So the story is written here, once, by whoever did the
+    work, and the website copies it.
+    """
+
+    match = CHANGELOG_BLOCK.search(body)
+    if match is None:
+        return ["Release record has no <!-- changelog --> JSON block for the website entry."]
+    try:
+        entry = json.loads(match.group(1))
+    except ValueError as exc:
+        return [f"Changelog block is not valid JSON: {exc}"]
+    errors = []
+    for field, limit in CHANGELOG_LIMITS.items():
+        value = str(entry.get(field) or "").strip()
+        if not value:
+            errors.append(f"Changelog block needs a {field}.")
+        elif len(value) > limit:
+            errors.append(f"Changelog {field} is {len(value)} characters; keep it under {limit}.")
+    highlights = entry.get("highlights")
+    if not isinstance(highlights, list) or not 3 <= len(highlights) <= 8:
+        errors.append("Changelog block needs between three and eight highlights.")
+    elif any(not str(item).strip() or len(str(item)) > 240 for item in highlights):
+        errors.append("Each changelog highlight must be non-empty and under 240 characters.")
+    return errors
 
 
 def _gate_errors(root: Path, record: dict) -> list[str]:
