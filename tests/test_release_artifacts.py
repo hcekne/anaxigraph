@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+import yaml
 
 from scripts.build_release_artifacts import build_release_artifacts
 from scripts.verify_release_artifacts import (
@@ -67,16 +68,41 @@ def test_release_archives_are_byte_reproducible(built_distributions: tuple[Path,
 def test_release_workflow_can_probe_trusted_publishing_without_uploading():
     workflow = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
     probe, release = workflow.split("  build:\n", maxsplit=1)
+    document = yaml.safe_load(workflow)
+    jobs = document["jobs"]
 
-    assert "workflow_dispatch:" in probe
-    assert "if: github.event_name == 'workflow_dispatch'" in probe
+    assert "workflow_dispatch" in document[True]
+    assert jobs["verify-trusted-publisher"]["if"] == (
+        "github.event_name == 'workflow_dispatch' && inputs.tag == ''"
+    )
     assert "https://pypi.org/_/oidc/mint-token" in probe
     assert "unset api_token" in probe
     assert "gh-action-pypi-publish" not in probe
     assert "twine upload" not in probe
-    assert "if: github.event_name == 'release'" in release
+    # A bare dispatch probes and stops; anything carrying a tag builds and uploads.
+    assert jobs["build"]["if"] == "github.event_name != 'workflow_dispatch' || inputs.tag != ''"
     assert "Attach durable GitHub release assets" in release
     assert 'gh release upload "${RELEASE_TAG}" release/* --clobber' in release
+
+
+def test_an_automatic_release_calls_the_publisher_rather_than_waiting_for_an_event():
+    """A release published with GITHUB_TOKEN raises no event, so the call must be direct.
+
+    GitHub suppresses workflow triggers for events its own token creates. The first
+    automatic release tagged a version, published it, and uploaded nothing because
+    release.yml was waiting for an event that could never arrive.
+    """
+
+    release = yaml.safe_load((ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8"))
+    auto = yaml.safe_load((ROOT / ".github/workflows/auto-release.yml").read_text(encoding="utf-8"))
+
+    assert "workflow_call" in release[True]
+    assert release[True]["workflow_call"]["inputs"]["tag"]["required"] is True
+    publish = auto["jobs"]["publish"]
+    assert publish["uses"] == "./.github/workflows/release.yml"
+    assert publish["needs"] == "tag-and-release"
+    assert publish["with"]["tag"] == "${{ needs.tag-and-release.outputs.tag }}"
+    assert publish["permissions"]["id-token"] == "write"
 
 
 def test_container_digest_names_the_published_semver_tag():
