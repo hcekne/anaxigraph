@@ -84,11 +84,12 @@ class CodexSemanticProvider:
         self.config = config
 
     def analyze(self, request: dict[str, Any]) -> SemanticResult:
+        schema = response_schema(request)
         try:
             with tempfile.TemporaryDirectory(prefix="anaxigraph-codex-") as directory:
                 schema_path = Path(directory) / "semantic.schema.json"
                 message_path = Path(directory) / "semantic-result.json"
-                schema_path.write_text(json.dumps(response_schema(request)), encoding="utf-8")
+                schema_path.write_text(json.dumps(_codex_schema(schema)), encoding="utf-8")
                 completed = subprocess.run(
                     _codex_command(self.config, schema_path, message_path),
                     input=_codex_prompt(request, Path(directory)),
@@ -112,7 +113,42 @@ class CodexSemanticProvider:
                 f"Codex exited with {completed.returncode}: {completed.stderr.strip()[:1_000]}",
                 completed.stdout,
             )
-        return _result_from_json(message, request=request, usage=codex_usage(completed.stdout))
+        return _result_from_json(
+            message,
+            request=request,
+            usage=codex_usage(completed.stdout),
+            optional_null_schema=schema,
+        )
+
+
+def _codex_schema(value: Any) -> Any:
+    """Adapt optional fields for strict output without mutating stored contracts."""
+    if isinstance(value, list):
+        return [_codex_schema(child) for child in value]
+    if not isinstance(value, dict):
+        return value
+    schema = {key: _codex_schema(child) for key, child in value.items()}
+    if value.get("type") == "object":
+        schema["required"] = list(schema.get("properties", {}))
+        schema["properties"] = {
+            key: child if key in value.get("required", []) else {"anyOf": [child, {"type": "null"}]}
+            for key, child in schema.get("properties", {}).items()
+        }
+    return schema
+
+
+def _without_optional_nulls(value: Any, schema: dict[str, Any]) -> Any:
+    """Translate wire-level optional nulls back to omission before validation."""
+    if isinstance(value, list):
+        return [_without_optional_nulls(child, schema.get("items", {})) for child in value]
+    if not isinstance(value, dict):
+        return value
+    properties = schema.get("properties", {})
+    return {
+        key: _without_optional_nulls(child, properties.get(key, {}))
+        for key, child in value.items()
+        if not (child is None and key in properties and key not in schema.get("required", []))
+    }
 
 
 def _codex_prompt(request: dict[str, Any], directory: Path) -> str:
@@ -170,7 +206,20 @@ def _codex_command(config: SemanticConfig, schema_path: Path, message_path: Path
 
 
 def _codex_failure(message: str, events: str) -> SemanticAnalysisError:
-    """Keep any usage Codex streamed before the run failed."""
+    """Keep the terminal failure and usage, not just preceding stderr warnings."""
+    for line in reversed(events.splitlines()):
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        error = event.get("error") if event.get("type") == "turn.failed" else event
+        if event.get("type") in {"error", "turn.failed"} and isinstance(error, dict):
+            detail = error.get("message")
+            if isinstance(detail, str) and detail.strip():
+                message = f"{message.split(':', 1)[0]}: {detail.strip()}"
+                break
     return _usage_error(message, codex_usage(events))
 
 
@@ -336,6 +385,7 @@ def _result_from_json(
     *,
     request: dict[str, Any] | None = None,
     usage: ProviderUsage = _NO_USAGE,
+    optional_null_schema: dict[str, Any] | None = None,
 ) -> SemanticResult:
     try:
         value = json.loads(text.strip())
@@ -345,6 +395,8 @@ def _result_from_json(
     value, usage = _result_envelope(value, usage)
     if truncated:
         raise _usage_error("Semantic provider stopped at max_tokens", usage, output_truncated=True)
+    if optional_null_schema is not None:
+        value = _without_optional_nulls(value, optional_null_schema)
     return _validated_with_usage(value, request or {}, usage)
 
 
