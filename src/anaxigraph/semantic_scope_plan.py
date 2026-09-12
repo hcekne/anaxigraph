@@ -36,6 +36,7 @@ from anaxigraph.semantic_records import (
     _matching_document,
     _member_documents,
     _states,
+    _supersede_duplicate_jobs,
     _upsert_state,
 )
 from anaxigraph.semantic_status_language import semantic_work_plan
@@ -302,6 +303,7 @@ class SemanticPlanningService:
                 document["created_at"], semantic.max_age_days
             )
             if document is not None and not expired:
+                _supersede_duplicate_jobs(connection, snapshot_id, "group", group, "synthesis")
                 _upsert_state(
                     connection,
                     repository_id=repository_id,
@@ -402,6 +404,9 @@ class SemanticPlanningService:
         )
         expired = document is not None and is_expired(document["created_at"], semantic.max_age_days)
         if document is not None and not expired:
+            _supersede_duplicate_jobs(
+                connection, snapshot_id, "repository", str(repository_id), "synthesis"
+            )
             _upsert_state(
                 connection,
                 repository_id=repository_id,

@@ -107,6 +107,15 @@ jobs are opt-in. Set `semantic.detailed_reviews: true` in the authoritative repo
 run `understand` to request them; restore `false` for lean mapping. Changing this setting refreshes
 the affected description contracts. Saved historical reviews remain available.
 
+Upgrading a map written by 0.5.x does not require paying to reread unchanged code.
+For ordinary mapping, preparation recognizes that release's v5 evidence signatures
+and re-links compatible saved descriptions, taxonomy, and synthesis in place. It
+also retires redundant pending jobs left by an earlier unsuccessful upgrade.
+Original JSON and model provenance remain unchanged. Changed source or dependency
+evidence, expired results, an explicit forced reread, and newly requested detailed
+reviews still require fresh work. Check `--plan-only --no-scan` against the saved
+snapshot before launching workers when diagnosing an upgrade.
+
 Calls use `semantic.max_output_tokens` (4,000 by default). A confirmed output cutoff gets one
 automatic retry with twice the headroom, up to `semantic.max_output_tokens_on_retry` (8,000 by
 default), preserving the five-field schema and counting both calls' reported usage. Set the retry

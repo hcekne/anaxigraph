@@ -16,7 +16,7 @@
       ".css",
       ".html"
     ],
-    "baseline_lines": 64570
+    "baseline_lines": 64627
   },
   "function_limits": {
     "warning_lines": 40,
@@ -33,6 +33,7 @@
     "coupling_identity": "module maps to [fan-in, fan-out]",
     "production_source_budget": "Combined first-party Python and dashboard source. Lower baseline_lines whenever simplification reduces it; intentional phase growth requires acceptance evidence and a ratified new exact baseline.",
     "owner": "maintainers",
+    "legacy_mapping_reuse_fix": "User-requested preservation of compatible 0.5.x maps while adopting concise descriptions. Adds 57 production lines in existing modules, zero modules/services/dependencies/endpoints, and two optional internal arguments. Acceptance: tests/test_legacy_semantic_reuse.py proves exact-evidence reuse, changed-source invalidation, unchanged saved JSON, and redundant-queue retirement; the full 1172-test suite passes. A network-disabled rehearsal re-linked 4036 file descriptions and 33 architecture summaries with zero model calls. The two synthesis functions grow only to retire matching pending jobs. Explicit force, age expiry, active leases, and detailed-review policy remain enforced. This measured baseline is part of the compatibility-fix review, not a general relaxation of growth limits.",
     "removal": "Lower each baseline in the same change that reduces it; remove it once within limits. Remaining analyzer debt belongs to Phase 4B, agent and semantic-taxonomy orchestration debt is retired during Phase 6, and temporal/dashboard debt belongs to Phase 7. Every other legacy entry remains a continuous exact no-growth ratchet.",
     "understandability_extension": "Authorized maintenance-task assessment across the existing semantic, guidance, reassessment, and file-detail surfaces. Acceptance: tests/test_understandability.py and tests/visual/understandability.spec.js; no new runtime service, endpoint, MCP tool, or database table.",
     "lean_mapping_extension": "Authorized five-field default mapping, compact intermediate descriptions, concise file and graph displays, and explicit detailed_reviews policy. Acceptance: tests/test_semantic_mapping.py covers mode transitions, retained history, and completed maps without pattern jobs; tests/visual/understandability.spec.js covers concise file and graph descriptions at desktop and phone widths. Existing endpoints, services, and tables are reused.",
@@ -77,11 +78,11 @@
       6
     ],
     "src/anaxigraph/semantic_scope_plan.py::SemanticPlanningService._plan_groups": [
-      108,
+      109,
       12
     ],
     "src/anaxigraph/semantic_scope_plan.py::SemanticPlanningService._plan_repository": [
-      101,
+      104,
       10
     ],
     "src/anaxigraph/semantic_taxonomy_identity.py::stable_taxonomy_nodes": [

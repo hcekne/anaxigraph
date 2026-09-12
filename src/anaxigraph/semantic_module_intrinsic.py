@@ -122,7 +122,11 @@ def _reuse_existing(context: _IntrinsicContext, item: _IntrinsicModule) -> tuple
         job_kind="intrinsic",
         input_hash=item.input_hash,
     )
-    if active is not None and not context.force:
+    if (
+        active is not None
+        and not context.force
+        and (active["status"] == "running" or active["reason"] == "manual_full_review")
+    ):
         _record(context, item, "pending_intrinsic", str(active.get("error") or active["reason"]))
         return True, False
     document = _matching_document(
@@ -139,6 +143,11 @@ def _reuse_existing(context: _IntrinsicContext, item: _IntrinsicModule) -> tuple
         document["created_at"], context.semantic.max_age_days
     )
     if document is None or expired or context.force:
+        if active is not None and not context.force:
+            _record(
+                context, item, "pending_intrinsic", str(active.get("error") or active["reason"])
+            )
+            return True, expired
         return False, expired
     _supersede_duplicate_jobs(
         context.connection, context.snapshot_id, "module", item.path, "intrinsic"

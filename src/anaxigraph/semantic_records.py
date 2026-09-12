@@ -61,6 +61,7 @@ def _matching_document(
     semantic: SemanticConfig,
     *,
     legacy_evidence: Any | None = None,
+    intrinsic_document_id: int | None = None,
 ) -> dict[str, Any] | None:
     rows = connection.execute(
         """
@@ -86,6 +87,15 @@ def _matching_document(
             legacy_evidence,
             prompt_version=semantic.prompt_version,
         ):
+            if kind == "context" and document["schema_version"] == "repository-understanding-v5":
+                # 0.5.x hashed intrinsic intent, not its source. A same-role edit
+                # must not reuse old context merely because that intent survived.
+                source = connection.execute(
+                    "SELECT file_fact_id FROM semantic_documents WHERE id = ?",
+                    (intrinsic_document_id,),
+                ).fetchone()
+                if source is None or not source[0] or source[0] != document["file_fact_id"]:
+                    continue
             return document
     return None
 
