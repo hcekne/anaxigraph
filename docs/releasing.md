@@ -86,6 +86,8 @@ the same contract again against the immutable tag before requesting permission t
 2. Update only `project.version` in `pyproject.toml`, then run `uv lock`. Runtime version strings
    must not be edited elsewhere.
 3. Update the changelog/release notes and any version-specific compatibility statements.
+   Write the website entry into the record now, in the `<!-- changelog -->` block described
+   below, while you still remember what you built.
 4. Run the complete repository gate and the release preflight:
 
    ```bash
@@ -174,6 +176,28 @@ Use reviewed squash/rebase merges for linear history. GitHub protection must inc
 to prevent server-side bypass; local hooks cannot enforce that setting. Changing repository
 protection or its reviewer policy requires a separate maintainer decision. Hook installation does
 not silently change those settings or grant standing authorization for future overrides.
+
+### Website changelog entry
+
+The record also carries the entry anaxigraph.dev publishes, as a JSON block introduced by an
+`<!-- changelog -->` comment:
+
+```json
+{
+  "summary": "under 60 characters, a noun phrase naming the theme",
+  "description": "2-3 sentences, under 400 characters",
+  "highlights": ["three to eight items, each under 240 characters"]
+}
+```
+
+Write it as part of the change, not afterwards. Whoever makes a release knows what it does;
+reconstructing that later from squashed commit subjects loses almost all of it, and no service
+needs to be asked to guess. The offline commit check rejects a release record without a valid
+block, so a version cannot ship without its entry.
+
+The website copies the block verbatim and adds the commit, file and line counts from the GitHub
+compare API for the tag boundary. Those numbers are never written by hand, so an entry cannot
+claim a diff it does not have.
 
 ## Verify artifacts
 
