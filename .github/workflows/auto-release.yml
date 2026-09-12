@@ -1,0 +1,66 @@
+name: Auto release
+
+# A version bump that reaches main is a decision to ship. Tag it and publish the GitHub
+# release, which is what release.yml waits for; PyPI follows from there with no further
+# human step. Nothing here decides the version or writes the notes: both come from the
+# commit, so this workflow cannot ship something the repository has not already recorded.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-release
+  cancel-in-progress: false
+
+jobs:
+  tag-and-release:
+    name: Tag and publish a release for a new version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Read the version and decide whether it is new
+        id: version
+        run: |
+          set -euo pipefail
+          version="$(python -c 'import tomllib;print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          if git rev-parse -q --verify "refs/tags/v${version}" >/dev/null; then
+            echo "v${version} is already tagged; nothing to release."
+            echo "release=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "release=true" >> "${GITHUB_OUTPUT}"
+          fi
+      - name: Require a release record before shipping
+        if: steps.version.outputs.release == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          test -f "docs/releases/${VERSION}.md" \
+            || { echo "::error::docs/releases/${VERSION}.md is missing; write the release record."; exit 1; }
+          python - <<'PY'
+          import os, pathlib
+          version = os.environ["VERSION"]
+          text = pathlib.Path(f"docs/releases/{version}.md").read_text(encoding="utf-8")
+          head, body = text[4:].split("\n---\n", 1)
+          pathlib.Path("release-notes.md").write_text(body.strip() + "\n", encoding="utf-8")
+          PY
+      - name: Create the tag and publish the release
+        if: steps.version.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          gh release create "v${VERSION}" \
+            --target "${GITHUB_SHA}" \
+            --title "AnaxiGraph ${VERSION}" \
+            --notes-file release-notes.md
+          echo "Published v${VERSION}; release.yml now builds, attests and publishes to PyPI."
