@@ -12,8 +12,19 @@ import yaml
 from scripts.check_release_record import check_release_record, pypi_published
 from tests.test_git_hooks import git, install_fixture_hooks
 
+CHANGELOG = """
+<!-- changelog -->
+```json
+{
+  "summary": "A tested release record",
+  "description": "The fixture carries the entry the website publishes, because a record without one is rejected.",
+  "highlights": ["One stated change.", "A second stated change.", "A third stated change."]
+}
+```
+"""
 
-def write_record(root: Path, **changes):
+
+def write_record(root: Path, changelog: str = CHANGELOG, **changes):
     record = {
         "version": "0.5.0",
         "publication": "published",
@@ -32,7 +43,7 @@ def write_record(root: Path, **changes):
     (root / "pyproject.toml").write_text('[project]\nname = "anaxigraph"\nversion = "0.5.0"\n')
     (root / "uv.lock").write_text('[[package]]\nname = "anaxigraph"\nversion = "0.5.0"\n')
     (directory / "0.5.0.md").write_text(
-        "---\n" + yaml.safe_dump(record) + "---\n# AnaxiGraph 0.5.0\n"
+        "---\n" + yaml.safe_dump(record) + "---\n# AnaxiGraph 0.5.0\n" + changelog
     )
     (root / "docs/ledger.md").write_text(
         "- [x] <!-- release:publication --> Published.\n"
@@ -160,3 +171,27 @@ def test_installed_hook_rejects_staged_contradiction_despite_unstaged_fix(tmp_pa
     assert result.returncode != 0
     assert "Ledger checkbox for publication" in result.stdout + result.stderr
     assert ledger.read_text() == original
+
+
+def test_a_release_record_without_a_website_entry_is_rejected(tmp_path):
+    write_record(tmp_path, changelog="")
+
+    assert any("changelog" in problem for problem in check_release_record(tmp_path))
+
+
+def test_a_website_entry_with_too_few_highlights_is_rejected(tmp_path):
+    thin = CHANGELOG.replace(
+        '"highlights": ["One stated change.", "A second stated change.", "A third stated change."]',
+        '"highlights": ["Only one."]',
+    )
+    write_record(tmp_path, changelog=thin)
+
+    assert any(
+        "three and eight highlights" in problem for problem in check_release_record(tmp_path)
+    )
+
+
+def test_a_website_entry_that_is_not_json_is_rejected(tmp_path):
+    write_record(tmp_path, changelog="<!-- changelog -->\n```json\n{not json}\n```\n")
+
+    assert any("not valid JSON" in problem for problem in check_release_record(tmp_path))
