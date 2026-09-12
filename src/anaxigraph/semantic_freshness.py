@@ -34,9 +34,9 @@ _AGENT_REVIEW_CONTRACTS = frozenset(
     }
 )
 
-# These response-envelope versions used the original flat input signature. Their module
-# dossier payload is compatible with the current contract, so unchanged evidence can be
-# proven reusable without copying or rewriting the preserved document.
+# These response envelopes used either the original flat signature or 0.5.x's
+# three-field stable signature. Reuse requires identical evidence for that contract;
+# preserved documents are never rewritten to pretend they used today's schema.
 LEGACY_INPUT_SCHEMA_VERSIONS = frozenset({"module-dossier-v4", "repository-understanding-v5"})
 
 
@@ -85,8 +85,9 @@ def legacy_input_matches(
     evidence: Mapping[str, Any] | Sequence[Mapping[str, Any]],
     *,
     prompt_version: str,
+    input_contract: str | None = None,
 ) -> bool:
-    """Prove that a preserved pre-stable-signature record saw identical evidence."""
+    """Prove that a preserved legacy record saw identical required evidence."""
 
     if str(record.get("prompt_version") or "") != prompt_version:
         return False
@@ -107,4 +108,34 @@ def legacy_input_matches(
         )
         if hmac.compare_digest(str(record.get("input_hash") or ""), expected):
             return True
+        stable = _legacy_v5_input(record, variant, prompt_version, input_contract)
+        if stable is not None and hmac.compare_digest(str(record.get("input_hash") or ""), stable):
+            return True
     return False
+
+
+def _legacy_v5_input(
+    record: Mapping[str, Any],
+    evidence: Mapping[str, Any],
+    prompt: str,
+    contract: str | None,
+) -> str | None:
+    """Read 0.5.x's stable signature without claiming a newer detailed review."""
+
+    if record.get("schema_version") != "repository-understanding-v5":
+        return None
+    contract = contract or {
+        ("module", "intrinsic"): MODULE_INTRINSIC_CONTRACT,
+        ("module", "context"): MODULE_CONTEXT_CONTRACT,
+        ("group", "synthesis"): GROUP_SYNTHESIS_CONTRACT,
+        ("repository", "synthesis"): REPOSITORY_SYNTHESIS_CONTRACT,
+    }.get((record.get("scope_type"), record.get("document_kind")))
+    if contract is None:
+        return None
+    original = dict(evidence)
+    if contract in {MODULE_INTRINSIC_CONTRACT, MODULE_CONTEXT_CONTRACT}:
+        if original.pop("detailed_reviews", False):
+            return None
+    if contract == MODULE_CONTEXT_CONTRACT:
+        original.pop("intrinsic_source", None)
+    return semantic_digest({"input_contract": contract, "prompt": prompt, "evidence": original})
