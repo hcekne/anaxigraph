@@ -164,26 +164,17 @@ def validated_architecture_charter(
 
 
 def compact_architecture_charter(value: dict[str, Any]) -> dict[str, Any]:
-    """Bound a partial Charter while retaining every reasoning category."""
+    """Bound a partial Charter while retaining every reasoning category.
 
-    keys = (
-        "contract_version",
-        "purpose",
-        "actors",
-        "capabilities",
-        "responsibilities",
-        "execution_flows",
-        "public_contracts",
-        "invariants",
-        "extension_points",
-        "patterns",
-        "coherence_concerns",
-        "unknowns",
-        "conflicts",
-        "capability_brief",
-        "confidence",
-        "evidence",
-    )
+    The categories come from the schema rather than a list kept beside it. A hand-written
+    list cannot know about a section added later, and the one that used to be here silently
+    dropped scoped definitions from every reduction after they were introduced. Deriving the
+    keys means a new section is carried through compaction the moment the schema declares it.
+    """
+
+    keys = tuple(ARCHITECTURE_CHARTER_SCHEMA["properties"])
     return {
-        key: value[key][:20] if isinstance(value.get(key), list) else value.get(key) for key in keys
+        key: value[key][:20] if isinstance(value.get(key), list) else value.get(key)
+        for key in keys
+        if key in value
     }

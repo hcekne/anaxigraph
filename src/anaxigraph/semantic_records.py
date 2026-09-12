@@ -222,10 +222,18 @@ def _reuse_job(
 
 
 def _reset_failed_job(connection: sqlite3.Connection, job_id: int) -> None:
+    """Authorise one more attempt without erasing what the job has already cost.
+
+    Zeroing the counter made every authorisation worth a fresh full allowance and hid the
+    history, so a job that always fails could be asked again indefinitely and still look
+    untried. The attempts stand, and the ceiling moves by exactly one, so a repeatedly
+    authorised failure is visible in the record rather than disguised as a first try.
+    """
+
     pending = semantic_job_transition("failed", "reset_failed")
     connection.execute(
         """
-        UPDATE semantic_jobs SET status = ?, attempts = 0, error = NULL,
+        UPDATE semantic_jobs SET status = ?, max_attempts = attempts + 1, error = NULL,
             available_at = ?, completed_at = NULL, worker_id = NULL,
             lease_expires_at = NULL, lease_token_hash = NULL WHERE id = ?
         """,
