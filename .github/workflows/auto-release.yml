@@ -21,6 +21,8 @@ jobs:
   tag-and-release:
     name: Tag and publish a release for a new version
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.release == 'true' && format('v{0}', steps.version.outputs.version) || '' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -63,4 +65,18 @@ jobs:
             --target "${GITHUB_SHA}" \
             --title "AnaxiGraph ${VERSION}" \
             --notes-file release-notes.md
-          echo "Published v${VERSION}; release.yml now builds, attests and publishes to PyPI."
+          echo "Published v${VERSION}; the publish job below builds, attests and uploads it."
+
+  publish:
+    # Called directly, because a release this workflow published cannot start release.yml itself.
+    name: Build, attest and publish the release
+    needs: tag-and-release
+    if: needs.tag-and-release.outputs.tag != ''
+    uses: ./.github/workflows/release.yml
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      pull-requests: write
+    with:
+      tag: ${{ needs.tag-and-release.outputs.tag }}

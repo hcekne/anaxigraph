@@ -1,9 +1,23 @@
 name: Release
 
+# A release published by GITHUB_TOKEN does not start another workflow: GitHub suppresses
+# those events to prevent loops. So auto-release cannot reach this file through `release`,
+# and calls it directly instead. The `release` trigger still serves a human-made release.
 on:
   release:
     types: [published]
+  workflow_call:
+    inputs:
+      tag:
+        description: The tag to build and publish, for example v0.7.1.
+        required: true
+        type: string
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to publish. Leave empty to only verify the trusted publisher.
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -11,7 +25,7 @@ permissions:
 jobs:
   verify-trusted-publisher:
     name: Verify PyPI trusted publisher without uploading
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.tag == ''
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -42,7 +56,7 @@ jobs:
 
   build:
     name: Build and attest immutable artifacts
-    if: github.event_name == 'release'
+    if: github.event_name != 'workflow_dispatch' || inputs.tag != ''
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -53,7 +67,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ inputs.tag || github.event.release.tag_name }}
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -64,7 +78,7 @@ jobs:
       - name: Validate tag and unused PyPI version
         id: contract
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name }}
         run: |
           version="$(uv run python scripts/verify_release_artifacts.py \
             --tag "${RELEASE_TAG}" \
@@ -73,7 +87,7 @@ jobs:
           echo "version=${version}" >> "${GITHUB_OUTPUT}"
       - name: Build and validate wheel and source distribution
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name }}
         run: |
           uv run python scripts/build_release_artifacts.py --outdir dist
           uv run twine check dist/*
