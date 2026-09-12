@@ -114,6 +114,63 @@ def test_invalid_provider_result_keeps_known_usage():
     assert raised.value.usage_reported is True
 
 
+@pytest.mark.parametrize(
+    "failure_event",
+    [
+        {"type": "error", "message": "The request exceeds the context window"},
+        {"type": "turn.failed", "error": {"message": "The request exceeds the context window"}},
+    ],
+)
+def test_codex_failure_prefers_structured_cause_over_stderr_warnings(monkeypatch, failure_event):
+    events = "\n".join(
+        [
+            json.dumps({"type": "error", "message": "Retrying connection"}),
+            json.dumps(failure_event),
+            json.dumps(
+                {"type": "turn.completed", "usage": {"input_tokens": 90, "output_tokens": 12}}
+            ),
+            "malformed trailing output",
+            "null",
+            "[]",
+        ]
+    )
+    monkeypatch.setattr(
+        "anaxigraph.semantic.subprocess.run",
+        lambda *_a, **_kw: SimpleNamespace(
+            returncode=1, stdout=events, stderr="Permission denied warning " * 100
+        ),
+    )
+    with pytest.raises(SemanticAnalysisError) as raised:
+        CodexSemanticProvider(SemanticConfig(provider="codex")).analyze(
+            {"analysis_kind": "intrinsic"}
+        )
+    assert str(raised.value) == "Codex exited with 1: The request exceeds the context window"
+    assert raised.value.input_tokens == 90
+    assert raised.value.output_tokens == 12
+
+
+@pytest.mark.parametrize(
+    "event",
+    [
+        {"type": "turn.failed", "error": None},
+        {"type": "error", "message": 42},
+        {"type": "error", "message": " "},
+        {"type": "item.completed", "message": "not an error"},
+    ],
+)
+def test_codex_failure_keeps_stderr_when_no_usable_structured_error(monkeypatch, event):
+    monkeypatch.setattr(
+        "anaxigraph.semantic.subprocess.run",
+        lambda *_a, **_kw: SimpleNamespace(
+            returncode=1, stdout=json.dumps(event), stderr="Actual CLI failure"
+        ),
+    )
+    with pytest.raises(SemanticAnalysisError, match="Codex exited with 1: Actual CLI failure"):
+        CodexSemanticProvider(SemanticConfig(provider="codex")).analyze(
+            {"analysis_kind": "intrinsic"}
+        )
+
+
 _CLAUDE_USAGE = {
     "input_tokens": 2,
     "cache_creation_input_tokens": 9000,
