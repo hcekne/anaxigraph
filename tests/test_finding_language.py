@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from anaxigraph.finding_language import evidence_sentences, plain_language_contract
-from anaxigraph.persistence.finding_read import finding_priority
+from anaxigraph.persistence.finding_read import finding_priority, finding_prose
 
 
 def _finding(
@@ -40,6 +40,7 @@ def test_complexity_finding_has_a_complete_plain_language_contract():
         evidence=["estimated_cyclomatic_complexity=17"],
     )
     finding.update(finding_priority(finding, {}))
+    finding_prose(finding)
 
     language = finding["plain_language"]
     assert language["version"] == "plain-language-v2"
