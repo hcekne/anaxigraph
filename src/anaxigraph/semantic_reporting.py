@@ -33,6 +33,20 @@ _PROGRESS_KEYS = (
 )
 
 
+_POLICY_KEYS = (
+    "enabled",
+    "provider",
+    "detailed_reviews",
+    "max_parallel_jobs",
+    "max_output_tokens",
+    "max_output_tokens_on_retry",
+)
+
+
+def _kept(value: dict[str, Any], keys: tuple[str, ...]) -> dict[str, Any]:
+    return {key: value[key] for key in keys if key in value}
+
+
 def compact_semantic_status(status: dict[str, Any]) -> dict[str, Any]:
     """Return progress and handoff facts without resending saved architecture documents."""
 
@@ -43,18 +57,12 @@ def compact_semantic_status(status: dict[str, Any]) -> dict[str, Any]:
         if key in {"state", "safe_to_plan", "scan_recommended"}
     }
     policy = status.get("semantic_policy") or {}
-    result["semantic_policy"] = {
-        key: policy[key]
-        for key in (
-            "enabled",
-            "provider",
-            "detailed_reviews",
-            "max_parallel_jobs",
-            "max_output_tokens",
-            "max_output_tokens_on_retry",
-        )
-        if key in policy
-    }
+    result["semantic_policy"] = _kept(policy, _POLICY_KEYS)
+    # A caller reading compact status should see that the pattern stage was skipped rather
+    # than infer from a coverage number that everything ran.
+    result["patterns"] = _kept(
+        status.get("patterns") or {}, ("enabled", "ready", "pending", "failed")
+    )
     result["parallel_jobs_limit"] = policy.get(
         "max_parallel_jobs", status.get("parallel_jobs_limit")
     )

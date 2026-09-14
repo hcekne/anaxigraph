@@ -94,6 +94,11 @@ def _conclusion(
     if not enabled:
         return "AI mapping is turned off for this repository."
     if ready:
+        if not (status.get("patterns") or {}).get("enabled", True):
+            return (
+                "File and architecture mapping is up to date for this saved scan. "
+                "Detailed pattern review is turned off, so no pattern findings were produced."
+            )
         return "The AI map is up to date for this saved scan."
     if running:
         return "AI mapping is running now and still has work left."
