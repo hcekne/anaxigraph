@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
-from anaxigraph.semantic import create_semantic_provider
+from anaxigraph.semantic import create_semantic_provider, execution_for
 from anaxigraph.semantic_graph import SupersededSemanticJob
 from anaxigraph.semantic_job_state import SemanticLeaseLost
 from anaxigraph.semantic_leases import SemanticLeaseService
@@ -248,8 +248,16 @@ class SemanticRunnerService:
         try:
             with self._leases.job_lease(job, config.semantic):
                 request = self._evidence.job_request(job, root, config.semantic)
-                provider = create_semantic_provider(runtime_semantic)
-                result = self.analyze_request(provider, request, runtime_semantic)
+                staged = execution_for(request, runtime_semantic)
+                if staged is not runtime_semantic:
+                    # Provenance must name the model that ran the job, not the run's default.
+                    job = {
+                        **job,
+                        "executor_model": staged.model or job.get("executor_model"),
+                        "executor_effort": staged.reasoning_effort or job.get("executor_effort"),
+                    }
+                provider = create_semantic_provider(staged)
+                result = self.analyze_request(provider, request, staged)
                 recorded_provider = (
                     config.semantic.provider if execution_semantic else provider.name
                 )

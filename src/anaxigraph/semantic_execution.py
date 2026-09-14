@@ -7,6 +7,12 @@ import shutil
 from dataclasses import replace
 from typing import Any
 
+from anaxigraph.semantic_stage_model import (
+    STAGE_PROVIDERS,
+    STAGE_TIERS,
+    SemanticStageModel,
+)
+
 
 def add_semantic_execution_arguments(parser: Any) -> None:
     parser.add_argument(
@@ -31,6 +37,22 @@ def add_semantic_execution_arguments(parser: Any) -> None:
         ),
     )
     parser.add_argument(
+        "--stage-model",
+        action="append",
+        metavar="TIER=[EXECUTOR:]MODEL[:EFFORT]",
+        help=(
+            "Override the model for one kind of work this run, repeatable. TIER is module, "
+            "group, repository, or taxonomy. Examples: repository=gpt-6-astra:high, "
+            "group=claude:claude-sonnet-5:medium. Overrides the repository's stage_models"
+        ),
+    )
+    _add_runtime_limit_arguments(parser)
+
+
+def _add_runtime_limit_arguments(parser: Any) -> None:
+    """How hard to push this run, as opposed to what runs it."""
+
+    parser.add_argument(
         "--parallel-jobs",
         type=int,
         help="Most model calls to run at once, up to the maximum in repository settings",
@@ -52,6 +74,35 @@ def add_semantic_execution_arguments(parser: Any) -> None:
             "after this shell exits; no supervisor script or LLM polling loop is needed"
         ),
     )
+
+
+def stage_model_overrides(values: list[str] | None) -> dict[str, SemanticStageModel]:
+    """Read tiers given on the command line, in the same shape the policy file uses.
+
+    A run is where the cost is felt, so the choice has to be available there and not only in
+    a committed file. The parsed result replaces a tier outright rather than merging into it,
+    so what a flag says is what runs.
+    """
+
+    tiers: dict[str, SemanticStageModel] = {}
+    for raw in values or []:
+        tier, _, spec = str(raw).partition("=")
+        name = tier.strip().lower()
+        if name not in STAGE_TIERS or not spec.strip():
+            raise ValueError(
+                f"--stage-model expects TIER=[EXECUTOR:]MODEL[:EFFORT] where TIER is one of "
+                f"{', '.join(STAGE_TIERS)}; received {raw!r}"
+            )
+        parts = [item.strip() for item in spec.split(":")]
+        provider = parts.pop(0).lower() if parts[0].lower() in STAGE_PROVIDERS else ""
+        if not parts or not parts[0]:
+            raise ValueError(f"--stage-model {name} names an executor but no model")
+        tiers[name] = SemanticStageModel(
+            provider=provider,
+            model=parts[0],
+            reasoning_effort=parts[1] if len(parts) > 1 else "",
+        )
+    return tiers
 
 
 def understand_execution(args: Any, semantic: Any) -> tuple[Any | None, str]:
@@ -126,6 +177,10 @@ def _local_agent_execution(
         provider=executor,
         model=args.model or "",
         reasoning_effort=reasoning_effort or "",
+        stage_models={
+            **(semantic.stage_models or {}),
+            **stage_model_overrides(getattr(args, "stage_model", None)),
+        },
         max_parallel_jobs=min(
             parallel_jobs or semantic.max_parallel_jobs, semantic.max_parallel_jobs
         ),

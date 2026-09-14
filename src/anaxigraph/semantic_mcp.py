@@ -225,6 +225,9 @@ class SemanticMcpTools:
         cache_read_input_tokens: int = 0,
         cache_creation_input_tokens: int = 0,
         repository: str = "",
+        executor_id: str = "",
+        executor_model: str = "",
+        executor_effort: str = "",
     ) -> dict[str, Any]:
         row, root = self.context(repository)
         return SemanticEngine(self.database).submit_agent_work(
@@ -238,6 +241,9 @@ class SemanticMcpTools:
             output_tokens=output_tokens,
             cache_read_input_tokens=cache_read_input_tokens,
             cache_creation_input_tokens=cache_creation_input_tokens,
+            executor_id=executor_id,
+            executor_model=executor_model,
+            executor_effort=executor_effort,
         )
 
     def release(

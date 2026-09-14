@@ -112,7 +112,7 @@ async def test_wave_shares_parallel_budget_and_submits_fast_jobs_first(monkeypat
         time.sleep((4 - request_value["index"]) * 0.01)
         return SimpleNamespace(value={}, input_tokens=1, output_tokens=1)
 
-    async def submit(_session, _target, packet, _result):
+    async def submit(_session, _target, packet, _result, _execution=None):
         submitted.append(packet["job"]["id"])
         return {"status": "completed", "semantic": {"jobs": {}}}
 
@@ -156,7 +156,7 @@ async def test_wave_runs_many_model_calls_without_the_default_thread_cap(
             value={"index": request_value["index"]}, input_tokens=1, output_tokens=1
         )
 
-    async def submit(_session, _target, _packet, _result):
+    async def submit(_session, _target, _packet, _result, _execution=None):
         return {"status": "completed", "semantic": {"jobs": {}}}
 
     monkeypatch.setattr(remote_worker, "_request_for_packet", request)
@@ -193,7 +193,7 @@ async def test_one_model_failure_does_not_unwind_successful_peer_jobs(monkeypatc
             raise SemanticAnalysisError("invalid JSON", input_tokens=120, output_tokens=30)
         return SimpleNamespace(value={}, input_tokens=1, output_tokens=1)
 
-    async def submit(_session, _target, packet, _result):
+    async def submit(_session, _target, packet, _result, _execution=None):
         submitted.append(packet["job"]["id"])
         return {"status": "completed", "semantic": {"jobs": {}}}
 

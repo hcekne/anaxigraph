@@ -147,11 +147,27 @@ semantic:
   enabled: true
   detailed_reviews: false
   provider: agent
-  # Select a local executor model per `understand` run; it is provenance, not freshness policy.
+  # Work is split across providers on purpose. Two providers read the same code a little
+  # differently, and two pools of 16 stay inside each provider's rate limit where one pool of
+  # 32 would not. So the bulk tiers name no executor: each runner contributes its own, and
+  # whichever pool has a free slot takes the next job. Launch both, then walk away:
+  #   anaxigraph understand --executor codex  --model gpt-5.6-terra   --parallel-jobs 16 --background
+  #   anaxigraph understand --executor claude --model claude-sonnet-5 --parallel-jobs 16 --background
+  # Override any tier for one run with --stage-model, for example
+  #   --stage-model repository=codex:gpt-6-astra:high
+  stage_models:
+    # Module, group and taxonomy work is deliberately absent here: it runs on whichever pool
+    # claims it, which is the point of running two. Only the single repository synthesis is
+    # pinned, because that one deserves the strongest reasoning rather than whichever pool
+    # happened to be free when it came up.
+    repository:
+      provider: codex
+      model: gpt-6-astra
+      reasoning_effort: high
   # Each explicit scan prepares work only for changed code fingerprints and affected context.
   refresh: on_scan
   max_jobs_per_run: 1000
   # Independent semantic work can fan out aggressively; executor runs may choose a lower ceiling.
-  max_parallel_jobs: 30
+  max_parallel_jobs: 32
   timeout_seconds: 300
   agent_lease_seconds: 1800
