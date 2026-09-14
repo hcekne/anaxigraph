@@ -194,7 +194,10 @@ semantic:
   provider: agent
   refresh: manual
   max_jobs_per_run: 1000
-  max_parallel_jobs: 1
+  # The admission gate counts running leases for the whole repository, not per executor, so
+  # this is also the ceiling two executors share. At 1 a second host worker can never claim
+  # anything, which contradicts the two-pool pattern documented in advanced-operations.
+  max_parallel_jobs: 32
   agent_lease_seconds: 1800
   taxonomy:
     enabled: true
