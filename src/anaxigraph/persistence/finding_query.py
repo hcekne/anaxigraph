@@ -14,6 +14,7 @@ from typing import Any
 from anaxigraph.guidance import FINDING_STATUSES
 from anaxigraph.persistence.finding_read import (  # noqa: F401
     PRIORITY_VERSION,
+    finding_prose,
     finding_sort_key,
     read_finding,
     read_findings,
@@ -59,7 +60,11 @@ def read_finding_page(
     candidate_items = matching[start : start + page_size]
     groups = _diagnostic_groups(matching) if query.view == "diagnostics" else []
     counts = _counts(matching)
-    selected = [_compact(item) if query.compact else item for item in candidate_items]
+    # Prose is written here, for the page, and must exist before the byte budget is measured.
+    selected = [
+        _compact(finding_prose(item)) if query.compact else finding_prose(item)
+        for item in candidate_items
+    ]
     selected = _fit_budget(
         selected,
         matching=matching,

@@ -38,12 +38,15 @@ def read_findings(
     statuses: tuple[str, ...],
     limit: int,
 ) -> list[dict[str, Any]]:
-    return read_ranked_findings(
-        connection,
-        repository_id,
-        snapshot_id,
-        statuses=statuses,
-    )[:limit]
+    return [
+        finding_prose(item)
+        for item in read_ranked_findings(
+            connection,
+            repository_id,
+            snapshot_id,
+            statuses=statuses,
+        )[:limit]
+    ]
 
 
 def read_ranked_findings(
@@ -53,7 +56,10 @@ def read_ranked_findings(
     *,
     statuses: tuple[str, ...] = (),
 ) -> list[dict[str, Any]]:
-    """Return the complete ranked ledger; presentation layers own pagination."""
+    """Return the complete ranked ledger without its prose; callers add that per page.
+
+    Every row is scored, but only the rows a caller shows are written up. See finding_prose.
+    """
 
     params: list[Any] = [repository_id]
     condition = "repository_id = ?"
@@ -94,7 +100,7 @@ def read_finding(
     item = decode_json_columns(dict(row))
     stats = _module_stats(connection, repository_id, snapshot_id) if snapshot_id else {}
     item.update(finding_priority(item, stats))
-    return item
+    return finding_prose(item)
 
 
 def finding_sort_key(item: dict[str, Any]) -> tuple[int, int, str, str]:
@@ -193,21 +199,35 @@ def finding_priority(
         finding,
     )
     actionability = _actionability(finding, module_stats, risk, reasons)
-    label = priority_label(score)
     return {
         "priority_score": score,
-        "priority_label": label,
+        "priority_label": priority_label(score),
         "priority_reasons": reasons,
         "priority_version": PRIORITY_VERSION,
         "actionability": actionability,
-        "plain_language": plain_language_contract(
-            finding,
-            priority_score=score,
-            priority_label=label,
-            priority_reasons=reasons,
-            false_positive_conditions=actionability["false_positive_conditions"],
-        ),
     }
+
+
+def finding_prose(finding: dict[str, Any]) -> dict[str, Any]:
+    """Write the reader-facing sentences for one finding.
+
+    This is almost all the cost of ranking a ledger, and a ranked ledger is read one page at
+    a time, so it is not done until a finding is actually going to be shown. Ranking,
+    filtering and grouping never read it: they use the score, the reasons and the
+    actionability, which are cheap and are computed for every row.
+    """
+
+    if isinstance(finding.get("plain_language"), dict):
+        return finding
+    actionability = finding.get("actionability") or {}
+    finding["plain_language"] = plain_language_contract(
+        finding,
+        priority_score=int(finding.get("priority_score") or 0),
+        priority_label=str(finding.get("priority_label") or priority_label(0)),
+        priority_reasons=[str(value) for value in finding.get("priority_reasons") or ()],
+        false_positive_conditions=actionability.get("false_positive_conditions") or [],
+    )
+    return finding
 
 
 def _actionability(
