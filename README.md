@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/hcekne/anaxigraph/ab8491dff04b7c3dc9ba36ca4976f3667f42d432/src/anaxigraph/dashboard/favicon.svg" width="112" alt="AnaxiGraph logo" />
+  <img src="https://raw.githubusercontent.com/hcekne/anaxigraph/519b4385eb55023bdd4f23623e4631453da0c658/src/anaxigraph/dashboard/favicon.svg" width="112" alt="AnaxiGraph logo" />
 </p>
 
 <h1 align="center">AnaxiGraph</h1>
@@ -21,6 +21,7 @@
   <a href="docs/agent-plugin.md">Agent plugin</a> ·
   <a href="docs/docker.md">Docker</a> ·
   <a href="docs/advanced-operations.md">Advanced</a> ·
+  <a href="docs/brand.md">Brand</a> ·
   <a href="CONTRIBUTING.md">Contribute</a>
 </p>
 
