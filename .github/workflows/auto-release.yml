@@ -80,3 +80,17 @@ jobs:
       pull-requests: write
     with:
       tag: ${{ needs.tag-and-release.outputs.tag }}
+
+  container:
+    # Called for the same reason: a tag this workflow pushed starts nothing by itself.
+    name: Build and publish the container image
+    needs: tag-and-release
+    if: needs.tag-and-release.outputs.tag != ''
+    uses: ./.github/workflows/container.yml
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    with:
+      tag: ${{ needs.tag-and-release.outputs.tag }}

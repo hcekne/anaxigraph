@@ -1,9 +1,23 @@
 name: Container
 
+# A tag pushed by GITHUB_TOKEN starts no workflow: GitHub suppresses those events to
+# prevent loops. auto-release therefore calls this file directly rather than relying on the
+# tag it just created, which is why v0.7.1 published to PyPI with no container image.
 on:
   push:
     tags: ["v*"]
+  workflow_call:
+    inputs:
+      tag:
+        description: The tag to build, for example v0.7.2.
+        required: true
+        type: string
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to build. Defaults to the ref this run was started from.
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -13,6 +27,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
@@ -21,6 +36,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -50,13 +67,15 @@ jobs:
       attestations: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
       - uses: actions/setup-python@v7
         if: startsWith(github.ref, 'refs/tags/')
         with:
           python-version: "3.12"
       - name: Require the container tag to match the Python package
         if: startsWith(github.ref, 'refs/tags/')
-        run: python scripts/verify_release_artifacts.py --tag "${GITHUB_REF_NAME}" --version-only
+        run: python scripts/verify_release_artifacts.py --tag "${RELEASE_TAG}" --version-only
       - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
       - name: Log in to GitHub Container Registry
@@ -100,13 +119,13 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         run: |
           mkdir -p release
-          version="${GITHUB_REF_NAME#v}"
+          version="${RELEASE_TAG#v}"
           echo "${{ steps.build.outputs.digest }}  ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${version}" \
-            > "release/anaxigraph-container-${GITHUB_REF_NAME}.sha256"
+            > "release/anaxigraph-container-${RELEASE_TAG}.sha256"
       - name: Preserve container digest
         if: startsWith(github.ref, 'refs/tags/')
         uses: actions/upload-artifact@v6
         with:
-          name: anaxigraph-container-${{ github.ref_name }}
+          name: anaxigraph-container-${{ inputs.tag || github.ref_name }}
           path: release/
           if-no-files-found: error
