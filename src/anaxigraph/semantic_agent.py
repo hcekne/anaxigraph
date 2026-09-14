@@ -22,6 +22,23 @@ from anaxigraph.semantic_ports import (
 )
 
 
+def _executed_by(job: dict[str, Any], identity: str, model: str, effort: str) -> dict[str, Any]:
+    """Name what produced a document, not what claimed the work.
+
+    A staged run claims with the run's default and may execute on another model, and on
+    another command-line tool entirely, so the executor reports what it used when it submits.
+    """
+
+    if not (identity or model or effort):
+        return job
+    return {
+        **job,
+        "executor_id": identity or job.get("executor_id"),
+        "executor_model": model or job.get("executor_model"),
+        "executor_effort": effort or job.get("executor_effort"),
+    }
+
+
 class SemanticAgentService:
     """Let a connected coding agent execute durable semantic jobs with its own model."""
 
@@ -179,6 +196,9 @@ class SemanticAgentService:
         output_tokens: int | None = None,
         cache_read_input_tokens: int = 0,
         cache_creation_input_tokens: int = 0,
+        executor_id: str = "",
+        executor_model: str = "",
+        executor_effort: str = "",
     ) -> dict[str, Any]:
         semantic = self._contracts.semantic(config)
         job = self._leases.leased_agent_job(
@@ -209,6 +229,7 @@ class SemanticAgentService:
             cache_read_input_tokens=cache_read_input_tokens,
             cache_creation_input_tokens=cache_creation_input_tokens,
         )
+        job = _executed_by(job, executor_id, executor_model, executor_effort)
         self._persistence.complete_job(job, result, "agent", semantic)
         status = self._reporting.status(repository_id, semantic)
         return self._contracts.completed_response(job, "claim_next", status)

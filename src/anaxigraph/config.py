@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import fnmatch
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path, PurePosixPath
 from typing import Any
 
 import yaml
+
+from anaxigraph.semantic_stage_model import SemanticStageModel, parse_stage_models
 
 DEFAULT_IGNORE = tuple(
     """
@@ -91,6 +94,7 @@ class SemanticConfig:
         "**/generated/**",
     )
     taxonomy: SemanticTaxonomyConfig = field(default_factory=SemanticTaxonomyConfig)
+    stage_models: Mapping[str, SemanticStageModel] = field(default_factory=dict)
 
     def includes_path(self, path: str) -> bool:
         if self.include and not any(path_matches(path, pattern) for pattern in self.include):
@@ -268,25 +272,19 @@ def _rules(value: Any) -> tuple[RuleConfig, ...]:
     return tuple(result)
 
 
-def _semantic_config(value: Any) -> SemanticConfig:
-    if not value:
-        return SemanticConfig()
-    if not isinstance(value, dict):
-        raise ValueError("semantic must be a mapping")
-    provider = str(value.get("provider", "agent")).strip().lower()
-    if provider not in {"agent", "command", "codex", "claude"}:
-        raise ValueError(
-            "semantic.provider must be agent, command, codex, or claude; credentials stay with the executor"
-        )
-    refresh = str(value.get("refresh", "on_scan")).strip().lower().replace("-", "_")
-    if refresh not in {"manual", "on_scan", "watch"}:
-        raise ValueError("semantic.refresh must be manual, on_scan, or watch")
+def _choice(
+    value: dict[str, Any], name: str, default: str, allowed: tuple[str, ...], note: str = ""
+) -> str:
+    """Read one named setting that must be one of a fixed set, and say why when it is not."""
 
-    def integer(name: str, default: int, minimum: int) -> int:
-        result = int(value.get(name, default))
-        if result < minimum:
-            raise ValueError(f"semantic.{name} must be at least {minimum}")
-        return result
+    chosen = str(value.get(name, default)).strip().lower().replace("-", "_")
+    if chosen not in allowed:
+        raise ValueError(f"semantic.{name} must be one of {', '.join(allowed)}{note}")
+    return chosen
+
+
+def _spending(value: dict[str, Any]) -> tuple[float | None, float, float]:
+    """Read the daily budget and token prices, refusing figures that cannot be spent."""
 
     budget = float(raw) if (raw := value.get("daily_budget_usd")) is not None else None
     if budget is not None and budget < 0:
@@ -295,6 +293,30 @@ def _semantic_config(value: Any) -> SemanticConfig:
     output_cost = float(value.get("output_cost_per_million", 0.0))
     if input_cost < 0 or output_cost < 0:
         raise ValueError("semantic token costs cannot be negative")
+    return budget, input_cost, output_cost
+
+
+def _semantic_config(value: Any) -> SemanticConfig:
+    if not value:
+        return SemanticConfig()
+    if not isinstance(value, dict):
+        raise ValueError("semantic must be a mapping")
+    provider = _choice(
+        value,
+        "provider",
+        "agent",
+        ("agent", "command", "codex", "claude"),
+        "; credentials stay with the executor",
+    )
+    refresh = _choice(value, "refresh", "on_scan", ("manual", "on_scan", "watch"))
+
+    def integer(name: str, default: int, minimum: int) -> int:
+        result = int(value.get(name, default))
+        if result < minimum:
+            raise ValueError(f"semantic.{name} must be at least {minimum}")
+        return result
+
+    budget, input_cost, output_cost = _spending(value)
     return SemanticConfig(
         enabled=bool(value.get("enabled", False)),
         detailed_reviews=_semantic_reviews(value.get("detailed_reviews", False)),
@@ -320,6 +342,7 @@ def _semantic_config(value: Any) -> SemanticConfig:
         include=_tuple_of_strings(value.get("include")),
         exclude=_tuple_of_strings(value.get("exclude")) or SemanticConfig().exclude,
         taxonomy=_semantic_taxonomy_config(value.get("taxonomy")),
+        stage_models=parse_stage_models(value.get("stage_models")),
     )
 
 

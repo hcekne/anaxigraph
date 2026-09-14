@@ -13,7 +13,7 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
 from anaxigraph.config import SemanticConfig
-from anaxigraph.semantic import create_semantic_provider
+from anaxigraph.semantic import create_semantic_provider, execution_for
 from anaxigraph.semantic_agent_protocol import WAITING_FOR_EXECUTOR, rehydrate_agent_request
 from anaxigraph.semantic_background_progress import report_background_progress
 from anaxigraph.semantic_remote_calls import (
@@ -239,6 +239,7 @@ async def _execute_wave(
                 result,
                 total,
                 latest,
+                execution,
             )
     return latest
 
@@ -302,10 +303,11 @@ async def _submit_wave_result(
     result: Any,
     total: dict[str, Any],
     latest: dict[str, Any],
+    execution: SemanticConfig | None = None,
 ) -> dict[str, Any]:
     packet = packets[index]
     try:
-        submitted = await _submit(session, target, packet, result)
+        submitted = await _submit(session, target, packet, result, execution)
     except Exception as exc:
         await _abort_wave(session, target, packets, tasks, remaining, "peer submit failed")
         raise RuntimeError(f"Semantic submission failed: {exc}") from exc
@@ -383,6 +385,7 @@ async def _request_for_packet(
 
 
 def _analyze(request: dict[str, Any], execution: SemanticConfig) -> Any:
+    execution = execution_for(request, execution)
     provider = create_semantic_provider(execution)
     return analyze_semantic_request(provider, request, execution)
 
@@ -392,11 +395,17 @@ async def _submit(
     target: SemanticServiceTarget,
     packet: dict[str, Any],
     result: Any,
+    execution: SemanticConfig | None = None,
 ) -> dict[str, Any]:
+    staged = (
+        execution_for(dict(packet.get("analysis_request") or {}), execution)
+        if execution is not None
+        else None
+    )
     return await call_tool_retrying_locks(
         session,
         "ANAXIGRAPH_SEMANTIC_SUBMIT",
-        submit_arguments(target.repository_id, packet, result),
+        submit_arguments(target.repository_id, packet, result, staged),
         action="submit semantic work",
     )
 

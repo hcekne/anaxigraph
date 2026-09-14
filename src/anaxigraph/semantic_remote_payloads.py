@@ -34,13 +34,28 @@ def submit_arguments(
     repository_id: int,
     packet: dict[str, Any],
     result: Any,
+    execution: Any = None,
 ) -> dict[str, Any]:
-    """Send the completed dossier with whatever usage the executor actually reported."""
+    """Send the completed dossier with whatever usage the executor actually reported.
 
+    The model travels with the result because a staged run claims with its default model and
+    may execute on another. Provenance should name the one that wrote the document.
+    """
+
+    executor = (
+        {
+            "executor_id": f"cli:{execution.provider}:{os.getpid()}",
+            "executor_model": execution.model,
+            "executor_effort": execution.reasoning_effort,
+        }
+        if execution is not None
+        else {}
+    )
     return {
         **_lease_arguments(repository_id, packet),
         "dossier": result.value,
         **_usage_arguments(result),
+        **executor,
     }
 
 

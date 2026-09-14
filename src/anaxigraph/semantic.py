@@ -19,6 +19,7 @@ from anaxigraph.semantic_contract import (
     SemanticProvider,
     SemanticResult,
 )
+from anaxigraph.semantic_stage_model import stage_tier
 from anaxigraph.semantic_taxonomy_contract import (
     response_schema,
     validated_semantic_response,
@@ -29,6 +30,25 @@ _NO_USAGE = ProviderUsage()
 # Leave headroom below Codex's 1,048,576-character turn/start input limit.
 _CODEX_INLINE_PROMPT_CHARS = 1_000_000
 _CODEX_EVIDENCE_PAGE_CHARS = 16_000
+
+
+def execution_for(request: dict[str, Any], execution: SemanticConfig) -> SemanticConfig:
+    """Apply the tier's model, leaving every other runtime choice untouched.
+
+    Most of a run is one description per file. Paying the synthesis model for all of them is
+    the largest avoidable cost here, and the tier is already implied by the request, so the
+    choice needs no new plumbing through the planner or the worker protocol.
+    """
+
+    tier = (execution.stage_models or {}).get(stage_tier(request))
+    if tier is None or not (tier.provider or tier.model or tier.reasoning_effort):
+        return execution
+    return replace(
+        execution,
+        provider=tier.provider or execution.provider,
+        model=tier.model or execution.model,
+        reasoning_effort=tier.reasoning_effort or execution.reasoning_effort,
+    )
 
 
 def create_semantic_provider(config: SemanticConfig) -> SemanticProvider:
