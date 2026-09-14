@@ -108,6 +108,38 @@ def test_an_automatic_release_calls_the_publisher_rather_than_waiting_for_an_eve
 def test_container_digest_names_the_published_semver_tag():
     workflow = (ROOT / ".github/workflows/container.yml").read_text(encoding="utf-8")
 
-    assert 'version="${GITHUB_REF_NAME#v}"' in workflow
+    # The image carries the semver, never the raw tag, whichever way the build was started.
+    assert 'version="${RELEASE_TAG#v}"' in workflow
     assert "${{ env.IMAGE_NAME }}:${version}" in workflow
+    assert "${{ env.IMAGE_NAME }}:${RELEASE_TAG}" not in workflow
     assert "${{ env.IMAGE_NAME }}:${GITHUB_REF_NAME}" not in workflow
+
+
+def test_the_container_image_is_built_by_the_same_call_that_publishes():
+    """A tag pushed by GITHUB_TOKEN starts nothing, so the container must be called too.
+
+    v0.7.1 reached PyPI with no container image: auto-release created its tag, and the
+    container workflow's `push: tags` trigger never fired because GitHub suppresses events
+    its own token creates. Deployment then had no image to move to.
+    """
+
+    container = yaml.safe_load(
+        (ROOT / ".github/workflows/container.yml").read_text(encoding="utf-8")
+    )
+    auto = yaml.safe_load((ROOT / ".github/workflows/auto-release.yml").read_text(encoding="utf-8"))
+
+    assert "workflow_call" in container[True]
+    assert container[True]["workflow_call"]["inputs"]["tag"]["required"] is True
+    job = auto["jobs"]["container"]
+    assert job["uses"] == "./.github/workflows/container.yml"
+    assert job["with"]["tag"] == "${{ needs.tag-and-release.outputs.tag }}"
+    assert job["permissions"]["packages"] == "write"
+
+
+def test_the_container_build_reads_the_tag_it_was_given():
+    workflow = (ROOT / ".github/workflows/container.yml").read_text(encoding="utf-8")
+
+    # Building whatever ref started the run would build main, not the release.
+    assert "GITHUB_REF_NAME" not in workflow
+    assert "RELEASE_TAG: ${{ inputs.tag || github.ref_name }}" in workflow
+    assert "ref: ${{ inputs.tag || github.ref_name }}" in workflow
