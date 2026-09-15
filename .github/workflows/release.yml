@@ -195,7 +195,7 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
-          import os, pathlib, sys
+          import os, pathlib, re, sys
           version, run_url, tag_url = os.environ["VERSION"], os.environ["RUN_URL"], os.environ["TAG_URL"]
           path = pathlib.Path(f"docs/releases/{version}.md")
           text = path.read_text(encoding="utf-8")
@@ -209,12 +209,24 @@ jobs:
               .replace("artifacts: pending", "artifacts: verified")
               .replace('artifacts_evidence: ""', f"artifacts_evidence: {tag_url}")
           )
+          # A published record must not still read as a draft: the record checker rejects
+          # "release candidate" and "publication pending" wording once publication is set.
+          body = re.sub(
+              r"This is a release candidate\.[\s\S]*?deployed\.\n\n",
+              "Published to PyPI. Production deployment is not yet recorded.\n\n",
+              body,
+              count=1,
+          )
+          # Replace the whole entry, including any continuation lines, or the leftover text
+          # keeps the draft wording and orphans a sentence fragment.
           for gate, done in (("publication", "Published to PyPI"), ("artifacts", "Attached to the tag")):
-              marker = f"<!-- release:{gate} -->"
-              for line in body.splitlines():
-                  if line.startswith(f"- [ ] {marker}"):
-                      body = body.replace(line, f"- [x] {marker} {done}; see the evidence link above.")
-                      break
+              pattern = rf"- \[ \] <!-- release:{gate} -->(?:.*\n(?:  +.*\n)*)"
+              body = re.sub(
+                  pattern,
+                  f"- [x] <!-- release:{gate} --> {done}; see the evidence link above.\n",
+                  body,
+                  count=1,
+              )
           path.write_text("---\n" + head + "\n---\n" + body, encoding="utf-8")
           pathlib.Path(os.environ["GITHUB_OUTPUT"]).open("a").write("changed=true\n")
           PY

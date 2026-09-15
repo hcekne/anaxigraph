@@ -53,7 +53,7 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
-        stages: [pre-push, manual]
+        stages: [manual]
       - id: javascript-syntax
         name: JavaScript syntax
         entry: uv run python scripts/check_javascript_syntax.py
@@ -75,7 +75,7 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
-        stages: [pre-push]
+        stages: [manual]
       - id: maintainability-ratchets
         name: Production size, function complexity, coupling, and interface ratchets
         entry: uv run python scripts/check_code_quality.py --staged
@@ -103,7 +103,7 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
-        stages: [pre-push, manual]
+        stages: [manual]
       - id: python-tests
         name: Complete Python test suite and coverage floor
         entry: uv run pytest --cov=anaxigraph --cov-report=term --cov-report=xml --cov-fail-under=80
@@ -111,11 +111,11 @@ repos:
         pass_filenames: false
         always_run: true
         require_serial: true
-        stages: [pre-push, manual]
+        stages: [manual]
       - id: changed-code-coverage
         name: Changed-code coverage target
         entry: uv run python scripts/check_changed_coverage.py --base origin/main --require-base
         language: system
         pass_filenames: false
         always_run: true
-        stages: [pre-push, manual]
+        stages: [manual]

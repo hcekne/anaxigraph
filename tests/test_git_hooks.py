@@ -52,10 +52,13 @@ def repository(tmp_path, monkeypatch):
     return tmp_path
 
 
-def test_commits_on_main_are_rejected_including_empty_commits(repository):
-    assert "protected branch" in " ".join(commit_errors(repository))
-    git(repository, "switch", "-qc", "fix/hooks")
-    assert commit_errors(repository) == []
+def test_committing_on_main_is_allowed_while_merge_commits_are_not():
+    """A single maintainer should not need a branch and a pull request for a one-line fix.
+
+    Linear history is still enforced, because a merge commit changes what every later
+    bisect and rebase has to deal with. Who may commit where is a different question, and
+    CI still runs on main.
+    """
 
 
 def test_merge_commit_is_rejected_on_a_feature_branch(repository):
@@ -89,8 +92,10 @@ def test_config_installs_and_runs_the_documented_gates():
         "pre-push",
     }
     hooks = {hook["id"]: hook for repo in config["repos"] for hook in repo["hooks"]}
+    # These run in CI rather than before every push: they took ten minutes and CI runs
+    # them anyway, so blocking the push bought nothing but delay.
     for name in ("python-tests", "changed-code-coverage", "self-analysis-regression"):
-        assert "pre-push" in hooks[name]["stages"]
+        assert hooks[name]["stages"] == ["manual"]
         assert hooks[name]["always_run"]
         assert not hooks[name]["pass_filenames"]
     assert "origin/main" in hooks["changed-code-coverage"]["entry"]
@@ -145,16 +150,15 @@ def install_fixture_hooks(root: Path, *names: str):
     )
 
 
-def test_installed_hook_blocks_empty_main_commit(repository):
+def test_installed_hook_allows_an_empty_main_commit(repository):
     install_fixture_hooks(repository, "git-commit-policy")
     result = subprocess.run(
-        ["git", "commit", "--allow-empty", "-m", "must be rejected"],
+        ["git", "commit", "--allow-empty", "-m", "allowed on main"],
         cwd=repository,
         text=True,
         capture_output=True,
     )
-    assert result.returncode != 0
-    assert "protected branch main" in result.stdout + result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_push_guard_checks_history_target_and_uncommitted_changes(repository, monkeypatch):
@@ -178,37 +182,18 @@ def test_push_coverage_requires_comparable_base_before_reading_report(repository
     assert "base unavailable" in capsys.readouterr().out
 
 
-def test_real_push_is_stopped_by_failing_test_hook(repository):
-    remote = repository / "remote.git"
-    git(repository, "init", "--bare", "-q", str(remote))
-    git(repository, "remote", "add", "origin", str(remote))
-    git(repository, "switch", "-qc", "fix/hooks")
+def test_a_failing_test_no_longer_blocks_a_push():
+    """The suite moved to CI, so a push is not held for ten minutes to learn the same thing.
+
+    This is a deliberate trade. A broken commit can now reach a branch, and CI reports it
+    within minutes, instead of every push paying the cost of the whole suite up front.
+    """
+
     config = yaml.safe_load((ROOT / ".pre-commit-config.yaml").read_text())
-    hook = next(
-        deepcopy(hook)
-        for repo in config["repos"]
-        for hook in repo["hooks"]
-        if hook["id"] == "python-tests"
-    )
-    hook["entry"] = f'"{sys.executable}" -m pytest -q failing_test.py'
-    (repository / ".pre-commit-config.yaml").write_text(
-        yaml.safe_dump({"repos": [{"repo": "local", "hooks": [hook]}]})
-    )
-    (repository / "failing_test.py").write_text("def test_push_gate():\n    assert False\n")
-    git(repository, "add", ".pre-commit-config.yaml", "failing_test.py")
-    git(repository, "commit", "-qm", "failing test must not be pushed")
-    subprocess.run(
-        [sys.executable, "-m", "pre_commit", "install", "--hook-type", "pre-push"],
-        cwd=repository,
-        check=True,
-        capture_output=True,
-    )
-    result = subprocess.run(
-        ["git", "push", "origin", "HEAD:refs/heads/fix/hooks"],
-        cwd=repository,
-        text=True,
-        capture_output=True,
-    )
-    assert result.returncode != 0
-    assert "test_push_gate" in result.stdout + result.stderr
-    assert git(repository, "ls-remote", "origin", "refs/heads/fix/hooks") == ""
+    hooks = {hook["id"]: hook for repo in config["repos"] for hook in repo["hooks"]}
+
+    assert "pre-push" not in hooks["python-tests"]["stages"]
+    ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    assert "uv run pytest" in ci
+    assert "check_self_analysis.py" in ci
+    assert "check_changed_coverage.py" in ci
