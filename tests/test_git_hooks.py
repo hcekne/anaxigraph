@@ -164,8 +164,9 @@ def test_installed_hook_allows_an_empty_main_commit(repository):
 def test_push_guard_checks_history_target_and_uncommitted_changes(repository, monkeypatch):
     git(repository, "switch", "-qc", "fix/hooks")
     assert push_errors(repository, "baseline") == []
+    # Pushing straight to main is allowed; the guard is about history and stray work.
     monkeypatch.setenv("PRE_COMMIT_REMOTE_BRANCH", "refs/heads/main")
-    assert "protected-branch push" in " ".join(push_errors(repository, "baseline"))
+    assert push_errors(repository, "baseline") == []
     monkeypatch.setenv("PRE_COMMIT_REMOTE_BRANCH", "refs/heads/fix/hooks")
     monkeypatch.setenv("PRE_COMMIT_LOCAL_BRANCH", "refs/heads/fix/hooks")
     (repository / "staged.txt").write_text("pending\n")

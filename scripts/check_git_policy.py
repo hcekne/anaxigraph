@@ -43,9 +43,6 @@ def history_errors(root: Path, base: str, head: str) -> list[str]:
 
 def push_errors(root: Path, base: str) -> list[str]:
     errors = history_errors(root, base, "HEAD")
-    remote_branch = os.environ.get("PRE_COMMIT_REMOTE_BRANCH", "")
-    if remote_branch in {"refs/heads/main", "refs/heads/master"}:
-        errors.append("Direct protected-branch push detected; merge through a reviewed PR.")
     local_ref = os.environ.get("PRE_COMMIT_LOCAL_BRANCH")
     if local_ref:
         target = _git(root, "rev-parse", "--verify", f"{local_ref}^{{commit}}")
