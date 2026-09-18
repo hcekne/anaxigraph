@@ -61,6 +61,7 @@ class PythonAnalyzer:
             "constructors",
             "control_flow",
             "decorators",
+            "dispatch_family",
             "entry_points",
             "error_handling",
             "generics",

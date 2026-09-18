@@ -258,3 +258,95 @@ def test_registry_rejects_a_capability_declaration_for_another_analyzer():
 
     with pytest.raises(ValueError, match="capability identity"):
         builtin_registry().register(MismatchedPythonAnalyzer())
+
+
+def _dispatch_families(source: str) -> dict[str, set[str]]:
+    analyzer = PythonAnalyzer()
+    result = analyzer.analyze("m.py", source)
+    assert validate_analysis(analyzer, "m.py", result) == ()
+    families: dict[str, set[str]] = {}
+    for fact in result.evidence_facts:
+        if fact.fact == "dispatch_family":
+            families.setdefault(fact.subject, set()).add(fact.value)
+    return families
+
+
+def test_sequential_ifs_choosing_by_name_are_named_as_one_family():
+    # The exact shape of anaxigraph.semantic.create_semantic_provider: no elif, no else,
+    # just sibling ifs that each compare the same expression to a different literal.
+    source = """
+def create_provider(config):
+    if config.provider == "agent":
+        raise ValueError("no in-process provider")
+    if config.provider == "codex":
+        return CodexProvider(config)
+    if config.provider == "claude":
+        return ClaudeProvider(config)
+    return CommandProvider(config)
+"""
+    families = _dispatch_families(source)
+    assert families == {"m.create_provider:config.provider": {"agent", "codex", "claude"}}
+
+
+def test_an_elif_chain_choosing_by_name_is_named_the_same_way():
+    source = """
+def handle(kind):
+    if kind == "a":
+        return 1
+    elif kind == "b":
+        return 2
+    elif kind == "c":
+        return 3
+    return 0
+"""
+    families = _dispatch_families(source)
+    assert families == {"m.handle:kind": {"a", "b", "c"}}
+
+
+def test_two_families_in_one_function_are_kept_separate():
+    source = """
+def handle(kind, mode):
+    if kind == "a":
+        pass
+    if kind == "b":
+        pass
+    if mode == "x":
+        pass
+    if mode == "y":
+        pass
+"""
+    families = _dispatch_families(source)
+    assert families == {"m.handle:kind": {"a", "b"}, "m.handle:mode": {"x", "y"}}
+
+
+def test_a_membership_check_against_an_allowed_set_is_not_a_dispatch_family():
+    # This is validation ("refuse anything not on the list"), the opposite shape: one path,
+    # not several, and it compares with `in`, not `==`.
+    source = """
+def configure(provider):
+    if provider not in {"agent", "command", "codex", "claude"}:
+        raise ValueError("unknown provider")
+"""
+    assert _dispatch_families(source) == {}
+
+
+def test_an_unnamed_boolean_condition_is_not_a_dispatch_family():
+    source = """
+def handle(enabled, ready):
+    if enabled:
+        return 1
+    if ready:
+        return 2
+    return 0
+"""
+    assert _dispatch_families(source) == {}
+
+
+def test_a_single_branch_with_nothing_to_compare_it_to_is_not_a_family():
+    source = """
+def handle(kind):
+    if kind == "a":
+        return 1
+    return 0
+"""
+    assert _dispatch_families(source) == {}

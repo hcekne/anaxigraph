@@ -46,6 +46,7 @@ _FEATURE_TERMS = {
     "provider boundary": "shared caller-facing interface for providers",
     "single implementation": "only one implementation",
     "inheritance": "class inheritance",
+    "dispatch family": "branches that choose behavior by comparing to a name",
     "dossier": "saved AI description of what the code does",
     "semantic dossier": "saved AI description of what the code does",
 }

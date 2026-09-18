@@ -21,6 +21,7 @@ CAPABILITY_FACTS = frozenset(
         "control_flow",
         "data_flow",
         "decorators",
+        "dispatch_family",
         "entry_points",
         "error_handling",
         "exports",

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+from collections import defaultdict
 from pathlib import PurePosixPath
 
 from anaxigraph.analyzer_facts import AnalyzerFact
@@ -47,6 +48,7 @@ class _EvidenceVisitor(ast.NodeVisitor):
 
     def visit_Module(self, node: ast.Module) -> None:
         self._documentation(node, self.subject, "module_documentation")
+        self._dispatch_families(node.body, self.subject)
         self.generic_visit(node)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
@@ -81,6 +83,7 @@ class _EvidenceVisitor(ast.NodeVisitor):
             self._emit("constructors", node.name, node, subject=subject)
         if node.name.startswith("test_"):
             self._emit("entry_points", "test-case", node, subject=subject)
+        self._dispatch_families(node.body, subject)
         self.scope.append(node.name)
         self.generic_visit(node)
         self.scope.pop()
@@ -233,6 +236,49 @@ class _EvidenceVisitor(ast.NodeVisitor):
     def _qualified(self, name: str) -> str:
         return ".".join((self.module, *self.scope, name)).strip(".")
 
+    def _dispatch_families(self, body: list[ast.stmt], subject: str) -> None:
+        """Name a family of branches that choose behavior by comparing one thing to names.
+
+        One if/elif is unremarkable. The signal is the family: several branches at the same
+        level, each comparing the same expression to a different literal name and returning or
+        doing something different. That is the shape a provider/kind/mode dispatch takes right
+        before the next caller reaches for one more branch instead of one shared interface. A
+        membership check against an allowed set (`if kind not in {...}: raise`) is a different,
+        unremarkable shape and does not match here, because it compares with `in`, not `==`.
+        """
+
+        groups: dict[str, list[tuple[str, ast.If]]] = defaultdict(list)
+        for stmt in body:
+            if isinstance(stmt, ast.If):
+                for discriminator, literal, branch in self._chain_branches(stmt):
+                    groups[discriminator].append((literal, branch))
+        for discriminator, branches in groups.items():
+            if len({literal for literal, _ in branches}) < 2:
+                continue
+            for literal, branch in branches:
+                self._emit("dispatch_family", literal, branch, subject=f"{subject}:{discriminator}")
+
+    def _chain_branches(self, node: ast.If) -> list[tuple[str, str, ast.If]]:
+        """Follow one if/elif chain, collecting what it compares and to what.
+
+        Sibling `if` statements with no `elif` reach here too: each is its own one-step chain,
+        and the caller groups them with any other sibling that compares the same expression.
+        """
+
+        collected: list[tuple[str, str, ast.If]] = []
+        current: ast.If | None = node
+        while isinstance(current, ast.If):
+            hit = _branch_literal(current.test)
+            if hit is None:
+                break
+            collected.append((*hit, current))
+            current = (
+                current.orelse[0]
+                if len(current.orelse) == 1 and isinstance(current.orelse[0], ast.If)
+                else None
+            )
+        return collected
+
     def _emit(
         self,
         fact: str,
@@ -272,6 +318,29 @@ def _module_name(path: str) -> str:
 def _is_test_path(path: str) -> bool:
     pure = PurePosixPath(path)
     return "tests" in pure.parts or pure.name.startswith("test_") or pure.name.endswith("_test.py")
+
+
+def _branch_literal(test: ast.AST) -> tuple[str, str] | None:
+    """Read `x == "name"` (either order) as (what was compared, the name), or nothing.
+
+    Only equality against a string constant counts. `in`/`not in` against a set is a
+    membership check, not a choice between named alternatives, and is deliberately excluded.
+    """
+
+    if (
+        not isinstance(test, ast.Compare)
+        or len(test.ops) != 1
+        or not isinstance(test.ops[0], ast.Eq)
+    ):
+        return None
+    left, right = test.left, test.comparators[0]
+    if isinstance(right, ast.Constant) and isinstance(right.value, str):
+        name = node_name(left)
+        return (name, right.value) if name else None
+    if isinstance(left, ast.Constant) and isinstance(left.value, str):
+        name = node_name(right)
+        return (name, left.value) if name else None
+    return None
 
 
 def _is_main_guard(node: ast.AST) -> bool:

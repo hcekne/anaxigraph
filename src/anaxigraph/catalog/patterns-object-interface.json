@@ -160,6 +160,11 @@
           "feature": "syntax.inheritance",
           "operator": "count_gte",
           "value": 3
+        },
+        {
+          "feature": "syntax.dispatch_family",
+          "operator": "count_gte",
+          "value": 3
         }
       ],
       "supporting_evidence": [
@@ -297,6 +302,11 @@
           "feature": "syntax.inheritance",
           "operator": "count_gte",
           "value": 2
+        },
+        {
+          "feature": "syntax.dispatch_family",
+          "operator": "count_gte",
+          "value": 3
         }
       ],
       "supporting_evidence": [
@@ -758,6 +768,11 @@
           "feature": "syntax.constructors",
           "operator": "count_gte",
           "value": 2
+        },
+        {
+          "feature": "syntax.dispatch_family",
+          "operator": "count_gte",
+          "value": 3
         }
       ],
       "supporting_evidence": [
@@ -941,6 +956,11 @@
       "problem_signals": [
         {
           "feature": "syntax.control_flow",
+          "operator": "count_gte",
+          "value": 3
+        },
+        {
+          "feature": "syntax.dispatch_family",
           "operator": "count_gte",
           "value": 3
         }
