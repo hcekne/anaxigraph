@@ -27,6 +27,7 @@ test("current views and workflows load while history and reassessment are still 
     await expect(page.locator("#architecture-reassessment h2")).not.toContainText("Checking");
   } finally {
     release();
+    await page.unrouteAll({ behavior: "wait" });
   }
 });
 

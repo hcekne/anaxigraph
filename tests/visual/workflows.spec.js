@@ -141,7 +141,7 @@ test("a delayed response from another repository cannot repaint the selected flo
       await route.fulfill({ json: [rows[0], { ...rows[0], id: 2, name: "Second repository" }] });
     } else if (url.pathname === "/api/workflows") {
       const isSecond = url.searchParams.get("repository_id") === "2";
-      if (hold && !isSecond) { waiting = true; await new Promise(resolve => { release = resolve; }); }
+      if (hold && !isSecond) { hold = false; waiting = true; await new Promise(resolve => { release = resolve; }); }
       await route.fulfill({ json: isSecond ? second : first });
     } else {
       if (url.searchParams.get("repository_id") === "2") url.searchParams.set("repository_id", "1");
@@ -160,4 +160,5 @@ test("a delayed response from another repository cannot repaint the selected flo
   release();
   await delivered;
   await expect(page.locator('[data-step="intrinsic"]')).toContainText("9 / 12");
+  await page.unrouteAll({ behavior: "wait" });
 });
