@@ -1,18 +1,18 @@
 import { expect, test } from "@playwright/test";
 
 async function openDashboard(page) {
-  await page.goto("/");
+  await page.goto("/#overview");
   await expect(page.locator("#project-name")).not.toHaveText("Loading…");
   await expect(page.locator("main")).toHaveAttribute("aria-busy", "false");
   await expect(page.locator(".group-family").first()).toBeVisible();
 }
 
-test("dashboard exposes five actor-neutral journeys", async ({ page }) => {
+test("dashboard exposes workflows alongside the existing journeys", async ({ page }) => {
   await openDashboard(page);
   const tabs = page.locator(".tabs .tab");
 
-  await expect(tabs).toHaveCount(5);
-  await expect(tabs).toHaveText(["Understand", "Guide", "Improve", "Changes", "Settings"]);
+  await expect(tabs).toHaveCount(6);
+  await expect(tabs).toHaveText(["Workflows", "Understand", "Guide", "Improve", "Changes", "Settings"]);
   await expect(page.locator("#journey-subnav")).toContainText("Charter & overview");
   await expect(page.locator("#journey-subnav")).toContainText("Files");
   await expect(page.locator("#journey-subnav")).toContainText("Graph");
@@ -310,7 +310,7 @@ test("a slow previous repository can never overwrite a newer selection", async (
     await route.fulfill({ json: responses[url.pathname] });
   });
 
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.goto("/#overview", { waitUntil: "domcontentloaded" });
   await page.locator("#repository-select").selectOption(String(targetRepository.id));
   await expect(page.locator("#project-name")).toHaveText(targetRepository.name);
   const fileMetric = page.locator(".metric", { hasText: "Files" }).locator("strong").first();

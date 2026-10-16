@@ -2,46 +2,81 @@ import { escapeAttr, escapeHtml, format } from "/assets/dashboard-core.js";
 import { workflowState, statusLabels } from "/assets/workflow-model.js";
 
 const number = value => format.format(Number(value || 0));
+const diagrams = {
+  mapping: { number: "01", columns: 4, handoff: "Validate + repair" },
+  patterns: { number: "02", columns: 3, handoff: "Independent critique" },
+  "fresh-eyes": { number: "03", columns: 4, handoff: "Apply mission + constraints" },
+};
 
 export function workflowTabs(flows, selected) {
   return flows.map(flow => `<button type="button" role="tab" id="workflow-tab-${flow.id}"
     aria-selected="${flow.id === selected}" aria-controls="workflow-panel" data-flow="${flow.id}">
-    <span>${escapeHtml(flow.name)}</span><small>${statusLabels[workflowState(flow)]}</small></button>`).join("");
+    <span class="workflow-tab-number">${diagrams[flow.id].number}</span><span class="workflow-tab-copy">
+    <strong>${escapeHtml(flow.name)}</strong><small>${statusLabels[workflowState(flow)]} · ${flow.steps.filter(item => item.status === "complete").length} / ${flow.steps.length} steps</small>
+    </span><span class="workflow-tab-arrow" aria-hidden="true">→</span></button>`).join("");
 }
 
 export function workflowDiagram(flow, selectedStep) {
-  return `<div class="workflow-heading"><div><p class="eyebrow">How the pieces fit together</p>
-    <h2>${escapeHtml(flow.title)}</h2><p>${escapeHtml(flow.description)}</p></div>
+  const diagram = diagrams[flow.id];
+  return `<div class="workflow-heading"><div>
+    <h2><span>${diagram.number}</span> ${escapeHtml(flow.title)}</h2><p>${escapeHtml(flow.description)}</p></div>
     <span class="workflow-status ${workflowState(flow)}">${statusLabels[workflowState(flow)]}</span></div>
-    <div class="workflow-canvas"><svg class="workflow-edges" aria-hidden="true"></svg>
+    ${modelLegend(flow)}
+    <div class="workflow-canvas" data-columns="${diagram.columns}" data-handoff="${diagram.handoff}"><svg class="workflow-edges" aria-hidden="true"></svg>
     <ol class="workflow-nodes">${flow.steps.map((item, index) => nodeMarkup(item, index, selectedStep)).join("")}</ol></div>
-    <p class="workflow-note">${escapeHtml(flow.note)}</p>`;
+    <p class="workflow-note">${escapeHtml(flow.note)}</p>
+    <p class="workflow-explore-hint">Select a step to explore its evidence and results below. Progress updates as work is saved.</p>`;
 }
 
 function nodeMarkup(item, index, selectedStep) {
   const isSoftware = item.owner !== "AI worker";
+  const models = item.jobs.models || [];
+  const palette = isSoftware ? "software" : models.length === 1 ? modelPalette(models[0]) : "model";
+  const owner = isSoftware ? item.owner : models.length === 1 ? modelName(models[0]) : "Model work";
   const progress = item.total > 0 ? Math.min(100, item.done / item.total * 100) : item.status === "complete" ? 100 : 0;
-  return `<li><button type="button" class="workflow-node ${isSoftware ? "software" : "model"} ${item.status}"
+  return `<li><button type="button" class="workflow-node ${palette} ${item.status}${item.parallel ? " parallel" : ""}"
     data-step="${item.id}" aria-pressed="${selectedStep === item.id}" aria-controls="workflow-detail">
     <span class="workflow-node-top"><span class="workflow-number">${index + 1}</span>
-    <span class="workflow-owner">${escapeHtml(item.owner)}</span></span>
+    <span class="workflow-owner">${escapeHtml(owner)}</span></span>
     <strong>${escapeHtml(item.title)}</strong><span class="workflow-description">${escapeHtml(item.description)}</span>
     ${item.parallel ? parallelMarkup(item.stages) : ""}
     <span class="workflow-count">${number(item.done)}${item.total == null ? "" : ` / ${number(item.total)}`} <small>${escapeHtml(item.unit)}</small></span>
     <span class="workflow-track" aria-hidden="true"><i style="width:${progress}%"></i></span>
     <span class="workflow-node-bottom"><span class="workflow-status ${item.status}">${statusLabels[item.status]}</span>
     ${item.reused ? `<small>${number(item.reused)} reused</small>` : ""}</span>
-    <span class="workflow-models">${modelLabels(item).map(name => `<span title="${escapeAttr(name)}">${escapeHtml(name)}</span>`).join("")}</span>
+    <span class="workflow-models">${modelLabels(item).map(name => `<span class="${modelPalette(name)}" title="${escapeAttr(name)}">${escapeHtml(name)}</span>`).join("")}</span>
     </button></li>`;
 }
 
 function parallelMarkup(stages = []) {
-  return `<span class="workflow-proposal-lanes">${stages.map((item, index) => `<span>
-    <b>${String.fromCharCode(65 + index)}</b>${escapeHtml(item.provenance?.executor_model || item.provenance?.model || "Independent session")}</span>`).join("")}</span>`;
+  return `<span class="workflow-proposal-lanes">${stages.map((item, index) => {
+    const model = item.provenance?.executor_model || item.provenance?.model;
+    return `<span class="${model ? modelPalette(model) : "model"}">
+      <b>Proposal ${String.fromCharCode(65 + index)}</b><span>${escapeHtml(model ? modelName(model) : "Independent session")}</span>
+      <small>${item.state === "current" ? "Saved proposal" : "Awaiting result"}</small></span>`;
+  }).join("")}</span>`;
 }
 
 function modelLabels(item) {
   return item.jobs.models?.length ? item.jobs.models : item.owner === "AI worker" ? ["Model recorded when run"] : [];
+}
+
+function modelPalette(name) {
+  if (/claude|opus|sonnet|haiku/i.test(name)) return "opus";
+  return /sol/i.test(name) ? "sol" : "model";
+}
+
+function modelName(name) {
+  return name.replace(/^gpt-/i, "GPT-").replace(/-(luna|sol|astra|terra)$/i, (_, model) => ` ${model[0].toUpperCase()}${model.slice(1)}`)
+    .replace(/^claude-(\w+)-(\d+)-(\d+)$/i, (_, model, major, minor) => `Claude ${model[0].toUpperCase()}${model.slice(1)} ${major}.${minor}`);
+}
+
+function modelLegend(flow) {
+  const models = [...new Set(flow.steps.flatMap(item => item.jobs.models || []))];
+  const chips = models.map(model => `<span class="${modelPalette(model)}" title="${escapeAttr(model)}">${escapeHtml(modelName(model))}</span>`);
+  if (flow.steps.some(item => item.owner === "AI worker" && !item.jobs.models?.length)) chips.push('<span class="model">Model work · model recorded when run</span>');
+  return `<div class="workflow-legend" aria-label="Who does the work"><span class="software">AnaxiGraph code</span>${chips.join("")}</div>
+    <p class="workflow-legend-note">Model names come from saved results. Arrows show how evidence feeds the next step.</p>`;
 }
 
 export function workflowDetail(item) {
@@ -78,7 +113,8 @@ export function drawWorkflowEdges(canvas) {
   if (!canvas || !canvas.offsetWidth) return;
   const list = canvas.querySelector("ol");
   const nodes = [...list.children];
-  const columns = canvas.clientWidth >= 1000 ? 4 : canvas.clientWidth >= 580 ? 2 : 1;
+  const preferred = Number(canvas.dataset.columns);
+  const columns = canvas.clientWidth >= 1000 ? preferred : canvas.clientWidth >= 580 ? 2 : 1;
   list.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`;
   nodes.forEach((node, index) => {
     const row = Math.floor(index / columns);
@@ -86,20 +122,38 @@ export function drawWorkflowEdges(canvas) {
     node.style.gridColumn = row % 2 ? columns - index % columns : index % columns + 1;
   });
   const origin = canvas.getBoundingClientRect();
-  const boxes = nodes.map(node => node.getBoundingClientRect());
-  const paths = boxes.slice(1).map((box, index) => {
-    const from = boxes[index];
-    const sameRow = Math.abs(from.top - box.top) < 2;
-    const forward = box.left > from.left;
-    const x1 = sameRow ? (forward ? from.right : from.left) : from.left + from.width / 2;
-    const y1 = sameRow ? from.top + from.height / 2 : from.bottom;
-    const x2 = sameRow ? (forward ? box.left : box.right) : box.left + box.width / 2;
-    const y2 = sameRow ? box.top + box.height / 2 : box.top;
-    return `<path d="M${x1 - origin.left},${y1 - origin.top} L${x2 - origin.left},${y2 - origin.top}"/>`;
-  });
+  const paths = nodes.slice(1).map((node, index) => connectionPaths(nodes[index], node, origin));
   const svg = canvas.querySelector("svg");
   svg.setAttribute("viewBox", `0 0 ${canvas.clientWidth} ${canvas.clientHeight}`);
-  svg.innerHTML = `<defs><marker id="workflow-arrow" markerWidth="8" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M1 1 L5 4 L1 7"/></marker></defs>${paths.join("")}`;
+  svg.innerHTML = `<defs><marker id="workflow-arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M1 1 L7 4 L1 7"/></marker></defs>${paths.join("")}
+    ${columns === preferred ? handoffLabel(nodes, preferred, origin, canvas.dataset.handoff) : ""}`;
+}
+
+function connectionPaths(fromNode, toNode, origin) {
+  const from = fromNode.firstElementChild.getBoundingClientRect(), to = toNode.firstElementChild.getBoundingClientRect();
+  if (fromNode.style.gridRow !== toNode.style.gridRow) {
+    const x = from.left + from.width / 2 - origin.left;
+    return `<path d="M${x},${from.bottom - origin.top + 4} V${to.top - origin.top - 5}"/>`;
+  }
+  const forward = to.left > from.left;
+  const starts = connectionPorts(fromNode, from, forward, origin);
+  const ends = connectionPorts(toNode, to, !forward, origin);
+  const middle = ((forward ? from.right + to.left : from.left + to.right) / 2) - origin.left;
+  return starts.flatMap(start => ends.map(end => `<path d="M${start.x},${start.y} H${middle} V${end.y} H${end.x}"/>`)).join("");
+}
+
+function connectionPorts(node, box, right, origin) {
+  const lanes = [...node.querySelectorAll(".workflow-proposal-lanes > span")];
+  const boxes = lanes.length ? lanes.map(lane => lane.getBoundingClientRect()) : [box];
+  return boxes.map(rect => ({ x: (right ? rect.right + 4 : rect.left - 4) - origin.left, y: rect.top + rect.height / 2 - origin.top }));
+}
+
+function handoffLabel(nodes, columns, origin, label) {
+  if (nodes.length <= columns) return "";
+  const from = nodes[columns - 1].firstElementChild.getBoundingClientRect(), to = nodes[columns].firstElementChild.getBoundingClientRect();
+  const x = from.left + from.width / 2 - origin.left - 14;
+  const y = (from.bottom + to.top) / 2 - origin.top + 4;
+  return `<text x="${x}" y="${y}" text-anchor="end">${escapeHtml(label)}</text>`;
 }
 
 export function overviewWorkflowLinks(flows) {

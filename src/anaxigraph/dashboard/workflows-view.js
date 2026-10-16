@@ -21,7 +21,7 @@ export function setupWorkflowsView() {
   const entry = document.createElement("article");
   entry.id = "workflow-entry";
   entry.className = "panel workflow-entry";
-  byId("metric-grid").after(entry);
+  byId("view-overview").prepend(entry);
   document.addEventListener("click", handleClick);
   byId("workflow-run-form").addEventListener("submit", startWorkflow);
   byId("workflow-tabs").addEventListener("keydown", event => {
@@ -35,7 +35,11 @@ export function setupWorkflowsView() {
   });
   window.addEventListener("anaxigraph:viewchange", ({ detail }) => {
     window.clearTimeout(timer);
-    if (detail.name === "workflows") void loadWorkflows();
+    if (detail.name !== "workflows") return;
+    selectedFlow = ["mapping", "patterns", "fresh-eyes"].includes(detail.flow) ? detail.flow : "mapping";
+    selectedStep = "";
+    render();
+    if (state.repositoryId) void loadWorkflows();
   });
   byId("repository-select").addEventListener("change", clearWorkflows);
   observer = new ResizeObserver(() => drawWorkflowEdges(byId("workflow-diagram")?.querySelector(".workflow-canvas")));
@@ -43,11 +47,11 @@ export function setupWorkflowsView() {
 }
 
 function shell() {
-  return `<article class="panel workflow-intro"><div><p class="eyebrow">Repository workflows</p>
-    <h2>Follow the work. Explore the results.</h2><p>Every step uses evidence from the selected repository. Select a card to see what goes in, what comes out and which models did the work.</p></div>
-    <button id="workflow-refresh" type="button" class="secondary-button">Refresh progress</button></article>
-    <p id="workflow-message" class="workflow-message" role="status">Reading repository progress…</p>
+  return `<header class="workflow-intro"><div><p class="eyebrow">Your repository, illustrated</p>
+    <h2>See how the pieces fit together.</h2><p>Follow the evidence from source to map to fresh ideas. Every card shows this repository’s saved progress.</p></div>
+    <button id="workflow-refresh" type="button" class="secondary-button">Refresh progress</button></header>
     <div id="workflow-tabs" class="workflow-tabs" role="tablist" aria-label="Repository workflows"></div>
+    <p id="workflow-message" class="workflow-message" role="status">Reading repository progress…</p>
     <section id="workflow-panel" role="tabpanel"><article id="workflow-diagram" class="panel workflow-diagram"></article>
     <div class="workflow-lower"><article id="workflow-detail" class="panel workflow-detail"></article>
     <article class="panel workflow-run"><p class="eyebrow">Run this workflow</p><h3 id="workflow-run-title">Mapping</h3>
@@ -202,8 +206,7 @@ function handleClick(event) {
   if (button.dataset.openFlow || button.dataset.flow) {
     selectedFlow = button.dataset.openFlow || button.dataset.flow;
     selectedStep = "";
-    if (button.dataset.openFlow) switchView("workflows");
-    render();
+    switchView("workflows", false, selectedFlow);
   } else if (button.dataset.step) {
     selectedStep = button.dataset.step;
     render();

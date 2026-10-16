@@ -208,10 +208,10 @@ function renderAllViews() {
 
 state.reloadRepository = loadRepository;
 setupTheme();
-renderNavigation();
 setupPatternView();
 setupFreshEyesView();
 setupWorkflowsView();
+renderNavigation();
 setupReassessmentView();
 setupModuleEvents();
 setupGraphEvents();

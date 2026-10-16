@@ -22,7 +22,9 @@ async function showDossier(page, value, status = "current") {
     };
     await route.fulfill({ response, json: detail });
   });
-  await page.goto("/");
+  // Each dossier fixture needs a new app instance, not a hash-only navigation.
+  await page.goto("about:blank");
+  await page.goto("/#overview");
   await expect(page.locator("#project-name")).not.toHaveText("Loading…");
   await expect(page.locator("main")).toHaveAttribute("aria-busy", "false");
   await page.getByRole("button", { name: "Files", exact: true }).click();

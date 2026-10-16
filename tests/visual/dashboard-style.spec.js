@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 async function openDashboard(page) {
-  await page.goto("/");
+  await page.goto("/#overview");
   await expect(page.locator("#project-name")).not.toHaveText("Loading…");
   await expect(page.locator("main")).toHaveAttribute("aria-busy", "false");
   await expect(page.locator("#repository-intelligence")).toBeVisible();
@@ -99,7 +99,7 @@ test("the repository overview does not wait for the findings feed", async ({ pag
     await route.continue();
   });
 
-  await page.goto("/");
+  await page.goto("/#overview");
   await findingRequested;
   await expect(page.locator("#project-name")).not.toHaveText("Loading…");
   await expect(page.locator("main")).toHaveAttribute("aria-busy", "false");

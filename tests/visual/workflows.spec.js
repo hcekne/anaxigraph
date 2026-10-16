@@ -33,6 +33,22 @@ async function open(page, value = progress()) {
   await expect(page.locator(".workflow-node")).toHaveCount(8);
 }
 
+test("the opening page shows the diagram and direct flow links survive a reload", async ({ page }) => {
+  await page.route("**/api/workflows?*", route => route.fulfill({ json: progress() }));
+  await page.goto("/?repository=1");
+  await expect(page.locator("#view-workflows")).toBeVisible();
+  await expect(page.locator('[data-step="intrinsic"]')).toContainText("4 / 12 files");
+  await expect(page.locator("#primary-navigation [data-view=workflows]")).toHaveClass(/active/);
+  await page.locator("#workflow-tab-patterns").click();
+  await expect(page).toHaveURL(/repository=1#workflows\/patterns$/);
+  await page.reload();
+  await expect(page.locator("#workflow-tab-patterns")).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator('[data-step="pattern_review"]')).toBeVisible();
+  await page.goto("/?repository=1#workflows/fresh-eyes");
+  await expect(page.locator("#workflow-tab-fresh-eyes")).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator('[data-step="proposals"]')).toBeVisible();
+});
+
 test("the map separates current coverage from repeated jobs and keeps optional flows not run", async ({ page }) => {
   await open(page);
   const intrinsic = page.locator('[data-step="intrinsic"]');
@@ -43,8 +59,8 @@ test("the map separates current coverage from repeated jobs and keeps optional f
   await intrinsic.click();
   await expect(page.locator("#workflow-detail")).toContainText("15");
   await expect(page.locator("#workflow-detail")).toContainText("unknown token usage");
-  await expect(page.locator("#workflow-tab-patterns small")).toHaveText("Not run");
-  await expect(page.locator("#workflow-tab-fresh-eyes small")).toHaveText("Not run");
+  await expect(page.locator("#workflow-tab-patterns small")).toContainText("Not run");
+  await expect(page.locator("#workflow-tab-fresh-eyes small")).toContainText("Not run");
   await page.locator("#workflow-routing summary").click();
   await expect(page.locator("#workflow-routing")).toContainText("gpt-6.1-sol");
   await page.getByRole("button", { name: "Explore modules →" }).click();
@@ -67,19 +83,19 @@ test("starting a pattern run uses explicit controls and zero candidates can fini
   await expect.poll(() => posted?.workflow).toBe("patterns");
   expect(posted).toMatchObject({ repository_id: 1, executor: "codex", model: "chosen-model", reasoning_effort: "high", parallel_jobs: 2 });
   await expect(page.locator("#workflow-run-button")).toBeDisabled();
-  await expect(page.locator("#workflow-tab-patterns small")).toHaveText("Running");
+  await expect(page.locator("#workflow-tab-patterns small")).toContainText("Running");
   value.semantic.worker = { status: "complete", workflow: "patterns" };
   value.semantic.jobs = {};
   value.semantic.architecture_charter = { status: "current" };
   value.semantic.patterns = { enabled: false, planned: true, selected: 0, finalized: 0 };
   await page.locator("#workflow-refresh").click();
   await expect(page.locator('[data-step="pattern_assessment"]')).toContainText("0 / 0 pairs");
-  await expect(page.locator("#workflow-tab-patterns small")).toHaveText("Complete");
+  await expect(page.locator("#workflow-tab-patterns small")).toContainText("Complete");
   await expect(page.locator("#workflow-model")).toHaveValue("chosen-model");
   await expect(page.locator("#workflow-effort")).toHaveValue("high");
 });
 
-test("fresh eyes shows independent proposals, recorded models and the ranked review", async ({ page }) => {
+test("fresh eyes shows independent proposals, recorded models and the ranked review", async ({ page }, testInfo) => {
   const value = progress();
   value.fresh_eyes = {
     state: "current", ready: true, capability_brief: { mission: "A useful system" },
@@ -101,30 +117,35 @@ test("fresh eyes shows independent proposals, recorded models and the ranked rev
   await expect(page.locator('[data-step="mission_filter"]')).toContainText("Complete");
   await page.locator('[data-step="grounding"]').click();
   await expect(page.locator("#workflow-detail")).toContainText("do not prove a recommendation correct");
+  await expect(page.locator(".workflow-edges > path")).toHaveCount(8);
+  await page.locator("#workflow-diagram").screenshot({ path: testInfo.outputPath("fresh-eyes-branches.png") });
 });
 
 test("desktop and phone diagrams fit, keep arrows and support both themes", async ({ page }, testInfo) => {
   await open(page);
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1100 });
-    for (const theme of ["constellation-light", "constellation-dark"]) {
-      await page.locator("#theme-select").selectOption(theme);
-      await expect(page.locator(".workflow-edges > path")).toHaveCount(7);
-      const layout = await page.evaluate(() => ({
-        viewport: innerWidth, content: document.body.scrollWidth,
-        boxes: [...document.querySelectorAll(".workflow-node")].map(node => {
-          const rect = node.getBoundingClientRect();
-          return { x: rect.x, y: rect.y, right: rect.right, bottom: rect.bottom };
-        }),
-      }));
-      expect(layout.content).toBeLessThanOrEqual(layout.viewport);
-      for (let i = 0; i < layout.boxes.length; i++) {
-        for (let j = i + 1; j < layout.boxes.length; j++) {
-          const a = layout.boxes[i], b = layout.boxes[j];
-          expect(a.right <= b.x || b.right <= a.x || a.bottom <= b.y || b.bottom <= a.y).toBeTruthy();
+    for (const [flow, steps] of [["mapping", 8], ["patterns", 6], ["fresh-eyes", 7]]) {
+      for (const theme of ["constellation-light", "constellation-dark"]) {
+        await page.locator("#theme-select").selectOption(theme);
+        await page.locator(`#workflow-tab-${flow}`).click();
+        expect(await page.locator(".workflow-edges > path").count()).toBeGreaterThanOrEqual(steps - 1);
+        const layout = await page.evaluate(() => ({
+          viewport: innerWidth, content: document.body.scrollWidth,
+          boxes: [...document.querySelectorAll(".workflow-node")].map(node => {
+            const rect = node.getBoundingClientRect();
+            return { x: rect.x, y: rect.y, right: rect.right, bottom: rect.bottom };
+          }),
+        }));
+        expect(layout.content).toBeLessThanOrEqual(layout.viewport);
+        for (let i = 0; i < layout.boxes.length; i++) {
+          for (let j = i + 1; j < layout.boxes.length; j++) {
+            const a = layout.boxes[i], b = layout.boxes[j];
+            expect(a.right <= b.x || b.right <= a.x || a.bottom <= b.y || b.bottom <= a.y).toBeTruthy();
+          }
         }
+        await page.screenshot({ path: testInfo.outputPath(`workflows-${flow}-${width}-${theme}.png`), fullPage: true });
       }
-      await page.screenshot({ path: testInfo.outputPath(`workflows-${width}-${theme}.png`), fullPage: true });
     }
   }
 });
