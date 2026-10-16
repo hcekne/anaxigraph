@@ -5,15 +5,16 @@ export const statusLabels = {
 };
 
 export function jobFacts(data, kind, scope) {
+  const matches = item => item.job_kind === kind && (!scope || item.scope_type === scope);
   const rows = data.semantic?.telemetry?.semantic?.current_snapshot?.actions || [];
-  const value = rows.find(item => item.job_kind === kind && (!scope || item.scope_type === scope)) || {};
-  const live = data.coverage?.live_jobs?.find(item => item.job_kind === kind && (!scope || item.scope_type === scope)) || {};
+  const value = rows.find(matches) || {};
+  const live = data.coverage?.live_jobs?.find(matches) || {};
   const saved = (data.coverage?.document_models || [])
     .filter(item => item.document_kind === kind && (!scope || item.scope_type === scope))
     .flatMap(item => (item.models || "").split(",")).filter(Boolean);
   return { ...value, running: live.running || 0, interrupted: live.interrupted || 0,
     models: [...new Set([...(value.models || []), ...saved])],
-    errors: (data.coverage?.failures || []).filter(item => item.job_kind === kind && (!scope || item.scope_type === scope)) };
+    errors: (data.coverage?.failures || []).filter(matches) };
 }
 
 export function step(id, title, description, options = {}) {
@@ -47,24 +48,15 @@ function mappingFlow(data, files) {
   const modules = scopes.module || {};
   const total = modules.total == null ? null : modules.total - modules.excluded;
   const taxonomy = semantic.taxonomy || {};
-  const map = taxonomy.current;
   const groups = scopes.group || {};
   const charter = semantic.architecture_charter;
-  const scan = data.coverage?.scan || {};
-  const scanned = !!data.snapshot_id;
-  const scanActive = data.scan?.active;
-  const ready = modules.current === total && !!charter && charter.status === "current"
-    && (!taxonomy.enabled || taxonomy.ready) && groups.current === groups.total;
+  const ready = mapReady(modules, total, groups, semantic);
   return { id: "mapping", title: "Build the repository map", name: "Mapping",
     state: !semantic.enabled && !ready ? "not_started" : null,
     description: "From source files to a shared explanation of how this repository works.",
     note: "Checks after every map proposal and revision preserve file coverage and apply grouping rules. Arrows show evidence dependencies; independent file jobs can run together.",
     steps: [
-      step("scan", "Scan the source", "Read symbols, imports and source fingerprints.", {
-        owner: "AnaxiGraph code", done: scanActive ? data.scan.completed || 0 : files,
-        total: scanActive ? data.scan.total : files, unit: "files", status: scanActive ? "running" : scanned ? "complete" : "not_started",
-        reused: scan.reused_count, detail: `${scan.analyzed_count || 0} files analyzed and ${scan.reused_count || 0} reused in the saved scan. ${scan.error_count || 0} scan errors.`, view: "modules",
-      }),
+      scanStep(data, files),
       step("intrinsic", "Describe each file", "Explain purpose, responsibilities and contracts.", {
         done: modules.intrinsic, total, unit: "files", reused: modules.intrinsic_reused,
         jobs: jobFacts(data, "intrinsic"), enabled: semantic.enabled, view: "modules",
@@ -75,15 +67,7 @@ function mappingFlow(data, files) {
         jobs: jobFacts(data, "context"), enabled: semantic.enabled, view: "modules",
         detail: "The worker receives the intrinsic description, dependency links and nearby descriptions. This stage explains how the file fits into the repository.",
       }),
-      step("taxonomy_proposal", "Propose the map", "Group responsibilities into areas and subsystems.", {
-        done: map ? 1 : 0, total: 1, unit: "proposal", jobs: jobFacts(data, "taxonomy_proposal"), enabled: taxonomy.enabled,
-        detail: "The proposal uses file descriptions and code relationships. Software validates and repairs assignments before the review begins.", view: "graph",
-      }),
-      step("taxonomy_review", "Review and revise", "Critique the map, then check every revised assignment.", {
-        done: map?.stored_reviews || 0, total: taxonomy.required_review_passes ?? null, unit: "passes",
-        zeroComplete: !!map, jobs: jobFacts(data, "taxonomy_review"), enabled: taxonomy.enabled,
-        detail: map ? `${map.validation?.assigned_modules || 0} files assigned; ${map.validation?.areas || 0} areas and ${map.validation?.subsystems || 0} subsystems. Latest validation: ${map.validation?.repairs || 0} repairs. Repairs preserve coverage; they do not prove grouping accuracy.` : "Each pass receives the current map. The configured taxonomy model applies to the proposal and its reviews.", view: "graph",
-      }),
+      ...taxonomySteps(data, taxonomy),
       step("groups", "Summarize groups", "Combine member descriptions into shared responsibilities.", {
         done: groups.current, total: groups.total ?? null, unit: "groups", reused: groups.reused,
         jobs: jobFacts(data, "synthesis", "group"), enabled: semantic.enabled, view: "overview",
@@ -101,6 +85,41 @@ function mappingFlow(data, files) {
     ] };
 }
 
+function mapReady(modules, total, groups, semantic) {
+  const taxonomy = semantic.taxonomy || {};
+  return modules.current === total && semantic.architecture_charter?.status === "current"
+    && (!taxonomy.enabled || taxonomy.ready) && groups.current === groups.total;
+}
+
+function scanStep(data, files) {
+  const scan = data.coverage?.scan || {};
+  const active = data.scan?.active;
+  return step("scan", "Scan the source", "Read symbols, imports and source fingerprints.", {
+    owner: "AnaxiGraph code", done: active ? data.scan.completed || 0 : files,
+    total: active ? data.scan.total : files, unit: "files", status: active ? "running" : data.snapshot_id ? "complete" : "not_started",
+    reused: scan.reused_count, detail: `${scan.analyzed_count || 0} files analyzed and ${scan.reused_count || 0} reused in the saved scan. ${scan.error_count || 0} scan errors.`, view: "modules",
+  });
+}
+
+function taxonomySteps(data, taxonomy) {
+  const map = taxonomy.current;
+  return [
+    step("taxonomy_proposal", "Propose the map", "Group responsibilities into areas and subsystems.", {
+      done: map ? 1 : 0, total: 1, unit: "proposal", jobs: jobFacts(data, "taxonomy_proposal"), enabled: taxonomy.enabled,
+      detail: "The proposal uses file descriptions and code relationships. Software validates and repairs assignments before the review begins.", view: "graph",
+    }),
+    step("taxonomy_review", "Review and revise", "Critique the map, then check every revised assignment.", {
+      done: map?.stored_reviews || 0, total: taxonomy.required_review_passes ?? null, unit: "passes",
+      zeroComplete: !!map, jobs: jobFacts(data, "taxonomy_review"), enabled: taxonomy.enabled,
+      detail: map ? `${map.validation?.assigned_modules || 0} files assigned; ${map.validation?.areas || 0} areas and ${map.validation?.subsystems || 0} subsystems. Latest validation: ${map.validation?.repairs || 0} repairs. Repairs preserve coverage; they do not prove grouping accuracy.` : "Each pass receives the current map. The configured taxonomy model applies to the proposal and its reviews.", view: "graph",
+    }),
+  ];
+}
+
+function unplannedState(worker, workflow) {
+  return worker?.workflow === workflow && ["running", "queued"].includes(worker.status) ? "running" : "not_started";
+}
+
 function patternFlow(data) {
   const semantic = data.semantic || {};
   const patterns = semantic.patterns || {};
@@ -112,7 +131,7 @@ function patternFlow(data) {
   const enabled = patterns.enabled || planned;
   const ready = planned && done === total;
   return { id: "patterns", name: "Pattern analysis", title: "Find patterns that fit the code",
-    state: !planned ? (semantic.worker?.workflow === "patterns" && ["running", "queued"].includes(semantic.worker.status) ? "running" : "not_started") : null,
+    state: planned ? null : unplannedState(semantic.worker, "patterns"),
     description: "A focused assessment of candidate patterns, followed by an independent critique.",
     note: "This optional run assesses patterns against the saved map and completes missing mapping prerequisites as needed. Counts here are candidate–target pairs, not unique files. No source code is changed.",
     steps: [

@@ -88,9 +88,7 @@ async function loadWorkflows(resetControls = false) {
   try {
     const value = await request(api("/api/workflows"));
     if (token !== requestToken || repositoryId !== state.repositoryId) return;
-    const changed = data && (data.snapshot_id !== value.snapshot_id ||
-      (["queued", "running"].includes(data.semantic.worker?.status) && !["queued", "running"].includes(value.semantic.worker?.status)) ||
-      (data.semantic.jobs?.running_live > 0 && !value.semantic.jobs?.running_live));
+    const changed = repositoryResultsChanged(data, value);
     data = value;
     if (changed) { await state.reloadRepository?.(); return; }
     if (resetControls || controlsRepository !== repositoryId) configureControls();
@@ -105,6 +103,13 @@ async function loadWorkflows(resetControls = false) {
       timer = window.setTimeout(loadWorkflows, 3500);
     }
   }
+}
+
+function repositoryResultsChanged(previous, current) {
+  if (!previous) return false;
+  return previous.snapshot_id !== current.snapshot_id ||
+    (["queued", "running"].includes(previous.semantic.worker?.status) && !["queued", "running"].includes(current.semantic.worker?.status)) ||
+    (previous.semantic.jobs?.running_live > 0 && !current.semantic.jobs?.running_live);
 }
 
 function configureControls() {
@@ -151,24 +156,39 @@ function render() {
 }
 
 function renderControls(flow) {
-  const semantic = data.semantic;
-  const worker = semantic.worker || {};
-  const active = ["queued", "running"].includes(worker.status) || semantic.jobs?.running_live > 0;
-  const stale = semantic.map_status?.state !== "current";
-  const allowed = data.execution.mounted && semantic.enabled && !stale && !active && !data.scan?.active;
-  const available = data.execution.configured_provider !== "agent" || data.execution.local_executors.length > 0;
-  byId("workflow-run-button").disabled = runningRequest || !allowed || !available || (flow.id === "fresh-eyes" && data.execution.configured_provider !== "agent");
+  const { active, stale, allowed, available, unsupported } = executionState(flow);
+  byId("workflow-run-button").disabled = runningRequest || !allowed || !available || unsupported;
   byId("workflow-run-button").textContent = active ? "Worker is running…" : `Start / resume ${flow.name.toLowerCase()}`;
   byId("workflow-scan").disabled = runningRequest || !data.execution.mounted || active || data.scan?.active;
   byId("workflow-run-title").textContent = flow.name;
   byId("workflow-run-note").textContent = flow.id === "patterns" ? flow.note : "Starts model calls on this server and resumes saved work. Existing requested reviews can also advance on the shared queue.";
   byId("workflow-fresh-options").hidden = flow.id !== "fresh-eyes";
-  byId("workflow-execution-note").textContent = !data.execution.mounted ? "This repository is available for reading only."
-    : !semantic.enabled ? "AI mapping is disabled in this repository's service policy."
-      : flow.id === "fresh-eyes" && data.execution.configured_provider !== "agent" ? "Fresh eyes requires the repository's agent provider. Mapping and patterns can use the configured provider."
+  byId("workflow-execution-note").textContent = executionNote(available, unsupported);
+  byId("workflow-message").textContent = progressMessage(active, stale);
+}
+
+function executionState(flow) {
+  const semantic = data.semantic;
+  const active = ["queued", "running"].includes(semantic.worker?.status) || semantic.jobs?.running_live > 0;
+  const stale = semantic.map_status?.state !== "current";
+  const allowed = data.execution.mounted && semantic.enabled && !stale && !active && !data.scan?.active;
+  const available = data.execution.configured_provider !== "agent" || data.execution.local_executors.length > 0;
+  const unsupported = flow.id === "fresh-eyes" && data.execution.configured_provider !== "agent";
+  return { active, stale, allowed, available, unsupported };
+}
+
+function executionNote(available, unsupported) {
+  return !data.execution.mounted ? "This repository is available for reading only."
+    : !data.semantic.enabled ? "AI mapping is disabled in this repository's service policy."
+      : unsupported ? "Fresh eyes requires the repository's agent provider. Mapping and patterns can use the configured provider."
       : !available ? "No local Codex or Claude executor is installed on this server. A connected host worker can still process the saved queue."
         : "Saved work survives a page reload. After a server restart, resume unfinished work here. Configured stage models and usage limits still apply.";
-  byId("workflow-message").textContent = worker.error || (semantic.budget?.paused || worker.paused ? "Work is paused at the configured usage limit. Saved results remain available."
+}
+
+function progressMessage(active, stale) {
+  const semantic = data.semantic;
+  const worker = semantic.worker || {};
+  return worker.error || (semantic.budget?.paused || worker.paused ? "Work is paused at the configured usage limit. Saved results remain available."
     : data.scan?.active ? `Source scan: ${data.scan.phase || data.scan.status} · ${data.scan.completed || 0} files processed.`
     : stale ? "These results belong to the saved scan. Refresh the source scan before running more analysis."
       : active ? `Work is running for ${selectedRepository()?.name || "this repository"}. Progress updates automatically.`
