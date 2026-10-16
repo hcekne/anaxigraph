@@ -3,6 +3,7 @@ import { drawGraph } from "/assets/graph-view.js";
 
 const VIEW_JOURNEY = {
   overview: "understand",
+  workflows: "understand",
   modules: "understand",
   graph: "understand",
   agents: "guide",
@@ -14,7 +15,7 @@ const VIEW_JOURNEY = {
 };
 
 const JOURNEY_VIEWS = {
-  understand: [["overview", "Charter & overview"], ["modules", "Files"], ["graph", "Graph"]],
+  understand: [["overview", "Charter & overview"], ["workflows", "Workflows"], ["modules", "Files"], ["graph", "Graph"]],
   improve: [["architecture", "Findings"], ["patterns", "Patterns"], ["fresh-eyes", "Fresh eyes"]],
 };
 

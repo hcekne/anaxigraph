@@ -200,7 +200,7 @@ class SemanticRunnerService:
                 repository,
                 config,
                 force=force and not stages,
-                retry_failed=retry_failed,
+                retry_failed=retry_failed and not stages,
             )
             total["planned"] += plan.enqueued
             total.setdefault("work_plan", plan.work_plan())

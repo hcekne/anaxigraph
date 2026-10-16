@@ -46,6 +46,43 @@ The first-run tour explains the main loop:
 3. plan only the findings you deliberately want an agent to act on; and
 4. rescan after a change so measured findings can resolve or regress.
 
+### Explore and run repository workflows
+
+**Understand → Workflows** shows three interactive diagrams for the selected repository:
+
+- **Mapping:** scan → file descriptions → context → responsibility proposal → map reviews →
+  group summaries → Charter → exploration.
+- **Pattern analysis:** saved map and code evidence → candidate selection → assessments →
+  independent critiques → saved evaluations → exploration.
+- **Fresh eyes:** capability brief → independent proposals → reference design → comparison
+  with current code → ranked improvements → reference checks → exploration.
+
+Select any card to see its inputs, outputs, recorded models, usage and result links. File coverage
+counts current saved descriptions, including reuse. Model-job totals can include repeated work;
+pattern counts refer to candidate–target pairs. A completed selection with zero candidates is a
+valid outcome. Optional flows remain **Not run** until requested, and queued work is distinguished
+from a live worker or an expired lease. Progress refreshes while this view is open.
+
+The run panel starts or resumes work through the existing semantic queue. With the `agent`
+provider, select Codex or Claude and supply a model; the CLI must be installed and authenticated
+on the machine running the web server. A configured non-agent provider supports mapping and
+patterns using its existing settings. Fresh eyes requires the agent provider. Repository stage
+model choices take precedence over the selected worker model and appear under **Model choices
+by stage**. The map proposal and its reviews share the taxonomy tier.
+
+The Docker image does not bundle coding-agent CLIs or credentials. Its diagrams remain readable,
+and the run panel explains when no local executor is available; installing a CLI only on the
+host does not make it available inside that container. Existing host-worker and MCP execution
+still work as described below. No task is reported as running merely because it was prepared.
+
+Pattern analysis completes missing mapping prerequisites, then runs its existing candidate and
+review stages against that saved map. It does not enable detailed review permanently or change
+the file-description contract. Fresh-eyes proposals run in separate sessions; the recorded
+provenance shows whether different models or providers actually participated. You can start a
+new review generation explicitly, or resume an unfinished one. Other explicitly requested work
+can advance on the shared queue too. Runs leave source files unchanged and retain completed
+results across page reloads. Resume unfinished work after restarting the server.
+
 ### 3. Start your coding agent in the same repository
 
 The explicit `--connect codex` or `--connect claude` option writes the local MCP connection for the

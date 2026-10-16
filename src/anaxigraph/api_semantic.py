@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,8 @@ class SemanticRefreshCoordinator:
         *,
         force: bool = False,
         retry_failed: bool = False,
+        run: Callable[[], dict[str, Any]] | None = None,
+        workflow: str = "mapping",
     ) -> bool:
         key = str(target.path.resolve())
         config = load_config(target.path, target.config_path)
@@ -40,10 +43,10 @@ class SemanticRefreshCoordinator:
         with self.lock:
             if self.jobs.get(key, {}).get("status") in {"queued", "running"}:
                 return False
-            self.jobs[key] = {"status": "queued"}
+            self.jobs[key] = {"status": "queued", "workflow": workflow}
         thread = threading.Thread(
             target=self._worker,
-            args=(target, force, retry_failed),
+            args=(target, force, retry_failed, run, workflow),
             name=f"anaxigraph-semantic-{target.key}",
             daemon=True,
         )
@@ -71,21 +74,27 @@ class SemanticRefreshCoordinator:
         target: RepositoryTarget,
         force: bool,
         retry_failed: bool,
+        run: Callable[[], dict[str, Any]] | None = None,
+        workflow: str = "mapping",
     ) -> None:
         key = str(target.path.resolve())
         with self.lock:
-            self.jobs[key] = {"status": "running"}
+            self.jobs[key] = {"status": "running", "workflow": workflow}
         try:
             config = load_config(target.path, target.config_path)
             repository = self.database.repository(target.path)
             if repository is None or self.database.latest_snapshot(int(repository["id"])) is None:
                 raise RuntimeError("A current structural snapshot is required")
-            result = SemanticEngine(self.database).bootstrap(
-                int(repository["id"]),
-                target.path,
-                config,
-                force=force,
-                retry_failed=retry_failed,
+            result = (
+                run()
+                if run is not None
+                else SemanticEngine(self.database).bootstrap(
+                    int(repository["id"]),
+                    target.path,
+                    config,
+                    force=force,
+                    retry_failed=retry_failed,
+                )
             )
             status = {"status": "complete", **result}
         except Exception as exc:  # Background failures are intentionally visible in the UI.
@@ -94,4 +103,4 @@ class SemanticRefreshCoordinator:
                 "error": f"{type(exc).__name__}: {exc}"[:2_000],
             }
         with self.lock:
-            self.jobs[key] = status
+            self.jobs[key] = {**status, "workflow": workflow}

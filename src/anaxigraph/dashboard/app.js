@@ -40,6 +40,7 @@ import {
   renderSettings,
 } from "/assets/repository-view.js";
 import { setupWorkflowEvents } from "/assets/workflow-events.js";
+import { resetWorkflowsView, setupWorkflowsView } from "/assets/workflows-view.js";
 
 async function load() {
   try {
@@ -151,6 +152,7 @@ function resetRepositoryState() {
   state.hiddenGroups.clear();
   resetPatternView();
   resetFreshEyesView();
+  resetWorkflowsView();
 }
 
 function configureMapLayers() {
@@ -194,6 +196,7 @@ setupTheme();
 renderNavigation();
 setupPatternView();
 setupFreshEyesView();
+setupWorkflowsView();
 setupReassessmentView();
 setupModuleEvents();
 setupGraphEvents();

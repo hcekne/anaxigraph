@@ -227,6 +227,7 @@
         "anaxigraph.api_scan",
         "anaxigraph.api_semantic",
         "anaxigraph.api_semantic_routes",
+        "anaxigraph.api_workflows",
         "anaxigraph.api_support",
         "anaxigraph.cli",
         "anaxigraph.cli_agent_commands",
