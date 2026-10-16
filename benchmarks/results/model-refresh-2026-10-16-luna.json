@@ -1,0 +1,3507 @@
+{
+  "contract": "module-mapping-pilot-v1",
+  "created_at": "2026-10-16T13:01:36.879269+00:00",
+  "finished_at": "2026-10-16T13:04:54.304572+00:00",
+  "repository": "https://github.com/hcekne/anaxigraph",
+  "revision": "beb5f5edba59e9bdb8c2c1edf39f018f0237eaef",
+  "dirty_before_run": false,
+  "model": "gpt-6-luna",
+  "provider": "codex",
+  "reasoning_effort": "medium",
+  "codex_version": "codex-cli 0.163.0",
+  "command": "uv run anaxigraph understand . --config PILOT_CONFIG.yml --db FRESH_INDEX.db --executor codex --model gpt-6-luna --reasoning-effort medium --parallel-jobs 2 --limit 48 --json",
+  "config": {
+    "project": {
+      "name": "AnaxiGraph selected-module evaluation"
+    },
+    "include": [
+      "src/anaxigraph/analyzers/javascript.py",
+      "src/anaxigraph/analyzers/javascript_parser.py",
+      "src/anaxigraph/analyzers/javascript_symbols.py",
+      "src/anaxigraph/relationship_builder.py",
+      "src/anaxigraph/relationships.py",
+      "src/anaxigraph/semantic.py",
+      "src/anaxigraph/semantic_job_state.py",
+      "src/anaxigraph/semantic_execution.py",
+      "src/anaxigraph/persistence/semantic_taxonomy_read.py",
+      "src/anaxigraph/semantic_taxonomy_validation.py",
+      "src/anaxigraph/dashboard/module-view.js",
+      "src/anaxigraph/dashboard/module-events.js"
+    ],
+    "semantic": {
+      "enabled": true,
+      "provider": "agent",
+      "detailed_reviews": false,
+      "max_jobs_per_run": 48,
+      "max_parallel_jobs": 2,
+      "timeout_seconds": 300,
+      "max_attempts": 1,
+      "taxonomy": {
+        "enabled": true,
+        "review_passes": 2
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "src/anaxigraph/analyzers/javascript.py",
+      "sha256": "2dba6b67549fad25c9bfba8154a23251aab1c22e715ce6d125815736eef0a82a",
+      "lines": 238
+    },
+    {
+      "path": "src/anaxigraph/analyzers/javascript_parser.py",
+      "sha256": "485cc503e49e59172cad8ed8c7be29409a930704d2b59b63bbfa3aa3ff314c31",
+      "lines": 219
+    },
+    {
+      "path": "src/anaxigraph/analyzers/javascript_symbols.py",
+      "sha256": "1aba209e7980b3e4739ddd76bc03d21b3f9e3229b3d659dc2eb930bd4326b9d8",
+      "lines": 378
+    },
+    {
+      "path": "src/anaxigraph/relationship_builder.py",
+      "sha256": "83c8ed4c5123ac30bd32e28779d666a9189944064b934ca01b4f92041597d589",
+      "lines": 442
+    },
+    {
+      "path": "src/anaxigraph/relationships.py",
+      "sha256": "e2d855f6be553828a5dc7b2bad6ae25d550a545f5016546da1511d6a24ab5831",
+      "lines": 81
+    },
+    {
+      "path": "src/anaxigraph/semantic.py",
+      "sha256": "d094e3943b27cab965e06a3c0ea4158868d1e2381b245e51d37f0befab145f01",
+      "lines": 486
+    },
+    {
+      "path": "src/anaxigraph/semantic_job_state.py",
+      "sha256": "ca3aaf4a1ef4e678915ac344f26300cb9e13367336224228b9cfaa99da4110cf",
+      "lines": 96
+    },
+    {
+      "path": "src/anaxigraph/semantic_execution.py",
+      "sha256": "48112fac19aee1632488f8c5da6bdb32928115506232553124c14020125fc96d",
+      "lines": 210
+    },
+    {
+      "path": "src/anaxigraph/persistence/semantic_taxonomy_read.py",
+      "sha256": "68dff4301b8c1458f9aae5d13b7e921cd81c7f58b7a15c27680ff86c4bed2309",
+      "lines": 233
+    },
+    {
+      "path": "src/anaxigraph/semantic_taxonomy_validation.py",
+      "sha256": "9f7c6711fff8fb19a77de51d2eb7f9fb25f583300b83b3f01bbf200a9ffb1f65",
+      "lines": 491
+    },
+    {
+      "path": "src/anaxigraph/dashboard/module-view.js",
+      "sha256": "0ae168abff47e39d0e036e58d54d94a87127c607917bd263abb1e481eb145742",
+      "lines": 238
+    },
+    {
+      "path": "src/anaxigraph/dashboard/module-events.js",
+      "sha256": "8e7ce7bcc76fc54b9c8cf4b0d2c411b598b22de13f2774d4767c78d0903c3f30",
+      "lines": 102
+    }
+  ],
+  "summary": {
+    "files": 12,
+    "source_lines": 3214,
+    "completed_tasks": 37,
+    "failed_tasks": 0,
+    "retries": 0,
+    "wall_seconds": 197.312,
+    "all_usage_reported": true,
+    "input_tokens": 708283,
+    "output_tokens": 20340,
+    "cache_read_input_tokens": 195072,
+    "cache_creation_input_tokens": 0,
+    "monetary_cost_usd": null,
+    "cost_caveat": "The CLI uses ChatGPT authentication. No monetary charge was reported. The raw status cost_usd of 0.0 comes from zero configured token rates and is not evidence of free execution.",
+    "baseline_complete": true,
+    "semantically_ready": true,
+    "final_map_validation": {
+      "areas": 4,
+      "assigned_modules": 12,
+      "eligible_modules": 12,
+      "issues": [],
+      "repairs": 0,
+      "status": "valid",
+      "subsystems": 5
+    },
+    "review_repairs": [
+      {
+        "pass_index": 1,
+        "repairs": 2
+      },
+      {
+        "pass_index": 2,
+        "repairs": 0
+      }
+    ],
+    "source_unchanged_after_run": true
+  },
+  "stages": [
+    {
+      "kind": "context",
+      "scope": "module",
+      "tasks": 12,
+      "median_task_seconds": 5.1,
+      "input_tokens": 192258,
+      "output_tokens": 3237,
+      "cache_read_input_tokens": 85888,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "kind": "intrinsic",
+      "scope": "module",
+      "tasks": 12,
+      "median_task_seconds": 5.921,
+      "input_tokens": 296590,
+      "output_tokens": 3637,
+      "cache_read_input_tokens": 11648,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "kind": "synthesis",
+      "scope": "group",
+      "tasks": 9,
+      "median_task_seconds": 6.905,
+      "input_tokens": 137766,
+      "output_tokens": 3135,
+      "cache_read_input_tokens": 97536,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "kind": "synthesis",
+      "scope": "repository",
+      "tasks": 1,
+      "median_task_seconds": 22.503,
+      "input_tokens": 20269,
+      "output_tokens": 2765,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "kind": "taxonomy_proposal",
+      "scope": "taxonomy",
+      "tasks": 1,
+      "median_task_seconds": 17.24,
+      "input_tokens": 19494,
+      "output_tokens": 1699,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0
+    },
+    {
+      "kind": "taxonomy_review",
+      "scope": "taxonomy",
+      "tasks": 2,
+      "median_task_seconds": 20.99,
+      "input_tokens": 41906,
+      "output_tokens": 5867,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0
+    }
+  ],
+  "source_review": {
+    "method": "Assistant source inspection, not a blinded or human-labeled accuracy benchmark. Notes recorded after inspecting source and context answers; not preregistered.",
+    "finding": "All 12 contextual descriptions identify the correct primary role in source inspection. Important stated edge cases match the inspected implementation. This is a qualitative assistant review, not a measured accuracy rate or a blinded human evaluation.",
+    "observations": [
+      "The module descriptions correctly distinguish syntax extraction from TypeScript type checking, preserve ambiguous/dynamic dependency status, describe stale dashboard response guards, and describe validated job-state transitions.",
+      "The final five subsystems are coherent for the selected sample: source parsing/symbols, dependency links, semantic execution/state, file group maps, and module dashboard controls/display.",
+      "The first taxonomy review omitted both dashboard files. Deterministic repair assigned them to an unclassified group; the second model review restored a dashboard group. Final zero repairs must not be presented as a clean history.",
+      "Evidence often names whole modules or symbols rather than attaching each assertion to an exact source span. Self-reported confidence is 0.98 to 1.0 for the contextual descriptions; it is not calibrated accuracy.",
+      "The contextual answers mostly preserve the intrinsic answers. Whether the second pass improves real navigation enough to justify its 192258 input tokens needs a separate task-based experiment."
+    ],
+    "per_file": [
+      {
+        "path": "src/anaxigraph/analyzers/javascript.py",
+        "source_facts": [
+          "Combines parser, dependency, symbol, evidence and module-semantics results into FileAnalysis.",
+          "JS/JSX/TS/TSX syntax extraction; parser failures yield a parse-error analysis; TypeScript is not type checked."
+        ],
+        "disposition": "Primary role and stated key contracts consistent with inspected source; not exhaustive claim verification."
+      },
+      {
+        "path": "src/anaxigraph/analyzers/javascript_parser.py",
+        "source_facts": [
+          "Loads Tree-sitter languages and exposes parsed source text, spans and bounded recovery diagnostics.",
+          "Structural hashing uses non-comment leaves; helpers measure code/comments and inspect literals and signatures."
+        ],
+        "disposition": "Primary role and stated key contracts consistent with inspected source; not exhaustive claim verification."
+      },
+      {
+        "path": "src/anaxigraph/analyzers/javascript_symbols.py",
+        "source_facts": [
+          "Extracts and deduplicates symbols from declarations and callable expressions, including JSX components and TS declarations.",
+          "Route-call recognition is restricted to literal routes on app/router/server; exported/member visibility is syntax based."
+        ],
+        "disposition": "Primary role and stated key contracts consistent with inspected source; not exhaustive claim verification."
+      },
+      {
+        "path": "src/anaxigraph/relationship_builder.py",
+        "source_facts": [
+          "Resolves and persists snapshot relationships while reusing unchanged sources.",
+          "Keeps ambiguous, unresolved and dynamic provenance and lowers confidence rather than inventing a unique internal dependency."
+        ],
+        "disposition": "Primary role and stated key contracts consistent with inspected source; not exhaustive claim verification."
+      },
+      {
+        "path": "src/anaxigraph/relationships.py",
+        "source_facts": [
+          "Decodes legacy or current relationship provenance and counts resolution statuses.",
+          "Unknown resolution rate is None; quality counts extracted references, not complete runtime reachability."
+        ],
+        "disposition": "Primary role and stated key contracts consistent with inspected source; not exhaustive claim verification."
+      },
+      {
+        "path": "src/anaxigraph/semantic.py",
+        "source_facts": [
+          "Applies per-stage runtime overrides and provides command, Codex and Claude CLI adapters.",
+          "Validates structured results, records reported usage and carries usage on failures; Codex uses read-only ephemeral execution."
+        ],
+        "disposition": "Primary role and stated key contracts consistent with inspected source; not exhaustive claim verification."
+      },
+      {
+        "path": "src/anaxigraph/semantic_execution.py",
+        "source_facts": [
+          "Defines per-run flags and selects agent-funded executor settings.",
+          "Overrides replace tiers, concurrency is capped, unsupported flag combinations fail, and executable presence is checked."
+        ],
+        "disposition": "Primary role and stated key contracts consistent with inspected source; not exhaustive claim verification."
+      },
+      {
+        "path": "src/anaxigraph/semantic_job_state.py",
+        "source_facts": [
+          "Defines allowed job transitions and raises on unknown or invalid transitions.",
+          "Bulk transitions need a nonempty common target; no scheduling or persistence happens here."
+        ],
+        "disposition": "Primary role and stated key contracts consistent with inspected source; not exhaustive claim verification."
+      },
+      {
+        "path": "src/anaxigraph/persistence/semantic_taxonomy_read.py",
+        "source_facts": [
+          "Reads the latest current taxonomy and builds assignment and hierarchy payloads.",
+          "Decodes JSON evidence/reviews, adds labels, sums node metrics and guards recursive hierarchy cycles."
+        ],
+        "disposition": "Primary role and stated key contracts consistent with inspected source; not exhaustive claim verification."
+      },
+      {
+        "path": "src/anaxigraph/semantic_taxonomy_validation.py",
+        "source_facts": [
+          "Normalizes/repairs taxonomy assignments and obtains stable node identities.",
+          "Handles unknown, duplicate and missing memberships, locks and size limits; returns validation issues rather than certifying semantic accuracy."
+        ],
+        "disposition": "Primary role and stated key contracts consistent with inspected source; not exhaustive claim verification."
+      },
+      {
+        "path": "src/anaxigraph/dashboard/module-view.js",
+        "source_facts": [
+          "Renders filters, paginated module rows and expanded semantic details from shared state.",
+          "Search and ordinary sorting differ; values are escaped and concise/detailed semantic displays have fallbacks."
+        ],
+        "disposition": "Primary role and stated key contracts consistent with inspected source; not exhaustive claim verification."
+      },
+      {
+        "path": "src/anaxigraph/dashboard/module-events.js",
+        "source_facts": [
+          "Connects filters/sort/paging/search/detail/graph actions to shared state and renderer.",
+          "Search is debounced 180ms with a two-character threshold; stale query/repository responses are guarded and file details are cached."
+        ],
+        "disposition": "Primary role and stated key contracts consistent with inspected source; not exhaustive claim verification."
+      }
+    ]
+  },
+  "limitations": [
+    "Selected source files from one repository, not a full-repository or large-repository test.",
+    "Single trial at medium reasoning; no comparative model run.",
+    "CLI authentication uses ChatGPT; monetary cost is not reported.",
+    "The subset omits collaborators outside the selected files.",
+    "No existing semantic documents are reused.",
+    "max_attempts was 1 to expose first-attempt failures; successful built-in taxonomy review/repair is recorded separately from retries.",
+    "The same Luna model authored the taxonomy proposal and both review passes.",
+    "No Anthropic mapping comparison or large-repository model run was performed.",
+    "Repository Charter describes only this 12-file subset; it is not a replacement for the full AnaxiGraph Charter."
+  ],
+  "jobs": [
+    {
+      "id": 1,
+      "job_kind": "intrinsic",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/analyzers/javascript.py",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 22332,
+      "output_tokens": 246,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:02:08.731752+00:00",
+      "completed_at": "2026-10-16T13:02:13.706886+00:00",
+      "error": null,
+      "wall_seconds": 4.975
+    },
+    {
+      "id": 2,
+      "job_kind": "intrinsic",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/analyzers/javascript_parser.py",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 23719,
+      "output_tokens": 337,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:01:55.689724+00:00",
+      "completed_at": "2026-10-16T13:02:02.528076+00:00",
+      "error": null,
+      "wall_seconds": 6.838
+    },
+    {
+      "id": 3,
+      "job_kind": "intrinsic",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/analyzers/javascript_symbols.py",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 29005,
+      "output_tokens": 286,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:01:47.246008+00:00",
+      "completed_at": "2026-10-16T13:01:52.197203+00:00",
+      "error": null,
+      "wall_seconds": 4.951
+    },
+    {
+      "id": 4,
+      "job_kind": "intrinsic",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/dashboard/module-events.js",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 19922,
+      "output_tokens": 339,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:02:08.733050+00:00",
+      "completed_at": "2026-10-16T13:02:14.300651+00:00",
+      "error": null,
+      "wall_seconds": 5.568
+    },
+    {
+      "id": 5,
+      "job_kind": "intrinsic",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/dashboard/module-view.js",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 23107,
+      "output_tokens": 287,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:01:47.247476+00:00",
+      "completed_at": "2026-10-16T13:01:55.675915+00:00",
+      "error": null,
+      "wall_seconds": 8.428
+    },
+    {
+      "id": 6,
+      "job_kind": "intrinsic",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/persistence/semantic_taxonomy_read.py",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 21447,
+      "output_tokens": 278,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:02:02.543672+00:00",
+      "completed_at": "2026-10-16T13:02:08.221238+00:00",
+      "error": null,
+      "wall_seconds": 5.678
+    },
+    {
+      "id": 7,
+      "job_kind": "intrinsic",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/relationship_builder.py",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 30726,
+      "output_tokens": 459,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:01:55.688592+00:00",
+      "completed_at": "2026-10-16T13:02:02.261901+00:00",
+      "error": null,
+      "wall_seconds": 6.573
+    },
+    {
+      "id": 8,
+      "job_kind": "intrinsic",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/relationships.py",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 17183,
+      "output_tokens": 296,
+      "cache_read_input_tokens": 11648,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:02:14.313244+00:00",
+      "completed_at": "2026-10-16T13:02:19.199283+00:00",
+      "error": null,
+      "wall_seconds": 4.886
+    },
+    {
+      "id": 9,
+      "job_kind": "intrinsic",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/semantic.py",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 33361,
+      "output_tokens": 380,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:01:39.646378+00:00",
+      "completed_at": "2026-10-16T13:01:47.232021+00:00",
+      "error": null,
+      "wall_seconds": 7.586
+    },
+    {
+      "id": 10,
+      "job_kind": "intrinsic",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/semantic_execution.py",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 23015,
+      "output_tokens": 265,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:02:02.551480+00:00",
+      "completed_at": "2026-10-16T13:02:08.716618+00:00",
+      "error": null,
+      "wall_seconds": 6.165
+    },
+    {
+      "id": 11,
+      "job_kind": "intrinsic",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/semantic_job_state.py",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 18984,
+      "output_tokens": 221,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:02:14.314372+00:00",
+      "completed_at": "2026-10-16T13:02:21.347052+00:00",
+      "error": null,
+      "wall_seconds": 7.033
+    },
+    {
+      "id": 12,
+      "job_kind": "intrinsic",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/semantic_taxonomy_validation.py",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 33789,
+      "output_tokens": 243,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:01:39.638046+00:00",
+      "completed_at": "2026-10-16T13:01:44.645851+00:00",
+      "error": null,
+      "wall_seconds": 5.008
+    },
+    {
+      "id": 13,
+      "job_kind": "context",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/analyzers/javascript.py",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 18169,
+      "output_tokens": 248,
+      "cache_read_input_tokens": 11648,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:02:46.992899+00:00",
+      "completed_at": "2026-10-16T13:02:52.263951+00:00",
+      "error": null,
+      "wall_seconds": 5.271
+    },
+    {
+      "id": 14,
+      "job_kind": "context",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/analyzers/javascript_parser.py",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 16781,
+      "output_tokens": 306,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:02:32.746514+00:00",
+      "completed_at": "2026-10-16T13:02:39.754669+00:00",
+      "error": null,
+      "wall_seconds": 7.008
+    },
+    {
+      "id": 15,
+      "job_kind": "context",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/analyzers/javascript_symbols.py",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 16442,
+      "output_tokens": 237,
+      "cache_read_input_tokens": 11648,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:02:26.336081+00:00",
+      "completed_at": "2026-10-16T13:02:32.654225+00:00",
+      "error": null,
+      "wall_seconds": 6.318
+    },
+    {
+      "id": 16,
+      "job_kind": "context",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/dashboard/module-events.js",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 15094,
+      "output_tokens": 272,
+      "cache_read_input_tokens": 11648,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:02:46.993974+00:00",
+      "completed_at": "2026-10-16T13:02:51.504563+00:00",
+      "error": null,
+      "wall_seconds": 4.511
+    },
+    {
+      "id": 17,
+      "job_kind": "context",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/dashboard/module-view.js",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 15665,
+      "output_tokens": 294,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:02:26.337442+00:00",
+      "completed_at": "2026-10-16T13:02:32.733041+00:00",
+      "error": null,
+      "wall_seconds": 6.396
+    },
+    {
+      "id": 18,
+      "job_kind": "context",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/persistence/semantic_taxonomy_read.py",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 14911,
+      "output_tokens": 271,
+      "cache_read_input_tokens": 11648,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:02:40.468275+00:00",
+      "completed_at": "2026-10-16T13:02:46.979597+00:00",
+      "error": null,
+      "wall_seconds": 6.511
+    },
+    {
+      "id": 19,
+      "job_kind": "context",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/relationship_builder.py",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 16453,
+      "output_tokens": 310,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:02:32.745191+00:00",
+      "completed_at": "2026-10-16T13:02:40.454942+00:00",
+      "error": null,
+      "wall_seconds": 7.71
+    },
+    {
+      "id": 20,
+      "job_kind": "context",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/relationships.py",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 15208,
+      "output_tokens": 244,
+      "cache_read_input_tokens": 11648,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:02:52.274941+00:00",
+      "completed_at": "2026-10-16T13:02:56.967589+00:00",
+      "error": null,
+      "wall_seconds": 4.693
+    },
+    {
+      "id": 21,
+      "job_kind": "context",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/semantic.py",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 17052,
+      "output_tokens": 308,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:02:21.393986+00:00",
+      "completed_at": "2026-10-16T13:02:26.323158+00:00",
+      "error": null,
+      "wall_seconds": 4.929
+    },
+    {
+      "id": 22,
+      "job_kind": "context",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/semantic_execution.py",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 15932,
+      "output_tokens": 290,
+      "cache_read_input_tokens": 13824,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:02:40.469427+00:00",
+      "completed_at": "2026-10-16T13:02:45.261031+00:00",
+      "error": null,
+      "wall_seconds": 4.792
+    },
+    {
+      "id": 23,
+      "job_kind": "context",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/semantic_job_state.py",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 15488,
+      "output_tokens": 220,
+      "cache_read_input_tokens": 13824,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:02:52.276134+00:00",
+      "completed_at": "2026-10-16T13:02:56.804100+00:00",
+      "error": null,
+      "wall_seconds": 4.528
+    },
+    {
+      "id": 24,
+      "job_kind": "context",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/semantic_taxonomy_validation.py",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 15063,
+      "output_tokens": 237,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:02:21.392179+00:00",
+      "completed_at": "2026-10-16T13:02:25.859896+00:00",
+      "error": null,
+      "wall_seconds": 4.468
+    },
+    {
+      "id": 25,
+      "job_kind": "taxonomy_proposal",
+      "scope_type": "taxonomy",
+      "scope_key": "1",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 19494,
+      "output_tokens": 1699,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:02:57.007122+00:00",
+      "completed_at": "2026-10-16T13:03:14.247338+00:00",
+      "error": null,
+      "wall_seconds": 17.24
+    },
+    {
+      "id": 26,
+      "job_kind": "taxonomy_review",
+      "scope_type": "taxonomy",
+      "scope_key": "1",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 20602,
+      "output_tokens": 2694,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:03:14.294365+00:00",
+      "completed_at": "2026-10-16T13:03:34.278741+00:00",
+      "error": null,
+      "wall_seconds": 19.984
+    },
+    {
+      "id": 27,
+      "job_kind": "taxonomy_review",
+      "scope_type": "taxonomy",
+      "scope_key": "1",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 21304,
+      "output_tokens": 3173,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:03:34.323925+00:00",
+      "completed_at": "2026-10-16T13:03:56.319947+00:00",
+      "error": null,
+      "wall_seconds": 21.996
+    },
+    {
+      "id": 28,
+      "job_kind": "synthesis",
+      "scope_type": "group",
+      "scope_key": "code-reading",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 15911,
+      "output_tokens": 374,
+      "cache_read_input_tokens": 13824,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:03:56.374693+00:00",
+      "completed_at": "2026-10-16T13:04:01.980013+00:00",
+      "error": null,
+      "wall_seconds": 5.605
+    },
+    {
+      "id": 29,
+      "job_kind": "synthesis",
+      "scope_type": "group",
+      "scope_key": "dashboard-display",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 14890,
+      "output_tokens": 344,
+      "cache_read_input_tokens": 11648,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:04:10.435330+00:00",
+      "completed_at": "2026-10-16T13:04:17.884609+00:00",
+      "error": null,
+      "wall_seconds": 7.449
+    },
+    {
+      "id": 30,
+      "job_kind": "synthesis",
+      "scope_type": "group",
+      "scope_key": "file-group-maps",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 14845,
+      "output_tokens": 292,
+      "cache_read_input_tokens": 11648,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:04:10.436796+00:00",
+      "completed_at": "2026-10-16T13:04:17.450667+00:00",
+      "error": null,
+      "wall_seconds": 7.014
+    },
+    {
+      "id": 31,
+      "job_kind": "synthesis",
+      "scope_type": "group",
+      "scope_key": "file-links",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 14831,
+      "output_tokens": 350,
+      "cache_read_input_tokens": 11648,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:04:17.886829+00:00",
+      "completed_at": "2026-10-16T13:04:25.591175+00:00",
+      "error": null,
+      "wall_seconds": 7.704
+    },
+    {
+      "id": 32,
+      "job_kind": "synthesis",
+      "scope_type": "group",
+      "scope_key": "javascript-analysis",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 15133,
+      "output_tokens": 316,
+      "cache_read_input_tokens": 11648,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:04:03.282966+00:00",
+      "completed_at": "2026-10-16T13:04:08.068833+00:00",
+      "error": null,
+      "wall_seconds": 4.786
+    },
+    {
+      "id": 33,
+      "job_kind": "synthesis",
+      "scope_type": "group",
+      "scope_key": "module-table-and-details",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 14898,
+      "output_tokens": 382,
+      "cache_read_input_tokens": 11648,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:04:17.888634+00:00",
+      "completed_at": "2026-10-16T13:04:23.081822+00:00",
+      "error": null,
+      "wall_seconds": 5.193
+    },
+    {
+      "id": 34,
+      "job_kind": "synthesis",
+      "scope_type": "group",
+      "scope_key": "relationship-building",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 15618,
+      "output_tokens": 408,
+      "cache_read_input_tokens": 13824,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:04:25.594209+00:00",
+      "completed_at": "2026-10-16T13:04:31.606237+00:00",
+      "error": null,
+      "wall_seconds": 6.012
+    },
+    {
+      "id": 35,
+      "job_kind": "synthesis",
+      "scope_type": "group",
+      "scope_key": "semantic-groups",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 15703,
+      "output_tokens": 361,
+      "cache_read_input_tokens": 11648,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:03:56.373479+00:00",
+      "completed_at": "2026-10-16T13:04:03.278488+00:00",
+      "error": null,
+      "wall_seconds": 6.905
+    },
+    {
+      "id": 36,
+      "job_kind": "synthesis",
+      "scope_type": "group",
+      "scope_key": "semantic-run",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 15937,
+      "output_tokens": 308,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:04:03.284872+00:00",
+      "completed_at": "2026-10-16T13:04:10.431925+00:00",
+      "error": null,
+      "wall_seconds": 7.147
+    },
+    {
+      "id": 37,
+      "job_kind": "synthesis",
+      "scope_type": "repository",
+      "scope_key": "1",
+      "status": "completed",
+      "attempts": 1,
+      "executor_model": "gpt-6-luna",
+      "executor_effort": "medium",
+      "input_tokens": 20269,
+      "output_tokens": 2765,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "usage_source": "reported",
+      "started_at": "2026-10-16T13:04:31.646127+00:00",
+      "completed_at": "2026-10-16T13:04:54.148916+00:00",
+      "error": null,
+      "wall_seconds": 22.503
+    }
+  ],
+  "documents": [
+    {
+      "id": 1,
+      "document_kind": "intrinsic",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/semantic_taxonomy_validation.py",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.99,
+        "evidence": [
+          "normalize_taxonomy calls stable_taxonomy_nodes and returns nodes, memberships, events, and validation data.",
+          "_flatten filters unknown paths; _apply_locks overrides assignments; _assign_missing repairs unassigned eligible paths.",
+          "_artifact_ids queries artifacts by repository ID and canonical path; _memberships omits paths without artifact IDs."
+        ],
+        "public_contracts": [
+          "Unknown module paths are ignored with warnings; each eligible path is assigned, including paths repaired into an unclassified subsystem.",
+          "Configured memberships for known paths override prior assignments and are marked locked.",
+          "The result includes stable node identities, memberships for paths with matching repository artifacts, validation counts and issues, and taxonomy events."
+        ],
+        "responsibilities": [
+          "normalize_taxonomy flattens areas and subsystems and validates memberships against eligible paths.",
+          "Helpers resolve duplicate and missing memberships, apply configured locks, prune empty groups, and enforce area and subsystem limits.",
+          "The module reports taxonomy issues, including unclear internal group references and unusually small or large subsystems."
+        ],
+        "summary": "src/anaxigraph/semantic_taxonomy_validation.py normalizes proposed semantic taxonomies into stable nodes, artifact memberships, facets, and validation results."
+      }
+    },
+    {
+      "id": 2,
+      "document_kind": "intrinsic",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/semantic.py",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.99,
+        "evidence": [
+          "Module docstring: “Semantic dossier contracts and local coding-agent adapters.”",
+          "Public symbols include execution_for, create_semantic_provider, and three provider classes with analyze methods.",
+          "Provider analyze methods call subprocess.run and route returned content through JSON parsing and validation helpers.",
+          "Codex and Claude helper paths explicitly handle usage, truncation, schema adaptation, and execution failures."
+        ],
+        "public_contracts": [
+          "CommandSemanticProvider requires config.command and sends the JSON request on stdin; nonzero exits, launch errors, and timeouts raise SemanticAnalysisError.",
+          "CodexSemanticProvider runs the Codex CLI in read-only mode. ClaudeSemanticProvider runs the Claude CLI without tools or session persistence.",
+          "Successful adapter results pass through validated_semantic_response. Reported token and cache usage is retained in results and usage-aware errors.",
+          "execution_for returns the original config when no tier overrides are set; otherwise it returns a copy with only tier-specified runtime choices changed."
+        ],
+        "responsibilities": [
+          "execution_for applies a request's stage tier provider, model, and reasoning effort while preserving other config values.",
+          "create_semantic_provider selects Codex, Claude, or command execution; the agent provider raises an error because it runs through a connected agent.",
+          "Provider adapters invoke their configured process, parse its response, validate the semantic result, and translate execution or response failures into SemanticAnalysisError.",
+          "Codex handles oversized prompts through temporary evidence pages and adapts optional schema fields. Codex and Claude adapters collect provider usage for successful and failed runs."
+        ],
+        "summary": "src/anaxigraph/semantic.py selects semantic providers and adapts local command, Codex CLI, and Claude CLI responses into validated semantic results."
+      }
+    },
+    {
+      "id": 3,
+      "document_kind": "intrinsic",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/analyzers/javascript_symbols.py",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.98,
+        "evidence": [
+          "`extract_symbols` walks `parsed.root`, applies declaration and expression extraction, then deduplicates.",
+          "`_endpoint_symbol` checks owner, method, and literal route before creating an `api_endpoint`.",
+          "`_symbol` derives qualified names and source metadata; `_deduplicate` sorts by source position and removes repeated keys."
+        ],
+        "public_contracts": [
+          "`extract_symbols(path, parsed, dependencies)` returns a list of `Symbol` records; the module name comes from the path with its extension removed and `/` replaced by `.`.",
+          "Recognized route calls are `app`, `router`, or `server` calls to HTTP methods with a literal first argument; their public symbol names use the uppercase method and route.",
+          "Visibility for declarations follows export facts; class members use `#`, `private`, and `protected` syntax. Unexported declarations are private."
+        ],
+        "responsibilities": [
+          "Walks the parsed tree and recognizes declarations, callable variables and assignments, function-valued fields, default-exported functions, and selected API route calls.",
+          "Builds symbol records with kind, qualified name, source span, signature, complexity, logical lines, and visibility.",
+          "Deduplicates symbols and returns them in source order."
+        ],
+        "summary": "Extracts JavaScript and TypeScript symbols from a parsed syntax tree, using dependency facts to resolve names and exports."
+      }
+    },
+    {
+      "id": 4,
+      "document_kind": "intrinsic",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/dashboard/module-view.js",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.98,
+        "evidence": [
+          "Exports renderModuleFilters and renderModules.",
+          "Filtering and ordering are implemented in filteredModules, searchOrder, and moduleOrder.",
+          "Pagination and DOM updates are in renderModules; row and detail markup are built by moduleRow and moduleDetailRow.",
+          "Semantic fallbacks are selected in semanticPanelMarkup; escaping uses escapeHtml and escapeAttr."
+        ],
+        "public_contracts": [
+          "renderModules clamps the current page to the available range and updates counts, paging controls, sort indicators, and table contents.",
+          "Search results are ordered by descending score with path as a tie-breaker; ordinary sorting places missing values last and uses path as a tie-breaker.",
+          "Expanded details prefer semantic pattern opportunities and plain-language fields when available, with evaluation or intrinsic map data as fallbacks.",
+          "Rendered dynamic text and attribute values are escaped through imported helpers."
+        ],
+        "responsibilities": [
+          "Builds area, subsystem, and language filter options from module data while keeping a still-valid selection.",
+          "Filters modules by search and selected filters, excludes reference files by default, then sorts by search relevance or the chosen field.",
+          "Renders a paginated module table with architecture, coverage, change, attention, and pattern information.",
+          "Renders expanded details with file purpose, detected jobs, change history, AI map, and inspection guidance."
+        ],
+        "summary": "This module renders the dashboard’s module filters, table, and expanded file details."
+      }
+    },
+    {
+      "id": 5,
+      "document_kind": "intrinsic",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/relationship_builder.py",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.99,
+        "evidence": [
+          "Module docstring: “Resolve, reuse, and persist one snapshot's extracted relationships.”",
+          "`build_relationships` calls `_copy_reusable`, `_aggregate`, `_resolved_edges`, `reconstruct_files`, and `record_canonical_relationships`.",
+          "`_copy_reusable` reads base-snapshot edges and counts edges for sources marked `carried_forward`; other prepared sources are queued for resolution.",
+          "`DependencyResolver` builds Python module and symbol indexes and creates a `JavaScriptWorkspace` using configured aliases.",
+          "`_resolve_path_import` checks workspace paths with a fixed list of file extensions and index-file candidates."
+        ],
+        "public_contracts": [
+          "`ResolvedDependency` represents either an artifact target or external target, with resolution status and optional candidate paths and provenance.",
+          "Dynamic expressions remain dynamic. Unique matches resolve internally; multiple matches are ambiguous. Unmatched targets are classified as unresolved internal or external based on their form and workspace indexes.",
+          "Ambiguous, unresolved internal, and dynamic relationships have confidence capped at 0.5, 0.35, and 0.35 respectively.",
+          "The builder excludes self-imports, stores at most five evidence strings joined with ` | ` and truncated to 2,000 characters, and persists relationships through `record_canonical_relationships`.",
+          "`RelationshipBuildResult` reports total, copied, resolved-source, and reused-source counts."
+        ],
+        "responsibilities": [
+          "`build_relationships` selects sources to resolve, aggregates their dependencies, and calls `record_canonical_relationships` with current files and edges.",
+          "`DependencyResolver.resolve` handles dynamic expressions, indexed symbols, Python imports, JavaScript and TypeScript workspace imports, and path imports.",
+          "`_merge_relationship` combines matching edges, tracking weight, confidence, evidence, line, candidate paths, targets, reference forms, and provenance.",
+          "`relationship_source` identifies Python relationships as `ast`, JavaScript and TypeScript as `tree-sitter`, and configuration references as `configuration`."
+        ],
+        "summary": "`relationship_builder.py` resolves extracted dependencies for a snapshot, reuses carried-forward relationship counts, aggregates edges, and persists canonical relationships. `DependencyResolver` indexes workspace paths, Python module aliases, and analyzed symbols before resolving dependencies."
+      }
+    },
+    {
+      "id": 6,
+      "document_kind": "intrinsic",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/analyzers/javascript_parser.py",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 1.0,
+        "evidence": [
+          "Module docstring: “Tree-sitter loading, source access, recovery diagnostics, and stable hashing.”",
+          "`parser_languages`, `parse_source`, `structural_hash`, `source_metrics`, and helpers in `src/anaxigraph/analyzers/javascript_parser.py`.",
+          "`javascript.py` and `javascript_symbols.py` import and call these helpers."
+        ],
+        "public_contracts": [
+          "`parse_source` selects a parser by language key and returns up to 20 diagnostics for error or missing nodes; `parse_error` summarizes the first diagnostic or returns `None`.",
+          "`ParsedSource.text(None)` returns an empty string. `excerpt` normalizes whitespace and defaults to a 500-character limit.",
+          "`structural_hash` omits comments and internal nodes, while including leaf node types, text, and missing-node markers.",
+          "`literal_value` returns `None` for unsupported nodes and interpolated templates. `node_span` reports one-based lines and byte-based columns."
+        ],
+        "responsibilities": [
+          "Caches the four Tree-sitter language mappings.",
+          "Builds `ParsedSource` with encoded source, line offsets, tree nodes, diagnostics, and comments.",
+          "Provides traversal, source excerpts and spans, literal and signature text, logical lines, and complexity helpers.",
+          "Calculates code and comment line counts, leading and adjacent comments, and a SHA-256 hash over non-comment leaf nodes."
+        ],
+        "summary": "`javascript_parser.py` parses JavaScript, JSX, TypeScript, and TSX into Tree-sitter trees. It provides source text and node helpers, recovery diagnostics, metrics, comments, and stable structural hashes."
+      }
+    },
+    {
+      "id": 7,
+      "document_kind": "intrinsic",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/persistence/semantic_taxonomy_read.py",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.99,
+        "evidence": [
+          "src/anaxigraph/persistence/semantic_taxonomy_read.py: current_taxonomy, taxonomy_assignments, read_semantic_hierarchy, taxonomy_map_payload, hierarchy_children, materialize_hierarchy."
+        ],
+        "public_contracts": [
+          "Missing current taxonomy yields None from current_taxonomy and taxonomy_map_payload, an empty mapping from taxonomy_assignments, and an empty list from read_semantic_hierarchy.",
+          "Hierarchy nodes include direct counts and recursively summed files and lines of code; roots and children are sorted by descending lines of code, then name.",
+          "materialize_hierarchy stops descending when it revisits an ancestor, preventing recursive cycles."
+        ],
+        "responsibilities": [
+          "current_taxonomy loads the latest current taxonomy and decodes its JSON fields and ordered reviews.",
+          "taxonomy_assignments returns artifact assignments, optionally filtered by artifact IDs, with evidence, alternatives, and plain-language labels.",
+          "read_semantic_hierarchy builds labeled nodes with direct file and line counts, then nests them under roots.",
+          "taxonomy_map_payload combines taxonomy metadata with the hierarchy."
+        ],
+        "summary": "Reads the current semantic taxonomy for a snapshot from SQLite and shapes it into assignment, hierarchy, and map payloads."
+      }
+    },
+    {
+      "id": 8,
+      "document_kind": "intrinsic",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/semantic_execution.py",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.99,
+        "evidence": [
+          "`add_semantic_execution_arguments` defines the run flags and delegates runtime limit flags.",
+          "`stage_model_overrides` validates tier specifications and returns a tier-keyed mapping.",
+          "`understand_execution` branches on provider and `plan_only`; `_local_agent_execution` returns a replaced semantic configuration for local executors."
+        ],
+        "public_contracts": [
+          "Stage overrides replace matching configured tiers; other configured tiers remain.",
+          "Runtime limits must be positive. Parallel jobs are capped at the configured maximum.",
+          "Non-agent providers reject agent-only executor options. Plan-only rejects local executor and model options.",
+          "Local executors must be available on `PATH`; auto-detection prefers Codex in a Codex thread, then Claude in a Claude environment, and otherwise selects MCP."
+        ],
+        "responsibilities": [
+          "Adds flags for executor, model, reasoning effort, per-stage model overrides, runtime limits, and background execution.",
+          "Parses stage overrides into `SemanticStageModel` values for module, group, repository, or taxonomy tiers.",
+          "Routes configured providers, plan-only runs, MCP execution, and local Codex or Claude execution."
+        ],
+        "summary": "`src/anaxigraph/semantic_execution.py` selects semantic execution for a run, validating command-line choices and building local executor settings when needed."
+      }
+    },
+    {
+      "id": 9,
+      "document_kind": "intrinsic",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/analyzers/javascript.py",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.99,
+        "evidence": [
+          "Module docstring; JavaScriptAnalyzer.analyze and TypeScriptAnalyzer.analyze; _analyze, _parsed_analysis, _build_analysis, and _parse_failure in src/anaxigraph/analyzers/javascript.py."
+        ],
+        "public_contracts": [
+          "Both analyze methods accept a path and source content and return FileAnalysis.",
+          "Analysis reports structural facts; concurrency and side effects are heuristic. TypeScript type facts describe syntax, not type-checker results.",
+          "Call relationships cover imported roots; dynamic expressions remain unresolved rather than being guessed."
+        ],
+        "responsibilities": [
+          "JavaScriptAnalyzer and TypeScriptAnalyzer select language mode and return a FileAnalysis.",
+          "For parsed source, helpers extract dependencies, symbols, evidence, and module semantics, then assemble structural metrics and parser metadata.",
+          "When parsing raises TypeError, ValueError, or RuntimeError, return a parse-error FileAnalysis with a normalized-content hash and basic metrics."
+        ],
+        "summary": "Provides parser-backed analysis for JavaScript and TypeScript files, including JSX and TSX variants."
+      }
+    },
+    {
+      "id": 10,
+      "document_kind": "intrinsic",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/dashboard/module-events.js",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.99,
+        "evidence": [
+          "`setupModuleEvents` registrations and sort logic, lines 8–31.",
+          "`scheduleModuleSearch` debounce, query threshold, request, and stale-result checks, lines 34–64.",
+          "`handleModuleClick` row expansion, detail request, and graph navigation, lines 71–102."
+        ],
+        "public_contracts": [
+          "Search queries shorter than two characters clear search results; longer queries update the displayed results only if the query, search token, and repository token still match.",
+          "Changing filters or sort resets the module page to 1. Sort direction toggles for the same key; new path, architecture area, and summary sorts start ascending, while other keys start descending.",
+          "Clicking a module row toggles its expansion. Detail responses from a previous repository load are ignored; current-load request errors are shown with `toast`.",
+          "Clicking a graph control switches to graph view and schedules inspection when a node with the matching path exists."
+        ],
+        "responsibilities": [
+          "`setupModuleEvents` registers input, change, and click handlers for module controls.",
+          "Search is debounced by 180 ms and requests up to 250 results from `/api/search`.",
+          "Expanded module rows load details from `/api/file` when details are not cached."
+        ],
+        "summary": "`src/anaxigraph/dashboard/module-events.js` wires dashboard module search, filters, sorting, pagination, row expansion, and graph navigation."
+      }
+    },
+    {
+      "id": 11,
+      "document_kind": "intrinsic",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/relationships.py",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 1.0,
+        "evidence": [
+          "The function implementations and status constants are in the supplied source for `src/anaxigraph/relationships.py`.",
+          "`relationship_builder.py` imports the resolution status constants, according to the supplied relationship facts."
+        ],
+        "public_contracts": [
+          "Recognized statuses are `resolved_internal`, `ambiguous_internal`, `unresolved_internal`, `external`, and `dynamic`.",
+          "Quality status is `unavailable` when there are no internal or dynamic references, `complete` when there are no unresolved, ambiguous, or dynamic references, and `partial` otherwise. The resolution rate is `null` when there are no internal references.",
+          "The quality summary notes that extracted references may omit dynamic runtime wiring."
+        ],
+        "responsibilities": [
+          "`relationship_metadata` reads metadata from a mapping or JSON field and returns an empty dictionary for invalid or non-dictionary data.",
+          "`resolution_status` returns a recognized status from the row or its metadata; for legacy rows, it infers `resolved_internal` when a target artifact ID exists and `external` otherwise.",
+          "`relationship_quality` counts statuses and reports internal resolution rate, totals, and a quality status."
+        ],
+        "summary": "`src/anaxigraph/relationships.py` provides shared helpers for reading relationship provenance and reporting resolution quality."
+      }
+    },
+    {
+      "id": 12,
+      "document_kind": "intrinsic",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/semantic_job_state.py",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 1,
+        "evidence": [
+          "_TRANSITIONS defines allowed state/event pairs, including claim, completion, retry, failure, release, expiration, superseding, and failed-job reset.",
+          "_JOB_KINDS contains ten accepted kinds; FAILED_SEMANTIC_SCOPE_STATES is derived from them."
+        ],
+        "public_contracts": [
+          "semantic_job_transition returns the sole valid target state and raises ValueError for unknown states or events and invalid transitions.",
+          "semantic_job_bulk_transition requires at least one source and one shared target; otherwise it raises ValueError.",
+          "semantic_scope_status rejects unknown job kinds with ValueError. Failed kinds with underscores map to their prefix family, such as pattern_assessment to failed_pattern.",
+          "SemanticLeaseLost represents loss of the running lease required by a write."
+        ],
+        "responsibilities": [
+          "SemanticJobState lists six job states; SemanticJobEvent lists eight transition events.",
+          "semantic_scope_status maps known job kinds to pending or failed scope-state strings."
+        ],
+        "summary": "src/anaxigraph/semantic_job_state.py defines durable semantic job states, events, and transition helpers."
+      }
+    },
+    {
+      "id": 13,
+      "document_kind": "context",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/semantic_taxonomy_validation.py",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.99,
+        "evidence": [
+          "`normalize_taxonomy` calls `stable_taxonomy_nodes` and returns nodes, memberships, events, and validation data.",
+          "`_flatten` filters unknown paths; `_apply_locks` overrides assignments; `_assign_missing` repairs unassigned eligible paths.",
+          "`_artifact_ids` queries artifacts by repository ID and canonical path; `_memberships` omits paths without artifact IDs."
+        ],
+        "public_contracts": [
+          "Unknown paths are ignored with warnings; every eligible path receives an assignment, including paths repaired into an unclassified subsystem.",
+          "Configured memberships for known paths override earlier assignments and are marked locked.",
+          "Results include stable node identities, memberships only for paths with repository artifacts, validation counts and issues, and taxonomy events."
+        ],
+        "responsibilities": [
+          "`normalize_taxonomy` flattens areas and subsystems and checks memberships against eligible paths.",
+          "Helpers repair missing or duplicate memberships, apply configured locks, prune empty groups, enforce group limits, and report taxonomy issues."
+        ],
+        "summary": "`src/anaxigraph/semantic_taxonomy_validation.py` normalizes proposed taxonomies into stable nodes, artifact memberships, and validation results."
+      }
+    },
+    {
+      "id": 14,
+      "document_kind": "context",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/semantic.py",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.99,
+        "evidence": [
+          "The module docstring describes semantic contracts and local coding-agent adapters.",
+          "Public symbols include execution_for, create_semantic_provider, and three provider classes with analyze methods.",
+          "Provider methods invoke subprocess.run and use JSON parsing and validation helpers.",
+          "Codex and Claude helper paths handle usage, truncation, schema adaptation, and execution failures."
+        ],
+        "public_contracts": [
+          "CommandSemanticProvider requires config.command and sends the JSON request on stdin. Launch errors, timeouts, and nonzero exits raise SemanticAnalysisError.",
+          "CodexSemanticProvider runs the Codex CLI in read-only mode. ClaudeSemanticProvider runs Claude without tools or session persistence.",
+          "Successful responses pass through validated_semantic_response. Reported token and cache usage is retained in results and usage-aware errors.",
+          "execution_for returns the original config when no tier overrides are set; otherwise it copies the config and changes only tier-specified runtime choices."
+        ],
+        "responsibilities": [
+          "execution_for applies stage-specific provider, model, and reasoning settings while preserving other config values.",
+          "create_semantic_provider selects a provider; agent execution is handled through a connected agent.",
+          "Provider adapters run configured processes, parse responses, validate results, and convert failures to SemanticAnalysisError.",
+          "Codex handles large prompts with temporary evidence pages and adapts schema fields. Codex and Claude collect usage data."
+        ],
+        "summary": "src/anaxigraph/semantic.py selects semantic providers and adapts local command, Codex CLI, and Claude CLI responses into validated semantic results."
+      }
+    },
+    {
+      "id": 15,
+      "document_kind": "context",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/analyzers/javascript_symbols.py",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.98,
+        "evidence": [
+          "`extract_symbols` walks `parsed.root`, extracts declarations and expressions, then deduplicates.",
+          "`_endpoint_symbol` checks the call owner, method, and literal route.",
+          "`_symbol` builds symbol metadata; `_deduplicate` sorts by source position."
+        ],
+        "public_contracts": [
+          "The module name is derived from the path by removing its extension and replacing `/` with `.`.",
+          "Recognized calls on `app`, `router`, or `server` with an HTTP method and literal first argument produce `api_endpoint` symbols named with the uppercase method and route.",
+          "Declaration visibility follows export facts. Class member visibility reflects `#`, `private`, or `protected`; unexported declarations are private."
+        ],
+        "responsibilities": [
+          "Recognizes declarations, callable values, function-valued fields, default-exported functions, and selected API route calls.",
+          "Builds symbol metadata including kind, qualified name, source span, signature, complexity, logical lines, and visibility."
+        ],
+        "summary": "`extract_symbols` walks a parsed JavaScript or TypeScript tree and returns deduplicated symbol records in source order."
+      }
+    },
+    {
+      "id": 16,
+      "document_kind": "context",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/dashboard/module-view.js",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.98,
+        "evidence": [
+          "Exports `renderModuleFilters` and `renderModules`; filtering and ordering are handled by `filteredModules`, `searchOrder`, and `moduleOrder`.",
+          "`renderModules` updates pagination and the DOM; `moduleRow` and `moduleDetailRow` build table and detail markup.",
+          "`semanticPanelMarkup` selects semantic fallbacks; imports from `/assets/dashboard-core.js` and `/assets/dashboard-format.js` provide helpers and formatting."
+        ],
+        "public_contracts": [
+          "`renderModules` clamps the page to the available range and updates counts, paging controls, sort indicators, and table contents.",
+          "Search ordering uses descending score and then path. Ordinary sorting puts missing values last and uses path as a tie-breaker.",
+          "Expanded details prefer semantic pattern opportunities and plain-language fields, with evaluation or intrinsic map data as fallbacks.",
+          "Dynamic text and attribute values are escaped with imported helpers."
+        ],
+        "responsibilities": [
+          "Builds area, subsystem, and language filters from module data and retains selections that remain valid.",
+          "Filters modules by search and selected filters, excludes reference files by default, and orders results by relevance or the selected field.",
+          "Displays architecture, coverage, changes, attention, patterns, file purpose, detected jobs, change history, AI map, and inspection guidance."
+        ],
+        "summary": "`src/anaxigraph/dashboard/module-view.js` renders module filters, a paginated table, and expanded file details."
+      }
+    },
+    {
+      "id": 17,
+      "document_kind": "context",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/analyzers/javascript_parser.py",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 1.0,
+        "evidence": [
+          "Module docstring describes Tree-sitter loading, source access, recovery diagnostics, and stable hashing.",
+          "`parser_languages`, `parse_source`, `structural_hash`, `source_metrics`, and related helpers are defined in `src/anaxigraph/analyzers/javascript_parser.py`.",
+          "`javascript.py` and `javascript_symbols.py` import and call these helpers."
+        ],
+        "public_contracts": [
+          "`parse_source` selects a parser by language key and reports up to 20 error or missing-node diagnostics; `parse_error` summarizes the first diagnostic or returns `None`.",
+          "`ParsedSource.text(None)` returns an empty string. `excerpt` normalizes whitespace and defaults to 500 characters.",
+          "`structural_hash` excludes comments and internal nodes while including leaf types, text, and missing-node markers.",
+          "`literal_value` returns `None` for unsupported nodes and interpolated templates. `node_span` uses one-based lines and byte-based columns."
+        ],
+        "responsibilities": [
+          "Caches Tree-sitter language mappings and builds `ParsedSource` with source bytes, line offsets, tree, diagnostics, and comments.",
+          "Provides tree traversal, source spans and excerpts, literal and signature text, logical lines, complexity, and source metrics.",
+          "Computes a SHA-256 structural hash from non-comment leaf nodes."
+        ],
+        "summary": "`javascript_parser.py` parses JavaScript, JSX, TypeScript, and TSX with Tree-sitter and provides helpers for inspecting parsed source."
+      }
+    },
+    {
+      "id": 18,
+      "document_kind": "context",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/relationship_builder.py",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.99,
+        "evidence": [
+          "The module docstring describes resolving, reusing, and persisting one snapshot's extracted relationships.",
+          "`build_relationships` calls `_copy_reusable`, `_aggregate`, `_resolved_edges`, `reconstruct_files`, and `record_canonical_relationships`.",
+          "`DependencyResolver` creates a `JavaScriptWorkspace` using configured aliases and indexes Python modules and symbols."
+        ],
+        "public_contracts": [
+          "Dynamic expressions remain dynamic; unique matches resolve internally, multiple matches are ambiguous, and unmatched targets are classified as internal or external.",
+          "Confidence is capped at 0.5 for ambiguous relationships and 0.35 for unresolved internal and dynamic relationships.",
+          "The builder excludes self-imports, limits stored evidence to five strings and 2,000 characters, and reports total, copied, resolved-source, and reused-source counts."
+        ],
+        "responsibilities": [
+          "`DependencyResolver` indexes workspace paths, Python modules, and analyzed symbols before resolving dependencies.",
+          "`build_relationships` selects sources to resolve, aggregates dependencies, and records canonical relationships.",
+          "`_merge_relationship` combines matching edges and tracks their weight, confidence, evidence, targets, and provenance."
+        ],
+        "summary": "`src/anaxigraph/relationship_builder.py` resolves dependencies for a snapshot, reuses carried-forward relationships, aggregates edges, and persists canonical relationships."
+      }
+    },
+    {
+      "id": 19,
+      "document_kind": "context",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/semantic_execution.py",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.99,
+        "evidence": [
+          "`add_semantic_execution_arguments` defines run flags and delegates runtime limit flags.",
+          "`stage_model_overrides` validates tiers and returns a tier-keyed mapping.",
+          "`understand_execution` branches on provider and `plan_only`; `_local_agent_execution` uses `dataclasses.replace` to update semantic configuration."
+        ],
+        "public_contracts": [
+          "Stage overrides replace matching configured tiers while preserving other configured tiers.",
+          "Runtime limits must be positive, and parallel jobs cannot exceed the configured maximum.",
+          "Non-agent providers reject agent-only executor options. Plan-only runs reject local executor and model options.",
+          "Local executors must be available on `PATH`. Automatic selection prefers Codex in a Codex thread, then Claude in a Claude environment, and otherwise uses MCP."
+        ],
+        "responsibilities": [
+          "`add_semantic_execution_arguments` adds executor, model, reasoning, stage override, runtime limit, and background execution options.",
+          "`stage_model_overrides` parses tier specifications into `SemanticStageModel` values.",
+          "`understand_execution` routes provider, plan-only, MCP, and local execution choices.",
+          "`_local_agent_execution` returns a replaced semantic configuration for local executors."
+        ],
+        "summary": "`src/anaxigraph/semantic_execution.py` selects how a run performs semantic execution. It defines command-line options, parses stage-specific model overrides, and configures local Codex or Claude execution when selected."
+      }
+    },
+    {
+      "id": 20,
+      "document_kind": "context",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/persistence/semantic_taxonomy_read.py",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.99,
+        "evidence": [
+          "Supplied dossier names `current_taxonomy`, `taxonomy_assignments`, `read_semantic_hierarchy`, `taxonomy_map_payload`, `hierarchy_children`, and `materialize_hierarchy` in `src/anaxigraph/persistence/semantic_taxonomy_read.py`.",
+          "Supplied relationships show JSON decoding of taxonomy fields and assignment evidence."
+        ],
+        "public_contracts": [
+          "If no current taxonomy exists, `current_taxonomy` and `taxonomy_map_payload` return `None`; assignments return an empty mapping; the hierarchy returns an empty list.",
+          "Hierarchy nodes include direct file and line counts plus recursively summed totals. Roots and children sort by descending lines of code, then name.",
+          "`materialize_hierarchy` stops descending when it revisits an ancestor to prevent cycles."
+        ],
+        "responsibilities": [
+          "`current_taxonomy` loads the latest taxonomy and decodes its JSON fields and ordered reviews.",
+          "`taxonomy_assignments` returns artifact assignments, optionally filtered by artifact IDs, with evidence, alternatives, and plain-language labels.",
+          "`read_semantic_hierarchy` builds labeled nodes and nests them under roots.",
+          "`taxonomy_map_payload` combines taxonomy metadata with the hierarchy."
+        ],
+        "summary": "Reads a snapshot’s current semantic taxonomy from SQLite and shapes it into assignment, hierarchy, and map payloads."
+      }
+    },
+    {
+      "id": 21,
+      "document_kind": "context",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/dashboard/module-events.js",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.99,
+        "evidence": [
+          "`setupModuleEvents` handler registration and sorting, lines 8–31.",
+          "`scheduleModuleSearch` debounce, query threshold, request, and stale-result checks, lines 34–64.",
+          "`handleModuleClick` expansion, detail request, and graph navigation, lines 71–102."
+        ],
+        "public_contracts": [
+          "Queries shorter than two characters clear search results. Longer-query results apply only when query, search token, and repository token still match.",
+          "Filter or sort changes reset the page to 1. Sort direction toggles for the same key; new path, architecture area, and summary sorts start ascending, while other keys start descending.",
+          "Clicking a module row toggles expansion. Stale repository detail responses are ignored, and current-load request errors are shown with `toast`.",
+          "Graph controls switch to graph view and schedule inspection when a node with the matching path exists."
+        ],
+        "responsibilities": [
+          "Registers input, change, and click handlers for module controls.",
+          "Debounces module searches by 180 ms and requests up to 250 results from `/api/search`.",
+          "Loads uncached expanded-row details from `/api/file`."
+        ],
+        "summary": "`setupModuleEvents` connects dashboard module controls to search, filtering, sorting, pagination, row details, and graph navigation."
+      }
+    },
+    {
+      "id": 22,
+      "document_kind": "context",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/analyzers/javascript.py",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.99,
+        "evidence": [
+          "`JavaScriptAnalyzer.analyze`, `TypeScriptAnalyzer.analyze`, `_analyze`, `_parsed_analysis`, `_build_analysis`, and `_parse_failure` in `src/anaxigraph/analyzers/javascript.py`.",
+          "The module imports parser helpers from `javascript_parser.py` and calls dependency, symbol, evidence, and semantics extractors."
+        ],
+        "public_contracts": [
+          "Both `analyze` methods accept a path and source content. Analysis returns `FileAnalysis`.",
+          "Concurrency and side effects are heuristic. TypeScript facts describe syntax, not type-checker results.",
+          "Call relationships cover imported roots; dynamic expressions remain unresolved."
+        ],
+        "responsibilities": [
+          "`JavaScriptAnalyzer` and `TypeScriptAnalyzer` select language modes and return `FileAnalysis` results.",
+          "For parsed source, helpers extract dependencies, symbols, evidence, and module semantics, then assemble structural metrics and parser metadata.",
+          "On specified parser exceptions, analysis returns a parse-error result with a normalized-content hash and basic metrics."
+        ],
+        "summary": "`javascript.py` provides parser-backed JavaScript and TypeScript analysis, including JSX and TSX. It combines parsed source facts into a `FileAnalysis`."
+      }
+    },
+    {
+      "id": 23,
+      "document_kind": "context",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/semantic_job_state.py",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 1,
+        "evidence": [
+          "_TRANSITIONS defines allowed state and event pairs for claiming, completion, retry, failure, release, expiration, superseding, and failed-job reset.",
+          "_JOB_KINDS contains ten accepted kinds; FAILED_SEMANTIC_SCOPE_STATES is derived from them."
+        ],
+        "public_contracts": [
+          "semantic_job_transition returns the valid target state and raises ValueError for unknown states, events, or transitions.",
+          "semantic_job_bulk_transition requires at least one source state and a shared target state; otherwise it raises ValueError.",
+          "semantic_scope_status raises ValueError for unknown job kinds. Failed kinds with underscores map to their prefix family, such as pattern_assessment to failed_pattern.",
+          "SemanticLeaseLost represents loss of the running lease required for a write."
+        ],
+        "responsibilities": [
+          "SemanticJobState lists six states, and SemanticJobEvent lists eight transition events.",
+          "semantic_scope_status maps accepted job kinds to pending or failed scope states."
+        ],
+        "summary": "src/anaxigraph/semantic_job_state.py defines semantic job states, events, and transition helpers."
+      }
+    },
+    {
+      "id": 24,
+      "document_kind": "context",
+      "scope_type": "module",
+      "scope_key": "src/anaxigraph/relationships.py",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 1.0,
+        "evidence": [
+          "Status constants and helper implementations are in `src/anaxigraph/relationships.py`.",
+          "`src/anaxigraph/relationship_builder.py` imports the resolution status constants."
+        ],
+        "public_contracts": [
+          "Recognized statuses are `resolved_internal`, `ambiguous_internal`, `unresolved_internal`, `external`, and `dynamic`.",
+          "Quality is `unavailable` without internal or dynamic references, `complete` without unresolved, ambiguous, or dynamic references, and `partial` otherwise. The internal resolution rate is null when there are no internal references.",
+          "The quality summary notes that extracted references may omit dynamic runtime wiring."
+        ],
+        "responsibilities": [
+          "`relationship_metadata` accepts mappings or JSON data and returns an empty dictionary for invalid or non-dictionary input.",
+          "`resolution_status` uses a recognized row or metadata status; for legacy rows, it infers internal resolution from a target artifact ID and external status otherwise.",
+          "`relationship_quality` counts statuses and reports totals, internal resolution rate, and quality status."
+        ],
+        "summary": "`src/anaxigraph/relationships.py` provides helpers for reading relationship metadata, determining resolution status, and summarizing relationship quality."
+      }
+    },
+    {
+      "id": 25,
+      "document_kind": "taxonomy_proposal",
+      "scope_type": "taxonomy",
+      "scope_key": "1",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "areas": [
+          {
+            "confidence": 0.98,
+            "counter_evidence": [],
+            "description": "These files read source code and report its structure and links.",
+            "evidence": [
+              "javascript.py calls javascript_parser.py and javascript_symbols.py.",
+              "javascript_symbols.py calls javascript_parser.py.",
+              "relationship_builder.py imports relationships.py."
+            ],
+            "key": "code-analysis",
+            "name": "Source code analysis",
+            "rationale": "The three analyzer files call one another to parse source and extract facts; the relationship files use dependencies to describe links among files.",
+            "responsibility": "Parse JavaScript and TypeScript, find named code parts, and build file links.",
+            "subsystems": [
+              {
+                "confidence": 1.0,
+                "counter_evidence": [],
+                "description": "These files parse JavaScript and TypeScript and report facts about their code.",
+                "evidence": [
+                  "javascript.py assembles FileAnalysis results.",
+                  "javascript_parser.py parses JavaScript, JSX, TypeScript, and TSX.",
+                  "javascript_symbols.py extracts named code parts from parsed trees."
+                ],
+                "key": "javascript-analysis",
+                "members": [
+                  {
+                    "alternatives": [],
+                    "confidence": 0.99,
+                    "evidence": [
+                      "Calls javascript_parser.py and javascript_symbols.py.",
+                      "Returns parse-error results for specified parser exceptions."
+                    ],
+                    "path": "src/anaxigraph/analyzers/javascript.py",
+                    "rationale": "It assembles parser and symbol facts into FileAnalysis results."
+                  },
+                  {
+                    "alternatives": [],
+                    "confidence": 1.0,
+                    "evidence": [
+                      "Provides parse_source, diagnostics, source spans, metrics, and structural hashes."
+                    ],
+                    "path": "src/anaxigraph/analyzers/javascript_parser.py",
+                    "rationale": "It parses source and provides shared tree-reading helpers."
+                  },
+                  {
+                    "alternatives": [],
+                    "confidence": 0.99,
+                    "evidence": [
+                      "extract_symbols walks parsed trees and returns symbol records in source order."
+                    ],
+                    "path": "src/anaxigraph/analyzers/javascript_symbols.py",
+                    "rationale": "It finds and describes declarations and selected route calls in parsed source."
+                  }
+                ],
+                "name": "JavaScript and TypeScript analysis",
+                "rationale": "The analyzer, parser, and symbol finder form a directly connected group.",
+                "responsibility": "Create file analysis results from parsed source, including named code parts, dependencies, and structural measures."
+              },
+              {
+                "confidence": 0.99,
+                "counter_evidence": [],
+                "description": "These files resolve, store, and summarize links between files.",
+                "evidence": [
+                  "relationship_builder.py imports relationships.py.",
+                  "The builder resolves and aggregates dependencies; relationships.py summarizes resolution statuses."
+                ],
+                "key": "file-relationships",
+                "members": [
+                  {
+                    "alternatives": [],
+                    "confidence": 0.99,
+                    "evidence": [
+                      "build_relationships selects sources, aggregates dependencies, and records relationships."
+                    ],
+                    "path": "src/anaxigraph/relationship_builder.py",
+                    "rationale": "It resolves dependencies and saves combined relationship records."
+                  },
+                  {
+                    "alternatives": [],
+                    "confidence": 1.0,
+                    "evidence": [
+                      "Defines relationship_metadata, resolution_status, and relationship_quality."
+                    ],
+                    "path": "src/anaxigraph/relationships.py",
+                    "rationale": "It interprets relationship status and summarizes resolution quality."
+                  }
+                ],
+                "name": "File relationship building",
+                "rationale": "One file builds and saves links; the other explains their status and quality.",
+                "responsibility": "Classify dependencies and report how many links could be resolved."
+              }
+            ]
+          },
+          {
+            "confidence": 0.99,
+            "counter_evidence": [],
+            "description": "These files handle module controls and display module information in the dashboard.",
+            "evidence": [
+              "module-events.js requests /api/search and /api/file.",
+              "module-view.js renders filters, a paginated table, and expanded file details."
+            ],
+            "key": "dashboard",
+            "name": "Dashboard module views",
+            "rationale": "The event setup requests search and file details that the module view displays.",
+            "responsibility": "Connect searches and clicks to data requests, then render filtered module rows and details.",
+            "subsystems": [
+              {
+                "confidence": 0.99,
+                "counter_evidence": [],
+                "description": "These files let users search, sort, expand, and inspect modules.",
+                "evidence": [
+                  "module-events.js handles input, change, and click events.",
+                  "module-view.js provides renderModules."
+                ],
+                "key": "module-dashboard",
+                "members": [
+                  {
+                    "alternatives": [],
+                    "confidence": 0.99,
+                    "evidence": [
+                      "Registers control handlers and requests search and file data."
+                    ],
+                    "path": "src/anaxigraph/dashboard/module-events.js",
+                    "rationale": "It connects module controls to search, filtering, sorting, paging, details, and graph navigation."
+                  },
+                  {
+                    "alternatives": [],
+                    "confidence": 0.99,
+                    "evidence": [
+                      "renderModules updates counts, paging controls, sort indicators, and table contents."
+                    ],
+                    "path": "src/anaxigraph/dashboard/module-view.js",
+                    "rationale": "It draws module filters, table rows, and expanded file details."
+                  }
+                ],
+                "name": "Module dashboard",
+                "rationale": "The event file connects user actions to data, and the view file draws the resulting module display.",
+                "responsibility": "Handle module controls and render their results and details."
+              }
+            ]
+          },
+          {
+            "confidence": 0.98,
+            "counter_evidence": [
+              "No direct relationships among these five files were supplied."
+            ],
+            "description": "These files configure semantic runs, track their jobs, validate proposed file groups, and read saved group maps.",
+            "evidence": [
+              "semantic_execution.py configures run choices.",
+              "semantic.py selects providers and validates responses.",
+              "semantic_job_state.py defines job states and transitions.",
+              "semantic_taxonomy_validation.py normalizes proposed groups.",
+              "semantic_taxonomy_read.py reads the saved group map."
+            ],
+            "key": "semantic-analysis",
+            "name": "Semantic analysis and grouping",
+            "rationale": "The files cover run choices, provider responses, job states, group validation, and reading saved group maps, but no direct links between them were supplied.",
+            "responsibility": "Run configured semantic analysis and turn its results into validated, readable group maps.",
+            "subsystems": [
+              {
+                "confidence": 0.98,
+                "counter_evidence": [],
+                "description": "These files choose how semantic work runs and describe its job states.",
+                "evidence": [
+                  "semantic_execution.py parses options and selects execution choices.",
+                  "semantic.py selects providers and validates their responses.",
+                  "semantic_job_state.py defines valid state transitions."
+                ],
+                "key": "semantic-run-control",
+                "members": [
+                  {
+                    "alternatives": [],
+                    "confidence": 0.99,
+                    "evidence": [
+                      "Defines command-line options and stage-specific model overrides."
+                    ],
+                    "path": "src/anaxigraph/semantic_execution.py",
+                    "rationale": "It parses options and selects provider, plan-only, MCP, or local execution."
+                  },
+                  {
+                    "alternatives": [],
+                    "confidence": 0.99,
+                    "evidence": [
+                      "Supports command, Codex CLI, and Claude CLI responses."
+                    ],
+                    "path": "src/anaxigraph/semantic.py",
+                    "rationale": "It runs configured providers and validates their results."
+                  },
+                  {
+                    "alternatives": [],
+                    "confidence": 0.99,
+                    "evidence": [
+                      "Invalid state changes and unknown job kinds raise ValueError."
+                    ],
+                    "path": "src/anaxigraph/semantic_job_state.py",
+                    "rationale": "It defines allowed semantic job states and transitions."
+                  }
+                ],
+                "name": "Semantic run setup and results",
+                "rationale": "Both files concern configuring and carrying out semantic runs, while the state file defines valid job changes.",
+                "responsibility": "Set run options, select providers, and check job state changes."
+              },
+              {
+                "confidence": 0.99,
+                "counter_evidence": [],
+                "description": "These files check proposed file groups and read the saved group map.",
+                "evidence": [
+                  "semantic_taxonomy_validation.py returns nodes, memberships, counts, and issues.",
+                  "semantic_taxonomy_read.py returns assignments and labeled hierarchy nodes."
+                ],
+                "key": "taxonomy-map",
+                "members": [
+                  {
+                    "alternatives": [],
+                    "confidence": 0.99,
+                    "evidence": [
+                      "normalize_taxonomy flattens groups, applies locks, and reports issues."
+                    ],
+                    "path": "src/anaxigraph/semantic_taxonomy_validation.py",
+                    "rationale": "It checks proposed groups and assigns every eligible path, repairing missing assignments when needed."
+                  },
+                  {
+                    "alternatives": [],
+                    "confidence": 0.99,
+                    "evidence": [
+                      "Returns empty results when no current group map exists."
+                    ],
+                    "path": "src/anaxigraph/persistence/semantic_taxonomy_read.py",
+                    "rationale": "It reads the current saved group map and builds assignments and nested groups."
+                  }
+                ],
+                "name": "File group maps",
+                "rationale": "One file normalizes proposed groups; the other reads saved assignments and builds their hierarchy.",
+                "responsibility": "Assign files to groups and present saved groups as a tree and map payload."
+              }
+            ]
+          }
+        ],
+        "confidence": 0.97,
+        "evidence": [
+          "The payload supplies descriptions and behavior for all 13 files.",
+          "Seven direct relationships are supplied, including the analyzer chain and the relationship-builder import.",
+          "No tests, earlier group map, or cross-group labels were supplied."
+        ],
+        "facets": [],
+        "summary": "The supplied files cover JavaScript and TypeScript analysis, dashboard module views, file relationships, and semantic analysis and grouping. No tests or earlier group map were supplied."
+      }
+    },
+    {
+      "id": 26,
+      "document_kind": "taxonomy_review",
+      "scope_type": "taxonomy",
+      "scope_key": "1",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.97,
+        "evidence": [
+          "The deterministic check reports 12 assigned files, 12 eligible files, no issues, and five subsystems.",
+          "The candidate map contains three broad areas and fits the six-area limit."
+        ],
+        "issues": [
+          {
+            "evidence": [
+              "The JavaScript files parse source and find named code parts.",
+              "The relationship files resolve dependencies and summarize link status."
+            ],
+            "explanation": "The original group combined reading source code with building links between files. Those jobs have different inputs and results.",
+            "kind": "grouping",
+            "recommendation": "Keep source reading and file-link building in separate groups.",
+            "scope": "Source code analysis",
+            "severity": "warning"
+          },
+          {
+            "evidence": [
+              "The supplied test evidence is empty."
+            ],
+            "explanation": "The payload gives no test paths or test results, so test coverage cannot be assigned.",
+            "kind": "evidence",
+            "recommendation": "Leave test coverage unknown until test files or results are supplied.",
+            "scope": "Whole repository",
+            "severity": "info"
+          },
+          {
+            "evidence": [
+              "semantic_taxonomy_read.py reads the latest saved group map from SQLite.",
+              "No protected-code evidence is supplied."
+            ],
+            "explanation": "The payload identifies saved group-map data in SQLite but gives no specially protected code.",
+            "kind": "evidence",
+            "recommendation": "Keep the SQLite reader in the group-map area and leave protected-code placement unknown.",
+            "scope": "Whole repository",
+            "severity": "info"
+          }
+        ],
+        "summary": "The map covers all 12 supplied files in three groups. I clarified what each group does and separated source reading from file-link building. No tests or specially protected code were identified.",
+        "taxonomy": {
+          "areas": [
+            {
+              "confidence": 0.99,
+              "counter_evidence": [],
+              "description": "These files parse JavaScript and TypeScript and find named code parts and source facts.",
+              "evidence": [
+                "javascript.py assembles FileAnalysis results.",
+                "javascript_parser.py parses JavaScript, JSX, TypeScript, and TSX.",
+                "javascript_symbols.py finds declarations and selected route calls."
+              ],
+              "key": "code-reading",
+              "name": "JavaScript and TypeScript reading",
+              "rationale": "The analyzer calls the parser and symbol finder, which also uses the parser.",
+              "responsibility": "Turn source text into file results with symbols, dependencies, and measurements.",
+              "subsystems": [
+                {
+                  "confidence": 1.0,
+                  "counter_evidence": [],
+                  "description": "The parser reads source trees, the symbol finder labels selected code parts, and the analyzer combines their results.",
+                  "evidence": [
+                    "javascript.py calls javascript_parser.py and javascript_symbols.py.",
+                    "javascript_symbols.py calls javascript_parser.py."
+                  ],
+                  "key": "javascript-analysis",
+                  "members": [
+                    {
+                      "alternatives": [],
+                      "confidence": 0.99,
+                      "evidence": [
+                        "It calls the parser and symbol finder.",
+                        "It returns parse-error results for specified parser exceptions."
+                      ],
+                      "path": "src/anaxigraph/analyzers/javascript.py",
+                      "rationale": "It combines parser and symbol facts into FileAnalysis results."
+                    },
+                    {
+                      "alternatives": [],
+                      "confidence": 1.0,
+                      "evidence": [
+                        "It parses JavaScript, JSX, TypeScript, and TSX.",
+                        "It provides diagnostics, source spans, metrics, and structural hashes."
+                      ],
+                      "path": "src/anaxigraph/analyzers/javascript_parser.py",
+                      "rationale": "It parses source and provides shared tree-reading helpers."
+                    },
+                    {
+                      "alternatives": [],
+                      "confidence": 0.99,
+                      "evidence": [
+                        "extract_symbols walks parsed trees and returns records in source order."
+                      ],
+                      "path": "src/anaxigraph/analyzers/javascript_symbols.py",
+                      "rationale": "It finds and describes declarations and selected route calls."
+                    }
+                  ],
+                  "name": "Source parsing and symbol finding",
+                  "rationale": "The supplied links show the analyzer using both helpers and the symbol finder using the parser.",
+                  "responsibility": "Create file analysis results from parsed source."
+                }
+              ]
+            },
+            {
+              "confidence": 0.99,
+              "counter_evidence": [],
+              "description": "These files resolve dependencies between files and summarize whether links were found.",
+              "evidence": [
+                "relationship_builder.py imports relationships.py.",
+                "The builder resolves dependencies and aggregates links.",
+                "relationships.py summarizes resolution status."
+              ],
+              "key": "file-links",
+              "name": "Links between files",
+              "rationale": "One file resolves and saves links; the other interprets their status and quality.",
+              "responsibility": "Build dependency links and report their resolution status.",
+              "subsystems": [
+                {
+                  "confidence": 0.99,
+                  "counter_evidence": [],
+                  "description": "The builder finds dependency targets and combines matching links. The helper reports whether links were resolved.",
+                  "evidence": [
+                    "build_relationships selects sources and records relationships.",
+                    "relationship_metadata, resolution_status, and relationship_quality interpret link data."
+                  ],
+                  "key": "relationship-building",
+                  "members": [
+                    {
+                      "alternatives": [],
+                      "confidence": 0.99,
+                      "evidence": [
+                        "build_relationships selects sources and aggregates dependencies."
+                      ],
+                      "path": "src/anaxigraph/relationship_builder.py",
+                      "rationale": "It resolves dependencies and records combined link data."
+                    },
+                    {
+                      "alternatives": [],
+                      "confidence": 1.0,
+                      "evidence": [
+                        "It defines relationship_metadata, resolution_status, and relationship_quality."
+                      ],
+                      "path": "src/anaxigraph/relationships.py",
+                      "rationale": "It reads link details and summarizes resolution quality."
+                    }
+                  ],
+                  "name": "Dependency links",
+                  "rationale": "The builder and status helper have distinct but directly connected jobs.",
+                  "responsibility": "Record file links and summarize how many were resolved."
+                }
+              ]
+            },
+            {
+              "confidence": 0.98,
+              "counter_evidence": [
+                "No direct relationships among most of these files were supplied."
+              ],
+              "description": "These files configure semantic runs, track their jobs, check proposed file groups, and read saved group maps.",
+              "evidence": [
+                "semantic_execution.py selects run options.",
+                "semantic.py selects providers and checks responses.",
+                "semantic_job_state.py defines job states and transitions.",
+                "semantic_taxonomy_validation.py checks proposed groups.",
+                "semantic_taxonomy_read.py reads the saved group map."
+              ],
+              "key": "semantic-groups",
+              "name": "Semantic runs and file groups",
+              "rationale": "The files cover run choices, provider results, job states, group checks, and saved group-map reading. Direct links among most of them were not supplied.",
+              "responsibility": "Run semantic analysis and turn its results into checked, readable file groups.",
+              "subsystems": [
+                {
+                  "confidence": 0.98,
+                  "counter_evidence": [
+                    "No direct relationships among these three files were supplied."
+                  ],
+                  "description": "These files select how semantic work runs, check provider results, and define allowed job-state changes.",
+                  "evidence": [
+                    "semantic_execution.py parses options and selects execution choices.",
+                    "semantic.py selects providers and checks their responses.",
+                    "semantic_job_state.py defines valid state transitions."
+                  ],
+                  "key": "semantic-run",
+                  "members": [
+                    {
+                      "alternatives": [],
+                      "confidence": 0.99,
+                      "evidence": [
+                        "It defines command-line options and stage-specific model overrides."
+                      ],
+                      "path": "src/anaxigraph/semantic_execution.py",
+                      "rationale": "It parses options and selects provider, plan-only, MCP, or local execution."
+                    },
+                    {
+                      "alternatives": [],
+                      "confidence": 0.99,
+                      "evidence": [
+                        "It supports command, Codex CLI, and Claude CLI responses."
+                      ],
+                      "path": "src/anaxigraph/semantic.py",
+                      "rationale": "It runs configured providers and checks their results."
+                    },
+                    {
+                      "alternatives": [],
+                      "confidence": 0.99,
+                      "evidence": [
+                        "Invalid state changes and unknown job kinds raise ValueError."
+                      ],
+                      "path": "src/anaxigraph/semantic_job_state.py",
+                      "rationale": "It lists allowed semantic job states and changes between them."
+                    }
+                  ],
+                  "name": "Run choices and job states",
+                  "rationale": "The files cover related run control tasks, but supplied evidence does not show direct links among all three.",
+                  "responsibility": "Choose run settings, use providers, and check job-state changes."
+                },
+                {
+                  "confidence": 0.99,
+                  "counter_evidence": [],
+                  "description": "One file checks proposed groups and assigns eligible files. The other reads saved groups from SQLite and arranges them for display.",
+                  "evidence": [
+                    "normalize_taxonomy flattens groups, applies locks, and reports issues.",
+                    "current_taxonomy reads the latest saved group map.",
+                    "taxonomy_map_payload combines group data with the hierarchy."
+                  ],
+                  "key": "file-group-maps",
+                  "members": [
+                    {
+                      "alternatives": [],
+                      "confidence": 0.99,
+                      "evidence": [
+                        "It reports issues and repairs missing or duplicate assignments."
+                      ],
+                      "path": "src/anaxigraph/semantic_taxonomy_validation.py",
+                      "rationale": "It checks proposed groups and assigns every eligible file."
+                    },
+                    {
+                      "alternatives": [],
+                      "confidence": 0.99,
+                      "evidence": [
+                        "It reads the latest group map from SQLite.",
+                        "It returns assignments and labeled hierarchy nodes."
+                      ],
+                      "path": "src/anaxigraph/persistence/semantic_taxonomy_read.py",
+                      "rationale": "It reads saved group assignments and builds their hierarchy."
+                    }
+                  ],
+                  "name": "File group maps",
+                  "rationale": "The files handle proposed groups and saved group-map data.",
+                  "responsibility": "Check file assignments and present saved groups as a tree and map."
+                }
+              ]
+            }
+          ],
+          "confidence": 0.97,
+          "evidence": [
+            "The payload provides behavior descriptions for all 12 supplied files.",
+            "Seven direct links are supplied, including the source-reading chain and the relationship-builder import.",
+            "No tests or earlier group map were supplied."
+          ],
+          "facets": [
+            {
+              "description": "These files connect module controls to search and file details, then draw the module table and expanded details.",
+              "evidence": [
+                "module-events.js requests /api/search and /api/file.",
+                "module-view.js renders filters, a paginated table, and expanded file details."
+              ],
+              "members": [
+                "src/anaxigraph/dashboard/module-events.js",
+                "src/anaxigraph/dashboard/module-view.js"
+              ],
+              "name": "Dashboard module display"
+            }
+          ],
+          "summary": "The files read JavaScript and TypeScript, build links between files, display module details, and run or read semantic group maps. The saved group-map reader is in the semantic area. Test coverage and protected-code placement are unknown."
+        },
+        "verdict": "revise"
+      }
+    },
+    {
+      "id": 27,
+      "document_kind": "taxonomy_review",
+      "scope_type": "taxonomy",
+      "scope_key": "1",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.97,
+        "evidence": [
+          "All 12 supplied files have exactly one main group.",
+          "There are four areas and five subsystems, within the supplied limits.",
+          "The two dashboard files are assigned based on their described shared display work.",
+          "The saved group reader uses SQLite, and the relationship builder records links."
+        ],
+        "issues": [
+          {
+            "evidence": [
+              "The supplied evidence says no tests or earlier group map were supplied.",
+              "No module description identifies specially protected code."
+            ],
+            "explanation": "The payload names no tests and gives no information about specially protected code.",
+            "kind": "missing_evidence",
+            "recommendation": "Treat test coverage and protected-code location as unknown until repository evidence is available.",
+            "scope": "repository",
+            "severity": "warning"
+          },
+          {
+            "evidence": [
+              "The validation report lists both files as repaired missing memberships.",
+              "The event file handles module controls, and the view file renders the module table and details."
+            ],
+            "explanation": "The validator found that both dashboard files lacked a group. This map assigns them to the dashboard display group.",
+            "kind": "repaired_membership",
+            "recommendation": "Keep both files together because one handles user actions and the other displays their results.",
+            "scope": "src/anaxigraph/dashboard/module-events.js and src/anaxigraph/dashboard/module-view.js",
+            "severity": "info"
+          }
+        ],
+        "summary": "The map assigns all 12 files to four groups. Two dashboard files were missing and are now included. Test coverage and specially protected code cannot be identified from the supplied evidence.",
+        "taxonomy": {
+          "areas": [
+            {
+              "confidence": 0.99,
+              "counter_evidence": [],
+              "description": "These files parse JavaScript and TypeScript and find named code parts and source facts.",
+              "evidence": [
+                "javascript.py assembles FileAnalysis results.",
+                "javascript_parser.py parses JavaScript, JSX, TypeScript, and TSX.",
+                "javascript_symbols.py finds declarations and selected route calls."
+              ],
+              "key": "code-reading",
+              "name": "JavaScript and TypeScript reading",
+              "rationale": "The analyzer uses the parser and symbol finder, and the symbol finder uses the parser.",
+              "responsibility": "Turn source text into file results with symbols, dependencies, and measurements.",
+              "subsystems": [
+                {
+                  "confidence": 1.0,
+                  "counter_evidence": [],
+                  "description": "The parser reads source trees, the symbol finder labels selected code parts, and the analyzer combines their results.",
+                  "evidence": [
+                    "javascript.py calls javascript_parser.py and javascript_symbols.py.",
+                    "javascript_symbols.py calls javascript_parser.py."
+                  ],
+                  "key": "javascript-analysis",
+                  "members": [
+                    {
+                      "alternatives": [],
+                      "confidence": 0.99,
+                      "evidence": [
+                        "It calls the parser and symbol finder.",
+                        "It returns parse-error results for specified parser exceptions."
+                      ],
+                      "path": "src/anaxigraph/analyzers/javascript.py",
+                      "rationale": "It combines parser and symbol facts into FileAnalysis results."
+                    },
+                    {
+                      "alternatives": [],
+                      "confidence": 1.0,
+                      "evidence": [
+                        "It parses JavaScript, JSX, TypeScript, and TSX.",
+                        "It provides diagnostics, source spans, metrics, and structural hashes."
+                      ],
+                      "path": "src/anaxigraph/analyzers/javascript_parser.py",
+                      "rationale": "It parses source and provides shared tree-reading helpers."
+                    },
+                    {
+                      "alternatives": [],
+                      "confidence": 0.99,
+                      "evidence": [
+                        "extract_symbols walks parsed trees and returns records in source order."
+                      ],
+                      "path": "src/anaxigraph/analyzers/javascript_symbols.py",
+                      "rationale": "It finds and describes declarations and selected route calls."
+                    }
+                  ],
+                  "name": "Source parsing and symbol finding",
+                  "rationale": "The supplied links show the analyzer using both helpers and the symbol finder using the parser.",
+                  "responsibility": "Create file analysis results from parsed source."
+                }
+              ]
+            },
+            {
+              "confidence": 0.99,
+              "counter_evidence": [],
+              "description": "These files connect module controls to search and file details, then draw the module table and expanded details.",
+              "evidence": [
+                "module-events.js handles module controls and requests /api/search and /api/file.",
+                "module-view.js renders filters, a paginated table, and expanded file details.",
+                "The validator found missing group membership for both files."
+              ],
+              "key": "dashboard-display",
+              "name": "Dashboard module display",
+              "rationale": "The event file requests search and file data; the view file renders filters, rows, and details.",
+              "responsibility": "Handle module display actions and render the resulting module list and details.",
+              "subsystems": [
+                {
+                  "confidence": 0.99,
+                  "counter_evidence": [],
+                  "description": "One file handles searches, filters, sorting, paging, and row clicks. The other builds the table and file details.",
+                  "evidence": [
+                    "module-events.js debounces searches and loads uncached file details.",
+                    "module-view.js filters and sorts modules and renders expanded details."
+                  ],
+                  "key": "module-table-and-details",
+                  "members": [
+                    {
+                      "alternatives": [],
+                      "confidence": 0.99,
+                      "evidence": [
+                        "It registers input, change, and click handlers.",
+                        "It requests /api/search and /api/file."
+                      ],
+                      "path": "src/anaxigraph/dashboard/module-events.js",
+                      "rationale": "It connects dashboard controls to search, file details, and graph navigation."
+                    },
+                    {
+                      "alternatives": [],
+                      "confidence": 0.98,
+                      "evidence": [
+                        "It builds area, subsystem, and language filters.",
+                        "It displays file purpose, change history, group maps, and inspection guidance."
+                      ],
+                      "path": "src/anaxigraph/dashboard/module-view.js",
+                      "rationale": "It renders module filters, a paginated table, and expanded file details."
+                    }
+                  ],
+                  "name": "Module controls and display",
+                  "rationale": "The two files work on the same dashboard view, with one handling actions and the other drawing results.",
+                  "responsibility": "Let users find modules and inspect their file details."
+                }
+              ]
+            },
+            {
+              "confidence": 0.99,
+              "counter_evidence": [],
+              "description": "These files find dependency targets, record links between files, and summarize whether links were resolved.",
+              "evidence": [
+                "relationship_builder.py imports relationships.py.",
+                "The builder resolves dependencies and combines matching links.",
+                "relationships.py summarizes resolution status."
+              ],
+              "key": "file-links",
+              "name": "Links between files",
+              "rationale": "The builder imports the helper that interprets relationship data.",
+              "responsibility": "Build dependency links and report their resolution status.",
+              "subsystems": [
+                {
+                  "confidence": 0.99,
+                  "counter_evidence": [],
+                  "description": "The builder finds dependency targets and combines matching links. The helper reports whether links were resolved.",
+                  "evidence": [
+                    "build_relationships selects sources and records relationships.",
+                    "relationship_metadata, resolution_status, and relationship_quality interpret link data."
+                  ],
+                  "key": "relationship-building",
+                  "members": [
+                    {
+                      "alternatives": [],
+                      "confidence": 0.99,
+                      "evidence": [
+                        "build_relationships selects sources and aggregates dependencies."
+                      ],
+                      "path": "src/anaxigraph/relationship_builder.py",
+                      "rationale": "It resolves dependencies and records combined link data."
+                    },
+                    {
+                      "alternatives": [],
+                      "confidence": 1.0,
+                      "evidence": [
+                        "It defines relationship_metadata, resolution_status, and relationship_quality."
+                      ],
+                      "path": "src/anaxigraph/relationships.py",
+                      "rationale": "It reads link details and summarizes resolution quality."
+                    }
+                  ],
+                  "name": "Dependency links",
+                  "rationale": "The builder and status helper have distinct, directly connected jobs.",
+                  "responsibility": "Record file links and summarize how many were resolved."
+                }
+              ]
+            },
+            {
+              "confidence": 0.97,
+              "counter_evidence": [
+                "No direct relationships among most of these files were supplied."
+              ],
+              "description": "These files choose how semantic work runs, manage its job states, check proposed file groups, and read saved groups from SQLite.",
+              "evidence": [
+                "semantic_execution.py selects run options.",
+                "semantic.py selects providers and checks responses.",
+                "semantic_job_state.py defines job states and transitions.",
+                "semantic_taxonomy_validation.py checks proposed groups.",
+                "semantic_taxonomy_read.py reads the saved group map."
+              ],
+              "key": "semantic-groups",
+              "name": "Semantic runs and file groups",
+              "rationale": "The files cover run choices, provider results, job states, group checks, and saved group reading. Direct links among most of them were not supplied.",
+              "responsibility": "Run semantic analysis and turn its results into checked, readable file groups.",
+              "subsystems": [
+                {
+                  "confidence": 0.98,
+                  "counter_evidence": [
+                    "No direct relationships among these three files were supplied."
+                  ],
+                  "description": "These files select run settings, use semantic providers, and define valid changes to job states.",
+                  "evidence": [
+                    "semantic_execution.py parses options and selects execution choices.",
+                    "semantic.py selects providers and checks their responses.",
+                    "semantic_job_state.py defines valid state changes."
+                  ],
+                  "key": "semantic-run",
+                  "members": [
+                    {
+                      "alternatives": [],
+                      "confidence": 0.99,
+                      "evidence": [
+                        "It defines command-line options and stage-specific model overrides."
+                      ],
+                      "path": "src/anaxigraph/semantic_execution.py",
+                      "rationale": "It parses options and selects provider, plan-only, MCP, or local execution."
+                    },
+                    {
+                      "alternatives": [],
+                      "confidence": 0.99,
+                      "evidence": [
+                        "It supports command, Codex CLI, and Claude CLI responses."
+                      ],
+                      "path": "src/anaxigraph/semantic.py",
+                      "rationale": "It runs configured providers and checks their results."
+                    },
+                    {
+                      "alternatives": [],
+                      "confidence": 0.99,
+                      "evidence": [
+                        "Invalid state changes and unknown job kinds raise ValueError."
+                      ],
+                      "path": "src/anaxigraph/semantic_job_state.py",
+                      "rationale": "It lists allowed semantic job states and changes between them."
+                    }
+                  ],
+                  "name": "Run choices and job states",
+                  "rationale": "The files cover related run-control tasks, but supplied evidence does not show direct links among all three.",
+                  "responsibility": "Choose run settings, use providers, and check job-state changes."
+                },
+                {
+                  "confidence": 0.99,
+                  "counter_evidence": [],
+                  "description": "One file checks proposed groups and assigns eligible files. The other reads saved groups from SQLite and arranges them for display.",
+                  "evidence": [
+                    "normalize_taxonomy flattens groups, applies locks, and reports issues.",
+                    "current_taxonomy reads the latest saved group map.",
+                    "taxonomy_map_payload combines group data with the hierarchy."
+                  ],
+                  "key": "file-group-maps",
+                  "members": [
+                    {
+                      "alternatives": [],
+                      "confidence": 0.99,
+                      "evidence": [
+                        "It reports issues and repairs missing or duplicate assignments."
+                      ],
+                      "path": "src/anaxigraph/semantic_taxonomy_validation.py",
+                      "rationale": "It checks proposed groups and assigns every eligible file."
+                    },
+                    {
+                      "alternatives": [],
+                      "confidence": 0.99,
+                      "evidence": [
+                        "It reads the latest group map from SQLite.",
+                        "It returns assignments and labeled hierarchy nodes."
+                      ],
+                      "path": "src/anaxigraph/persistence/semantic_taxonomy_read.py",
+                      "rationale": "It reads saved group assignments and builds their hierarchy."
+                    }
+                  ],
+                  "name": "File group maps",
+                  "rationale": "The files handle proposed groups and saved group data at different stages.",
+                  "responsibility": "Check file assignments and present saved groups as a tree and map."
+                }
+              ]
+            }
+          ],
+          "confidence": 0.97,
+          "evidence": [
+            "The payload gives behavior descriptions for all 12 supplied files.",
+            "Seven direct links are supplied, including the source-reading chain and the relationship-builder import.",
+            "No tests or earlier group map were supplied."
+          ],
+          "facets": [
+            {
+              "description": "These files connect module controls to search and file details, then draw the module table and expanded details.",
+              "evidence": [
+                "module-events.js requests /api/search and /api/file.",
+                "module-view.js renders filters, a paginated table, and expanded file details."
+              ],
+              "members": [
+                "src/anaxigraph/dashboard/module-events.js",
+                "src/anaxigraph/dashboard/module-view.js"
+              ],
+              "name": "Dashboard module display"
+            }
+          ],
+          "summary": "The four groups cover source reading, dashboard module display, file links, and semantic runs and file groups. The saved group reader uses SQLite. The relationship builder records links. The supplied evidence does not identify tests or specially protected code."
+        },
+        "verdict": "revise"
+      }
+    },
+    {
+      "id": 28,
+      "document_kind": "synthesis",
+      "scope_type": "group",
+      "scope_key": "code-reading",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.99,
+        "evidence": [
+          "`JavaScriptAnalyzer.analyze`, `TypeScriptAnalyzer.analyze`, `_parsed_analysis`, `_build_analysis`, and `_parse_failure` in `src/anaxigraph/analyzers/javascript.py`.",
+          "`parse_source`, `structural_hash`, and `source_metrics` in `src/anaxigraph/analyzers/javascript_parser.py`.",
+          "`extract_symbols`, `_endpoint_symbol`, `_symbol`, and `_deduplicate` in `src/anaxigraph/analyzers/javascript_symbols.py."
+        ],
+        "public_contracts": [
+          "Analysis accepts a path and source content. Specified parser failures return a parse-error result with a normalized-content hash and basic metrics.",
+          "TypeScript results describe syntax, not type-checker results. Call relationships cover imported roots; dynamic expressions remain unresolved.",
+          "`parse_source` reports up to 20 error or missing-node diagnostics. `parse_error` summarizes the first diagnostic or returns `None`.",
+          "Structural hashes include leaf types and text plus missing-node markers, excluding comments and internal nodes. Spans use one-based lines and byte-based columns.",
+          "API endpoint symbols require calls on `app`, `router`, or `server`, an HTTP method, and a literal route. Export facts determine declaration visibility; class member visibility reflects private markers."
+        ],
+        "responsibilities": [
+          "Select JavaScript or TypeScript parser modes, collect dependencies, symbols, evidence, and module semantics, then assemble `FileAnalysis`.",
+          "Provide parser diagnostics, source spans and excerpts, literal and signature text, complexity, metrics, and comment-free structural hashes.",
+          "Extract declarations, callable values, function-valued fields, default-exported functions, and selected API route calls."
+        ],
+        "summary": "The JavaScript and TypeScript reading area parses source with Tree-sitter and turns parsed facts into file analyses and deduplicated symbols."
+      }
+    },
+    {
+      "id": 29,
+      "document_kind": "synthesis",
+      "scope_type": "group",
+      "scope_key": "semantic-groups",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.99,
+        "evidence": [
+          "Supplied dossiers cover `semantic_execution.py`, `semantic.py`, `semantic_job_state.py`, `semantic_taxonomy_validation.py`, and `persistence/semantic_taxonomy_read.py`.",
+          "The dossiers name the execution selectors, provider adapters, transition helpers, normalization functions, and taxonomy readers that implement these behaviors."
+        ],
+        "public_contracts": [
+          "Stage overrides replace matching tiers and preserve other configured tiers. Runtime limits must be positive, and parallel jobs cannot exceed the maximum.",
+          "Command execution sends JSON on stdin; launch errors, timeouts, and nonzero exits raise `SemanticAnalysisError`. Successful responses are validated, with reported usage retained.",
+          "Unknown paths are ignored with warnings. Every eligible path receives an assignment, and locked memberships override earlier assignments.",
+          "Missing taxonomies yield `None`, an empty assignment mapping, or an empty hierarchy, depending on the read function. Hierarchy totals include descendant counts and avoid ancestor cycles.",
+          "Invalid job transitions, bulk transitions without a shared target, and unknown job kinds raise `ValueError`."
+        ],
+        "responsibilities": [
+          "`semantic_execution.py` selects provider and local executor settings, parses stage overrides, and validates runtime options.",
+          "`semantic.py` adapts command, Codex CLI, and Claude CLI responses into validated results; agent execution uses a connected agent.",
+          "`semantic_job_state.py` defines allowed job transitions and maps job kinds to scope statuses.",
+          "`semantic_taxonomy_validation.py` normalizes proposed groups, checks eligible paths, applies locks, and reports validation results.",
+          "`semantic_taxonomy_read.py` reads taxonomy assignments and builds labeled hierarchy and map payloads."
+        ],
+        "summary": "This area configures semantic runs, manages semantic job states, validates proposed taxonomies, and reads saved groups from SQLite."
+      }
+    },
+    {
+      "id": 30,
+      "document_kind": "synthesis",
+      "scope_type": "group",
+      "scope_key": "javascript-analysis",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.99,
+        "evidence": [
+          "`JavaScriptAnalyzer.analyze`, `TypeScriptAnalyzer.analyze`, `_build_analysis`, and `_parse_failure` in `src/anaxigraph/analyzers/javascript.py`.",
+          "`parse_source` and `structural_hash` in `src/anaxigraph/analyzers/javascript_parser.py`.",
+          "`extract_symbols` and `_endpoint_symbol` in `src/anaxigraph/analyzers/javascript_symbols.py`."
+        ],
+        "public_contracts": [
+          "Analyzer methods accept a path and source content and return `FileAnalysis`; specified parser exceptions produce parse-error results.",
+          "TypeScript results describe syntax, not type-checker output. Call relationships cover imported roots; dynamic expressions remain unresolved.",
+          "Parsing reports up to 20 error or missing-node diagnostics. Structural hashes exclude comments and internal nodes.",
+          "API route symbols require a recognized HTTP-method call on `app`, `router`, or `server` with a literal first argument. Unexported declarations are private."
+        ],
+        "responsibilities": [
+          "`JavaScriptAnalyzer` and `TypeScriptAnalyzer` select language modes and assemble dependencies, symbols, evidence, module semantics, metrics, and parser metadata.",
+          "`javascript_parser.py` supplies Tree-sitter parsing, diagnostics, source helpers, metrics, and structural hashing.",
+          "`extract_symbols` in `javascript_symbols.py` finds supported declarations, callable values, and selected API routes."
+        ],
+        "summary": "The JavaScript analysis subsystem parses JavaScript, JSX, TypeScript, and TSX source, then combines parsed facts into file analysis results."
+      }
+    },
+    {
+      "id": 31,
+      "document_kind": "synthesis",
+      "scope_type": "group",
+      "scope_key": "semantic-run",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.99,
+        "evidence": [
+          "Supplied dossiers describe provider selection and adapters in `semantic.py`, execution routing in `semantic_execution.py`, and transition definitions in `semantic_job_state.py`.",
+          "The dossiers cite `subprocess.run`, response validation helpers, `_TRANSITIONS`, and `_JOB_KINDS` as implementation evidence."
+        ],
+        "public_contracts": [
+          "Stage overrides replace matching tiers and preserve other tiers. Runtime limits must be positive, parallel jobs cannot exceed the configured maximum, and local executors must be on `PATH`.",
+          "Command execution sends JSON on stdin. Process launch errors, timeouts, nonzero exits, and invalid responses raise `SemanticAnalysisError`; successful usage data is retained.",
+          "`execution_for` returns the original config without tier overrides; with overrides it changes only specified runtime choices.",
+          "Job transition helpers reject unknown or invalid transitions. Bulk transitions require source states and one shared target. Unknown job kinds are rejected. `SemanticLeaseLost` signals loss of a write-required running lease."
+        ],
+        "responsibilities": [
+          "`semantic_execution.py` parses executor and stage-model options, then routes provider, plan-only, MCP, or local-agent execution.",
+          "`semantic.py` applies stage-specific runtime settings and adapts command, Codex CLI, and Claude CLI responses into validated results.",
+          "`semantic_job_state.py` defines job states, events, transitions, and scope-status mapping."
+        ],
+        "summary": "The semantic-run subsystem chooses run settings, invokes semantic providers, and validates job-state changes."
+      }
+    },
+    {
+      "id": 32,
+      "document_kind": "synthesis",
+      "scope_type": "group",
+      "scope_key": "file-group-maps",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.99,
+        "evidence": [
+          "`normalize_taxonomy`, `_flatten`, `_apply_locks`, `_assign_missing`, `_artifact_ids`, and `_memberships` in `src/anaxigraph/semantic_taxonomy_validation.py`.",
+          "`current_taxonomy`, `taxonomy_assignments`, `read_semantic_hierarchy`, `taxonomy_map_payload`, and `materialize_hierarchy` in `src/anaxigraph/persistence/semantic_taxonomy_read.py`."
+        ],
+        "public_contracts": [
+          "Unknown paths are ignored with warnings, and every eligible path receives an assignment, including repaired unclassified assignments.",
+          "Configured memberships for known paths override earlier assignments and are marked locked. Memberships omit paths without repository artifacts.",
+          "When no current taxonomy exists, taxonomy and map reads return `None`, assignments return an empty mapping, and hierarchy reads return an empty list.",
+          "Hierarchy roots and children sort by descending line count, then name. Nodes include direct counts and recursively summed totals; traversal stops when it encounters an ancestor again."
+        ],
+        "responsibilities": [
+          "`normalize_taxonomy` flattens areas and subsystems, checks paths against eligible files, and returns nodes, memberships, events, and validation data.",
+          "Taxonomy readers load the current snapshot from SQLite and shape it into artifact assignments, a labeled hierarchy, or a map payload."
+        ],
+        "summary": "File group maps validate proposed file assignments and present saved semantic groups as a hierarchy and map."
+      }
+    },
+    {
+      "id": 33,
+      "document_kind": "synthesis",
+      "scope_type": "group",
+      "scope_key": "dashboard-display",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.99,
+        "evidence": [
+          "`src/anaxigraph/dashboard/module-events.js`: `setupModuleEvents`, `scheduleModuleSearch`, and `handleModuleClick` implement control handlers, search, detail loading, and graph navigation.",
+          "`src/anaxigraph/dashboard/module-view.js`: `renderModuleFilters`, `renderModules`, `filteredModules`, `searchOrder`, `moduleOrder`, `moduleRow`, and `moduleDetailRow` implement filter and table rendering."
+        ],
+        "public_contracts": [
+          "Searches shorter than two characters clear results; longer-query results apply only when query and repository tokens still match.",
+          "Filter or sort changes reset the page to 1. Search results sort by descending score, then path; ordinary sorts put missing values last and use path as a tie-breaker.",
+          "Rendering clamps the page to the available range and updates counts, paging controls, sort indicators, and table contents.",
+          "Stale repository detail responses are ignored, and errors for the current detail load are shown with `toast`. Clicking a module row toggles expansion.",
+          "Graph controls switch to graph view and schedule inspection when a node with the matching path exists.",
+          "Expanded details prefer semantic pattern opportunities and plain-language fields, with evaluation or intrinsic map data as fallbacks."
+        ],
+        "responsibilities": [
+          "`setupModuleEvents` registers module-control handlers and loads uncached file details.",
+          "`renderModuleFilters` builds filters from module data.",
+          "`renderModules` filters and orders modules, renders the paginated table, and displays expanded file details."
+        ],
+        "summary": "The dashboard connects module controls to search, filtering, sorting, pagination, row details, and graph navigation, then renders the module list and expanded details."
+      }
+    },
+    {
+      "id": 34,
+      "document_kind": "synthesis",
+      "scope_type": "group",
+      "scope_key": "module-table-and-details",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.99,
+        "evidence": [
+          "`src/anaxigraph/dashboard/module-events.js`: `setupModuleEvents`, `scheduleModuleSearch`, and `handleModuleClick` register handlers, search, load details, and navigate to the graph.",
+          "`src/anaxigraph/dashboard/module-view.js`: `renderModuleFilters`, `renderModules`, `filteredModules`, `searchOrder`, `moduleOrder`, `moduleRow`, and `moduleDetailRow` implement filters, ordering, pagination, and display."
+        ],
+        "public_contracts": [
+          "Queries shorter than two characters clear results; longer-query results apply only when query and repository tokens still match.",
+          "Filter or sort changes reset the page to 1. Same-key sorts toggle direction; new path, architecture area, and summary sorts start ascending, other sorts descending.",
+          "Search results sort by descending score, then path. Ordinary sorts put missing values last and use path as a tie-breaker.",
+          "`renderModules` clamps the page to the available range and updates counts, paging controls, sort indicators, and table contents.",
+          "Stale repository detail responses are ignored; errors for the current load are shown with `toast`. Clicking a module row toggles expansion.",
+          "Graph controls switch to graph view and schedule inspection when a node with the matching path exists.",
+          "Expanded details prefer semantic pattern opportunities and plain-language fields, with evaluation or intrinsic map data as fallbacks."
+        ],
+        "responsibilities": [
+          "Debounce module searches and request results from `/api/search`.",
+          "Filter and order module data, then render table rows and expanded details.",
+          "Load uncached file details from `/api/file` when a row expands."
+        ],
+        "summary": "Module controls let users search, filter, sort, page through modules, and inspect file details. `setupModuleEvents` handles control events and graph navigation; `renderModuleFilters` and `renderModules` build the filters and table."
+      }
+    },
+    {
+      "id": 35,
+      "document_kind": "synthesis",
+      "scope_type": "group",
+      "scope_key": "file-links",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.99,
+        "evidence": [
+          "`src/anaxigraph/relationship_builder.py` calls `_copy_reusable`, `_aggregate`, `_resolved_edges`, `reconstruct_files`, and `record_canonical_relationships`.",
+          "`src/anaxigraph/relationships.py` defines status constants and quality helpers.",
+          "The builder reports total, copied, resolved-source, and reused-source counts."
+        ],
+        "public_contracts": [
+          "Statuses are `resolved_internal`, `ambiguous_internal`, `unresolved_internal`, `external`, and `dynamic`. Dynamic expressions remain dynamic; unique matches resolve internally, multiple matches are ambiguous, and unmatched targets are classified as internal or external.",
+          "Confidence is capped at 0.5 for ambiguous links and 0.35 for unresolved internal or dynamic links. Self-imports are excluded; evidence is limited to five strings and 2,000 characters.",
+          "Quality is unavailable without internal or dynamic references, complete when none are unresolved, ambiguous, or dynamic, and partial otherwise. The internal resolution rate is null when there are no internal references."
+        ],
+        "responsibilities": [
+          "`DependencyResolver` indexes workspace paths, Python modules, and analyzed symbols to find dependency targets.",
+          "`build_relationships` selects sources, aggregates dependencies, resolves edges, and persists canonical relationships.",
+          "`relationship_metadata`, `resolution_status`, and `relationship_quality` read metadata, determine status, and summarize quality."
+        ],
+        "summary": "The file-links area builds dependency links for a snapshot, reuses carried-forward relationships, and reports relationship resolution and quality."
+      }
+    },
+    {
+      "id": 36,
+      "document_kind": "synthesis",
+      "scope_type": "group",
+      "scope_key": "relationship-building",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "confidence": 0.99,
+        "evidence": [
+          "`src/anaxigraph/relationship_builder.py`: `build_relationships` calls `_copy_reusable`, `_aggregate`, `_resolved_edges`, `reconstruct_files`, and `record_canonical_relationships`.",
+          "`src/anaxigraph/relationship_builder.py`: `_merge_relationship` tracks weight, confidence, evidence, targets, and provenance.",
+          "`src/anaxigraph/relationships.py`: status constants and helper implementations define metadata parsing, legacy inference, and quality summaries."
+        ],
+        "public_contracts": [
+          "Dynamic expressions remain dynamic. Unique matches resolve internally; multiple matches are ambiguous; unmatched targets are classified as internal or external.",
+          "Confidence is capped at 0.5 for ambiguous links and 0.35 for unresolved internal or dynamic links. Self-imports are excluded; stored evidence is limited to five strings and 2,000 characters.",
+          "Recognized statuses are `resolved_internal`, `ambiguous_internal`, `unresolved_internal`, `external`, and `dynamic`. Legacy rows infer internal resolution from a target artifact ID, otherwise external status.",
+          "Quality is `unavailable` without internal or dynamic references, `complete` when no unresolved, ambiguous, or dynamic references exist, and `partial` otherwise. The internal resolution rate is null when there are no internal references."
+        ],
+        "responsibilities": [
+          "`DependencyResolver` indexes workspace paths, Python modules, and analyzed symbols before resolving dependencies.",
+          "`build_relationships` selects sources, reuses carried-forward relationships, aggregates matching edges, and persists canonical relationships.",
+          "`relationship_metadata`, `resolution_status`, and `relationship_quality` read relationship metadata and summarize resolution counts and quality."
+        ],
+        "summary": "Dependency links are extracted, resolved, reused, aggregated, and stored for a snapshot. Helpers report each link’s resolution status and summarize relationship quality."
+      }
+    },
+    {
+      "id": 37,
+      "document_kind": "synthesis",
+      "scope_type": "repository",
+      "scope_key": "1",
+      "model": "",
+      "executor_effort": "medium",
+      "value": {
+        "actors": [
+          {
+            "confidence": 0.98,
+            "counter_evidence": [],
+            "entry_points": [
+              "Dashboard module controls"
+            ],
+            "evidence": [
+              "The dashboard summaries describe module search, filters, sorting, pagination, row expansion, and graph navigation."
+            ],
+            "key": "repository_user",
+            "name": "Repository explorer",
+            "owner_scope": "dashboard-display",
+            "related": [
+              "module_browsing",
+              "dependency_links"
+            ],
+            "statement": "A user searches and browses modules, opens file details, and follows links into the graph view."
+          }
+        ],
+        "capabilities": [
+          {
+            "confidence": 0.99,
+            "counter_evidence": [
+              "TypeScript results describe syntax and do not include type-checker results."
+            ],
+            "entry_points": [
+              "JavaScriptAnalyzer.analyze",
+              "TypeScriptAnalyzer.analyze"
+            ],
+            "evidence": [
+              "The JavaScript analysis summaries describe language mode selection, file analysis assembly, symbols, metrics, and diagnostics."
+            ],
+            "key": "source_analysis",
+            "name": "Analyze JavaScript and TypeScript",
+            "owner_scope": "javascript-analysis",
+            "related": [
+              "source_reading"
+            ],
+            "statement": "Parse JavaScript, JSX, TypeScript, and TSX syntax and report file facts, symbols, metrics, and parser diagnostics."
+          },
+          {
+            "confidence": 0.99,
+            "counter_evidence": [],
+            "entry_points": [
+              "Dashboard module controls"
+            ],
+            "evidence": [
+              "The dashboard summaries describe searches, filters, ordering, pagination, and expanded details."
+            ],
+            "key": "module_browsing",
+            "name": "Browse modules",
+            "owner_scope": "dashboard-display",
+            "related": [
+              "module_details",
+              "graph_navigation"
+            ],
+            "statement": "Search, filter, sort, and page through modules, then expand rows to view file details."
+          },
+          {
+            "confidence": 0.99,
+            "counter_evidence": [
+              "Dynamic expressions can remain unresolved."
+            ],
+            "entry_points": [
+              "build_relationships",
+              "relationship_quality"
+            ],
+            "evidence": [
+              "The file-link summaries describe dependency resolution, stored relationships, status reporting, and quality summaries."
+            ],
+            "key": "dependency_links",
+            "name": "Build and inspect dependency links",
+            "owner_scope": "file-links",
+            "related": [
+              "repository_links"
+            ],
+            "statement": "Find dependency targets, store relationships for a snapshot, and summarize how well links resolved."
+          },
+          {
+            "confidence": 0.99,
+            "counter_evidence": [
+              "When no saved grouping exists, reads return empty values or no result."
+            ],
+            "entry_points": [
+              "normalize_taxonomy",
+              "read_semantic_hierarchy"
+            ],
+            "evidence": [
+              "The file-group map summaries describe path checks, assignments, hierarchy reads, and map payloads."
+            ],
+            "key": "semantic_groups",
+            "name": "Validate and display file groups",
+            "owner_scope": "semantic-groups",
+            "related": [
+              "group_assignments"
+            ],
+            "statement": "Check proposed file assignments and present saved groups as a hierarchy and map."
+          }
+        ],
+        "capability_brief": {
+          "actors": [
+            "People exploring a repository through its dashboard"
+          ],
+          "compatibility_obligations": [
+            "Dashboard searches shorter than two characters clear results.",
+            "Dependency references report one of five recognized status values."
+          ],
+          "confidence": 0.87,
+          "contract_version": "capability-brief-v1",
+          "evidence": [
+            "Supplied dashboard, JavaScript analysis, file-group, and relationship summaries."
+          ],
+          "external_interfaces": [
+            "Dashboard search and file detail requests use `/api/search` and `/api/file`."
+          ],
+          "non_functional_requirements": [
+            "Ignore detail responses from an earlier repository selection.",
+            "Keep semantic runtime limits positive and cap parallel jobs at the configured maximum."
+          ],
+          "non_goals": [
+            "TypeScript results do not provide type-checker results."
+          ],
+          "observable_capabilities": [
+            "Analyze JavaScript and TypeScript syntax and report file facts and symbols.",
+            "Search, filter, sort, and page through modules, then open file details.",
+            "Follow a module into graph view when a matching node exists.",
+            "Validate file assignments and view saved groups as a hierarchy or map.",
+            "Build dependency links and see whether they resolved."
+          ],
+          "purpose": "Help repository users understand how code files relate and how the repository is grouped.",
+          "unknowns": [
+            "The product's stated user problem and target audience are not included in the supplied evidence.",
+            "The supplied material does not identify external consumers of saved group or relationship data."
+          ],
+          "user_journeys": [
+            "Search for a module, narrow or sort the results, open a row, and inspect its details.",
+            "Open graph view from a module when a matching graph node is available.",
+            "View saved file groups and their nested totals."
+          ]
+        },
+        "coherence_concerns": [
+          {
+            "confidence": 0.95,
+            "counter_evidence": [],
+            "entry_points": [],
+            "evidence": [
+              "The payload includes repeated summaries for `javascript-analysis` and `code-reading`, `dashboard-display` and `module-table-and-details`, and `file-links` and `relationship-building`."
+            ],
+            "key": "overlapping_summaries",
+            "name": "Repeated summaries cover the same work",
+            "related": [
+              "source_analysis",
+              "module_browsing",
+              "dependency_links",
+              "semantic_groups"
+            ],
+            "statement": "Several supplied summaries describe the same JavaScript reading, dashboard, relationship, and semantic-run work with overlapping claims."
+          }
+        ],
+        "confidence": 0.92,
+        "conflicts": [],
+        "contract_version": "architecture-charter-v1",
+        "evidence": [
+          "All claims above are based on the supplied child summaries; no source files or documentation beyond those summaries were provided."
+        ],
+        "execution_flows": [
+          {
+            "confidence": 0.99,
+            "counter_evidence": [],
+            "entry_points": [
+              "setupModuleEvents",
+              "scheduleModuleSearch",
+              "renderModules"
+            ],
+            "evidence": [
+              "The dashboard summaries identify event handling, search requests, filtering, ordering, rendering, and detail loading."
+            ],
+            "key": "browse_modules",
+            "name": "Search and inspect modules",
+            "owner_scope": "dashboard-display",
+            "related": [
+              "module_browsing"
+            ],
+            "statement": "The dashboard receives control events, requests search results when needed, filters and orders modules, renders a page, and loads uncached details when a row expands."
+          },
+          {
+            "confidence": 0.98,
+            "counter_evidence": [
+              "Call relationships cover imported roots, while dynamic expressions remain unresolved."
+            ],
+            "entry_points": [
+              "JavaScriptAnalyzer.analyze",
+              "TypeScriptAnalyzer.analyze"
+            ],
+            "evidence": [
+              "The JavaScript analysis summaries describe parser selection, analysis assembly, and parse-failure handling."
+            ],
+            "key": "analyze_source",
+            "name": "Analyze JavaScript or TypeScript",
+            "owner_scope": "javascript-analysis",
+            "related": [
+              "source_analysis"
+            ],
+            "statement": "An analyzer selects a language mode, parses source, gathers file facts and symbols, and returns a file analysis; specified parser failures produce a parse-error result."
+          },
+          {
+            "confidence": 0.99,
+            "counter_evidence": [],
+            "entry_points": [
+              "build_relationships"
+            ],
+            "evidence": [
+              "The relationship-building summary names reuse, aggregation, resolution, reconstruction, and storage steps."
+            ],
+            "key": "build_links",
+            "name": "Build dependency relationships",
+            "owner_scope": "file-links",
+            "related": [
+              "dependency_links"
+            ],
+            "statement": "The relationship builder selects sources, reuses eligible prior links, resolves and combines dependencies, then stores relationships for a snapshot."
+          }
+        ],
+        "extension_points": [
+          {
+            "confidence": 0.68,
+            "counter_evidence": [
+              "The supplied evidence does not describe how a new language is registered or selected."
+            ],
+            "entry_points": [
+              "JavaScriptAnalyzer.analyze",
+              "TypeScriptAnalyzer.analyze"
+            ],
+            "evidence": [
+              "The reading summaries identify language-specific analyzers and shared parser helpers."
+            ],
+            "key": "supported_analyzers",
+            "name": "Add source-reading support",
+            "owner_scope": "javascript-analysis",
+            "related": [
+              "source_analysis"
+            ],
+            "statement": "The supplied summaries show separate analyzer and parser functions for JavaScript and TypeScript; similar source-reading behavior can be placed alongside these named entry points."
+          }
+        ],
+        "invariants": [
+          {
+            "confidence": 0.99,
+            "counter_evidence": [],
+            "entry_points": [
+              "normalize_taxonomy"
+            ],
+            "evidence": [
+              "The file-group summaries state that every eligible path receives an assignment."
+            ],
+            "key": "taxonomy_assignment_coverage",
+            "name": "Eligible files receive assignments",
+            "owner_scope": "semantic-groups",
+            "related": [
+              "semantic_groups"
+            ],
+            "statement": "Every eligible path receives an assignment, including a repaired unclassified assignment when needed."
+          },
+          {
+            "confidence": 0.99,
+            "counter_evidence": [],
+            "entry_points": [
+              "normalize_taxonomy"
+            ],
+            "evidence": [
+              "The file-group summaries state that locked memberships override earlier assignments."
+            ],
+            "key": "locked_group_membership",
+            "name": "Known locked memberships take precedence",
+            "owner_scope": "semantic-groups",
+            "related": [
+              "semantic_groups"
+            ],
+            "statement": "Configured memberships for known paths override earlier assignments and are marked locked."
+          },
+          {
+            "confidence": 0.99,
+            "counter_evidence": [],
+            "entry_points": [
+              "semantic_execution.py"
+            ],
+            "evidence": [
+              "The semantic-run summaries state these validation rules."
+            ],
+            "key": "safe_runtime_limits",
+            "name": "Semantic run limits are checked",
+            "owner_scope": "semantic-run",
+            "related": [
+              "semantic_run"
+            ],
+            "statement": "Runtime limits must be positive, and parallel job counts cannot exceed the configured maximum."
+          }
+        ],
+        "patterns": [
+          {
+            "confidence": 0.99,
+            "counter_evidence": [],
+            "entry_points": [
+              "_merge_relationship"
+            ],
+            "evidence": [
+              "The relationship summaries specify both limits."
+            ],
+            "key": "evidence_limited_extraction",
+            "name": "Bound stored relationship evidence",
+            "owner_scope": "file-links",
+            "related": [
+              "dependency_links"
+            ],
+            "statement": "Stored relationship evidence is limited to five strings and 2,000 characters."
+          },
+          {
+            "confidence": 0.99,
+            "counter_evidence": [],
+            "entry_points": [
+              "moduleDetailRow"
+            ],
+            "evidence": [
+              "The dashboard summaries describe this preference and fallback order."
+            ],
+            "key": "fallback_detail_display",
+            "name": "Use available detail sources",
+            "owner_scope": "dashboard-display",
+            "related": [
+              "module_details"
+            ],
+            "statement": "Expanded details prefer semantic pattern opportunities and plain-language fields, with evaluation or intrinsic map data as fallbacks."
+          }
+        ],
+        "public_contracts": [
+          {
+            "confidence": 0.99,
+            "counter_evidence": [],
+            "entry_points": [
+              "scheduleModuleSearch",
+              "searchOrder",
+              "moduleOrder"
+            ],
+            "evidence": [
+              "The dashboard summaries specify the query threshold and sort rules."
+            ],
+            "key": "dashboard_search_rules",
+            "name": "Dashboard search and ordering behavior",
+            "owner_scope": "dashboard-display",
+            "related": [
+              "module_browsing"
+            ],
+            "statement": "Queries shorter than two characters clear results. Search results sort by descending score and then path; ordinary sorts put missing values last and use path to break ties."
+          },
+          {
+            "confidence": 0.99,
+            "counter_evidence": [],
+            "entry_points": [
+              "setupModuleEvents"
+            ],
+            "evidence": [
+              "The dashboard summaries state that stale repository responses are ignored and current errors are shown with a toast."
+            ],
+            "key": "stale_detail_responses",
+            "name": "Ignore stale detail responses",
+            "owner_scope": "dashboard-display",
+            "related": [
+              "module_details"
+            ],
+            "statement": "A file-detail response for an old repository is ignored; an error for the current load is shown to the user."
+          },
+          {
+            "confidence": 0.99,
+            "counter_evidence": [
+              "Legacy rows may infer status from whether a target artifact ID exists."
+            ],
+            "entry_points": [
+              "resolution_status"
+            ],
+            "evidence": [
+              "The relationship summaries list the five recognized status values."
+            ],
+            "key": "relationship_statuses",
+            "name": "Dependency status values",
+            "owner_scope": "file-links",
+            "related": [
+              "dependency_links"
+            ],
+            "statement": "Dependency links use statuses for resolved, ambiguous, unresolved, external, or dynamic references."
+          }
+        ],
+        "purpose": {
+          "confidence": 0.96,
+          "counter_evidence": [],
+          "evidence": [
+            "The supplied JavaScript reading summaries describe parsing source into file analyses and symbols.",
+            "The dashboard summary describes searching, filtering, sorting, paging, and inspecting modules.",
+            "The file-group and file-link summaries describe saved groups and dependency links."
+          ],
+          "statement": "AnaxiGraph analyzes repository code and presents file details, groups, and dependency links so users can explore how a codebase is organized."
+        },
+        "responsibilities": [
+          {
+            "confidence": 0.99,
+            "counter_evidence": [
+              "TypeScript analysis does not report type-checker results."
+            ],
+            "entry_points": [
+              "JavaScriptAnalyzer.analyze",
+              "TypeScriptAnalyzer.analyze"
+            ],
+            "evidence": [
+              "The supplied reading summaries name these analyzers and the parser and symbol extraction functions."
+            ],
+            "key": "javascript_reading",
+            "name": "Read JavaScript and TypeScript source",
+            "owner_scope": "javascript-analysis",
+            "related": [
+              "source_analysis"
+            ],
+            "statement": "Select a parser mode and assemble syntax-based file facts, symbols, metrics, and diagnostics."
+          },
+          {
+            "confidence": 0.99,
+            "counter_evidence": [],
+            "entry_points": [
+              "setupModuleEvents",
+              "renderModuleFilters",
+              "renderModules"
+            ],
+            "evidence": [
+              "The dashboard summaries describe event handling and rendering responsibilities."
+            ],
+            "key": "dashboard_display",
+            "name": "Present module results",
+            "owner_scope": "dashboard-display",
+            "related": [
+              "module_browsing"
+            ],
+            "statement": "Apply search and browsing controls, then render module rows and expanded details."
+          },
+          {
+            "confidence": 0.99,
+            "counter_evidence": [
+              "Dynamic references may remain dynamic, and unmatched references may remain unresolved."
+            ],
+            "entry_points": [
+              "DependencyResolver",
+              "build_relationships",
+              "relationship_quality"
+            ],
+            "evidence": [
+              "The file-link summaries describe the resolver, relationship builder, and quality helpers."
+            ],
+            "key": "relationship_resolution",
+            "name": "Resolve and summarize dependencies",
+            "owner_scope": "file-links",
+            "related": [
+              "dependency_links"
+            ],
+            "statement": "Select dependency sources, resolve or reuse links, store them, and report their status and quality."
+          },
+          {
+            "confidence": 0.99,
+            "counter_evidence": [
+              "Unknown paths are ignored with warnings."
+            ],
+            "entry_points": [
+              "normalize_taxonomy"
+            ],
+            "evidence": [
+              "The file-group summaries describe path validation, locked memberships, and assignments for eligible paths."
+            ],
+            "key": "group_validation",
+            "name": "Validate file group assignments",
+            "owner_scope": "semantic-groups",
+            "related": [
+              "semantic_groups"
+            ],
+            "statement": "Check proposed paths against eligible files, apply locked memberships, and assign missing files."
+          }
+        ],
+        "unknowns": [
+          {
+            "evidence_needed": [
+              "Product documentation or user journey evidence"
+            ],
+            "question": "What repository-level problem does the product aim to solve?",
+            "why_it_matters": "The summaries describe features but do not state the user problem or intended audience beyond dashboard users."
+          },
+          {
+            "evidence_needed": [
+              "Analyzer registry or dispatch code"
+            ],
+            "question": "How are source analyzers selected and registered?",
+            "why_it_matters": "The supplied summaries cover JavaScript and TypeScript but do not show the wider selection mechanism."
+          },
+          {
+            "evidence_needed": [
+              "API or integration usage evidence"
+            ],
+            "question": "Which external clients rely on saved group and relationship formats?",
+            "why_it_matters": "The summaries describe returned values but do not identify external consumers or compatibility guarantees."
+          }
+        ]
+      }
+    }
+  ],
+  "taxonomy_memberships": [
+    {
+      "path": "src/anaxigraph/analyzers/javascript.py",
+      "subsystem": "Source parsing and symbol finding",
+      "parent_key": "code-reading",
+      "rationale": "It combines parser and symbol facts into FileAnalysis results."
+    },
+    {
+      "path": "src/anaxigraph/analyzers/javascript_parser.py",
+      "subsystem": "Source parsing and symbol finding",
+      "parent_key": "code-reading",
+      "rationale": "It parses source and provides shared tree-reading helpers."
+    },
+    {
+      "path": "src/anaxigraph/analyzers/javascript_symbols.py",
+      "subsystem": "Source parsing and symbol finding",
+      "parent_key": "code-reading",
+      "rationale": "It finds and describes declarations and selected route calls."
+    },
+    {
+      "path": "src/anaxigraph/dashboard/module-events.js",
+      "subsystem": "Module controls and display",
+      "parent_key": "dashboard-display",
+      "rationale": "It connects dashboard controls to search, file details, and graph navigation."
+    },
+    {
+      "path": "src/anaxigraph/dashboard/module-view.js",
+      "subsystem": "Module controls and display",
+      "parent_key": "dashboard-display",
+      "rationale": "It renders module filters, a paginated table, and expanded file details."
+    },
+    {
+      "path": "src/anaxigraph/persistence/semantic_taxonomy_read.py",
+      "subsystem": "File group maps",
+      "parent_key": "semantic-groups",
+      "rationale": "It reads saved group assignments and builds their hierarchy."
+    },
+    {
+      "path": "src/anaxigraph/relationship_builder.py",
+      "subsystem": "Dependency links",
+      "parent_key": "file-links",
+      "rationale": "It resolves dependencies and records combined link data."
+    },
+    {
+      "path": "src/anaxigraph/relationships.py",
+      "subsystem": "Dependency links",
+      "parent_key": "file-links",
+      "rationale": "It reads link details and summarizes resolution quality."
+    },
+    {
+      "path": "src/anaxigraph/semantic.py",
+      "subsystem": "Run choices and job states",
+      "parent_key": "semantic-groups",
+      "rationale": "It runs configured providers and checks their results."
+    },
+    {
+      "path": "src/anaxigraph/semantic_execution.py",
+      "subsystem": "Run choices and job states",
+      "parent_key": "semantic-groups",
+      "rationale": "It parses options and selects provider, plan-only, MCP, or local execution."
+    },
+    {
+      "path": "src/anaxigraph/semantic_job_state.py",
+      "subsystem": "Run choices and job states",
+      "parent_key": "semantic-groups",
+      "rationale": "It lists allowed semantic job states and changes between them."
+    },
+    {
+      "path": "src/anaxigraph/semantic_taxonomy_validation.py",
+      "subsystem": "File group maps",
+      "parent_key": "semantic-groups",
+      "rationale": "It checks proposed groups and assigns every eligible file."
+    }
+  ],
+  "taxonomy_reviews": [
+    {
+      "pass_index": 1,
+      "document_id": 26,
+      "verdict": "revise",
+      "issues": [
+        {
+          "evidence": [
+            "The JavaScript files parse source and find named code parts.",
+            "The relationship files resolve dependencies and summarize link status."
+          ],
+          "explanation": "The original group combined reading source code with building links between files. Those jobs have different inputs and results.",
+          "kind": "grouping",
+          "recommendation": "Keep source reading and file-link building in separate groups.",
+          "scope": "Source code analysis",
+          "severity": "warning"
+        },
+        {
+          "evidence": [
+            "The supplied test evidence is empty."
+          ],
+          "explanation": "The payload gives no test paths or test results, so test coverage cannot be assigned.",
+          "kind": "evidence",
+          "recommendation": "Leave test coverage unknown until test files or results are supplied.",
+          "scope": "Whole repository",
+          "severity": "info"
+        },
+        {
+          "evidence": [
+            "semantic_taxonomy_read.py reads the latest saved group map from SQLite.",
+            "No protected-code evidence is supplied."
+          ],
+          "explanation": "The payload identifies saved group-map data in SQLite but gives no specially protected code.",
+          "kind": "evidence",
+          "recommendation": "Keep the SQLite reader in the group-map area and leave protected-code placement unknown.",
+          "scope": "Whole repository",
+          "severity": "info"
+        }
+      ],
+      "validation": {
+        "areas": 4,
+        "assigned_modules": 12,
+        "eligible_modules": 12,
+        "issues": [
+          {
+            "kind": "repaired_missing_membership",
+            "scope": "src/anaxigraph/dashboard/module-events.js",
+            "severity": "warning"
+          },
+          {
+            "kind": "repaired_missing_membership",
+            "scope": "src/anaxigraph/dashboard/module-view.js",
+            "severity": "warning"
+          }
+        ],
+        "repairs": 2,
+        "status": "adjusted",
+        "subsystems": 5
+      }
+    },
+    {
+      "pass_index": 2,
+      "document_id": 27,
+      "verdict": "revise",
+      "issues": [
+        {
+          "evidence": [
+            "The supplied evidence says no tests or earlier group map were supplied.",
+            "No module description identifies specially protected code."
+          ],
+          "explanation": "The payload names no tests and gives no information about specially protected code.",
+          "kind": "missing_evidence",
+          "recommendation": "Treat test coverage and protected-code location as unknown until repository evidence is available.",
+          "scope": "repository",
+          "severity": "warning"
+        },
+        {
+          "evidence": [
+            "The validation report lists both files as repaired missing memberships.",
+            "The event file handles module controls, and the view file renders the module table and details."
+          ],
+          "explanation": "The validator found that both dashboard files lacked a group. This map assigns them to the dashboard display group.",
+          "kind": "repaired_membership",
+          "recommendation": "Keep both files together because one handles user actions and the other displays their results.",
+          "scope": "src/anaxigraph/dashboard/module-events.js and src/anaxigraph/dashboard/module-view.js",
+          "severity": "info"
+        }
+      ],
+      "validation": {
+        "areas": 4,
+        "assigned_modules": 12,
+        "eligible_modules": 12,
+        "issues": [],
+        "repairs": 0,
+        "status": "valid",
+        "subsystems": 5
+      }
+    }
+  ]
+}

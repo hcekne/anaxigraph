@@ -1,0 +1,1087 @@
+{
+  "contract": "anaxigraph-model-refresh-review-v1",
+  "date": "2026-10-16",
+  "revision": "beb5f5edba59e9bdb8c2c1edf39f018f0237eaef",
+  "scope": "Focused product and engineering review of AnaxiGraph; maxos_agent mapping will happen in another session. This is not a complete code audit or the built-in fresh-eyes recipe.",
+  "mapping_pilot": "model-refresh-2026-10-16-luna.json",
+  "diagram": "model-refresh-2026-10-16-flow.svg",
+  "method": {
+    "kind": "Two focused independent product and engineering reviews through production provider adapters",
+    "response_contract": "fresh-eyes-review-v1",
+    "full_built_in_fresh_eyes_workflow_run": false,
+    "mapping_review_models": [
+      "gpt-6-luna",
+      "gpt-6-luna"
+    ],
+    "subsequent_product_review_models": [
+      "gpt-6.1-sol",
+      "claude-opus-5-5"
+    ],
+    "reasoning_effort": "high",
+    "provider_timeout_seconds": 600,
+    "codex_cli_version": "0.163.0",
+    "claude_cli_version": "2.1.295",
+    "reviewers_saw_each_others_answers": false,
+    "source_file_count": 17,
+    "source_bytes": 193901,
+    "request_file": "model-refresh-2026-10-16-request.json",
+    "request_sha256": "3696f61a8d874b89070a4541ee95e4a1c201bfe38b320e73d7c6eaa16ba329ae",
+    "hash_format": "UTF-8 compact JSON, ensure_ascii=false, separators comma and colon; omit the file trailing newline",
+    "completed_opus_request_override": {
+      "max_output_tokens": 16000
+    },
+    "completed_opus_request_sha256": "f08deef51aa6c4fbf93aca3a15bcbf3dfb1c30ef4b7b2a6d6f13bba3dbf2e50f",
+    "reproduction": "At the recorded revision, load the retained request and invoke CodexSemanticProvider or ClaudeSemanticProvider with the recorded SemanticConfig model, high reasoning, timeout 600 and output allowance. Apply the recorded request override for the completed Opus attempt. The recorded calls used provider.analyze directly, bypassing runner retry and output-recovery orchestration.",
+    "comparability_limits": [
+      "This is a one-sample qualitative review, not a blind model ranking or a complete repository audit.",
+      "The successful Opus run has a different output allowance and a different CLI runtime from Sol; duration and token totals do not establish comparative efficiency.",
+      "Two Opus attempts failed at an effective 6000-token allowance. The second was an operator setup error: only configuration was raised, while the request still imposed 6000.",
+      "The third Opus attempt raised both configuration and request to 16000 and completed. All source evidence and review questions were otherwise identical.",
+      "CLI-reported token totals can aggregate multiple internal calls and need not match one response ceiling.",
+      "No model recommendation was implemented in this evaluation. Human task benefit and larger-repository model quality remain unmeasured."
+    ]
+  },
+  "source_manifest": [
+    {
+      "path": "README.md",
+      "sha256": "23deeed34f7d167d7f06d3c4606956772e1b9a3266fcf52342b2a3f1979db935"
+    },
+    {
+      "path": "docs/capabilities-brief.md",
+      "sha256": "fba57a8ae093c965bdb905eee6088ca11008dc0ac88ff0be945751448d17fc44"
+    },
+    {
+      "path": "docs/architecture.md",
+      "sha256": "a4d4e08d5b2541a263f2d1b489898b0e6770ce8cc73826569265b2f42cdd57e4"
+    },
+    {
+      "path": "benchmarks/README.md",
+      "sha256": "fab8d8e9368a26966ace47b0d5f87fa6fdafcbd03ec9c22e20b030caf694f9be"
+    },
+    {
+      "path": "src/anaxigraph/semantic_request_support.py",
+      "sha256": "6d0bf05a47ba7f4a854331d78468602a22cfe1eb987b5cc07407f60a82491213"
+    },
+    {
+      "path": "src/anaxigraph/semantic_requests.py",
+      "sha256": "6003a05afd9e6090a30e5dbb01f0f3c12bd00d731329de1744729b666c9949b2"
+    },
+    {
+      "path": "src/anaxigraph/semantic_request_analysis.py",
+      "sha256": "44e51c377636de17727be3866636c75a92c99216d44ace75576810ed4aaec78a"
+    },
+    {
+      "path": "src/anaxigraph/semantic_runner.py",
+      "sha256": "067f15480f904a202b498be9ad2307442c0bbee66b584b632304d63f8c4a2074"
+    },
+    {
+      "path": "src/anaxigraph/semantic_execution.py",
+      "sha256": "48112fac19aee1632488f8c5da6bdb32928115506232553124c14020125fc96d"
+    },
+    {
+      "path": "src/anaxigraph/semantic_stage_model.py",
+      "sha256": "bc8d3bd3d3f899b295e5eedf75e240bd76c09fe23ddf65d81a671a7fe120fb5b"
+    },
+    {
+      "path": "src/anaxigraph/semantic_usage.py",
+      "sha256": "1b6eea77f5e69e78bd1dc9dc36f57eb0ce44c804c87ad5519f212b3d506dc013"
+    },
+    {
+      "path": "src/anaxigraph/semantic_taxonomy_requests.py",
+      "sha256": "82e619ea524fd8bc0f78cebd89e6b205f876749fba5f2d341eb3d1e947a60b48"
+    },
+    {
+      "path": "src/anaxigraph/semantic_taxonomy_validation.py",
+      "sha256": "9f7c6711fff8fb19a77de51d2eb7f9fb25f583300b83b3f01bbf200a9ffb1f65"
+    },
+    {
+      "path": "src/anaxigraph/semantic_fresh_eyes_requests.py",
+      "sha256": "68940f438eb0511d101deff0ce1ddac9e2245e97889e4f28aed21f054a59ef24"
+    },
+    {
+      "path": "src/anaxigraph/semantic_fresh_eyes_grounding.py",
+      "sha256": "678b841b7d2664e4ed917b694b08ba0055d60bedc92fd702fa879747b848d5f2"
+    },
+    {
+      "path": "src/anaxigraph/dashboard/module-view.js",
+      "sha256": "0ae168abff47e39d0e036e58d54d94a87127c607917bd263abb1e481eb145742"
+    },
+    {
+      "path": "src/anaxigraph/dashboard/module-events.js",
+      "sha256": "8e7ce7bcc76fc54b9c8cf4b0d2c411b598b22de13f2774d4767c78d0903c3f30"
+    }
+  ],
+  "attempts": [
+    {
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "request_sha256": "3696f61a8d874b89070a4541ee95e4a1c201bfe38b320e73d7c6eaa16ba329ae",
+      "started_at": "2026-10-16T13:07:20.116321+00:00",
+      "response": {
+        "value": {
+          "contract_version": "fresh-eyes-review-v1",
+          "summary": "Keep the concise mapping design. First test whether Luna's descriptions help with a real change task. Then improve search limits, measure larger-map request sizes, and correct explanations after forced map merges.",
+          "mission_alignment": "These steps help readers find relevant code, understand behavior they must preserve, and judge whether a responsibility map supports a proposed change.",
+          "recommendations": [
+            {
+              "rank": 1,
+              "title": "Test descriptions against a real change-placement task",
+              "action": "retain",
+              "mission_capability": "Help a newcomer identify where a change belongs and which caller-visible behavior must survive.",
+              "current_evidence": [
+                "The Luna pilot produced concise descriptions with concrete behavior, including search response checks and relationship-resolution limits.",
+                "semantic_request_support.py defines a five-field mapping response and permits extra detail when essential behavior requires it.",
+                "benchmarks/README.md describes blind task grading, but its four recorded architecture tasks were already acted on and are not held out."
+              ],
+              "reference_insight": "Product experiment: judge descriptions and group explanations by the decisions they support. No supplied evidence establishes that longer descriptions would help.",
+              "smallest_change": "Record one new, bounded maintenance question and a human reference answer before solving it. Reuse the documented architecture_tasks protocol. Compare readers given structural evidence alone with readers also given the current concise descriptions and map. If a specific omission causes a wrong decision, trial one wording change in MAPPING_REQUIREMENTS using the same five fields. This replaces confidence-led model selection with task evidence.",
+              "expected_benefit": "A concrete direction for better descriptions: preserve the behavior and relationships readers need to place a change, without expanding every file's output.",
+              "expected_deletions": [],
+              "protected_behavior": [
+                "Keep mapping separate from refactor advice.",
+                "Keep unsupported claims empty and retain supplied paths or symbols as evidence."
+              ],
+              "affected_contracts": [
+                "src/anaxigraph/semantic_request_support.py::MAPPING_REQUIREMENTS",
+                "src/anaxigraph/semantic_request_support.py::MAPPING_SCHEMA",
+                "The documented benchmarks.architecture_tasks grading protocol"
+              ],
+              "risks": [
+                "One task can favor a particular repository or writing style.",
+                "Comparisons need the same source evidence, runtime settings, and output budget."
+              ],
+              "counter_evidence": [
+                "The pilot descriptions already name useful invariants and side effects.",
+                "Several descriptions concern collaborators whose source is outside the pilot sample."
+              ],
+              "reasons_not_to_proceed": [
+                "Retain current wording if readers already identify the correct owner and protected behavior.",
+                "Do not add fields merely because a stronger model can produce more prose."
+              ],
+              "dependencies": [
+                "A fresh task with enough relevant source to check the answer.",
+                "A recorded model-run budget for any future comparison."
+              ],
+              "verification": [
+                "Unverified: grade answers blind against the reference. Record correct placement, missed behavior, unsupported claims, tokens, and time.",
+                "Success: descriptions resolve a task-relevant omission without introducing unsupported claims; any prompt revision must improve the failed decision.",
+                "Use repeated trials before generalizing a model preference."
+              ],
+              "reversible": true,
+              "confidence": 0.89,
+              "transformation": {
+                "target": "src/anaxigraph/semantic_request_support.py::MAPPING_REQUIREMENTS",
+                "preconditions": [
+                  "Record the task and human reference before its implementation.",
+                  "Keep runtime model selection explicit."
+                ],
+                "sequence": [
+                  "Save baseline descriptions and task answers.",
+                  "Identify any missing meaning that caused a concrete reader error.",
+                  "Trial a prompt-only revision if that error warrants one.",
+                  "Retain the revision only if blind task grading supports it."
+                ],
+                "preserved_behavior": "The five-field mapping response remains valid and describes code rather than recommending changes.",
+                "verification_command": "",
+                "rollback": "Restore the prior mapping wording and keep the experiment report.",
+                "result": {
+                  "status": "unverified",
+                  "revision": "",
+                  "source": "",
+                  "observed_at": ""
+                }
+              }
+            },
+            {
+              "rank": 2,
+              "title": "Show when module search has stopped at its result limit",
+              "action": "refactor",
+              "mission_capability": "Let users distinguish an exhaustive search from a limited candidate list in larger repositories.",
+              "current_evidence": [
+                "module-events.js requests /api/search with limit: 250 and stores only result.results.",
+                "module-view.js paginates that returned array and derives the displayed result count from its length.",
+                "The supplied client code retains no server total or omission information."
+              ],
+              "reference_insight": "Source-demonstrated information loss: the client cannot distinguish all matches from a capped list. A misleading large-search session was not demonstrated by the pilot.",
+              "smallest_change": "Keep search total and omission fields if the existing response supplies them, then explain the returned subset beside pagination. If that response provides no such fields, state that search returns at most 250 candidates and that filters apply to those candidates. This replaces a count that can appear exhaustive with an explicit limit.",
+              "expected_benefit": "Users can tell whether a missing file failed to match or may lie beyond the returned candidates. This improves the existing meaning-based discovery journey.",
+              "expected_deletions": [],
+              "protected_behavior": [
+                "Preserve relevance ordering, reference-file filtering, and stale-response checks."
+              ],
+              "affected_contracts": [
+                "src/anaxigraph/dashboard/module-events.js::scheduleModuleSearch",
+                "src/anaxigraph/dashboard/module-view.js::renderModules",
+                "The existing /api/search response consumed by the dashboard"
+              ],
+              "risks": [
+                "The search endpoint implementation is absent, so its total and paging semantics are unknown.",
+                "A server-wide match total must not be presented as the count after client-side filters."
+              ],
+              "counter_evidence": [
+                "Client pagination already bounds rendered rows.",
+                "The 12-file pilot cannot expose this result-limit problem."
+              ],
+              "reasons_not_to_proceed": [
+                "Defer additional server paging until a real search needs candidates beyond the limit."
+              ],
+              "dependencies": [
+                "Confirm the existing search response fields before consuming them."
+              ],
+              "verification": [
+                "Unverified: exercise responses below and at the cap, plus a response with a larger total if supported.",
+                "Success: the display distinguishes returned candidates, known matches, and omissions without claiming completeness.",
+                "Check that a late response from another query or repository still cannot replace current results."
+              ],
+              "reversible": true,
+              "confidence": 0.96,
+              "transformation": {
+                "target": "src/anaxigraph/dashboard/module-events.js::scheduleModuleSearch; src/anaxigraph/dashboard/module-view.js::renderModules",
+                "preconditions": [
+                  "Establish which search totals and omission fields actually exist."
+                ],
+                "sequence": [
+                  "Retain supported search metadata with the returned candidates.",
+                  "Render an explicit limit or omission sentence.",
+                  "Clear that metadata when search is cleared."
+                ],
+                "preserved_behavior": "Search selection and row ordering remain unchanged.",
+                "verification_command": "",
+                "rollback": "Restore the prior search state and result-count rendering.",
+                "result": {
+                  "status": "unverified",
+                  "revision": "",
+                  "source": "",
+                  "observed_at": ""
+                }
+              }
+            },
+            {
+              "rank": 3,
+              "title": "Measure whole-map request growth and tighten existing batching",
+              "action": "refactor",
+              "mission_capability": "Build larger repository descriptions with bounded requests and trustworthy usage records.",
+              "current_evidence": [
+                "semantic_request_analysis.py already chunks source and batches synthesis inputs.",
+                "_payload_batches permits an oversized child as a singleton; reduction and final requests are grouped by child count without another size check.",
+                "Chunked result constructors sum input and output tokens but do not propagate cache counts or usage_reported.",
+                "semantic_taxonomy_requests.py assembles supplied module descriptions and eligible relationships into each proposal or review request."
+              ],
+              "reference_insight": "The missing usage propagation is visible in source. Oversized requests are a source-based risk. The taxonomy runner is absent, so its internal reduction behavior cannot be established.",
+              "smallest_change": "First capture serialized request sizes and usage across the existing stages using fixed, increasingly large description sets. Preserve all usage fields during chunk aggregation. Where the experiment shows oversized synthesis requests, reuse byte-aware batching during reduction and before the final call, and report an irreducible oversized input explicitly. This replaces count-only size assumptions without replacing the queue or execution system.",
+              "expected_benefit": "A measured path to larger maps that identifies whether descriptions, relationships, or fixed request content dominate work.",
+              "expected_deletions": [],
+              "protected_behavior": [
+                "Keep current lease, retry, source-checking, and explicit per-stage model selection behavior.",
+                "Do not silently discard essential behavior to meet a request limit."
+              ],
+              "affected_contracts": [
+                "src/anaxigraph/semantic_request_analysis.py::_payload_batches",
+                "src/anaxigraph/semantic_request_analysis.py::_reduce_synthesis_partials",
+                "src/anaxigraph/semantic_request_analysis.py::_analyze_synthesis",
+                "src/anaxigraph/semantic_request_analysis.py::_analyze_intrinsic_chunks"
+              ],
+              "risks": [
+                "Additional reductions can lose cross-group meaning and increase model calls.",
+                "Fixed request content can exceed the budget even after child descriptions shrink.",
+                "Serialized character size is a request-size control, not an exact token estimate."
+              ],
+              "counter_evidence": [
+                "Durable execution, parallelism, output-truncation recovery, and incremental reuse already exist.",
+                "The benchmark documentation covers structural scale through 3,000 files, but does not establish model-written map quality at that size."
+              ],
+              "reasons_not_to_proceed": [
+                "Avoid new reduction logic if captured requests remain within bounds and task answers remain useful.",
+                "Do not extrapolate full-repository cost from this selected sample."
+              ],
+              "dependencies": [
+                "Inspect the existing taxonomy runner before proposing changes to its batching.",
+                "Use deterministic provider responses for mechanical checks before spending tokens on a bounded model trial."
+              ],
+              "verification": [
+                "Unverified: exercise oversized single children, large fixed content, and enough partials to require multiple reduction levels.",
+                "Success: each dispatched request fits its stated bound or reports an explicit size failure, and reduction terminates.",
+                "Usage checks must retain cache portions within total input and keep unreported usage unknown.",
+                "After mechanical checks, grade one cross-group task to detect meaning lost during reduction."
+              ],
+              "reversible": true,
+              "confidence": 0.9,
+              "transformation": {
+                "target": "src/anaxigraph/semantic_request_analysis.py",
+                "preconditions": [
+                  "Capture existing request shapes and usage behavior.",
+                  "Define an explicit response for content that cannot fit without losing meaning."
+                ],
+                "sequence": [
+                  "Correct usage aggregation for existing chunk paths.",
+                  "Measure requests at each synthesis level.",
+                  "Apply existing size-based batching where measurements show a breach.",
+                  "Check final requests and irreducible inputs before dispatch."
+                ],
+                "preserved_behavior": "Small requests follow their existing path; larger requests retain evidence and honest execution usage.",
+                "verification_command": "",
+                "rollback": "Restore the previous batching functions while retaining the measurements.",
+                "result": {
+                  "status": "unverified",
+                  "revision": "",
+                  "source": "",
+                  "observed_at": ""
+                }
+              }
+            },
+            {
+              "rank": 4,
+              "title": "Correct placement explanations after forced map merges",
+              "action": "refactor",
+              "mission_capability": "Help readers understand why files share a group and recognize placements made only to satisfy map limits.",
+              "current_evidence": [
+                "semantic_taxonomy_validation.py::_merge_subsystems changes membership node_key and caps confidence, but retains the original membership rationale and evidence.",
+                "_bound_areas can also change a subsystem's parent without updating its explanatory text.",
+                "The pilot's first review required repair of both dashboard memberships; its second review returned complete membership without repairs."
+              ],
+              "reference_insight": "Source-based hypothesis: a repaired placement can keep an explanation written for its former home. The pilot demonstrates omission recovery, not an overflow-merge explanation defect.",
+              "smallest_change": "Use a small forced-overflow fixture to check the resulting membership reasons. If they describe the former group, replace them with a concrete repair explanation and retain the original reason as attributed proposal evidence using the existing data structure where possible. This replaces stale placement prose while retaining automatic repair.",
+              "expected_benefit": "A mechanically complete map becomes easier to interpret without presenting forced grouping as an independently supported responsibility.",
+              "expected_deletions": [],
+              "protected_behavior": [
+                "Keep one main placement per eligible file, configured locks, stable identities, and visible repair issues."
+              ],
+              "affected_contracts": [
+                "src/anaxigraph/semantic_taxonomy_validation.py::_merge_subsystems",
+                "src/anaxigraph/semantic_taxonomy_validation.py::_bound_areas",
+                "src/anaxigraph/semantic_taxonomy_validation.py::_memberships"
+              ],
+              "risks": [
+                "Repair text can obscure useful original reasoning if it overwrites rather than attributes it.",
+                "Changing explanation fields must remain compatible with saved map readers."
+              ],
+              "counter_evidence": [
+                "Overflow groups already carry fallback descriptions and repair warnings.",
+                "No overflow repair appears in the pilot's final map."
+              ],
+              "reasons_not_to_proceed": [
+                "Leave the implementation unchanged if the fixture shows that existing warnings make the placement reason clear.",
+                "Do not build a new classification framework for an unobserved reader problem."
+              ],
+              "dependencies": [
+                "Confirm how existing consumers present membership rationale and repair issues."
+              ],
+              "verification": [
+                "Unverified: force subsystem overflow and an area merge with distinct original placement reasons.",
+                "Success: readers can identify the current home, the mechanical reason for moving it, and which original claim has not been re-evaluated.",
+                "Check that lock handling and exact membership behavior remain intact."
+              ],
+              "reversible": true,
+              "confidence": 0.82,
+              "transformation": {
+                "target": "src/anaxigraph/semantic_taxonomy_validation.py::_merge_subsystems; src/anaxigraph/semantic_taxonomy_validation.py::_bound_areas",
+                "preconditions": [
+                  "Demonstrate a stale placement explanation with a bounded fixture."
+                ],
+                "sequence": [
+                  "Capture the original proposal reason before reassignment.",
+                  "Write a current repair explanation using compatible fields.",
+                  "Retain original reasoning with its original scope clearly stated."
+                ],
+                "preserved_behavior": "Map repairs retain their existing membership and size behavior.",
+                "verification_command": "",
+                "rollback": "Restore previous explanation handling without changing map assignments.",
+                "result": {
+                  "status": "unverified",
+                  "revision": "",
+                  "source": "",
+                  "observed_at": ""
+                }
+              }
+            }
+          ],
+          "rejected_ideas": [
+            {
+              "idea": "Add per-stage model routing, resumable workers, or independent map reviews.",
+              "reason": "These capabilities already exist.",
+              "evidence": [
+                "semantic_execution.py and semantic_stage_model.py expose runtime tier overrides.",
+                "semantic_runner.py uses the existing planning and lease services.",
+                "The pilot records two taxonomy reviews."
+              ]
+            },
+            {
+              "idea": "Expand every module description or add a second search model.",
+              "reason": "No demonstrated task requires either change.",
+              "evidence": [
+                "MAPPING_REQUIREMENTS already allows essential detail beyond its flexible word target.",
+                "The documented shared search includes descriptions, responsibilities, contracts, and aliases."
+              ]
+            },
+            {
+              "idea": "Rewrite orchestration or start the full maxos_agent map.",
+              "reason": "Neither is justified within this review's evidence and authorization.",
+              "evidence": [
+                "The payload explicitly reserves the full map for another session.",
+                "The supplied design already separates request construction, execution, planning, and persistence."
+              ]
+            },
+            {
+              "idea": "Clean up incidental grounding code as a next mission priority.",
+              "reason": "The duplicate unreachable return and version-label differences do not establish a reader-facing failure here.",
+              "evidence": [
+                "semantic_fresh_eyes_grounding.py contains those details but no associated failure result is supplied."
+              ]
+            }
+          ],
+          "sequence": [
+            "Establish one held-out task and retain the concise mapping contract unless it misses essential meaning.",
+            "Make the existing search candidate limit visible.",
+            "Measure request growth, preserve usage, and change batching only where bounds fail.",
+            "Reproduce stale repair explanations before changing their presentation."
+          ],
+          "caveats": [
+            "The Luna pilot covers 12 selected files at beb5f5edba59e9bdb8c2c1edf39f018f0237eaef. It is not a full-repository evaluation; collaborators outside that sample are absent.",
+            "It completed 37 jobs in 197.312 seconds with no recorded failures or retries. Those are execution observations, not description-accuracy results.",
+            "Reported usage was 708283 input tokens, including 195072 cache-read tokens, and 20340 output tokens. Monetary spend is unknown because prices were not configured.",
+            "Confidence values, agreement between reviewers, valid JSON, and complete membership do not measure accuracy.",
+            "The capability brief and README disagree about whether composed reassessment is shipped. The supplied implementation does not resolve that disagreement, so it is not proposed as a missing feature.",
+            "No tools were used and no recommended verification ran. All transformations are unverified; empty verification commands reflect absent test-entry evidence.",
+            "Recommendation confidence expresses support for the advice, not measured model or repository quality."
+          ],
+          "confidence": 0.87,
+          "evidence": [
+            "README.md and docs/architecture.md describe the shared index, existing guidance, incremental understanding, and bounded execution design.",
+            "docs/capabilities-brief.md states the mission and limits of retained written-understanding evidence.",
+            "benchmarks/README.md distinguishes mechanical checks, model trials, and held-out task evidence.",
+            "The supplied request, analysis, taxonomy-validation, and dashboard sources support the specific change targets.",
+            "The declared live pilot supplies execution totals, review history, and saved descriptions."
+          ]
+        },
+        "confidence": 0.87,
+        "evidence": [
+          "README.md and docs/architecture.md describe the shared index, existing guidance, incremental understanding, and bounded execution design.",
+          "docs/capabilities-brief.md states the mission and limits of retained written-understanding evidence.",
+          "benchmarks/README.md distinguishes mechanical checks, model trials, and held-out task evidence.",
+          "The supplied request, analysis, taxonomy-validation, and dashboard sources support the specific change targets.",
+          "The declared live pilot supplies execution totals, review history, and saved descriptions."
+        ],
+        "input_tokens": 68375,
+        "output_tokens": 5564,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "usage_reported": true
+      },
+      "status": "completed",
+      "wall_seconds": 149.708,
+      "finished_at": "2026-10-16T13:09:49.824779+00:00",
+      "monetary_cost_usd": null,
+      "attempt": 1,
+      "requested_response_budget": 6000,
+      "configured_max_output_tokens": 6000,
+      "output_limit_note": "The requested budget is supplied to Codex in the request, not enforced by a matching hard CLI output-token ceiling."
+    },
+    {
+      "provider": "claude",
+      "model": "claude-opus-5-5",
+      "reasoning_effort": "high",
+      "request_sha256": "3696f61a8d874b89070a4541ee95e4a1c201bfe38b320e73d7c6eaa16ba329ae",
+      "started_at": "2026-10-16T13:07:20.116628+00:00",
+      "status": "failed",
+      "error": "SemanticAnalysisError: Claude exited with 1: : API Error: Claude's response exceeded the 6000 output token maximum. To configure this behavior, set the CLAUDE_CODE_MAX_OUTPUT_TOKENS environment variable.",
+      "failure_usage": {
+        "input_tokens": 380268,
+        "output_tokens": 24000,
+        "cache_read_input_tokens": 10182,
+        "cache_creation_input_tokens": 370078,
+        "usage_reported": true
+      },
+      "wall_seconds": 251.728,
+      "finished_at": "2026-10-16T13:11:31.844192+00:00",
+      "monetary_cost_usd": null,
+      "attempt": 1,
+      "requested_response_budget": 6000,
+      "configured_max_output_tokens": 6000,
+      "effective_max_output_tokens": 6000
+    },
+    {
+      "provider": "claude",
+      "model": "claude-opus-5-5",
+      "reasoning_effort": "high",
+      "request_sha256": "3696f61a8d874b89070a4541ee95e4a1c201bfe38b320e73d7c6eaa16ba329ae",
+      "started_at": "2026-10-16T13:12:05.195708+00:00",
+      "attempt": 2,
+      "requested_response_budget": 6000,
+      "retry_reason": "First attempt exceeded the 6000-token CLI output allowance; same request, model and effort, with a larger CLI allowance.",
+      "status": "failed",
+      "error": "SemanticAnalysisError: Claude exited with 1: : API Error: Claude's response exceeded the 6000 output token maximum. To configure this behavior, set the CLAUDE_CODE_MAX_OUTPUT_TOKENS environment variable.",
+      "failure_usage": {
+        "input_tokens": 380404,
+        "output_tokens": 24000,
+        "cache_read_input_tokens": 13576,
+        "cache_creation_input_tokens": 366820,
+        "usage_reported": true
+      },
+      "wall_seconds": 247.668,
+      "finished_at": "2026-10-16T13:16:12.863659+00:00",
+      "configured_max_output_tokens": 16000,
+      "effective_max_output_tokens": 6000,
+      "operator_error": "Only the configured ceiling was raised; the request still imposed 6000. The adapter correctly uses the smaller limit, so this was not a 16000-token model attempt.",
+      "monetary_cost_usd": null
+    },
+    {
+      "provider": "claude",
+      "model": "claude-opus-5-5",
+      "reasoning_effort": "high",
+      "request_sha256": "f08deef51aa6c4fbf93aca3a15bcbf3dfb1c30ef4b7b2a6d6f13bba3dbf2e50f",
+      "started_at": "2026-10-16T13:18:19.667613+00:00",
+      "attempt": 3,
+      "configured_max_output_tokens": 16000,
+      "effective_max_output_tokens": 16000,
+      "requested_response_budget": 16000,
+      "retry_reason": "Correct the earlier operator error by raising both the request and configured ceiling. All source evidence and review questions remain identical.",
+      "status": "completed",
+      "response": {
+        "value": {
+          "contract_version": "fresh-eyes-review-v1",
+          "summary": "The supplied sources support keeping the current design: concise lean dossiers, two taxonomy reviews, deterministic membership repair, and per-stage models. I rank four next steps. (1) An experiment to find out whether the lean context pass adds meaning. In lean mode, both module stages get the same one-sentence purpose. (2) A deterministic fix to subsystem-overflow merging. It pools subsystems from different areas into one catch-all, which matters as repositories grow. (3) A dry run, with no model calls, that measures taxonomy request size at repository scale. (4) A user-facing idea: show each file's membership rationale and alternatives in the module detail. The pilot covered 12 files, and its confidence values and valid validation are not accuracy evidence.",
+          "mission_alignment": "Each item targets clearer module descriptions, maps that still make sense at larger scale, or a reader seeing why a file was placed where it is. None adds an orchestration layer, approval gate, schema field, or default-model change.",
+          "recommendations": [
+            {
+              "rank": 1,
+              "title": "Measure what the lean context pass adds over the intrinsic dossier",
+              "action": "refactor",
+              "mission_capability": "Better module descriptions and lower cost per file on larger repositories.",
+              "current_evidence": [
+                "semantic_requests.py job_request: when lean, request['contract'] = MAPPING_REQUIREMENTS['purpose'], which replaces both the intrinsic and the context contract with the same sentence.",
+                "The context request carries intrinsic_dossier, relationships and neighbor_dossiers but no source, and the lean MAPPING_SCHEMA has no cross-file field.",
+                "Pilot: 12 of the 37 completed jobs are presumably context jobs. Most pilot context descriptions describe the file itself. Only a few name collaborators, such as relationships.py and javascript_parser.py.",
+                "Pilot usage: 708,283 input tokens against 20,340 output tokens, so input dominates cost."
+              ],
+              "reference_insight": "A second pass per file is worth paying for only if it adds claims the first pass could not make. Here the instruction gives it no distinct job.",
+              "smallest_change": "Run an offline script against the pilot index. For each module, compare the intrinsic and context dossiers and count claims in the context dossier that name another supplied path and are absent from the intrinsic one. Also read the per-job-kind token totals that semantic-status already reports. If gains are small, give lean context jobs a distinct one-sentence purpose, such as how this file works with the supplied neighbours and what they rely on, within the existing schema.",
+              "expected_benefit": "Either context dossiers that state cross-file meaning taxonomy can use, or evidence for reducing roughly a third of per-file jobs.",
+              "expected_deletions": [
+                "Possibly the duplicated lean context work, but only after the planner and freshness dependencies are understood."
+              ],
+              "protected_behavior": [
+                "Concise five-field MAPPING_SCHEMA",
+                "Context carry-forward and neighbour fingerprint invalidation",
+                "_neighbor_dossiers fallback to the intrinsic document"
+              ],
+              "affected_contracts": [
+                "MAPPING_REQUIREMENTS",
+                "semantic context job request"
+              ],
+              "risks": [
+                "Planner, freshness and taxonomy code that consume context_document_id were not supplied.",
+                "Twelve files are too few to generalise."
+              ],
+              "counter_evidence": [
+                "Some pilot context dossiers do cite importers, so the pass is not empty.",
+                "The detailed_reviews mode keeps the full context contract and is unaffected."
+              ],
+              "reasons_not_to_proceed": [
+                "The taxonomy reached a valid map with 0.97 stated confidence, so the extra meaning may not matter to the map. Confidence is not accuracy, though."
+              ],
+              "dependencies": [],
+              "verification": [
+                "unverified: offline diff of intrinsic and context dossiers on the pilot index",
+                "unverified: per-job-kind token breakdown from semantic-status"
+              ],
+              "reversible": true,
+              "confidence": 0.6,
+              "transformation": {
+                "target": "src/anaxigraph/semantic_requests.py:SemanticEvidenceService.job_request (lean branch)",
+                "preconditions": [
+                  "The pilot index with intrinsic and context documents is still available."
+                ],
+                "sequence": [
+                  "Write a read-only comparison script over semantic_scope_states and documents.",
+                  "Record the token share by job kind.",
+                  "Decide: keep as is, add a distinct lean context purpose, or study skipping the pass."
+                ],
+                "preserved_behavior": "Detailed mode and the lean schema stay unchanged until evidence supports a change.",
+                "verification_command": "uv run pytest -k semantic_requests",
+                "rollback": "Revert the purpose-string change.",
+                "result": {
+                  "status": "unverified",
+                  "revision": "beb5f5edba59e9bdb8c2c1edf39f018f0237eaef",
+                  "source": "not run",
+                  "observed_at": ""
+                }
+              }
+            },
+            {
+              "rank": 2,
+              "title": "Keep subsystem-overflow merges inside their own area",
+              "action": "refactor",
+              "mission_capability": "Maps on larger repositories that keep their area meaning.",
+              "current_evidence": [
+                "semantic_taxonomy_validation.py _bound_subsystems: every subsystem beyond the limit moves to one 'Other modules' node parented to nodes[ordered[0]]['parent_temp_key'], the area of the largest kept subsystem.",
+                "_merge_subsystems caps moved confidence at 0.4. max_subsystems defaults to 30.",
+                "_bound_areas already uses term similarity (_closest_area) to pick a destination, so a reusable precedent exists."
+              ],
+              "reference_insight": "Repair should lose as little meaning as possible. A cross-area catch-all files database code under, say, the dashboard area.",
+              "smallest_change": "Add a unit test with 35 subsystems across 4 areas and assert that no overflow node holds members from more than one source area. Then create one overflow node per source area, or merge each excess subsystem into the most similar kept subsystem in the same area, using term similarity as _closest_area does.",
+              "expected_benefit": "Overflow repair at scale no longer puts files under an unrelated area.",
+              "expected_deletions": [],
+              "protected_behavior": [
+                "Every eligible file assigned exactly once",
+                "Locked memberships respected",
+                "The maximum subsystem count enforced",
+                "Validation issue kinds"
+              ],
+              "affected_contracts": [
+                "normalize_taxonomy validation output"
+              ],
+              "risks": [
+                "Per-area overflow nodes can push the count back over the limit unless the kept budget accounts for them."
+              ],
+              "counter_evidence": [
+                "The pilot never hit the limit: 5 subsystems, 0 repairs at the end.",
+                "Reviews are told the limits, and large_catchall_candidate flags the result."
+              ],
+              "reasons_not_to_proceed": [
+                "Proposers may rarely exceed 30 subsystems after review. Check saved validation issues for repaired_subsystem_limit first."
+              ],
+              "dependencies": [],
+              "verification": [
+                "unverified: new unit test for cross-area overflow"
+              ],
+              "reversible": true,
+              "confidence": 0.7,
+              "transformation": {
+                "target": "src/anaxigraph/semantic_taxonomy_validation.py:_bound_subsystems",
+                "preconditions": [
+                  "A failing test demonstrates the cross-area merge."
+                ],
+                "sequence": [
+                  "Add the failing test.",
+                  "Change the merge destination to stay per area.",
+                  "Re-run the taxonomy tests."
+                ],
+                "preserved_behavior": "The limit is enforced and every file is still placed exactly once.",
+                "verification_command": "uv run pytest -k taxonomy",
+                "rollback": "Revert the function change and keep the test as xfail.",
+                "result": {
+                  "status": "unverified",
+                  "revision": "beb5f5edba59e9bdb8c2c1edf39f018f0237eaef",
+                  "source": "not run",
+                  "observed_at": ""
+                }
+              }
+            },
+            {
+              "rank": 3,
+              "title": "Dry-run taxonomy request size at full-repository scale",
+              "action": "retain",
+              "mission_capability": "A measured path to larger repositories before building anything.",
+              "current_evidence": [
+                "semantic_taxonomy_requests.py: the proposal and every review include all module dossiers plus all internal relationships in one request.",
+                "The README describes default review passes that each resend the full inventory.",
+                "The supplied sources show batching for synthesis (_payload_batches) and for intrinsic chunks, but none for taxonomy. analyze_taxonomy_proposal was not supplied."
+              ],
+              "reference_insight": "Measure the one stage that grows with file count and has no visible batching before adding machinery for it.",
+              "smallest_change": "Against this repository's own existing index, not maxos_agent, build the taxonomy_proposal and taxonomy_review requests with taxonomy_request and record their JSON bytes and module counts. Make no model call. Compare the result with max_source_chars and typical context windows.",
+              "expected_benefit": "A concrete number that decides whether taxonomy needs batching before larger repositories.",
+              "expected_deletions": [],
+              "protected_behavior": [
+                "Single-call taxonomy for repositories that fit"
+              ],
+              "affected_contracts": [],
+              "risks": [
+                "Byte counts are only a proxy for tokens."
+              ],
+              "counter_evidence": [
+                "The Codex adapter already delivers oversized payloads through evidence pages.",
+                "analyze_taxonomy_proposal may already handle size."
+              ],
+              "reasons_not_to_proceed": [
+                "If the measured size is comfortable, nothing needs to change."
+              ],
+              "dependencies": [],
+              "verification": [
+                "unverified: dry-run size report"
+              ],
+              "reversible": true,
+              "confidence": 0.65,
+              "transformation": {
+                "target": "src/anaxigraph/semantic_taxonomy_requests.py:taxonomy_request",
+                "preconditions": [
+                  "A mapped index of this repository exists."
+                ],
+                "sequence": [
+                  "Write a read-only script that builds requests for the saved taxonomy jobs.",
+                  "Record bytes per request and per module."
+                ],
+                "preserved_behavior": "No code change.",
+                "verification_command": "read-only script run (not yet written)",
+                "rollback": "Delete the script.",
+                "result": {
+                  "status": "unverified",
+                  "revision": "beb5f5edba59e9bdb8c2c1edf39f018f0237eaef",
+                  "source": "not run",
+                  "observed_at": ""
+                }
+              }
+            },
+            {
+              "rank": 4,
+              "title": "Product idea: show why a file sits in its group",
+              "action": "refactor",
+              "mission_capability": "Users can judge map placement for one file without trusting a bare label.",
+              "current_evidence": [
+                "semantic_taxonomy_validation.py _memberships stores rationale, evidence, alternatives and confidence for each file.",
+                "Pilot context description: taxonomy_assignments returns assignments with evidence, alternatives and plain-language labels.",
+                "dashboard/module-view.js architectureMarkup shows only area and subsystem labels, and moduleDetailRow has no membership-rationale section."
+              ],
+              "reference_insight": "A map is easier to trust and correct when each placement carries its reason and its alternative.",
+              "smallest_change": "First confirm whether /api/file or another view already exposes the assignment rationale. If not, add a 'Why this group' section to moduleDetailRow that shows the rationale, the alternatives, and the stated confidence labelled as evidence strength.",
+              "expected_benefit": "Readers can spot a doubtful placement, such as a file repaired into 'Needs classification', from the file itself.",
+              "expected_deletions": [],
+              "protected_behavior": [
+                "Escaping through escapeHtml",
+                "Existing detail sections"
+              ],
+              "affected_contracts": [
+                "/api/file payload, if it needs extending"
+              ],
+              "risks": [
+                "This may duplicate a graph or map view that was not supplied."
+              ],
+              "counter_evidence": [
+                "The capability brief says the map already shows group reasons, though possibly at group level only."
+              ],
+              "reasons_not_to_proceed": [
+                "If the rationale is already shown elsewhere, this adds a duplicate surface."
+              ],
+              "dependencies": [],
+              "verification": [
+                "unverified: Playwright check that the detail shows the rationale for a mapped file"
+              ],
+              "reversible": true,
+              "confidence": 0.45,
+              "transformation": {
+                "target": "src/anaxigraph/dashboard/module-view.js:moduleDetailRow",
+                "preconditions": [
+                  "Confirmed that no existing view shows per-file rationale."
+                ],
+                "sequence": [
+                  "Check /api/file for assignment data.",
+                  "Render the section if the data is present."
+                ],
+                "preserved_behavior": "Other detail content is unchanged.",
+                "verification_command": "uv run pytest -k dashboard",
+                "rollback": "Remove the section.",
+                "result": {
+                  "status": "unverified",
+                  "revision": "beb5f5edba59e9bdb8c2c1edf39f018f0237eaef",
+                  "source": "not run",
+                  "observed_at": ""
+                }
+              }
+            }
+          ],
+          "rejected_ideas": [
+            {
+              "idea": "Add richer fields (architecture_role, collaborators) to the lean mapping schema",
+              "reason": "No real task in the supplied evidence demonstrates missing meaning. The contract asks to preserve concise mapping.",
+              "evidence": [
+                "MAPPING_SCHEMA has five fields; the pilot taxonomy validated with 0 repairs after review."
+              ]
+            },
+            {
+              "idea": "Batch several small files into one intrinsic request",
+              "reason": "This changes the per-file contract and provenance. Measure token share by job kind first (rec 1).",
+              "evidence": [
+                "Pilot input dominates output roughly 35:1, but the per-kind split was not supplied."
+              ]
+            },
+            {
+              "idea": "Flag facets whose members all sit in one subsystem",
+              "reason": "The pilot facet 'Dashboard module display' repeats an area of the same name and is not cross-cutting. One instance in 12 files is too little to justify a new check.",
+              "evidence": [
+                "Pilot facets list and taxonomy changes both name 'Dashboard module display'; INPUT_TERM_MEANINGS defines a facet as crossing groups."
+              ]
+            },
+            {
+              "idea": "Treat the pilot's high confidence or valid validation as a quality result",
+              "reason": "Confidence, schema validity and complete membership are not accuracy.",
+              "evidence": [
+                "Pilot confidences of 0.97–1.0 and validation status valid."
+              ]
+            },
+            {
+              "idea": "Minor grounding cleanups",
+              "reason": "These are real but off-mission: a duplicated 'return \"\"' in _name_already_present, and _INSERT_SQL labels v2 reports with prompt and schema version fresh-eyes-grounding-v1. Fix them opportunistically.",
+              "evidence": [
+                "semantic_fresh_eyes_grounding.py _name_already_present and _INSERT_SQL."
+              ]
+            }
+          ],
+          "sequence": [
+            "Rec 3 dry-run (no model tokens)",
+            "Rec 1 offline comparison on pilot index",
+            "Rec 2 test-first fix",
+            "Rec 4 after confirming no existing surface"
+          ],
+          "caveats": [
+            "The pilot is 12 selected files with no tests. Collaborators outside the sample are absent.",
+            "The planner, analyze_taxonomy_proposal, /api/file and the map views were not supplied.",
+            "No verification has run. Every result is unverified.",
+            "Monetary cost is unknown: cost_usd is zero only because no prices are configured."
+          ],
+          "confidence": 0.6,
+          "evidence": [
+            "semantic_requests.py lean branch overwrites the stage contracts",
+            "semantic_taxonomy_validation.py _bound_subsystems uses the parent of ordered[0]",
+            "semantic_taxonomy_requests.py sends the full inventory in each taxonomy call",
+            "Pilot: 37 jobs, 708,283 input and 20,340 output tokens; review pass 1 repaired two omitted dashboard files"
+          ]
+        },
+        "confidence": 0.6,
+        "evidence": [
+          "semantic_requests.py lean branch overwrites the stage contracts",
+          "semantic_taxonomy_validation.py _bound_subsystems uses the parent of ordered[0]",
+          "semantic_taxonomy_requests.py sends the full inventory in each taxonomy call",
+          "Pilot: 37 jobs, 708,283 input and 20,340 output tokens; review pass 1 repaired two omitted dashboard files"
+        ],
+        "input_tokens": 190130,
+        "output_tokens": 26963,
+        "cache_read_input_tokens": 6788,
+        "cache_creation_input_tokens": 183338,
+        "usage_reported": true
+      },
+      "wall_seconds": 270.537,
+      "finished_at": "2026-10-16T13:22:50.204460+00:00",
+      "monetary_cost_usd": null
+    }
+  ],
+  "reported_usage_all_attempts": {
+    "input_tokens": 1019177,
+    "output_tokens": 80527,
+    "cache_read_input_tokens": 30546,
+    "cache_creation_input_tokens": 920236,
+    "all_attempts_reported": true,
+    "includes_failed_attempts": true,
+    "monetary_cost_usd": null
+  },
+  "verified_followup": [
+    {
+      "kind": "synthetic diagnostic of production aggregation; no model called",
+      "provider_calls": 4,
+      "expected_usage": {
+        "input_tokens": 400,
+        "output_tokens": 40,
+        "cache_read_input_tokens": 160,
+        "cache_creation_input_tokens": 80,
+        "usage_reported": true
+      },
+      "actual_usage": {
+        "input_tokens": 400,
+        "output_tokens": 40,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "usage_reported": false
+      },
+      "defect_reproduced": true,
+      "source": "src/anaxigraph/semantic_request_analysis.py::_analyze_intrinsic_chunks"
+    },
+    {
+      "kind": "synthetic repository through production scanner and search API; no model called",
+      "generated_files": 260,
+      "indexed_files": 260,
+      "matching_index_rows": 260,
+      "requested_limit": 250,
+      "returned_results": 250,
+      "response_keys": [
+        "map_status",
+        "query",
+        "results"
+      ],
+      "omission_or_total_field_present": false,
+      "observation": "260 indexed matching files produce 250 results without a top-level total, omission marker or next cursor. The dashboard retains only this list. Browser presentation was inspected in source, not exercised here."
+    },
+    {
+      "kind": "synthetic diagnostic of production overflow merging; no model called",
+      "source": "src/anaxigraph/semantic_taxonomy_validation.py::_merge_subsystems",
+      "before": {
+        "a.py": {
+          "path": "a.py",
+          "node_key": "a",
+          "confidence": 0.9,
+          "rationale": "Belongs to A because it validates input.",
+          "evidence": [
+            "a.py:validate"
+          ]
+        }
+      },
+      "after": {
+        "a.py": {
+          "path": "a.py",
+          "node_key": "other-modules",
+          "confidence": 0.4,
+          "rationale": "Belongs to A because it validates input.",
+          "evidence": [
+            "a.py:validate"
+          ]
+        }
+      },
+      "observation": "Membership moves to other-modules and confidence is lowered, while the explanation still says it belongs to A. User impact has not been tested."
+    },
+    {
+      "kind": "synthetic diagnostic of production overflow limit; no model called",
+      "source": "src/anaxigraph/semantic_taxonomy_validation.py::_bound_subsystems",
+      "initial_subsystems": 35,
+      "areas": [
+        "parsing",
+        "dashboard",
+        "storage",
+        "workers"
+      ],
+      "maximum_subsystems": 30,
+      "final_subsystems": 30,
+      "files_assigned": 35,
+      "files_moved_to_another_area": [
+        {
+          "path": "file_29.py",
+          "from": "dashboard",
+          "to": "parsing"
+        },
+        {
+          "path": "file_30.py",
+          "from": "storage",
+          "to": "parsing"
+        },
+        {
+          "path": "file_31.py",
+          "from": "workers",
+          "to": "parsing"
+        },
+        {
+          "path": "file_33.py",
+          "from": "dashboard",
+          "to": "parsing"
+        },
+        {
+          "path": "file_34.py",
+          "from": "storage",
+          "to": "parsing"
+        }
+      ],
+      "issues": [
+        {
+          "kind": "repaired_subsystem_limit",
+          "scope": "35",
+          "severity": "warning"
+        }
+      ],
+      "caveat": "No overflow occurred in the live 12-file pilot. This reproduces the mechanical cross-area merge, not its frequency or user impact in real repositories."
+    }
+  ],
+  "additional_source_inspection": [
+    {
+      "path": "src/anaxigraph/semantic_requests.py",
+      "finding": "Lean intrinsic and context jobs overwrite the contract with the same MAPPING_REQUIREMENTS purpose. Context still receives neighbor descriptions and relationships. A distinct purpose is an experiment, not a demonstrated quality improvement."
+    },
+    {
+      "path": "src/anaxigraph/semantic_taxonomy_runner.py",
+      "finding": "Taxonomy partitioning and global reconciliation already exist. Measure actual dispatched requests before proposing additional batching; request construction alone does not establish what is sent."
+    },
+    {
+      "path": "src/anaxigraph/semantic.py",
+      "finding": "Claude uses the smaller configured and request output allowance, with a separate recovery ceiling. The second failed attempt changed only configuration."
+    },
+    {
+      "path": "src/anaxigraph/api_repository.py",
+      "finding": "Search caps limit at 250 and returns query, results and map_status without a total or omission indicator."
+    },
+    {
+      "path": "src/anaxigraph/persistence/module_read.py",
+      "finding": "Module records already expose semantic_taxonomy assignments with rationale, evidence and alternatives. A module-detail explanation can reuse existing data."
+    },
+    {
+      "path": "src/anaxigraph/dashboard/module-view.js",
+      "finding": "The inspected module-detail renderer shows area/subsystem labels but does not render the stored per-file membership rationale or alternatives. The graph inspector likewise shows labels. No browser usability study was run."
+    },
+    {
+      "path": "src/anaxigraph/semantic_stage_model.py",
+      "finding": "Model overrides exist for module, group, repository and taxonomy tiers. Taxonomy proposal and both review passes share the taxonomy tier; deterministic Sol-then-Opus routing is not a configured feature of this pilot."
+    }
+  ],
+  "interpretation_corrections": [
+    "Opus says input dominates cost; input dominates token count, but monetary cost is unknown without configured prices.",
+    "The pilot records exactly 12 contextual jobs out of 37 total jobs and 24 file-level jobs, not an uncertain estimate or a third of file-level work.",
+    "Neither reviewer received semantic_taxonomy_runner.py. Its absence from the supplied packet is not evidence that taxonomy batching is absent.",
+    "Opus suggests labelling model confidence as evidence strength. A self-reported confidence number is not calibrated evidence strength; a future UI should identify its source and prioritize concrete rationale and evidence.",
+    "Complete membership, schema validity, high model confidence and model agreement are not measurements of description or grouping accuracy."
+  ],
+  "prioritized_next_work": [
+    {
+      "priority": 1,
+      "title": "Make contextual descriptions earn their second pass",
+      "kind": "product experiment",
+      "source_models": [
+        "gpt-6.1-sol",
+        "claude-opus-5-5"
+      ],
+      "smallest_step": "Record an unsolved maintenance task and a human reference. Compare structural facts, source-only descriptions, and contextual descriptions. Trial a distinct lean context purpose within the existing five fields only if the comparison shows a useful omission.",
+      "measure": [
+        "correct file and collaborator selection",
+        "missed behavior",
+        "unsupported claims",
+        "time and reported tokens"
+      ],
+      "status": "proposed; no human reference or held-out trial collected"
+    },
+    {
+      "priority": 2,
+      "title": "Show why a file belongs to its group",
+      "kind": "product experiment with existing data",
+      "source_models": [
+        "claude-opus-5-5",
+        "gpt-6.1-sol"
+      ],
+      "smallest_step": "Expose stored membership rationale, evidence and alternatives in module details. Correct or attribute stale reasons when mechanical repairs change a placement; distinguish model suggestions from automatic repair.",
+      "measure": [
+        "reader can explain current placement",
+        "reader can spot a weak or mechanically forced grouping"
+      ],
+      "status": "source support confirmed; user benefit and UI behavior untested"
+    },
+    {
+      "priority": 3,
+      "title": "Make larger-repository operation observable",
+      "kind": "reproduced mechanics and bounded sizing experiment",
+      "source_models": [
+        "gpt-6.1-sol",
+        "claude-opus-5-5"
+      ],
+      "smallest_step": "Preserve cache/reporting fields through chunk aggregation and explain the existing search cap. Record actual post-partition request sizes before adding any batching. Propagate intended output allowances through both request and configuration.",
+      "measure": [
+        "all supplied usage fields retained or explicitly unknown",
+        "returned search subset distinguished from complete matches",
+        "actual dispatched request sizes and completion"
+      ],
+      "status": "usage loss and search cap reproduced synthetically; no product fix implemented"
+    },
+    {
+      "priority": 4,
+      "title": "Keep overflow grouping coherent",
+      "kind": "reproduced mechanical behavior",
+      "source_models": [
+        "claude-opus-5-5",
+        "gpt-6.1-sol"
+      ],
+      "smallest_step": "Compare within-area merge choices for excess subsystems while preserving global group limits, complete membership and locks. Preserve original reasoning as attributed evidence and explain the repair.",
+      "measure": [
+        "area boundary changes",
+        "membership coverage and limits",
+        "explanation matches current home"
+      ],
+      "status": "cross-area merge and stale reason reproduced synthetically; no overflow occurred in the live pilot"
+    }
+  ],
+  "official_model_references": [
+    "https://developers.openai.com/api/docs/models/gpt-6-luna",
+    "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+    "https://platform.claude.com/docs/en/models/opus-5-5/overview"
+  ]
+}

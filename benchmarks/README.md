@@ -1,5 +1,67 @@
 # AnaxiGraph benchmark suite
 
+## October 2026 model refresh (live source pilot)
+
+The [GPT-6 Luna pilot](results/model-refresh-2026-10-16-luna.json) ran the production
+`understand` pipeline on 12 selected AnaxiGraph files (3,214 physical lines) at revision
+`beb5f5e`, using a fresh standalone index, medium reasoning, two workers, a 48-task limit,
+and one attempt per task. All 37 tasks completed in 197.312 seconds: 12 source descriptions,
+12 contextual descriptions, a map proposal and two reviews, nine group summaries, and one
+repository Charter. There were no task failures or retries.
+
+The [illustrated process](results/model-refresh-2026-10-16-flow.svg) shows the actual model roles.
+Luna performed both map reviews. Sol and Opus independently reviewed AnaxiGraph and the completed
+pilot afterward; they were not wired into its map-revision loop. Production model overrides exist
+for module, group, repository and taxonomy tiers, with the proposal and both map reviews sharing
+the taxonomy tier. A fixed Sol-then-Opus map review would be a separate experiment.
+
+![AnaxiGraph mapping and independent model reviews](results/model-refresh-2026-10-16-flow.svg)
+
+The final map assigns all 12 files across four areas and five subsystems, but the first review
+omitted two dashboard files. Deterministic repair kept them visible, and the second model review
+restored their group. The report retains both review outcomes; final validity does not erase an
+intermediate mistake. Source inspection found the descriptions' primary roles and important
+contracts useful and consistent with the inspected code. That is an assistant's qualitative
+review of one selected sample, not a blinded accuracy score or a large-repository result.
+
+The executor reported 708,283 input tokens, including 195,072 cached tokens, and 20,340 output
+tokens. Monetary spend is unknown: the status response's zero cost came from unconfigured prices.
+The report retains configuration, source hashes, job telemetry, descriptions, group memberships,
+and source-review notes. To repeat it, check out the recorded revision, write the report's `config`
+object as YAML, and run its `command` with new config and database paths. Fresh state matters:
+changing only the model deliberately reuses current descriptions. A full `maxos_agent` mapping is
+a separate repository exercise and was not performed here.
+
+The accompanying [focused reviews](results/model-refresh-2026-10-16-reviews.json) use a
+[retained request](results/model-refresh-2026-10-16-request.json)
+containing 17 source/documentation files from that same revision and the measured pilot. They use
+the existing `fresh_review` response contract and local provider adapters; it does not execute the
+complete built-in fresh-eyes recipe. GPT-6.1 Sol and Claude Opus 5.5 completed high-effort reviews
+without seeing each other's answers. Sol completed with a requested 6,000-token response budget.
+Opus completed after raising both request and configuration to 16,000. Its two earlier attempts
+failed at an effective 6,000-token allowance: the second was an operator mistake that raised only
+configuration. The report retains all attempts and their reported usage. Different budgets and
+CLI runtimes prevent a fair speed or cost ranking; monetary spend remains unknown.
+
+Source checks and small diagnostics narrowed their suggestions to these next steps:
+
+| Next step | Evidence and smallest useful experiment |
+|---|---|
+| Make the context pass earn its work | Sol proposed a held-out change-placement task; Opus noticed that lean source and context jobs receive the same purpose instruction. Record a human reference, compare structural facts, source-only descriptions and the contextual map, then trial a distinct context purpose within the same five fields if useful. This experiment has not run. |
+| Show why a file belongs to its group | Opus proposed showing the stored membership rationale, evidence and alternatives in module details. Source inspection confirms the module payload already carries them; the inspected detail and graph renderers show group labels. User benefit remains untested. Model confidence should be identified as self-reported, not called measured evidence strength. |
+| Make capped search results explicit | A synthetic repository with 260 indexed matches returned 250 through the real search API, without a total or omission marker. Preserve the current search and show its limit before considering additional paging. Browser behavior was inspected in source. |
+| Preserve usage through chunking | Four deterministic provider responses reported 400 input tokens, 40 output tokens, 160 cached reads and 80 cache writes. Production aggregation preserved the first two counts but returned zero cache counts and `usage_reported: false`. Repair this before comparing costs on large files. |
+| Keep overflow grouping coherent and explain repairs | One synthetic diagnostic moved a file to `other-modules` while retaining its old placement reason. Another reduced 35 subsystems to 30 and moved five files across area boundaries. Compare within-area merges while preserving limits and locks, and explain repaired placements. No overflow occurred in the live pilot; user impact remains untested. |
+
+Both reviewers suggested measuring request growth. Follow-up inspection confirms that taxonomy
+partitioning and global reconciliation already exist in a runner absent from their evidence packet.
+Measure actual dispatched requests before adding batching. No full-repository sizing trial ran.
+
+These are evaluation findings and proposed work, not implemented product changes. The selected
+sample does not justify changing the default model, expanding every description, or dropping the
+context stage. Its contextual pass consumed 192,258 input tokens; a task comparison should decide
+whether that work adds useful meaning.
+
 ## Repository reader tasks (opt-in model run)
 
 `understandability` compares three maintenance tasks across two behaviorally equivalent synthetic

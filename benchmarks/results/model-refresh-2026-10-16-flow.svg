@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="1500" viewBox="0 0 1320 1500" role="img" aria-labelledby="title description">
+<title id="title">AnaxiGraph mapping and independent model reviews</title>
+<desc id="description">The 16 October 2026 pilot scanned 12 source files with deterministic software. GPT-6 Luna wrote 12 source descriptions and 12 contextual descriptions, proposed the responsibility map, reviewed it twice, and wrote nine group summaries and a repository Charter. Software validated and repaired each proposed map. The completed pilot and the same source packet were then independently reviewed by GPT-6.1 Sol and Claude Opus 5.5. These two models reviewed AnaxiGraph improvements outside the mapping pipeline, without seeing each other’s answers.</desc>
+<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0 0L8 4L0 8" fill="none" stroke="#718096" stroke-width="1.5"/></marker></defs>
+<style>text{font-family:Inter,Arial,sans-serif;fill:#172b43}.title{font-size:38px;font-weight:700;letter-spacing:-1px}.section{font-size:25px;font-weight:700}.heading{font-size:22px;font-weight:700}.body{font-size:18px}.small{font-size:16px}.muted{fill:#53657a}.label{font-size:14px;font-weight:700;letter-spacing:1px}.arrow{fill:none;stroke:#718096;stroke-width:2.2;stroke-linejoin:round;marker-end:url(#arrow)}</style>
+<rect width="1320" height="1500" fill="#f2f5f9"/>
+<text x="64" y="66" class="title" >How AnaxiGraph builds a map</text>
+<text x="64" y="103" class="body" style="fill:#53657a">Measured pilot · 16 October 2026 · 12 selected source files · AnaxiGraph beb5f5e</text>
+<rect x="64" y="128" width="150" height="30" rx="15" fill="#daf2e7" stroke="#daf2e7"/>
+<text x="78" y="148" class="small" style="fill:#146449;font-weight:600">GPT-6 Luna</text>
+<rect x="228" y="128" width="166" height="30" rx="15" fill="#e4e9ff" stroke="#e4e9ff"/>
+<text x="242" y="148" class="small" style="fill:#3c4d98;font-weight:600">GPT-6.1 Sol</text>
+<rect x="408" y="128" width="206" height="30" rx="15" fill="#ffeadc" stroke="#ffeadc"/>
+<text x="422" y="148" class="small" style="fill:#8c4c26;font-weight:600">Claude Opus 5.5</text>
+<rect x="628" y="128" width="190" height="30" rx="15" fill="#e4eaf2" stroke="#e4eaf2"/>
+<text x="642" y="148" class="small" style="fill:#45576c;font-weight:600">AnaxiGraph code</text>
+<rect x="40" y="188" width="1240" height="722" rx="16" fill="#ffffff" stroke="#dbe3ec"/>
+<text x="64" y="230" class="section" >1  Build the repository map</text>
+<text x="64" y="261" class="body" style="fill:#53657a">Luna performed every model task in this pilot. Arrows show how evidence feeds the next step.</text>
+<rect x="64" y="292" width="260" height="186" rx="16" fill="#f1f4f8" stroke="#ccd7e4"/>
+<rect x="82" y="310" width="32" height="32" rx="10" fill="#ffffff" stroke="#ccd7e4"/>
+<text x="98" y="332" class="body" text-anchor="middle" style="font-weight:700">1</text>
+<text x="128" y="332" class="label" >SOFTWARE</text>
+<text x="82" y="372" class="heading" >Scan the source</text>
+<text x="82" y="404" class="body" >Parse symbols + imports</text>
+<text x="82" y="429" class="body" >Resolve dependencies</text>
+<text x="82" y="454" class="body" >Record source hashes</text>
+<rect x="374" y="292" width="260" height="186" rx="16" fill="#eaf8f3" stroke="#a5d8c6"/>
+<rect x="392" y="310" width="32" height="32" rx="10" fill="#ffffff" stroke="#a5d8c6"/>
+<text x="408" y="332" class="body" text-anchor="middle" style="font-weight:700">2</text>
+<text x="438" y="332" class="label" >LUNA</text>
+<text x="392" y="372" class="heading" >Describe each file</text>
+<text x="392" y="404" class="body" >Purpose, responsibilities</text>
+<text x="392" y="429" class="body" >Contracts + evidence</text>
+<text x="392" y="454" class="body" >12 intrinsic jobs</text>
+<rect x="684" y="292" width="260" height="186" rx="16" fill="#eaf8f3" stroke="#a5d8c6"/>
+<rect x="702" y="310" width="32" height="32" rx="10" fill="#ffffff" stroke="#a5d8c6"/>
+<text x="718" y="332" class="body" text-anchor="middle" style="font-weight:700">3</text>
+<text x="748" y="332" class="label" >LUNA</text>
+<text x="702" y="372" class="heading" >Add context</text>
+<text x="702" y="404" class="body" >Read nearby descriptions</text>
+<text x="702" y="429" class="body" >Use dependency evidence</text>
+<text x="702" y="454" class="body" >12 contextual jobs</text>
+<rect x="994" y="292" width="260" height="186" rx="16" fill="#eaf8f3" stroke="#a5d8c6"/>
+<rect x="1012" y="310" width="32" height="32" rx="10" fill="#ffffff" stroke="#a5d8c6"/>
+<text x="1028" y="332" class="body" text-anchor="middle" style="font-weight:700">4</text>
+<text x="1058" y="332" class="label" >LUNA</text>
+<text x="1012" y="372" class="heading" >Propose the map</text>
+<text x="1012" y="404" class="body" >Areas → subsystems</text>
+<text x="1012" y="429" class="body" >Place files by purpose</text>
+<text x="1012" y="454" class="body" >1 proposal job</text>
+<path d="M328 385 H366" class="arrow"/>
+<path d="M638 385 H676" class="arrow"/>
+<path d="M948 385 H986" class="arrow"/>
+<path d="M1124 482 V544" class="arrow"/>
+<text x="1114" y="518" class="small" text-anchor="end" style="fill:#53657a">validate + repair</text>
+<rect x="994" y="554" width="260" height="186" rx="16" fill="#eaf8f3" stroke="#a5d8c6"/>
+<rect x="1012" y="572" width="32" height="32" rx="10" fill="#ffffff" stroke="#a5d8c6"/>
+<text x="1028" y="594" class="body" text-anchor="middle" style="font-weight:700">5</text>
+<text x="1058" y="594" class="label" >LUNA</text>
+<text x="1012" y="634" class="heading" >Review + revise</text>
+<text x="1012" y="666" class="body" >Critique the current map</text>
+<text x="1012" y="691" class="body" >2 successive review jobs</text>
+<text x="1012" y="716" class="body" >Validate after each pass</text>
+<rect x="684" y="554" width="260" height="186" rx="16" fill="#eaf8f3" stroke="#a5d8c6"/>
+<rect x="702" y="572" width="32" height="32" rx="10" fill="#ffffff" stroke="#a5d8c6"/>
+<text x="718" y="594" class="body" text-anchor="middle" style="font-weight:700">6</text>
+<text x="748" y="594" class="label" >LUNA</text>
+<text x="702" y="634" class="heading" >Summarize groups</text>
+<text x="702" y="666" class="body" >4 areas + 5 subsystems</text>
+<text x="702" y="691" class="body" >Combine member meanings</text>
+<text x="702" y="716" class="body" >9 group jobs</text>
+<rect x="374" y="554" width="260" height="186" rx="16" fill="#eaf8f3" stroke="#a5d8c6"/>
+<rect x="392" y="572" width="32" height="32" rx="10" fill="#ffffff" stroke="#a5d8c6"/>
+<text x="408" y="594" class="body" text-anchor="middle" style="font-weight:700">7</text>
+<text x="438" y="594" class="label" >LUNA</text>
+<text x="392" y="634" class="heading" >Write the Charter</text>
+<text x="392" y="666" class="body" >Explain repository purpose</text>
+<text x="392" y="691" class="body" >Describe architecture</text>
+<text x="392" y="716" class="body" >1 repository job</text>
+<rect x="64" y="554" width="260" height="186" rx="16" fill="#f1f4f8" stroke="#ccd7e4"/>
+<rect x="82" y="572" width="32" height="32" rx="10" fill="#ffffff" stroke="#ccd7e4"/>
+<text x="98" y="594" class="body" text-anchor="middle" style="font-weight:700">8</text>
+<text x="128" y="594" class="label" >SOFTWARE</text>
+<text x="82" y="634" class="heading" >Use the map</text>
+<text x="82" y="666" class="body" >Stored in SQLite</text>
+<text x="82" y="691" class="body" >Explore in the dashboard</text>
+<text x="82" y="716" class="body" >Read via CLI and MCP</text>
+<path d="M990 647 H952" class="arrow"/>
+<path d="M680 647 H642" class="arrow"/>
+<path d="M370 647 H332" class="arrow"/>
+<rect x="64" y="764" width="1190" height="46" rx="10" fill="#f2f5f9" stroke="#e1e7ef"/>
+<text x="82" y="793" class="body" style="fill:#45576c">Software checks each map: file coverage, valid placements, grouping limits and configured locks.</text>
+<text x="64" y="844" class="body" style="font-weight:600">37 model jobs · 197.3 seconds · two workers · final map covers all 12 files</text>
+<text x="64" y="877" class="small" style="fill:#53657a">Later scans reuse current work; changed inputs refresh affected descriptions and downstream results.</text>
+<rect x="40" y="946" width="1240" height="366" rx="16" fill="#ffffff" stroke="#dbe3ec"/>
+<text x="64" y="990" class="section" >2  Ask how AnaxiGraph itself could improve</text>
+<text x="64" y="1020" class="body" style="fill:#53657a">Separate, independent reviews after mapping — neither reviewer received the other’s answer.</text>
+<rect x="64" y="1066" width="256" height="174" rx="16" fill="#f1f4f8" stroke="#ccd7e4"/>
+<text x="84" y="1101" class="heading" >Same evidence packet</text>
+<text x="84" y="1134" class="body" >Source + completed pilot</text>
+<text x="84" y="1160" class="body" >Descriptions, assignments</text>
+<text x="84" y="1186" class="body" >Usage and repair history</text>
+<rect x="398" y="1054" width="366" height="100" rx="16" fill="#eef0ff" stroke="#bbc5ee"/>
+<text x="420" y="1088" class="heading" style="fill:#3c4d98">GPT-6.1 Sol</text>
+<text x="420" y="1117" class="small" >Independent improvement review</text>
+<text x="420" y="1140" class="small" >High reasoning effort</text>
+<rect x="398" y="1176" width="366" height="100" rx="16" fill="#fff1e7" stroke="#ebc5ab"/>
+<text x="420" y="1210" class="heading" style="fill:#8c4c26">Claude Opus 5.5</text>
+<text x="420" y="1239" class="small" >Independent improvement review</text>
+<text x="420" y="1262" class="small" >High reasoning effort</text>
+<path d="M324 1153 H358 V1104 H390" class="arrow"/>
+<path d="M358 1153 V1226 H390" class="arrow"/>
+<rect x="858" y="1084" width="396" height="164" rx="16" fill="#f1f4f8" stroke="#ccd7e4"/>
+<text x="880" y="1120" class="heading" >Check the suggestions</text>
+<text x="880" y="1153" class="body" >Inspect source; reproduce mechanics</text>
+<text x="880" y="1179" class="body" >Separate findings from hypotheses</text>
+<text x="880" y="1205" class="body" >Prioritize small, testable improvements</text>
+<path d="M768 1104 H806 V1166 H850" class="arrow"/>
+<path d="M768 1226 H806 V1166" class="arrow"/>
+<text x="64" y="1296" class="small" style="fill:#53657a">These reviews produced ideas for development; they did not change the pilot’s map.</text>
+<path d="M60 670 H24 V1153 H56" class="arrow"/>
+<rect x="40" y="1340" width="1240" height="124" rx="16" fill="#f8fafc" stroke="#ccd7e4"/>
+<text x="64" y="1374" class="heading" >What is optional or still ahead</text>
+<text x="64" y="1405" class="body" >Production also supports detailed pattern analysis and a requested fresh-eyes workflow; this pilot ran neither.</text>
+<text x="64" y="1434" class="body" >Putting Sol and Opus into the map-revision loop is a possible next experiment, not a configured handoff today.</text>
+</svg>
