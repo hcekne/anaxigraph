@@ -26,7 +26,7 @@ import {
   layoutGraph,
   renderGraphAreaOptions,
 } from "/assets/graph-model.js";
-import { renderHistory, stopHistoryPlayback } from "/assets/history-controller.js";
+import { refreshHistoryData, renderHistory, stopHistoryPlayback } from "/assets/history-controller.js";
 import { setupModuleEvents } from "/assets/module-events.js";
 import { renderModuleFilters, renderModules } from "/assets/module-view.js";
 import { renderNavigation } from "/assets/navigation.js";
@@ -73,21 +73,22 @@ async function loadRepository() {
   stopHistoryPlayback();
   window.clearTimeout(state.historyPollTimer);
   window.clearTimeout(state.semanticPollTimer);
+  showSelectedRepository();
+  Object.assign(state, { overview: null, semanticStatus: null, snapshots: [], trends: [], historyInfo: { loading: true }, reassessment: null });
+  resetWorkflowsView();
   try {
     const overview = await request(api("/api/overview"));
     if (token !== state.repositoryLoadToken) return;
     state.overview = overview;
     configureMapLayers();
-    const [modules, graph, snapshots, trends, historyInfo, semanticStatus, reassessment] = await Promise.all([
+    displaySnapshot(overview.snapshot);
+    renderOverview();
+    const [modules, graph, semanticStatus] = await Promise.all([
       request(api("/api/modules")),
       request(api("/api/graph", {
         node_limit: 1000, edge_limit: 2000, area: "", map_layer: state.mapLayer,
       })),
-      request(api("/api/snapshots")),
-      request(api("/api/trends")),
-      request(api("/api/history")),
       request(api("/api/semantic")),
-      loadReassessment(),
     ]);
     if (token !== state.repositoryLoadToken) return;
     Object.assign(state, {
@@ -97,30 +98,44 @@ async function loadRepository() {
       graph,
       findingPage: null,
       findings: [],
-      snapshots,
-      trends: trends.snapshots || [],
-      historyInfo,
       semanticStatus,
-      reassessment,
     });
     resetRepositoryState();
     buildGroupIndex(selectedHierarchy());
     renderGraphAreaOptions();
     renderGraphRegionBrowser();
-    const repository = selectedRepository();
-    byId("project-name").textContent = repository?.name || "No repository";
-    document.title = `${repository?.name || "Repository"} · AnaxiGraph`;
-    displaySnapshot(overview.snapshot);
-    const refresh = byId("refresh-button");
-    refresh.disabled = !repository?.scannable;
-    refresh.title = repository?.scannable
-      ? "Refresh the configured read-only scan target"
-      : "This repository is indexed but is not mounted as this server's scan target";
     renderAllViews();
+    document.querySelector("main").setAttribute("aria-busy", "false");
+    void refreshHistoryData();
+    void refreshReassessment(token);
     void reloadFindings();
   } catch (error) {
-    if (token === state.repositoryLoadToken) toast(error.message, true);
+    if (token === state.repositoryLoadToken) {
+      byId("snapshot-label").textContent = `Could not load the saved map: ${error.message}`;
+      document.querySelector("main").setAttribute("aria-busy", "false");
+      toast(error.message, true);
+    }
   }
+}
+
+function showSelectedRepository() {
+  const repository = selectedRepository();
+  byId("project-name").textContent = repository?.name || "No repository";
+  document.title = `${repository?.name || "Repository"} · AnaxiGraph`;
+  document.querySelector("main").setAttribute("aria-busy", "true");
+  byId("snapshot-label").textContent = "Loading the saved map…";
+  const refresh = byId("refresh-button");
+  refresh.disabled = !repository?.scannable;
+  refresh.title = repository?.scannable
+    ? "Refresh the configured read-only scan target"
+    : "This repository is indexed but is not mounted as this server's scan target";
+}
+
+async function refreshReassessment(token) {
+  const value = await loadReassessment();
+  if (token !== state.repositoryLoadToken) return;
+  state.reassessment = value;
+  renderReassessment();
 }
 
 async function loadReassessment() {

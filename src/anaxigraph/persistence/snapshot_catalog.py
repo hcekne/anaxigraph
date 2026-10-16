@@ -5,9 +5,9 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
-from anaxigraph.persistence.temporal_reads import (
-    snapshot_files_with_diagnostics,
-    snapshot_relationship_edges_with_diagnostics,
+from anaxigraph.persistence.temporal_reconstruction import (
+    reconstruct_files_with_diagnostics,
+    reconstruct_relationships_with_diagnostics,
 )
 
 
@@ -86,20 +86,50 @@ def _with_statistics(
     snapshot: dict[str, Any],
 ) -> dict[str, Any]:
     snapshot_id = int(snapshot["id"])
-    files, file_diagnostics = snapshot_files_with_diagnostics(connection, snapshot_id)
-    edges, relationship_diagnostics = snapshot_relationship_edges_with_diagnostics(
+    files, file_diagnostics = reconstruct_files_with_diagnostics(connection, snapshot_id)
+    relationships, relationship_diagnostics = reconstruct_relationships_with_diagnostics(
         connection, snapshot_id
     )
     snapshot.update(
         file_count=len(files),
-        lines_of_code=sum(int(file["lines_of_code"] or 0) for file in files),
-        relationship_count=len(edges),
+        lines_of_code=_file_lines(connection, [file["file_fact_id"] for file in files.values()]),
+        relationship_count=_edge_count(connection, list(relationships.values())),
         reconstruction={
             "files": file_diagnostics.as_dict(),
             "relationships": relationship_diagnostics.as_dict(),
         },
     )
     return snapshot
+
+
+def _id_batches(identifiers: list[int]) -> list[list[int]]:
+    unique = sorted(set(identifiers))
+    return [unique[offset : offset + 800] for offset in range(0, len(unique), 800)]
+
+
+def _file_lines(connection: sqlite3.Connection, identifiers: list[int]) -> int:
+    total = 0
+    for batch in _id_batches(identifiers):
+        placeholders = ",".join("?" for _item in batch)
+        row = connection.execute(
+            f"SELECT COUNT(*), SUM(lines_of_code) FROM file_facts WHERE id IN ({placeholders})",
+            batch,
+        ).fetchone()
+        if row[0] != len(batch):
+            raise RuntimeError("Snapshot statistics reference a missing file fact")
+        total += int(row[1] or 0)
+    return total
+
+
+def _edge_count(connection: sqlite3.Connection, identifiers: list[int]) -> int:
+    total = 0
+    for batch in _id_batches(identifiers):
+        placeholders = ",".join("?" for _item in batch)
+        total += connection.execute(
+            f"SELECT COUNT(*) FROM relationship_edges WHERE relationship_set_id IN ({placeholders})",
+            batch,
+        ).fetchone()[0]
+    return total
 
 
 def _merge_current_frame(

@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 test("finding handoff explains when a structural problem appeared and returned", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("#project-name")).not.toHaveText("Loading…");
+  await expect(page.locator("main")).toHaveAttribute("aria-busy", "false");
   await page.getByRole("button", { name: "Guide", exact: true }).click();
 
   await page.evaluate(async () => {

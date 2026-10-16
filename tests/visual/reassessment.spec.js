@@ -6,6 +6,7 @@ test("Changes shows the shared calibrated architecture reassessment", async ({ p
   });
   await page.goto("/");
   await expect(page.locator("#project-name")).not.toHaveText("Loading…");
+  await expect(page.locator("main")).toHaveAttribute("aria-busy", "false");
   await page.getByRole("button", { name: "Changes", exact: true }).click();
 
   const panel = page.locator("#architecture-reassessment");

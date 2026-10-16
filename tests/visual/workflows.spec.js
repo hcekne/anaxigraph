@@ -28,6 +28,7 @@ async function open(page, value = progress()) {
   await page.route("**/api/workflows?*", route => route.fulfill({ json: value }));
   await page.goto("/");
   await expect(page.locator("#project-name")).not.toHaveText("Loading…");
+  await expect(page.locator("main")).toHaveAttribute("aria-busy", "false");
   await page.getByRole("button", { name: "Workflows", exact: true }).click();
   await expect(page.locator(".workflow-node")).toHaveCount(8);
 }

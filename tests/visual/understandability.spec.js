@@ -24,6 +24,7 @@ async function showDossier(page, value, status = "current") {
   });
   await page.goto("/");
   await expect(page.locator("#project-name")).not.toHaveText("Loading…");
+  await expect(page.locator("main")).toHaveAttribute("aria-busy", "false");
   await page.getByRole("button", { name: "Files", exact: true }).click();
   await page.locator(".module-row").first().click();
   return page.locator(".module-detail-row");

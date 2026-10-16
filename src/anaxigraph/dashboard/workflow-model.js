@@ -93,6 +93,7 @@ function mapReady(modules, total, groups, semantic) {
 
 function scanStep(data, files) {
   const scan = data.coverage?.scan || {};
+  files = scan.discovered_count ?? files;
   const active = data.scan?.active;
   return step("scan", "Scan the source", "Read symbols, imports and source fingerprints.", {
     owner: "AnaxiGraph code", done: active ? data.scan.completed || 0 : files,

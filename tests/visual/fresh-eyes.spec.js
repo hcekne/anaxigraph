@@ -6,6 +6,7 @@ test("fresh-eyes review shows stage provenance and only final ranked advice", as
   });
   await page.goto("/");
   await expect(page.locator("#project-name")).not.toHaveText("Loading…");
+  await expect(page.locator("main")).toHaveAttribute("aria-busy", "false");
   await page.getByRole("button", { name: "Improve", exact: true }).click();
   await page.getByRole("button", { name: "Fresh eyes", exact: true }).click();
 
@@ -38,6 +39,7 @@ test("a failed fresh-eyes stage can be retried without changing the recipe", asy
   });
   await page.goto("/");
   await expect(page.locator("#project-name")).not.toHaveText("Loading…");
+  await expect(page.locator("main")).toHaveAttribute("aria-busy", "false");
   await page.getByRole("button", { name: "Improve", exact: true }).click();
   await page.getByRole("button", { name: "Fresh eyes", exact: true }).click();
 
@@ -64,6 +66,7 @@ test("cross-provider proposals name their executor families", async ({ page }) =
   });
   await page.goto("/");
   await expect(page.locator("#project-name")).not.toHaveText("Loading…");
+  await expect(page.locator("main")).toHaveAttribute("aria-busy", "false");
   await page.getByRole("button", { name: "Improve", exact: true }).click();
   await page.getByRole("button", { name: "Fresh eyes", exact: true }).click();
 
@@ -81,6 +84,7 @@ test("dirty snapshot banner is shown only for dirty reviews", async ({ page }) =
   });
   await page.goto("/");
   await expect(page.locator("#project-name")).not.toHaveText("Loading…");
+  await expect(page.locator("main")).toHaveAttribute("aria-busy", "false");
   await page.getByRole("button", { name: "Improve", exact: true }).click();
   await page.getByRole("button", { name: "Fresh eyes", exact: true }).click();
 
@@ -106,6 +110,7 @@ test("a completed review can change its goal without restarting blind stages", a
   });
   await page.goto("/");
   await expect(page.locator("#project-name")).not.toHaveText("Loading…");
+  await expect(page.locator("main")).toHaveAttribute("aria-busy", "false");
   await page.getByRole("button", { name: "Improve", exact: true }).click();
   await page.getByRole("button", { name: "Fresh eyes", exact: true }).click();
   await expect(page.locator("#fresh-eyes-goal")).toHaveValue("Original goal");
@@ -206,6 +211,7 @@ test("a stale grounding status names the citations that did not resolve", async 
   });
   await page.goto("/");
   await expect(page.locator("#project-name")).not.toHaveText("Loading…");
+  await expect(page.locator("main")).toHaveAttribute("aria-busy", "false");
   await page.getByRole("button", { name: "Improve", exact: true }).click();
   await page.getByRole("button", { name: "Fresh eyes", exact: true }).click();
 
@@ -242,6 +248,7 @@ test("a recorded generation can be read but not restarted", async ({ page }) => 
   });
   await page.goto("/");
   await expect(page.locator("#project-name")).not.toHaveText("Loading…");
+  await expect(page.locator("main")).toHaveAttribute("aria-busy", "false");
   await page.getByRole("button", { name: "Improve", exact: true }).click();
   await page.getByRole("button", { name: "Fresh eyes", exact: true }).click();
 
@@ -342,6 +349,7 @@ test("a seven-versus-five comparison fits desktop and phone viewports", async ({
 async function openFreshEyes(page) {
   await page.goto("/");
   await expect(page.locator("#project-name")).not.toHaveText("Loading…");
+  await expect(page.locator("main")).toHaveAttribute("aria-busy", "false");
   await page.getByRole("button", { name: "Improve", exact: true }).click();
   await page.getByRole("button", { name: "Fresh eyes", exact: true }).click();
   await expect(page.locator("#fresh-eyes-compare")).toBeVisible();

@@ -11,6 +11,11 @@ export function historyStartMessage(status) {
 }
 
 export function historyView(info, snapshots) {
+  if (info.loading || info.error) {
+    return { active: false, cancelRequested: false, importDisabled: true,
+      importLabel: "Import Git history", details: [],
+      help: info.error ? `Saved history could not be loaded: ${info.error}` : "Loading saved history. The current repository views remain available." };
+  }
   const job = info.job || {};
   const timeline = info.timeline || {};
   const active = activeHistoryStates.has(job.status);

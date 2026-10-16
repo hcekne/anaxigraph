@@ -50,7 +50,7 @@ function scheduleHistoryRefresh() {
   state.historyPollTimer = window.setTimeout(refreshHistoryData, 2500);
 }
 
-async function refreshHistoryData() {
+export async function refreshHistoryData() {
   const repositoryLoadToken = state.repositoryLoadToken;
   try {
     const [snapshots, trends, historyInfo] = await Promise.all([
@@ -65,7 +65,10 @@ async function refreshHistoryData() {
     renderHistory();
     renderOnboarding();
   } catch (error) {
-    if (repositoryLoadToken === state.repositoryLoadToken) toast(error.message, true);
+    if (repositoryLoadToken === state.repositoryLoadToken) {
+      state.historyInfo = { error: error.message };
+      renderHistory();
+    }
   }
 }
 

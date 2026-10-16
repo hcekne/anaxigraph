@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 async function openDashboard(page) {
   await page.goto("/");
   await expect(page.locator("#project-name")).not.toHaveText("Loading…");
+  await expect(page.locator("main")).toHaveAttribute("aria-busy", "false");
 }
 
 test("agent workbench shows the readable architecture recommendation", async ({ page }) => {
