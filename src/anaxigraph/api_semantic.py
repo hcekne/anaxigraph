@@ -29,6 +29,8 @@ class SemanticRefreshCoordinator:
         retry_failed: bool = False,
         run: Callable[[], dict[str, Any]] | None = None,
         workflow: str = "mapping",
+        step: str | None = None,
+        settings: dict[str, Any] | None = None,
     ) -> bool:
         key = str(target.path.resolve())
         config = load_config(target.path, target.config_path)
@@ -43,7 +45,12 @@ class SemanticRefreshCoordinator:
         with self.lock:
             if self.jobs.get(key, {}).get("status") in {"queued", "running"}:
                 return False
-            self.jobs[key] = {"status": "queued", "workflow": workflow}
+            self.jobs[key] = {
+                "status": "queued",
+                "workflow": workflow,
+                "step": step,
+                "settings": settings,
+            }
         thread = threading.Thread(
             target=self._worker,
             args=(target, force, retry_failed, run, workflow),
@@ -58,6 +65,10 @@ class SemanticRefreshCoordinator:
     def status_for(self, path: Path) -> dict[str, Any]:
         with self.lock:
             return dict(self.jobs.get(str(path.resolve()), {"status": "idle"}))
+
+    def update_step(self, path: Path, step: str) -> None:
+        with self.lock:
+            self.jobs[str(path.resolve())]["active_step"] = step
 
     def close(self, timeout_seconds: float = 4.0) -> bool:
         """Wait boundedly for in-process semantic planning to finish before index release."""
@@ -79,7 +90,7 @@ class SemanticRefreshCoordinator:
     ) -> None:
         key = str(target.path.resolve())
         with self.lock:
-            self.jobs[key] = {"status": "running", "workflow": workflow}
+            self.jobs[key] = {**self.jobs[key], "status": "running"}
         try:
             config = load_config(target.path, target.config_path)
             repository = self.database.repository(target.path)

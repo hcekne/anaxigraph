@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
+from threading import Event
 from typing import Any
 
 from anaxigraph.persistence.workflow_read import workflow_coverage
@@ -50,7 +52,16 @@ def validate_proposal_settings(fresh: Any, workers: Any) -> None:
 
 
 class WorkflowExecution:
-    def __init__(self, database: Any, row: Any, config: Any, request: Any, settings: Any) -> None:
+    def __init__(
+        self,
+        database: Any,
+        row: Any,
+        config: Any,
+        request: Any,
+        settings: Any,
+        *,
+        on_step: Callable[[str], None] | None = None,
+    ) -> None:
         self.database, self.row, self.request = database, row, request
         self.engine = SemanticEngine(database)
         self.config = (
@@ -63,6 +74,8 @@ class WorkflowExecution:
         self.steps = (request.step,) if request.step else FLOW_STEPS[request.workflow]
         self.settings = settings
         self.processed = 0
+        self.on_step = on_step
+        self.stop_on_failure = Event()
 
     def run(self) -> dict[str, Any]:
         if self.request.workflow == "fresh-eyes":
@@ -134,11 +147,15 @@ class WorkflowExecution:
     def _dispatch(self, jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         # Run the earliest eligible card. Distinct model pools share file jobs, never duplicate them.
         step = next(step for step in self.steps if any(job_step(job) == step for job in jobs))
+        if self.on_step:
+            self.on_step(step)
         selected = [job for job in jobs if job_step(job) == step]
         remaining = (
             self.request.max_jobs - self.processed if self.request.max_jobs else len(selected)
         )
-        selected = selected[: min(remaining, self.config.semantic.max_jobs_per_run)]
+        # This explicit workflow run already has its own optional limit. Chunking it by
+        # max_jobs_per_run would reintroduce a slowest-worker barrier between chunks.
+        selected = selected[:remaining]
         pools = [WorkerChoice(**item) for item in self.settings[step]]
         assignments = assign_jobs(step, selected, pools)
         cap = min(len(pools), self.config.semantic.max_parallel_jobs)
@@ -166,6 +183,7 @@ class WorkflowExecution:
             limit=len(identifiers),
             execution_semantic=execution,
             job_ids=tuple(identifiers),
+            stop_on_failure=self.stop_on_failure,
         )
 
     def _finish(self) -> dict[str, Any]:

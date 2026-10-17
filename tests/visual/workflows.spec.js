@@ -262,3 +262,75 @@ test("suggested rows can be restored and provider workers stay readable on phone
   await expect(page.locator(".workflow-worker-row")).toHaveCount(2);
   await expect(page.locator('#workflow-step-form [name="provider"]').nth(1)).toHaveValue("claude");
 });
+
+test("the whole active card pulses with live counts, includes its actions and respects reduced motion", async ({ page }, testInfo) => {
+  const value = configuredProgress();
+  value.execution.max_parallel_jobs = 12;
+  const workers = [{ ...value.settings.steps.intrinsic[0], workers: 12 }];
+  value.semantic.worker = { status: "running", workflow: "mapping", active_step: "intrinsic", settings: { intrinsic: workers } };
+  value.settings.steps.intrinsic[0].workers = 8; // A subsequent choice must not change the live capacity.
+  value.coverage.workers = [{ job_kind: "intrinsic", scope_type: "module", executor_model: "gpt-6-luna", running: 12 }];
+  value.coverage.live_jobs[0].running = 12;
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await open(page, value);
+  const node = page.locator('[data-step="intrinsic"]'), card = node.locator("..");
+  await expect(node).toContainText("12 / 12 workers active");
+  await node.click();
+  await expect(card).toHaveClass(/running.*selected/);
+  const appearance = await card.evaluate(element => {
+    const footer = element.querySelector(".workflow-card-actions");
+    return { outline: getComputedStyle(element).outlineStyle, radius: getComputedStyle(element).borderBottomLeftRadius,
+      ring: getComputedStyle(element, "::after").animationName,
+      spinner: getComputedStyle(element.querySelector(".workflow-spinner")).animationName,
+      containsFooter: element.getBoundingClientRect().bottom >= footer.getBoundingClientRect().bottom };
+  });
+  expect(appearance).toEqual({ outline: "solid", radius: "16px", ring: "workflow-pulse", spinner: "workflow-spin", containsFooter: true });
+  value.coverage.workers[0].running = value.coverage.live_jobs[0].running = 3;
+  await page.locator("#workflow-refresh").click();
+  await expect(node).toContainText("3 / 12 workers active");
+  await expect(node).toContainText("Running now: 3 × gpt-6-luna");
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1100 });
+    for (const theme of ["constellation-light", "constellation-dark"]) {
+      await page.locator("#theme-select").selectOption(theme);
+      expect(await page.evaluate(() => document.body.scrollWidth <= innerWidth)).toBeTruthy();
+      await card.screenshot({ path: testInfo.outputPath(`active-card-${width}-${theme}.png`) });
+    }
+  }
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(node.locator(".workflow-spinner")).toHaveCSS("animation-name", "none");
+  await expect(node).toContainText("3 / 12 workers active");
+  expect(await card.evaluate(element => getComputedStyle(element, "::after").animationName)).toBe("none");
+});
+
+test("Run step immediately marks its card, survives planning and reload, then stops the spinner", async ({ page }) => {
+  const value = configuredProgress();
+  let release, waiting = false;
+  await page.route("**/api/workflows/run", async route => {
+    waiting = true;
+    await new Promise(resolve => { release = resolve; });
+    value.semantic.worker = { status: "running", workflow: "mapping", step: "intrinsic", settings: value.settings.steps };
+    await route.fulfill({ json: { status: "started", repository_id: 1 } });
+  });
+  await open(page, value);
+  const node = page.locator('[data-step="intrinsic"]');
+  await expect(node.locator(".workflow-spinner")).toHaveCount(0); // Queued tasks alone are not running.
+  await page.locator('[data-run-step="intrinsic"]').click();
+  try {
+    await expect.poll(() => waiting).toBeTruthy();
+    await expect(node).toContainText("Starting step…");
+    await expect(node).toContainText("0 workers active");
+    await expect(node.locator(".workflow-spinner")).toBeVisible();
+  } finally { release?.(); }
+  await expect(node).toContainText("Preparing jobs…");
+  await page.reload();
+  await expect(node).toContainText("Preparing jobs…");
+  await expect(node.locator(".workflow-spinner")).toBeVisible();
+  value.semantic.worker = { status: "complete", workflow: "mapping", step: "intrinsic" };
+  value.coverage.scopes.module.intrinsic = 12;
+  value.semantic.jobs = {};
+  await page.locator("#workflow-refresh").click();
+  await expect(node).toContainText("Complete");
+  await expect(node.locator(".workflow-spinner")).toHaveCount(0);
+  await expect(node.locator("..")).not.toHaveClass(/running/);
+});

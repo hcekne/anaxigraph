@@ -10,6 +10,7 @@ let selectedStep = "scan";
 let requestToken = 0;
 let timer = null;
 let runningRequest = false;
+let startingStep = null;
 let controlsRepository = null;
 let observer;
 
@@ -78,6 +79,7 @@ function clearWorkflows() {
   data = null;
   resetStepSettings();
   runningRequest = false;
+  startingStep = null;
   byId("workflow-run-button").disabled = true;
   byId("workflow-entry").textContent = "Reading workflow progress for this repository…";
   byId("workflow-diagram").textContent = "Reading repository progress…";
@@ -153,7 +155,7 @@ function configureControls() {
 
 function render() {
   if (!data || data.repository_id !== state.repositoryId) return;
-  const flows = buildFlows(data, state.overview?.files || 0);
+  const flows = buildFlows(data, state.overview?.files || 0, startingStep);
   const flow = flows.find(item => item.id === selectedFlow);
   const current = flow.steps.find(item => item.id === selectedStep) || flow.steps[0];
   selectedStep = current.id;
@@ -283,17 +285,18 @@ async function startStep(step = null, maxJobs = null) {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ repository_id: state.repositoryId, workflow: flow.id,
       use_step_settings: true, step, max_jobs: maxJobs,
-      goal: byId("workflow-goal").value.trim() || null, restart: byId("workflow-restart").checked }) }));
+      goal: byId("workflow-goal").value.trim() || null, restart: byId("workflow-restart").checked }) }), step);
 }
 
 async function startScan() {
   if (!data || data.repository_id !== state.repositoryId || byId("workflow-scan").disabled) return;
-  await runAction(() => request(api("/api/scan"), { method: "POST" }));
+  await runAction(() => request(api("/api/scan"), { method: "POST" }), "scan");
 }
 
-async function runAction(action) {
+async function runAction(action, step = null) {
   const repositoryId = state.repositoryId;
   runningRequest = true;
+  startingStep = step;
   render();
   try {
     const result = await action();
@@ -304,6 +307,6 @@ async function runAction(action) {
   } catch (error) {
     if (repositoryId === state.repositoryId) toast(error.message, true);
   } finally {
-    if (repositoryId === state.repositoryId) { runningRequest = false; render(); }
+    if (repositoryId === state.repositoryId) { runningRequest = false; startingStep = null; render(); }
   }
 }

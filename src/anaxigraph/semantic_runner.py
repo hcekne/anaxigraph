@@ -5,9 +5,11 @@ from __future__ import annotations
 import itertools
 import time
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import replace
+from functools import partial
 from pathlib import Path
+from threading import Event
 from typing import Any
 
 from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
@@ -75,14 +77,14 @@ def _worker_limits(
     return requested, min(semantic.max_parallel_jobs, requested, bounded)
 
 
-def _wave_execution(
+def _worker_execution(
     execution: SemanticConfig | None,
     requested_workers: int,
-    wave: int,
+    workers: int,
 ) -> SemanticConfig | None:
     if execution is None:
         return None
-    return replace(execution, max_parallel_jobs=max(1, requested_workers // wave))
+    return replace(execution, max_parallel_jobs=max(1, requested_workers // workers))
 
 
 def _job_counts() -> dict[str, int]:
@@ -95,6 +97,28 @@ def _count_job_results(counts: dict[str, int], results: list[str]) -> None:
     counts["processed"] += len(results)
     for result in results:
         counts[result] += 1
+
+
+def _run_workers(
+    work: Callable[[], str | None], workers: int, limit: int, stop_on_failure: Event | None = None
+) -> dict[str, int]:
+    """Refill each free slot without waiting for other jobs, within the shared job limit."""
+    counts = _job_counts()
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        slots = 0 if stop_on_failure and stop_on_failure.is_set() else min(workers, limit)
+        pending = {executor.submit(work) for _ in range(slots)}
+        while pending:
+            finished, pending = wait(pending, return_when=FIRST_COMPLETED)
+            results = [result for future in finished if (result := future.result()) is not None]
+            _count_job_results(counts, results)
+            if stop_on_failure is not None and ("failed" in results or "retry" in results):
+                stop_on_failure.set()
+            if results and not (stop_on_failure and stop_on_failure.is_set()):
+                # Empty claims do not consume the limit or spin on a blocked/empty queue.
+                # Another completed job may free a lease, budget reservation or dependency.
+                slots = min(workers, limit - counts["processed"]) - len(pending)
+                pending.update(executor.submit(work) for _ in range(slots))
+    return counts
 
 
 def _bootstrap_result(
@@ -131,52 +155,26 @@ class SemanticRunnerService:
         limit: int | None = None,
         execution_semantic: SemanticConfig | None = None,
         job_ids: tuple[int, ...] | None = None,
+        stop_on_failure: Event | None = None,
     ) -> dict[str, Any]:
         semantic = config.semantic
         _validate_job_execution(semantic, execution_semantic)
         bounded = max(1, limit if limit is not None else semantic.max_jobs_per_run)
         requested_workers, workers = _worker_limits(semantic, execution_semantic, bounded)
-        counts = _job_counts()
         root = Path(repository).expanduser().resolve()
-        while counts["processed"] < bounded:
-            wave = min(workers, bounded - counts["processed"])
-            results = self._work_wave(
-                repository_id,
-                root,
-                config,
-                wave,
-                _wave_execution(execution_semantic, requested_workers, wave),
-                job_ids,
-            )
-            if not results:
-                break
-            _count_job_results(counts, results)
+        work = partial(
+            self._work_one,
+            repository_id,
+            root,
+            config,
+            execution_semantic=_worker_execution(execution_semantic, requested_workers, workers),
+            job_ids=job_ids,
+        )
+        counts = _run_workers(work, workers, bounded, stop_on_failure)
         return {
             **counts,
             "semantic": self._reporting.status(repository_id, semantic),
         }
-
-    def _work_wave(
-        self,
-        repository_id: int,
-        root: Path,
-        config: AnaxiGraphConfig,
-        workers: int,
-        execution_semantic: SemanticConfig | None,
-        job_ids: tuple[int, ...] | None = None,
-    ) -> list[str]:
-        with ThreadPoolExecutor(max_workers=workers) as executor:
-            results = executor.map(
-                lambda _: self._work_one(
-                    repository_id,
-                    root,
-                    config,
-                    execution_semantic=execution_semantic,
-                    job_ids=job_ids,
-                ),
-                range(workers),
-            )
-        return [result for result in results if result is not None]
 
     def bootstrap(
         self,

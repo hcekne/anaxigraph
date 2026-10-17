@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from pathlib import Path
+from threading import Event
 from typing import Any
 
 from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
@@ -48,6 +49,7 @@ class SemanticEngine:
         limit: int | None = None,
         execution_semantic: SemanticConfig | None = None,
         job_ids: tuple[int, ...] | None = None,
+        stop_on_failure: Event | None = None,
     ) -> dict[str, Any]:
         return self._services.runner.run_jobs(
             repository_id,
@@ -56,6 +58,7 @@ class SemanticEngine:
             limit=limit,
             execution_semantic=execution_semantic,
             job_ids=job_ids,
+            stop_on_failure=stop_on_failure,
         )
 
     def bootstrap(

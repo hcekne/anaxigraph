@@ -110,13 +110,25 @@ class WorkflowRoutes:
         started = self.context.semantic_refresh.start(
             target,
             workflow=request.workflow,
+            step=request.step,
+            settings=execution if request.use_step_settings else None,
             run=lambda: (
-                WorkflowExecution(self.context.database, row, config, request, execution).run()
+                self._run_steps(row, config, request, execution)
                 if request.use_step_settings
                 else _run_workflow(self.context.database, row, config, execution, request)
             ),
         )
         return {"status": "started" if started else "already_running", "repository_id": row["id"]}
+
+    def _run_steps(self, row: Any, config: Any, request: Any, execution: Any) -> dict[str, Any]:
+        return WorkflowExecution(
+            self.context.database,
+            row,
+            config,
+            request,
+            execution,
+            on_step=lambda step: self.context.semantic_refresh.update_step(Path(row["path"]), step),
+        ).run()
 
     def save_settings(self, request: StepSettingsRequest) -> dict[str, Any]:
         row = self.context.selected_repository(request.repository_id)

@@ -34,24 +34,29 @@ function nodeMarkup(item, index, selectedStep) {
   const palette = isSoftware ? "software" : models.length === 1 ? modelPalette(models[0]) : "model";
   const owner = isSoftware ? item.owner : models.length === 1 ? modelName(models[0]) : "Model work";
   const progress = item.total > 0 ? Math.min(100, item.done / item.total * 100) : item.status === "complete" ? 100 : 0;
-  return `<li><article class="workflow-card ${palette}"><button type="button" class="workflow-node ${palette} ${item.status}${item.parallel ? " parallel" : ""}"
+  return `<li><article class="workflow-card ${palette} ${item.status}${selectedStep === item.id ? " selected" : ""}"><button type="button" class="workflow-node ${palette} ${item.status}${item.parallel ? " parallel" : ""}"
     data-step="${item.id}" aria-pressed="${selectedStep === item.id}" aria-controls="workflow-detail">
     <span class="workflow-node-top"><span class="workflow-number">${index + 1}</span>
     <span class="workflow-owner">${escapeHtml(owner)}</span></span>
-    <strong>${escapeHtml(item.title)}</strong><span class="workflow-description">${escapeHtml(item.description)}</span>
+    <strong>${escapeHtml(item.title)}</strong>${activityMarkup(item)}<span class="workflow-description">${escapeHtml(item.description)}</span>
     ${item.parallel ? parallelMarkup(item.stages) : ""}
     <span class="workflow-count">${number(item.done)}${item.total == null ? "" : ` / ${number(item.total)}`} <small>${escapeHtml(item.unit)}</small></span>
     <span class="workflow-track" aria-hidden="true"><i style="width:${progress}%"></i></span>
-    <span class="workflow-node-bottom"><span class="workflow-status ${item.status}">${statusLabels[item.status]}</span>
+    <span class="workflow-node-bottom"><span class="workflow-status ${item.status}">${item.activity?.label || statusLabels[item.status]}</span>
     ${item.reused ? `<small>${number(item.reused)} reused</small>` : ""}</span>
     ${nextRunMarkup(item)}
-    ${activeWorkers(item.jobs)}
     <span class="workflow-models">${modelLabels(item).map(name => `<span class="${modelPalette(name)}" title="${escapeAttr(name)}">${escapeHtml(name)}</span>`).join("")}</span>
     </button>${cardActions(item)}</article></li>`;
 }
 
-function activeWorkers(jobs) {
-  return (jobs.workers || []).map(worker => `<small class="workflow-active-worker">Running now: ${number(worker.running)} × ${escapeHtml(worker.executor_model || worker.executor_id || "worker")}</small>`).join("");
+function activityMarkup(item) {
+  if (!item.activity) return "";
+  const { running, capacity, label } = item.activity;
+  const count = capacity && capacity >= running ? `${number(running)} / ${number(capacity)}` : number(running);
+  const heading = running ? `${count} worker${capacity === 1 || (!capacity && running === 1) ? "" : "s"} active` : `${label}…`;
+  return `<span class="workflow-activity" role="status"><span class="workflow-activity-heading"><i class="workflow-spinner" aria-hidden="true"></i><b>${heading}</b></span>
+    ${(item.jobs.workers || []).filter(worker => worker.running > 0).map(worker => `<small class="workflow-active-worker">Running now: ${number(worker.running)} × ${escapeHtml(worker.executor_model || worker.executor_id || "worker")}</small>`).join("")}
+    ${!running && item.plan ? `<small>0 workers active · waiting for jobs to start</small>` : ""}</span>`;
 }
 
 function nextRunMarkup(item) {

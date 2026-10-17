@@ -39,14 +39,35 @@ export function workflowState(flow) {
   return flow.state || flowState(flow.steps);
 }
 
-export function buildFlows(data, files = 0) {
+export function buildFlows(data, files = 0, startingStep = null) {
   const flows = [mappingFlow(data, files), patternFlow(data), freshFlow(data)];
   flows.forEach(flow => flow.steps.forEach(item => {
     item.plan = data.settings?.steps[item.id];
     item.mode = data.settings?.modes[item.id];
     item.customized = data.settings?.customized.includes(item.id);
+    applyActivity(item, data, flow.id, startingStep);
   }));
   return flows;
+}
+
+function applyActivity(item, data, flow, startingStep) {
+  const worker = data.semantic?.worker || {};
+  const running = Math.max(item.jobs.running || 0, (item.jobs.workers || []).reduce((sum, row) => sum + row.running, 0));
+  const requested = worker.workflow === flow && ["queued", "running"].includes(worker.status)
+    && (worker.active_step || worker.step) === item.id;
+  const starting = startingStep === item.id;
+  if (!running && !requested && !starting && item.status !== "running") return;
+  const plan = worker.settings?.[item.id] || item.plan;
+  const capacity = workerCapacity(plan, item.mode, data.execution?.max_parallel_jobs);
+  item.activity = { running, capacity, label: running ? "Running" : starting ? "Starting step" : requested ? "Preparing jobs" : "Running" };
+  item.jobs.running = running;
+  item.status = "running";
+}
+
+function workerCapacity(plan, mode, ceiling) {
+  if (!plan?.length) return null;
+  const total = ["sequence", "single"].includes(mode) ? 1 : plan.reduce((sum, row) => sum + row.workers, 0);
+  return Math.min(total, ceiling || total);
 }
 
 function mappingFlow(data, files) {
