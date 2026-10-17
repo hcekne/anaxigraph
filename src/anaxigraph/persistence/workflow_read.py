@@ -12,6 +12,7 @@ def workflow_coverage(connection: Any, snapshot_id: int) -> dict[str, Any]:
         **_execution(connection, snapshot_id),
         "scan": _scan(connection, snapshot_id),
         "failures": _failures(connection, snapshot_id),
+        "workers": _workers(connection, snapshot_id),
     }
 
 
@@ -87,5 +88,16 @@ def _failures(connection: Any, snapshot_id: int) -> list[dict[str, Any]]:
            FROM semantic_jobs WHERE snapshot_id = ? AND status = 'failed'
            ORDER BY id DESC LIMIT 20""",
         (snapshot_id,),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def _workers(connection: Any, snapshot_id: int) -> list[dict[str, Any]]:
+    rows = connection.execute(
+        """SELECT job_kind, scope_type, executor_id, executor_model, COUNT(*) AS running
+           FROM semantic_jobs WHERE snapshot_id = ? AND status = 'running'
+           AND lease_expires_at >= ?
+           GROUP BY job_kind, scope_type, executor_id, executor_model""",
+        (snapshot_id, datetime.now(UTC).isoformat()),
     ).fetchall()
     return [dict(row) for row in rows]

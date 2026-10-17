@@ -4,6 +4,10 @@ Docker Compose is the recommended way to run AnaxiGraph. Target repositories are
 read-only, the SQLite graph lives in a named volume, and the dashboard is bound to localhost by
 default. One service can index and switch between multiple repositories.
 
+If the dashboard should directly use Codex and Claude logins already on the host, the
+[persistent uv service](advanced-operations.md#persistent-host-dashboard-with-uv) is an alternative.
+It can preserve an existing Docker index and continue serving the same port.
+
 ## Recommended: one repository sidecar
 
 From any target repository, generate a dedicated Compose file and editable policy:

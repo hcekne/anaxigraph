@@ -197,7 +197,9 @@
         "anaxigraph.semantic_taxonomy_requests",
         "anaxigraph.semantic_taxonomy_results",
         "anaxigraph.trend_service",
-        "anaxigraph.understanding"
+        "anaxigraph.understanding",
+        "anaxigraph.workflow_execution",
+        "anaxigraph.workflow_settings"
       ],
       "may_import": [
         "foundation",

@@ -48,7 +48,7 @@ The first-run tour explains the main loop:
 
 ### Explore and run repository workflows
 
-**Understand → Workflows** shows three interactive diagrams for the selected repository:
+**Workflows**, the opening page, shows three interactive diagrams for the selected repository:
 
 - **Mapping:** scan → file descriptions → context → responsibility proposal → map reviews →
   group summaries → Charter → exploration.
@@ -63,25 +63,42 @@ pattern counts refer to candidate–target pairs. A completed selection with zer
 valid outcome. Optional flows remain **Not run** until requested, and queued work is distinguished
 from a live worker or an expired lease. Progress refreshes while this view is open.
 
-The run panel starts or resumes work through the existing semantic queue. With the `agent`
-provider, select Codex or Claude and supply a model; the CLI must be installed and authenticated
-on the machine running the web server. A configured non-agent provider supports mapping and
-patterns using its existing settings. Fresh eyes requires the agent provider. Repository stage
-model choices take precedence over the selected worker model and appear under **Model choices
-by stage**. The map proposal and its reviews share the taxonomy tier.
+With the `agent` provider, every model card shows **Next run** choices separately from saved
+provenance. **Configure** lets you choose OpenAI/Codex or Anthropic/Claude, a model, reasoning effort
+and workers. **Use suggested** restores the suggested rows; **Save settings** persists them for
+this repository. Saving alone makes no model calls. **Save & run step** applies the choices and
+runs that card; **Try 2 jobs** bounds a file or pattern sample to two jobs. A completed job is reused
+even if you later change models. Start a new fresh-eyes generation to obtain new review results.
+
+File descriptions and pattern assessments distribute distinct jobs across the selected model
+pools. Their worker counts add together, up to the repository limit. Map reviews run successive
+passes in the displayed order, repeating the model list if more passes are required. Fresh eyes
+assigns one independent proposal to each row, with at most three proposals and concurrency capped
+by repository policy. A single synthesis result uses one worker. Cards also show live worker counts
+by model when a lease is active. Suggested choices are starting points, not benchmark results.
+
+Card settings take precedence over repository stage-model defaults for these dashboard runs;
+usage limits, leases and saved provenance remain enforced. The CLI must be installed and logged in
+as the user running the service. A configured non-agent provider retains the existing workflow
+panel for mapping and patterns. Fresh eyes requires the agent provider.
 
 The Docker image does not bundle coding-agent CLIs or credentials. Its diagrams remain readable,
 and the run panel explains when no local executor is available; installing a CLI only on the
 host does not make it available inside that container. Existing host-worker and MCP execution
-still work as described below. No task is reported as running merely because it was prepared.
+still work as described below. A [persistent uv host service](advanced-operations.md#persistent-host-dashboard-with-uv)
+can use the host's CLI logins directly. It starts separate noninteractive sessions; it does not send
+commands into an existing chat. No task is reported as running merely because it was prepared.
 
-Pattern analysis completes missing mapping prerequisites, then runs its existing candidate and
+Complete Mapping before starting pattern analysis or fresh eyes. Pattern analysis runs its candidate and
 review stages against that saved map. It does not enable detailed review permanently or change
 the file-description contract. Fresh-eyes proposals run in separate sessions; the recorded
 provenance shows whether different models or providers actually participated. You can start a
-new review generation explicitly, or resume an unfinished one. Other explicitly requested work
-can advance on the shared queue too. Runs leave source files unchanged and retain completed
-results across page reloads. Resume unfinished work after restarting the server.
+new review generation explicitly, or resume an unfinished one. A changed proposal count or pinned
+provider assignment needs a new generation. **Run step** never executes a prerequisite or another
+card's model jobs; it waits and explains when preceding work is missing. **Start / resume** runs
+only the selected flow. Runs leave source files unchanged and retain completed results across page
+reloads. Resume unfinished work after restarting the server. Settings live beside the index in
+`<database filename>.workflows/`; include that directory in backups.
 
 ### 3. Start your coding agent in the same repository
 

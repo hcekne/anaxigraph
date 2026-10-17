@@ -66,10 +66,12 @@ in the background. Stop it with Ctrl-C; restart with the same command.
 
 Visit <http://127.0.0.1:8765>. Current architecture is ready before background history finishes.
 
-Open **Understand → Workflows** for live diagrams of mapping, detailed pattern analysis and
+The dashboard opens on **Workflows**, with live diagrams of mapping, detailed pattern analysis and
 fresh-eyes review. Select a step to inspect coverage, reused results, recorded models and token
-usage, then open its results. Start or resume a workflow with an installed server-side executor;
-the overview also links directly to all three flows. Optional work is shown as **Not run** until
+usage, then open its results. Each model card shows its next provider, model and worker count.
+Use **Configure** to save choices, **Run step** for that stage, or **Try 2 jobs** for a small sample.
+Authenticated host Codex and Claude CLIs can run through the [persistent uv service](docs/advanced-operations.md#persistent-host-dashboard-with-uv).
+Optional work is shown as **Not run** until
 requested. See the [workflow controls](docs/onboarding.md#explore-and-run-repository-workflows)
 for worker requirements and how saved progress is counted.
 

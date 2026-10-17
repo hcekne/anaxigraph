@@ -24,6 +24,22 @@ function progress(repositoryId = 1) {
   };
 }
 
+function configuredProgress() {
+  const value = progress();
+  const worker = (model, workers = 1) => ({ provider: model.startsWith("claude") ? "claude" : "codex", model, workers, reasoning_effort: "medium" });
+  const sol = worker("gpt-6.1-sol"), opus = worker("claude-opus-5-5");
+  const steps = {
+    intrinsic: [worker("gpt-6-luna", 4)], context: [worker("gpt-6-luna", 4)],
+    taxonomy_proposal: [sol], taxonomy_review: [sol, opus], groups: [sol], charter: [sol],
+    pattern_assessment: [sol], pattern_review: [opus], proposals: [sol, opus],
+    adjudication: [sol], comparison: [opus], mission_filter: [sol],
+  };
+  value.settings = { steps, suggested: structuredClone(steps), customized: [],
+    modes: Object.fromEntries(Object.keys(steps).map(key => [key, ["intrinsic", "context", "groups", "pattern_assessment", "pattern_review"].includes(key) ? "parallel" : key === "taxonomy_review" ? "sequence" : key === "proposals" ? "proposals" : "single"])),
+    models: { codex: ["gpt-6-luna", "gpt-6.1-sol"], claude: ["claude-opus-5-5"] } };
+  return value;
+}
+
 async function open(page, value = progress()) {
   await page.route("**/api/workflows?*", route => route.fulfill({ json: value }));
   await page.goto("/");
@@ -182,4 +198,67 @@ test("a delayed response from another repository cannot repaint the selected flo
   await delivered;
   await expect(page.locator('[data-step="intrinsic"]')).toContainText("9 / 12");
   await page.unrouteAll({ behavior: "wait" });
+});
+
+test("card settings survive polling and reload; a sample saves choices before running only two jobs", async ({ page }) => {
+  const value = configuredProgress();
+  let saved, posted;
+  await page.route("**/api/workflows/settings", async route => {
+    saved = route.request().postDataJSON();
+    value.settings.steps[saved.step] = saved.workers;
+    value.settings.customized = [saved.step];
+    await route.fulfill({ json: { repository_id: 1, settings: value.settings } });
+  });
+  await page.route("**/api/workflows/run", async route => {
+    posted = route.request().postDataJSON();
+    value.semantic.worker = { status: "running", workflow: "mapping" };
+    value.coverage.workers = [{ job_kind: "intrinsic", scope_type: "module", executor_model: "custom-luna", running: 2 }];
+    await route.fulfill({ json: { status: "started", repository_id: 1 } });
+  });
+  await open(page, value);
+  await expect(page.locator('[data-step="intrinsic"]')).toContainText("Next run · suggested");
+  await expect(page.locator('[data-step="intrinsic"]')).toContainText("4 parallel workers");
+  await expect(page.locator('[data-step="taxonomy_review"]')).toContainText("one runs at a time");
+  await page.locator('[data-configure-step="intrinsic"]').click();
+  const model = page.locator('#workflow-step-form [name="model"]');
+  await model.fill("custom-luna");
+  await page.locator('#workflow-step-form [name="workers"]').fill("2");
+  await model.focus();
+  await page.waitForResponse(response => response.url().includes("/api/workflows?"));
+  await expect(model).toHaveValue("custom-luna");
+  await expect(model).toBeFocused();
+  await page.getByRole("button", { name: "Try 2 jobs", exact: true }).click();
+  await expect.poll(() => posted?.step).toBe("intrinsic");
+  expect(saved.workers[0]).toMatchObject({ provider: "codex", model: "custom-luna", workers: 2 });
+  expect(posted).toMatchObject({ workflow: "mapping", use_step_settings: true, max_jobs: 2 });
+  await expect(page.locator('[data-step="intrinsic"]')).toContainText("Running now: 2 × custom-luna");
+  await expect(page.locator('[data-run-step="context"]')).toBeDisabled();
+  await page.reload();
+  await expect(page.locator('[data-step="intrinsic"]')).toContainText("custom-luna");
+  await expect(page.locator('[data-step="intrinsic"]')).toContainText("your settings");
+  await expect(page.locator('[data-step="intrinsic"]')).toContainText("Saved: gpt-6-luna");
+});
+
+test("suggested rows can be restored and provider workers stay readable on phone and desktop", async ({ page }, testInfo) => {
+  const value = configuredProgress();
+  value.semantic.architecture_charter = { status: "current" };
+  await open(page, value);
+  await page.locator('[data-configure-step="context"]').click();
+  await page.getByRole("button", { name: "Add model", exact: true }).click();
+  await expect(page.locator(".workflow-worker-row")).toHaveCount(2);
+  await page.getByRole("button", { name: "Use suggested", exact: true }).click();
+  await expect(page.locator(".workflow-worker-row")).toHaveCount(1);
+  await expect(page.locator('#workflow-step-form [name="model"]')).toHaveValue("gpt-6-luna");
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1100 });
+    for (const flow of ["mapping", "patterns", "fresh-eyes"]) {
+      await page.locator(`#workflow-tab-${flow}`).click();
+      expect(await page.evaluate(() => document.body.scrollWidth <= innerWidth)).toBeTruthy();
+      await expect(page.locator(".workflow-planned-model").first()).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath(`configured-${flow}-${width}.png`), fullPage: true });
+    }
+  }
+  await page.locator('[data-configure-step="proposals"]').click();
+  await expect(page.locator(".workflow-worker-row")).toHaveCount(2);
+  await expect(page.locator('#workflow-step-form [name="provider"]').nth(1)).toHaveValue("claude");
 });

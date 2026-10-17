@@ -28,6 +28,7 @@ class SemanticEngine:
         *,
         force: bool = False,
         retry_failed: bool = False,
+        preserve_patterns: bool = False,
     ) -> SemanticPlan:
         return self._services.planning.plan(
             repository_id,
@@ -35,6 +36,7 @@ class SemanticEngine:
             config,
             force=force,
             retry_failed=retry_failed,
+            preserve_patterns=preserve_patterns,
         )
 
     def run_jobs(
@@ -45,6 +47,7 @@ class SemanticEngine:
         *,
         limit: int | None = None,
         execution_semantic: SemanticConfig | None = None,
+        job_ids: tuple[int, ...] | None = None,
     ) -> dict[str, Any]:
         return self._services.runner.run_jobs(
             repository_id,
@@ -52,6 +55,7 @@ class SemanticEngine:
             config,
             limit=limit,
             execution_semantic=execution_semantic,
+            job_ids=job_ids,
         )
 
     def bootstrap(

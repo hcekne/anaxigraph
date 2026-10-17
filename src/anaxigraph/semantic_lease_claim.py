@@ -32,6 +32,7 @@ def claim_next_job(
     executor_model: str | None,
     executor_effort: str | None = None,
     executor_family: str | None = None,
+    job_ids: tuple[int, ...] | None = None,
 ) -> dict[str, Any] | None:
     """Claim one eligible job while enforcing concurrency, spend, and executor admission."""
 
@@ -46,12 +47,13 @@ def claim_next_job(
             snapshot_id,
             semantic,
             now=now,
+            preserve_patterns=job_ids is not None,
         )
         if _active_workers(connection, repository_id, now) >= semantic.max_parallel_jobs:
             return None
         spent = _reserved_daily_spend(connection, repository_id, semantic)
         family = claimant_family(executor_id, executor_family)
-        row = _next_job(connection, repository_id, snapshot_id, now, family)
+        row = _next_job(connection, repository_id, snapshot_id, now, family, job_ids)
         if row is None or _exceeds_budget(row, spent, semantic):
             return None
         return _claim_row(
@@ -75,11 +77,12 @@ def reconcile_claimable_jobs(
     semantic: SemanticConfig,
     *,
     now: str | None = None,
+    preserve_patterns: bool = False,
 ) -> None:
     """Atomically heal expired work and retire jobs from older snapshots."""
 
     current = now or utc_now()
-    if not semantic.detailed_reviews:
+    if not semantic.detailed_reviews and not preserve_patterns:
         remove_obsolete_candidates(connection, snapshot_id, set())
         connection.execute(
             "DELETE FROM semantic_scope_states WHERE snapshot_id = ? AND scope_type = 'pattern_plan'",
@@ -198,6 +201,7 @@ def _next_job(
     snapshot_id: int,
     now: str,
     family: str,
+    job_ids: tuple[int, ...] | None = None,
 ) -> sqlite3.Row | None:
     """Take the first job of a small candidate page this executor family may run.
 
@@ -206,14 +210,16 @@ def _next_job(
     carry a pin, so a page this size always holds an eligible job when one exists.
     """
 
+    selection = "" if job_ids is None else f"AND id IN ({','.join('?' for _ in job_ids)})"
     rows = connection.execute(
-        """
+        f"""
         SELECT * FROM semantic_jobs
         WHERE repository_id = ? AND snapshot_id = ?
           AND status IN ('pending', 'retry') AND available_at <= ?
+          {selection}
         ORDER BY priority DESC, id LIMIT ?
         """,
-        (repository_id, snapshot_id, now, CANDIDATE_PAGE),
+        (repository_id, snapshot_id, now, *(job_ids or ()), CANDIDATE_PAGE),
     ).fetchall()
     return next((row for row in rows if claimable_by(row, family)), None)
 

@@ -3,6 +3,62 @@
 Start with the [four-step onboarding](onboarding.md). This guide covers alternatives that are
 useful after the local agent-funded path works.
 
+## Persistent host dashboard with uv
+
+On Linux, a user service can run the dashboard and authenticated Codex/Claude executors under the
+same account. This is convenient when the coding-agent logins already live on the host. Keep the
+dashboard on loopback; existing authenticated CLI sessions are used for new noninteractive jobs.
+
+The checked-in [service template](../examples/anaxigraph-dashboard.service) assumes this checkout
+is at `~/repos/anaxigraph`, with `uv`, `codex` and `claude` in `~/.local/bin`. Adjust its paths if
+your installation differs. Prepare the isolated environment and state directories:
+
+```bash
+UV_PROJECT_ENVIRONMENT="$HOME/.local/share/anaxigraph/dashboard-venv" uv sync --frozen --no-dev
+mkdir -p ~/.config/anaxigraph ~/.config/systemd/user ~/.local/state/anaxigraph/dashboard
+codex login status
+claude auth status
+```
+
+Create `~/.config/anaxigraph/dashboard-repositories.yml` with absolute **host** checkout and policy
+paths, following the [registry format](../repositories.example.yml). When moving an existing
+service, retain its repository keys. Take a consistent SQLite backup using `Connection.backup`,
+stop the Docker container, disable its restart policy, and copy that backup to
+`~/.local/state/anaxigraph/dashboard/anaxi-index.db`. Update the existing `repositories.path` values
+to the host checkouts in one SQLite transaction, preserving IDs and snapshots. Do this before the
+host service's first start, or it can register duplicate repositories. Keep the Docker volume and
+backup for rollback. Copy any existing `.workflows` settings directory beside the new database.
+
+For a new index, the service's source watcher creates the initial structural map. To install and
+start the service after the registry and index are ready:
+
+```bash
+cp examples/anaxigraph-dashboard.service ~/.config/systemd/user/
+systemd-analyze --user verify ~/.config/systemd/user/anaxigraph-dashboard.service
+systemctl --user daemon-reload
+systemctl --user enable --now anaxigraph-dashboard
+curl --fail http://127.0.0.1:8765/healthz
+```
+
+Open <http://127.0.0.1:8765/#workflows/mapping>. Check both repositories, saved coverage and the host
+worker names before launching model work. Use **Configure → Try 2 jobs** for a bounded live check.
+Model availability depends on the authenticated account; an installed CLI alone does not prove a
+particular model call will succeed. Login or model errors appear in the selected step's saved errors.
+
+Use `systemctl --user restart anaxigraph-dashboard` after updating Python source and
+`journalctl --user -u anaxigraph-dashboard` for logs. The frozen uv environment uses this checkout;
+run `uv sync --frozen --no-dev` with the same `UV_PROJECT_ENVIRONMENT` when dependencies change.
+User lingering must be enabled for the service to remain up after logout; check
+`loginctl show-user "$USER" -p Linger`. On this development host it is already enabled.
+
+The 17 October 2026 migration retained repository IDs 1 and 2 and all 12,539 existing semantic
+documents. The original Docker volume was kept, and its container was stopped with automatic
+restart disabled. This is a development deployment of the current checkout, not a new package release.
+The host-service smoke run completed two distinct AnaxiGraph intrinsic-description jobs concurrently:
+job 105684 with `gpt-6-luna` and job 105654 with `claude-opus-5-5`, both on snapshot 1552, with one
+attempt each. Saved worker settings were restored to the suggested four Luna workers afterward.
+This verifies execution and provenance on the real service; two files are not a model-quality benchmark.
+
 ## Manual Compose review
 
 Generate configuration without starting containers:

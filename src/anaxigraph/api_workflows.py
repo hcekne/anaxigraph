@@ -14,6 +14,15 @@ from anaxigraph.api_semantic_routes import SemanticRoutes
 from anaxigraph.persistence.workflow_read import workflow_coverage
 from anaxigraph.semantic_pattern_plan import SemanticPatternPlanner
 from anaxigraph.understanding import SemanticEngine
+from anaxigraph.workflow_execution import WorkflowExecution, validate_proposal_settings
+from anaxigraph.workflow_settings import (
+    FLOW_STEPS,
+    SOFTWARE_STEPS,
+    StepSettingsRequest,
+    WorkerChoice,
+    WorkflowSettings,
+    validate_step,
+)
 
 
 class WorkflowRequest(BaseModel):
@@ -27,14 +36,19 @@ class WorkflowRequest(BaseModel):
     goal: str | None = Field(default=None, max_length=4_000)
     retry_failed: bool = True
     restart: bool = False
+    use_step_settings: bool = False
+    step: str | None = Field(default=None, max_length=60)
+    max_jobs: int | None = Field(default=None, ge=1, le=10_000)
 
 
 class WorkflowRoutes:
     def __init__(self, context: Any) -> None:
         self.context = context
+        self.settings = WorkflowSettings(context.database.path)
         self.router = APIRouter()
         self.router.add_api_route("/api/workflows", self.status, methods=["GET"])
         self.router.add_api_route("/api/workflows/run", self.run, methods=["POST"])
+        self.router.add_api_route("/api/workflows/settings", self.save_settings, methods=["PUT"])
 
     def status(self, repository_id: int | None = None) -> dict[str, Any]:
         row = self.context.selected_repository(repository_id)
@@ -55,6 +69,11 @@ class WorkflowRoutes:
             "fresh_eyes": fresh_eyes,
             "coverage": coverage,
             "scan": self.context.scan_coordinator.status_for(Path(row["path"])),
+            "settings": self.settings.read(
+                int(row["id"]),
+                config.semantic.max_parallel_jobs,
+                config.semantic.taxonomy.review_passes,
+            ),
             "execution": {
                 "mounted": self.context.target_for_path(Path(row["path"])) is not None,
                 "local_executors": [name for name in ("codex", "claude") if shutil.which(name)],
@@ -76,7 +95,13 @@ class WorkflowRoutes:
             raise HTTPException(403, "This repository is not mounted for analysis")
         config = self.context.selected_config(row)
         self._require_ready(row, config)
-        execution = _execution(request, config.semantic)
+        execution = (
+            self._step_execution(request, row, config)
+            if request.use_step_settings
+            else (_execution(request, config.semantic))
+        )
+        if request.step and not request.use_step_settings:
+            raise HTTPException(400, "Single steps require their saved step settings")
         if request.workflow == "fresh-eyes" and config.semantic.provider != "agent":
             raise HTTPException(400, "Fresh eyes requires the repository's agent provider")
         self.context.admit_operation(
@@ -85,9 +110,64 @@ class WorkflowRoutes:
         started = self.context.semantic_refresh.start(
             target,
             workflow=request.workflow,
-            run=lambda: _run_workflow(self.context.database, row, config, execution, request),
+            run=lambda: (
+                WorkflowExecution(self.context.database, row, config, request, execution).run()
+                if request.use_step_settings
+                else _run_workflow(self.context.database, row, config, execution, request)
+            ),
         )
         return {"status": "started" if started else "already_running", "repository_id": row["id"]}
+
+    def save_settings(self, request: StepSettingsRequest) -> dict[str, Any]:
+        row = self.context.selected_repository(request.repository_id)
+        if self.context.target_for_path(Path(row["path"])) is None:
+            raise HTTPException(403, "This repository is not mounted for analysis")
+        config = self.context.selected_config(row)
+        try:
+            if request.step == "taxonomy_review" and len(request.workers) > max(
+                1, config.semantic.taxonomy.review_passes
+            ):
+                raise ValueError("There are more model rows than configured review passes")
+            settings = self.settings.save(
+                int(row["id"]),
+                request,
+                config.semantic.max_parallel_jobs,
+                config.semantic.taxonomy.review_passes,
+            )
+        except ValueError as error:
+            raise HTTPException(400, str(error)) from error
+        return {"repository_id": row["id"], "settings": settings}
+
+    def _step_execution(self, request: WorkflowRequest, row: Any, config: Any) -> Any:
+        if config.semantic.provider != "agent":
+            raise HTTPException(400, "Per-step CLI workers require the repository's agent provider")
+        allowed = (*FLOW_STEPS[request.workflow], *SOFTWARE_STEPS.get(request.workflow, ()))
+        if request.step is not None and request.step not in allowed:
+            raise HTTPException(400, "This step does not belong to the selected workflow")
+        status = SemanticEngine(self.context.database).status(int(row["id"]), config.semantic)
+        if (
+            request.workflow != "mapping"
+            and (status.get("architecture_charter") or {}).get("status") != "current"
+        ):
+            raise HTTPException(409, "Complete Mapping first so this review has a current Charter")
+        settings = self.settings.read(
+            int(row["id"]),
+            config.semantic.max_parallel_jobs,
+            config.semantic.taxonomy.review_passes,
+        )["steps"]
+        steps = (request.step,) if request.step else FLOW_STEPS[request.workflow]
+        try:
+            if request.workflow == "fresh-eyes" and not request.restart:
+                validate_proposal_settings(
+                    SemanticEngine(self.context.database).fresh_eyes_status(
+                        int(row["id"]), config.semantic
+                    ),
+                    settings["proposals"],
+                )
+            _validate_workers(settings, steps, config.semantic.max_parallel_jobs)
+        except ValueError as error:
+            raise HTTPException(400, str(error)) from error
+        return settings
 
     def _require_ready(self, row: dict[str, Any], config: Any) -> None:
         if not config.semantic.enabled:
@@ -97,6 +177,17 @@ class WorkflowRoutes:
             raise HTTPException(409, "Refresh the source scan before starting this workflow")
         if self.context.scan_coordinator.status_for(Path(row["path"])).get("active"):
             raise HTTPException(409, "Wait for the source scan to finish")
+
+
+def _validate_workers(settings: Any, steps: Any, ceiling: int) -> None:
+    for step in steps:
+        if step not in settings:
+            continue
+        workers = [WorkerChoice(**item) for item in settings[step]]
+        validate_step(step, workers, ceiling)
+        for worker in workers:
+            if not shutil.which(worker.provider):
+                raise ValueError(f"{worker.provider} is not installed on this server")
 
 
 def _execution(request: WorkflowRequest, semantic: Any) -> Any:

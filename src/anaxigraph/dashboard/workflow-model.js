@@ -13,6 +13,7 @@ export function jobFacts(data, kind, scope) {
     .filter(item => item.document_kind === kind && (!scope || item.scope_type === scope))
     .flatMap(item => (item.models || "").split(",")).filter(Boolean);
   return { ...value, running: live.running || 0, interrupted: live.interrupted || 0,
+    workers: (data.coverage?.workers || []).filter(matches),
     models: [...new Set([...(value.models || []), ...saved])],
     errors: (data.coverage?.failures || []).filter(matches) };
 }
@@ -39,7 +40,13 @@ export function workflowState(flow) {
 }
 
 export function buildFlows(data, files = 0) {
-  return [mappingFlow(data, files), patternFlow(data), freshFlow(data)];
+  const flows = [mappingFlow(data, files), patternFlow(data), freshFlow(data)];
+  flows.forEach(flow => flow.steps.forEach(item => {
+    item.plan = data.settings?.steps[item.id];
+    item.mode = data.settings?.modes[item.id];
+    item.customized = data.settings?.customized.includes(item.id);
+  }));
+  return flows;
 }
 
 function mappingFlow(data, files) {
@@ -134,7 +141,7 @@ function patternFlow(data) {
   return { id: "patterns", name: "Pattern analysis", title: "Find patterns that fit the code",
     state: planned ? null : unplannedState(semantic.worker, "patterns"),
     description: "A focused assessment of candidate patterns, followed by an independent critique.",
-    note: "This optional run assesses patterns against the saved map and completes missing mapping prerequisites as needed. Counts here are candidate–target pairs, not unique files. No source code is changed.",
+    note: "Complete Mapping first, then assess patterns against the saved map. Counts here are candidate–target pairs, not unique files. No source code is changed.",
     steps: [
       step("pattern_evidence", "Gather code evidence", "Use the map, source facts and pattern catalogue.", {
         owner: "AnaxiGraph code", done: semantic.architecture_charter?.status === "current" ? 1 : 0,
@@ -169,7 +176,8 @@ function freshFlow(data) {
   const fresh = data.fresh_eyes || {};
   const stages = fresh.stages || [];
   const proposals = stages.filter(item => item.key.startsWith("proposal:"));
-  const candidates = proposals.length ? proposals : [{ key: "proposal:a" }, { key: "proposal:b" }];
+  const count = data.settings?.steps.proposals?.length || 2;
+  const candidates = proposals.length ? proposals : Array.from({ length: count }, (_, index) => ({ key: `proposal:${String.fromCharCode(97 + index)}` }));
   const ready = fresh.ready;
   return { id: "fresh-eyes", name: "Fresh eyes", title: "Reconsider the architecture with fresh eyes",
     description: "Independent designs become a reference, then meet the realities of your repository.",
@@ -204,7 +212,7 @@ function freshStep(data, id, title, description, stages, options = {}) {
   const live = jobFacts(data, kind);
   return step(id, title, description, {
     done, total: stages.length || 1, unit: "result", view: "fresh-eyes", stages,
-    jobs: { models, running: done === stages.length ? 0 : live.running,
+    jobs: { models, workers: live.workers, running: done === stages.length ? 0 : live.running,
       interrupted: live.interrupted, failed: stages.filter(item => item.state?.startsWith("failed")).length,
       pending: stages.filter(item => item.state?.startsWith("pending")).length },
     detail: stages.map(item => item.reason).filter(Boolean).join(" ") || "Waiting for the preceding stage.",

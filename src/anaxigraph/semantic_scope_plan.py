@@ -97,6 +97,7 @@ class SemanticPlanningService:
         *,
         force: bool = False,
         retry_failed: bool = False,
+        preserve_patterns: bool = False,
     ) -> SemanticPlan:
         root = Path(repository).expanduser().resolve()
         if not root.is_dir():
@@ -110,7 +111,13 @@ class SemanticPlanningService:
             return SemanticPlan(repository_id, snapshot_id, 0, 0, "disabled", status)
 
         with measured_plan_transaction(self._database.connect, snapshot_id) as connection:
-            self._leases.reconcile(connection, repository_id, snapshot_id, semantic)
+            self._leases.reconcile(
+                connection,
+                repository_id,
+                snapshot_id,
+                semantic,
+                preserve_patterns=preserve_patterns,
+            )
             inventory, relationships = semantic_inventory(connection, snapshot_id)
             enqueued = plan_intrinsic_modules(
                 connection,
@@ -145,16 +152,7 @@ class SemanticPlanningService:
             enqueued += downstream_jobs
             stage = downstream_stage or stage
             refresh_search_projection(connection, repository_id, snapshot_id, force=bool(enqueued))
-            active_jobs = int(
-                connection.execute(
-                    """
-                    SELECT COUNT(*) FROM semantic_jobs
-                    WHERE repository_id = ? AND snapshot_id = ?
-                      AND status IN ('pending', 'retry', 'running')
-                    """,
-                    (repository_id, snapshot_id),
-                ).fetchone()[0]
-            )
+            active_jobs = self._leases.unfinished_job_count(connection, repository_id, snapshot_id)
         return SemanticPlan(
             repository_id,
             snapshot_id,

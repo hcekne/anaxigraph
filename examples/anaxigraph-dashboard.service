@@ -1,0 +1,17 @@
+[Unit]
+Description=AnaxiGraph dashboard and local model workers
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/repos/anaxigraph
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=UV_PROJECT_ENVIRONMENT=%h/.local/share/anaxigraph/dashboard-venv
+Environment=PYTHONUNBUFFERED=1
+ExecStart=%h/.local/bin/uv run --frozen --no-dev --project %h/repos/anaxigraph anaxigraph serve --registry %h/.config/anaxigraph/dashboard-repositories.yml --db %h/.local/state/anaxigraph/dashboard/anaxi-index.db --host 127.0.0.1 --port 8765 --allow-agent-scan
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=60
+
+[Install]
+WantedBy=default.target

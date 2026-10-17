@@ -2,6 +2,7 @@ import { api, byId, escapeHtml, request, selectedRepository, state, toast } from
 import { switchView } from "/assets/navigation.js";
 import { buildFlows } from "/assets/workflow-model.js";
 import { drawWorkflowEdges, overviewWorkflowLinks, workflowDetail, workflowDiagram, workflowTabs } from "/assets/workflow-render.js";
+import { hasUnsavedSettings, renderStepSettings, resetStepSettings, setupStepSettings } from "/assets/workflow-settings.js";
 
 let data = null;
 let selectedFlow = "mapping";
@@ -24,6 +25,7 @@ export function setupWorkflowsView() {
   byId("view-overview").prepend(entry);
   document.addEventListener("click", handleClick);
   byId("workflow-run-form").addEventListener("submit", startWorkflow);
+  setupStepSettings(saveStepSettings, startStep);
   byId("workflow-tabs").addEventListener("keydown", event => {
     if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
     event.preventDefault();
@@ -54,13 +56,14 @@ function shell() {
     <p id="workflow-message" class="workflow-message" role="status">Reading repository progress…</p>
     <section id="workflow-panel" role="tabpanel"><article id="workflow-diagram" class="panel workflow-diagram"></article>
     <div class="workflow-lower"><article id="workflow-detail" class="panel workflow-detail"></article>
-    <article class="panel workflow-run"><p class="eyebrow">Run this workflow</p><h3 id="workflow-run-title">Mapping</h3>
+    <article class="panel workflow-run"><section id="workflow-step-settings"></section>
+    <p class="eyebrow">Run this workflow</p><h3 id="workflow-run-title">Mapping</h3>
     <p id="workflow-run-note"></p><form id="workflow-run-form">
-    <div class="workflow-fields"><label>Executor<select id="workflow-executor"></select></label>
+    <div id="workflow-legacy-options" class="workflow-fields"><label>Executor<select id="workflow-executor"></select></label>
     <label>Worker model<input id="workflow-model" maxlength="200" placeholder="Model ID" autocomplete="off" /></label>
     <label>Reasoning effort<input id="workflow-effort" maxlength="40" placeholder="Executor default" /></label>
     <label>Parallel jobs<input id="workflow-parallel" type="number" min="1" max="64" value="2" /></label></div>
-    <div id="workflow-fresh-options" hidden><label>Independent proposals<select id="workflow-proposals"><option value="1">1 proposal</option><option value="2" selected>2 proposals</option><option value="3">3 proposals</option></select></label>
+    <div id="workflow-fresh-options" hidden><label id="workflow-proposal-count">Independent proposals<select id="workflow-proposals"><option value="1">1 proposal</option><option value="2" selected>2 proposals</option><option value="3">3 proposals</option></select></label>
     <label>Review goal (optional)<input id="workflow-goal" maxlength="4000" placeholder="What should the review help improve?" /></label>
     <label class="workflow-check"><input id="workflow-restart" type="checkbox" /> Start a new review generation</label></div>
     <details id="workflow-routing"><summary>Model choices by stage</summary><div></div></details>
@@ -73,6 +76,7 @@ function clearWorkflows() {
   requestToken += 1;
   window.clearTimeout(timer);
   data = null;
+  resetStepSettings();
   runningRequest = false;
   byId("workflow-run-button").disabled = true;
   byId("workflow-entry").textContent = "Reading workflow progress for this repository…";
@@ -82,8 +86,8 @@ function clearWorkflows() {
 }
 
 export function resetWorkflowsView() {
-  clearWorkflows();
-  void loadWorkflows(true);
+  if (data?.repository_id !== state.repositoryId) clearWorkflows();
+  void loadWorkflows(controlsRepository !== state.repositoryId);
 }
 
 async function loadWorkflows(resetControls = false) {
@@ -94,7 +98,7 @@ async function loadWorkflows(resetControls = false) {
     if (token !== requestToken || repositoryId !== state.repositoryId) return;
     const changed = repositoryResultsChanged(data, value);
     data = value;
-    if (changed) { await state.reloadRepository?.(); return; }
+    if (changed) { render(); await state.reloadRepository?.(); return; }
     if (resetControls || controlsRepository !== repositoryId) configureControls();
     render();
   } catch (error) {
@@ -124,8 +128,13 @@ function configureControls() {
   const executor = byId("workflow-executor").value;
   byId("workflow-executor").innerHTML = names.map(name => `<option value="${name}">${escapeHtml(name === "configured" ? execution.configured_provider : name)}</option>`).join("");
   if (retained && names.includes(executor)) byId("workflow-executor").value = executor;
-  byId("workflow-model").disabled = !agent;
-  byId("workflow-model").required = agent;
+  const perStep = agent && !!data.settings;
+  byId("workflow-legacy-options").hidden = perStep;
+  byId("workflow-routing").hidden = perStep;
+  byId("workflow-proposal-count").hidden = perStep;
+  byId("workflow-step-settings").hidden = !perStep;
+  byId("workflow-model").disabled = !agent || perStep;
+  byId("workflow-model").required = agent && !perStep;
   byId("workflow-effort").disabled = !agent;
   byId("workflow-parallel").max = execution.max_parallel_jobs;
   if (!retained) {
@@ -153,6 +162,7 @@ function render() {
   byId("workflow-panel").setAttribute("aria-labelledby", `workflow-tab-${selectedFlow}`);
   byId("workflow-diagram").innerHTML = workflowDiagram(flow, selectedStep);
   byId("workflow-detail").innerHTML = workflowDetail(current);
+  if (data.settings) renderStepSettings(current, data);
   byId("workflow-entry").innerHTML = overviewWorkflowLinks(flows);
   if (focusStep) document.querySelector(`[data-step="${focusStep}"]`)?.focus({ preventScroll: true });
   drawWorkflowEdges(byId("workflow-diagram").querySelector(".workflow-canvas"));
@@ -166,16 +176,28 @@ function renderControls(flow) {
   byId("workflow-scan").disabled = runningRequest || !data.execution.mounted || active || data.scan?.active;
   byId("workflow-run-title").textContent = flow.name;
   byId("workflow-run-note").textContent = flow.id === "patterns" ? flow.note : "Starts model calls on this server and resumes saved work. Existing requested reviews can also advance on the shared queue.";
+  if (data.settings) byId("workflow-run-note").textContent = "Runs the remaining steps in this flow using each card’s saved choices. Completed work is reused. Single-step buttons run only that step.";
   byId("workflow-fresh-options").hidden = flow.id !== "fresh-eyes";
   byId("workflow-execution-note").textContent = executionNote(available, unsupported);
   byId("workflow-message").textContent = progressMessage(active, stale);
+  updateStepButtons({ active, allowed, unsupported });
+}
+
+function updateStepButtons({ active, allowed, unsupported }) {
+  document.querySelectorAll("[data-run-step]").forEach(button => { button.disabled = runningRequest || !allowed || unsupported; });
+  document.querySelectorAll("[data-run-scan]").forEach(button => { button.disabled = byId("workflow-scan").disabled; });
+  byId("workflow-step-settings").querySelectorAll("input, select, button").forEach(input => {
+    input.disabled = active || runningRequest || !data.execution.mounted;
+    if (input.dataset.saveRun != null) input.disabled ||= !allowed || unsupported;
+  });
 }
 
 function executionState(flow) {
   const semantic = data.semantic;
   const active = ["queued", "running"].includes(semantic.worker?.status) || semantic.jobs?.running_live > 0;
   const stale = semantic.map_status?.state !== "current";
-  const allowed = data.execution.mounted && semantic.enabled && !stale && !active && !data.scan?.active;
+  const prerequisite = data.settings && flow.id !== "mapping" && semantic.architecture_charter?.status !== "current";
+  const allowed = data.execution.mounted && semantic.enabled && !stale && !active && !data.scan?.active && !prerequisite;
   const available = data.execution.configured_provider !== "agent" || data.execution.local_executors.length > 0;
   const unsupported = flow.id === "fresh-eyes" && data.execution.configured_provider !== "agent";
   return { active, stale, allowed, available, unsupported };
@@ -186,6 +208,7 @@ function executionNote(available, unsupported) {
     : !data.semantic.enabled ? "AI mapping is disabled in this repository's service policy."
       : unsupported ? "Fresh eyes requires the repository's agent provider. Mapping and patterns can use the configured provider."
       : !available ? "No local Codex or Claude executor is installed on this server. A connected host worker can still process the saved queue."
+        : data.settings ? `Host workers: ${data.execution.local_executors.join(" + ")}. Card settings select the models; repository usage limits still apply. Complete Mapping before starting optional reviews.`
         : "Saved work survives a page reload. After a server restart, resume unfinished work here. Configured stage models and usage limits still apply.";
 }
 
@@ -196,8 +219,14 @@ function progressMessage(active, stale) {
     : data.scan?.active ? `Source scan: ${data.scan.phase || data.scan.status} · ${data.scan.completed || 0} files processed.`
     : stale ? "These results belong to the saved scan. Refresh the source scan before running more analysis."
       : active ? `Work is running for ${selectedRepository()?.name || "this repository"}. Progress updates automatically.`
-        : semantic.jobs?.pending || semantic.jobs?.retry ? "Saved tasks are waiting. Start a worker to continue; queued tasks do not run by themselves."
-          : `Saved scan ${data.snapshot_id ?? "not available"} · Select any step to explore its evidence and results.`);
+        : idleMessage(semantic));
+}
+
+function idleMessage(semantic) {
+  const worker = semantic.worker || {};
+  if (worker.message) return `${worker.message} ${worker.processed || 0} jobs processed in the last run.`;
+  return semantic.jobs?.pending || semantic.jobs?.retry ? "Saved tasks are waiting. Start a worker to continue; queued tasks do not run by themselves."
+    : `Saved scan ${data.snapshot_id ?? "not available"} · Select any step to explore its evidence and results.`;
 }
 
 function handleClick(event) {
@@ -207,14 +236,17 @@ function handleClick(event) {
     selectedFlow = button.dataset.openFlow || button.dataset.flow;
     selectedStep = "";
     switchView("workflows", false, selectedFlow);
-  } else if (button.dataset.step) {
-    selectedStep = button.dataset.step;
+  } else if (button.dataset.step || button.dataset.configureStep) {
+    selectedStep = button.dataset.step || button.dataset.configureStep;
     render();
+    if (button.dataset.configureStep) byId("workflow-step-settings").scrollIntoView({ behavior: "smooth", block: "center" });
+  } else if (button.dataset.runStep) {
+    void startStep(button.dataset.runStep);
   } else if (button.dataset.workflowView) {
     switchView(button.dataset.workflowView);
   } else if (button.id === "workflow-refresh") {
     void loadWorkflows();
-  } else if (button.id === "workflow-scan") {
+  } else if (button.id === "workflow-scan" || button.dataset.runScan != null) {
     void startScan();
   }
 }
@@ -222,6 +254,7 @@ function handleClick(event) {
 async function startWorkflow(event) {
   event.preventDefault();
   if (!data || data.repository_id !== state.repositoryId || byId("workflow-run-button").disabled) return;
+  if (data.settings && data.execution.configured_provider === "agent") { await startStep(); return; }
   const body = { repository_id: state.repositoryId, workflow: selectedFlow,
     executor: byId("workflow-executor").value, model: byId("workflow-model").value.trim(),
     reasoning_effort: byId("workflow-effort").value.trim(), parallel_jobs: Number(byId("workflow-parallel").value),
@@ -230,6 +263,27 @@ async function startWorkflow(event) {
   await runAction(() => request("/api/workflows/run", {
     method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
   }));
+}
+
+async function saveStepSettings(step, workers, repositoryId) {
+  const result = await request("/api/workflows/settings", { method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ repository_id: repositoryId, step, workers }) });
+  if (repositoryId !== state.repositoryId) return;
+  data.settings = result.settings;
+  render();
+}
+
+async function startStep(step = null, maxJobs = null) {
+  if (!data || data.repository_id !== state.repositoryId) return;
+  if (hasUnsavedSettings()) { toast("Save the pending step settings before starting work.", true); return; }
+  const flow = buildFlows(data).find(item => step ? item.steps.some(candidate => candidate.id === step) : item.id === selectedFlow);
+  if (!executionState(flow).allowed || runningRequest) return;
+  await runAction(() => request("/api/workflows/run", { method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ repository_id: state.repositoryId, workflow: flow.id,
+      use_step_settings: true, step, max_jobs: maxJobs,
+      goal: byId("workflow-goal").value.trim() || null, restart: byId("workflow-restart").checked }) }));
 }
 
 async function startScan() {

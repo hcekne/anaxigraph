@@ -27,6 +27,7 @@ class SemanticPlanningPort(Protocol):
         *,
         force: bool = False,
         retry_failed: bool = False,
+        preserve_patterns: bool = False,
     ) -> Any: ...
 
 

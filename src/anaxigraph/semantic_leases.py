@@ -45,6 +45,7 @@ class SemanticLeaseService:
         executor_model: str | None = None,
         executor_effort: str | None = None,
         executor_family: str | None = None,
+        job_ids: tuple[int, ...] | None = None,
     ) -> dict[str, Any] | None:
         return claim_next_job(
             self._database,
@@ -57,6 +58,7 @@ class SemanticLeaseService:
             executor_model=executor_model,
             executor_effort=executor_effort,
             executor_family=executor_family,
+            job_ids=job_ids,
         )
 
     def pinned_for_other_executors(self, repository_id: int, family: str) -> list[dict[str, str]]:
@@ -171,14 +173,31 @@ class SemanticLeaseService:
                 ),
             )
 
+    @staticmethod
+    def unfinished_job_count(
+        connection: sqlite3.Connection, repository_id: int, snapshot_id: int
+    ) -> int:
+        return int(
+            connection.execute(
+                """SELECT COUNT(*) FROM semantic_jobs
+               WHERE repository_id = ? AND snapshot_id = ?
+                 AND status IN ('pending', 'retry', 'running')""",
+                (repository_id, snapshot_id),
+            ).fetchone()[0]
+        )
+
     def reconcile(
         self,
         connection: sqlite3.Connection,
         repository_id: int,
         snapshot_id: int,
         semantic: SemanticConfig,
+        *,
+        preserve_patterns: bool = False,
     ) -> None:
-        reconcile_claimable_jobs(connection, repository_id, snapshot_id, semantic)
+        reconcile_claimable_jobs(
+            connection, repository_id, snapshot_id, semantic, preserve_patterns=preserve_patterns
+        )
 
 
 def _validate_agent_lease(

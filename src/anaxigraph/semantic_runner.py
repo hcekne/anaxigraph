@@ -130,6 +130,7 @@ class SemanticRunnerService:
         *,
         limit: int | None = None,
         execution_semantic: SemanticConfig | None = None,
+        job_ids: tuple[int, ...] | None = None,
     ) -> dict[str, Any]:
         semantic = config.semantic
         _validate_job_execution(semantic, execution_semantic)
@@ -145,6 +146,7 @@ class SemanticRunnerService:
                 config,
                 wave,
                 _wave_execution(execution_semantic, requested_workers, wave),
+                job_ids,
             )
             if not results:
                 break
@@ -161,6 +163,7 @@ class SemanticRunnerService:
         config: AnaxiGraphConfig,
         workers: int,
         execution_semantic: SemanticConfig | None,
+        job_ids: tuple[int, ...] | None = None,
     ) -> list[str]:
         with ThreadPoolExecutor(max_workers=workers) as executor:
             results = executor.map(
@@ -169,6 +172,7 @@ class SemanticRunnerService:
                     root,
                     config,
                     execution_semantic=execution_semantic,
+                    job_ids=job_ids,
                 ),
                 range(workers),
             )
@@ -232,11 +236,13 @@ class SemanticRunnerService:
         config: AnaxiGraphConfig,
         *,
         execution_semantic: SemanticConfig | None = None,
+        job_ids: tuple[int, ...] | None = None,
     ) -> str | None:
         runtime_semantic = execution_semantic or config.semantic
         job = self._leases.claim_job(
             repository_id,
             config.semantic,
+            job_ids=job_ids,
             executor_id=(f"cli:{runtime_semantic.provider}" if execution_semantic else None),
             executor_model=(runtime_semantic.model or None) if execution_semantic else None,
             executor_effort=(
