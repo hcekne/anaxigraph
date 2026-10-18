@@ -23,6 +23,8 @@ from anaxigraph.semantic_lease_claim import (
 )
 from anaxigraph.semantic_ports import SemanticPersistencePort
 
+_HEARTBEAT_INTERVAL_SECONDS = 30
+
 
 class SemanticLeaseService:
     def __init__(
@@ -72,9 +74,9 @@ class SemanticLeaseService:
         lease_seconds = max(90, semantic.timeout_seconds + 60)
 
         def heartbeat() -> None:
-            while not stopped.wait(min(30, max(10, lease_seconds // 3))):
-                expires = (datetime.now(UTC) + timedelta(seconds=lease_seconds)).isoformat()
-                with self._database.connect() as connection:
+            while not stopped.wait(min(_HEARTBEAT_INTERVAL_SECONDS, max(10, lease_seconds // 3))):
+                with self._database.transaction() as connection:
+                    expires = (datetime.now(UTC) + timedelta(seconds=lease_seconds)).isoformat()
                     connection.execute(
                         """
                         UPDATE semantic_jobs SET lease_expires_at = ?

@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import sqlite3
+import time
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
@@ -16,10 +17,31 @@ import anaxigraph.persistence.index_facade as persistence
 from anaxigraph.models import GitMetadata
 
 SCHEMA_VERSION = persistence.SCHEMA_VERSION
+_WRITE_LOCK_WAIT_SECONDS = 120
 
 
 def utc_now() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def _begin_write(connection: sqlite3.Connection) -> None:
+    """Retry busy admission only; never replay a transaction or a model call."""
+    deadline = time.monotonic() + _WRITE_LOCK_WAIT_SECONDS
+    timeout = int(connection.execute("PRAGMA busy_timeout").fetchone()[0])
+    try:
+        while True:
+            remaining = max(0, int((deadline - time.monotonic()) * 1000))
+            connection.execute(f"PRAGMA busy_timeout = {min(timeout, remaining)}")
+            try:
+                connection.execute("BEGIN IMMEDIATE")
+                return
+            except sqlite3.OperationalError as error:
+                busy = getattr(error, "sqlite_errorcode", 0) & 0xFF == sqlite3.SQLITE_BUSY
+                if not busy or time.monotonic() >= deadline:
+                    raise
+                time.sleep(0.05)
+    finally:
+        connection.execute(f"PRAGMA busy_timeout = {timeout}")
 
 
 class AnaxiIndex:
@@ -50,7 +72,7 @@ class AnaxiIndex:
     def transaction(self) -> Iterator[sqlite3.Connection]:
         connection = self.connect()
         try:
-            connection.execute("BEGIN IMMEDIATE")
+            _begin_write(connection)
             yield connection
             connection.commit()
         except Exception:

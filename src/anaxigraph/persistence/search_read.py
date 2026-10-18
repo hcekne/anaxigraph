@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections import defaultdict
 from pathlib import PurePosixPath
 from typing import Any, Iterable
 
@@ -11,7 +12,11 @@ from anaxigraph.agent_lexicon import goal_artifact_type, goal_terms, split_camel
 from anaxigraph.persistence.module_read import read_modules
 from anaxigraph.persistence.row_decoding import _decode_json_value
 from anaxigraph.persistence.semantic_taxonomy_read import taxonomy_assignments
-from anaxigraph.persistence.snapshot_projection import install_snapshot_projection
+from anaxigraph.persistence.temporal_reads import (
+    artifact_types_for_files,
+    snapshot_files,
+    symbols_for_files,
+)
 
 SEARCH_CONTRACT_VERSION = "module-search-fts-v1"
 _CONTRACT_KEY = "module_search_contract"
@@ -81,7 +86,6 @@ def refresh_search_projection(
     if selected is not None and state.get("snapshot_id") != snapshot_id:
         selected = None
 
-    install_snapshot_projection(connection, snapshot_id)
     if selected is None:
         connection.execute("DELETE FROM module_search WHERE repository_id = ?", (repository_id,))
     elif selected:
@@ -91,7 +95,7 @@ def refresh_search_projection(
             f"AND artifact_id IN ({placeholders})",
             (repository_id, *selected),
         )
-    rows = _search_rows(connection, selected)
+    rows = _search_rows(connection, snapshot_id, selected)
     semantics = _semantic_documents(connection, snapshot_id, selected)
     assignments = taxonomy_assignments(connection, snapshot_id, artifact_ids=selected)
     connection.executemany(
@@ -182,29 +186,25 @@ def search_module_hits(
 
 
 def _search_rows(
-    connection: sqlite3.Connection, artifact_ids: tuple[int, ...] | None
-) -> list[sqlite3.Row]:
-    restriction = ""
-    parameters: tuple[Any, ...] = ()
-    if artifact_ids is not None:
-        if not artifact_ids:
-            return []
-        placeholders = ",".join("?" for _ in artifact_ids)
-        restriction = f"WHERE a.id IN ({placeholders})"
-        parameters = artifact_ids
-    return connection.execute(
-        f"""
-        SELECT a.id AS artifact_id, a.artifact_type, fv.path, fv.summary,
-               fv.declared_group, fv.inferred_group,
-               fv.responsibilities_json, fv.inputs_json, fv.outputs_json,
-               fv.public_interfaces_json, GROUP_CONCAT(s.name, ' ') AS symbol_names
-        FROM projected_file_versions fv JOIN artifacts a ON a.id = fv.artifact_id
-        LEFT JOIN projected_symbols s ON s.artifact_version_id = fv.id
-        {restriction}
-        GROUP BY fv.id ORDER BY fv.path
-        """,
-        parameters,
-    ).fetchall()
+    connection: sqlite3.Connection, snapshot_id: int, artifact_ids: tuple[int, ...] | None
+) -> list[dict[str, Any]]:
+    # A result updates one module: never rebuild the repository's metadata, symbols
+    # and relationship TEMP tables while holding the shared SQLite write lock.
+    files = snapshot_files(
+        connection, snapshot_id, expand_metadata=False, artifact_ids=artifact_ids
+    )
+    types = artifact_types_for_files(connection, files)
+    names: dict[int, list[str]] = defaultdict(list)
+    for symbol in symbols_for_files(connection, files):
+        names[int(symbol["artifact_id"])].append(str(symbol["name"]))
+    return [
+        {
+            **file,
+            "artifact_type": types[int(file["artifact_id"])],
+            "symbol_names": " ".join(names[int(file["artifact_id"])]),
+        }
+        for file in files
+    ]
 
 
 def _semantic_documents(

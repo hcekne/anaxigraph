@@ -8,6 +8,7 @@ from typing import Any
 
 from anaxigraph.persistence.temporal_reads import (
     artifact_types_for_files,
+    snapshot_file_paths,
     snapshot_files,
     snapshot_relationship_edges,
     symbols_for_files,
@@ -32,11 +33,8 @@ def module_facts(
     snapshot_id: int,
     artifact_id: int,
 ) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
-    files = snapshot_files(connection, snapshot_id)
-    module = next(
-        (file for file in files if int(file["artifact_id"]) == artifact_id),
-        None,
-    )
+    files = snapshot_files(connection, snapshot_id, artifact_ids=(artifact_id,))
+    module = files[0] if files else None
     if module is None:
         return None, []
     symbols = symbols_for_files(connection, [module])
@@ -62,8 +60,7 @@ def relationships_for_artifact(
     snapshot_id: int,
     artifact_id: int,
 ) -> list[dict[str, Any]]:
-    files = snapshot_files(connection, snapshot_id)
-    paths = {int(file["artifact_id"]): str(file["path"]) for file in files}
+    paths = snapshot_file_paths(connection, snapshot_id)
     result: list[dict[str, Any]] = []
     for edge in snapshot_relationship_edges(connection, snapshot_id):
         source_id = int(edge["source_artifact_id"])

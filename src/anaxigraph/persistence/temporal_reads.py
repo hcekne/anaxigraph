@@ -18,15 +18,26 @@ from anaxigraph.persistence.temporal_reconstruction import (
 SQLITE_BATCH = 800
 
 
+def snapshot_file_paths(connection: sqlite3.Connection, snapshot_id: int) -> dict[int, str]:
+    """Read snapshot paths without hydrating file facts or expanding module metadata."""
+    return {
+        key: str(file["path"]) for key, file in reconstruct_files(connection, snapshot_id).items()
+    }
+
+
 def snapshot_files(
     connection: sqlite3.Connection,
     snapshot_id: int,
     *,
     expand_metadata: bool = True,
+    artifact_ids: tuple[int, ...] | None = None,
 ) -> list[dict[str, Any]]:
     """Reconstruct complete file records for one snapshot."""
 
     placements = reconstruct_files(connection, snapshot_id)
+    if artifact_ids is not None:
+        selected = set(artifact_ids)
+        placements = {key: value for key, value in placements.items() if key in selected}
     return _files_for_placements(
         connection,
         snapshot_id,

@@ -174,4 +174,10 @@ async def test_workflow_error_stops_refilling_instead_of_failing_the_entire_queu
             result = await finish(client, "waiting")
     assert 1 <= len(calls) <= 2
     assert result["semantic"]["worker"]["processed"] == len(calls)
-    assert result["semantic"]["pending"] > 0
+    with database.connect() as connection:
+        assert (
+            connection.execute(
+                "SELECT COUNT(*) FROM semantic_jobs WHERE status = 'pending'"
+            ).fetchone()[0]
+            > 0
+        )
