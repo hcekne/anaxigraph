@@ -11,6 +11,7 @@ let requestToken = 0;
 let timer = null;
 let runningRequest = false;
 let startingStep = null;
+const rememberedSteps = new Map();
 let controlsRepository = null;
 let observer;
 
@@ -98,6 +99,7 @@ async function loadWorkflows(resetControls = false) {
   try {
     const value = await request(api("/api/workflows"));
     if (token !== requestToken || repositoryId !== state.repositoryId) return;
+    retainRunningStep(value);
     const changed = repositoryResultsChanged(data, value);
     data = value;
     if (changed) { render(); await state.reloadRepository?.(); return; }
@@ -113,6 +115,40 @@ async function loadWorkflows(resetControls = false) {
       timer = window.setTimeout(loadWorkflows, 3500);
     }
   }
+}
+
+function rememberStep(repositoryId, value) {
+  rememberedSteps.set(repositoryId, value);
+  const key = `anaxigraph.running-step.${repositoryId}`;
+  try {
+    if (value) window.sessionStorage.setItem(key, JSON.stringify(value));
+    else window.sessionStorage.removeItem(key);
+  } catch (_) { /* In-memory feedback still works when browser storage is disabled. */ }
+}
+
+function recalledStep(repositoryId) {
+  if (!rememberedSteps.has(repositoryId)) {
+    let value = null;
+    try { value = JSON.parse(window.sessionStorage.getItem(`anaxigraph.running-step.${repositoryId}`)); }
+    catch (_) { /* A reload can still use server-reported activity. */ }
+    rememberedSteps.set(repositoryId, value);
+  }
+  return rememberedSteps.get(repositoryId);
+}
+
+function retainRunningStep(value) {
+  const worker = value.semantic.worker || {};
+  const active = ["queued", "running"].includes(worker.status);
+  const previous = recalledStep(value.repository_id);
+  const flow = buildFlows(value).find(item => item.id === worker.workflow);
+  const liveStep = flow?.steps.find(item => item.jobs.running > 0)?.id;
+  const step = worker.active_step || worker.step || liveStep;
+  let current = null;
+  if (active && step) current = { workflow: worker.workflow, step, snapshot_id: value.snapshot_id };
+  else if (active && previous?.workflow === worker.workflow && previous?.snapshot_id === value.snapshot_id) current = previous;
+  rememberStep(value.repository_id, current);
+  // Older running services report the flow before they can report the active card.
+  value.client_step = current?.step;
 }
 
 function repositoryResultsChanged(previous, current) {
@@ -285,7 +321,7 @@ async function startStep(step = null, maxJobs = null) {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ repository_id: state.repositoryId, workflow: flow.id,
       use_step_settings: true, step, max_jobs: maxJobs,
-      goal: byId("workflow-goal").value.trim() || null, restart: byId("workflow-restart").checked }) }), step);
+      goal: byId("workflow-goal").value.trim() || null, restart: byId("workflow-restart").checked }) }), step, flow.id);
 }
 
 async function startScan() {
@@ -293,13 +329,17 @@ async function startScan() {
   await runAction(() => request(api("/api/scan"), { method: "POST" }), "scan");
 }
 
-async function runAction(action, step = null) {
+async function runAction(action, step = null, workflow = selectedFlow) {
   const repositoryId = state.repositoryId;
+  const snapshotId = data.snapshot_id;
   runningRequest = true;
   startingStep = step;
   render();
   try {
     const result = await action();
+    if (result.status === "started" && step && step !== "scan") {
+      rememberStep(repositoryId, { workflow, step, snapshot_id: snapshotId });
+    }
     if (repositoryId !== state.repositoryId) return;
     byId("workflow-restart").checked = false;
     toast(result.status === "already_running" ? "A worker is already processing this repository." : "Work started. Progress will appear in the flow.");

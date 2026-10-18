@@ -53,8 +53,7 @@ export function buildFlows(data, files = 0, startingStep = null) {
 function applyActivity(item, data, flow, startingStep) {
   const worker = data.semantic?.worker || {};
   const running = Math.max(item.jobs.running || 0, (item.jobs.workers || []).reduce((sum, row) => sum + row.running, 0));
-  const requested = worker.workflow === flow && ["queued", "running"].includes(worker.status)
-    && (worker.active_step || worker.step) === item.id;
+  const requested = requestedStep(data, flow) === item.id;
   const starting = startingStep === item.id;
   if (!running && !requested && !starting && item.status !== "running") return;
   const plan = worker.settings?.[item.id] || item.plan;
@@ -62,6 +61,12 @@ function applyActivity(item, data, flow, startingStep) {
   item.activity = { running, capacity, label: running ? "Running" : starting ? "Starting step" : requested ? "Preparing jobs" : "Running" };
   item.jobs.running = running;
   item.status = "running";
+}
+
+function requestedStep(data, flow) {
+  const worker = data.semantic?.worker || {};
+  if (worker.workflow !== flow || !["queued", "running"].includes(worker.status)) return null;
+  return worker.active_step || worker.step || data.client_step;
 }
 
 function workerCapacity(plan, mode, ceiling) {

@@ -168,6 +168,8 @@ test("desktop and phone diagrams fit, keep arrows and support both themes", asyn
 
 test("a delayed response from another repository cannot repaint the selected flow", async ({ page }) => {
   const first = progress(1), second = progress(2);
+  first.semantic.worker = { status: "running", workflow: "mapping" };
+  first.coverage.workers = [{ job_kind: "intrinsic", scope_type: "module", executor_model: "gpt-6-luna", running: 2 }];
   second.coverage.scopes.module.intrinsic = 9;
   let hold = false, release, waiting = false;
   await page.route("**/api/**", async route => {
@@ -182,12 +184,13 @@ test("a delayed response from another repository cannot repaint the selected flo
       await route.fulfill({ json: isSecond ? second : first });
     } else {
       if (url.searchParams.get("repository_id") === "2") url.searchParams.set("repository_id", "1");
-      await route.fulfill({ response: await route.fetch({ url: url.toString() }) });
+      await route.continue({ url: url.toString() });
     }
   });
   await page.goto("/");
   await page.getByRole("button", { name: "Workflows", exact: true }).click();
   await expect(page.locator('[data-step="intrinsic"]')).toContainText("4 / 12");
+  await expect(page.locator('[data-step="intrinsic"] .workflow-spinner')).toBeVisible();
   hold = true;
   await page.locator("#workflow-refresh").click();
   await expect.poll(() => waiting).toBeTruthy();
@@ -197,6 +200,11 @@ test("a delayed response from another repository cannot repaint the selected flo
   release();
   await delivered;
   await expect(page.locator('[data-step="intrinsic"]')).toContainText("9 / 12");
+  await expect(page.locator(".workflow-spinner")).toHaveCount(0);
+  first.coverage.workers = [];
+  await page.locator("#repository-select").selectOption("1");
+  await expect(page.locator('[data-step="intrinsic"]')).toContainText("Preparing jobs…");
+  await expect(page.locator("main")).toHaveAttribute("aria-busy", "false");
   await page.unrouteAll({ behavior: "wait" });
 });
 
@@ -303,13 +311,15 @@ test("the whole active card pulses with live counts, includes its actions and re
   expect(await card.evaluate(element => getComputedStyle(element, "::after").animationName)).toBe("none");
 });
 
-test("Run step immediately marks its card, survives planning and reload, then stops the spinner", async ({ page }) => {
+for (const reportsStep of [true, false]) {
+test(`Run step stays active through acceptance, planning and reload (${reportsStep ? "step-aware" : "workflow-only"} server)`, async ({ page }) => {
   const value = configuredProgress();
   let release, waiting = false;
   await page.route("**/api/workflows/run", async route => {
     waiting = true;
     await new Promise(resolve => { release = resolve; });
-    value.semantic.worker = { status: "running", workflow: "mapping", step: "intrinsic", settings: value.settings.steps };
+    value.semantic.worker = { status: "running", workflow: "mapping",
+      ...(reportsStep ? { step: "intrinsic", settings: value.settings.steps } : {}) };
     await route.fulfill({ json: { status: "started", repository_id: 1 } });
   });
   await open(page, value);
@@ -323,6 +333,10 @@ test("Run step immediately marks its card, survives planning and reload, then st
     await expect(node.locator(".workflow-spinner")).toBeVisible();
   } finally { release?.(); }
   await expect(node).toContainText("Preparing jobs…");
+  await expect(node.locator("..")).toHaveClass(/running/);
+  await expect(page.locator("#workflow-run-button")).toHaveText("Worker is running…");
+  await page.waitForResponse(response => response.url().includes("/api/workflows?"));
+  await expect(node.locator(".workflow-spinner")).toBeVisible();
   await page.reload();
   await expect(node).toContainText("Preparing jobs…");
   await expect(node.locator(".workflow-spinner")).toBeVisible();
@@ -333,4 +347,53 @@ test("Run step immediately marks its card, survives planning and reload, then st
   await expect(node).toContainText("Complete");
   await expect(node.locator(".workflow-spinner")).toHaveCount(0);
   await expect(node.locator("..")).not.toHaveClass(/running/);
+});
+}
+
+test("observed workers keep their card active between jobs and server step changes take precedence", async ({ page }) => {
+  const value = configuredProgress();
+  value.semantic.worker = { status: "running", workflow: "mapping" };
+  value.coverage.workers = [{ job_kind: "intrinsic", scope_type: "module", executor_model: "gpt-6-luna", running: 2 }];
+  await open(page, value);
+  const intrinsic = page.locator('[data-step="intrinsic"]'), context = page.locator('[data-step="context"]');
+  await expect(intrinsic).toContainText("2 / 4 workers active");
+  value.coverage.workers = [];
+  await page.locator("#workflow-refresh").click();
+  await expect(intrinsic).toContainText("Preparing jobs…");
+  await page.reload();
+  await expect(intrinsic.locator(".workflow-spinner")).toBeVisible();
+  value.semantic.worker.active_step = "context";
+  await page.locator("#workflow-refresh").click();
+  await expect(context).toContainText("Preparing jobs…");
+  await expect(intrinsic.locator(".workflow-spinner")).toHaveCount(0);
+  delete value.semantic.worker.active_step;
+  value.snapshot_id += 1;
+  await page.locator("#workflow-refresh").click();
+  await expect(page.locator(".workflow-spinner")).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator("#workflow-run-button")).toHaveText("Worker is running…");
+  await expect(page.locator(".workflow-spinner")).toHaveCount(0); // The old scan's card must not stick.
+});
+
+test("rejected and already-running requests do not leave the clicked card spinning", async ({ page }) => {
+  const value = configuredProgress();
+  let requests = 0;
+  await page.route("**/api/workflows/run", async route => {
+    requests += 1;
+    if (requests === 1) return route.fulfill({ status: 503, json: { detail: "Worker unavailable" } });
+    value.semantic.worker = { status: "running", workflow: "mapping", active_step: "context" };
+    await route.fulfill({ json: { status: "already_running", repository_id: 1 } });
+  });
+  await open(page, value);
+  const run = page.locator('[data-run-step="intrinsic"]');
+  await run.click();
+  await expect.poll(() => requests).toBe(1);
+  await expect(run).toBeEnabled();
+  await expect(page.locator(".workflow-spinner")).toHaveCount(0);
+  await run.click();
+  await expect(page.locator('[data-step="context"] .workflow-spinner')).toBeVisible();
+  await expect(page.locator('[data-step="intrinsic"] .workflow-spinner')).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('[data-step="context"] .workflow-spinner')).toBeVisible();
+  await expect(page.locator('[data-step="intrinsic"] .workflow-spinner')).toHaveCount(0);
 });
