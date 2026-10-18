@@ -111,8 +111,8 @@ def _run_workers(
             finished, pending = wait(pending, return_when=FIRST_COMPLETED)
             results = [result for future in finished if (result := future.result()) is not None]
             _count_job_results(counts, results)
-            if stop_on_failure is not None and ("failed" in results or "retry" in results):
-                stop_on_failure.set()
+            # The caller can stop this pool for an executor-wide error. A failed
+            # file must not prevent other files (or other model pools) from running.
             if results and not (stop_on_failure and stop_on_failure.is_set()):
                 # Empty claims do not consume the limit or spin on a blocked/empty queue.
                 # Another completed job may free a lease, budget reservation or dependency.
@@ -156,6 +156,7 @@ class SemanticRunnerService:
         execution_semantic: SemanticConfig | None = None,
         job_ids: tuple[int, ...] | None = None,
         stop_on_failure: Event | None = None,
+        on_error: Callable[[Exception], None] | None = None,
     ) -> dict[str, Any]:
         semantic = config.semantic
         _validate_job_execution(semantic, execution_semantic)
@@ -169,6 +170,7 @@ class SemanticRunnerService:
             config,
             execution_semantic=_worker_execution(execution_semantic, requested_workers, workers),
             job_ids=job_ids,
+            on_error=on_error,
         )
         counts = _run_workers(work, workers, bounded, stop_on_failure)
         return {
@@ -235,6 +237,7 @@ class SemanticRunnerService:
         *,
         execution_semantic: SemanticConfig | None = None,
         job_ids: tuple[int, ...] | None = None,
+        on_error: Callable[[Exception], None] | None = None,
     ) -> str | None:
         runtime_semantic = execution_semantic or config.semantic
         job = self._leases.claim_job(
@@ -273,9 +276,14 @@ class SemanticRunnerService:
         except SemanticLeaseLost:
             return "lease_lost"
         except Exception as exc:
-            return self._record_failure(job, exc)
+            return self._record_failure(job, exc, on_error)
 
-    def _record_failure(self, job: dict[str, Any], exc: Exception) -> str:
+    def _record_failure(
+        self,
+        job: dict[str, Any],
+        exc: Exception,
+        on_error: Callable[[Exception], None] | None = None,
+    ) -> str:
         try:
             retry = self._persistence.fail_job(
                 job,
@@ -290,6 +298,8 @@ class SemanticRunnerService:
             )
         except SemanticLeaseLost:
             return "lease_lost"
+        if on_error:
+            on_error(exc)
         return "retry" if retry else "failed"
 
     def analyze_request(

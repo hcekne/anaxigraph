@@ -44,9 +44,18 @@ function nodeMarkup(item, index, selectedStep) {
     <span class="workflow-track" aria-hidden="true"><i style="width:${progress}%"></i></span>
     <span class="workflow-node-bottom"><span class="workflow-status ${item.status}">${item.activity?.label || statusLabels[item.status]}</span>
     ${item.reused ? `<small>${number(item.reused)} reused</small>` : ""}</span>
+    ${cardError(item)}
     ${nextRunMarkup(item)}
     <span class="workflow-models">${modelLabels(item).map(name => `<span class="${modelPalette(name)}" title="${escapeAttr(name)}">${escapeHtml(name)}</span>`).join("")}</span>
     </button>${cardActions(item)}</article></li>`;
+}
+
+function cardError(item) {
+  const pool = item.poolErrors?.[0], job = item.jobs.errors?.[0];
+  if (!pool && !job) return "";
+  const error = pool || job;
+  const label = pool ? `${pool.model} unavailable` : job.status === "retry" ? "Retry pending" : "Job failed";
+  return `<span class="workflow-error"><b>${escapeHtml(label)}</b><br>${escapeHtml(error.error)}</span>`;
 }
 
 function activityMarkup(item) {
@@ -122,7 +131,8 @@ export function workflowDetail(item) {
     ${item.jobs.models?.length ? `<p><strong>Recorded models:</strong> ${item.jobs.models.map(escapeHtml).join(", ")}</p>` : ""}
     ${item.reused ? `<p>${number(item.reused)} current results were reused from an earlier scan.</p>` : ""}
     ${telemetry}${stageDetails(item.stages)}
-    ${(jobs.errors || []).map(error => `<p class="workflow-error"><strong>Recorded failure · ${escapeHtml(error.scope_key)}</strong><br>${escapeHtml(error.error)}</p>`).join("")}
+    ${(item.poolErrors || []).map(error => `<p class="workflow-error"><strong>${escapeHtml(error.provider)} · ${escapeHtml(error.model)} unavailable</strong><br>${escapeHtml(error.error)}</p>`).join("")}
+    ${(jobs.errors || []).map(error => `<p class="workflow-error"><strong>${error.status === "retry" ? "Retry pending" : "Recorded failure"} · ${escapeHtml(error.scope_key)}</strong><br>${escapeHtml(error.error)}</p>`).join("")}
     ${item.view ? `<button type="button" class="secondary-button" data-workflow-view="${item.view}">Explore ${item.view === "overview" ? "the Charter" : item.view === "fresh-eyes" ? "review results" : item.view} →</button>` : ""}`;
 }
 

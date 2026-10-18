@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from filelock import FileLock
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
 FLOW_STEPS = {
     "mapping": (
@@ -44,6 +44,15 @@ MODEL_SUGGESTIONS = {
 }
 
 
+def canonical_model(provider: str, model: str) -> str:
+    # Migrate old free-text family names to the exact IDs offered by the picker.
+    if provider == "claude":
+        for family in ("opus", "sonnet", "haiku"):
+            if model in {family, f"claude-{family}"}:
+                return f"claude-{family}-5-5"
+    return model
+
+
 class WorkerChoice(BaseModel):
     model_config = ConfigDict(extra="forbid")
     provider: Literal["codex", "claude"]
@@ -53,10 +62,11 @@ class WorkerChoice(BaseModel):
 
     @field_validator("model")
     @classmethod
-    def clean_model(cls, value: str) -> str:
-        value = value.strip()
-        if not value or any(character.isspace() for character in value) or value.startswith("-"):
-            raise ValueError("Use a model ID without spaces or command-line options")
+    def clean_model(cls, value: str, info: ValidationInfo) -> str:
+        provider = info.data.get("provider", "")
+        value = canonical_model(provider, value.strip())
+        if value not in MODEL_SUGGESTIONS.get(provider, []):
+            raise ValueError(f"Choose a supported {provider} model from the dropdown")
         return value
 
 
@@ -115,6 +125,10 @@ class WorkflowSettings:
         suggested = suggested_settings(ceiling, review_passes)
         path = self.directory / f"{repository_id}.json"
         saved = json.loads(path.read_text()) if path.exists() else {}
+        saved = {
+            step: [{**row, "model": canonical_model(row["provider"], row["model"])} for row in rows]
+            for step, rows in saved.items()
+        }
         return {
             "steps": {**suggested, **saved},
             "suggested": suggested,

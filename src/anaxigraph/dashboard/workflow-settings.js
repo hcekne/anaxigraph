@@ -12,8 +12,9 @@ export function setupStepSettings(save, run) {
   editor.addEventListener("change", event => {
     if (event.target.name === "provider") {
       const row = event.target.closest("fieldset");
-      row.querySelector('[name="model"]').value = editorData.settings.models[event.target.value][0];
-      row.querySelector('[name="reasoning_effort"]').value = "medium";
+      const provider = event.target.value;
+      row.querySelector('[name="model"]').innerHTML = options(editorData.settings.models[provider], "");
+      row.querySelector('[name="reasoning_effort"]').innerHTML = options(efforts(provider), "medium", { "": "Model default" });
     }
     rememberDraft();
   });
@@ -74,20 +75,25 @@ function modeDescription(mode, data) {
   if (mode === "sequence") return `${data.semantic.taxonomy?.required_review_passes ?? 2} ordered passes. Models run in this order, repeating if needed; only one pass runs at a time.`;
   if (mode === "proposals") return `One independent proposal per model row. Up to ${Math.min(3, data.execution.max_parallel_jobs)} proposals can run together. A different slot count or provider assignment requires a new review generation.`;
   if (mode === "single") return "One model produces this result after the preceding steps are ready.";
-  return `Workers share distinct jobs. The combined limit is ${data.execution.max_parallel_jobs} workers; fewer run when less work is ready.`;
+  return `Workers take the next file as soon as they finish. The combined limit is ${data.execution.max_parallel_jobs}. If a model becomes unavailable, the other selected models continue the remaining files.`;
 }
 
 function workerRow(row, index, item, data) {
   const mode = item.mode;
   const name = mode === "sequence" ? `Pass ${index + 1}` : mode === "proposals" ? `Proposal ${String.fromCharCode(65 + index)}` : `Model ${index + 1}`;
-  const choices = Object.values(data.settings.models).flat();
+  const choices = data.settings.models[row.provider] || [];
+  const invalid = !choices.includes(row.model);
   return `<fieldset class="workflow-worker-row"><legend>${name}</legend><div class="workflow-fields">
     <label>Provider<select name="provider">${options(["codex", "claude"], row.provider, { codex: "OpenAI · Codex", claude: "Anthropic · Claude" })}</select></label>
-    <label>Model<input name="model" value="${escapeAttr(row.model)}" list="workflow-model-options" required maxlength="200" autocomplete="off" /></label>
+    <label>Model<select name="model" required>${invalid ? '<option value="" disabled selected>Choose a supported model</option>' : ""}${options(choices, row.model)}</select></label>
     <label>${mode === "parallel" ? "Parallel workers" : "Workers per result"}<input name="workers" type="number" min="1" max="${mode === "parallel" ? data.execution.max_parallel_jobs : 1}" value="${row.workers}" required ${mode !== "parallel" ? "readonly" : ""} /></label>
-    <label>Reasoning effort<select name="reasoning_effort">${options(["", "low", "medium", "high", "xhigh", "max"], row.reasoning_effort, { "": "Model default" })}</select></label></div>
-    ${index ? `<button type="button" class="secondary-button" data-settings-action="remove" data-index="${index}">Remove ${name.toLowerCase()}</button>` : ""}
-    ${index === 0 ? `<datalist id="workflow-model-options">${choices.map(model => `<option value="${escapeAttr(model)}"></option>`).join("")}</datalist>` : ""}</fieldset>`;
+    <label>Reasoning effort<select name="reasoning_effort">${options(efforts(row.provider), row.reasoning_effort, { "": "Model default" })}</select></label></div>
+    ${invalid ? `<p class="workflow-error">Saved model ${escapeHtml(row.model)} is unavailable. Choose a model before running.</p>` : ""}
+    ${index ? `<button type="button" class="secondary-button" data-settings-action="remove" data-index="${index}">Remove ${name.toLowerCase()}</button>` : ""}</fieldset>`;
+}
+
+function efforts(provider) {
+  return provider === "claude" ? ["", "low", "medium", "high", "max"] : ["", "low", "medium", "high", "xhigh", "max"];
 }
 
 function options(values, selected, labels = {}) {

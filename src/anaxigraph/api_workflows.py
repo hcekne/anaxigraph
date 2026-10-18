@@ -128,6 +128,9 @@ class WorkflowRoutes:
             request,
             execution,
             on_step=lambda step: self.context.semantic_refresh.update_step(Path(row["path"]), step),
+            on_pool_error=lambda error: self.context.semantic_refresh.report_pool_error(
+                Path(row["path"]), error
+            ),
         ).run()
 
     def save_settings(self, request: StepSettingsRequest) -> dict[str, Any]:

@@ -36,7 +36,7 @@ function configuredProgress() {
   };
   value.settings = { steps, suggested: structuredClone(steps), customized: [],
     modes: Object.fromEntries(Object.keys(steps).map(key => [key, ["intrinsic", "context", "groups", "pattern_assessment", "pattern_review"].includes(key) ? "parallel" : key === "taxonomy_review" ? "sequence" : key === "proposals" ? "proposals" : "single"])),
-    models: { codex: ["gpt-6-luna", "gpt-6.1-sol"], claude: ["claude-opus-5-5"] } };
+    models: { codex: ["gpt-6-luna", "gpt-6.1-sol"], claude: ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"] } };
   return value;
 }
 
@@ -220,7 +220,7 @@ test("card settings survive polling and reload; a sample saves choices before ru
   await page.route("**/api/workflows/run", async route => {
     posted = route.request().postDataJSON();
     value.semantic.worker = { status: "running", workflow: "mapping" };
-    value.coverage.workers = [{ job_kind: "intrinsic", scope_type: "module", executor_model: "custom-luna", running: 2 }];
+    value.coverage.workers = [{ job_kind: "intrinsic", scope_type: "module", executor_model: "gpt-6.1-sol", running: 2 }];
     await route.fulfill({ json: { status: "started", repository_id: 1 } });
   });
   await open(page, value);
@@ -229,20 +229,20 @@ test("card settings survive polling and reload; a sample saves choices before ru
   await expect(page.locator('[data-step="taxonomy_review"]')).toContainText("one runs at a time");
   await page.locator('[data-configure-step="intrinsic"]').click();
   const model = page.locator('#workflow-step-form [name="model"]');
-  await model.fill("custom-luna");
+  await model.selectOption("gpt-6.1-sol");
   await page.locator('#workflow-step-form [name="workers"]').fill("2");
   await model.focus();
   await page.waitForResponse(response => response.url().includes("/api/workflows?"));
-  await expect(model).toHaveValue("custom-luna");
+  await expect(model).toHaveValue("gpt-6.1-sol");
   await expect(model).toBeFocused();
   await page.getByRole("button", { name: "Try 2 jobs", exact: true }).click();
   await expect.poll(() => posted?.step).toBe("intrinsic");
-  expect(saved.workers[0]).toMatchObject({ provider: "codex", model: "custom-luna", workers: 2 });
+  expect(saved.workers[0]).toMatchObject({ provider: "codex", model: "gpt-6.1-sol", workers: 2 });
   expect(posted).toMatchObject({ workflow: "mapping", use_step_settings: true, max_jobs: 2 });
-  await expect(page.locator('[data-step="intrinsic"]')).toContainText("Running now: 2 × custom-luna");
+  await expect(page.locator('[data-step="intrinsic"]')).toContainText("Running now: 2 × gpt-6.1-sol");
   await expect(page.locator('[data-run-step="context"]')).toBeDisabled();
   await page.reload();
-  await expect(page.locator('[data-step="intrinsic"]')).toContainText("custom-luna");
+  await expect(page.locator('[data-step="intrinsic"]')).toContainText("GPT-6.1 Sol");
   await expect(page.locator('[data-step="intrinsic"]')).toContainText("your settings");
   await expect(page.locator('[data-step="intrinsic"]')).toContainText("Saved: gpt-6-luna");
 });
@@ -269,6 +269,52 @@ test("suggested rows can be restored and provider workers stay readable on phone
   await page.locator('[data-configure-step="proposals"]').click();
   await expect(page.locator(".workflow-worker-row")).toHaveCount(2);
   await expect(page.locator('#workflow-step-form [name="provider"]').nth(1)).toHaveValue("claude");
+});
+
+test("model dropdown contains only supported choices for its provider", async ({ page }) => {
+  await open(page, configuredProgress());
+  await page.locator('[data-configure-step="intrinsic"]').click();
+  const provider = page.locator('#workflow-step-form [name="provider"]');
+  const model = page.locator('#workflow-step-form select[name="model"]');
+  await expect(page.locator('#workflow-step-form input[name="model"]')).toHaveCount(0);
+  await expect(model.locator("option")).toHaveText(["gpt-6-luna", "gpt-6.1-sol"]);
+  await provider.selectOption("claude");
+  await expect(model.locator("option")).toHaveText(["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]);
+  await model.selectOption("claude-sonnet-5-5");
+  await expect(page.locator('#workflow-step-form [name="reasoning_effort"] option[value="xhigh"]')).toHaveCount(0);
+  await page.locator("#workflow-refresh").click();
+  await expect(model).toHaveValue("claude-sonnet-5-5");
+  await provider.selectOption("codex");
+  await expect(model).toHaveValue("gpt-6-luna");
+  await expect(model.locator("option")).toHaveText(["gpt-6-luna", "gpt-6.1-sol"]);
+});
+
+test("unknown saved models require an explicit valid selection", async ({ page }) => {
+  const value = configuredProgress();
+  value.settings.steps.intrinsic[0].model = "invented-model";
+  await open(page, value);
+  await page.locator('[data-configure-step="intrinsic"]').click();
+  await expect(page.locator('#workflow-step-form select[name="model"]')).toHaveValue("");
+  await expect(page.locator("#workflow-step-form .workflow-error")).toContainText("invented-model is unavailable");
+  expect(await page.locator("#workflow-step-form").evaluate(form => form.checkValidity())).toBe(false);
+});
+
+test("retry errors appear on the card while a surviving pool keeps running", async ({ page }) => {
+  const value = configuredProgress();
+  value.coverage.failures = [{ job_kind: "intrinsic", scope_type: "module", scope_key: "pkg/example.py", status: "retry", error: "Selected model rejected by provider" }];
+  await open(page, value);
+  const card = page.locator('[data-step="intrinsic"]');
+  await expect(card).toContainText("Needs attention");
+  await expect(card).toContainText("Retry pending");
+  await expect(card).toContainText("Selected model rejected by provider");
+  value.semantic.worker = { status: "running", workflow: "mapping", step: "intrinsic", pool_errors: [{ step: "intrinsic", provider: "claude", model: "claude-sonnet-5-5", error: "Selected model rejected by provider" }] };
+  value.coverage.workers = [{ job_kind: "intrinsic", scope_type: "module", executor_model: "gpt-6-luna", running: 2 }];
+  await page.locator("#workflow-refresh").click();
+  await expect(card.locator(".workflow-spinner")).toBeVisible();
+  await expect(card).toContainText("Running now: 2 × gpt-6-luna");
+  await expect(card).toContainText("claude-sonnet-5-5 unavailable");
+  await card.click();
+  await expect(page.locator("#workflow-detail")).toContainText("Selected model rejected by provider");
 });
 
 test("the whole active card pulses with live counts, includes its actions and respects reduced motion", async ({ page }, testInfo) => {

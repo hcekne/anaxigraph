@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from threading import Event
 from typing import Any
@@ -50,6 +50,7 @@ class SemanticEngine:
         execution_semantic: SemanticConfig | None = None,
         job_ids: tuple[int, ...] | None = None,
         stop_on_failure: Event | None = None,
+        on_error: Callable[[Exception], None] | None = None,
     ) -> dict[str, Any]:
         return self._services.runner.run_jobs(
             repository_id,
@@ -59,6 +60,7 @@ class SemanticEngine:
             execution_semantic=execution_semantic,
             job_ids=job_ids,
             stop_on_failure=stop_on_failure,
+            on_error=on_error,
         )
 
     def bootstrap(

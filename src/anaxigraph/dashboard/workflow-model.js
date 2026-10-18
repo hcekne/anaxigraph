@@ -22,7 +22,7 @@ export function step(id, title, description, options = {}) {
   const { done = 0, total = null, jobs = {}, enabled = true, zeroComplete = false } = options;
   const complete = total != null && done >= total && (total > 0 || zeroComplete);
   const status = jobs.running ? "running" : complete ? "complete"
-    : jobs.failed ? "failed" : jobs.interrupted ? "interrupted"
+    : jobs.failed || jobs.errors?.length ? "failed" : jobs.interrupted ? "interrupted"
       : jobs.pending || jobs.retry ? "queued" : done ? "waiting"
         : enabled ? "not_started" : "skipped";
   return { id, title, description, jobs, unit: "results", owner: "AI worker", ...options,
@@ -45,6 +45,8 @@ export function buildFlows(data, files = 0, startingStep = null) {
     item.plan = data.settings?.steps[item.id];
     item.mode = data.settings?.modes[item.id];
     item.customized = data.settings?.customized.includes(item.id);
+    item.poolErrors = (data.semantic?.worker?.pool_errors || []).filter(error => error.step === item.id);
+    if (item.poolErrors.length && item.status !== "complete") item.status = "failed";
     applyActivity(item, data, flow.id, startingStep);
   }));
   return flows;
@@ -238,7 +240,7 @@ function freshStep(data, id, title, description, stages, options = {}) {
   const live = jobFacts(data, kind);
   return step(id, title, description, {
     done, total: stages.length || 1, unit: "result", view: "fresh-eyes", stages,
-    jobs: { models, workers: live.workers, running: done === stages.length ? 0 : live.running,
+    jobs: { models, workers: live.workers, errors: live.errors, running: done === stages.length ? 0 : live.running,
       interrupted: live.interrupted, failed: stages.filter(item => item.state?.startsWith("failed")).length,
       pending: stages.filter(item => item.state?.startsWith("pending")).length },
     detail: stages.map(item => item.reason).filter(Boolean).join(" ") || "Waiting for the preceding stage.",

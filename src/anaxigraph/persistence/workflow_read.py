@@ -84,8 +84,10 @@ def _scan(connection: Any, snapshot_id: int) -> dict[str, Any] | None:
 
 def _failures(connection: Any, snapshot_id: int) -> list[dict[str, Any]]:
     rows = connection.execute(
-        """SELECT job_kind, scope_type, scope_key, substr(error, 1, 1000) AS error
-           FROM semantic_jobs WHERE snapshot_id = ? AND status = 'failed'
+        """SELECT job_kind, scope_type, scope_key, status, executor_id, executor_model,
+                  available_at, substr(error, 1, 1000) AS error
+           FROM semantic_jobs WHERE snapshot_id = ? AND status IN ('retry', 'failed')
+           AND error IS NOT NULL AND error != ''
            ORDER BY id DESC LIMIT 20""",
         (snapshot_id,),
     ).fetchall()

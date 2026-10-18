@@ -70,6 +70,11 @@ class SemanticRefreshCoordinator:
         with self.lock:
             self.jobs[str(path.resolve())]["active_step"] = step
 
+    def report_pool_error(self, path: Path, error: dict[str, Any]) -> None:
+        with self.lock:
+            job = self.jobs[str(path.resolve())]
+            job["pool_errors"] = [*job.get("pool_errors", []), error]
+
     def close(self, timeout_seconds: float = 4.0) -> bool:
         """Wait boundedly for in-process semantic planning to finish before index release."""
 
@@ -114,4 +119,4 @@ class SemanticRefreshCoordinator:
                 "error": f"{type(exc).__name__}: {exc}"[:2_000],
             }
         with self.lock:
-            self.jobs[key] = {**status, "workflow": workflow}
+            self.jobs[key] = {**self.jobs[key], **status, "workflow": workflow}

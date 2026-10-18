@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import json
+import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
-from threading import Event
+from datetime import UTC, datetime
+from functools import partial
+from threading import Event, Lock
 from typing import Any
 
 from anaxigraph.persistence.workflow_read import workflow_coverage
@@ -61,6 +64,7 @@ class WorkflowExecution:
         settings: Any,
         *,
         on_step: Callable[[str], None] | None = None,
+        on_pool_error: Callable[[dict[str, Any]], None] | None = None,
     ) -> None:
         self.database, self.row, self.request = database, row, request
         self.engine = SemanticEngine(database)
@@ -75,11 +79,14 @@ class WorkflowExecution:
         self.settings = settings
         self.processed = 0
         self.on_step = on_step
-        self.stop_on_failure = Event()
+        self.on_pool_error = on_pool_error
+        self.pool_errors: list[dict[str, Any]] = []
+        self.error_lock = Lock()
 
     def run(self) -> dict[str, Any]:
         if self.request.workflow == "fresh-eyes":
             self._start_review()
+        self._plan()
         while True:
             if self.database.latest_snapshot(self.repository_id)["id"] != self.snapshot_id:
                 return self._result(False, "The source scan changed. Resume on the new scan.")
@@ -87,17 +94,18 @@ class WorkflowExecution:
                 return self._result(
                     False, "The requested job limit was reached; resume to continue."
                 )
-            self._plan()
             jobs = self._jobs()
             if not jobs:
                 return self._finish()
+            if self._wait_for_retry(jobs):
+                continue
             results = self._dispatch(jobs)
             count = sum(result["processed"] for result in results)
             self.processed += count
-            if not count or any(result["failed"] or result["retry"] for result in results):
-                return self._result(
-                    False, "Work is waiting. Check saved errors, limits and prerequisites."
-                )
+            if not count:
+                return self._result(False, self._waiting_message())
+            if not self._jobs():
+                self._plan()
 
     def _start_review(self) -> None:
         workers = self.settings["proposals"]
@@ -156,18 +164,49 @@ class WorkflowExecution:
         # This explicit workflow run already has its own optional limit. Chunking it by
         # max_jobs_per_run would reintroduce a slowest-worker barrier between chunks.
         selected = selected[:remaining]
-        pools = [WorkerChoice(**item) for item in self.settings[step]]
-        assignments = assign_jobs(step, selected, pools)
-        cap = min(len(pools), self.config.semantic.max_parallel_jobs)
+        assignments = self._assignments(step, selected)
+        cap = max(1, min(len(assignments), self.config.semantic.max_parallel_jobs))
         with ThreadPoolExecutor(max_workers=cap) as executor:
             futures = [
-                executor.submit(self._run_pool, pool, identifiers)
-                for pool, identifiers in zip(pools, assignments)
+                executor.submit(self._run_pool, step, pool, identifiers)
+                for pool, identifiers in assignments
                 if identifiers
             ]
             return [future.result() for future in futures]
 
-    def _run_pool(self, pool: WorkerChoice, identifiers: list[int]) -> dict[str, Any]:
+    def _assignments(self, step: str, jobs: list[dict[str, Any]]) -> Any:
+        pools = [WorkerChoice(**item) for item in self.settings[step]]
+        disabled = {(error["provider"], error["model"]) for error in self.pool_errors}
+        if STEP_MODES[step] == "parallel":
+            pools = [pool for pool in pools if (pool.provider, pool.model) not in disabled]
+            if not pools:
+                return []
+            if not self.request.max_jobs:
+                # Atomic leases prevent duplicates. A fast or surviving model can
+                # drain the whole card instead of stranding another pool's partition.
+                return [(pool, [int(job["id"]) for job in jobs]) for pool in pools]
+        return [
+            (pool, identifiers)
+            for pool, identifiers in zip(pools, assign_jobs(step, jobs, pools))
+            if (pool.provider, pool.model) not in disabled
+        ]
+
+    def _wait_for_retry(self, jobs: list[dict[str, Any]]) -> bool:
+        step = next(step for step in self.steps if any(job_step(job) == step for job in jobs))
+        selected = [job for job in jobs if job_step(job) == step]
+        eligible = {
+            identifier for _, ids in self._assignments(step, selected) for identifier in ids
+        }
+        deadlines = [
+            datetime.fromisoformat(job["available_at"]) for job in selected if job["id"] in eligible
+        ]
+        delay = (min(deadlines) - datetime.now(UTC)).total_seconds() if deadlines else 0
+        if delay > 0:
+            time.sleep(min(delay, 1))
+            return True
+        return False
+
+    def _run_pool(self, step: str, pool: WorkerChoice, identifiers: list[int]) -> dict[str, Any]:
         execution = replace(
             self.config.semantic,
             provider=pool.provider,
@@ -176,15 +215,49 @@ class WorkflowExecution:
             max_parallel_jobs=pool.workers,
             stage_models={},
         )
-        return self.engine.run_jobs(
-            self.repository_id,
-            self.row["path"],
-            self.config,
-            limit=len(identifiers),
-            execution_semantic=execution,
-            job_ids=tuple(identifiers),
-            stop_on_failure=self.stop_on_failure,
-        )
+        stop = Event()
+        try:
+            return self.engine.run_jobs(
+                self.repository_id,
+                self.row["path"],
+                self.config,
+                limit=len(identifiers),
+                execution_semantic=execution,
+                job_ids=tuple(identifiers),
+                stop_on_failure=stop,
+                on_error=partial(self._pool_error, step, pool, stop),
+            )
+        except Exception as exc:
+            if not executor_unavailable(exc):
+                raise
+            self._pool_error(step, pool, stop, exc)
+            return {"processed": 0}
+
+    def _pool_error(self, step: str, pool: WorkerChoice, stop: Event, exc: Exception) -> None:
+        if not executor_unavailable(exc):
+            return
+        stop.set()
+        error = dict(step=step, provider=pool.provider, model=pool.model, error=str(exc)[:1000])
+        with self.error_lock:
+            if any(
+                item["provider"] == pool.provider and item["model"] == pool.model
+                for item in self.pool_errors
+            ):
+                return
+            self.pool_errors.append(error)
+        if self.on_pool_error:
+            self.on_pool_error(error)
+
+    def _waiting_message(self) -> str:
+        if self.pool_errors:
+            error = self.pool_errors[0]
+            return f"{error['provider']} / {error['model']}: {error['error']}. Update this card's settings and resume."
+        status = self.engine.status(self.repository_id, self.config.semantic)
+        if status.get("budget", {}).get("paused"):
+            return (
+                "The repository usage limit is paused. Saved work is kept; resume when available."
+            )
+        return "No worker could claim the remaining jobs. Check usage limits and active workers."
 
     def _finish(self) -> dict[str, Any]:
         status = self.engine.status(self.repository_id, self.config.semantic)
@@ -193,11 +266,16 @@ class WorkflowExecution:
         fresh = self.engine.fresh_eyes_status(self.repository_id, self.config.semantic)
         completed = completed_steps(status, coverage, fresh)
         ready = all(step in completed for step in self.steps)
+        failures = [
+            error for error in coverage.get("failures", []) if job_step(error) in self.steps
+        ]
         message = (
             "Selected work is complete."
             if ready
             else ("No eligible jobs for this step yet. Complete its preceding cards, then resume.")
         )
+        if not ready and failures:
+            message = f"Some files could not finish after their retries: {failures[0]['error']}"
         return self._result(ready, message)
 
     def _result(self, complete: bool, message: str) -> dict[str, Any]:
@@ -207,8 +285,35 @@ class WorkflowExecution:
             "step": self.request.step,
             "snapshot_id": self.snapshot_id,
             "message": message,
+            "pool_errors": self.pool_errors,
             "settings": {step: self.settings[step] for step in self.steps if step in self.settings},
         }
+
+
+def executor_unavailable(error: Exception) -> bool:
+    """Only executor-wide failures stop a pool; file and transient errors keep draining."""
+    message = str(error).lower()
+    return any(
+        marker in message
+        for marker in (
+            "unrecognized_model",
+            "model_not_found",
+            "invalid model",
+            "unknown model",
+            "model is unavailable",
+            "selected model is unavailable",
+            "model does not exist",
+            "may not exist or you may not have access",
+            "not supported when using codex",
+            "authentication_error",
+            "invalid_api_key",
+            "invalid api key",
+            "not logged in",
+            "cannot authenticate",
+            "please log in",
+            "please run /login",
+        )
+    )
 
 
 def assign_jobs(

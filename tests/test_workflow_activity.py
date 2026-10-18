@@ -57,14 +57,14 @@ async def test_free_slot_keeps_claiming_while_slow_job_runs_and_limit_is_exact(
                 # The fixture's max_jobs_per_run is 3. Neither that chunk boundary nor
                 # the slow first call should prevent jobs 3 and 4 using the other slot.
                 assert await asyncio.to_thread(fourth_started.wait, 5)
-                await save(client, "intrinsic", [choice(model="next-run-model", workers=1)])
+                await save(client, "intrinsic", [choice(model="gpt-6.1-sol", workers=1)])
                 value = (await client.get("/api/workflows")).json()
                 worker = value["semantic"]["worker"]
                 assert worker["status"] == "running"
                 assert worker["step"] == step
                 assert worker["active_step"] == "intrinsic"
                 assert worker["settings"]["intrinsic"] == [choice(workers=2)]
-                assert value["settings"]["steps"]["intrinsic"][0]["model"] == "next-run-model"
+                assert value["settings"]["steps"]["intrinsic"][0]["model"] == "gpt-6.1-sol"
                 assert value["coverage"]["workers"][0]["running"] >= 1
             finally:
                 release.set()
@@ -127,7 +127,7 @@ def test_all_processed_outcomes_count_toward_the_shared_limit(status):
     assert counts["processed"] == counts[status] == 5
 
 
-def test_failure_stops_new_claims_and_allows_existing_workers_to_finish():
+def test_executor_error_stops_its_pool_and_allows_existing_workers_to_finish():
     stop = threading.Event()
     lock = threading.Lock()
     calls = []
@@ -137,6 +137,7 @@ def test_failure_stops_new_claims_and_allows_existing_workers_to_finish():
             calls.append(None)
             first = len(calls) == 1
         if first:
+            stop.set()
             return "failed"
         assert stop.wait(5)
         return "completed"
