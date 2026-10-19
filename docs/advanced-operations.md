@@ -172,14 +172,19 @@ evidence, expired results, an explicit forced reread, and newly requested detail
 reviews still require fresh work. Check `--plan-only --no-scan` against the saved
 snapshot before launching workers when diagnosing an upgrade.
 
-Calls use `semantic.max_output_tokens` (4,000 by default). A confirmed output cutoff gets one
-automatic retry with twice the headroom, up to `semantic.max_output_tokens_on_retry` (8,000 by
-default), preserving the five-field schema and counting both calls' reported usage. Set the retry
-ceiling equal to the initial ceiling to disable expansion. Malformed shapes and unrelated errors
-do not trigger this extra call. Claude receives the ceiling through `CLAUDE_CODE_MAX_OUTPUT_TOKENS`;
-other executors receive it in the work packet. These are per-call limits; aggregate usage can be
-higher across chunks, job attempts, and calls inside the CLI. Incomplete results are never stored
-as successful descriptions. Persistent provider or service errors remain visible and resumable.
+Calls use the executor's model-specific output allowance by default. AnaxiGraph does not inject
+`CLAUDE_CODE_MAX_OUTPUT_TOKENS` or put an output cap in the work packet unless
+`semantic.max_output_tokens` is explicitly configured. Existing executor environment settings
+are preserved. The concise writing instructions control style without cutting off complete JSON.
+Large maps still use bounded evidence partitions; their sizing target is not an output cap.
+
+Both `semantic.max_output_tokens` and `semantic.max_output_tokens_on_retry` default to `null`.
+For an explicit per-call cap, set the first value to a token count. An optional higher retry ceiling
+permits one extra call on confirmed truncation, with up to twice the initial headroom and both
+calls' reported usage retained. Malformed shapes and unrelated errors do not trigger that extra
+call. Native model limits still apply; aggregate usage can be higher across chunks, job attempts,
+and calls inside the CLI. Incomplete results are never stored as successful descriptions.
+Persistent provider or service errors remain visible and resumable.
 The source-size threshold is unchanged: lowering it can create more chunk and reduction calls.
 
 `--executor auto` is the default and detects when Codex or Claude invoked the command. The local

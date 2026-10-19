@@ -9,6 +9,9 @@ from typing import Any
 from anaxigraph.config import SemanticConfig
 
 _MEMBER_TOKEN_ESTIMATE = 180
+# A batch-sizing target, not a provider output cap. Keep large maps partitioned
+# even when the executor chooses its own model-specific output allowance.
+_PARTITION_OUTPUT_TARGET = 4_000
 
 
 def request_base(request: dict[str, Any]) -> dict[str, Any]:
@@ -28,12 +31,16 @@ def needs_partition(request: dict[str, Any], semantic: SemanticConfig, membershi
     input_too_large = len(json.dumps(request, ensure_ascii=False, default=str)) > (
         semantic.max_source_chars
     )
-    output_too_large = memberships * _MEMBER_TOKEN_ESTIMATE > semantic.max_output_tokens
+    output_too_large = memberships * _MEMBER_TOKEN_ESTIMATE > (
+        semantic.max_output_tokens or _PARTITION_OUTPUT_TARGET
+    )
     return input_too_large or output_too_large
 
 
 def partition_limit(semantic: SemanticConfig) -> int:
-    return max(2, semantic.max_output_tokens // _MEMBER_TOKEN_ESTIMATE)
+    return max(
+        2, (semantic.max_output_tokens or _PARTITION_OUTPUT_TARGET) // _MEMBER_TOKEN_ESTIMATE
+    )
 
 
 def cluster_limit(request: dict[str, Any], semantic: SemanticConfig) -> int:

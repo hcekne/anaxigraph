@@ -262,20 +262,7 @@ class ClaudeSemanticProvider:
             completed = subprocess.run(
                 _claude_command(self.config, request),
                 input=_prompt(request),
-                env={
-                    **os.environ,
-                    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": str(
-                        min(
-                            max(
-                                self.config.max_output_tokens,
-                                self.config.max_output_tokens_on_retry,
-                            )
-                            if request.get("output_recovery")
-                            else self.config.max_output_tokens,
-                            int(request.get("max_output_tokens") or self.config.max_output_tokens),
-                        )
-                    ),
-                },
+                env=_claude_environment(self.config, request),
                 text=True,
                 capture_output=True,
                 timeout=self.config.timeout_seconds,
@@ -295,6 +282,19 @@ class ClaudeSemanticProvider:
         envelope = _claude_envelope(completed.stdout)
         usage = claude_usage(envelope)
         return _validated_with_usage(_claude_value(envelope, usage), request, usage)
+
+
+def _claude_environment(config: SemanticConfig, request: dict[str, Any]) -> dict[str, str]:
+    environment = dict(os.environ)
+    ceiling = config.max_output_tokens
+    if request.get("output_recovery") and config.max_output_tokens_on_retry is not None:
+        ceiling = max(ceiling or 0, config.max_output_tokens_on_retry)
+    limits = [
+        int(value) for value in (ceiling, request.get("max_output_tokens")) if value is not None
+    ]
+    if limits:
+        environment["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] = str(min(limits))
+    return environment
 
 
 def _claude_command(config: SemanticConfig, request: dict[str, Any]) -> list[str]:
@@ -373,8 +373,8 @@ def _system_instruction(*, evidence_files: bool = False) -> str:
         f"{tools} Do not modify files or invent dependencies. "
         "Return the requested strict JSON artifact with "
         "concise statements supported by the supplied evidence. "
-        "Write short, concrete English sentences. State each fact once. Stay within the supplied "
-        "output budget and finish the JSON object. "
+        "Write short, concrete English sentences. State each fact once. Complete every required "
+        "field and finish the JSON object. Honor an output budget only when one is supplied. "
         "Use empty strings or arrays when evidence is insufficient."
     )
 

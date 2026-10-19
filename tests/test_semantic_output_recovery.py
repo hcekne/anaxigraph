@@ -61,7 +61,9 @@ def test_confirmed_cutoff_retries_with_headroom_and_counts_both_calls(monkeypatc
         return _response(truncated=len(calls) == 1)
 
     monkeypatch.setattr("anaxigraph.semantic.subprocess.run", run)
-    config = SemanticConfig(provider="claude")
+    config = SemanticConfig(
+        provider="claude", max_output_tokens=4_000, max_output_tokens_on_retry=8_000
+    )
     result = analyze_semantic_request(ClaudeSemanticProvider(config), REQUEST, config)
     assert [call["env"]["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] for call in calls] == ["4000", "8000"]
     assert '"detailed_reviews":false' in calls[1]["input"]
@@ -83,7 +85,9 @@ def test_recovery_stops_at_its_configured_ceiling_and_keeps_failed_usage(
         return _response(truncated=True)
 
     monkeypatch.setattr("anaxigraph.semantic.subprocess.run", run)
-    config = SemanticConfig(provider="claude", max_output_tokens_on_retry=retry_ceiling)
+    config = SemanticConfig(
+        provider="claude", max_output_tokens=4_000, max_output_tokens_on_retry=retry_ceiling
+    )
     with pytest.raises(SemanticAnalysisError) as caught:
         analyze_semantic_request(ClaudeSemanticProvider(config), REQUEST, config)
     assert len(calls) == expected_calls
@@ -122,7 +126,9 @@ def test_command_adapter_recognizes_explicit_cutoff_and_preserves_usage(monkeypa
         )
 
     monkeypatch.setattr("anaxigraph.semantic.subprocess.run", run)
-    config = SemanticConfig(provider="command", command=("test-worker",))
+    config = SemanticConfig(
+        provider="command", command=("test-worker",), max_output_tokens_on_retry=8_000
+    )
     result = analyze_semantic_request(CommandSemanticProvider(config), REQUEST, config)
     assert [call["max_output_tokens"] for call in calls] == [4_000, 8_000]
     assert result.input_tokens == 100
@@ -150,7 +156,9 @@ def test_claude_cli_token_error_is_recognized_even_without_stop_reason(monkeypat
         )
 
     monkeypatch.setattr("anaxigraph.semantic.subprocess.run", run)
-    config = SemanticConfig(provider="claude")
+    config = SemanticConfig(
+        provider="claude", max_output_tokens=4_000, max_output_tokens_on_retry=8_000
+    )
     result = analyze_semantic_request(ClaudeSemanticProvider(config), REQUEST, config)
     assert len(calls) == 2
     assert result.input_tokens == 25

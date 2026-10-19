@@ -80,8 +80,8 @@ class SemanticConfig:
     max_attempts: int = 3
     max_source_chars: int = 100_000
     max_context_modules: int = 24
-    max_output_tokens: int = 4_000
-    max_output_tokens_on_retry: int = 8_000
+    max_output_tokens: int | None = None
+    max_output_tokens_on_retry: int | None = None
     agent_lease_seconds: int = 1_800
     daily_budget_usd: float | None = None
     input_cost_per_million: float = 0.0
@@ -333,8 +333,8 @@ def _semantic_config(value: Any) -> SemanticConfig:
         max_attempts=integer("max_attempts", 3, 1),
         max_source_chars=integer("max_source_chars", 100_000, 4_000),
         max_context_modules=integer("max_context_modules", 24, 1),
-        max_output_tokens=integer("max_output_tokens", 4_000, 256),
-        max_output_tokens_on_retry=integer("max_output_tokens_on_retry", 8_000, 256),
+        max_output_tokens=_optional_output_limit(value, "max_output_tokens"),
+        max_output_tokens_on_retry=_optional_output_limit(value, "max_output_tokens_on_retry"),
         agent_lease_seconds=integer("agent_lease_seconds", 1_800, 60),
         daily_budget_usd=budget,
         input_cost_per_million=input_cost,
@@ -344,6 +344,15 @@ def _semantic_config(value: Any) -> SemanticConfig:
         taxonomy=_semantic_taxonomy_config(value.get("taxonomy")),
         stage_models=parse_stage_models(value.get("stage_models")),
     )
+
+
+def _optional_output_limit(value: dict[str, Any], name: str) -> int | None:
+    if value.get(name) is None:
+        return None
+    result = int(value[name])
+    if result < 256:
+        raise ValueError(f"semantic.{name} must be at least 256")
+    return result
 
 
 def _semantic_reviews(value: Any) -> bool:

@@ -71,7 +71,8 @@ class SemanticEvidenceService:
             and job["scope_type"] != "repository"
         )
         request["detailed_reviews"] = semantic.detailed_reviews
-        request["max_output_tokens"] = semantic.max_output_tokens
+        if semantic.max_output_tokens is not None:
+            request["max_output_tokens"] = semantic.max_output_tokens
         request["writing_contract_version"] = PLAIN_LANGUAGE_CONTRACT_VERSION
         request["writing_requirements"] = (
             MAPPING_REQUIREMENTS if lean else PLAIN_LANGUAGE_REQUIREMENTS

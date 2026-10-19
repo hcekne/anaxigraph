@@ -309,7 +309,7 @@ def _insert_job(
             SEMANTIC_SCHEMA_VERSION,
             semantic.max_attempts,
             estimated_input_tokens,
-            _cost(estimated_input_tokens, semantic.max_output_tokens, semantic),
+            _cost(estimated_input_tokens, semantic.max_output_tokens or 4_000, semantic),
             utc_now(),
             json.dumps(metadata, sort_keys=True),
         ),

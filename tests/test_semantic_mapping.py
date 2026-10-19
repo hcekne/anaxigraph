@@ -60,8 +60,8 @@ def test_default_contract_is_small_and_detailed_reviews_are_explicit():
     assert len(MAPPING_SCHEMA["required"]) == 5
     assert len(json.dumps(MAPPING_SCHEMA)) < len(json.dumps(DOSSIER_SCHEMA)) / 4
     assert response_schema({**request, "detailed_reviews": True}) == DOSSIER_SCHEMA
-    assert SemanticConfig().max_output_tokens == 4_000
-    assert SemanticConfig().max_output_tokens_on_retry == 8_000
+    assert SemanticConfig().max_output_tokens is None
+    assert SemanticConfig().max_output_tokens_on_retry is None
     assert response_contract_name({**request, "detailed_reviews": True}) == "review_dossier"
     assert set(compact_dossier(_agent_dossier({**request, "detailed_reviews": True}))) == set(
         MAPPING_SCHEMA["required"]
@@ -173,7 +173,7 @@ def test_lean_map_finishes_and_still_supports_guidance(repository, database, tmp
     assert not any(request["analysis_kind"].startswith("pattern_") for request in provider.requests)
     for request in provider.requests:
         if response_contract_name(request) == "dossier":
-            assert request["max_output_tokens"] == 4_000
+            assert "max_output_tokens" not in request
             assert "understandability_policy" not in request
             assert "input_term_meanings" not in request
             assert AGENT_REVIEW_POLICY not in json.dumps(request)

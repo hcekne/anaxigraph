@@ -48,9 +48,9 @@ class _OutputRecovery:
         try:
             return self.provider.analyze(request)
         except SemanticAnalysisError as exc:
-            limit = int(request.get("max_output_tokens") or self.semantic.max_output_tokens)
+            limit = int(request.get("max_output_tokens") or self.semantic.max_output_tokens or 0)
             ceiling = self.semantic.max_output_tokens_on_retry
-            if not exc.output_truncated or ceiling <= limit:
+            if not exc.output_truncated or not limit or ceiling is None or ceiling <= limit:
                 raise
             previous = exc
         retry = {
