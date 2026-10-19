@@ -105,6 +105,8 @@ class WorkflowExecution:
             if not count:
                 return self._result(False, self._waiting_message())
             if not self._jobs():
+                if self.request.step in {"intrinsic", "context", "groups"}:
+                    return self._finish()
                 self._plan()
 
     def _start_review(self) -> None:
@@ -226,6 +228,7 @@ class WorkflowExecution:
                 job_ids=tuple(identifiers),
                 stop_on_failure=stop,
                 on_error=partial(self._pool_error, step, pool, stop),
+                include_status=False,
             )
         except Exception as exc:
             if not executor_unavailable(exc):
@@ -260,10 +263,20 @@ class WorkflowExecution:
         return "No worker could claim the remaining jobs. Check usage limits and active workers."
 
     def _finish(self) -> dict[str, Any]:
-        status = self.engine.status(self.repository_id, self.config.semantic)
+        if self.database.latest_snapshot(self.repository_id)["id"] != self.snapshot_id:
+            return self._result(False, "The source scan changed. Resume on the new scan.")
+        status = (
+            {}
+            if self.request.step in {"intrinsic", "context", "groups"}
+            else self.engine.status(self.repository_id, self.config.semantic)
+        )
         with self.database.connect() as connection:
             coverage = workflow_coverage(connection, self.snapshot_id)
-        fresh = self.engine.fresh_eyes_status(self.repository_id, self.config.semantic)
+        fresh = (
+            self.engine.fresh_eyes_status(self.repository_id, self.config.semantic)
+            if self.request.workflow == "fresh-eyes"
+            else {}
+        )
         completed = completed_steps(status, coverage, fresh)
         ready = all(step in completed for step in self.steps)
         failures = [

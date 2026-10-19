@@ -20,33 +20,29 @@ export function workflowDiagram(flow, selectedStep) {
   const diagram = diagrams[flow.id];
   return `<div class="workflow-heading"><div>
     <h2><span>${diagram.number}</span> ${escapeHtml(flow.title)}</h2><p>${escapeHtml(flow.description)}</p></div>
-    <span class="workflow-status ${workflowState(flow)}">${statusLabels[workflowState(flow)]}</span></div>
-    ${modelLegend(flow)}
+    <div class="workflow-heading-actions"><span class="workflow-status ${workflowState(flow)}">${statusLabels[workflowState(flow)]}</span>
+    <button id="workflow-focus" type="button" class="secondary-button">Focus map</button></div></div>
     <div class="workflow-canvas" data-columns="${diagram.columns}" data-handoff="${diagram.handoff}"><svg class="workflow-edges" aria-hidden="true"></svg>
     <ol class="workflow-nodes">${flow.steps.map((item, index) => nodeMarkup(item, index, selectedStep)).join("")}</ol></div>
-    <p class="workflow-note">${escapeHtml(flow.note)}</p>
-    <p class="workflow-explore-hint">Select a step to explore its evidence and results below. Progress updates as work is saved.</p>`;
+    <p class="workflow-explore-hint">Select a card for progress, models and evidence. Configure opens its settings here.</p>`;
 }
 
 function nodeMarkup(item, index, selectedStep) {
   const isSoftware = item.owner !== "AI worker";
   const models = item.plan?.map(worker => worker.model) || item.jobs.models || [];
   const palette = isSoftware ? "software" : models.length === 1 ? modelPalette(models[0]) : "model";
-  const owner = isSoftware ? item.owner : models.length === 1 ? modelName(models[0]) : "Model work";
   const progress = item.total > 0 ? Math.min(100, item.done / item.total * 100) : item.status === "complete" ? 100 : 0;
   return `<li><article class="workflow-card ${palette} ${item.status}${selectedStep === item.id ? " selected" : ""}"><button type="button" class="workflow-node ${palette} ${item.status}${item.parallel ? " parallel" : ""}"
-    data-step="${item.id}" aria-pressed="${selectedStep === item.id}" aria-controls="workflow-detail">
+    data-step="${item.id}" aria-pressed="${selectedStep === item.id}" aria-haspopup="dialog" aria-controls="workflow-step-dialog">
     <span class="workflow-node-top"><span class="workflow-number">${index + 1}</span>
-    <span class="workflow-owner">${escapeHtml(owner)}</span></span>
-    <strong>${escapeHtml(item.title)}</strong>${activityMarkup(item)}<span class="workflow-description">${escapeHtml(item.description)}</span>
+    <strong>${escapeHtml(item.title)}</strong></span>
+    <span class="workflow-description">${escapeHtml(item.description)}</span>${activityMarkup(item)}
     ${item.parallel ? parallelMarkup(item.stages) : ""}
     <span class="workflow-count">${number(item.done)}${item.total == null ? "" : ` / ${number(item.total)}`} <small>${escapeHtml(item.unit)}</small></span>
     <span class="workflow-track" aria-hidden="true"><i style="width:${progress}%"></i></span>
     <span class="workflow-node-bottom"><span class="workflow-status ${item.status}">${item.activity?.label || statusLabels[item.status]}</span>
     ${item.reused ? `<small>${number(item.reused)} reused</small>` : ""}</span>
     ${cardError(item)}
-    ${nextRunMarkup(item)}
-    <span class="workflow-models">${modelLabels(item).map(name => `<span class="${modelPalette(name)}" title="${escapeAttr(name)}">${escapeHtml(name)}</span>`).join("")}</span>
     </button>${cardActions(item)}</article></li>`;
 }
 
@@ -55,7 +51,7 @@ function cardError(item) {
   if (!pool && !job) return "";
   const error = pool || job;
   const label = pool ? `${pool.model} unavailable` : job.status === "retry" ? "Retry pending" : "Job failed";
-  return `<span class="workflow-error"><b>${escapeHtml(label)}</b><br>${escapeHtml(error.error)}</span>`;
+  return `<span class="workflow-card-error" title="${escapeAttr(error.error)}">${escapeHtml(label)} · View error</span>`;
 }
 
 function activityMarkup(item) {
@@ -63,9 +59,7 @@ function activityMarkup(item) {
   const { running, capacity, label } = item.activity;
   const count = capacity && capacity >= running ? `${number(running)} / ${number(capacity)}` : number(running);
   const heading = running ? `${count} worker${capacity === 1 || (!capacity && running === 1) ? "" : "s"} active` : `${label}…`;
-  return `<span class="workflow-activity" role="status"><span class="workflow-activity-heading"><i class="workflow-spinner" aria-hidden="true"></i><b>${heading}</b></span>
-    ${(item.jobs.workers || []).filter(worker => worker.running > 0).map(worker => `<small class="workflow-active-worker">Running now: ${number(worker.running)} × ${escapeHtml(worker.executor_model || worker.executor_id || "worker")}</small>`).join("")}
-    ${!running && item.plan ? `<small>0 workers active · waiting for jobs to start</small>` : ""}</span>`;
+  return `<span class="workflow-activity" role="status"><i class="workflow-spinner" aria-hidden="true"></i><b>${heading}</b></span>`;
 }
 
 function nextRunMarkup(item) {
@@ -78,7 +72,7 @@ function nextRunMarkup(item) {
 }
 
 function cardActions(item) {
-  if (item.plan) return `<div class="workflow-card-actions"><button type="button" data-configure-step="${item.id}">Configure</button><button type="button" data-run-step="${item.id}">Run step →</button></div>`;
+  if (item.plan) return `<div class="workflow-card-actions"><button type="button" data-configure-step="${item.id}" aria-haspopup="dialog" aria-controls="workflow-step-dialog">Configure</button><button type="button" data-run-step="${item.id}">Run step →</button></div>`;
   if (item.id === "scan") return '<div class="workflow-card-actions"><button type="button" data-run-scan>Refresh source scan</button></div>';
   if (["pattern_plan", "brief", "grounding"].includes(item.id)) return `<div class="workflow-card-actions"><button type="button" data-run-step="${item.id}">Run step →</button></div>`;
   return item.view ? `<div class="workflow-card-actions"><button type="button" data-workflow-view="${item.view}">Explore results →</button></div>` : "";
@@ -88,13 +82,8 @@ function parallelMarkup(stages = []) {
   return `<span class="workflow-proposal-lanes">${stages.map((item, index) => {
     const model = item.provenance?.executor_model || item.provenance?.model;
     return `<span class="${model ? modelPalette(model) : "model"}">
-      <b>Proposal ${String.fromCharCode(65 + index)}</b><span>${escapeHtml(model ? modelName(model) : "Independent session")}</span>
-      <small>${item.state === "current" ? "Saved proposal" : "Awaiting result"}</small></span>`;
+      <b>${String.fromCharCode(65 + index)}</b><small>${item.state === "current" ? "Saved" : "Pending"}</small></span>`;
   }).join("")}</span>`;
-}
-
-function modelLabels(item) {
-  return item.jobs.models?.length ? item.jobs.models.map(model => `Saved: ${model}`) : [];
 }
 
 function modelPalette(name) {
@@ -105,14 +94,6 @@ function modelPalette(name) {
 function modelName(name) {
   return name.replace(/^gpt-/i, "GPT-").replace(/-(luna|sol|astra|terra)$/i, (_, model) => ` ${model[0].toUpperCase()}${model.slice(1)}`)
     .replace(/^claude-(\w+)-(\d+)-(\d+)$/i, (_, model, major, minor) => `Claude ${model[0].toUpperCase()}${model.slice(1)} ${major}.${minor}`);
-}
-
-function modelLegend(flow) {
-  const models = [...new Set(flow.steps.flatMap(item => item.plan?.map(worker => worker.model) || item.jobs.models || []))];
-  const chips = models.map(model => `<span class="${modelPalette(model)}" title="${escapeAttr(model)}">${escapeHtml(modelName(model))}</span>`);
-  if (flow.steps.some(item => item.owner === "AI worker" && !item.plan && !item.jobs.models?.length)) chips.push('<span class="model">Model work · model recorded when run</span>');
-  return `<div class="workflow-legend" aria-label="Who does the work"><span class="software">AnaxiGraph code</span>${chips.join("")}</div>
-    <p class="workflow-legend-note">Next-run choices appear on each card; saved results keep their recorded models. Arrows show how evidence feeds the next step.</p>`;
 }
 
 export function workflowDetail(item) {
@@ -127,7 +108,11 @@ export function workflowDetail(item) {
     ${jobs.token_counts_missing ? `${number(jobs.token_counts_missing)} completed jobs have unknown token usage.` : ""}</p>` : "";
   return `<div class="workflow-detail-heading"><div><p class="eyebrow">Selected step</p>
     <h3>${escapeHtml(item.title)}</h3></div><span class="workflow-status ${item.status}">${statusLabels[item.status]}</span></div>
+    <p class="workflow-count">${number(item.done)}${item.total == null ? "" : ` / ${number(item.total)}`} <small>${escapeHtml(item.unit)}</small></p>
+    ${activityMarkup(item)}
+    ${(item.jobs.workers || []).filter(worker => worker.running > 0).map(worker => `<p class="workflow-active-worker">Running now: ${number(worker.running)} × ${escapeHtml(worker.executor_model || worker.executor_id || "worker")}</p>`).join("")}
     <p>${escapeHtml(item.detail || item.description)}</p>
+    ${nextRunMarkup(item)}
     ${item.jobs.models?.length ? `<p><strong>Recorded models:</strong> ${item.jobs.models.map(escapeHtml).join(", ")}</p>` : ""}
     ${item.reused ? `<p>${number(item.reused)} current results were reused from an earlier scan.</p>` : ""}
     ${telemetry}${stageDetails(item.stages)}
@@ -151,7 +136,7 @@ export function drawWorkflowEdges(canvas) {
   const list = canvas.querySelector("ol");
   const nodes = [...list.children];
   const preferred = Number(canvas.dataset.columns);
-  const columns = canvas.clientWidth >= 1000 ? preferred : canvas.clientWidth >= 580 ? 2 : 1;
+  const columns = canvas.clientWidth >= preferred * 210 ? preferred : canvas.clientWidth >= 520 ? 2 : 1;
   list.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`;
   nodes.forEach((node, index) => {
     const row = Math.floor(index / columns);

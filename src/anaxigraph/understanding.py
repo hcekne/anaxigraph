@@ -51,6 +51,7 @@ class SemanticEngine:
         job_ids: tuple[int, ...] | None = None,
         stop_on_failure: Event | None = None,
         on_error: Callable[[Exception], None] | None = None,
+        include_status: bool = True,
     ) -> dict[str, Any]:
         return self._services.runner.run_jobs(
             repository_id,
@@ -61,6 +62,7 @@ class SemanticEngine:
             job_ids=job_ids,
             stop_on_failure=stop_on_failure,
             on_error=on_error,
+            include_status=include_status,
         )
 
     def bootstrap(

@@ -2,7 +2,7 @@ import { api, byId, escapeHtml, request, selectedRepository, state, toast } from
 import { switchView } from "/assets/navigation.js";
 import { buildFlows } from "/assets/workflow-model.js";
 import { drawWorkflowEdges, overviewWorkflowLinks, workflowDetail, workflowDiagram, workflowTabs } from "/assets/workflow-render.js";
-import { hasUnsavedSettings, renderStepSettings, resetStepSettings, setupStepSettings } from "/assets/workflow-settings.js";
+import { closeStepDialog, hasUnsavedSettings, openStepDialog, renderStepSettings, resetStepSettings, setupStepDialog, setupStepSettings, stepDialogShell, updateStepDialog } from "/assets/workflow-settings.js";
 
 let data = null;
 let selectedFlow = "mapping";
@@ -27,7 +27,8 @@ export function setupWorkflowsView() {
   byId("view-overview").prepend(entry);
   document.addEventListener("click", handleClick);
   byId("workflow-run-form").addEventListener("submit", startWorkflow);
-  setupStepSettings(saveStepSettings, startStep);
+  setupStepDialog();
+  setupStepSettings(saveStepSettings, startStep, closeStepDialog);
   byId("workflow-tabs").addEventListener("keydown", event => {
     if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
     event.preventDefault();
@@ -39,6 +40,7 @@ export function setupWorkflowsView() {
   });
   window.addEventListener("anaxigraph:viewchange", ({ detail }) => {
     window.clearTimeout(timer);
+    closeStepDialog();
     if (detail.name !== "workflows") return;
     selectedFlow = ["mapping", "patterns", "fresh-eyes"].includes(detail.flow) ? detail.flow : "mapping";
     selectedStep = "";
@@ -57,8 +59,7 @@ function shell() {
     <div id="workflow-tabs" class="workflow-tabs" role="tablist" aria-label="Repository workflows"></div>
     <p id="workflow-message" class="workflow-message" role="status">Reading repository progress…</p>
     <section id="workflow-panel" role="tabpanel"><article id="workflow-diagram" class="panel workflow-diagram"></article>
-    <div class="workflow-lower"><article id="workflow-detail" class="panel workflow-detail"></article>
-    <article class="panel workflow-run"><section id="workflow-step-settings"></section>
+    ${stepDialogShell()}<div class="workflow-lower"><article class="panel workflow-run">
     <p class="eyebrow">Run this workflow</p><h3 id="workflow-run-title">Mapping</h3>
     <p id="workflow-run-note"></p><form id="workflow-run-form">
     <div id="workflow-legacy-options" class="workflow-fields"><label>Executor<select id="workflow-executor"></select></label>
@@ -75,6 +76,7 @@ function shell() {
 }
 
 function clearWorkflows() {
+  closeStepDialog();
   requestToken += 1;
   window.clearTimeout(timer);
   data = null;
@@ -170,7 +172,6 @@ function configureControls() {
   byId("workflow-legacy-options").hidden = perStep;
   byId("workflow-routing").hidden = perStep;
   byId("workflow-proposal-count").hidden = perStep;
-  byId("workflow-step-settings").hidden = !perStep;
   byId("workflow-model").disabled = !agent || perStep;
   byId("workflow-model").required = agent && !perStep;
   byId("workflow-effort").disabled = !agent;
@@ -200,6 +201,7 @@ function render() {
   byId("workflow-panel").setAttribute("aria-labelledby", `workflow-tab-${selectedFlow}`);
   byId("workflow-diagram").innerHTML = workflowDiagram(flow, selectedStep);
   byId("workflow-detail").innerHTML = workflowDetail(current);
+  updateStepDialog(current, flow.steps.indexOf(current), !!data.settings && !!current.plan);
   if (data.settings) renderStepSettings(current, data);
   byId("workflow-entry").innerHTML = overviewWorkflowLinks(flows);
   if (focusStep) document.querySelector(`[data-step="${focusStep}"]`)?.focus({ preventScroll: true });
@@ -225,8 +227,8 @@ function updateStepButtons({ active, allowed, unsupported }) {
   document.querySelectorAll("[data-run-step]").forEach(button => { button.disabled = runningRequest || !allowed || unsupported; });
   document.querySelectorAll("[data-run-scan]").forEach(button => { button.disabled = byId("workflow-scan").disabled; });
   byId("workflow-step-settings").querySelectorAll("input, select, button").forEach(input => {
-    input.disabled = active || runningRequest || !data.execution.mounted;
-    if (input.dataset.saveRun != null) input.disabled ||= !allowed || unsupported;
+    input.disabled = !data.execution.mounted;
+    if (input.dataset.saveRun != null) input.disabled ||= runningRequest || !allowed || unsupported;
   });
 }
 
@@ -253,9 +255,12 @@ function executionNote(available, unsupported) {
 function progressMessage(active, stale) {
   const semantic = data.semantic;
   const worker = semantic.worker || {};
+  const finishing = active && worker.step && !semantic.jobs?.running_live
+    && buildFlows(data).flatMap(flow => flow.steps).some(item => item.id === worker.step && item.status === "complete");
   return worker.error || (semantic.budget?.paused || worker.paused ? "Work is paused at the configured usage limit. Saved results remain available."
     : data.scan?.active ? `Source scan: ${data.scan.phase || data.scan.status} · ${data.scan.completed || 0} files processed.`
     : stale ? "These results belong to the saved scan. Refresh the source scan before running more analysis."
+      : finishing ? "All results for this step are saved. Finishing the run…"
       : active ? `Work is running for ${selectedRepository()?.name || "this repository"}. Progress updates automatically.`
         : idleMessage(semantic));
 }
@@ -277,11 +282,14 @@ function handleClick(event) {
   } else if (button.dataset.step || button.dataset.configureStep) {
     selectedStep = button.dataset.step || button.dataset.configureStep;
     render();
-    if (button.dataset.configureStep) byId("workflow-step-settings").scrollIntoView({ behavior: "smooth", block: "center" });
+    openStepDialog(selectedStep, !!button.dataset.configureStep);
   } else if (button.dataset.runStep) {
     void startStep(button.dataset.runStep);
   } else if (button.dataset.workflowView) {
+    closeStepDialog();
     switchView(button.dataset.workflowView);
+  } else if (button.id === "workflow-focus") {
+    byId("workflow-diagram").scrollIntoView({ behavior: "smooth", block: "start" });
   } else if (button.id === "workflow-refresh") {
     void loadWorkflows();
   } else if (button.id === "workflow-scan" || button.dataset.runScan != null) {

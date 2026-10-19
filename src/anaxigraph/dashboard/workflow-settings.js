@@ -6,7 +6,7 @@ let editorStep = null;
 let editorData = null;
 let saving = false;
 
-export function setupStepSettings(save, run) {
+export function setupStepSettings(save, run, saved) {
   const editor = byId("workflow-step-settings");
   editor.addEventListener("input", rememberDraft);
   editor.addEventListener("change", event => {
@@ -34,6 +34,7 @@ export function setupStepSettings(save, run) {
       if (repositoryId !== state.repositoryId) return;
       renderStepSettings(editorStep, editorData, true);
       toast("Step settings saved.");
+      saved();
       if (event.submitter?.dataset.saveRun != null) await run(step, Number(event.submitter.dataset.jobLimit) || null);
     } catch (error) {
       if (repositoryId === state.repositoryId) toast(error.message, true);
@@ -122,4 +123,77 @@ function editRows(action, index) {
   if (action === "add" && rows.length < 3) rows.push({ provider: "claude", model: "claude-opus-5-5", workers: 1, reasoning_effort: "medium" });
   drafts.set(editorKey, rows);
   renderStepSettings(editorStep, editorData, true);
+}
+
+let returnFocus = null;
+
+export function stepDialogShell() {
+  return `<dialog id="workflow-step-dialog" class="workflow-dialog" aria-labelledby="workflow-dialog-title">
+    <header class="workflow-dialog-header"><h2 id="workflow-dialog-title">Step details</h2>
+    <button id="workflow-dialog-close" type="button" class="secondary-button" aria-label="Close step details">Close ✕</button></header>
+    <div class="workflow-dialog-tabs" role="tablist" aria-label="Step information">
+    <button id="workflow-details-tab" type="button" role="tab" data-step-panel="details" aria-controls="workflow-detail" aria-selected="true">Progress &amp; models</button>
+    <button id="workflow-configure-tab" type="button" role="tab" data-step-panel="configure" aria-controls="workflow-step-settings" aria-selected="false" tabindex="-1">Configure</button></div>
+    <div class="workflow-dialog-body"><section id="workflow-detail" class="workflow-detail" role="tabpanel" aria-labelledby="workflow-details-tab"></section>
+    <section id="workflow-step-settings" class="workflow-run" role="tabpanel" aria-labelledby="workflow-configure-tab" hidden></section></div></dialog>`;
+}
+
+export function setupStepDialog() {
+  const dialog = byId("workflow-step-dialog");
+  byId("workflow-dialog-close").addEventListener("click", closeStepDialog);
+  dialog.addEventListener("keydown", event => {
+    if (event.key !== "Tab") return;
+    const controls = [...dialog.querySelectorAll("button, input, select, textarea, a[href], [tabindex]")]
+      .filter(control => !control.disabled && control.tabIndex >= 0 && control.getClientRects().length);
+    const first = controls[0], last = controls.at(-1);
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  });
+  dialog.addEventListener("click", event => {
+    if (event.target === dialog) {
+      const box = dialog.getBoundingClientRect();
+      if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) closeStepDialog();
+    }
+    const tab = event.target.closest("[data-step-panel]");
+    if (tab) selectPanel(tab.dataset.stepPanel);
+  });
+  dialog.querySelector('[role="tablist"]').addEventListener("keydown", event => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const tabs = [...dialog.querySelectorAll('[role="tab"]')].filter(tab => !tab.hidden);
+    const index = tabs.indexOf(document.activeElement);
+    const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + 1) % tabs.length;
+    tabs[next].click();
+    tabs[next].focus();
+  });
+  dialog.addEventListener("close", () => {
+    if (returnFocus) document.querySelector(returnFocus)?.focus({ preventScroll: true });
+  });
+}
+
+function selectPanel(panel) {
+  const configure = panel === "configure" && !byId("workflow-configure-tab").hidden;
+  byId("workflow-detail").hidden = configure;
+  byId("workflow-step-settings").hidden = !configure;
+  for (const tab of byId("workflow-step-dialog").querySelectorAll('[role="tab"]')) {
+    const selected = (tab.dataset.stepPanel === "configure") === configure;
+    tab.setAttribute("aria-selected", String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+  }
+}
+
+export function openStepDialog(step, configure = false) {
+  returnFocus = `[data-${configure ? "configure-step" : "step"}="${step}"]`;
+  selectPanel(configure ? "configure" : "details");
+  byId("workflow-step-dialog").showModal();
+}
+
+export function updateStepDialog(item, index, configurable) {
+  byId("workflow-dialog-title").textContent = `${index + 1}. ${item.title}`;
+  byId("workflow-configure-tab").hidden = !configurable;
+  if (!configurable) selectPanel("details");
+}
+
+export function closeStepDialog() {
+  byId("workflow-step-dialog").close();
 }

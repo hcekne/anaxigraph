@@ -157,6 +157,7 @@ class SemanticRunnerService:
         job_ids: tuple[int, ...] | None = None,
         stop_on_failure: Event | None = None,
         on_error: Callable[[Exception], None] | None = None,
+        include_status: bool = True,
     ) -> dict[str, Any]:
         semantic = config.semantic
         _validate_job_execution(semantic, execution_semantic)
@@ -173,10 +174,9 @@ class SemanticRunnerService:
             on_error=on_error,
         )
         counts = _run_workers(work, workers, bounded, stop_on_failure)
-        return {
-            **counts,
-            "semantic": self._reporting.status(repository_id, semantic),
-        }
+        if include_status:
+            return {**counts, "semantic": self._reporting.status(repository_id, semantic)}
+        return counts
 
     def bootstrap(
         self,

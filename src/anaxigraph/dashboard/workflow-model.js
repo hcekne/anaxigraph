@@ -57,10 +57,12 @@ function applyActivity(item, data, flow, startingStep) {
   const running = Math.max(item.jobs.running || 0, (item.jobs.workers || []).reduce((sum, row) => sum + row.running, 0));
   const requested = requestedStep(data, flow) === item.id;
   const starting = startingStep === item.id;
+  if (!running && !starting && item.status === "complete") return;
   if (!running && !requested && !starting && item.status !== "running") return;
   const plan = worker.settings?.[item.id] || item.plan;
   const capacity = workerCapacity(plan, item.mode, data.execution?.max_parallel_jobs);
-  item.activity = { running, capacity, label: running ? "Running" : starting ? "Starting step" : requested ? "Preparing jobs" : "Running" };
+  const label = running ? "Running" : starting ? "Starting step" : item.jobs.retry ? "Waiting to retry" : "Preparing jobs";
+  item.activity = { running, capacity, label };
   item.jobs.running = running;
   item.status = "running";
 }
