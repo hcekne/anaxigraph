@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+from anaxigraph.persistence.workflow_history import workflow_history
+
 
 def workflow_coverage(connection: Any, snapshot_id: int) -> dict[str, Any]:
     return {
@@ -13,6 +15,7 @@ def workflow_coverage(connection: Any, snapshot_id: int) -> dict[str, Any]:
         "scan": _scan(connection, snapshot_id),
         "failures": _failures(connection, snapshot_id),
         "workers": _workers(connection, snapshot_id),
+        "history": workflow_history(connection, snapshot_id),
     }
 
 

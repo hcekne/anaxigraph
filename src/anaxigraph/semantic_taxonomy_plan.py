@@ -13,6 +13,7 @@ from anaxigraph.persistence.semantic_taxonomy_carry import (
     TaxonomyStability,
     carry_taxonomy,
 )
+from anaxigraph.persistence.semantic_taxonomy_resume import resume_taxonomy_proposal
 from anaxigraph.semantic_freshness import (
     TAXONOMY_PROPOSAL_CONTRACT,
     TAXONOMY_REVIEW_CONTRACT,
@@ -157,18 +158,7 @@ class SemanticTaxonomyPlanner:
         retry_failed: bool,
         stability_hash: str,
     ) -> int:
-        latest_review = connection.execute(
-            """
-            SELECT str.document_id, str.pass_index
-            FROM semantic_taxonomy_reviews str WHERE str.taxonomy_id = ?
-            ORDER BY str.pass_index DESC LIMIT 1
-            """,
-            (int(taxonomy["id"]),),
-        ).fetchone()
-        candidate_document_id = int(
-            latest_review["document_id"] if latest_review else taxonomy["candidate_document_id"]
-        )
-        review_pass = 1 + (int(latest_review["pass_index"]) if latest_review else 0)
+        candidate_document_id, review_pass = _review_candidate(connection, taxonomy)
         validation = json.loads(taxonomy["validation_json"] or "{}")
         review_input = {
             "taxonomy_input_hash": input_hash,
@@ -181,7 +171,11 @@ class SemanticTaxonomyPlanner:
             semantic.prompt_version,
             review_input,
         )
-        review_metadata = {**metadata, **review_input}
+        review_metadata = {
+            **metadata,
+            **review_input,
+            "source_changes": json.loads(taxonomy["change_json"] or "[]"),
+        }
         scope_status, created, error = _ensure_job(
             connection,
             repository_id=repository_id,
@@ -213,6 +207,18 @@ class SemanticTaxonomyPlanner:
             context_document_id=candidate_document_id,
         )
         return int(created)
+
+
+def _review_candidate(connection: sqlite3.Connection, taxonomy: sqlite3.Row) -> tuple[int, int]:
+    latest = connection.execute(
+        """SELECT document_id, pass_index FROM semantic_taxonomy_reviews
+           WHERE taxonomy_id = ? ORDER BY pass_index DESC LIMIT 1""",
+        (int(taxonomy["id"]),),
+    ).fetchone()
+    return (
+        int(latest["document_id"] if latest else taxonomy["candidate_document_id"]),
+        1 + (int(latest["pass_index"]) if latest else 0),
+    )
 
 
 def _taxonomy_inputs(
@@ -272,22 +278,24 @@ def _current_or_carried_taxonomy(
     ).fetchone()
     if taxonomy is not None:
         return taxonomy, None
-    carry = carry_taxonomy(
-        connection,
+    stability = TaxonomyStability(
+        policy_hash=inputs.stability_hash,
+        bias=config.semantic.taxonomy.stability_bias,
+        eligible_paths=inputs.paths,
+        settings=inputs.settings,
+        hints=config.map.hints,
+        locks=config.map.locked_memberships,
+    )
+    arguments = dict(
         repository_id=repository_id,
         snapshot_id=snapshot_id,
         input_hash=inputs.input_hash,
-        legacy_evidence=inputs.evidence,
         prompt_version=config.semantic.prompt_version,
-        stability=TaxonomyStability(
-            policy_hash=inputs.stability_hash,
-            bias=config.semantic.taxonomy.stability_bias,
-            eligible_paths=inputs.paths,
-            settings=inputs.settings,
-            hints=config.map.hints,
-            locks=config.map.locked_memberships,
-        ),
+        stability=stability,
     )
+    carry = carry_taxonomy(connection, legacy_evidence=inputs.evidence, **arguments)
+    if carry is None:
+        carry = resume_taxonomy_proposal(connection, **arguments)
     return (carry.row if carry else None), carry
 
 

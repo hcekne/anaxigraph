@@ -257,11 +257,12 @@ function render() {
 function renderControls(flow) {
   const { active, stale, allowed, available, unsupported } = executionState(flow);
   byId("workflow-run-button").disabled = runningRequest || !allowed || !available || unsupported;
-  byId("workflow-run-button").textContent = active ? "Worker is running…" : `Start / resume ${flow.name.toLowerCase()}`;
+  byId("workflow-run-button").textContent = active ? "Worker is running…" : flow.update ? "Update affected work" : `Start / resume ${flow.name.toLowerCase()}`;
   byId("workflow-scan").disabled = loadingState !== "ready" || runningRequest || !data.execution.mounted || active || data.scan?.active;
   byId("workflow-run-title").textContent = flow.name;
   byId("workflow-run-note").textContent = flow.id === "patterns" ? flow.note : "Starts model calls on this server and resumes saved work. Existing requested reviews can also advance on the shared queue.";
   if (data.settings) byId("workflow-run-note").textContent = "Runs the remaining steps in this flow using each card’s saved choices. Completed work is reused. Single-step buttons run only that step.";
+  if (flow.update) byId("workflow-run-note").textContent = `${flow.update.summary} Starts with ${flow.update.nextTitle.toLowerCase()}, then checks the dependent steps.`;
   byId("workflow-fresh-options").hidden = flow.id !== "fresh-eyes";
   byId("workflow-execution-note").textContent = executionNote(available, unsupported);
   byId("workflow-message").textContent = progressMessage(active, stale);
@@ -328,8 +329,8 @@ function handleClick(event) {
     selectedFlow = button.dataset.openFlow || button.dataset.flow;
     selectedStep = "";
     switchView("workflows", false, selectedFlow);
-  } else if (button.dataset.step || button.dataset.configureStep) {
-    selectedStep = button.dataset.step || button.dataset.configureStep;
+  } else if (button.dataset.step || button.dataset.configureStep || button.dataset.progressStep) {
+    selectedStep = button.dataset.step || button.dataset.configureStep || button.dataset.progressStep;
     render();
     openStepDialog(selectedStep, !!button.dataset.configureStep);
   } else if (button.dataset.runStep) {

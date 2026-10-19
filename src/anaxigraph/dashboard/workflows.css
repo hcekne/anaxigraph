@@ -15,6 +15,7 @@
   --flow-code-bg: #f1f4f8; --flow-code-line: #ccd7e4; --flow-code-ink: #45576c;
 }
 body:has(#view-workflows.active) { background: var(--bg); }
+#view-workflows.active { animation: none; }
 :root[data-theme="constellation-light"] body:has(#view-workflows.active) { background: #f2f5f9; }
 #view-workflows .model { --card-bg: var(--flow-model-bg); --card-line: var(--flow-model-line); --card-ink: var(--flow-model-ink); }
 #view-workflows .sol { --card-bg: var(--flow-sol-bg); --card-line: var(--flow-sol-line); --card-ink: var(--flow-sol-ink); }
@@ -58,6 +59,14 @@ body:has(#view-workflows.active) main { max-width: 1920px; padding: 20px 20px 32
 .workflow-heading h2 { color: var(--flow-ink); font-size: 24px; font-weight: 750; letter-spacing: -.025em; }
 .workflow-heading h2 > span { margin-right: 6px; color: var(--flow-muted); font-size: 18px; }
 .workflow-heading p { margin-bottom: 0; color: var(--flow-muted); font-size: 13px; }
+.workflow-source-update { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; color: var(--notice-text); font-size: 12px; }
+.workflow-source-update button { flex-shrink: 0; border: 0; background: transparent; color: inherit; cursor: pointer; text-decoration: underline; }
+.workflow-saved-progress { padding: 12px; margin-bottom: 16px; border: 1px solid var(--flow-line); border-radius: 10px; }
+.workflow-saved-progress ul { max-height: 220px; overflow: auto; padding: 0; list-style: none; }
+.workflow-saved-progress li { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; padding: 6px 0; border-bottom: 1px solid var(--flow-line); }
+.workflow-saved-progress code { overflow-wrap: anywhere; }
+.workflow-saved-progress li span { color: var(--flow-muted); font-size: 12px; }
+.workflow-status.refresh_needed { background: var(--amber-soft); color: var(--notice-text); }
 .workflow-canvas { position: relative; isolation: isolate; }
 .workflow-nodes { display: grid; list-style: none; padding: 0; margin: 0; gap: 34px 22px; }
 .workflow-nodes li { min-width: 0; display: flex; }

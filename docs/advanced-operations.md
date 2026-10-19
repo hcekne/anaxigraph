@@ -310,10 +310,20 @@ The reviewed taxonomy is not regenerated for every changed context dossier. An i
 first requires the same included paths and map policy, then compares intrinsic module-role
 fingerprints with the last reviewed map. If the stable fraction meets
 `semantic.taxonomy.stability_bias` (default `0.8`), AnaxiGraph carries that reviewed map forward and
-refreshes only affected descendants and ancestors. An inventory or policy change, or responsibility
-drift beyond that boundary, automatically queues a new taxonomy proposal and its agent reviews.
+refreshes only affected descendants and ancestors. A saved proposal that is still under review
+can also be reused. Small additions, removals, or role changes within the stability threshold use
+the latest saved candidate as the starting point for fresh reviews, without another proposal call.
+Completed reviews are carried only when the proposal evidence is identical; reviews of older
+evidence remain saved as history. Policy changes or responsibility drift beyond the threshold
+queue a new proposal and its agent reviews.
 `work_plan` reports the current file, context, taxonomy, group, repository, and pattern scope before
 model execution.
+
+The workflow view separates current results, saved results needing refresh, and files with no
+saved result. A source-update notice explains the transition; affected cards show refresh counts
+and retain earlier proposal/review progress and failures. Open a card to inspect affected paths
+and the earlier scan. **Update affected work** resumes the existing queue using the saved step
+settings. Reading progress does not run models or mark old evidence as current.
 
 `semantic.refresh: on_scan` is the default once AI mapping is enabled. It prepares the saved work;
 with `provider: agent`, it does not silently run a model. A connected agent can explicitly request

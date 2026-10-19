@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
+import pytest
 from semantic_support import _calls, _fake_provider, _semantic_config
 
 from anaxigraph.config import load_config
@@ -56,8 +59,9 @@ def test_local_interface_change_keeps_validated_taxonomy_and_limits_the_cascade(
     assert "8 of 8 intrinsic module roles remain stable" in current["refresh_reason"]
 
 
-def test_new_module_triggers_a_new_taxonomy_instead_of_forcing_it_into_an_old_map(
-    repository, database, tmp_path
+@pytest.mark.parametrize("policy_changed", [False, True])
+def test_new_module_reuses_the_proposal_unless_the_map_policy_changed(
+    repository, database, tmp_path, policy_changed
 ):
     log = tmp_path / "semantic-new-module-taxonomy.log"
     provider = _fake_provider(tmp_path)
@@ -76,15 +80,22 @@ def test_new_module_triggers_a_new_taxonomy_instead_of_forcing_it_into_an_old_ma
     )
     changed = scanner.scan(repository, run_type="update")
     before = len(_calls(log))
+    if policy_changed:
+        config = replace(
+            config,
+            semantic=replace(
+                config.semantic, taxonomy=replace(config.semantic.taxonomy, max_areas=7)
+            ),
+        )
     refreshed = engine.bootstrap(changed.repository_id, repository, config)
     calls = _calls(log)[before:]
 
     assert refreshed["semantic"]["semantically_ready"] is True
-    assert any(item["kind"] == "taxonomy_proposal" for item in calls)
+    assert any(item["kind"] == "taxonomy_proposal" for item in calls) is policy_changed
     assert sum(item["kind"] == "taxonomy_review" for item in calls) == 2
-    assert database.semantic_taxonomy(changed.repository_id)["source"] != (
-        "incrementally_validated_taxonomy"
-    )
+    taxonomy = database.semantic_taxonomy(changed.repository_id)
+    assert (taxonomy["source"] == "reused_taxonomy_proposal") is not policy_changed
+    assert taxonomy["validation"]["assigned_modules"] == 9
 
 
 def test_responsibility_drift_beyond_stability_policy_triggers_taxonomy_review(

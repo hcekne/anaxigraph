@@ -9,7 +9,12 @@ from dataclasses import dataclass
 from typing import Any
 
 from anaxigraph.clock import utc_now
-from anaxigraph.semantic_freshness import TAXONOMY_PROPOSAL_CONTRACT, legacy_input_matches
+from anaxigraph.semantic_freshness import (
+    TAXONOMY_PROPOSAL_CONTRACT,
+    TAXONOMY_STABILITY_CONTRACT,
+    legacy_input_matches,
+    semantic_input_hash,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,6 +112,8 @@ def _copy_taxonomy(
     snapshot_id: int,
     input_hash: str,
     source: str,
+    status: str = "current",
+    copy_reviews: bool = True,
 ) -> sqlite3.Row:
     now = utc_now()
     cursor = connection.execute(
@@ -116,12 +123,13 @@ def _copy_taxonomy(
             executor_id, executor_model, prompt_version, schema_version, confidence,
             candidate_document_id, final_document_id, review_passes, validation_json,
             facets_json, change_json, created_at, updated_at
-        ) VALUES (?, ?, ?, 'current', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             repository_id,
             snapshot_id,
             input_hash,
+            status,
             source,
             previous["provider"],
             previous["model"],
@@ -141,12 +149,19 @@ def _copy_taxonomy(
         ),
     )
     taxonomy_id = int(cursor.lastrowid)
-    _copy_nodes(connection, taxonomy_id, int(previous["id"]))
-    _copy_memberships(connection, taxonomy_id, int(previous["id"]))
-    _copy_reviews(connection, taxonomy_id, int(previous["id"]))
+    _copy_children(connection, taxonomy_id, int(previous["id"]), copy_reviews)
     return connection.execute(
         "SELECT * FROM semantic_taxonomies WHERE id = ?", (taxonomy_id,)
     ).fetchone()
+
+
+def _copy_children(
+    connection: sqlite3.Connection, target: int, previous: int, reviews: bool
+) -> None:
+    _copy_nodes(connection, target, previous)
+    _copy_memberships(connection, target, previous)
+    if reviews:
+        _copy_reviews(connection, target, previous)
 
 
 def _copy_nodes(connection: sqlite3.Connection, taxonomy_id: int, previous_id: int) -> None:
@@ -234,10 +249,25 @@ def _incremental_taxonomy(
 def _compatible_policy(
     taxonomy: sqlite3.Row,
     stability: TaxonomyStability,
+    previous_paths: dict[str, str] | None = None,
 ) -> bool:
     saved_hash = str(taxonomy["stability_hash"] or "")
     if saved_hash:
-        return saved_hash == stability.policy_hash
+        expected = (
+            stability.policy_hash
+            if previous_paths is None
+            else semantic_input_hash(
+                TAXONOMY_STABILITY_CONTRACT,
+                taxonomy["prompt_version"],
+                {
+                    "settings": stability.settings,
+                    "paths": sorted(previous_paths),
+                    "hints": stability.hints,
+                    "locks": stability.locks,
+                },
+            )
+        )
+        return saved_hash == expected
     if stability.hints or stability.locks:
         return False
     validation = json.loads(taxonomy["validation_json"] or "{}")

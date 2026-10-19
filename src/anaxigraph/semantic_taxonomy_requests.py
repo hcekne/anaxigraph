@@ -203,6 +203,7 @@ def _review_request(
         "scope_type": "repository",
         "scope_key": job["scope_key"],
         "review_pass": int(job["metadata"].get("review_pass", 1)),
+        "source_changes": job["metadata"].get("source_changes", []),
         "constraints": job["metadata"].get("taxonomy_settings") or {},
         "deterministic_validation": job["metadata"].get("validation") or {},
         "hints": job["metadata"].get("map_hints", []),

@@ -19,7 +19,7 @@ export function workflowTabs(flows, selected) {
 export function workflowDiagram(flow, selectedStep) {
   const diagram = diagrams[flow.id];
   return `<div class="workflow-heading"><div>
-    <h2><span>${diagram.number}</span> ${escapeHtml(flow.title)}</h2><p>${escapeHtml(flow.description)}</p></div>
+    <h2><span>${diagram.number}</span> ${escapeHtml(flow.title)}</h2>${flow.update ? `<aside class="workflow-source-update" aria-label="Source changes"><strong>Source changed · your work is saved</strong><button type="button" data-progress-step="${flow.update.next}" aria-haspopup="dialog">See what changed →</button></aside>` : `<p>${escapeHtml(flow.description)}</p>`}</div>
     <div class="workflow-heading-actions"><span class="workflow-status ${workflowState(flow)}">${statusLabels[workflowState(flow)]}</span>
     <button id="workflow-focus" type="button" class="secondary-button">Focus map</button></div></div>
     <div class="workflow-canvas" data-columns="${diagram.columns}" data-handoff="${diagram.handoff}"><svg class="workflow-edges" aria-hidden="true"></svg>
@@ -36,14 +36,19 @@ function nodeMarkup(item, index, selectedStep) {
     data-step="${item.id}" aria-pressed="${selectedStep === item.id}" aria-haspopup="dialog" aria-controls="workflow-step-dialog">
     <span class="workflow-node-top"><span class="workflow-number">${index + 1}</span>
     <strong>${escapeHtml(item.title)}</strong></span>
-    <span class="workflow-description">${escapeHtml(item.description)}</span>${activityMarkup(item)}
+    <span class="workflow-description">${escapeHtml(item.updateNote || item.description)}</span>${activityMarkup(item)}
     ${item.parallel ? parallelMarkup(item.stages) : ""}
-    <span class="workflow-count">${number(item.done)}${item.total == null ? "" : ` / ${number(item.total)}`} <small>${escapeHtml(item.unit)}</small></span>
+    <span class="workflow-count">${countMarkup(item)}</span>
     <span class="workflow-track" aria-hidden="true"><i style="width:${progress}%"></i></span>
     <span class="workflow-node-bottom"><span class="workflow-status ${item.status}">${item.activity?.label || statusLabels[item.status]}</span>
     ${item.reused ? `<small>${number(item.reused)} reused</small>` : ""}</span>
     ${cardError(item)}
     </button>${cardActions(item)}</article></li>`;
+}
+
+function countMarkup(item) {
+  if (item.saved != null) return `${number(item.saved)}${item.savedTotal > 1 ? ` / ${number(item.savedTotal)}` : ""} <small>saved ${escapeHtml(item.unit)}</small>`;
+  return `${number(item.done)}${item.total == null ? "" : ` / ${number(item.total)}`} <small>${item.freshness?.refresh ? "current " : ""}${escapeHtml(item.unit)}</small>`;
 }
 
 function cardError(item) {
@@ -72,7 +77,7 @@ function nextRunMarkup(item) {
 }
 
 function cardActions(item) {
-  if (item.plan) return `<div class="workflow-card-actions"><button type="button" data-configure-step="${item.id}" aria-haspopup="dialog" aria-controls="workflow-step-dialog">Configure</button><button type="button" data-run-step="${item.id}">Run step →</button></div>`;
+  if (item.plan) return `<div class="workflow-card-actions"><button type="button" data-configure-step="${item.id}" aria-haspopup="dialog" aria-controls="workflow-step-dialog">Configure</button><button type="button" data-run-step="${item.id}">${item.status === "refresh_needed" ? "Update step" : "Run step"} →</button></div>`;
   if (item.id === "scan") return '<div class="workflow-card-actions"><button type="button" data-run-scan>Refresh source scan</button></div>';
   if (["pattern_plan", "brief", "grounding"].includes(item.id)) return `<div class="workflow-card-actions"><button type="button" data-run-step="${item.id}">Run step →</button></div>`;
   return item.view ? `<div class="workflow-card-actions"><button type="button" data-workflow-view="${item.view}">Explore results →</button></div>` : "";
@@ -100,10 +105,11 @@ export function workflowDetail(item) {
   const jobs = item.jobs;
   return `<div class="workflow-detail-heading"><div><p class="eyebrow">Selected step</p>
     <h3>${escapeHtml(item.title)}</h3></div><span class="workflow-status ${item.status}">${statusLabels[item.status]}</span></div>
-    <p class="workflow-count">${number(item.done)}${item.total == null ? "" : ` / ${number(item.total)}`} <small>${escapeHtml(item.unit)}</small></p>
+    <p class="workflow-count">${countMarkup(item)}</p>
     ${activityMarkup(item)}
     ${activeWorkers(jobs.workers)}
     <p>${escapeHtml(item.detail || item.description)}</p>
+    ${savedProgressDetail(item)}
     ${nextRunMarkup(item)}
     ${item.jobs.models?.length ? `<p><strong>Recorded models:</strong> ${item.jobs.models.map(escapeHtml).join(", ")}</p>` : ""}
     ${item.reused ? `<p>${number(item.reused)} current results were reused from an earlier scan.</p>` : ""}
@@ -111,6 +117,19 @@ export function workflowDetail(item) {
     ${(item.poolErrors || []).map(error => `<p class="workflow-error"><strong>${escapeHtml(error.provider)} · ${escapeHtml(error.model)} unavailable</strong><br>${escapeHtml(error.error)}</p>`).join("")}
     ${(jobs.errors || []).map(error => `<p class="workflow-error"><strong>${error.status === "retry" ? "Retry pending" : "Recorded failure"} · ${escapeHtml(error.scope_key)}</strong><br>${escapeHtml(error.error)}</p>`).join("")}
     ${item.view ? `<button type="button" class="secondary-button" data-workflow-view="${item.view}">Explore ${item.view === "overview" ? "the Charter" : item.view === "fresh-eyes" ? "review results" : item.view} →</button>` : ""}`;
+}
+
+function savedProgressDetail(item) {
+  const counts = item.freshness, previous = item.previous;
+  let detail = "";
+  if (item.reusePending) detail += `<p class="workflow-saved-progress">${number(item.saved)} file results remain saved from scan ${number(item.reusePending)}. The new scan has not checked their reuse yet. Updating the workflow first checks which results are still current.</p>`;
+  if (counts && (counts.refresh || counts.new)) {
+    detail += `<section class="workflow-saved-progress"><h4>What needs updating</h4><p>${number(counts.current)} current · ${number(counts.refresh)} saved results need refresh · ${number(counts.new)} have no saved result.</p><p>${item.id === "context" ? "Context can change when a file’s neighbours, interfaces or dependency links change, even if the file itself is untouched." : "Only missing descriptions and those whose source or analysis requirements changed need to run."}</p><ul>${(item.affected || []).map(row => `<li><code>${escapeHtml(row.path)}</code><span>${row[item.id] === "new" ? "First run" : "Refresh saved result"}</span></li>`).join("")}</ul>${counts.refresh + counts.new > (item.affected || []).length ? "<p>Showing the first affected files; the totals include all files.</p>" : ""}</section>`;
+  }
+  if (previous) {
+    detail += `<section class="workflow-saved-progress"><h4>Saved work from the earlier source</h4><p>1 proposal · ${number(previous.reviews)} / ${number(previous.required_reviews)} review passes saved${previous.failed_reviews ? ` · ${number(previous.failed_reviews)} failed` : ""}.</p>${item.saved != null ? `<p>For the current source: ${number(item.done)} / ${number(item.total)} ${escapeHtml(item.unit)} ready. Earlier results have not been counted as current.</p>` : ""}<p>Scan ${number(previous.snapshot_id)}${previous.commit_sha ? ` · commit ${escapeHtml(previous.commit_sha.slice(0, 7))}` : ""}. ${escapeHtml([previous.proposal_model, ...(previous.review_models || [])].filter(Boolean).join(" · "))}</p><p>Refresh the affected file evidence first. Small changes reuse the saved proposal; changed evidence is reviewed again. A new proposal is needed only when the map’s responsibilities or policy have changed substantially.</p>${previous.error ? `<details><summary>Earlier review failure</summary><p class="workflow-error">${escapeHtml(previous.error)}</p></details>` : ""}</section>`;
+  }
+  return detail;
 }
 
 function activeWorkers(workers = []) {

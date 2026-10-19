@@ -1,7 +1,10 @@
 // Display saved coverage separately from the jobs that produced it.
+import { applySavedProgress } from "/assets/workflow-freshness.js";
+
 export const statusLabels = {
   complete: "Complete", running: "Running", queued: "Queued", failed: "Needs attention",
   interrupted: "Worker stopped", waiting: "Waiting", not_started: "Not run", skipped: "Not enabled",
+  refresh_needed: "Needs update",
 };
 
 export function jobFacts(data, kind, scope) {
@@ -30,7 +33,7 @@ export function step(id, title, description, options = {}) {
 }
 
 export function flowState(steps) {
-  return ["running", "failed", "interrupted", "queued", "waiting"]
+  return ["running", "failed", "interrupted", "refresh_needed", "queued", "waiting"]
     .find(status => steps.some(item => item.status === status))
     || (steps.every(item => ["complete", "skipped"].includes(item.status)) ? "complete" : "not_started");
 }
@@ -41,6 +44,7 @@ export function workflowState(flow) {
 
 export function buildFlows(data, files = 0, startingStep = null) {
   const flows = [mappingFlow(data, files), patternFlow(data), freshFlow(data)];
+  flows.forEach(flow => applySavedProgress(flow, data));
   flows.forEach(flow => flow.steps.forEach(item => {
     item.plan = data.settings?.steps[item.id];
     item.mode = data.settings?.modes[item.id];
