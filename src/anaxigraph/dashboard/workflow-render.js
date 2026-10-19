@@ -98,27 +98,34 @@ function modelName(name) {
 
 export function workflowDetail(item) {
   const jobs = item.jobs;
-  const hasUsage = jobs.input_tokens != null;
-  const telemetry = hasUsage ? `<dl class="workflow-facts">
+  return `<div class="workflow-detail-heading"><div><p class="eyebrow">Selected step</p>
+    <h3>${escapeHtml(item.title)}</h3></div><span class="workflow-status ${item.status}">${statusLabels[item.status]}</span></div>
+    <p class="workflow-count">${number(item.done)}${item.total == null ? "" : ` / ${number(item.total)}`} <small>${escapeHtml(item.unit)}</small></p>
+    ${activityMarkup(item)}
+    ${activeWorkers(jobs.workers)}
+    <p>${escapeHtml(item.detail || item.description)}</p>
+    ${nextRunMarkup(item)}
+    ${item.jobs.models?.length ? `<p><strong>Recorded models:</strong> ${item.jobs.models.map(escapeHtml).join(", ")}</p>` : ""}
+    ${item.reused ? `<p>${number(item.reused)} current results were reused from an earlier scan.</p>` : ""}
+    ${jobTelemetry(jobs)}${stageDetails(item.stages)}
+    ${(item.poolErrors || []).map(error => `<p class="workflow-error"><strong>${escapeHtml(error.provider)} · ${escapeHtml(error.model)} unavailable</strong><br>${escapeHtml(error.error)}</p>`).join("")}
+    ${(jobs.errors || []).map(error => `<p class="workflow-error"><strong>${error.status === "retry" ? "Retry pending" : "Recorded failure"} · ${escapeHtml(error.scope_key)}</strong><br>${escapeHtml(error.error)}</p>`).join("")}
+    ${item.view ? `<button type="button" class="secondary-button" data-workflow-view="${item.view}">Explore ${item.view === "overview" ? "the Charter" : item.view === "fresh-eyes" ? "review results" : item.view} →</button>` : ""}`;
+}
+
+function activeWorkers(workers = []) {
+  return workers.filter(worker => worker.running > 0).map(worker => `<p class="workflow-active-worker">Running now: ${number(worker.running)} × ${escapeHtml(worker.executor_model || worker.executor_id || "worker")}</p>`).join("");
+}
+
+function jobTelemetry(jobs) {
+  if (jobs.input_tokens == null) return "";
+  return `<dl class="workflow-facts">
     <div><dt>Completed model jobs</dt><dd>${number(jobs.completed)}</dd></div>
     <div><dt>Running now</dt><dd>${number(jobs.running)}</dd></div>
     <div><dt>Input tokens</dt><dd>${number(jobs.input_tokens)}</dd></div>
     <div><dt>Output tokens</dt><dd>${number(jobs.output_tokens)}</dd></div>
     </dl><p class="muted">Job totals can include repeated work. File coverage above counts current saved descriptions.
-    ${jobs.token_counts_missing ? `${number(jobs.token_counts_missing)} completed jobs have unknown token usage.` : ""}</p>` : "";
-  return `<div class="workflow-detail-heading"><div><p class="eyebrow">Selected step</p>
-    <h3>${escapeHtml(item.title)}</h3></div><span class="workflow-status ${item.status}">${statusLabels[item.status]}</span></div>
-    <p class="workflow-count">${number(item.done)}${item.total == null ? "" : ` / ${number(item.total)}`} <small>${escapeHtml(item.unit)}</small></p>
-    ${activityMarkup(item)}
-    ${(item.jobs.workers || []).filter(worker => worker.running > 0).map(worker => `<p class="workflow-active-worker">Running now: ${number(worker.running)} × ${escapeHtml(worker.executor_model || worker.executor_id || "worker")}</p>`).join("")}
-    <p>${escapeHtml(item.detail || item.description)}</p>
-    ${nextRunMarkup(item)}
-    ${item.jobs.models?.length ? `<p><strong>Recorded models:</strong> ${item.jobs.models.map(escapeHtml).join(", ")}</p>` : ""}
-    ${item.reused ? `<p>${number(item.reused)} current results were reused from an earlier scan.</p>` : ""}
-    ${telemetry}${stageDetails(item.stages)}
-    ${(item.poolErrors || []).map(error => `<p class="workflow-error"><strong>${escapeHtml(error.provider)} · ${escapeHtml(error.model)} unavailable</strong><br>${escapeHtml(error.error)}</p>`).join("")}
-    ${(jobs.errors || []).map(error => `<p class="workflow-error"><strong>${error.status === "retry" ? "Retry pending" : "Recorded failure"} · ${escapeHtml(error.scope_key)}</strong><br>${escapeHtml(error.error)}</p>`).join("")}
-    ${item.view ? `<button type="button" class="secondary-button" data-workflow-view="${item.view}">Explore ${item.view === "overview" ? "the Charter" : item.view === "fresh-eyes" ? "review results" : item.view} →</button>` : ""}`;
+    ${jobs.token_counts_missing ? `${number(jobs.token_counts_missing)} completed jobs have unknown token usage.` : ""}</p>`;
 }
 
 function stageDetails(stages = []) {

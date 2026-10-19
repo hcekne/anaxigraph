@@ -255,14 +255,18 @@ function executionNote(available, unsupported) {
 function progressMessage(active, stale) {
   const semantic = data.semantic;
   const worker = semantic.worker || {};
-  const finishing = active && worker.step && !semantic.jobs?.running_live
-    && buildFlows(data).flatMap(flow => flow.steps).some(item => item.id === worker.step && item.status === "complete");
   return worker.error || (semantic.budget?.paused || worker.paused ? "Work is paused at the configured usage limit. Saved results remain available."
     : data.scan?.active ? `Source scan: ${data.scan.phase || data.scan.status} · ${data.scan.completed || 0} files processed.`
     : stale ? "These results belong to the saved scan. Refresh the source scan before running more analysis."
-      : finishing ? "All results for this step are saved. Finishing the run…"
+      : stepIsFinishing(active) ? "All results for this step are saved. Finishing the run…"
       : active ? `Work is running for ${selectedRepository()?.name || "this repository"}. Progress updates automatically.`
         : idleMessage(semantic));
+}
+
+function stepIsFinishing(active) {
+  const step = data.semantic.worker?.step;
+  return active && step && !data.semantic.jobs?.running_live
+    && buildFlows(data).flatMap(flow => flow.steps).some(item => item.id === step && item.status === "complete");
 }
 
 function idleMessage(semantic) {

@@ -141,14 +141,7 @@ export function stepDialogShell() {
 export function setupStepDialog() {
   const dialog = byId("workflow-step-dialog");
   byId("workflow-dialog-close").addEventListener("click", closeStepDialog);
-  dialog.addEventListener("keydown", event => {
-    if (event.key !== "Tab") return;
-    const controls = [...dialog.querySelectorAll("button, input, select, textarea, a[href], [tabindex]")]
-      .filter(control => !control.disabled && control.tabIndex >= 0 && control.getClientRects().length);
-    const first = controls[0], last = controls.at(-1);
-    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-  });
+  dialog.addEventListener("keydown", containDialogFocus);
   dialog.addEventListener("click", event => {
     if (event.target === dialog) {
       const box = dialog.getBoundingClientRect();
@@ -169,6 +162,15 @@ export function setupStepDialog() {
   dialog.addEventListener("close", () => {
     if (returnFocus) document.querySelector(returnFocus)?.focus({ preventScroll: true });
   });
+}
+
+function containDialogFocus(event) {
+  if (event.key !== "Tab") return;
+  const controls = [...event.currentTarget.querySelectorAll("button, input, select, textarea, a[href], [tabindex]")]
+    .filter(control => !control.disabled && control.tabIndex >= 0 && control.getClientRects().length);
+  const first = controls[0], last = controls.at(-1);
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
 }
 
 function selectPanel(panel) {
