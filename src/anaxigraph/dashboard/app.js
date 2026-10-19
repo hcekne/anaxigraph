@@ -40,7 +40,7 @@ import {
   renderSettings,
 } from "/assets/repository-view.js";
 import { setupWorkflowEvents } from "/assets/workflow-events.js";
-import { resetWorkflowsView, setupWorkflowsView } from "/assets/workflows-view.js";
+import { resetWorkflowsView, setupWorkflowsView, workflowRepositoryLoadFailed } from "/assets/workflows-view.js";
 
 async function load() {
   try {
@@ -61,6 +61,7 @@ async function load() {
     renderWorkflowGuide();
     await loadRepository();
   } catch (error) {
+    workflowRepositoryLoadFailed(error);
     toast(error.message, true);
   }
 }
@@ -111,6 +112,7 @@ async function loadRepository() {
     void reloadFindings();
   } catch (error) {
     if (token === state.repositoryLoadToken) {
+      workflowRepositoryLoadFailed(error);
       byId("snapshot-label").textContent = `Could not load the saved map: ${error.message}`;
       document.querySelector("main").setAttribute("aria-busy", "false");
       toast(error.message, true);

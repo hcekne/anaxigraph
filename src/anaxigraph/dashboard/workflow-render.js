@@ -10,7 +10,7 @@ const diagrams = {
 
 export function workflowTabs(flows, selected) {
   return flows.map(flow => `<button type="button" role="tab" id="workflow-tab-${flow.id}"
-    aria-selected="${flow.id === selected}" aria-controls="workflow-panel" data-flow="${flow.id}">
+    aria-selected="${flow.id === selected}" tabindex="${flow.id === selected ? 0 : -1}" aria-controls="workflow-panel" data-flow="${flow.id}">
     <span class="workflow-tab-number">${diagrams[flow.id].number}</span><span class="workflow-tab-copy">
     <strong>${escapeHtml(flow.name)}</strong><small>${statusLabels[workflowState(flow)]} · ${flow.steps.filter(item => item.status === "complete").length} / ${flow.steps.length} steps</small>
     </span><span class="workflow-tab-arrow" aria-hidden="true">→</span></button>`).join("");
@@ -143,7 +143,7 @@ export function drawWorkflowEdges(canvas) {
   const list = canvas.querySelector("ol");
   const nodes = [...list.children];
   const preferred = Number(canvas.dataset.columns);
-  const columns = canvas.clientWidth >= preferred * 210 ? preferred : canvas.clientWidth >= 520 ? 2 : 1;
+  const columns = canvas.clientWidth >= preferred * 174 + (preferred - 1) * 22 ? preferred : canvas.clientWidth >= 420 ? 2 : 1;
   list.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`;
   nodes.forEach((node, index) => {
     const row = Math.floor(index / columns);
