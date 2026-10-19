@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
+import re
 from importlib.resources import files as package_files
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 DASHBOARD_ASSETS = frozenset(
     {
@@ -52,17 +55,61 @@ DASHBOARD_ASSETS = frozenset(
 DASHBOARD = package_files("anaxigraph.dashboard")
 
 
+def _dashboard_responses() -> dict[str, Response]:
+    sources = {
+        name: DASHBOARD.joinpath(name).read_bytes()
+        for name in sorted({"index.html", *DASHBOARD_ASSETS})
+    }
+    digest = hashlib.sha256()
+    for name, content in sources.items():
+        digest.update(name.encode() + b"\0" + content + b"\0")
+    revision = digest.hexdigest()[:16]
+    imports = {
+        f"/assets/{name}": f"/assets/{name}?v={revision}"
+        for name in sources
+        if name.endswith(".js")
+    }
+    head = (
+        f'<meta name="anaxigraph-dashboard-build" content="{revision}" />'
+        f'<script type="importmap">{json.dumps({"imports": imports})}</script>'
+    ).encode()
+    media = {
+        "html": "text/html",
+        "js": "text/javascript",
+        "css": "text/css",
+        "svg": "image/svg+xml",
+    }
+    responses = {}
+    for name, content in sources.items():
+        if name.endswith((".html", ".js", ".css")):
+            content = re.sub(rb"(/assets/[\w.-]+)", rb"\1?v=" + revision.encode(), content)
+        if name == "index.html":
+            content = content.replace(b"<head>", b"<head>" + head, 1)
+        responses[name] = Response(
+            content,
+            media_type=media[name.rsplit(".", 1)[1]],
+            headers={
+                "Cache-Control": "no-cache, must-revalidate",
+                "X-AnaxiGraph-Dashboard": revision,
+            },
+        )
+    return responses
+
+
 def register_dashboard_routes(app: FastAPI) -> None:
+    # Capture one coherent build, including imported modules and nested stylesheets.
+    responses = _dashboard_responses()
+
     @app.get("/", response_class=HTMLResponse)
-    def dashboard_index() -> FileResponse:
-        return FileResponse(str(DASHBOARD.joinpath("index.html")))
+    def dashboard_index() -> Response:
+        return responses["index.html"]
 
     @app.get("/assets/{name}")
-    def dashboard_asset(name: str) -> FileResponse:
+    def dashboard_asset(name: str) -> Response:
         if name not in DASHBOARD_ASSETS:
             raise HTTPException(status_code=404, detail="Asset not found")
-        return FileResponse(str(DASHBOARD.joinpath(name)))
+        return responses[name]
 
     @app.api_route("/favicon.ico", methods=["GET", "HEAD"], include_in_schema=False)
-    def favicon() -> FileResponse:
-        return FileResponse(str(DASHBOARD.joinpath("favicon.svg")), media_type="image/svg+xml")
+    def favicon() -> Response:
+        return responses["favicon.svg"]
