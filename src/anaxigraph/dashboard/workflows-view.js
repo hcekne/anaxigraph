@@ -28,7 +28,7 @@ export function setupWorkflowsView() {
   document.addEventListener("click", handleClick);
   byId("workflow-run-form").addEventListener("submit", startWorkflow);
   setupStepDialog();
-  setupStepSettings(saveStepSettings, startStep, closeStepDialog);
+  setupStepSettings(saveStepSettings, startStep, closeStepDialog, render);
   byId("workflow-tabs").addEventListener("keydown", event => {
     if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
     event.preventDefault();

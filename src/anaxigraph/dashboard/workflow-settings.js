@@ -6,7 +6,7 @@ let editorStep = null;
 let editorData = null;
 let saving = false;
 
-export function setupStepSettings(save, run, saved) {
+export function setupStepSettings(save, run, saved, changed) {
   const editor = byId("workflow-step-settings");
   editor.addEventListener("input", rememberDraft);
   editor.addEventListener("change", event => {
@@ -20,7 +20,10 @@ export function setupStepSettings(save, run, saved) {
   });
   editor.addEventListener("click", event => {
     const action = event.target.closest("button")?.dataset.settingsAction;
-    if (action) editRows(action, event.target.closest("button").dataset.index);
+    if (action) {
+      editRows(action, event.target.closest("button").dataset.index);
+      changed();
+    }
   });
   editor.addEventListener("submit", async event => {
     event.preventDefault();

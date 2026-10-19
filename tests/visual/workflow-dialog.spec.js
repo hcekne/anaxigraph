@@ -47,6 +47,11 @@ test("configure another step while running, save it and preserve the active run 
   await expect(dialog).toBeVisible();
   await expect(dialog).toHaveAccessibleName("3. Add context");
   const scroll = await page.evaluate(() => scrollY);
+  await dialog.getByRole("button", { name: "Add model", exact: true }).click();
+  await expect(dialog.locator(".workflow-worker-row")).toHaveCount(2);
+  expect(await dialog.getByRole("button", { name: "Save & run step →", exact: true }).isDisabled()).toBe(true);
+  await dialog.getByRole("button", { name: "Remove model 2", exact: true }).click();
+  expect(await dialog.getByRole("button", { name: "Save & run step →", exact: true }).isDisabled()).toBe(true);
   const model = dialog.locator('[name="model"]');
   await expect(model).toBeEnabled();
   await model.selectOption("gpt-6.1-sol");
