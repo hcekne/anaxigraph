@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from dataclasses import replace
 from typing import Any
 
 from anaxigraph.agent_decision import architecture_decision
@@ -40,8 +41,10 @@ def architecture_guidance(
     config: AnaxiGraphConfig,
     intent: str = "build",
     focus: str = "",
+    details: bool = False,
 ) -> dict[str, Any]:
     started = time.perf_counter()
+    config = config if details else _compact_config(config)
     repository, snapshot_id, map_status = _repository_map_state(database, repository_id)
     with database.connect() as connection:
         evidence = _guidance_evidence(connection, repository_id, snapshot_id, goal, focus, config)
@@ -178,9 +181,9 @@ def _guidance_selection(
     config: AnaxiGraphConfig,
 ) -> tuple[list[int], set[int], dict[int, float]]:
     ranked = _rank_files(connection, snapshot_id, files, _guidance_query(goal, focus))
-    primary_ids = _select_primary(ranked, files, limit=min(8, config.agent.context_limit))
-    if not primary_ids and files:
-        primary_ids = [next(iter(files))]
+    primary_ids = _select_primary(
+        ranked, files, limit=min(8, config.agent.context_limit), goal=goal
+    )
     related_ids, related_scores = _expand_relevant(
         primary_ids,
         outgoing,
@@ -274,4 +277,13 @@ def impact_analysis(
         target=target,
         config=config,
         details=details,
+    )
+
+
+def _compact_config(config: AnaxiGraphConfig) -> AnaxiGraphConfig:
+    return replace(
+        config,
+        agent=replace(
+            config.agent, payload_limit_bytes=min(8_000, config.agent.payload_limit_bytes)
+        ),
     )

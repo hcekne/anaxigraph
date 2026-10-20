@@ -109,6 +109,7 @@ class AgentRoutes:
                 config=self.context.selected_config(row),
                 intent=request.intent,
                 focus=request.focus,
+                details=request.details,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc

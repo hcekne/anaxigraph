@@ -8,6 +8,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
+import anaxigraph.git as git
 from anaxigraph.bounded_export import bounded_export
 from anaxigraph.operational_health import operational_health
 
@@ -51,7 +52,19 @@ class OperationsRoutes:
             "repository_id": int(row["id"])
         }
 
-    def start_scan(self, repository_id: int | None = None) -> dict[str, Any]:
+    def start_scan(
+        self, repository_id: int | None = None, repository_path: str = ""
+    ) -> dict[str, Any]:
+        if repository_path:
+            target = self.context.target_for_path(Path(repository_path))
+            if target is None:
+                raise HTTPException(
+                    403, "This checkout is not a linked worktree of a registered repository"
+                )
+            config = self.context.config_loader(target.path, target.config_path)
+            repository_id = self.context.database.ensure_repository(
+                path=target.path, name=config.project_name, git=git.metadata(target.path)
+            )
         row, target = self._scan_target(repository_id)
         repository_id = int(row["id"])
         self.context.admit_operation(repository_id, "scan", hold=True)

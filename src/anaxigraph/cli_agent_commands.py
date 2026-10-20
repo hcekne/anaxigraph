@@ -47,6 +47,9 @@ def configure_agent_commands(commands: Any) -> None:
     guidance.add_argument(
         "--focus", default="", help="Optional file, area, or responsibility focus"
     )
+    guidance.add_argument(
+        "--details", action="store_true", help="Expand the guidance evidence budget"
+    )
     _add_service_url(guidance)
     guidance.set_defaults(handler=_guidance, db=None)
 
@@ -173,6 +176,7 @@ def _guidance(args: argparse.Namespace) -> dict[str, Any]:
                 goal=args.goal,
                 intent=args.intent,
                 focus=args.focus,
+                details=getattr(args, "details", False),
             ),
             service,
         )
@@ -184,6 +188,7 @@ def _guidance(args: argparse.Namespace) -> dict[str, Any]:
         config=config,
         intent=args.intent,
         focus=args.focus,
+        details=getattr(args, "details", False),
     )
 
 

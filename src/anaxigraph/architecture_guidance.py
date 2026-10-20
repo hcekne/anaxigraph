@@ -113,6 +113,7 @@ def _compact_recommendation(recommendation: dict[str, Any]) -> dict[str, Any]:
             "confidence",
             "reader_task",
             "verification",
+            "reasons_not_to_change",
         )
         if recommendation.get(key) not in (None, "", [])
     }
@@ -233,7 +234,11 @@ def _agent_journey(
             },
             {
                 "tool": "ANAXIGRAPH_GUIDE",
-                "arguments": {"intent": "reassess", "goal": goal},
+                "arguments": {
+                    "intent": "reassess",
+                    "goal": goal,
+                    "from_snapshot_id": context.get("snapshot_id"),
+                },
             },
         ],
     }

@@ -30,6 +30,7 @@ DASHBOARD_ASSETS = frozenset(
         "history-view.js",
         "journey-navigation.css",
         "module-events.js",
+        "module-loading.js",
         "module-view.js",
         "navigation.js",
         "overview-view.js",

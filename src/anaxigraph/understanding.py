@@ -95,8 +95,10 @@ class SemanticEngine:
         self,
         repository_id: int,
         semantic: SemanticConfig | None = None,
+        *,
+        snapshot_id: int | None = None,
     ) -> dict[str, Any]:
-        return self._services.reporting.status(repository_id, semantic)
+        return self._services.reporting.status(repository_id, semantic, snapshot_id=snapshot_id)
 
     def dossier(
         self,

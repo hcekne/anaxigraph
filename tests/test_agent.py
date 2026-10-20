@@ -24,6 +24,7 @@ def test_architecture_guidance_is_bounded_and_includes_tests_protection_and_rule
     stats = RepositoryScanner(database).scan(repository)
     value = architecture_guidance(
         database,
+        details=True,
         repository_id=stats.repository_id,
         goal="Change the Calculator calculation behavior",
         config=load_config(repository),
@@ -95,6 +96,7 @@ def test_architecture_guidance_uses_parser_backed_typescript_contracts(repositor
 
     value = architecture_guidance(
         database,
+        details=True,
         repository_id=stats.repository_id,
         goal="Change the App component label behavior",
         config=load_config(repository),
@@ -119,6 +121,7 @@ def test_refactor_guidance_is_distinct_and_does_not_invent_a_change(repository, 
     config = load_config(repository)
     build = architecture_guidance(
         database,
+        details=True,
         repository_id=stats.repository_id,
         goal="Improve Calculator structure",
         config=config,
@@ -126,6 +129,7 @@ def test_refactor_guidance_is_distinct_and_does_not_invent_a_change(repository, 
     )
     refactor = architecture_guidance(
         database,
+        details=True,
         repository_id=stats.repository_id,
         goal="Improve Calculator structure",
         config=config,
@@ -184,6 +188,7 @@ def test_architecture_guidance_follows_a_declared_area_and_subsystem(repository,
 
     value = architecture_guidance(
         database,
+        details=True,
         repository_id=stats.repository_id,
         goal="Change Calculator behavior",
         config=load_config(repository),
@@ -224,6 +229,7 @@ def test_architecture_guidance_prefers_the_roadmap_document_for_a_roadmap_goal(
 
     value = architecture_guidance(
         database,
+        details=True,
         repository_id=stats.repository_id,
         goal="Narrow the remaining roadmap to core features in the development plan",
         config=load_config(repository),
@@ -242,6 +248,7 @@ def test_architecture_guidance_prefers_a_test_for_an_explicit_test_goal(reposito
 
     value = architecture_guidance(
         database,
+        details=True,
         repository_id=stats.repository_id,
         goal="Change the Calculator test behavior",
         config=load_config(repository),
@@ -282,6 +289,7 @@ def test_architecture_guidance_places_a_concept_level_architecture_verification_
 
     value = architecture_guidance(
         database,
+        details=True,
         repository_id=stats.repository_id,
         goal=(
             "Verify whether a code change improved the repository structure without making "
@@ -400,6 +408,7 @@ def test_architecture_guidance_refreshes_findings_after_structural_harm(reposito
     second_scan = RepositoryScanner(database).scan(repository)
     after = architecture_guidance(
         database,
+        details=True,
         repository_id=second_scan.repository_id,
         goal="Change the double arithmetic helper",
         config=config,
@@ -429,6 +438,7 @@ def test_architecture_guidance_trims_optional_context_to_the_configured_wire_bud
 
     value = architecture_guidance(
         database,
+        details=True,
         repository_id=stats.repository_id,
         goal="Change Calculator behavior and its web presentation dependencies",
         config=config,

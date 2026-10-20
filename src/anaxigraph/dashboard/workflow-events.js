@@ -193,6 +193,7 @@ async function pollScan(button) {
 }
 
 function setupAgentEvents() {
+  byId("copy-agent-directions").addEventListener("click", copyAgentDirections);
   byId("scope-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     try {
@@ -228,6 +229,25 @@ function setupAgentEvents() {
     }
   });
   byId("agent-result").addEventListener("click", copyAgentPrompt);
+}
+
+async function copyAgentDirections() {
+  if (!byId("scope-form").reportValidity()) return;
+  const snapshot = state.overview?.snapshot?.id;
+  const prompt = [
+    `Repository checkout: ${selectedRepository()?.path || "current checkout"}`,
+    `My goal and design direction: ${byId("scope-goal").value.trim()}`,
+    `Focus: ${byId("scope-focus").value.trim() || "Use the existing owner and extension points."}`,
+    "Use ANAXIGRAPH_GUIDE for this goal, then inspect the suggested source and ANAXIGRAPH_IMPACT for dependencies and relevant tests.",
+    "Propose the smallest coherent change. Explain how it preserves the stated boundaries and examples. Implement it, run the relevant behavior checks, and show me the result for refinement.",
+    `Rescan after editing and reassess with from_snapshot_id=${snapshot || "the pre-edit snapshot ID"}. Separate code facts, AI interpretation and proposed actions.`,
+  ].join("\n\n");
+  try {
+    await navigator.clipboard.writeText(prompt);
+    toast("Directions copied. Paste them into your coding agent and refine the result together.");
+  } catch (_) {
+    toast("Clipboard access is unavailable; use the goal and design direction above in your coding agent.", true);
+  }
 }
 
 async function copyAgentPrompt(event) {

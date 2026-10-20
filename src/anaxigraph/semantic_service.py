@@ -13,11 +13,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from anaxigraph import git
-from anaxigraph.config import SemanticConfig, load_config, semantic_config_from_mapping
+from anaxigraph import git as git
+from anaxigraph.config import SemanticConfig, semantic_config_from_mapping
 from anaxigraph.onboarding_clients import validate_mcp_url
 from anaxigraph.pattern_candidate_query import PatternCandidateQuery
 from anaxigraph.pattern_query import PatternEvaluationQuery
+from anaxigraph.service_checkout import matching_checkouts as _matching_rows
+from anaxigraph.service_checkout import register_worktree
 
 DEFAULT_SERVICE_URL = "http://127.0.0.1:8765"
 FRESH_EYES_START_TIMEOUT_SECONDS = 120.0
@@ -32,6 +34,7 @@ class SemanticServiceTarget:
     repository_path: str
     config_authority: dict[str, Any] = field(default_factory=dict)
     semantic_policy: dict[str, Any] = field(default_factory=dict)
+    requested_checkout: str = ""
 
     @property
     def mcp_url(self) -> str:
@@ -50,6 +53,7 @@ class SemanticServiceTarget:
             "repository_id": self.repository_id,
             "repository_name": self.repository_name,
             "repository_path": self.repository_path,
+            "requested_checkout": self.requested_checkout or self.repository_path,
             "config_authority": self.config_authority,
             "semantic_policy": self.semantic_policy,
         }
@@ -79,7 +83,7 @@ def discover_semantic_service(
     configured = explicit_url or os.environ.get("ANAXIGRAPH_SERVICE_URL")
     base_url = _base_url(configured or DEFAULT_SERVICE_URL)
     rows = _service_inventory(base_url, timeout, required=bool(configured))
-    return _matching_target(repository, base_url, rows, required=bool(configured))
+    return _matching_target(repository, base_url, rows, required=bool(configured), timeout=timeout)
 
 
 def _service_inventory(
@@ -108,10 +112,22 @@ def _matching_target(
     rows: list[dict[str, Any]] | None,
     *,
     required: bool,
+    timeout: float = 2.0,
 ) -> SemanticServiceTarget | None:
     if rows is None:
         return None
     matches = _matching_rows(repository.expanduser().resolve(), rows)
+    if rows and (
+        not matches
+        or any(
+            row.get("current_snapshot_id") is None
+            for row in matches
+            if "current_snapshot_id" in row
+        )
+    ):
+        registered = register_worktree(repository, base_url, _request_json, timeout)
+        if registered is not None:
+            matches = _matching_rows(repository.expanduser().resolve(), registered)
     if len(matches) == 1:
         row = matches[0]
         return SemanticServiceTarget(
@@ -121,6 +137,7 @@ def _matching_target(
             repository_path=str(row.get("path") or ""),
             config_authority=dict(row.get("config_authority") or {}),
             semantic_policy=dict(row.get("semantic_policy") or {}),
+            requested_checkout=str(repository.expanduser().resolve()),
         )
     if len(matches) > 1:
         identifiers = ", ".join(str(row.get("id")) for row in matches)
@@ -128,7 +145,9 @@ def _matching_target(
             f"Service {base_url} has multiple indexes for this Git identity ({identifiers})"
         )
     if required:
-        raise ValueError(f"Service {base_url} does not index {repository.expanduser().resolve()}")
+        raise ValueError(
+            f"Service {base_url} does not index the requested checkout {repository.expanduser().resolve()}; register or mount this exact worktree, or use its local per-checkout index with --db."
+        )
     return None
 
 
@@ -210,6 +229,7 @@ def service_architecture_guidance(
     goal: str,
     intent: str = "build",
     focus: str = "",
+    details: bool = False,
     timeout: float = 30,
 ) -> dict[str, Any]:
     return _service_agent_request(
@@ -219,6 +239,7 @@ def service_architecture_guidance(
             "goal": goal,
             "intent": intent,
             "focus": focus,
+            "details": details,
             "repository_id": target.repository_id,
         },
         timeout=timeout,
@@ -377,47 +398,6 @@ def _service_pattern_projection(
     if not isinstance(value, dict):
         raise ValueError("AnaxiGraph service returned an invalid pattern projection")
     return value
-
-
-def _matching_rows(repository: Path, rows: list[Any]) -> list[dict[str, Any]]:
-    candidates = [row for row in rows if isinstance(row, dict) and row.get("id") is not None]
-    direct = [
-        row
-        for row in candidates
-        if row.get("path") and Path(str(row["path"])).expanduser().resolve() == repository
-    ]
-    if direct:
-        return direct
-    local_remote = _canonical_remote(git.metadata(repository).remote_url)
-    if local_remote:
-        remote = [
-            row
-            for row in candidates
-            if _canonical_remote(str(row.get("remote_url") or "")) == local_remote
-        ]
-        if remote:
-            return remote
-    project_name = str(load_config(repository).project_name or "").strip().casefold()
-    named = [
-        row for row in candidates if str(row.get("name") or "").strip().casefold() == project_name
-    ]
-    return named if project_name else []
-
-
-def _canonical_remote(value: str | None) -> str:
-    raw = str(value or "").strip()
-    if not raw:
-        return ""
-    if "://" not in raw and "@" in raw and ":" in raw:
-        user_host, path = raw.split(":", 1)
-        host = user_host.rsplit("@", 1)[-1]
-        raw = f"ssh://{host}/{path}"
-    parsed = urllib.parse.urlsplit(raw)
-    if parsed.scheme:
-        host = (parsed.hostname or "").casefold()
-        path = parsed.path
-        return f"{host}/{path.strip('/').removesuffix('.git')}".casefold()
-    return raw.rstrip("/").removesuffix(".git").casefold()
 
 
 def _base_url(value: str) -> str:

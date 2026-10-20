@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 
 class GuidanceRequest(BaseModel):
+    details: bool = False
     goal: str = Field(min_length=2, max_length=2_000)
     intent: Literal["build", "improve", "refactor"] = "build"
     focus: str = Field(default="", max_length=1_000)

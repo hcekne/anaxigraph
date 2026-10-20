@@ -374,7 +374,11 @@ async def test_rest_and_existing_mcp_guide_share_reassessment_contract(repositor
                     await session.initialize()
                     response = await session.call_tool(
                         "ANAXIGRAPH_GUIDE",
-                        arguments={"reassess": True, "from_snapshot_id": first.snapshot_id},
+                        arguments={
+                            "reassess": True,
+                            "from_snapshot_id": first.snapshot_id,
+                            "details": True,
+                        },
                     )
                     assert response.isError is False
                     mcp = response.structuredContent

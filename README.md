@@ -44,6 +44,10 @@ AnaxiGraph does not hand out a magic architecture score and does not edit the an
 It keeps facts read from code, AI-created interpretations, and recommendations distinct so that
 beginners can read a plain-language conclusion and experts can inspect the evidence behind it.
 
+Give the agent your outcome, examples, boundaries and design preferences, then inspect and refine
+the result together. The [directed development loop](docs/working-with-agents.md) shows how to
+find ownership, check dependencies and tests, and compare each edit against an explicit baseline.
+
 ## 🚀 Start in four steps
 
 You need Git, Python 3.11+, and [`uv`](https://docs.astral.sh/uv/).

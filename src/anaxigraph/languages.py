@@ -92,6 +92,11 @@ def detect_language(path: str) -> str | None:
 
 def artifact_type(path: str, language: str) -> str:
     normalized = path.lower()
+    parts = PurePosixPath(normalized).parts
+    if language in {"json", "csv", "xml", "text"} and (
+        "benchmark" in parts or "benchmarks" in parts or "benchmark-results" in parts
+    ):
+        return "measurement"
     if any(part in normalized for part in ("/tests/", "/test/")) or normalized.startswith(
         ("tests/", "test/")
     ):

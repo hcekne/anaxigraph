@@ -28,6 +28,7 @@ import {
 } from "/assets/graph-model.js";
 import { refreshHistoryData, renderHistory, stopHistoryPlayback } from "/assets/history-controller.js";
 import { setupModuleEvents } from "/assets/module-events.js";
+import { loadRemainingModules } from "/assets/module-loading.js";
 import { renderModuleFilters, renderModules } from "/assets/module-view.js";
 import { renderNavigation } from "/assets/navigation.js";
 import { renderOverview, scheduleSemanticPoll, selectedHierarchy } from "/assets/overview-view.js";
@@ -85,7 +86,7 @@ async function loadRepository() {
     displaySnapshot(overview.snapshot);
     renderOverview();
     const [modules, graph, semanticStatus] = await Promise.all([
-      request(api("/api/modules")),
+      request(api("/api/modules", { compact: true })),
       request(api("/api/graph", {
         node_limit: 1000, edge_limit: 2000, area: "", map_layer: state.mapLayer,
       })),
@@ -107,7 +108,8 @@ async function loadRepository() {
     renderGraphRegionBrowser();
     renderAllViews();
     document.querySelector("main").setAttribute("aria-busy", "false");
-    void refreshHistoryData();
+    void loadRemainingModules(token);
+    void refreshHistoryData().then(() => { if (token === state.repositoryLoadToken) renderReassessment(); });
     void refreshReassessment(token);
     void reloadFindings();
   } catch (error) {
@@ -133,16 +135,20 @@ function showSelectedRepository() {
     : "This repository is indexed but is not mounted as this server's scan target";
 }
 
-async function refreshReassessment(token) {
-  const value = await loadReassessment();
+const comparisonBaselines = new Map();
+
+async function refreshReassessment(token, fromSnapshot) {
+  const repositoryId = state.repositoryId;
+  if (fromSnapshot !== undefined) comparisonBaselines.set(repositoryId, fromSnapshot);
+  const value = await loadReassessment(comparisonBaselines.get(repositoryId));
   if (token !== state.repositoryLoadToken) return;
   state.reassessment = value;
   renderReassessment();
 }
 
-async function loadReassessment() {
+async function loadReassessment(fromSnapshot = null) {
   try {
-    return await request(api("/api/reassessment"));
+    return await request(api("/api/reassessment", fromSnapshot ? { from_snapshot_id: fromSnapshot } : {}));
   } catch (error) {
     return {
       state: "unavailable",
@@ -155,6 +161,10 @@ async function loadReassessment() {
     };
   }
 }
+
+document.addEventListener("anaxigraph-reassessment-baseline", event => {
+  void refreshReassessment(state.repositoryLoadToken, event.detail);
+});
 
 function resetRepositoryState() {
   state.moduleDetails.clear();

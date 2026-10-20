@@ -112,6 +112,12 @@ export function renderModules() {
     ? `${format.format(items.length)} of ${format.format(state.modules.length)} files`
     : `${format.format(items.length)} source or test files · ${format.format(hidden)} reference files hidden`;
   byId("module-page-label").textContent = `Page ${state.modulePage} of ${pages}`;
+  if (state.modules.length < Number(state.overview?.files || 0)) {
+    byId("module-result-count").textContent += ` · ${format.format(state.modules.length)} of ${format.format(state.overview.files)} indexed files loaded; more loading`;
+  }
+  if (state.moduleSearchQuery && state.moduleSearchResults?.length >= 250) {
+    byId("module-result-count").textContent += " · first 250 search matches; narrow the query for more specific results";
+  }
   byId("module-previous").disabled = state.modulePage <= 1;
   byId("module-next").disabled = state.modulePage >= pages;
   document.querySelectorAll("[data-module-sort]").forEach((button) => {
@@ -180,6 +186,7 @@ function attentionMarkup(evaluation) {
 }
 
 function moduleDetailRow(item) {
+  item = { ...item, ...(state.moduleDetails.get(item.path)?.file || {}) };
   const evaluation = item.evaluation || {};
   const candidates = item.semantic?.pattern_opportunities?.length
     ? item.semantic.pattern_opportunities

@@ -90,7 +90,9 @@ async def _mcp_guide(database, repository, arguments: dict[str, Any]) -> Any:
             ) as (read_stream, write_stream, _):
                 async with ClientSession(read_stream, write_stream) as session:
                     await session.initialize()
-                    return await session.call_tool("ANAXIGRAPH_GUIDE", arguments=arguments)
+                    return await session.call_tool(
+                        "ANAXIGRAPH_GUIDE", arguments={"details": True, **arguments}
+                    )
 
 
 def _cli_fresh_eyes(repository, database, capsys, *flags: str) -> dict[str, Any]:
@@ -122,6 +124,12 @@ async def test_dashboard_cli_contract_and_mcp_share_one_fresh_eyes_result(
     response = await _mcp_guide(database, repository, {"fresh_eyes": True})
     assert response.isError is False
     mcp = response.structuredContent
+    brief = await _mcp_guide(database, repository, {"fresh_eyes": True, "details": False})
+    summary = brief.structuredContent
+    assert summary["review_goal"] == goal
+    assert summary["review_generation"] == mcp["review_generation"]
+    assert summary["ready"] is True
+    assert len(json.dumps(summary, ensure_ascii=False, separators=(",", ":")).encode()) <= 8000
     assert mcp["review_goal"] == rest["review_goal"] == goal
     assert _cli_fresh_eyes(repository, database, capsys)["review_goal"] == goal
 

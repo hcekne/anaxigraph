@@ -228,8 +228,8 @@ function freshFlow(data) {
         detail: "Resolved references show that cited code exists. They do not prove a recommendation correct or behaviour verified.", view: "fresh-eyes",
       }),
       step("suggestions", "Explore the suggestions", "Read evidence, trade-offs and the smallest proposed change.", {
-        owner: "You + AnaxiGraph", done: ready ? fresh.recommendations?.length || 0 : 0,
-        total: ready ? fresh.recommendations?.length || 0 : null, unit: "suggestions", zeroComplete: ready,
+        owner: "You + AnaxiGraph", done: ready ? fresh.recommendation_count ?? fresh.recommendations?.length ?? 0 : 0,
+        total: ready ? fresh.recommendation_count ?? fresh.recommendations?.length ?? 0 : null, unit: "suggestions", zeroComplete: ready,
         detail: fresh.next_action || "Suggestions are saved for review; this workflow does not change source files.", view: "fresh-eyes",
       }),
     ] };

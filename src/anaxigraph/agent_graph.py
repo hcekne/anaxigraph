@@ -18,7 +18,7 @@ from anaxigraph.agent_graph_read import (
 )
 from anaxigraph.agent_graph_read import _public_interfaces as _public_interfaces
 from anaxigraph.agent_graph_read import _symbols as _symbols
-from anaxigraph.agent_lexicon import WORD_PATTERN
+from anaxigraph.agent_lexicon import WORD_PATTERN, goal_artifact_type
 from anaxigraph.agent_scope_evidence import (
     _applicable_findings as _applicable_findings,
 )
@@ -76,7 +76,16 @@ def _select_primary(
     files: dict[int, dict[str, Any]],
     *,
     limit: int,
+    goal: str = "",
 ) -> list[int]:
+    preferred = goal_artifact_type(goal)
+    kinds = {preferred} if preferred else {"source", "asset"}
+    ranked = [
+        (score, identifier)
+        for score, identifier in ranked
+        if files[identifier].get("artifact_type", "source") in kinds
+        or files[identifier]["path"].casefold() in goal.casefold()
+    ]
     focused = _semantic_primary(ranked, files, limit=limit)
     if focused:
         return focused

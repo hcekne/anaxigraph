@@ -97,9 +97,11 @@ class RepositoryRoutes:
         snapshot_id: int | None = None,
         limit: int = Query(default=250, ge=1, le=1_000),
         offset: int = Query(default=0, ge=0),
+        compact: bool = False,
     ) -> list[dict[str, Any]]:
         row = self.context.selected_repository(repository_id)
-        return self.database.modules(int(row["id"]), snapshot_id, limit=limit, offset=offset)
+        items = self.database.modules(int(row["id"]), snapshot_id, limit=limit, offset=offset)
+        return [_compact_module(item) for item in items] if compact else items
 
     def correct_charter(self, request: api_support.CharterCorrectionRequest) -> dict[str, Any]:
         row = self.context.selected_repository(request.repository_id)
@@ -169,3 +171,39 @@ class RepositoryRoutes:
 def _repository_order(row: dict[str, Any], target_order: dict[str, int]) -> tuple[int, int]:
     path = str(Path(row["path"]).resolve())
     return (0, target_order[path]) if path in target_order else (1, 0)
+
+
+def _compact_module(item: dict[str, Any]) -> dict[str, Any]:
+    excluded = {
+        "canonical_path",
+        "first_seen_commit",
+        "artifact_version_id",
+        "raw_hash",
+        "structural_hash",
+        "public_interfaces",
+        "active_findings",
+        "responsibilities",
+        "first_seen_at",
+        "last_changed_at",
+    }
+    result = {key: value for key, value in item.items() if key not in excluded}
+    result["semantic"] = {
+        key: value
+        for key, value in (item.get("semantic") or {}).items()
+        if key in {"status", "pattern_opportunities", "confidence"}
+    }
+    result["evaluation"] = {
+        key: value
+        for key, value in (item.get("evaluation") or {}).items()
+        if key
+        in {
+            "monitored_by_default",
+            "attention_score",
+            "attention_label",
+            "attention_guidance",
+            "attention_reasons",
+            "pattern_candidates",
+        }
+    }
+    result["details_available"] = True
+    return result

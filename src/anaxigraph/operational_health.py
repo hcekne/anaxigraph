@@ -40,12 +40,14 @@ def served_map_status(root: Path, snapshot: Mapping[str, Any]) -> dict[str, Any]
             "working_tree_fingerprint": metadata.get("working_tree_fingerprint"),
         },
         "checkout": {
+            **git.checkout_identity(root),
             "commit_sha": checkout.commit_sha,
             "branch": checkout.branch,
             "dirty": checkout.dirty,
             "working_tree_fingerprint": checkout.working_tree_fingerprint,
         },
         "service_version": _service_version(),
+        "analysis_kind": "structural",
         "plain_language": _map_language(state, reason),
     }
 

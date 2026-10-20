@@ -49,6 +49,43 @@ def has_commits(root: Path) -> bool:
     return result.returncode == 0
 
 
+def checkout_identity(root: Path) -> dict[str, str | bool]:
+    """Identify a checkout independently of its branch or current commit."""
+    result = _run(
+        root,
+        "rev-parse",
+        "--path-format=absolute",
+        "--show-toplevel",
+        "--git-common-dir",
+        "--git-dir",
+        check=False,
+    )
+    values = result.stdout.strip().splitlines()
+    if result.returncode or len(values) != 3:
+        return {"path": str(root.resolve()), "worktree_key": "unversioned", "is_worktree": False}
+    checkout, common, directory = (Path(value).resolve() for value in values)
+    key = directory.relative_to(common).as_posix()
+    return {
+        "path": str(checkout),
+        "common_git_dir": str(common),
+        "worktree_key": key,
+        "is_worktree": directory != common,
+    }
+
+
+def worktrees(root: Path) -> tuple[Path, ...]:
+    result = _run(root, "worktree", "list", "--porcelain", "-z", check=False)
+    return (
+        tuple(
+            Path(field.removeprefix("worktree ")).resolve()
+            for field in result.stdout.split("\0")
+            if field.startswith("worktree ") and Path(field.removeprefix("worktree ")).is_dir()
+        )
+        if not result.returncode
+        else ()
+    )
+
+
 def metadata(root: Path, *, revision: str | None = None) -> GitMetadata:
     if not is_repository(root):
         return GitMetadata(

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from anaxigraph.analysis_freshness import analysis_freshness
 from anaxigraph.semantic_config_port import SemanticConfig
 from anaxigraph.semantic_index_port import SemanticIndex
 from anaxigraph.semantic_records import _document_by_id
@@ -30,6 +31,11 @@ _PROGRESS_KEYS = (
     "preparing",
     "index",
     "config_authority",
+    "analysis_freshness",
+    "total_modules",
+    "excluded",
+    "coverage",
+    "count_scope",
 )
 
 
@@ -57,14 +63,16 @@ def compact_semantic_status(status: dict[str, Any]) -> dict[str, Any]:
     result["map_status"] = {
         key: value
         for key, value in (status.get("map_status") or {}).items()
-        if key in {"state", "safe_to_plan", "scan_recommended"}
+        if key
+        in {"state", "safe_to_plan", "scan_recommended", "checkout", "mapped", "analysis_kind"}
     }
     policy = status.get("semantic_policy") or {}
     result["semantic_policy"] = _kept(policy, _POLICY_KEYS)
     # A caller reading compact status should see that the pattern stage was skipped rather
     # than infer from a coverage number that everything ran.
     result["patterns"] = _kept(
-        status.get("patterns") or {}, ("enabled", "ready", "pending", "failed")
+        status.get("patterns") or {},
+        ("enabled", "ready", "planned", "selected", "finalized", "pending", "failed"),
     )
     result["parallel_jobs_limit"] = policy.get(
         "max_parallel_jobs", status.get("parallel_jobs_limit")
@@ -99,8 +107,18 @@ class SemanticReportingService:
     def __init__(self, database: SemanticIndex) -> None:
         self._database = database
 
-    def status(self, repository_id: int, semantic: SemanticConfig | None = None) -> dict[str, Any]:
-        snapshot = self._database.latest_snapshot(repository_id)
+    def status(
+        self,
+        repository_id: int,
+        semantic: SemanticConfig | None = None,
+        *,
+        snapshot_id: int | None = None,
+    ) -> dict[str, Any]:
+        snapshot = (
+            self._database.latest_snapshot(repository_id)
+            if snapshot_id is None
+            else self._database.resolve_snapshot(repository_id, snapshot_id)
+        )
         configured = bool(semantic and semantic.enabled)
         if snapshot is None:
             result = {
@@ -126,7 +144,18 @@ class SemanticReportingService:
                 snapshot_id,
                 semantic.timeout_seconds if semantic else None,
             )
-        return semantic_status_payload(snapshot_id, semantic, rows)
+        result = semantic_status_payload(snapshot_id, semantic, rows)
+        repository = self._database.repository(repository_id)
+        result["analysis_freshness"] = analysis_freshness(
+            result, dict(snapshot), str(repository["path"])
+        )
+        result["count_scope"] = {
+            "snapshot_id": snapshot_id,
+            "modules": "saved module scope states",
+            "eligible": "total_modules minus excluded; current, pending and failed partition eligible_modules",
+            "patterns": "candidate-target pairs, including poor fits; not unique files or only recommendations",
+        }
+        return result
 
     def dossier(
         self, repository_id: int, path: str, snapshot_id: int | None = None

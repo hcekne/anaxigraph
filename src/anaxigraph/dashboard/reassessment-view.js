@@ -13,6 +13,10 @@ export function setupReassessmentView() {
   article.id = "architecture-reassessment";
   article.className = "panel reassessment-panel";
   byId("view-history").prepend(article);
+  article.addEventListener("change", event => {
+    if (event.target.id !== "reassessment-baseline") return;
+    document.dispatchEvent(new CustomEvent("anaxigraph-reassessment-baseline", { detail: Number(event.target.value) || null }));
+  });
   renderReassessment();
 }
 
@@ -33,6 +37,7 @@ export function renderReassessment() {
     </div>${stateBadge(value.state)}</div>
     ${snapshotComparison(value)}
     ${refreshScope(value.semantic_refresh || {})}
+    <p>${value.architectural_effects?.length || 0} returned effects of ${value.counts?.total ?? value.architectural_effects?.length ?? 0} total; counts include all supported effects in this comparison.</p>
     <div class="reassessment-effects">${effectCards(value.architectural_effects || [])}</div>
     ${safeConclusion(value)}`;
 }
@@ -60,11 +65,23 @@ function snapshotComparison(value) {
   const changed = Number(value.evidence_work?.changed_modules || 0);
   const affected = Number(value.evidence_work?.affected_context_modules || 0);
   return `<div class="reassessment-comparison">
-    <span><strong>${escapeHtml(shortCommit(baseline))}</strong><small>Earlier saved map</small></span>
-    <i>→</i><span><strong>${escapeHtml(shortCommit(target))}</strong><small>Current saved map</small></span>
+    <span><strong>Map #${baseline.id} · ${escapeHtml(shortCommit(baseline))}</strong><small>${escapeHtml(snapshotDetail(baseline))}</small></span>
+    <i>→</i><span><strong>Map #${target.id} · ${escapeHtml(shortCommit(target))}</strong><small>${escapeHtml(snapshotDetail(target))}</small></span>
     <span><strong>${format.format(changed)}</strong><small>Changed files</small></span>
     <span><strong>${format.format(affected)}</strong><small>Bounded context files</small></span>
-  </div>`;
+  </div><p>Checkout: <code>${escapeHtml(target.checkout_path || "unknown")}</code></p>
+    <p>Baseline selection: <strong>${escapeHtml(humanize(value.baseline_selection || "automatic"))}</strong>. ${value.baseline_selection === "requested" ? "This baseline stays pinned across refreshes." : "Automatic selection follows compatible saved lineage to the last architectural change. Pin a map to compare implementation phases."}</p>
+    ${baselineSelector(value)}`;
+}
+
+function snapshotDetail(snapshot) {
+  return `${snapshot.branch || "unknown branch"} · ${snapshot.analysis_timestamp || "unknown scan time"}${snapshot.dirty ? " · uncommitted content " + String(snapshot.content_fingerprint || "").slice(0, 10) : ""}`;
+}
+
+function baselineSelector(value) {
+  const candidates = [value.baseline_snapshot, ...(state.snapshots || [])];
+  const unique = [...new Map(candidates.filter(item => item && item.id <= value.target_snapshot.id).map(item => [item.id, item])).values()];
+  return `<label>Compare from <select id="reassessment-baseline"><option value="">Automatic compatible baseline</option>${unique.map(item => `<option value="${item.id}" ${value.baseline_selection === "requested" && item.id === value.baseline_snapshot.id ? "selected" : ""}>Map #${item.id} · ${escapeHtml(shortCommit(item))} · ${escapeHtml(item.analysis_timestamp || "")}</option>`).join("")}</select></label>`;
 }
 
 function shortCommit(snapshot) {
@@ -101,7 +118,7 @@ function effectCards(effects) {
       <p>The compatible maps do not justify a structural rewrite. Keep the design coherent and
       check behavior instead.</p></div>`;
   }
-  return effects.slice(0, 10).map(effectCard).join("");
+  return effects.slice(0, 5).map(effectCard).join("") + (effects.length > 5 ? `<details><summary>${effects.length - 5} more returned effects</summary>${effects.slice(5).map(effectCard).join("")}</details>` : "");
 }
 
 function effectCard(effect) {

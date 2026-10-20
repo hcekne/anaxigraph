@@ -97,7 +97,11 @@ async def test_all_three_workflows_run_and_keep_optional_policy_unchanged(
             reviewed = await run(client, "fresh-eyes")
             assert reviewed["fresh_eyes"]["ready"] is True
             assert len(reviewed["fresh_eyes"]["proposals"]) == 2
-            assert reviewed["fresh_eyes"]["strategy"]["recommendations"]
+            assert reviewed["fresh_eyes"]["recommendation_count"] > 0
+            assert "strategy" not in reviewed["fresh_eyes"]
+            detailed = (await client.get("/api/workflows", params={"details": True})).json()
+            assert detailed["fresh_eyes"]["strategy"]["recommendations"]
+            assert reviewed["semantic"]["analysis_freshness"]["fresh_eyes"]["current"]
             assert all(
                 item["provenance"]["executor_model"] == "fixture-model"
                 for item in reviewed["fresh_eyes"]["stages"]

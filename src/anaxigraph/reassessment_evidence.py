@@ -6,6 +6,7 @@ import json
 import sqlite3
 from typing import Any, Mapping
 
+from anaxigraph.languages import artifact_type
 from anaxigraph.persistence.snapshot_catalog import resolve_snapshot
 from anaxigraph.persistence.temporal_reads import snapshot_files, snapshot_relationship_edges
 from anaxigraph.reassessment_lineage import compatible_baselines, requested_baseline
@@ -93,8 +94,8 @@ def _comparison_packet(
     return {
         "contract_version": REASSESSMENT_EVIDENCE_VERSION,
         "repository_id": repository_id,
-        "baseline_snapshot": _snapshot_identity(baseline),
-        "target_snapshot": _snapshot_identity(target),
+        "baseline_snapshot": _checkout_snapshot(connection, baseline),
+        "target_snapshot": _checkout_snapshot(connection, target),
         "baseline_selection": "requested" if requested else "last_compatible_lineage",
         "module_changes": changes,
         "relationship_changes": _relationship_changes(before["edges"], after["edges"]),
@@ -141,6 +142,7 @@ def _snapshot_identity(row: Mapping[str, Any]) -> dict[str, Any]:
         key: row[key]
         for key in (
             "id",
+            "repository_id",
             "commit_sha",
             "parent_commit_sha",
             "branch",
@@ -151,6 +153,13 @@ def _snapshot_identity(row: Mapping[str, Any]) -> dict[str, Any]:
             "content_fingerprint",
         )
     }
+
+
+def _checkout_snapshot(connection: sqlite3.Connection, row: Mapping[str, Any]) -> dict[str, Any]:
+    repository = connection.execute(
+        "SELECT path FROM repositories WHERE id = ?", (row["repository_id"],)
+    ).fetchone()
+    return {**_snapshot_identity(row), "checkout_path": repository["path"] if repository else None}
 
 
 def _snapshot_state(connection: sqlite3.Connection, snapshot_id: int) -> dict[str, Any]:
@@ -246,6 +255,9 @@ def _module_side(item: dict[str, Any] | None) -> dict[str, Any] | None:
     value = semantic.get("value") or {}
     return {
         "path": item.get("path"),
+        "artifact_type": artifact_type(
+            str(item.get("path") or ""), str(item.get("language") or "")
+        ),
         "language": item.get("language"),
         "raw_hash": item.get("raw_hash"),
         "structural_hash": item.get("structural_hash"),

@@ -227,13 +227,24 @@ def _bound_scope_payload(payload: dict[str, Any], limit_bytes: int) -> dict[str,
     def size() -> int:
         return _response_payload_bytes(payload)
 
+    payload["result_counts"] = {
+        key: {"total": len(payload[key]), "shown": len(payload[key])}
+        for key in ("primary_files", "related_files", "interfaces", "known_findings", "tests")
+    }
+    limit -= 32  # Reserve the final byte-count fields and omission counters.
+    if limit <= 8_000 and size() > limit:
+        _prefer_brief_guidance(payload)
     _trim_scope_collections(payload, size, limit, omitted)
     _compact_optional_scope(payload, size, limit, omitted)
     _compact_scope_file_details(payload, size, limit, omitted)
     _minimize_task_path(payload, size, limit, omitted)
     _compact_rule_identities(payload, size, limit, omitted)
     _minimize_legacy_decision(payload, size, limit, omitted)
-    payload["payload_budget"]["truncated"] = any(omitted.values())
+    payload["payload_budget"]["truncated"] = any(omitted.values()) or bool(
+        payload.get("details_available")
+    )
+    for key, count in payload["result_counts"].items():
+        count["shown"] = len(payload[key])
     for _attempt in range(4):
         measured = size()
         telemetry = payload.get("telemetry")
@@ -245,6 +256,32 @@ def _bound_scope_payload(payload: dict[str, Any], limit_bytes: int) -> dict[str,
         if previous == measured and previous_telemetry == measured:
             break
     return payload
+
+
+def _prefer_brief_guidance(payload: dict[str, Any]) -> None:
+    compact_guidance_projection(payload)
+    decision = payload.get("architecture_decision") or {}
+    payload["architecture_decision"] = {
+        "contract_version": decision.get("contract_version"),
+        "snapshot_id": decision.get("snapshot_id"),
+        "status": decision.get("status"),
+        "task_path": compact_task_path(decision.get("task_path"), route_only=True),
+    }
+    fields = {"path", "artifact_type", "group", "summary", "language", "fan_in", "fan_out"}
+    for key in ("primary_files", "related_files", "protected_files"):
+        payload[key] = [
+            {
+                field: str(value)[:180] if field == "summary" else value
+                for field, value in item.items()
+                if field in fields
+            }
+            for item in payload[key][:5]
+        ]
+    payload["known_findings"] = [_compact_finding(item) for item in payload["known_findings"][:5]]
+    payload["details_available"] = {
+        "details": True,
+        "message": "Request details=true for expanded architecture evidence.",
+    }
 
 
 def _trim_scope_collections(
@@ -275,6 +312,20 @@ def _trim_scope_collections(
             if len(summary) > 120:
                 item["summary"] = summary[:117].rstrip() + "..."
                 omitted["summaries_compacted"] += 1
+
+
+def _compact_finding(item: dict[str, Any]) -> dict[str, Any]:
+    result = {
+        key: value
+        for key, value in item.items()
+        if key in {"id", "finding_type", "severity", "priority_score", "summary", "plain_language"}
+    }
+    result["summary"] = str(result.get("summary") or "")[:180]
+    language = result.get("plain_language") or {}
+    result["plain_language"] = {
+        key: str(language[key])[:180] for key in ("version", "what", "why") if key in language
+    }
+    return result
 
 
 def _compact_scope_file_details(
@@ -410,6 +461,7 @@ def _is_protected(path: str, config: AnaxiGraphConfig) -> bool:
 def _file_summary(item: dict[str, Any]) -> dict[str, Any]:
     result = {
         "path": item["path"],
+        "artifact_type": item.get("artifact_type", "source"),
         "language": item["language"],
         "summary": item["summary"],
         "lines_of_code": item["lines_of_code"],

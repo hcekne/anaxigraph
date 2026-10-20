@@ -22,6 +22,8 @@ def requested_baseline(
     row = resolve_snapshot(connection, repository_id, requested)
     if row is None:
         raise ValueError("comparison snapshot does not belong to the selected repository")
+    if int(row["id"]) > int(target["id"]):
+        raise ValueError("comparison baseline must precede the target snapshot")
     _require_compatible(row, target)
     return row
 

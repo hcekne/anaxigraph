@@ -16,6 +16,10 @@ from anaxigraph.persistence.workflow_read import workflow_coverage
 from anaxigraph.semantic_pattern_plan import SemanticPatternPlanner
 from anaxigraph.understanding import SemanticEngine
 from anaxigraph.workflow_execution import WorkflowExecution, validate_proposal_settings
+from anaxigraph.workflow_progress import (
+    compact_workflow_semantic,
+    fresh_review_progress,
+)
 from anaxigraph.workflow_settings import (
     FLOW_STEPS,
     SOFTWARE_STEPS,
@@ -52,14 +56,14 @@ class WorkflowRoutes:
         self.router.add_api_route("/api/workflows/run", self.run, methods=["POST"])
         self.router.add_api_route("/api/workflows/settings", self.save_settings, methods=["PUT"])
 
-    def status(self, repository_id: int | None = None) -> dict[str, Any]:
+    def status(self, repository_id: int | None = None, details: bool = False) -> dict[str, Any]:
         row = self.context.selected_repository(repository_id)
         config = self.context.selected_config(row)
         snapshot = self.context.database.latest_snapshot(int(row["id"]))
         result = {
             "repository_id": row["id"],
             "snapshot_id": snapshot["id"] if snapshot else None,
-            **self._read_progress(row, config, snapshot),
+            **self._read_progress(row, config, snapshot, details=details),
             "scan": self.context.scan_coordinator.status_for(Path(row["path"])),
             "settings": self.settings.read(
                 int(row["id"]),
@@ -80,16 +84,26 @@ class WorkflowRoutes:
             )
         return result
 
-    def _read_progress(self, row: Any, config: Any, snapshot: Any) -> dict[str, Any]:
+    def _read_progress(
+        self, row: Any, config: Any, snapshot: Any, *, details: bool = False
+    ) -> dict[str, Any]:
         """Re-read across a run transition so completion cannot precede its saved counts."""
         for _ in range(2):
             worker = self.context.semantic_refresh.status_for(Path(row["path"]))
             semantic = SemanticRoutes(self.context).status(int(row["id"]))
-            fresh = SemanticEngine(self.context.database).fresh_eyes_status(
-                int(row["id"]), config.semantic
-            )
             with self.context.database.connect() as connection:
                 coverage = workflow_coverage(connection, int(snapshot["id"])) if snapshot else {}
+                fresh = (
+                    fresh_review_progress(connection, int(row["id"]), int(snapshot["id"]), semantic)
+                    if snapshot
+                    else {"state": "not_started", "ready": False}
+                )
+            if details:
+                fresh = SemanticEngine(self.context.database).fresh_eyes_status(
+                    int(row["id"]), config.semantic
+                )
+            else:
+                semantic = compact_workflow_semantic(semantic)
             semantic["worker"] = worker
             if worker == self.context.semantic_refresh.status_for(Path(row["path"])):
                 break

@@ -153,7 +153,8 @@ def _module_effects(evidence: dict[str, Any]) -> list[dict[str, Any]]:
     for change in evidence.get("module_changes") or []:
         before = change.get("before")
         after = change.get("after")
-        if before is None or after is None:
+        kind = (after or before or {}).get("artifact_type")
+        if before is None or after is None or kind in {"documentation", "measurement"}:
             result.append(_presence_effect(change))
             continue
         result.extend(_metric_effects(change, before, after))
@@ -174,32 +175,35 @@ def _module_effects(evidence: dict[str, Any]) -> list[dict[str, Any]]:
 def _presence_effect(change: dict[str, Any]) -> dict[str, Any]:
     added = change.get("change") == "added"
     path = str(change.get("path") or "module")
+    kind = (change.get("after") or change.get("before") or {}).get("artifact_type", "source")
+    supporting = kind in {"documentation", "measurement"}
+    check = "Check supporting content, references, measurement methods and comparison baselines."
     return _effect(
         category="responsibility",
-        classification="introduced" if added else "removed",
+        classification="supporting_change" if supporting else "changed" if added else "removed",
         subject=path,
-        observation=f"{path} was {'added to' if added else 'removed from'} the repository map.",
-        consequence=(
-            "A new file now owns behavior or support work and needs an explicit place in the current responsibility map."
-            if added
-            else "A previous responsibility or support path left the current system."
-        ),
-        recommendation=(
+        observation=f"{path}: {change.get('change')} {kind} in the saved map.",
+        consequence="File presence identifies ownership or supporting material; it alone does not establish an architectural regression.",
+        recommendation=check
+        if supporting
+        else (
             "Confirm the file has one clear responsibility and follows an existing extension point."
             if added
-            else "Confirm callers, configuration, runtime registration, and focused tests no longer require it."
+            else "Confirm callers, configuration, runtime registration and tests no longer require it."
         ),
         confidence=0.9,
-        basis="saved file presence",
+        basis="saved file role and presence",
         counter_evidence=[
-            "Generated or vendored files can appear without representing a new product responsibility."
+            "Supporting, generated or vendored files can change without adding executable responsibility."
         ],
         reasons_to_leave_alone=[
-            "Keep the change if it is the smallest coherent owner of the behavior."
+            "Keep the smallest coherent owner of behavior or supporting evidence."
         ],
-        follow_up=f"Inspect {path} with its direct callers and tests.",
-        verification="Refresh the map after focused checks and confirm no unresolved internal references were introduced.",
-        evidence=[{"kind": "module", "reference": path, "detail": str(change.get("change"))}],
+        follow_up=check if supporting else f"Inspect {path} with its direct callers and tests.",
+        verification="Check content and explicitly recorded consumers."
+        if supporting
+        else "Run focused checks and confirm no unresolved internal references were introduced.",
+        evidence=[{"kind": "artifact", "reference": path, "detail": kind}],
     )
 
 

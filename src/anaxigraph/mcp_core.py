@@ -6,12 +6,11 @@ from pathlib import Path
 from typing import Any
 
 from anaxigraph.agent import architecture_guidance, impact_analysis
+from anaxigraph.agent_response import small_agent_response
 from anaxigraph.architecture_charter import architecture_charter
 from anaxigraph.architecture_guidance import AGENT_JOURNEY_VERSION, agent_journey_manifest
 from anaxigraph.architecture_reassessment import architecture_reassessment
-from anaxigraph.config import load_config
-from anaxigraph.config_authority import effective_semantic_policy, service_config_authority
-from anaxigraph.operational_health import served_map_status
+from anaxigraph.mcp_context import McpToolContext as McpToolContext
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic_fresh_eyes_executors import parse_proposal_executors
 from anaxigraph.semantic_mcp import current_semantic_status
@@ -19,60 +18,6 @@ from anaxigraph.semantic_scan_refresh import semantic_refresh_after_scan
 from anaxigraph.understanding import SemanticEngine
 
 _GUIDE_JOURNEYS = frozenset({"understand", "build", "improve", "refactor", "redesign", "reassess"})
-
-
-class McpToolContext:
-    def __init__(
-        self,
-        database: Any,
-        repository: Path | None,
-        config_path: Path | None,
-        repository_targets: tuple[Any, ...],
-    ) -> None:
-        self.database = database
-        self.repository = repository
-        self.config_path = config_path
-        self.targets_by_path = {str(target.path.resolve()): target for target in repository_targets}
-
-    def visible_repositories(self) -> list[dict[str, Any]]:
-        rows = self.database.repositories()
-        if self.targets_by_path:
-            rows = [row for row in rows if str(Path(row["path"]).resolve()) in self.targets_by_path]
-        return rows
-
-    def select(self, selector: str = "") -> tuple[dict[str, Any], Path]:
-        if selector:
-            row = self.database.repository(int(selector) if selector.isdigit() else selector)
-        else:
-            row = (
-                self.database.repository(self.repository)
-                if self.repository
-                else self.database.repository()
-            )
-        if row is None:
-            raise ValueError("No analyzed repository is configured. Run anaxigraph scan first.")
-        if self.targets_by_path and str(Path(row["path"]).resolve()) not in self.targets_by_path:
-            raise ValueError("Repository is not in the active AnaxiGraph registry.")
-        return row, Path(row["path"])
-
-    def config_for(self, row: dict[str, Any], root: Path) -> Any:
-        target = self.targets_by_path.get(str(root.resolve()))
-        return load_config(root, target.config_path if target else self.config_path)
-
-    def semantic_config_contract(
-        self, row: dict[str, Any], root: Path, config: Any
-    ) -> dict[str, Any]:
-        target = self.targets_by_path.get(str(root.resolve()))
-        return {
-            "config_authority": service_config_authority(root, target, config),
-            "semantic_policy": effective_semantic_policy(config.semantic),
-        }
-
-    def map_status(self, row: dict[str, Any], root: Path) -> dict[str, Any]:
-        snapshot = self.database.latest_snapshot(int(row["id"]))
-        if snapshot is None:
-            raise ValueError("Repository has not been scanned")
-        return served_map_status(root, snapshot)
 
 
 class CoreMcpTools:
@@ -146,6 +91,7 @@ class CoreMcpTools:
         )
 
     def repositories(self) -> dict[str, Any]:
+        rows = self.context.visible_repositories()
         targets = self.context.targets_by_path
         return {
             "contract_version": "anaxigraph-agent-tools-v2",
@@ -159,7 +105,7 @@ class CoreMcpTools:
                     "scannable": str(Path(row["path"]).resolve()) in targets,
                     "map_status": self.context.map_status(row, Path(row["path"])),
                 }
-                for row in self.context.visible_repositories()
+                for row in rows
             ],
         }
 
@@ -209,34 +155,40 @@ class CoreMcpTools:
         compare_with: int | None = None,
         reassess: bool = False,
         from_snapshot_id: int | None = None,
+        details: bool = False,
     ) -> dict[str, Any]:
         row, root = self.context.select(repository)
         config = self.context.config_for(row, root)
         selected, redesign, compare = _guide_selection(intent, fresh_eyes, reassess)
         if selected == "understand":
-            return self._understand_journey(repository)
+            return _guide_response(self._understand_journey(repository), details)
         if redesign:
-            return self._redesign_journey(
-                row,
-                root,
-                config,
-                goal,
-                start,
-                proposal_count,
-                retry_failed,
-                restart,
-                generation,
-                compare_with,
-                wait=wait,
-                proposal_executors=proposal_executors,
-                unpin=unpin,
+            return _guide_response(
+                self._redesign_journey(
+                    row,
+                    root,
+                    config,
+                    goal,
+                    start,
+                    proposal_count,
+                    retry_failed,
+                    restart,
+                    generation,
+                    compare_with,
+                    wait=wait,
+                    proposal_executors=proposal_executors,
+                    unpin=unpin,
+                ),
+                details,
             )
         if compare:
-            return self._reassess_journey(row, config, goal, from_snapshot_id)
-        return self._build_journey(row, config, goal, intent, focus)
+            return _guide_response(
+                self._reassess_journey(row, config, goal, from_snapshot_id), details
+            )
+        return self._build_journey(row, config, goal, intent, focus, details=details)
 
     def _build_journey(
-        self, row: Any, config: Any, goal: str, intent: str, focus: str
+        self, row: Any, config: Any, goal: str, intent: str, focus: str, *, details: bool = False
     ) -> dict[str, Any]:
         """Answer where to build or how to improve, from the current architecture evidence."""
 
@@ -249,6 +201,7 @@ class CoreMcpTools:
             config=config,
             intent=intent,
             focus=focus,
+            details=details,
         )
 
     def _redesign_journey(
@@ -429,3 +382,7 @@ def _journey_result(result: dict[str, Any], intent: str, goal: str) -> dict[str,
             "next_action": next_action,
         },
     }
+
+
+def _guide_response(value: dict[str, Any], details: bool) -> dict[str, Any]:
+    return value if details else small_agent_response(value)

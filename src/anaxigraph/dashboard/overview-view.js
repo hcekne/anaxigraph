@@ -36,7 +36,7 @@ export function renderOverview() {
     ["Code links matched to files", graphQuality.resolution_rate == null
       ? "No internal refs" : `${(graphQuality.resolution_rate * 100).toFixed(1)}%`],
     ["Decision branches per file (average)", Number(value.average_complexity || 0).toFixed(1)],
-    ["Active findings", findingCount],
+    ["Active findings (including diagnostics)", findingCount],
     ["Files with current AI descriptions", semantic.enabled === false ? "Off"
       : semantic.coverage == null ? "Not started" : `${(semantic.coverage * 100).toFixed(1)}%`],
     ["Line coverage", value.coverage?.line_coverage == null
@@ -172,6 +172,7 @@ export function semanticProviderLabel(document = {}) {
 }
 
 function renderSemanticNotice(semantic) {
+  renderAnalysisFreshness(semantic);
   const notice = byId("semantic-notice");
   const repository = selectedRepository();
   const running = semanticWorkIsActive(semantic);
@@ -193,6 +194,20 @@ function renderSemanticNotice(semantic) {
     ${semanticStatusList("What to do", language.what_to_do)}
     <div class="coverage-next">${(language.how_to_read_progress || []).map((item) => `<p>${escapeHtml(item)}</p>`).join("")}</div>
     </div>${action}</div>`;
+}
+
+function renderAnalysisFreshness(semantic) {
+  let element = byId("analysis-freshness");
+  if (!element) {
+    element = document.createElement("p");
+    element.id = "analysis-freshness";
+    byId("semantic-notice").before(element);
+  }
+  const freshness = semantic.analysis_freshness || {};
+  const structural = state.overview?.map_status?.state || "indexed";
+  const labels = [["Structural scan", structural], ["AI mapping", freshness.ai_mapping?.state || "not_started"], ["Patterns", freshness.patterns?.state || "not_started"], ["Fresh Eyes", freshness.fresh_eyes?.state || "not_started"]];
+  element.textContent = `Map #${semantic.snapshot_id || state.overview?.snapshot?.id || "—"}: ` + labels.map(([label, value]) => `${label}: ${humanize(value)}`).join(" · ");
+  element.title = "AI, pattern and Fresh Eyes states refer to this saved map. Structural scan freshness compares it with the current checkout.";
 }
 
 function semanticStatusList(title, values = []) {

@@ -238,11 +238,26 @@ def _freshness(
     ).fetchone()
     return {
         "previous_semantic_snapshot_id": prior,
+        "fresh_eyes_plan": _fresh_eyes_plan(connection, repository_id, snapshot_id),
+        "previous_pattern_snapshot_id": connection.execute(
+            "SELECT MAX(snapshot_id) FROM semantic_scope_states WHERE repository_id = ? AND snapshot_id < ? AND scope_type = 'pattern_plan' AND status = 'current'",
+            (repository_id, snapshot_id),
+        ).fetchone()[0],
         "reuse_checked": bool(reused["prepared"]),
         "intrinsic_reused": int(reused["intrinsic_reused"]),
         "context_reused": int(reused["context_reused"]),
         "meaning": "Reuse counts are saved document reuse, not predictions of unchanged file content.",
     }
+
+
+def _fresh_eyes_plan(
+    connection: sqlite3.Connection, repository_id: int, snapshot_id: int
+) -> str | None:
+    row = connection.execute(
+        "SELECT status, snapshot_id FROM semantic_scope_states WHERE repository_id = ? AND snapshot_id <= ? AND scope_type = 'fresh_eyes' AND scope_key = 'plan' ORDER BY snapshot_id DESC LIMIT 1",
+        (repository_id, snapshot_id),
+    ).fetchone()
+    return (str(row["status"]) if row["snapshot_id"] == snapshot_id else "stale") if row else None
 
 
 def _taxonomy(connection: sqlite3.Connection, snapshot_id: int) -> dict[str, Any] | None:

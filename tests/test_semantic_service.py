@@ -28,7 +28,12 @@ from anaxigraph.semantic_service import (
 def test_service_discovery_matches_git_identity_across_container_paths(repository, monkeypatch):
     monkeypatch.setattr(
         "anaxigraph.semantic_service.git.metadata",
-        lambda _root: SimpleNamespace(remote_url="git@github.com:Example/Project.git"),
+        lambda _root: SimpleNamespace(
+            remote_url="git@github.com:Example/Project.git",
+            commit_sha="abc",
+            branch="main",
+            working_tree_fingerprint="files",
+        ),
     )
     monkeypatch.setattr(
         "anaxigraph.semantic_service._request_json",
@@ -37,6 +42,14 @@ def test_service_discovery_matches_git_identity_across_container_paths(repositor
                 "id": 7,
                 "name": "Project",
                 "path": "/repo",
+                "map_status": {
+                    "checkout": {
+                        "worktree_key": ".",
+                        "commit_sha": "abc",
+                        "branch": "main",
+                        "working_tree_fingerprint": "files",
+                    }
+                },
                 "remote_url": "https://github.com/example/project.git",
                 "config_authority": {
                     "registry_key": "project",
@@ -59,6 +72,7 @@ def test_service_discovery_matches_git_identity_across_container_paths(repositor
         repository_id=7,
         repository_name="Project",
         repository_path="/repo",
+        requested_checkout=str(repository),
         config_authority={
             "registry_key": "project",
             "service_config_path": "/repo/.anaxigraph.yml",
@@ -185,6 +199,7 @@ def test_service_guidance_sends_repository_goal_intent_and_focus(monkeypatch):
             "goal": "Measure semantic work",
             "intent": "build",
             "focus": "",
+            "details": False,
             "repository_id": 4,
         },
     }

@@ -25,38 +25,38 @@ real-container tests established the reported synchronization improvement.
   each batch immediately, reuse completed batches after interruption and retry failed batches
   individually. Show completed/total batches, active workers and elapsed time, followed by a
   clearly labelled final reconciliation phase that combines findings into one reviewed map.
-- [ ] **P1 — Enforce small agent responses by default.** This is repeated feedback, not a new
+- [x] **P1 — Enforce small agent responses by default.** This is repeated feedback, not a new
   request. Impact and guidance must lead with bounded findings, dependencies and relevant tests;
   expose details on request and avoid duplicating full JSON in text and structured content.
-- [ ] **P1 — Recognize Git worktrees automatically.** Select or register the exact checkout
+- [x] **P1 — Recognize Git worktrees automatically.** Select or register the exact checkout
   rather than silently using a sibling checkout's shared service. Show checkout path, branch,
   indexed commit and current commit prominently, with an actionable mismatch explanation.
-- [ ] **P1 — Improve recommendation relevance.** Distinguish implementation code, tests,
+- [x] **P1 — Improve recommendation relevance.** Distinguish implementation code, tests,
   documentation, configuration and measurement artifacts. Documentation must not become an
   implementation entry point by default, and benchmark JSON must not produce caller-inspection
   advice or an architectural-regression claim merely because it was added.
-- [ ] **P1 — Separate freshness indicators.** Report structural scan freshness independently
+- [x] **P1 — Separate freshness indicators.** Report structural scan freshness independently
   from AI descriptions, pattern evaluations and Fresh Eyes. Every “current” label must identify
   the checkout, commit/snapshot and analysis it describes.
-- [ ] **P1 — Make counts agree.** Summary totals, filtered lists and deeper results must share
+- [x] **P1 — Make counts agree.** Summary totals, filtered lists and deeper results must share
   an explicit scope and unit (files, symbols, candidate–target pairs or findings). Explain
   exclusions and pagination instead of presenting conflicting totals.
-- [ ] **P1 — Make reassessment baselines explicit.** Retain and display the exact before/after
+- [x] **P1 — Make reassessment baselines explicit.** Retain and display the exact before/after
   checkout, commits and snapshot IDs across several implementation phases; never silently compare
   a later phase with an unexpected baseline.
-- [ ] **P2 — Demonstrate architectural coherence.** Show how current ownership, existing
+- [x] **P2 — Demonstrate architectural coherence.** Show how current ownership, existing
   extension points, explicit boundaries, pattern evidence and post-change reassessment keep a
   concrete change cohesive. Separate observed facts, AI interpretation and proposed action.
-- [ ] **P2 — Make direct agent interaction central.** Help people give agents specific goals,
+- [x] **P2 — Make direct agent interaction central.** Help people give agents specific goals,
   ideas, taste and design direction, then inspect and refine the resulting work. Treat the
   hypothesis that ideas and taste are the bottleneck as a product hypothesis to test, not a
   measured claim about agent judgment or productivity.
-- [ ] **P2 — Protect the useful core workflow.** Keep “where does this behavior live, what
+- [x] **P2 — Protect the useful core workflow.** Keep “where does this behavior live, what
   depends on it, and which tests matter?” easy to answer. Assess architectural recommendations
   against source evidence before claiming that they improve code quality or delivery speed.
 
-Work starts on P0, followed by the repeated response-size issue. The remaining items stay visible
-until their acceptance evidence is recorded here.
+All usage-feedback items are complete. Acceptance below distinguishes automated behavior checks
+from live-provider and product-outcome evaluation.
 
 **First repair acceptance (20 October):** `test_pattern_workflow_resume.py` reproduces stalled
 assessments and reviews when a cached plan points at retired jobs. Planning now repairs those
@@ -76,8 +76,50 @@ The repeated output-size item has a concrete first fix: impact responses show up
 per list within an 8 KB default budget (or the repository's smaller budget), preserve full counts,
 and offer `details=true` / CLI `--details`. MCP impact and guidance retain a short text summary
 beside structured content instead of repeating the JSON. A regression fixture with long AI
-descriptions exceeds 100 KB in full-detail mode and stays below 8 KB by default. Other response
-types remain on the queue for a broader audit.
+descriptions exceeds 100 KB in full-detail mode and stays below 8 KB by default. The completion acceptance below covers guidance, other MCP Guide journeys and dashboard polling.
+
+**Completion acceptance (20 October):** `test_usage_feedback.py` exercises automatic registration
+and scanning of a real Git worktree created after the service starts, rejects a sibling clone,
+keeps source ownership ahead of documentation, distinguishes benchmark measurements, and follows
+an owner → dependencies/tests → two-phase edit → pinned-baseline reassessment loop. Historical
+reassessment reads the selected target's AI state and rejects a future baseline. Snapshot IDs,
+checkout paths, branch, commit and uncommitted content identities make the comparison repeatable.
+
+Guidance now defaults to 8 KB, with CLI/REST/MCP detail opt-in and explicit collection counts.
+Other MCP Guide journeys also produce bounded summaries while retaining review goals, generation,
+readiness, identity and recommendations. Full-detail CLI/REST/MCP parity remains covered. Independent
+structural, AI mapping, pattern and Fresh Eyes indicators name the saved snapshot and checkout;
+compact semantic status retains those identities. Supporting documents and measurement artifacts
+do not produce executable-regression claims solely through their presence.
+
+The dashboard loads every file page in the background, labels partial inventories and search
+caps, and counts snapshot-specific findings rather than mixing current findings into historical
+overviews. Compact inventory pages retain table data and fetch file detail on demand. Workflow
+polling reads current Fresh Eyes stage progress without loading proposals, retained generations
+or input manifests. `details=true` remains available. Reassessment shows total and returned effects,
+with additional returned effects behind an expandable section.
+
+[Working with agents](working-with-agents.md) explains the concrete ownership/boundary loop,
+separates code facts, interpretation and proposed action, and treats productivity and taste
+claims as hypotheses. Guide now accepts explicit outcome/examples/design direction and copies
+those directions, exact checkout and pre-edit baseline into a prompt for the coding agent.
+
+- [x] **P1 — Keep interactions responsive and measure software overhead.** Mapping reviews use
+  resumable parallel batches, current views do not wait for history, large file inventories page
+  in the background, and polling avoids full review documents. The reproducible
+  [1,000-file measurement](../benchmarks/results/usage-feedback-2026-10-20.json) records scans,
+  handler latency, byte sizes and complete pagination. On the shared test host, workflow polling
+  measured 87 ms median; a 250-file compact page was 496,320 bytes versus 1,065,388 bytes in full
+  mode. Guidance was 7,330 bytes and impact 3,453 bytes. Cold/unchanged scans took 4.679/1.524 s.
+  A separate real local-runtime startup reached its dashboard in 2.149 s and accepted a fixture
+  dossier in 2.412 s. These measurements exclude live model calls; provider latency, model output
+  quality and delivery outcomes are not inferred from them.
+
+Final verification: 90 workflow/service/API/pattern/batch/agent-package regressions, 30 focused
+response/Fresh Eyes/reassessment checks, and all 89 dashboard browser checks passed. The 44-check
+transport and guidance run also passed before the final focused checks. Architecture, module-size,
+function/coupling/source-budget and package checks are enforced without relaxing their limits.
+No live provider run was launched. Full-suite coverage and self-analysis remain CI responsibilities.
 
 ## Executive decision
 

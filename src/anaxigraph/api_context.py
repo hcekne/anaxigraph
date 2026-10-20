@@ -12,6 +12,7 @@ import anaxigraph.api_support as api_support
 from anaxigraph.api_operation_gate import RepositoryOperationGate
 from anaxigraph.api_semantic import SemanticRefreshCoordinator
 from anaxigraph.index_authority import IndexWriteAuthority
+from anaxigraph.registry_worktrees import expand_worktree_targets
 from anaxigraph.repository_watch import RepositoryWatchService
 
 
@@ -31,7 +32,11 @@ class ApiContext:
     def target_for_path(self, path: Path) -> Any | None:
         resolved = path.resolve()
         return next(
-            (target for target in self.targets if target.path.resolve() == resolved),
+            (
+                target
+                for target in expand_worktree_targets(self.targets)
+                if target.path.resolve() == resolved
+            ),
             None,
         )
 

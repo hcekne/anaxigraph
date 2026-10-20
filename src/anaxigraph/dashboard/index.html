@@ -380,12 +380,11 @@
           <article class="panel">
             <p class="eyebrow">Evidence-backed architecture guidance</p>
             <h2>What do you want to build or improve?</h2>
-            <p class="muted">Describe the outcome. The answer recommends whether to reuse, extend,
-              split, consolidate, move, delete, create, or retain code—and explains why.</p>
+            <p class="muted">Direct your coding agent with outcomes, examples, boundaries and design preferences. Inspect and refine its proposal using AnaxiGraph’s ownership, dependency and test evidence.</p>
             <form id="scope-form" class="agent-form">
               <label>
-                Coding goal
-                <textarea id="scope-goal" required placeholder="Add saved prompts to the Workbench"></textarea>
+                Goal, examples and design direction
+                <textarea id="scope-goal" required maxlength="2000" placeholder="Add saved prompts to the Workbench. Reuse the existing storage service. Keep the UI simple: one save action, no new settings screen. Preserve existing prompt execution."></textarea>
               </label>
               <label>
                 Type of guidance
@@ -399,6 +398,7 @@
                 <input id="scope-focus" placeholder="A file, area, or responsibility" />
               </label>
               <button class="button" type="submit">Get architecture guidance</button>
+              <button id="copy-agent-directions" class="secondary-button" type="button">Copy directions for your coding agent</button>
             </form>
           </article>
           <article class="panel">

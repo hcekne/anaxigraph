@@ -14,7 +14,11 @@ from anaxigraph.semantic_index_port import SemanticIndex as SemanticIndex
 
 class SemanticReportingPort(Protocol):
     def status(
-        self, repository_id: int, semantic: SemanticConfig | None = None
+        self,
+        repository_id: int,
+        semantic: SemanticConfig | None = None,
+        *,
+        snapshot_id: int | None = None,
     ) -> dict[str, Any]: ...
 
 

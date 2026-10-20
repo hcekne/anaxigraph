@@ -85,7 +85,8 @@ export function renderRepositorySelector() {
   const select = byId("repository-select");
   select.innerHTML = state.repositories.map((item) => {
     const suffix = item.scannable ? "" : " · indexed";
-    return `<option value="${item.id}" title="${escapeAttr(item.path)}">${escapeHtml(item.name)}${suffix}</option>`;
+    const branch = item.map_status?.checkout?.branch || item.branch || "unknown";
+    return `<option value="${item.id}" title="${escapeAttr(item.path)}">${escapeHtml(item.name)} · ${escapeHtml(branch)} · ${escapeHtml(item.path)}${suffix}</option>`;
   }).join("");
   select.value = String(state.repositoryId);
   select.title = state.repositories.length === 1
@@ -153,5 +154,8 @@ export function displaySnapshot(snapshot, historical = false) {
   const branch = snapshot.branch || "unknown";
   const commit = String(snapshot.commit_sha || "unknown").slice(0, 10);
   const prefix = historical ? "Historical · " : "";
-  byId("snapshot-label").textContent = `${prefix}${branch} · ${commit}${snapshot.dirty ? " + dirty" : ""}`;
+  const repository = state.repositories.find(item => Number(item.id) === Number(state.repositoryId));
+  const current = String(state.overview?.map_status?.checkout?.commit_sha || repository?.map_status?.checkout?.commit_sha || "unknown").slice(0, 10);
+  byId("snapshot-label").textContent = `${prefix}${repository?.path || ""} · ${branch} · Map #${snapshot.id} indexed ${commit}${snapshot.dirty ? " + dirty" : ""} · Checkout ${current}`;
+  byId("snapshot-label").title = state.overview?.map_status?.plain_language?.summary || "Saved structural scan";
 }

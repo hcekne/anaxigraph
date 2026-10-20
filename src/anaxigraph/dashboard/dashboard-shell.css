@@ -36,7 +36,7 @@ p, li, dd, code, h1, h2, h3 { overflow-wrap: anywhere; }
 .topbar-actions { display: grid; grid-template-columns: minmax(135px,.6fr) repeat(2,minmax(180px,1fr)) auto auto; align-items: end; gap: .75rem; }
 .theme-picker, .repository-picker { min-width: 0; }
 .repository-picker select { width: 100%; }
-.snapshot-label { color: var(--muted); font: 0.78rem ui-monospace, SFMono-Regular, Menlo, monospace; }
+.snapshot-label { overflow-wrap: anywhere; color: var(--muted); font: 0.78rem ui-monospace, SFMono-Regular, Menlo, monospace; }
 
 .button {
   border: 1px solid var(--accent-border); border-radius: 9px;

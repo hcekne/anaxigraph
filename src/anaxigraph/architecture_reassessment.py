@@ -43,8 +43,12 @@ def architecture_reassessment(
     target = evidence.get("target_snapshot")
     if target is None:
         return _finish(_not_indexed(repository_id), started)
-    semantic = SemanticEngine(database).status(repository_id, config.semantic)
-    charter = architecture_charter(repository, database.overview(repository_id), semantic)
+    semantic = SemanticEngine(database).status(
+        repository_id, config.semantic, snapshot_id=int(target["id"])
+    )
+    charter = architecture_charter(
+        repository, database.overview(repository_id, snapshot_id=int(target["id"])), semantic
+    )
     if evidence.get("baseline_snapshot") is None:
         return _finish(
             _without_baseline(repository_id, evidence, semantic, charter, goal),
@@ -398,5 +402,12 @@ def _identity(value: dict[str, Any]) -> str:
 
 
 def _finish(value: dict[str, Any], started: float) -> dict[str, Any]:
+    value["comparison"] = {
+        "selection": value.get("baseline_selection"),
+        "baseline": value.get("baseline_snapshot"),
+        "target": value.get("target_snapshot"),
+        "repeat_from_snapshot_id": (value.get("baseline_snapshot") or {}).get("id"),
+        "meaning": "Pin from_snapshot_id to this baseline when checking later implementation phases. Snapshot IDs and content fingerprints distinguish uncommitted phases sharing a Git commit.",
+    }
     _with_response_telemetry(value, started, action="architecture_reassessment")
     return value

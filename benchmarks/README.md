@@ -1,5 +1,14 @@
 # AnaxiGraph benchmark suite
 
+## Usage latency and response size
+
+Run `python -m benchmarks.usage_latency --files 1000 --trials 10 --output /tmp/usage-latency.json`
+to measure cold and unchanged scans, current API interactions, complete inventory pagination and
+agent payload limits. This uses a deterministic Git fixture and real ASGI/SQLite handlers without
+model calls. The [20 October result](results/usage-feedback-2026-10-20.json) includes the separate
+first-user runtime startup check. Timings came from a shared host running concurrent tests; byte
+counts and pagination are deterministic checks, while latency is an observation.
+
 ## October 2026 model refresh (live source pilot)
 
 The [GPT-6 Luna pilot](results/model-refresh-2026-10-16-luna.json) ran the production

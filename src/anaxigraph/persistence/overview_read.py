@@ -24,11 +24,12 @@ def read_overview(
     )
     findings = connection.execute(
         """
-        SELECT severity, COUNT(*) AS count FROM findings
-        WHERE repository_id = ? AND status NOT IN ('resolved', 'dismissed')
-        GROUP BY severity
+        SELECT f.severity, COUNT(*) AS count FROM findings f
+        JOIN finding_occurrences occurrence ON occurrence.finding_id = f.id
+        WHERE f.repository_id = ? AND occurrence.snapshot_id = ?
+          AND f.status NOT IN ('resolved', 'dismissed') GROUP BY f.severity
         """,
-        (repository_id,),
+        (repository_id, snapshot_id),
     ).fetchall()
     coverage = _coverage(connection, snapshot_id)
     hierarchies = {
@@ -43,6 +44,12 @@ def read_overview(
         "graph_quality": projected_graph_quality(connection),
         "symbols": projection.symbol_count,
         "findings": {row["severity"]: row["count"] for row in findings},
+        "count_scope": {
+            "snapshot_id": snapshot_id,
+            "files": "all indexed files, including reference artifacts",
+            "symbols": "named code symbols",
+            "findings": "active findings observed in this snapshot, including diagnostics; the attention queue applies severity and priority filters",
+        },
         "languages": [dict(row) for row in _languages(connection)],
         "group_hierarchies": hierarchies,
         "map": {

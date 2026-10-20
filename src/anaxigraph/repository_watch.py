@@ -10,6 +10,7 @@ from typing import Any
 
 import anaxigraph.git as git
 from anaxigraph.history_jobs import ACTIVE_STATES, HistoryJobService
+from anaxigraph.registry_worktrees import expand_worktree_targets
 
 WatchResult = Callable[[Any, dict[str, Any]], None]
 ServiceFactory = Callable[[Any], Any]
@@ -89,8 +90,9 @@ class RepositoryWatchService:
             self._stop.wait(self.interval_seconds)
 
     def run_once(self) -> None:
-        self.history_service.recover(self.targets)
-        for target in self.targets:
+        targets = expand_worktree_targets(self.targets)
+        self.history_service.recover(targets)
+        for target in targets:
             if self._stop.is_set():
                 return
             self._watch_target(target)
@@ -155,4 +157,6 @@ class RepositoryWatchService:
 
     def _update(self, target: Any, **values: Any) -> None:
         with self._lock:
-            self._targets[target.key].update(values, updated_at=datetime.now(UTC).isoformat())
+            self._targets.setdefault(target.key, {"path": str(target.path)}).update(
+                values, updated_at=datetime.now(UTC).isoformat()
+            )
