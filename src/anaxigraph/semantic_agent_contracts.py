@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import secrets
 from dataclasses import replace
 from typing import Any
@@ -30,8 +29,6 @@ from anaxigraph.semantic_taxonomy_contract import (
     validated_agent_semantic_response,
 )
 from anaxigraph.semantic_usage import ProviderUsage
-
-MAX_SUBMISSION_BYTES = 1_000_000
 
 
 def agent_reported_usage(
@@ -116,14 +113,6 @@ class SemanticAgentContractService:
             cache_read_input_tokens,
             cache_creation_input_tokens,
         )
-        encoded = json.dumps(dossier, ensure_ascii=False).encode("utf-8")
-        limit = MAX_SUBMISSION_BYTES
-        if request.get("analysis_kind") in {"taxonomy_proposal", "taxonomy_review"}:
-            limit = min(
-                MAX_SUBMISSION_BYTES * 2, max(limit, len(request.get("modules", [])) * 1_000)
-            )
-        if len(encoded) > limit:
-            raise ValueError(f"Semantic dossier exceeds the {limit}-byte submission limit")
         try:
             result = validated_agent_semantic_response(
                 dossier,
@@ -206,6 +195,8 @@ class SemanticAgentContractService:
                 "token": token,
                 "expires_at": job["lease_expires_at"],
                 "seconds": semantic.agent_lease_seconds,
+                "renew_after_seconds": min(30, semantic.agent_lease_seconds / 3),
+                "renewal_tool": "ANAXIGRAPH_SEMANTIC_RENEW",
             },
             "analysis_request": analysis_request,
             "evidence_manifest": manifest,
@@ -213,7 +204,8 @@ class SemanticAgentContractService:
             "next_action": (
                 "Fetch every evidence page when evidence_manifest is present, produce the "
                 f"complete {self.artifact_name(contract_request)}, then call "
-                "ANAXIGRAPH_SEMANTIC_SUBMIT with this job id and lease token."
+                "ANAXIGRAPH_SEMANTIC_SUBMIT with this job id and lease token. While working, "
+                "call ANAXIGRAPH_SEMANTIC_RENEW at lease.renew_after_seconds."
             ),
             "semantic": status,
         }

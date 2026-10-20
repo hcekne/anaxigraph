@@ -38,6 +38,9 @@ _POLICY_KEYS = (
     "provider",
     "detailed_reviews",
     "max_parallel_jobs",
+    "timeout_seconds",
+    "max_attempts",
+    "daily_budget_usd",
     "max_output_tokens",
     "max_output_tokens_on_retry",
 )

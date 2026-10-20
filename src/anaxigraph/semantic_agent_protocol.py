@@ -233,12 +233,13 @@ def agent_no_work_status(status: dict[str, Any]) -> str:
         return "paused"
     if int(jobs.get("pending", 0)) or int(jobs.get("retry", 0)):
         return "waiting"
-    if status.get("semantically_ready"):
-        return "complete"
-    if status.get("baseline_complete") and (
-        int(status.get("failed", 0)) or int(status.get("failed_scopes", 0))
+    if any(
+        int(value or 0)
+        for value in (jobs.get("failed"), status.get("failed"), status.get("failed_scopes"))
     ):
         return "complete_with_failures"
+    if status.get("semantically_ready"):
+        return "complete"
     return "waiting"
 
 

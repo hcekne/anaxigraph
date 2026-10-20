@@ -81,15 +81,16 @@ def test_startup_waits_for_active_preparation_without_reposting_or_relaunching(m
     assert sleeps == [5, 10]
 
 
-def test_a_stuck_preparation_has_a_bounded_wait_and_clear_error(monkeypatch):
-    times = iter([0, 601])
-    monkeypatch.setattr(commands.time, "monotonic", lambda: next(times))
-    monkeypatch.setattr(commands, "service_semantic_status", lambda *_a: {"jobs": {}})
-    monkeypatch.setattr(
-        commands, "prepare_semantic_service", lambda *a, **k: {"status": "preparing"}
-    )
-    with pytest.raises(RuntimeError, match="stayed busy for 10 minutes"):
-        commands._prepare_service(_args(), _target())
+def test_healthy_preparation_can_take_more_than_ten_minutes(monkeypatch):
+    statuses = iter([{"jobs": {}}] + [{"preparing": True}] * 30 + [{"preparing": False}])
+    preparations = iter([{"status": "preparing"}, {"status": "prepared"}])
+    sleeps = []
+    monkeypatch.setattr(commands.time, "sleep", sleeps.append)
+    monkeypatch.setattr(commands, "service_semantic_status", lambda *_a: next(statuses))
+    monkeypatch.setattr(commands, "prepare_semantic_service", lambda *a, **k: next(preparations))
+    assert commands._prepare_service(_args(), _target())["status"] == "prepared"
+    assert sum(sleeps) > 600
+    assert max(sleeps) == 30
 
 
 def test_existing_jobs_do_not_bypass_a_required_structural_scan(monkeypatch):

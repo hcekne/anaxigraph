@@ -393,6 +393,7 @@ async def test_request_limit_preserves_combined_mcp_transport(repository, databa
         "ANAXIGRAPH_SEMANTIC_SCHEMA",
         "ANAXIGRAPH_SEMANTIC_WORK",
         "ANAXIGRAPH_SEMANTIC_EVIDENCE",
+        "ANAXIGRAPH_SEMANTIC_RENEW",
         "ANAXIGRAPH_SEMANTIC_SUBMIT",
         "ANAXIGRAPH_SEMANTIC_RELEASE",
         "ANAXIGRAPH_SEMANTIC_FAIL",

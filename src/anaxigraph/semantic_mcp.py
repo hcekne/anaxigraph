@@ -119,6 +119,16 @@ class SemanticMcpTools:
 
     def _register_completion_tools(self) -> None:
         self.server.add_tool(
+            self.renew,
+            name="ANAXIGRAPH_SEMANTIC_RENEW",
+            title="Keep an active AI task leased",
+            description=(
+                "Renew a live task's lease while its model is still working or its result is "
+                "being saved. Requires the current lease token; never revives expired work."
+            ),
+            annotations=_write_annotations(idempotent=True),
+        )
+        self.server.add_tool(
             self.submit,
             name="ANAXIGRAPH_SEMANTIC_SUBMIT",
             title="Store one completed AI-mapping result",
@@ -244,6 +254,12 @@ class SemanticMcpTools:
             executor_id=executor_id,
             executor_model=executor_model,
             executor_effort=executor_effort,
+        )
+
+    def renew(self, job_id: int, lease_token: str, repository: str = "") -> dict[str, Any]:
+        row, root = self.context(repository)
+        return SemanticEngine(self.database).renew_agent_work(
+            int(row["id"]), self.config_for(row, root), job_id=job_id, lease_token=lease_token
         )
 
     def release(

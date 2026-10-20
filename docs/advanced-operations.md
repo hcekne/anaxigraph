@@ -195,6 +195,38 @@ and calls inside the CLI. Incomplete results are never stored as successful desc
 Persistent provider or service errors remain visible and resumable.
 The source-size threshold is unchanged: lowering it can create more chunk and reduction calls.
 
+Execution continuity and remaining limits:
+
+- `understand` with an actual executor drains the queue by default, including foreground runs.
+  `--limit N` explicitly requests a sample; `--plan-only` and the manual MCP mode do not run a model.
+  `max_jobs_per_run` remains a batch default for lower-level callers, not a ceiling on a full CLI
+  run or the dashboard's Run Step. Healthy service preparation has no elapsed-time cutoff.
+- Dashboard runs wait for live peer workers and shared slots. Remote workers refill slots after
+  each saved result without waiting for their slowest peer. Concurrent workers share the
+  repository's `max_parallel_jobs` ceiling; nested review calls share their worker's allocation.
+- Remote packets advertise `ANAXIGRAPH_SEMANTIC_RENEW` and `renew_after_seconds`. Host executors
+  renew while reading evidence, running a model, and submitting results. Manual executor clients
+  must renew with the same job ID and lease token at that interval. Expired or replaced leases
+  cannot renew, and results from a replaced owner remain rejected.
+- Valid executor results have no AnaxiGraph byte ceiling, including through `/executor/mcp`.
+  The ordinary REST and normal MCP control endpoints keep a 2 MiB request boundary. JSON shape,
+  source freshness, lease ownership, and evidence validation still apply to results.
+- `max_attempts` bounds genuinely failed jobs. An explicit retry resets exhausted work once;
+  repeated queue polls do not reset it indefinitely. Failed optional reviews are reported as
+  failures even when the baseline map is ready.
+- Optional per-call deadlines, output caps, and a daily spend ceiling remain opt-in. The workflow
+  sidebar's **Execution limits** disclosure shows the effective values and concurrency ceiling.
+  Provider account quotas, authentication, model context/output capacity, and availability still
+  apply. Include/exclude rules determine which source may be sent, and pinned review stages
+  require the selected executor family.
+
+Transport and storage failures also remain bounded and reported: MCP initialization has a
+20-second deadline and individual MCP operations have a 60-second deadline; these do not time
+out the model call running on the host. Busy SQLite operations and failed transport waves have
+finite retries. A disconnected or persistently unhealthy service can therefore end a run, with
+saved results retained for resume. These conditions should appear as errors, not successful
+completion or an endless preparation spinner.
+
 `--executor auto` is the default and detects when Codex or Claude invoked the command. The local
 executor is read-only and schema-constrained; AnaxiGraph records `provider: agent` plus the actual
 executor, model, and reasoning effort as provenance on the run record and on every job and
@@ -353,7 +385,8 @@ the total they belong to, never added to it, and each action also lists the effo
 it, with no entry when the executor's default was used.
 
 The semantic `include` and `exclude` patterns are source-egress controls as well as scheduling
-rules. `max_jobs_per_run`, `max_parallel_jobs`, and `daily_budget_usd` bound work. Configure
+rules. `max_parallel_jobs` bounds concurrent work, and `daily_budget_usd` optionally bounds spend.
+Use `--limit` for a bounded sample; `max_jobs_per_run` is a lower-level batch default. Configure
 `input_cost_per_million` and `output_cost_per_million` for the exact account/model if dollar
 estimates matter; otherwise token usage remains recorded without inventing a price.
 

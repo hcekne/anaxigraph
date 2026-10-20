@@ -162,5 +162,8 @@ class SemanticEngine:
     def release_agent_work(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         return self._services.agent.release_agent_work(*args, **kwargs)
 
+    def renew_agent_work(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._services.agent.renew_agent_work(*args, **kwargs)
+
     def fail_agent_work(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         return self._services.agent.fail_agent_work(*args, **kwargs)

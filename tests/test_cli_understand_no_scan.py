@@ -112,7 +112,16 @@ def test_understand_local_no_scan_detects_stale_map(
     _refuse_scanning(monkeypatch)
 
     result = _call(
-        ["understand", str(repository), "--db", str(database), "--no-scan", "--json"],
+        [
+            "understand",
+            str(repository),
+            "--db",
+            str(database),
+            "--executor",
+            "mcp",
+            "--no-scan",
+            "--json",
+        ],
         capsys,
     )
 

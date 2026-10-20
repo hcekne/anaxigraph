@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import hmac
 import json
+import logging
 import sqlite3
 import threading
 from datetime import UTC, datetime, timedelta
@@ -25,6 +26,7 @@ from anaxigraph.semantic_ports import SemanticPersistencePort
 from anaxigraph.semantic_timeouts import worker_lease_seconds
 
 _HEARTBEAT_INTERVAL_SECONDS = 30
+_logger = logging.getLogger(__name__)
 
 
 class SemanticLeaseService:
@@ -76,14 +78,19 @@ class SemanticLeaseService:
 
         def heartbeat() -> None:
             while not stopped.wait(min(_HEARTBEAT_INTERVAL_SECONDS, max(10, lease_seconds // 3))):
-                with self._database.transaction() as connection:
-                    expires = (datetime.now(UTC) + timedelta(seconds=lease_seconds)).isoformat()
-                    connection.execute(
-                        """
-                        UPDATE semantic_jobs SET lease_expires_at = ?
-                        WHERE id = ? AND status = 'running' AND worker_id = ?
-                        """,
-                        (expires, job["id"], job["worker_id"]),
+                try:
+                    with self._database.transaction() as connection:
+                        expires = (datetime.now(UTC) + timedelta(seconds=lease_seconds)).isoformat()
+                        connection.execute(
+                            """
+                            UPDATE semantic_jobs SET lease_expires_at = ?
+                            WHERE id = ? AND status = 'running' AND worker_id = ?
+                            """,
+                            (expires, job["id"], job["worker_id"]),
+                        )
+                except sqlite3.OperationalError as exc:
+                    _logger.warning(
+                        "Lease renewal for semantic job %s will retry: %s", job["id"], exc
                     )
 
         thread = threading.Thread(
@@ -120,6 +127,30 @@ class SemanticLeaseService:
         _validate_agent_lease(job, lease_token, repository_id, allow_completed)
         job["metadata"] = json.loads(job.pop("metadata_json") or "{}")
         return job
+
+    def renew_agent_job(
+        self, job_id: int, lease_token: str, *, repository_id: int, lease_seconds: int
+    ) -> dict[str, Any]:
+        """Renew only the current owner's live lease, atomically with reclaim admission."""
+        with self._database.transaction() as connection:
+            row = connection.execute(
+                "SELECT * FROM semantic_jobs WHERE id = ?", (job_id,)
+            ).fetchone()
+            if row is None:
+                raise ValueError("Semantic job does not exist")
+            _validate_agent_lease(dict(row), lease_token, repository_id, True)
+            if row["status"] == "completed":
+                return {"status": "already_completed", "job_id": job_id}
+            current = connection.execute(
+                "SELECT current_snapshot_id FROM repositories WHERE id = ?", (repository_id,)
+            ).fetchone()
+            if current["current_snapshot_id"] != row["snapshot_id"]:
+                raise ValueError("Semantic job belongs to an older source scan")
+            expires = (datetime.now(UTC) + timedelta(seconds=lease_seconds)).isoformat()
+            connection.execute(
+                "UPDATE semantic_jobs SET lease_expires_at = ? WHERE id = ?", (expires, job_id)
+            )
+        return {"status": "renewed", "job_id": job_id, "expires_at": expires}
 
     def validate_current_agent_job(
         self,

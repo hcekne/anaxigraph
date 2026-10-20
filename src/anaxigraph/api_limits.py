@@ -1,4 +1,4 @@
-"""Hard request-size boundary shared by REST and mounted MCP traffic."""
+"""Bound small control requests without truncating repository-sized executor results."""
 
 from __future__ import annotations
 
@@ -9,16 +9,27 @@ MAX_REQUEST_BODY_BYTES = 2 * 1024 * 1024
 
 
 class RequestBodyLimitMiddleware:
-    def __init__(self, app: Any, max_bytes: int = MAX_REQUEST_BODY_BYTES) -> None:
+    def __init__(
+        self,
+        app: Any,
+        max_bytes: int = MAX_REQUEST_BODY_BYTES,
+        unbounded_paths: tuple[str, ...] = (),
+    ) -> None:
         self.app = app
         self.max_bytes = max_bytes
+        self.unbounded_paths = unbounded_paths
 
     async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
-        if scope.get("type") != "http" or scope.get("method") not in {
-            "POST",
-            "PUT",
-            "PATCH",
-        }:
+        if (
+            scope.get("path") in self.unbounded_paths
+            or scope.get("type") != "http"
+            or scope.get("method")
+            not in {
+                "POST",
+                "PUT",
+                "PATCH",
+            }
+        ):
             await self.app(scope, receive, send)
             return
         declared = _content_length(scope)

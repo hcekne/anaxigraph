@@ -1,13 +1,11 @@
-"""Submission size limit for coding-agent semantic dossiers."""
+"""Agent results retain schema and usage validation without arbitrary byte cutoffs."""
 
 from __future__ import annotations
 
 import pytest
 
 from anaxigraph import semantic_agent_contracts
-from anaxigraph.api_limits import MAX_REQUEST_BODY_BYTES
 from anaxigraph.semantic_agent_contracts import (
-    MAX_SUBMISSION_BYTES,
     SemanticAgentContractService,
 )
 from anaxigraph.semantic_contract import SemanticResult
@@ -34,50 +32,21 @@ def _validate(dossier):
     )
 
 
-def test_submission_limit_counts_utf8_bytes_not_characters(schema_validation):
-    # 400,000 three-byte characters: ~400k characters but ~1.2 MB encoded.
-    dossier = {"summary": "中" * 400_000}
-
-    with pytest.raises(ValueError, match=str(MAX_SUBMISSION_BYTES)):
-        _validate(dossier)
-
-    assert schema_validation == []
-
-
-def test_submission_limit_accepts_ascii_under_limit_and_rejects_over_limit(
-    schema_validation,
-):
-    under = {"summary": "x" * 999_000}
-    over = {"summary": "x" * 1_000_001}
-
-    assert _validate(under).value == _ACCEPTED.value
-    assert schema_validation == [under]
-
-    with pytest.raises(ValueError, match=r"\d+-byte submission limit"):
-        _validate(over)
-
-    assert schema_validation == [under]
-
-
-def test_submission_limit_is_below_http_body_limit():
-    assert MAX_SUBMISSION_BYTES <= MAX_REQUEST_BODY_BYTES
-
-
-@pytest.mark.parametrize("kind", ["taxonomy_proposal", "taxonomy_review"])
-def test_large_repository_taxonomy_fits_without_raising_single_file_limit(schema_validation, kind):
-    request = {"analysis_kind": kind, "modules": [{"path": f"m{i}.py"} for i in range(2018)]}
-    service = SemanticAgentContractService()
-    dossier = {"summary": "x" * 1_500_000}
-    result = service.validate_submission(dossier, request, input_tokens=1, output_tokens=1)
+@pytest.mark.parametrize("summary", ["中" * 400_000, "x" * 2_200_000])
+@pytest.mark.parametrize("kind", ["intrinsic", "taxonomy_proposal", "taxonomy_review"])
+def test_repository_sized_results_reach_schema_validation(schema_validation, summary, kind):
+    dossier = {"summary": summary}
+    result = SemanticAgentContractService().validate_submission(
+        dossier, {**_REQUEST, "analysis_kind": kind}, input_tokens=1, output_tokens=1
+    )
     assert result.value == _ACCEPTED.value
     assert result.usage_reported is True
-    with pytest.raises(ValueError, match="submission limit"):
-        _validate(dossier)
-    with pytest.raises(ValueError, match="submission limit"):
-        service.validate_submission(
-            {"summary": "x" * MAX_REQUEST_BODY_BYTES}, request, input_tokens=1, output_tokens=1
-        )
     assert schema_validation == [dossier]
+
+
+def test_large_invalid_result_still_fails_schema_validation():
+    with pytest.raises(ValueError):
+        _validate({"summary": "x" * 2_200_000})
 
 
 def test_negative_token_counts_are_refused(schema_validation):

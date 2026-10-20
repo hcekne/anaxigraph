@@ -69,6 +69,7 @@ function shell() {
     <button id="workflow-run-button" class="button" type="submit">Start workflow</button>
     <button id="workflow-scan" class="secondary-button" type="button">Refresh source scan</button>
     <p id="workflow-execution-note" class="muted"></p>
+    <details id="workflow-limits"><summary>Execution limits</summary><p></p></details>
     </form></article></aside></div>
     ${stepDialogShell()}<aside id="workflow-loading" class="workflow-loading" role="status" aria-live="polite" aria-atomic="true">
     <i class="workflow-load-spinner" aria-hidden="true"></i><div><strong id="workflow-loading-title">Loading repository map…</strong>
@@ -265,6 +266,7 @@ function renderControls(flow) {
   if (flow.update) byId("workflow-run-note").textContent = `${flow.update.summary} Starts with ${flow.update.nextTitle.toLowerCase()}, then checks the dependent steps.`;
   byId("workflow-fresh-options").hidden = flow.id !== "fresh-eyes";
   byId("workflow-execution-note").textContent = executionNote(available, unsupported);
+  byId("workflow-limits").querySelector("p").textContent = executionLimits();
   byId("workflow-message").textContent = progressMessage(active, stale);
   updateStepButtons({ active, allowed, unsupported });
 }
@@ -294,8 +296,19 @@ function executionNote(available, unsupported) {
     : !data.semantic.enabled ? "AI mapping is disabled in this repository's service policy."
       : unsupported ? "Fresh eyes requires the repository's agent provider. Mapping and patterns can use the configured provider."
       : !available ? "No local Codex or Claude executor is installed on this server. A connected host worker can still process the saved queue."
-        : data.settings ? `Host workers: ${data.execution.local_executors.join(" + ")}. Card settings select the models; repository usage limits still apply. Complete Mapping before starting optional reviews.`
+        : data.settings ? `Host workers: ${data.execution.local_executors.join(" + ")}. Card settings select the models. Complete Mapping before starting optional reviews.`
         : "Saved work survives a page reload. After a server restart, resume unfinished work here. Configured stage models and usage limits still apply.";
+}
+
+function executionLimits() {
+  const policy = data.semantic.semantic_policy || {};
+  const parallel = policy.max_parallel_jobs ?? data.execution.max_parallel_jobs;
+  const attempts = policy.max_attempts;
+  const timeout = policy.timeout_seconds == null ? "No AnaxiGraph model time limit" : `${policy.timeout_seconds}s per model call`;
+  const output = policy.max_output_tokens == null ? "provider default output capacity" : `${policy.max_output_tokens} output tokens per call`;
+  const retryOutput = policy.max_output_tokens_on_retry == null ? "" : `; ${policy.max_output_tokens_on_retry} output tokens on retry`;
+  const budget = policy.daily_budget_usd == null ? "no daily spending cap" : `$${policy.daily_budget_usd} daily spending cap`;
+  return `${parallel} parallel workers shared by this repository. ${attempts == null ? "Failed jobs follow the repository retry policy." : `Up to ${attempts} attempts per failed job, then an explicit retry is required.`} ${timeout}; ${output}${retryOutput}; ${budget}. Run Step continues until the selected work finishes or a reported error needs attention. Active leases renew automatically. Provider account and model limits still apply.`;
 }
 
 function progressMessage(active, stale) {

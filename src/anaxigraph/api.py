@@ -16,6 +16,8 @@ from anaxigraph.api_routes import register_api_routes
 from anaxigraph.mcp_server import create_anaxi_mcp_server
 from anaxigraph.storage import AnaxiIndex
 
+_EXECUTOR_PATHS = ("/executor/mcp", "/executor/mcp/")
+
 
 def create_app(
     *,
@@ -58,7 +60,7 @@ def create_app(
             mcp_servers=mcp_servers,
         ),
     )
-    app.add_middleware(RequestBodyLimitMiddleware)
+    app.add_middleware(RequestBodyLimitMiddleware, unbounded_paths=_EXECUTOR_PATHS)
     register_api_routes(app, context)
     api_dashboard.register_dashboard_routes(app)
     if mcp_servers is not None:

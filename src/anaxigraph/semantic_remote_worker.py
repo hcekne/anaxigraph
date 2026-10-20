@@ -7,6 +7,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import timedelta
+from functools import partial
 from typing import Any
 
 from mcp import ClientSession
@@ -23,6 +24,7 @@ from anaxigraph.semantic_remote_calls import (
     tool_value,
 )
 from anaxigraph.semantic_remote_errors import failure_summary, raise_remote_failure
+from anaxigraph.semantic_remote_leases import keep_remote_leases
 from anaxigraph.semantic_remote_payloads import (
     claim_arguments,
     fail_arguments,
@@ -30,10 +32,11 @@ from anaxigraph.semantic_remote_payloads import (
     submit_arguments,
 )
 from anaxigraph.semantic_remote_recovery import IdleRecovery
+from anaxigraph.semantic_remote_schedule import drain_available
 from anaxigraph.semantic_request_analysis import analyze_semantic_request
 from anaxigraph.semantic_service import SemanticServiceTarget
 
-_TERMINAL_STATES = frozenset({"complete", "complete_with_failures", "paused"})
+_TERMINAL_STATES = frozenset({"complete", "complete_with_failures", "paused", "scan_required"})
 _MCP_INITIALIZE_TIMEOUT_SECONDS = 20
 
 
@@ -130,26 +133,34 @@ async def _run_queue(
 ) -> dict[str, Any]:
     latest: dict[str, Any] = {}
     consecutive_failures = 0
-    recovery = IdleRecovery(target, retry_failed)
+    recovery = IdleRecovery(target, retry_failed=False)
+    execution = replace(
+        execution, max_parallel_jobs=min(semantic.max_parallel_jobs, execution.max_parallel_jobs)
+    )
     while maximum is None or total["processed"] < maximum:
         remaining = min(semantic.max_parallel_jobs, execution.max_parallel_jobs)
         if maximum is not None:
             remaining = min(remaining, maximum - total["processed"])
         packets, terminal = await _claim_wave(session, target, execution, remaining, retry_failed)
+        retry_failed = False
         if terminal:
             latest = dict(terminal.get("semantic") or latest)
         if not packets:
-            report_background_progress(
-                stage=str((terminal or {}).get("status") or "waiting"),
-                completed=int(total["completed"]),
-            )
             should_stop, latest = await _wait_or_recover(recovery, terminal, latest, maximum, total)
             if should_stop:
                 break
             continue
         recovery.reset()
         try:
-            latest = await _execute_wave(session, target, execution, packets, total, latest)
+            latest = await drain_available(
+                packets,
+                execution,
+                total,
+                latest,
+                maximum=maximum,
+                claim=lambda count: _claim_wave(session, target, execution, count, False),
+                execute=partial(_execute_wave, session, target),
+            )
         except RuntimeError as exc:
             consecutive_failures += 1
             if consecutive_failures >= 3:
@@ -170,6 +181,7 @@ async def _wait_or_recover(
     total: dict[str, Any],
 ) -> tuple[bool, dict[str, Any]]:
     state = str((terminal or {}).get("status") or "waiting")
+    report_background_progress(stage=state, completed=int(total["completed"]))
     if maximum is not None or state in _TERMINAL_STATES:
         return True, latest
     if state == WAITING_FOR_EXECUTOR:
@@ -206,6 +218,22 @@ async def _execute_wave(
     total: dict[str, Any],
     latest: dict[str, Any],
 ) -> dict[str, Any]:
+    remaining = set(range(len(packets)))
+    async with keep_remote_leases(session, target, packets, remaining):
+        return await _execute_leased_wave(
+            session, target, execution, packets, total, latest, remaining
+        )
+
+
+async def _execute_leased_wave(
+    session: Any,
+    target: Any,
+    execution: SemanticConfig,
+    packets: list[dict[str, Any]],
+    total: dict[str, Any],
+    latest: dict[str, Any],
+    remaining: set[int],
+) -> dict[str, Any]:
     requests = await _wave_requests(session, target, packets)
     call_budget = max(1, execution.max_parallel_jobs // len(packets))
     request_execution = replace(execution, max_parallel_jobs=call_budget)
@@ -217,7 +245,6 @@ async def _execute_wave(
             asyncio.create_task(_analyze_indexed(index, request, request_execution, pool))
             for index, request in enumerate(requests)
         ]
-        remaining = set(range(len(packets)))
         for completed in asyncio.as_completed(tasks):
             index, result = await completed
             if isinstance(result, BaseException):
@@ -342,23 +369,29 @@ async def _claim_wave(
 ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
     packets = []
     terminal = None
-    for _ in range(count):
-        packet = await call_tool_retrying_locks(
-            session,
-            "ANAXIGRAPH_SEMANTIC_WORK",
-            claim_arguments(
-                target.repository_id,
-                provider=execution.provider,
-                model=execution.model,
-                effort=execution.reasoning_effort,
-                retry_failed=retry_failed,
-            ),
-            action="claim semantic work",
-        )
-        if packet.get("status") != "work":
-            terminal = packet
-            break
-        packets.append(packet)
+    try:
+        for _ in range(count):
+            packet = await call_tool_retrying_locks(
+                session,
+                "ANAXIGRAPH_SEMANTIC_WORK",
+                claim_arguments(
+                    target.repository_id,
+                    provider=execution.provider,
+                    model=execution.model,
+                    effort=execution.reasoning_effort,
+                    retry_failed=retry_failed,
+                ),
+                action="claim semantic work",
+            )
+            retry_failed = False
+            if packet.get("status") != "work":
+                terminal = packet
+                break
+            packets.append(packet)
+    except Exception as exc:
+        for packet in packets:
+            await _release_packet(session, target, packet, str(exc))
+        raise
     return packets, terminal
 
 

@@ -78,6 +78,30 @@ def test_heartbeat_recovers_from_busy_writer(repository, database, monkeypatch):
     assert row["attempts"] == 1
 
 
+def test_heartbeat_survives_an_operational_error_and_retries(
+    repository, database, monkeypatch, caplog
+):
+    config, repository_id, engine = _agent_queue(repository, database)
+    leases = engine._services.leases
+    job = leases.claim_job(repository_id, config.semantic)
+    _, renewed = impatient_connections(database, monkeypatch)
+    transaction = database.transaction
+    calls = []
+
+    def transient_failure():
+        calls.append(1)
+        if len(calls) == 1:
+            raise sqlite3.OperationalError("temporarily unavailable")
+        return transaction()
+
+    monkeypatch.setattr(database, "transaction", transient_failure)
+    monkeypatch.setattr("anaxigraph.semantic_leases._HEARTBEAT_INTERVAL_SECONDS", 0.01)
+    with leases.job_lease(job, config.semantic):
+        assert renewed.wait(5), "The heartbeat exited after one failed renewal"
+    assert len(calls) >= 2
+    assert "will retry: temporarily unavailable" in caplog.text
+
+
 def test_busy_wait_is_bounded(database, monkeypatch):
     busy, _ = impatient_connections(database, monkeypatch)
     monkeypatch.setattr("anaxigraph.storage._WRITE_LOCK_WAIT_SECONDS", 0.06)

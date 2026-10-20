@@ -30,6 +30,13 @@ async def _claim_and_submit(
     assert work.isError is False
     packet = work.structuredContent
     assert packet["status"] == "work"
+    assert packet["lease"]["renewal_tool"] == "ANAXIGRAPH_SEMANTIC_RENEW"
+    renewed = await session.call_tool(
+        "ANAXIGRAPH_SEMANTIC_RENEW",
+        arguments={"job_id": packet["job"]["id"], "lease_token": packet["lease"]["token"]},
+    )
+    assert renewed.isError is False
+    assert renewed.structuredContent["status"] == "renewed"
     submit = await session.call_tool(
         "ANAXIGRAPH_SEMANTIC_SUBMIT",
         arguments={
@@ -82,6 +89,7 @@ async def test_mcp_coding_agent_can_claim_and_submit_semantic_work(repository, d
                         "ANAXIGRAPH_SEMANTIC_SCHEMA",
                         "ANAXIGRAPH_SEMANTIC_WORK",
                         "ANAXIGRAPH_SEMANTIC_EVIDENCE",
+                        "ANAXIGRAPH_SEMANTIC_RENEW",
                         "ANAXIGRAPH_SEMANTIC_SUBMIT",
                         "ANAXIGRAPH_SEMANTIC_RELEASE",
                         "ANAXIGRAPH_SEMANTIC_FAIL",

@@ -7,7 +7,7 @@ import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from functools import partial
 from threading import Event, Lock
 from typing import Any
@@ -15,6 +15,7 @@ from typing import Any
 from anaxigraph.persistence.workflow_read import workflow_coverage
 from anaxigraph.semantic_fresh_eyes_plan import FreshEyesPlanner
 from anaxigraph.semantic_pattern_plan import SemanticPatternPlanner
+from anaxigraph.semantic_timeouts import worker_lease_seconds
 from anaxigraph.understanding import SemanticEngine
 from anaxigraph.workflow_settings import FLOW_STEPS, STEP_MODES, WorkerChoice
 
@@ -82,6 +83,8 @@ class WorkflowExecution:
         self.on_pool_error = on_pool_error
         self.pool_errors: list[dict[str, Any]] = []
         self.error_lock = Lock()
+        self.retry_prepared = False
+        self.joined_workers = False
 
     def run(self) -> dict[str, Any]:
         if self.request.workflow == "fresh-eyes":
@@ -96,18 +99,28 @@ class WorkflowExecution:
                 )
             jobs = self._jobs()
             if not jobs:
+                if self._wait_for_workers(selected_only=True):
+                    continue
                 return self._finish()
             if self._wait_for_retry(jobs):
                 continue
             results = self._dispatch(jobs)
             count = sum(result["processed"] for result in results)
             self.processed += count
-            if not count:
-                return self._result(False, self._waiting_message())
-            if not self._jobs():
-                if self.request.step in {"intrinsic", "context", "groups"}:
-                    return self._finish()
-                self._plan()
+            result = self._after_dispatch(count)
+            if result is not None:
+                return result
+
+    def _after_dispatch(self, count: int) -> dict[str, Any] | None:
+        if not count:
+            if not self.pool_errors and self._wait_for_workers(selected_only=False):
+                return None
+            return self._result(False, self._waiting_message())
+        if not self._jobs() and not self._wait_for_workers(selected_only=True):
+            if self.request.step in {"intrinsic", "context", "groups"}:
+                return self._finish()
+            self._plan()
+        return None
 
     def _start_review(self) -> None:
         workers = self.settings["proposals"]
@@ -123,7 +136,8 @@ class WorkflowExecution:
         )
 
     def _plan(self) -> None:
-        retry = self.request.retry_failed and self.processed == 0
+        retry = self.request.retry_failed and not self.retry_prepared
+        self.retry_prepared = True
         if self.request.workflow == "mapping":
             self.engine.plan(
                 self.repository_id,
@@ -153,6 +167,42 @@ class WorkflowExecution:
                 (self.repository_id, self.snapshot_id),
             ).fetchall()
         return [dict(row) for row in rows if job_step(row) in self.steps]
+
+    def _wait_for_workers(self, *, selected_only: bool) -> bool:
+        """Join existing work and wait for shared slots instead of ending a requested run."""
+        with self.database.connect() as connection:
+            rows = connection.execute(
+                """SELECT * FROM semantic_jobs WHERE repository_id = ? AND snapshot_id = ?
+                AND status = 'running'""",
+                (self.repository_id, self.snapshot_id),
+            ).fetchall()
+        running = [row for row in rows if not selected_only or job_step(row) in self.steps]
+        if not running:
+            if self.joined_workers:
+                self.joined_workers = False
+                self._plan()
+                return True
+            return False
+        fallback = timedelta(seconds=worker_lease_seconds(self.config.semantic.timeout_seconds))
+        expired = any(
+            (
+                datetime.fromisoformat(row["lease_expires_at"])
+                if row["lease_expires_at"]
+                else datetime.fromisoformat(row["started_at"]) + fallback
+            )
+            <= datetime.now(UTC)
+            for row in running
+        )
+        if expired:
+            self.engine.plan(
+                self.repository_id, self.row["path"], self.config, preserve_patterns=True
+            )
+            return True
+        self.joined_workers = True
+        if self.on_step and selected_only:
+            self.on_step(job_step(running[0]))
+        time.sleep(1)
+        return True
 
     def _dispatch(self, jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         # Run the earliest eligible card. Distinct model pools share file jobs, never duplicate them.

@@ -243,6 +243,17 @@ class SemanticAgentService:
             "semantic": self._reporting.status(repository_id, semantic),
         }
 
+    def renew_agent_work(
+        self, repository_id: int, config: AnaxiGraphConfig, *, job_id: int, lease_token: str
+    ) -> dict[str, Any]:
+        semantic = self._contracts.semantic(config)
+        return self._leases.renew_agent_job(
+            job_id,
+            lease_token,
+            repository_id=repository_id,
+            lease_seconds=semantic.agent_lease_seconds,
+        )
+
     def release_agent_work(
         self,
         repository_id: int,

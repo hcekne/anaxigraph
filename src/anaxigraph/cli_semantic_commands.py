@@ -43,7 +43,7 @@ def _configure_understand(commands: Any) -> None:
     budget.add_argument(
         "--limit",
         type=int,
-        help="Maximum AI tasks to run now (defaults to the repository setting)",
+        help="Explicit sample limit; otherwise the executor continues until work is complete",
     )
     budget.add_argument(
         "--until-complete",
@@ -80,7 +80,7 @@ def _configure_understand(commands: Any) -> None:
             "--db is omitted)"
         ),
     )
-    understand.set_defaults(handler=_understand, db=None)
+    understand.set_defaults(handler=_understand, db=None, until_complete=None)
 
 
 def _configure_status(commands: Any) -> None:
@@ -135,6 +135,7 @@ def _understand_from_service(
             f"{service.config_label()}"
         )
     execution_semantic, execution_mode = _understand_execution(args, semantic)
+    _default_completion(args, execution_mode)
     if args.background:
         return launch_understand_background(
             args, repository, execution_semantic, execution_mode, service
@@ -154,6 +155,7 @@ def _understand_from_local(args: argparse.Namespace, repository: Path) -> dict[s
         source = str(config.config_path or repository / ".anaxigraph.yml")
         raise ValueError(f"Semantic analysis is disabled by local policy {source}")
     execution_semantic, execution_mode = _understand_execution(args, config.semantic)
+    _default_completion(args, execution_mode)
     if args.background:
         return launch_understand_background(
             args, repository, execution_semantic, execution_mode, None
@@ -165,6 +167,11 @@ def _understand_from_local(args: argparse.Namespace, repository: Path) -> dict[s
         execution_semantic,
         execution_mode,
     )
+
+
+def _default_completion(args: argparse.Namespace, execution_mode: str) -> None:
+    if args.until_complete is None:
+        args.until_complete = args.limit is None and not args.plan_only and execution_mode != "mcp"
 
 
 def _understand_local(
@@ -207,7 +214,7 @@ def _understand_local(
         if not args.plan_only:
             result["next_action"] = _mcp_continuation(repository)
     else:
-        ready = bool(result["semantic"].get("semantically_ready"))
+        ready = _queue_complete(result["semantic"])
         result["status"] = "complete" if ready else "partial"
         result["complete"] = ready
         _require_requested_completion(args, result)
@@ -291,7 +298,7 @@ def _understand_service(
                 repository_id=service.repository_id,
             )
     else:
-        ready = bool(result["semantic"].get("semantically_ready"))
+        ready = _queue_complete(result["semantic"])
         result["status"] = "complete" if ready else "partial"
         result["complete"] = ready
         _require_requested_completion(args, result)
@@ -306,17 +313,13 @@ def _prepare_service(args: argparse.Namespace, service: Any) -> dict[str, Any]:
             int((status.get("jobs") or {}).get(key, 0)) for key in ("pending", "retry", "running")
         ):
             return {"status": "joined", "semantic": status}
-    deadline, delay = time.monotonic() + 600, 5
+    delay = 5
     while True:
         result = prepare_semantic_service(service, force=args.force, retry_failed=args.retry_failed)
         if result.get("status") != "preparing":
             break
         report_background_progress(stage="waiting_for_preparation", completed=0)
         while True:
-            if time.monotonic() >= deadline:
-                raise RuntimeError(
-                    "Semantic preparation stayed busy for 10 minutes; inspect service health."
-                )
             time.sleep(delay)
             delay = min(30, delay * 2)
             if not service_semantic_status(service).get("preparing"):
@@ -354,6 +357,13 @@ def _scan_required_result(
     return result
 
 
+def _queue_complete(semantic: dict[str, Any]) -> bool:
+    jobs = semantic.get("jobs") or {}
+    return bool(semantic.get("semantically_ready")) and not any(
+        int(jobs.get(key, 0)) for key in ("pending", "retry", "running", "failed")
+    )
+
+
 def _require_requested_completion(args: argparse.Namespace, result: dict[str, Any]) -> None:
     if not args.until_complete or result["complete"]:
         return
@@ -385,6 +395,7 @@ def _mcp_continuation(
             "ANAXIGRAPH_SEMANTIC_WORK",
             "ANAXIGRAPH_SEMANTIC_SCHEMA with response_contract.schema_arguments once per artifact",
             "ANAXIGRAPH_SEMANTIC_EVIDENCE for every requested page",
+            "ANAXIGRAPH_SEMANTIC_RENEW at lease.renew_after_seconds while working",
             "ANAXIGRAPH_SEMANTIC_SUBMIT",
             "repeat ANAXIGRAPH_SEMANTIC_WORK until complete",
         ],
