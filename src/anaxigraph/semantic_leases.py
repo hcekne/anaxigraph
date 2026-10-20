@@ -22,6 +22,7 @@ from anaxigraph.semantic_lease_claim import (
     reconcile_claimable_jobs,
 )
 from anaxigraph.semantic_ports import SemanticPersistencePort
+from anaxigraph.semantic_timeouts import worker_lease_seconds
 
 _HEARTBEAT_INTERVAL_SECONDS = 30
 
@@ -71,7 +72,7 @@ class SemanticLeaseService:
     @contextlib.contextmanager
     def job_lease(self, job: dict[str, Any], semantic: SemanticConfig) -> Iterator[None]:
         stopped = threading.Event()
-        lease_seconds = max(90, semantic.timeout_seconds + 60)
+        lease_seconds = worker_lease_seconds(semantic.timeout_seconds)
 
         def heartbeat() -> None:
             while not stopped.wait(min(_HEARTBEAT_INTERVAL_SECONDS, max(10, lease_seconds // 3))):

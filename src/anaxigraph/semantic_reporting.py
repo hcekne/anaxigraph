@@ -121,7 +121,7 @@ class SemanticReportingService:
                 connection,
                 repository_id,
                 snapshot_id,
-                semantic.timeout_seconds if semantic else 300,
+                semantic.timeout_seconds if semantic else None,
             )
         return semantic_status_payload(snapshot_id, semantic, rows)
 

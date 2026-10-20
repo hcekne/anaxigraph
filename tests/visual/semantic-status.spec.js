@@ -211,4 +211,17 @@ test("an idle coding-agent task list says saved work will not finish by itself",
   await expect(page.locator("#settings-semantic-summary")).toContainText(
     "does not hardcode either one",
   );
+  await expect(page.locator("#settings-semantic-summary")).toContainText(
+    "does not impose a time limit on model calls",
+  );
+  await page.route("**/api/semantic*", async route => {
+    const response = await route.fetch();
+    const value = await response.json();
+    value.semantic_policy = { ...(value.semantic_policy || {}), timeout_seconds: 420 };
+    await route.fulfill({ response, json: value });
+  });
+  await page.reload();
+  await expect(page.locator("#settings-semantic-summary")).toContainText(
+    "allows 420 seconds for each model call",
+  );
 });

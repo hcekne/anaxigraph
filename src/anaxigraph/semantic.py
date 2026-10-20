@@ -24,6 +24,7 @@ from anaxigraph.semantic_taxonomy_contract import (
     response_schema,
     validated_semantic_response,
 )
+from anaxigraph.semantic_timeouts import timeout_message
 from anaxigraph.semantic_usage import ProviderUsage, claude_usage, codex_usage
 
 _NO_USAGE = ProviderUsage()
@@ -85,7 +86,11 @@ class CommandSemanticProvider:
                 timeout=self.config.timeout_seconds,
                 check=False,
             )
-        except (OSError, subprocess.TimeoutExpired) as exc:
+        except subprocess.TimeoutExpired as exc:
+            raise SemanticAnalysisError(
+                timeout_message("Semantic command", exc.timeout, request, self.config.model)
+            ) from exc
+        except OSError as exc:
             raise SemanticAnalysisError(f"Semantic command failed: {exc}") from exc
         if completed.returncode != 0:
             stderr = completed.stderr.strip()[:1_000]
@@ -123,8 +128,9 @@ class CodexSemanticProvider:
                     message_path.read_text(encoding="utf-8") if completed.returncode == 0 else ""
                 )
         except subprocess.TimeoutExpired as exc:
-            raise _codex_failure(
-                f"Codex semantic run failed: {exc}", _text_output(exc.stdout)
+            raise _usage_error(
+                timeout_message("Codex", exc.timeout, request, self.config.model),
+                codex_usage(_text_output(exc.stdout)),
             ) from exc
         except OSError as exc:
             raise SemanticAnalysisError(f"Codex semantic run failed: {exc}") from exc
@@ -270,7 +276,8 @@ class ClaudeSemanticProvider:
             )
         except subprocess.TimeoutExpired as exc:
             raise _claude_failure(
-                f"Claude semantic run failed: {exc}", _text_output(exc.stdout)
+                timeout_message("Claude", exc.timeout, request, self.config.model),
+                _text_output(exc.stdout),
             ) from exc
         except OSError as exc:
             raise SemanticAnalysisError(f"Claude semantic run failed: {exc}") from exc

@@ -169,5 +169,6 @@ semantic:
   max_jobs_per_run: 1000
   # Independent semantic work can fan out aggressively; executor runs may choose a lower ceiling.
   max_parallel_jobs: 32
-  timeout_seconds: 300
+  # Let deep reasoning finish; renewable leases still recover crashed workers.
+  timeout_seconds: null
   agent_lease_seconds: 1800

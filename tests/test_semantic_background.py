@@ -39,7 +39,8 @@ def _args(**overrides):
     return SimpleNamespace(**values)
 
 
-def test_background_command_returns_complete_handoff_for_service(repository, monkeypatch):
+@pytest.mark.parametrize("deadline", [420, None])
+def test_background_command_returns_complete_handoff_for_service(repository, monkeypatch, deadline):
     target = SimpleNamespace(
         base_url="http://127.0.0.1:8765",
         identity=lambda: {"authority": "service", "repository_id": 1},
@@ -48,7 +49,7 @@ def test_background_command_returns_complete_handoff_for_service(repository, mon
         model="gpt-5.6-terra",
         reasoning_effort="medium",
         max_parallel_jobs=30,
-        timeout_seconds=420,
+        timeout_seconds=deadline,
     )
     captured = {}
 
@@ -68,13 +69,15 @@ def test_background_command_returns_complete_handoff_for_service(repository, mon
         "model": "gpt-5.6-terra",
         "reasoning_effort": "medium",
         "parallel_jobs": 30,
-        "timeout_seconds": 420,
+        "timeout_seconds": deadline,
         "background": True,
     }
     assert result["index"]["authority"] == "service"
     assert captured["spec"].service_url == target.base_url
     assert captured["spec"].force is True
     assert captured["spec"].retry_failed is True
+    command = background._understand_command(captured["spec"])
+    assert ("--timeout-seconds" in command) == (deadline is not None)
 
 
 def test_background_command_pins_local_database(repository, tmp_path, monkeypatch):

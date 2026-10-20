@@ -86,7 +86,7 @@ def launch_understand_background(
             reasoning_effort=execution_semantic.reasoning_effort,
             index=index,
             parallel_jobs=int(getattr(execution_semantic, "max_parallel_jobs", 0)),
-            timeout_seconds=int(getattr(execution_semantic, "timeout_seconds", 0)),
+            timeout_seconds=int(getattr(execution_semantic, "timeout_seconds", None) or 0),
             config_path=None if service else args.config,
             database_path=database_path,
             service_url=service.base_url if service else None,
@@ -110,7 +110,7 @@ def _execution_identity(mode: str, execution: Any) -> dict[str, Any]:
         "model": execution.model or None,
         "reasoning_effort": execution.reasoning_effort or None,
         "parallel_jobs": int(getattr(execution, "max_parallel_jobs", 0)) or None,
-        "timeout_seconds": int(getattr(execution, "timeout_seconds", 0)) or None,
+        "timeout_seconds": getattr(execution, "timeout_seconds", None) or None,
         "background": True,
     }
 

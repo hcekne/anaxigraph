@@ -72,7 +72,7 @@ class SemanticConfig:
     model: str = ""
     reasoning_effort: str = ""
     prompt_version: str = "v1"
-    timeout_seconds: int = 300
+    timeout_seconds: int | None = None
     refresh: str = "on_scan"
     max_age_days: int = 0
     max_jobs_per_run: int = 100
@@ -325,7 +325,7 @@ def _semantic_config(value: Any) -> SemanticConfig:
         model=str(value.get("model", "")),
         reasoning_effort=str(value.get("reasoning_effort", "")),
         prompt_version=str(value.get("prompt_version", "v1")),
-        timeout_seconds=integer("timeout_seconds", 300, 1),
+        timeout_seconds=_optional_limit(value, "timeout_seconds", minimum=1),
         refresh=refresh,
         max_age_days=integer("max_age_days", 0, 0),
         max_jobs_per_run=integer("max_jobs_per_run", 100, 1),
@@ -333,8 +333,8 @@ def _semantic_config(value: Any) -> SemanticConfig:
         max_attempts=integer("max_attempts", 3, 1),
         max_source_chars=integer("max_source_chars", 100_000, 4_000),
         max_context_modules=integer("max_context_modules", 24, 1),
-        max_output_tokens=_optional_output_limit(value, "max_output_tokens"),
-        max_output_tokens_on_retry=_optional_output_limit(value, "max_output_tokens_on_retry"),
+        max_output_tokens=_optional_limit(value, "max_output_tokens"),
+        max_output_tokens_on_retry=_optional_limit(value, "max_output_tokens_on_retry"),
         agent_lease_seconds=integer("agent_lease_seconds", 1_800, 60),
         daily_budget_usd=budget,
         input_cost_per_million=input_cost,
@@ -346,12 +346,12 @@ def _semantic_config(value: Any) -> SemanticConfig:
     )
 
 
-def _optional_output_limit(value: dict[str, Any], name: str) -> int | None:
+def _optional_limit(value: dict[str, Any], name: str, *, minimum: int = 256) -> int | None:
     if value.get(name) is None:
         return None
     result = int(value[name])
-    if result < 256:
-        raise ValueError(f"semantic.{name} must be at least 256")
+    if result < minimum:
+        raise ValueError(f"semantic.{name} must be at least {minimum}")
     return result
 
 

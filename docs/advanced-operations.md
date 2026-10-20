@@ -172,6 +172,14 @@ evidence, expired results, an explicit forced reread, and newly requested detail
 reviews still require fresh work. Check `--plan-only --no-scan` against the saved
 snapshot before launching workers when diagnosing an upgrade.
 
+Model calls have no AnaxiGraph wall-clock cutoff by default (`semantic.timeout_seconds: null`).
+The previous 300-second default could terminate a valid high-effort map review mid-response.
+Set a positive number of seconds in policy, or use `--timeout-seconds` for a local executor run,
+when a hard per-call deadline is wanted. Explicit deadlines remain enforced. Worker leases
+continue to renew during long calls and expire after a worker crashes; a lease is not a model
+deadline. This runtime setting does not invalidate saved descriptions or completed review passes.
+Older repositories that explicitly set `timeout_seconds: 300` keep that limit until it is changed.
+
 Calls use the executor's model-specific output allowance by default. AnaxiGraph does not inject
 `CLAUDE_CODE_MAX_OUTPUT_TOKENS` or put an output cap in the work packet unless
 `semantic.max_output_tokens` is explicitly configured. Existing executor environment settings

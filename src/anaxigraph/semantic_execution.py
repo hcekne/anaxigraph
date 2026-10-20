@@ -61,8 +61,8 @@ def _add_runtime_limit_arguments(parser: Any) -> None:
         "--timeout-seconds",
         type=int,
         help=(
-            "Seconds allowed for each model call; this runtime choice does not make saved AI "
-            "descriptions stale"
+            "Optional seconds allowed for each model call (no deadline by default); "
+            "this runtime choice does not make saved AI descriptions stale"
         ),
     )
     parser.add_argument(

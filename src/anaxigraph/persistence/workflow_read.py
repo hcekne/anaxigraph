@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from anaxigraph.persistence.workflow_history import workflow_history
+from anaxigraph.semantic_timeouts import readable_failure
 
 
 def workflow_coverage(connection: Any, snapshot_id: int) -> dict[str, Any]:
@@ -88,13 +89,13 @@ def _scan(connection: Any, snapshot_id: int) -> dict[str, Any] | None:
 def _failures(connection: Any, snapshot_id: int) -> list[dict[str, Any]]:
     rows = connection.execute(
         """SELECT job_kind, scope_type, scope_key, status, executor_id, executor_model,
-                  available_at, substr(error, 1, 1000) AS error
+                  available_at, error
            FROM semantic_jobs WHERE snapshot_id = ? AND status IN ('retry', 'failed')
            AND error IS NOT NULL AND error != ''
            ORDER BY id DESC LIMIT 20""",
         (snapshot_id,),
     ).fetchall()
-    return [dict(row) for row in rows]
+    return [{**dict(row), "error": readable_failure(row["error"])} for row in rows]
 
 
 def _workers(connection: Any, snapshot_id: int) -> list[dict[str, Any]]:

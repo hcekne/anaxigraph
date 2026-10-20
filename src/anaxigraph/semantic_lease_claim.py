@@ -16,6 +16,7 @@ from anaxigraph.semantic_fresh_eyes_diversity import executor_family as identity
 from anaxigraph.semantic_index_port import SemanticIndex
 from anaxigraph.semantic_job_state import semantic_job_bulk_transition, semantic_job_transition
 from anaxigraph.semantic_pattern_state import remove_obsolete_candidates
+from anaxigraph.semantic_timeouts import worker_lease_seconds
 
 CANDIDATE_PAGE = 50
 
@@ -89,7 +90,7 @@ def reconcile_claimable_jobs(
             (snapshot_id,),
         )
     stale_before = (
-        datetime.now(UTC) - timedelta(seconds=max(90, semantic.timeout_seconds + 60))
+        datetime.now(UTC) - timedelta(seconds=worker_lease_seconds(semantic.timeout_seconds))
     ).isoformat()
     retry = semantic_job_transition("running", "lease_expired")
     superseded = semantic_job_bulk_transition(("pending", "retry", "running"), "supersede")
@@ -262,7 +263,7 @@ def _claim_row(
     executor_effort: str | None,
 ) -> dict[str, Any] | None:
     selected_worker = worker_id or f"{os.getpid()}:{threading.get_ident()}:{int(row['id'])}"
-    seconds = lease_seconds or max(90, semantic.timeout_seconds + 60)
+    seconds = lease_seconds or worker_lease_seconds(semantic.timeout_seconds)
     claimed = {
         "status": semantic_job_transition(str(row["status"]), "claim"),
         "worker_id": selected_worker,

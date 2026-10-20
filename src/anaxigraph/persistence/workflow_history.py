@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from anaxigraph.semantic_timeouts import readable_failure
+
 
 def workflow_history(connection: Any, snapshot_id: int) -> dict[str, Any]:
     snapshot = connection.execute(
@@ -112,7 +114,7 @@ def _taxonomy_history(connection: Any, repository_id: int, snapshot_id: int) -> 
     value["review_models"] = sorted(
         {job["executor_model"] for job in jobs if job["executor_model"]}
     )
-    value["error"] = next(
-        (job["error"] for job in reversed(jobs) if job["status"] == "failed"), None
+    value["error"] = readable_failure(
+        next((job["error"] for job in reversed(jobs) if job["status"] == "failed"), None)
     )
     return value

@@ -2,7 +2,9 @@
 
 from collections import Counter
 from dataclasses import replace
+from subprocess import TimeoutExpired
 
+import pytest
 from semantic_support import _DeterministicLifecycleProvider
 from test_workflows import prepare
 
@@ -16,8 +18,19 @@ from anaxigraph.workflow_execution import WorkflowExecution
 from anaxigraph.workflow_settings import WorkflowSettings
 
 
+@pytest.mark.parametrize(
+    ("failure", "message"),
+    [
+        ("The earlier review failed", "SemanticAnalysisError: The earlier review failed"),
+        (
+            f"Claude semantic run failed: {TimeoutExpired(['claude', '--json-schema', 'schema' * 400], 300)}",
+            "Claude timed out after 300 seconds",
+        ),
+    ],
+    ids=["ordinary-failure", "legacy-timeout"],
+)
 def test_changed_source_keeps_saved_work_visible_and_reuses_an_unfinished_proposal(
-    repository, database, monkeypatch
+    repository, database, monkeypatch, failure, message
 ):
     calls = Counter()
     fail_review = True
@@ -30,7 +43,7 @@ def test_changed_source_keeps_saved_work_visible_and_reuses_an_unfinished_propos
                 and request["analysis_kind"] == "taxonomy_review"
                 and request["review_pass"] == 2
             ):
-                raise SemanticAnalysisError("The earlier review failed")
+                raise SemanticAnalysisError(failure)
             return super().analyze(request)
 
     prepare(repository, database, monkeypatch, Provider())
@@ -48,6 +61,10 @@ def test_changed_source_keeps_saved_work_visible_and_reuses_an_unfinished_propos
         assert run(step)["status"] == "complete"
     assert run("taxonomy_review")["status"] == "waiting"
     before = database.latest_snapshot(row["id"])["id"]
+    with database.connect() as connection:
+        visible = workflow_coverage(connection, before)["failures"][0]["error"]
+        assert visible.startswith(message)
+        assert len(visible) < 1000
     source = repository / "pkg" / "util.py"
     source.write_text(source.read_text() + "\nLOCAL_CHANGE = 1\n")
     (repository / "pkg" / "new.py").write_text("def extra():\n    return 1\n")
@@ -70,7 +87,8 @@ def test_changed_source_keeps_saved_work_visible_and_reuses_an_unfinished_propos
     assert history["taxonomy"]["snapshot_id"] == before
     assert history["taxonomy"]["reviews"] == 1
     assert history["taxonomy"]["failed_reviews"] == 1
-    assert history["taxonomy"]["error"] == "SemanticAnalysisError: The earlier review failed"
+    assert history["taxonomy"]["error"].startswith(message)
+    assert len(history["taxonomy"]["error"]) < 1000
     assert history["modules"]["intrinsic"]["refresh"] == 1
     assert history["modules"]["intrinsic"]["new"] == 1
     assert history["modules"]["context"]["refresh"] >= 1

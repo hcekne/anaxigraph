@@ -131,7 +131,10 @@ function semanticPolicyLimit(semantic) {
   const policy = semantic.semantic_policy || {};
   const parallel = Number(policy.max_parallel_jobs || 1);
   const task = parallel === 1 ? "task" : "tasks";
-  return ` The service can run up to ${format.format(parallel)} AI ${task} at once and allows ${format.format(policy.timeout_seconds || 300)} seconds for each model call.`;
+  const deadline = policy.timeout_seconds == null
+    ? "does not impose a time limit on model calls"
+    : `allows ${format.format(policy.timeout_seconds)} seconds for each model call`;
+  return ` The service can run up to ${format.format(parallel)} AI ${task} at once and ${deadline}.`;
 }
 
 function semanticSettingsCommand(semantic) {

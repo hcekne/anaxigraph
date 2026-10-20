@@ -10,6 +10,7 @@ from typing import Any
 from anaxigraph.architecture_charter_contract import ARCHITECTURE_CHARTER_VERSION
 from anaxigraph.architecture_charter_corrections import read_charter_corrections
 from anaxigraph.persistence.lock_holds import read_lock_holds
+from anaxigraph.semantic_timeouts import worker_lease_seconds
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,7 +37,7 @@ def read_semantic_status(
     connection: sqlite3.Connection,
     repository_id: int,
     snapshot_id: int,
-    timeout_seconds: int = 300,
+    timeout_seconds: int | None = None,
 ) -> SemanticStatusRows:
     counts = _module_counts(connection, snapshot_id)
     scope_counts = _scope_counts(connection, snapshot_id)
@@ -92,7 +93,7 @@ def _job_counts(
     connection: sqlite3.Connection,
     repository_id: int,
     snapshot_id: int,
-    timeout_seconds: int,
+    timeout_seconds: int | None,
 ) -> dict[str, int]:
     rows = connection.execute(
         """
@@ -111,10 +112,10 @@ def _running_counts(
     connection: sqlite3.Connection,
     repository_id: int,
     snapshot_id: int,
-    timeout_seconds: int,
+    timeout_seconds: int | None,
 ) -> tuple[int, int]:
     now = datetime.now(UTC)
-    stale_before = (now - timedelta(seconds=max(90, timeout_seconds + 60))).isoformat()
+    stale_before = (now - timedelta(seconds=worker_lease_seconds(timeout_seconds))).isoformat()
     row = connection.execute(
         """
         SELECT

@@ -54,6 +54,7 @@
         "anaxigraph.semantic_stage_model",
         "anaxigraph.semantic_target_source",
         "anaxigraph.semantic_taxonomy_language",
+        "anaxigraph.semantic_timeouts",
         "anaxigraph.understandability"
       ],
       "may_import": [
