@@ -17,6 +17,7 @@ def workflow_coverage(connection: Any, snapshot_id: int) -> dict[str, Any]:
         "failures": _failures(connection, snapshot_id),
         "workers": _workers(connection, snapshot_id),
         "history": workflow_history(connection, snapshot_id),
+        "taxonomy_review": _taxonomy_review(connection, snapshot_id),
     }
 
 
@@ -107,3 +108,76 @@ def _workers(connection: Any, snapshot_id: int) -> list[dict[str, Any]]:
         (snapshot_id, datetime.now(UTC).isoformat()),
     ).fetchall()
     return [dict(row) for row in rows]
+
+
+def _taxonomy_review(connection: Any, snapshot_id: int) -> dict[str, Any]:
+    rows = connection.execute(
+        """SELECT json_extract(j.metadata_json, '$.review_pass') AS pass,
+           json_extract(j.metadata_json, '$.review_phase') AS phase,
+           json_extract(j.metadata_json, '$.taxonomy_settings.review_passes') AS required,
+           COUNT(*) AS total, SUM(j.status = 'completed') AS completed,
+           SUM(j.status = 'running' AND j.lease_expires_at >= ?) AS running,
+           SUM(j.status = 'failed') AS failed, MIN(j.started_at) AS started,
+           MAX(j.completed_at) AS finished
+           FROM semantic_jobs j WHERE j.snapshot_id = ? AND j.job_kind = 'taxonomy_review'
+           AND j.status != 'superseded' AND json_extract(j.metadata_json, '$.taxonomy_input_hash') =
+             (SELECT input_hash FROM semantic_taxonomies WHERE snapshot_id = ? ORDER BY id DESC LIMIT 1)
+           GROUP BY pass, phase ORDER BY pass, phase""",
+        (datetime.now(UTC).isoformat(), snapshot_id, snapshot_id),
+    ).fetchall()
+    passes: dict[int, dict[str, Any]] = {}
+    for row in rows:
+        if row["pass"] is None:
+            continue
+        index = int(row["pass"])
+        value = passes.setdefault(
+            index,
+            {
+                "pass": index,
+                "completed_batches": 0,
+                "total_batches": 0,
+                "active_workers": 0,
+                "elapsed_seconds": 0,
+                "reconciliation": "not_started",
+                "final": False,
+            },
+        )
+        _review_progress_row(value, row)
+    for value in passes.values():
+        _review_elapsed(value)
+    return {"passes": list(passes.values())}
+
+
+def _review_progress_row(value: dict[str, Any], row: Any) -> None:
+    value["active_workers"] += int(row["running"] or 0)
+    value["final"] = value["final"] or value["pass"] == row["required"]
+    if row["phase"] == "batch":
+        value["completed_batches"] = int(row["completed"] or 0)
+        value["total_batches"] = int(row["total"])
+    else:
+        value["reconciliation"] = (
+            "complete"
+            if row["completed"] == row["total"]
+            else "running"
+            if row["running"]
+            else "failed"
+            if row["failed"]
+            else "queued"
+        )
+    if row["started"]:
+        value["started_at"] = min(value.get("started_at", row["started"]), row["started"])
+    if row["finished"]:
+        value["finished_at"] = max(value.get("finished_at", row["finished"]), row["finished"])
+
+
+def _review_elapsed(value: dict[str, Any]) -> None:
+    start, finish = value.pop("started_at", None), value.pop("finished_at", None)
+    if start:
+        end = (
+            datetime.fromisoformat(finish)
+            if value["reconciliation"] == "complete" and finish
+            else datetime.now(UTC)
+        )
+        value["elapsed_seconds"] = max(
+            0, int((end - datetime.fromisoformat(start)).total_seconds())
+        )

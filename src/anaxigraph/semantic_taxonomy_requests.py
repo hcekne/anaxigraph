@@ -6,20 +6,83 @@ import sqlite3
 from typing import Any
 
 from anaxigraph.persistence.semantic_evidence import semantic_inventory
+from anaxigraph.semantic import SemanticResult
 from anaxigraph.semantic_records import _document_by_id
 from anaxigraph.semantic_request_support import compact_dossier
+from anaxigraph.semantic_taxonomy_partition import (
+    bounded_relationships,
+    chunk_constraints,
+    filter_previous,
+    filter_taxonomy,
+)
+from anaxigraph.semantic_taxonomy_runner import review_reconciliation
 
 
-def taxonomy_request(database: Any, job: dict[str, Any]) -> dict[str, Any]:
+def taxonomy_request(database: Any, job: dict[str, Any], semantic: Any = None) -> dict[str, Any]:
     with database.connect() as connection:
         inventory, relationship_map = semantic_inventory(connection, int(job["snapshot_id"]))
         documents = _module_documents(connection, job)
         modules = _modules(inventory, documents)
-        relationships = _relationships(relationship_map, set(documents))
+        paths = job["metadata"].get("eligible_paths") or list(documents)
+        relationships = _relationships(relationship_map, set(paths))
         previous = _previous_taxonomy(connection, job)
         if job["job_kind"] == "taxonomy_review":
-            return _review_request(connection, job, modules, relationships, previous)
+            request = _review_request(connection, job, modules, relationships, previous)
+            if job["metadata"].get("review_phase") == "batch":
+                return _batch_request(request, job["metadata"], semantic)
+            if job["metadata"].get("review_batches"):
+                return saved_review_reconciliation(connection, job, request, semantic)[0]
+            request["review_phase"] = job["metadata"].get("review_phase")
+            return request
     return _proposal_request(job, modules, relationships, previous)
+
+
+def _batch_request(
+    request: dict[str, Any], metadata: dict[str, Any], semantic: Any
+) -> dict[str, Any]:
+    paths = {item["path"] for item in request["modules"]}
+    return {
+        **request,
+        "analysis_kind": "taxonomy_review_chunk",
+        "chunk": {"index": metadata["batch_index"], "total": metadata["batch_total"]},
+        "constraints": chunk_constraints(request["constraints"], metadata["batch_total"]),
+        "candidate_taxonomy": filter_taxonomy(request["candidate_taxonomy"], paths),
+        "relationships": bounded_relationships(
+            request["relationships"], paths, semantic.max_source_chars
+        ),
+        "previous_taxonomy": filter_previous(request["previous_taxonomy"], paths),
+        "locked_memberships": {
+            path: value for path, value in request["locked_memberships"].items() if path in paths
+        },
+        "contract": request["contract"]
+        + " Review only this independent batch. Its result is saved immediately; a later reconciliation combines all batch findings.",
+    }
+
+
+def saved_review_reconciliation(
+    connection: Any, job: dict[str, Any], request: dict[str, Any], semantic: Any
+) -> Any:
+    by_path = {item["path"]: item for item in request["modules"]}
+    batches, results = [], []
+    for batch in job["metadata"]["review_batches"]:
+        batches.append([by_path[path] for path in batch["paths"]])
+        document = _document_by_id(connection, batch["document_id"])
+        results.append(SemanticResult(document["value"], document["confidence"], ()))
+    return review_reconciliation(request, semantic, batches, results)
+
+
+def review_plan_inputs(connection: Any, metadata: dict[str, Any]) -> tuple[Any, Any]:
+    documents = _module_documents(connection, {"metadata": metadata})
+    modules = [
+        {
+            "path": path,
+            "document_id": document["id"],
+            "dossier": _taxonomy_dossier(document["value"]),
+        }
+        for path, document in sorted(documents.items())
+    ]
+    candidate = _document_by_id(connection, metadata["candidate_document_id"])["value"]
+    return modules, candidate
 
 
 def _module_documents(

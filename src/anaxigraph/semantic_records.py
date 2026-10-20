@@ -209,7 +209,7 @@ def _reuse_job(
     if existing is None:
         return None
     status = str(existing["status"])
-    if status == "completed" and force_new:
+    if status == "superseded" or (status == "completed" and force_new):
         return None
     if status == "failed" and retry_failed:
         _reset_failed_job(connection, int(existing["id"]))

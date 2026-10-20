@@ -39,6 +39,7 @@ function nodeMarkup(item, index, selectedStep) {
     <span class="workflow-description">${escapeHtml(item.updateNote || item.description)}</span>${activityMarkup(item)}
     ${item.parallel ? parallelMarkup(item.stages) : ""}
     <span class="workflow-count">${countMarkup(item)}</span>
+    ${reviewProgressMarkup(item)}
     <span class="workflow-track" aria-hidden="true"><i style="width:${progress}%"></i></span>
     <span class="workflow-node-bottom"><span class="workflow-status ${item.status}">${item.activity?.label || statusLabels[item.status]}</span>
     ${item.reused ? `<small>${number(item.reused)} reused</small>` : ""}</span>
@@ -71,7 +72,7 @@ function nextRunMarkup(item) {
   if (!item.plan) return item.owner === "AI worker" ? "" : '<span class="workflow-next-run"><b>No model needed</b><small>Handled by AnaxiGraph</small></span>';
   return `<span class="workflow-next-run"><b>Next run · ${item.customized ? "your settings" : "suggested"}</b>${item.plan.map((worker, index) => {
     const prefix = item.mode === "sequence" ? `Pass ${index + 1} · ` : item.mode === "proposals" ? `Proposal ${String.fromCharCode(65 + index)} · ` : "";
-    const count = item.mode === "parallel" ? `${worker.workers} parallel worker${worker.workers === 1 ? "" : "s"}` : "1 worker";
+    const count = ["parallel", "sequence"].includes(item.mode) ? `${worker.workers} parallel worker${worker.workers === 1 ? "" : "s"}` : "1 worker";
     return `<span class="workflow-planned-model ${modelPalette(worker.model)}"><strong>${escapeHtml(prefix)}${worker.provider === "claude" ? "Anthropic" : "OpenAI"}</strong><span>${escapeHtml(modelName(worker.model))}</span><small>${count}</small></span>`;
   }).join("")}${item.mode === "sequence" ? "<small>Ordered passes · one runs at a time</small>" : ""}</span>`;
 }
@@ -106,6 +107,7 @@ export function workflowDetail(item) {
   return `<div class="workflow-detail-heading"><div><p class="eyebrow">Selected step</p>
     <h3>${escapeHtml(item.title)}</h3></div><span class="workflow-status ${item.status}">${statusLabels[item.status]}</span></div>
     <p class="workflow-count">${countMarkup(item)}</p>
+    ${reviewProgressMarkup(item, true)}
     ${activityMarkup(item)}
     ${activeWorkers(jobs.workers)}
     <p>${escapeHtml(item.detail || item.description)}</p>
@@ -117,6 +119,13 @@ export function workflowDetail(item) {
     ${(item.poolErrors || []).map(error => `<p class="workflow-error"><strong>${escapeHtml(error.provider)} · ${escapeHtml(error.model)} unavailable</strong><br>${escapeHtml(error.error)}</p>`).join("")}
     ${(jobs.errors || []).map(error => `<p class="workflow-error"><strong>${error.status === "retry" ? "Retry pending" : "Recorded failure"} · ${escapeHtml(error.scope_key)}</strong><br>${escapeHtml(error.error)}</p>`).join("")}
     ${item.view ? `<button type="button" class="secondary-button" data-workflow-view="${item.view}">Explore ${item.view === "overview" ? "the Charter" : item.view === "fresh-eyes" ? "review results" : item.view} →</button>` : ""}`;
+}
+
+function reviewProgressMarkup(item, detailed = false) {
+  const progress = item.reviewProgress;
+  if (!progress?.passes?.length) return "";
+  const passes = detailed ? progress.passes : [progress.passes.at(-1)];
+  return passes.map(pass => `<span class="workflow-review-progress"><strong>Pass ${number(pass.pass)} · ${number(pass.completed_batches)} / ${number(pass.total_batches)} batches saved</strong><span>${number(pass.active_workers)} workers active · ${number(pass.elapsed_seconds)}s elapsed</span><span>${pass.final ? "Final reconciliation" : "Pass reconciliation"} · ${escapeHtml(statusLabels[pass.reconciliation] || pass.reconciliation)}</span></span>`).join("");
 }
 
 function savedProgressDetail(item) {

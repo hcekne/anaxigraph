@@ -186,6 +186,13 @@ Calls use the executor's model-specific output allowance by default. AnaxiGraph 
 are preserved. The concise writing instructions control style without cutting off complete JSON.
 Large maps still use bounded evidence partitions; their sizing target is not an output cap.
 
+Mapping step 5 saves each independent review batch as a durable job. Batches within a pass run
+in parallel up to that pass's worker setting and the repository ceiling. Reconciliation combines
+their findings before the next configured provider pass begins. Completed batches survive index
+reopening; resuming retries failed or unfinished work. The workflow card shows saved/total batches,
+active workers and elapsed seconds, and labels the last pass's global merge **Final reconciliation**.
+Small maps that fit in one request keep a single whole-map review per pass.
+
 Both `semantic.max_output_tokens` and `semantic.max_output_tokens_on_retry` default to `null`.
 For an explicit per-call cap, set the first value to a token count. An optional higher retry ceiling
 permits one extra call on confirmed truncation, with up to twice the initial headroom and both
@@ -577,6 +584,10 @@ anaxigraph serve --repository /path/to/repository --scan-on-start --open
 anaxigraph serve --repository /path/to/repository --no-watch
 anaxigraph mcp --repository /path/to/repository --port 8765
 ```
+
+Impact returns short lists and compact file descriptions by default, with total and shown counts.
+Use `impact --details` for full lists and descriptions, `details=true` with `ANAXIGRAPH_IMPACT`,
+or `"details": true` in `/api/impact`. `ANAXIGRAPH_FILE` retrieves one full saved file description.
 
 The `serve` and `mcp` commands expose the dashboard/API and Streamable HTTP MCP and supervise
 repository watching by default. Use `--no-watch` only for a deliberately frozen map. Use `up` for

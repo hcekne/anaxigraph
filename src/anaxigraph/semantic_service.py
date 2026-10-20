@@ -293,6 +293,7 @@ def service_impact(
     target: SemanticServiceTarget,
     *,
     requested_target: str,
+    details: bool = False,
     timeout: float = 30,
 ) -> dict[str, Any]:
     return _service_agent_request(
@@ -301,6 +302,7 @@ def service_impact(
         {
             "target": requested_target,
             "repository_id": target.repository_id,
+            **({"details": True} if details else {}),
         },
         timeout=timeout,
     )

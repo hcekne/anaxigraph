@@ -76,7 +76,7 @@ export function renderStepSettings(item, data, force = false) {
 }
 
 function modeDescription(mode, data) {
-  if (mode === "sequence") return `${data.semantic.taxonomy?.required_review_passes ?? 2} ordered passes. Models run in this order, repeating if needed; only one pass runs at a time.`;
+  if (mode === "sequence") return `${data.semantic.taxonomy?.required_review_passes ?? 2} ordered passes. Independent batches run in parallel within each pass and save immediately. Reconciliation combines their findings before the next model starts. Completed batches are reused on resume.`;
   if (mode === "proposals") return `One independent proposal per model row. Up to ${Math.min(3, data.execution.max_parallel_jobs)} proposals can run together. A different slot count or provider assignment requires a new review generation.`;
   if (mode === "single") return "One model produces this result after the preceding steps are ready.";
   return `Workers take the next file as soon as they finish. The combined limit is ${data.execution.max_parallel_jobs}. If a model becomes unavailable, the other selected models continue the remaining files.`;
@@ -84,13 +84,14 @@ function modeDescription(mode, data) {
 
 function workerRow(row, index, item, data) {
   const mode = item.mode;
+  const parallel = ["parallel", "sequence"].includes(mode);
   const name = mode === "sequence" ? `Pass ${index + 1}` : mode === "proposals" ? `Proposal ${String.fromCharCode(65 + index)}` : `Model ${index + 1}`;
   const choices = data.settings.models[row.provider] || [];
   const invalid = !choices.includes(row.model);
   return `<fieldset class="workflow-worker-row"><legend>${name}</legend><div class="workflow-fields">
     <label>Provider<select name="provider">${options(["codex", "claude"], row.provider, { codex: "OpenAI · Codex", claude: "Anthropic · Claude" })}</select></label>
     <label>Model<select name="model" required>${invalid ? '<option value="" disabled selected>Choose a supported model</option>' : ""}${options(choices, row.model)}</select></label>
-    <label>${mode === "parallel" ? "Parallel workers" : "Workers per result"}<input name="workers" type="number" min="1" max="${mode === "parallel" ? data.execution.max_parallel_jobs : 1}" value="${row.workers}" required ${mode !== "parallel" ? "readonly" : ""} /></label>
+    <label>${parallel ? "Parallel workers" : "Workers per result"}<input name="workers" type="number" min="1" max="${parallel ? data.execution.max_parallel_jobs : 1}" value="${row.workers}" required ${parallel ? "" : "readonly"} /></label>
     <label>Reasoning effort<select name="reasoning_effort">${options(efforts(row.provider), row.reasoning_effort, { "": "Model default" })}</select></label></div>
     ${invalid ? `<p class="workflow-error">Saved model ${escapeHtml(row.model)} is unavailable. Choose a model before running.</p>` : ""}
     ${index ? `<button type="button" class="secondary-button" data-settings-action="remove" data-index="${index}">Remove ${name.toLowerCase()}</button>` : ""}</fieldset>`;

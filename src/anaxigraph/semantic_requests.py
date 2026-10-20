@@ -54,7 +54,7 @@ class SemanticEvidenceService:
         elif job["job_kind"] in {"taxonomy_proposal", "taxonomy_review"}:
             from anaxigraph.semantic_taxonomy_requests import taxonomy_request
 
-            request = taxonomy_request(self._database, job)
+            request = taxonomy_request(self._database, job, semantic)
         elif job["job_kind"] in {"pattern_assessment", "pattern_review"}:
             from anaxigraph.semantic_pattern_requests import pattern_request
 

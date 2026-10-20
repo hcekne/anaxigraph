@@ -140,7 +140,8 @@ class CoreMcpTools:
             description=(
                 "Before changing a file or named code part, find code that uses it directly or "
                 "indirectly, relevant tests, possible database changes, files marked for extra "
-                "care, and reasons the change may be risky."
+                "care, and reasons the change may be risky. Returns a short summary by default; "
+                "set details=true for full lists and file descriptions."
             ),
         )
 
@@ -322,13 +323,14 @@ class CoreMcpTools:
         }
         return result
 
-    def impact(self, target: str, repository: str = "") -> dict[str, Any]:
+    def impact(self, target: str, repository: str = "", details: bool = False) -> dict[str, Any]:
         row, root = self.context.select(repository)
         return impact_analysis(
             self.database,
             repository_id=int(row["id"]),
             target=target,
             config=self.context.config_for(row, root),
+            details=details,
         )
 
     def scan(

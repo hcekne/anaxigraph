@@ -11,6 +11,28 @@ from anaxigraph.semantic_contract import SemanticResult
 from anaxigraph.semantic_taxonomy_validation import normalize_taxonomy
 
 
+def prepare_taxonomy_result(
+    connection: Any, job: dict[str, Any], result: SemanticResult, semantic: SemanticConfig
+) -> SemanticResult:
+    """Expand saved batch representatives before persisting the final review document."""
+    if not job["metadata"].get("review_batches"):
+        return result
+    from anaxigraph.persistence.semantic_evidence import semantic_inventory
+    from anaxigraph.semantic_taxonomy_requests import (
+        _module_documents,
+        _modules,
+        _review_request,
+        saved_review_reconciliation,
+    )
+    from anaxigraph.semantic_taxonomy_runner import finish_partitioned_review
+
+    inventory, _relationships = semantic_inventory(connection, int(job["snapshot_id"]))
+    modules = _modules(inventory, _module_documents(connection, job))
+    request = _review_request(connection, job, modules, [], None)
+    _, clustered, reviews = saved_review_reconciliation(connection, job, request, semantic)
+    return finish_partitioned_review(result, clustered, reviews)
+
+
 def complete_taxonomy_job(
     connection: sqlite3.Connection,
     *,
@@ -22,6 +44,8 @@ def complete_taxonomy_job(
     semantic: SemanticConfig,
     now: str,
 ) -> None:
+    if job["metadata"].get("review_phase") == "batch":
+        return
     if job["job_kind"] == "taxonomy_proposal":
         _store_candidate(
             connection,

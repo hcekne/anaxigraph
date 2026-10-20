@@ -47,9 +47,30 @@ def cached_plan_size(
         "SELECT COUNT(*) FROM semantic_scope_states WHERE snapshot_id = ? AND scope_type = 'pattern'",
         (snapshot_id,),
     ).fetchone()[0]
-    if actual != expected or _has_expired_result(connection, snapshot_id, max_age_days):
+    if (
+        actual != expected
+        or _has_stranded_work(connection, snapshot_id)
+        or _has_expired_result(connection, snapshot_id, max_age_days)
+    ):
         return None
     return expected
+
+
+def _has_stranded_work(connection: sqlite3.Connection, snapshot_id: int) -> bool:
+    return (
+        connection.execute(
+            """SELECT 1 FROM semantic_scope_states s WHERE s.snapshot_id = ?
+           AND s.scope_type = 'pattern' AND s.status != 'current'
+           AND NOT EXISTS (
+             SELECT 1 FROM semantic_jobs j WHERE j.snapshot_id = s.snapshot_id
+             AND j.scope_type = s.scope_type AND j.scope_key = s.scope_key
+             AND j.status IN ('pending', 'retry', 'running', 'failed')
+             AND j.input_hash IN (s.intrinsic_input_hash, s.context_input_hash)
+           ) LIMIT 1""",
+            (snapshot_id,),
+        ).fetchone()
+        is not None
+    )
 
 
 def _has_expired_result(

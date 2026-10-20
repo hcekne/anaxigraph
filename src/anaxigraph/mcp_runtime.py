@@ -10,6 +10,7 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.server import Settings as FastMCPSettings
 from mcp.server.transport_security import TransportSecuritySettings
+from mcp.types import CallToolResult, TextContent
 
 _INSTRUCTIONS = (
     "For repository-wide AI mapping, launch `anaxigraph understand <repository> --executor "
@@ -46,7 +47,8 @@ class ResponsiveFastMCP(FastMCP):
     """
 
     def add_tool(self, fn: Any, *args: Any, **kwargs: Any) -> None:
-        handler = fn if inspect.iscoroutinefunction(fn) else _threaded(fn)
+        compact = kwargs.get("name") in {"ANAXIGRAPH_GUIDE", "ANAXIGRAPH_IMPACT"}
+        handler = fn if inspect.iscoroutinefunction(fn) else _threaded(fn, compact=compact)
         super().add_tool(handler, *args, **kwargs)
 
 
@@ -68,9 +70,21 @@ def build_responsive_mcp(allowed_hosts: list[str] | None) -> ResponsiveFastMCP:
     )
 
 
-def _threaded(function: Any) -> Any:
+def _threaded(function: Any, *, compact: bool = False) -> Any:
     @functools.wraps(function)
     async def invoke(*args: Any, **kwargs: Any) -> Any:
-        return await asyncio.to_thread(function, *args, **kwargs)
+        result = await asyncio.to_thread(function, *args, **kwargs)
+        if compact and isinstance(result, dict):
+            language = result.get("plain_language") or {}
+            summary = (
+                language.get("conclusion")
+                or language.get("summary")
+                or "Architecture results are available in structured content."
+            )
+            return CallToolResult(
+                content=[TextContent(type="text", text=str(summary)[:600])],
+                structuredContent=result,
+            )
+        return result
 
     return invoke

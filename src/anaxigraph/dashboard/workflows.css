@@ -224,3 +224,4 @@ body:has(.workflow-dialog[open]) { overflow: hidden; }
   .workflow-node { transition: none; }
   .workflow-spinner, .workflow-load-spinner, .workflow-card.running::after { animation: none; }
 }
+.workflow-review-progress { display: grid; gap: 3px; font-size: .8rem; overflow-wrap: anywhere; }

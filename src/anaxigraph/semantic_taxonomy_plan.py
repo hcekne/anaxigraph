@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from dataclasses import dataclass
+from functools import partial
 from typing import Any
 
 from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
@@ -21,6 +22,7 @@ from anaxigraph.semantic_freshness import (
     semantic_input_hash,
 )
 from anaxigraph.semantic_records import _ensure_job, _member_documents, _states, _upsert_state
+from anaxigraph.semantic_taxonomy_review_plan import plan_review_jobs
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,22 +178,14 @@ class SemanticTaxonomyPlanner:
             **review_input,
             "source_changes": json.loads(taxonomy["change_json"] or "[]"),
         }
-        scope_status, created, error = _ensure_job(
+        scope_status, created, error = plan_review_jobs(
             connection,
             repository_id=repository_id,
             snapshot_id=snapshot_id,
-            scope_type="taxonomy",
-            scope_key=str(repository_id),
-            artifact_id=None,
-            artifact_version_id=None,
-            job_kind="taxonomy_review",
-            reason="independent_agent_taxonomy_review",
-            priority=44,
             input_hash=review_hash,
             semantic=semantic,
-            estimated_input_tokens=max(900, len(metadata["document_ids"]) * 160),
             metadata=review_metadata,
-            retry_failed=retry_failed,
+            enqueue=_review_queue(connection, repository_id, snapshot_id, semantic, retry_failed),
         )
         _upsert_state(
             connection,
@@ -207,6 +201,29 @@ class SemanticTaxonomyPlanner:
             context_document_id=candidate_document_id,
         )
         return int(created)
+
+
+def _review_queue(
+    connection: Any,
+    repository_id: int,
+    snapshot_id: int,
+    semantic: SemanticConfig,
+    retry_failed: bool,
+) -> Any:
+    return partial(
+        _ensure_job,
+        connection,
+        repository_id=repository_id,
+        snapshot_id=snapshot_id,
+        scope_type="taxonomy",
+        artifact_id=None,
+        artifact_version_id=None,
+        job_kind="taxonomy_review",
+        priority=44,
+        reason="independent_agent_taxonomy_review",
+        semantic=semantic,
+        retry_failed=retry_failed,
+    )
 
 
 def _review_candidate(connection: sqlite3.Connection, taxonomy: sqlite3.Row) -> tuple[int, int]:

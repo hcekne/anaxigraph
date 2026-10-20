@@ -7,6 +7,7 @@ from enum import StrEnum
 
 PATTERN_METADATA_RETENTION = "pattern-evaluation-v1"
 FRESH_EYES_METADATA_RETENTION = "fresh-eyes-input-v1"
+TAXONOMY_REVIEW_METADATA_RETENTION = "taxonomy-review-batches-v1"
 
 
 class SemanticLeaseLost(ValueError):

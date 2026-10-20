@@ -17,12 +17,13 @@ from anaxigraph.semantic_index_port import SemanticIndex
 from anaxigraph.semantic_job_state import (
     FRESH_EYES_METADATA_RETENTION,
     PATTERN_METADATA_RETENTION,
+    TAXONOMY_REVIEW_METADATA_RETENTION,
     SemanticLeaseLost,
     semantic_job_transition,
     semantic_scope_status,
 )
 from anaxigraph.semantic_pattern_results import complete_pattern_job
-from anaxigraph.semantic_taxonomy_results import complete_taxonomy_job
+from anaxigraph.semantic_taxonomy_results import complete_taxonomy_job, prepare_taxonomy_result
 
 _DOCUMENT_SQL = """
 INSERT INTO semantic_documents(
@@ -62,8 +63,9 @@ class SemanticPersistenceService:
         provider: str,
         semantic: SemanticConfig,
     ) -> None:
-        completion = _completion(job, result, provider, semantic)
         with self._database.transaction() as connection:
+            result = prepare_taxonomy_result(connection, job, result, semantic)
+            completion = _completion(job, result, provider, semantic)
             _finish_job(connection, job, completion)
             document_id = _insert_document(
                 connection,
@@ -84,12 +86,13 @@ class SemanticPersistenceService:
                     semantic=semantic,
                     now=completion.now,
                 )
-                refresh_search_projection(
-                    connection,
-                    int(job["repository_id"]),
-                    int(job["snapshot_id"]),
-                    force=True,
-                )
+                if job["metadata"].get("review_phase") != "batch":
+                    refresh_search_projection(
+                        connection,
+                        int(job["repository_id"]),
+                        int(job["snapshot_id"]),
+                        force=True,
+                    )
                 return
             if job["job_kind"] in {"pattern_assessment", "pattern_review"}:
                 complete_pattern_job(
@@ -336,6 +339,25 @@ def _usage_source(usage_reported: bool, *, agent_funded: bool) -> str:
 def _retained_metadata(job: dict[str, Any]) -> dict[str, Any]:
     """Keep only the terminal metadata a completed job of this kind is still read for."""
 
+    if job["job_kind"] == "taxonomy_review":
+        return {
+            "retention": TAXONOMY_REVIEW_METADATA_RETENTION,
+            **{
+                key: job["metadata"][key]
+                for key in (
+                    "review_phase",
+                    "review_pass",
+                    "review_group_hash",
+                    "batch_index",
+                    "batch_total",
+                    "document_ids",
+                    "taxonomy_input_hash",
+                    "taxonomy_settings",
+                )
+                if key in job["metadata"]
+                and (key != "document_ids" or job["metadata"].get("review_phase") == "batch")
+            },
+        }
     if job["job_kind"] == "pattern_assessment":
         return {
             "retention": PATTERN_METADATA_RETENTION,

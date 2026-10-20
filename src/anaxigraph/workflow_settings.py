@@ -102,7 +102,7 @@ def suggested_settings(ceiling: int, review_passes: int = 2) -> dict[str, list[d
         "intrinsic": [worker(luna, 4)],
         "context": [worker(luna, 4)],
         "taxonomy_proposal": [worker(sol)],
-        "taxonomy_review": [worker(sol), worker(opus)][: max(1, review_passes)],
+        "taxonomy_review": [worker(sol, 4), worker(opus, 4)][: max(1, review_passes)],
         "groups": [worker(sol, 2)],
         "charter": [worker(sol)],
         "pattern_assessment": [worker(sol, 2)],
@@ -120,10 +120,12 @@ def validate_step(step: str, workers: list[WorkerChoice], ceiling: int) -> None:
         raise ValueError("This step has no model settings")
     if mode == "single" and len(workers) != 1:
         raise ValueError("This step produces one result with one model")
-    if mode != "parallel" and any(worker.workers != 1 for worker in workers):
-        raise ValueError("Each proposal or ordered review pass uses one worker")
-    if mode == "parallel" and sum(worker.workers for worker in workers) > ceiling:
-        raise ValueError(f"The combined worker count exceeds the repository limit of {ceiling}")
+    counts = [worker.workers for worker in workers]
+    if mode not in {"parallel", "sequence"} and max(counts, default=1) != 1:
+        raise ValueError("Each proposal or single result uses one worker")
+    capacity = sum(counts) if mode == "parallel" else max(counts, default=1)
+    if capacity > ceiling:
+        raise ValueError(f"The worker count exceeds the repository limit of {ceiling}")
     for worker in workers:
         if worker.provider == "claude" and worker.reasoning_effort == "xhigh":
             raise ValueError("Claude supports low, medium, high or max effort, not xhigh")

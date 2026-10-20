@@ -121,6 +121,7 @@ class AgentRoutes:
                 repository_id=int(row["id"]),
                 target=request.target,
                 config=self.context.selected_config(row),
+                details=request.details,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc

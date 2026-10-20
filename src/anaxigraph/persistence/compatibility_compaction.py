@@ -12,6 +12,7 @@ from anaxigraph.persistence.temporal_reads import snapshot_relationship_edges
 from anaxigraph.semantic_job_state import (
     FRESH_EYES_METADATA_RETENTION,
     PATTERN_METADATA_RETENTION,
+    TAXONOMY_REVIEW_METADATA_RETENTION,
 )
 
 COMPATIBILITY_TABLES = ("file_versions", "symbols", "relationships", "group_memberships")
@@ -33,10 +34,10 @@ def compact_terminal_semantic_job_metadata(connection: sqlite3.Connection) -> No
             status = 'superseded'
             OR (status = 'completed' AND job_kind != 'pattern_assessment'
                 AND (NOT json_valid(metadata_json)
-                     OR COALESCE(json_extract(metadata_json, '$.retention'), '') != ?))
+                     OR COALESCE(json_extract(metadata_json, '$.retention'), '') NOT IN (?, ?)))
         )
         """,
-        (FRESH_EYES_METADATA_RETENTION,),
+        (FRESH_EYES_METADATA_RETENTION, TAXONOMY_REVIEW_METADATA_RETENTION),
     )
     connection.execute(
         """

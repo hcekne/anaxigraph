@@ -26,6 +26,7 @@ class FreshEyesRequest(BaseModel):
 class ImpactRequest(BaseModel):
     target: str = Field(min_length=1, max_length=1_000)
     repository_id: int | None = None
+    details: bool = False
 
 
 class FindingStatusRequest(BaseModel):

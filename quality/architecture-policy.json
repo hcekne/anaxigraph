@@ -197,6 +197,7 @@
         "anaxigraph.semantic_taxonomy_plan",
         "anaxigraph.semantic_taxonomy_requests",
         "anaxigraph.semantic_taxonomy_results",
+        "anaxigraph.semantic_taxonomy_review_plan",
         "anaxigraph.trend_service",
         "anaxigraph.understanding",
         "anaxigraph.workflow_execution",

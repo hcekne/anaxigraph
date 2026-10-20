@@ -74,7 +74,7 @@ function applyActivity(item, data, flow, startingStep) {
 
 function workerCapacity(plan, mode, ceiling) {
   if (!plan?.length) return null;
-  const total = ["sequence", "single"].includes(mode) ? 1 : plan.reduce((sum, row) => sum + row.workers, 0);
+  const total = mode === "single" ? 1 : mode === "sequence" ? Math.max(...plan.map(row => row.workers)) : plan.reduce((sum, row) => sum + row.workers, 0);
   return Math.min(total, ceiling || total);
 }
 
@@ -145,9 +145,10 @@ function taxonomySteps(data, taxonomy) {
       done: map ? 1 : 0, total: 1, unit: "proposal", jobs: jobFacts(data, "taxonomy_proposal"), enabled: taxonomy.enabled,
       detail: "The proposal uses file descriptions and code relationships. Software validates and repairs assignments before the review begins.", view: "graph",
     }),
-    step("taxonomy_review", "Review and revise", "Critique the map, then check every revised assignment.", {
+    step("taxonomy_review", "Review and revise", "Review batches in parallel, then reconcile the map.", {
       done: map?.stored_reviews || 0, total: taxonomy.required_review_passes ?? null, unit: "passes",
       zeroComplete: !!map, jobs: jobFacts(data, "taxonomy_review"), enabled: taxonomy.enabled,
+      reviewProgress: data.coverage?.taxonomy_review,
       detail: map ? `${map.validation?.assigned_modules || 0} files assigned; ${map.validation?.areas || 0} areas and ${map.validation?.subsystems || 0} subsystems. Latest validation: ${map.validation?.repairs || 0} repairs. Repairs preserve coverage; they do not prove grouping accuracy.` : "Each pass receives the current map. The configured taxonomy model applies to the proposal and its reviews.", view: "graph",
     }),
   ];

@@ -13,7 +13,7 @@ from anaxigraph.agent_payload import (
     _risk_explanation,
     _sorted_ids,
 )
-from anaxigraph.graph_contract import _with_response_telemetry
+from anaxigraph.graph_contract import _response_payload_bytes, _with_response_telemetry
 from anaxigraph.persistence.snapshot_projection import resolve_projected_target
 
 
@@ -44,15 +44,64 @@ def build_impact_analysis(
     repository_id: int,
     target: str,
     config: Any,
+    details: bool = False,
 ) -> dict[str, Any]:
     started = time.perf_counter()
     graph = _impact_graph(database, repository_id, target)
     evidence = _impact_evidence(graph, target, config)
+    payload = _impact_response(repository_id, graph, evidence)
+    if not details:
+        payload = _compact_impact(payload, min(8_000, config.agent.payload_limit_bytes))
     return _with_response_telemetry(
-        _impact_response(repository_id, graph, evidence),
+        payload,
         started,
         action="impact",
     )
+
+
+def _compact_impact(payload: dict[str, Any], budget: int) -> dict[str, Any]:
+    collections = (
+        "direct_dependants",
+        "second_order_dependants",
+        "outgoing_dependencies",
+        "critical_paths_affected",
+        "tests_relevant",
+        "database_migrations_possibly_affected",
+    )
+    payload["result_counts"] = {
+        key: {"total": len(payload[key]), "shown": min(5, len(payload[key]))} for key in collections
+    }
+    for key in collections:
+        payload[key] = payload[key][:5]
+        if key in {"direct_dependants", "second_order_dependants", "outgoing_dependencies"}:
+            payload[key] = [_compact_file(item) for item in payload[key]]
+    payload["target"] = _compact_file(payload["target"])
+    payload["details_available"] = True
+    payload["next_action"] = {
+        "tool": "ANAXIGRAPH_IMPACT",
+        "arguments": {
+            "repository": str(payload["repository_id"]),
+            "target": payload["target"]["path"],
+            "details": True,
+        },
+        "reason": "Request full file descriptions and complete lists when needed.",
+    }
+    # Reserve space for action telemetry, which is attached after shaping the response.
+    while _response_payload_bytes(payload) > budget - 400:
+        key = max(collections, key=lambda name: _response_payload_bytes(payload[name]))
+        if not payload[key]:
+            break
+        payload[key].pop()
+        payload["result_counts"][key]["shown"] -= 1
+    return payload
+
+
+def _compact_file(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: (str(value)[:240] if key == "summary" else value)
+        for key, value in item.items()
+        if key != "semantic"
+    }
 
 
 def _impact_graph(database: Any, repository_id: int, target: str) -> _ImpactGraph:
@@ -71,7 +120,9 @@ def _impact_evidence(graph: _ImpactGraph, target: str, config: Any) -> _ImpactEv
     direct = set(graph.incoming[graph.target_id])
     second = set().union(*(graph.incoming[item] for item in direct)) if direct else set()
     second.discard(graph.target_id)
-    transitive = agent_graph._reverse_reachable(graph.target_id, graph.incoming, limit=500)
+    transitive = agent_graph._reverse_reachable(
+        graph.target_id, graph.incoming, limit=len(graph.files)
+    )
     affected = {graph.target_id} | transitive
     tests = agent_graph._related_tests(
         graph.files,

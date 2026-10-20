@@ -266,10 +266,12 @@ def impact_analysis(
     repository_id: int,
     target: str,
     config: AnaxiGraphConfig,
+    details: bool = False,
 ) -> dict[str, Any]:
     return build_impact_analysis(
         database,
         repository_id=repository_id,
         target=target,
         config=config,
+        details=details,
     )

@@ -219,7 +219,7 @@ elif kind == "pattern_review":
         "confidence": 80,
         "evidence": [request["candidate"]["target"]["key"]],
     }
-elif kind == "taxonomy_review":
+elif kind.startswith("taxonomy_review"):
     value = {
         "verdict": "approve",
         "summary": "The candidate is coherent for this sample.",

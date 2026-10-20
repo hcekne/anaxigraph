@@ -55,6 +55,9 @@ def configure_agent_commands(commands: Any) -> None:
     )
     add_repository_arguments(impact)
     impact.add_argument("--target", required=True, help="Repository path or unique symbol")
+    impact.add_argument(
+        "--details", action="store_true", help="Include full file descriptions and complete lists"
+    )
     _add_service_url(impact)
     impact.set_defaults(handler=_impact, db=None)
 
@@ -191,6 +194,7 @@ def _impact(args: argparse.Namespace) -> dict[str, Any]:
             service_impact(
                 service,
                 requested_target=args.target,
+                details=args.details,
             ),
             service,
         )
@@ -200,6 +204,7 @@ def _impact(args: argparse.Namespace) -> dict[str, Any]:
         repository_id=repository_id,
         target=args.target,
         config=config,
+        details=args.details,
     )
 
 

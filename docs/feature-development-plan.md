@@ -7,6 +7,78 @@
 **Execution rule:** one phase is active at a time; the next phase does not begin until the current
 phase's exit gate is met.
 
+## Usage feedback and repair queue — 20 October 2026
+
+This queue records the maintainer's feedback and an agent's development experience. Ownership,
+dependencies and relevant tests already help agents decide where changes belong. Fewer bugs,
+faster delivery and a 10×/100× productivity gain have not been demonstrated; profiling and
+real-container tests established the reported synchronization improvement.
+
+- [x] **P0 — Unblock Pattern analysis step 3 (Assess the fit).** Reproduce the stalled
+  assessment, repair progression and resume, and prove assessments lead to independent reviews
+  and saved evaluations without repeating completed work.
+- [x] **P0 — Verify Fresh Eyes with automated executors.** Exercise the complete proposal, adjudication, comparison,
+  mission-filter and grounding flow, including individual steps and resume. Record separately
+  what deterministic tests establish and what has been verified with live model executors.
+- [x] **P1 — Rewrite Mapping step 5 as resumable batch review.** Review independent batches
+  in parallel within each pass, preserving the configured OpenAI → Claude pass order. Save
+  each batch immediately, reuse completed batches after interruption and retry failed batches
+  individually. Show completed/total batches, active workers and elapsed time, followed by a
+  clearly labelled final reconciliation phase that combines findings into one reviewed map.
+- [ ] **P1 — Enforce small agent responses by default.** This is repeated feedback, not a new
+  request. Impact and guidance must lead with bounded findings, dependencies and relevant tests;
+  expose details on request and avoid duplicating full JSON in text and structured content.
+- [ ] **P1 — Recognize Git worktrees automatically.** Select or register the exact checkout
+  rather than silently using a sibling checkout's shared service. Show checkout path, branch,
+  indexed commit and current commit prominently, with an actionable mismatch explanation.
+- [ ] **P1 — Improve recommendation relevance.** Distinguish implementation code, tests,
+  documentation, configuration and measurement artifacts. Documentation must not become an
+  implementation entry point by default, and benchmark JSON must not produce caller-inspection
+  advice or an architectural-regression claim merely because it was added.
+- [ ] **P1 — Separate freshness indicators.** Report structural scan freshness independently
+  from AI descriptions, pattern evaluations and Fresh Eyes. Every “current” label must identify
+  the checkout, commit/snapshot and analysis it describes.
+- [ ] **P1 — Make counts agree.** Summary totals, filtered lists and deeper results must share
+  an explicit scope and unit (files, symbols, candidate–target pairs or findings). Explain
+  exclusions and pagination instead of presenting conflicting totals.
+- [ ] **P1 — Make reassessment baselines explicit.** Retain and display the exact before/after
+  checkout, commits and snapshot IDs across several implementation phases; never silently compare
+  a later phase with an unexpected baseline.
+- [ ] **P2 — Demonstrate architectural coherence.** Show how current ownership, existing
+  extension points, explicit boundaries, pattern evidence and post-change reassessment keep a
+  concrete change cohesive. Separate observed facts, AI interpretation and proposed action.
+- [ ] **P2 — Make direct agent interaction central.** Help people give agents specific goals,
+  ideas, taste and design direction, then inspect and refine the resulting work. Treat the
+  hypothesis that ideas and taste are the bottleneck as a product hypothesis to test, not a
+  measured claim about agent judgment or productivity.
+- [ ] **P2 — Protect the useful core workflow.** Keep “where does this behavior live, what
+  depends on it, and which tests matter?” easy to answer. Assess architectural recommendations
+  against source evidence before claiming that they improve code quality or delivery speed.
+
+Work starts on P0, followed by the repeated response-size issue. The remaining items stay visible
+until their acceptance evidence is recorded here.
+
+**First repair acceptance (20 October):** `test_pattern_workflow_resume.py` reproduces stalled
+assessments and reviews when a cached plan points at retired jobs. Planning now repairs those
+gaps and preserves completed results. `test_taxonomy_review_batches.py` proves parallel work,
+immediate saves while a peer is blocked, ordered provider passes, sample interruption, and retry
+after reopening the index without repeating successful batches. Review checkpoints survive
+index compaction; both local and remote executors use the existing queue and contracts.
+The dashboard shows batch counts, live workers, elapsed seconds and final reconciliation, with
+browser coverage for settings, progress, phone containment and laptop layout.
+
+The existing Fresh Eyes suites passed through proposal, adjudication, comparison, mission
+filter, grounding, provider pins, generations, retry and resume. Browser contracts also cover
+the review journey. Executors are simulated, including subprocess fixtures; no live model run
+was launched, so live-provider operation and recommendation quality remain unmeasured.
+
+The repeated output-size item has a concrete first fix: impact responses show up to five items
+per list within an 8 KB default budget (or the repository's smaller budget), preserve full counts,
+and offer `details=true` / CLI `--details`. MCP impact and guidance retain a short text summary
+beside structured content instead of repeating the JSON. A regression fixture with long AI
+descriptions exceeds 100 KB in full-detail mode and stays below 8 KB by default. Other response
+types remain on the queue for a broader audit.
+
 ## Executive decision
 
 > **AnaxiGraph is the shared architecture intelligence layer for humans and AI agents. It explains

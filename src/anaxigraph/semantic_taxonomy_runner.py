@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 
 from anaxigraph.config import SemanticConfig
@@ -204,6 +205,8 @@ def analyze_taxonomy_review(
     request: dict[str, Any],
     semantic: SemanticConfig,
 ) -> SemanticResult:
+    if request.get("review_phase") == "reconciliation":
+        return provider.analyze(request)
     modules = list(request.get("modules") or [])
     candidate = dict(request.get("candidate_taxonomy") or {})
     candidate_memberships = max(len(modules), membership_count(candidate))
@@ -219,8 +222,26 @@ def analyze_taxonomy_review(
     relationships = list(request.get("relationships") or [])
     chunk_requests = _review_requests(request, semantic, base, batches, relationships, candidate)
     results = parallel_map(provider.analyze, chunk_requests, semantic.max_parallel_jobs)
-    chunks, verdicts, partition_reviews = _partition_reviews(batches, results)
+    final_request, clustered, partition_reviews = review_reconciliation(
+        request, semantic, batches, results
+    )
+    result = provider.analyze(final_request)
     input_tokens, output_tokens = _token_usage(results)
+    return finish_partitioned_review(
+        result, clustered, partition_reviews, input_tokens, output_tokens
+    )
+
+
+def review_reconciliation(
+    request: dict[str, Any],
+    semantic: SemanticConfig,
+    batches: list[list[dict[str, Any]]],
+    results: list[SemanticResult],
+) -> tuple[dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
+    base = request_base(request)
+    modules = list(request.get("modules") or [])
+    relationships = list(request.get("relationships") or [])
+    chunks, _verdicts, partition_reviews = _partition_reviews(batches, results)
     clustered = cluster_inventory(
         chunks,
         modules,
@@ -251,7 +272,17 @@ def analyze_taxonomy_review(
             "result to every original module before deterministic validation."
         ),
     }
-    result = provider.analyze(final_request)
+    final_request["review_phase"] = "reconciliation"
+    return final_request, clustered, partition_reviews
+
+
+def finish_partitioned_review(
+    result: SemanticResult,
+    clustered: dict[str, Any],
+    partition_reviews: list[dict[str, Any]],
+    input_tokens: int = 0,
+    output_tokens: int = 0,
+) -> SemanticResult:
     issues = [issue for review in partition_reviews for issue in review["issues"]] + list(
         result.value["issues"]
     )
@@ -265,15 +296,18 @@ def analyze_taxonomy_review(
     value = {
         **result.value,
         "verdict": (
-            "revise" if result.value["verdict"] == "revise" or "revise" in verdicts else "approve"
+            "revise"
+            if result.value["verdict"] == "revise"
+            or any(review["verdict"] == "revise" for review in partition_reviews)
+            else "approve"
         ),
         "issues": issues[:500],
         "taxonomy": _expanded_taxonomy(result.value["taxonomy"], clustered),
         "evidence": evidence,
     }
-    return SemanticResult(
+    return replace(
+        result,
         value=value,
-        confidence=result.confidence,
         evidence=tuple(evidence),
         input_tokens=input_tokens + result.input_tokens,
         output_tokens=output_tokens + result.output_tokens,
