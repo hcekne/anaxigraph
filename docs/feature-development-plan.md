@@ -109,8 +109,8 @@ those directions, exact checkout and pre-edit baseline into a prompt for the cod
   in the background, and polling avoids full review documents. The reproducible
   [1,000-file measurement](../benchmarks/results/usage-feedback-2026-10-20.json) records scans,
   handler latency, byte sizes and complete pagination. On the shared test host, workflow polling
-  measured 87 ms median; a 250-file compact page was 496,320 bytes versus 1,065,388 bytes in full
-  mode. Guidance was 7,330 bytes and impact 3,453 bytes. Cold/unchanged scans took 4.679/1.524 s.
+  measured 70 ms median; a 250-file compact page was 496,320 bytes versus 1,065,388 bytes in full
+  mode. Guidance was 7,126 bytes and impact 3,453 bytes. Cold/unchanged scans took 4.891/1.529 s.
   A separate real local-runtime startup reached its dashboard in 2.149 s and accepted a fixture
   dossier in 2.412 s. These measurements exclude live model calls; provider latency, model output
   quality and delivery outcomes are not inferred from them.
@@ -119,7 +119,12 @@ Final verification: 90 workflow/service/API/pattern/batch/agent-package regressi
 response/Fresh Eyes/reassessment checks, and all 89 dashboard browser checks passed. The 44-check
 transport and guidance run also passed before the final focused checks. Architecture, module-size,
 function/coupling/source-budget and package checks are enforced without relaxing their limits.
-No live provider run was launched. Full-suite coverage and self-analysis remain CI responsibilities.
+No live provider run was launched. Final scale checks also verify the complete selected implementation
+set in both brief and expanded guidance at 120, 1,000 and 3,000 files, with tests reported
+separately. Compact guidance keeps verification/placement references and honors a 4 KB override.
+The 28-check benchmark/guidance/usage run and the five scale/batch checks passed. Deterministic
+self-analysis passed after checkpoint and final-map assertions were separated into focused
+test helpers; no new finding was accepted. Full-suite coverage remains a CI responsibility.
 
 ## Executive decision
 

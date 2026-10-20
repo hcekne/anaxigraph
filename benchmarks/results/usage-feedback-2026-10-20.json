@@ -1,56 +1,56 @@
 {
   "recorded_at": "2026-10-20",
-  "base_revision": "a5fbe54b5591f78e01c68587db490009afe0b78d",
-  "implementation": "Usage-feedback completion working tree; see the commit containing this report.",
+  "base_revision": "657f6b88d65cdba228db3aaf4582505f1b1fc612",
+  "implementation": "Completed usage-feedback implementation with compact primary-file preservation; see the commit containing this report.",
   "environment": "Shared development host with concurrent regression tests; timings are observations, not unloaded latency guarantees.",
-  "command": "python -m benchmarks.usage_latency --files 1000 --trials 10 --output /tmp/anaxigraph-usage-latency-final.json",
+  "command": "python -m benchmarks.usage_latency --files 1000 --trials 10 --output /tmp/anaxigraph-usage-latency-complete.json",
   "fixture": "Deterministic synthetic Git repository; 1000 files, one commit; no model calls.",
   "transport": "In-process HTTP through the real ASGI application and SQLite index.",
   "trials": 10,
   "statistics": "One excluded warmup per interaction; p95 is the nearest-rank percentile.",
-  "cold_scan_seconds": 4.679,
-  "unchanged_scan_seconds": 1.524,
+  "cold_scan_seconds": 4.891,
+  "unchanged_scan_seconds": 1.529,
   "indexed_files": 1000,
   "all_pages_count": 1000,
   "results": {
     "/api/overview": {
-      "median_ms": 371.814,
-      "p95_ms": 504.18,
-      "response_bytes": 17008
+      "median_ms": 364.943,
+      "p95_ms": 462.505,
+      "response_bytes": 17007
     },
     "/api/workflows": {
-      "median_ms": 87.402,
-      "p95_ms": 121.656,
+      "median_ms": 69.51,
+      "p95_ms": 83.138,
       "response_bytes": 10502
     },
     "/api/workflows?details=true": {
-      "median_ms": 115.528,
-      "p95_ms": 143.967,
+      "median_ms": 77.624,
+      "p95_ms": 89.405,
       "response_bytes": 14014
     },
     "/api/semantic": {
-      "median_ms": 81.125,
-      "p95_ms": 94.713,
+      "median_ms": 48.629,
+      "p95_ms": 60.792,
       "response_bytes": 8252
     },
     "/api/modules?limit=250": {
-      "median_ms": 593.125,
-      "p95_ms": 747.922,
+      "median_ms": 485.365,
+      "p95_ms": 592.884,
       "response_bytes": 1065388
     },
     "/api/modules?limit=250&compact=true": {
-      "median_ms": 641.173,
-      "p95_ms": 757.555,
+      "median_ms": 401.425,
+      "p95_ms": 516.932,
       "response_bytes": 496320
     },
     "guidance": {
-      "median_ms": 1018.607,
-      "p95_ms": 1200.571,
-      "response_bytes": 7330
+      "median_ms": 709.454,
+      "p95_ms": 901.481,
+      "response_bytes": 7126
     },
     "impact": {
-      "median_ms": 544.617,
-      "p95_ms": 650.561,
+      "median_ms": 261.545,
+      "p95_ms": 336.198,
       "response_bytes": 3453
     }
   },

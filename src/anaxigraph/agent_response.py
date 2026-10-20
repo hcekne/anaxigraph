@@ -209,3 +209,17 @@ def _sync_counts(value: dict[str, Any]) -> None:
     if isinstance(counts, dict) and "total" in counts and "architectural_effects" in value:
         counts["returned"] = len(value["architectural_effects"])
         counts["omitted"] = max(0, counts["total"] - counts["returned"])
+
+
+def compact_finding(item: dict[str, Any]) -> dict[str, Any]:
+    result = {
+        key: value
+        for key, value in item.items()
+        if key in {"id", "finding_type", "severity", "priority_score", "summary", "plain_language"}
+    }
+    result["summary"] = str(result.get("summary") or "")[:180]
+    language = result.get("plain_language") or {}
+    result["plain_language"] = {
+        key: str(language[key])[:180] for key in ("version", "what", "why") if key in language
+    }
+    return result

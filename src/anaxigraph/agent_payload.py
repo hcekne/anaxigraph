@@ -9,6 +9,7 @@ from typing import Any
 from anaxigraph.agent_decision_payload import (
     compact_architecture_decision,
 )
+from anaxigraph.agent_response import compact_finding as _compact_finding
 from anaxigraph.agent_task_path import compact_task_path
 from anaxigraph.architecture_guidance import (
     compact_guidance_projection,
@@ -261,11 +262,14 @@ def _bound_scope_payload(payload: dict[str, Any], limit_bytes: int) -> dict[str,
 def _prefer_brief_guidance(payload: dict[str, Any]) -> None:
     compact_guidance_projection(payload)
     decision = payload.get("architecture_decision") or {}
+    compact = compact_architecture_decision(decision)
     payload["architecture_decision"] = {
         "contract_version": decision.get("contract_version"),
         "snapshot_id": decision.get("snapshot_id"),
         "status": decision.get("status"),
         "task_path": compact_task_path(decision.get("task_path"), route_only=True),
+        "placement": compact.get("placement"),
+        "verification": compact.get("verification"),
     }
     fields = {"path", "artifact_type", "group", "summary", "language", "fan_in", "fan_out"}
     for key in ("primary_files", "related_files", "protected_files"):
@@ -275,7 +279,7 @@ def _prefer_brief_guidance(payload: dict[str, Any]) -> None:
                 for field, value in item.items()
                 if field in fields
             }
-            for item in payload[key][:5]
+            for item in (payload[key][:5] if key == "related_files" else payload[key])
         ]
     payload["known_findings"] = [_compact_finding(item) for item in payload["known_findings"][:5]]
     payload["details_available"] = {
@@ -312,20 +316,6 @@ def _trim_scope_collections(
             if len(summary) > 120:
                 item["summary"] = summary[:117].rstrip() + "..."
                 omitted["summaries_compacted"] += 1
-
-
-def _compact_finding(item: dict[str, Any]) -> dict[str, Any]:
-    result = {
-        key: value
-        for key, value in item.items()
-        if key in {"id", "finding_type", "severity", "priority_score", "summary", "plain_language"}
-    }
-    result["summary"] = str(result.get("summary") or "")[:180]
-    language = result.get("plain_language") or {}
-    result["plain_language"] = {
-        key: str(language[key])[:180] for key in ("version", "what", "why") if key in language
-    }
-    return result
 
 
 def _compact_scope_file_details(
@@ -380,6 +370,9 @@ def _minimize_legacy_decision(
         if decision.get(key) not in (None, "")
     }
     omitted["architecture_decision_details"] = 1
+    if size() > limit:
+        payload["plain_language"] = {"risk": (payload.get("plain_language") or {}).get("risk")}
+        omitted["plain_language_details"] = 1
 
 
 def _maybe_compact_decision(

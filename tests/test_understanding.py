@@ -73,6 +73,7 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
     assert group_language["why_these_files_are_together"]
     scope = architecture_guidance(
         database,
+        details=True,
         repository_id=stats.repository_id,
         goal="Change Calculator behavior",
         config=config,

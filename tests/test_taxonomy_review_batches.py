@@ -84,14 +84,7 @@ def test_batches_save_during_pass_and_resume_only_failed_work(repository, databa
         future = pool.submit(run, config)
         try:
             assert entered.wait(5)
-            for _ in range(200):
-                with database.connect() as connection:
-                    progress = workflow_coverage(connection, row["current_snapshot_id"])[
-                        "taxonomy_review"
-                    ]
-                if progress["passes"] and progress["passes"][0]["completed_batches"]:
-                    break
-                time.sleep(0.01)
+            progress = _wait_for_checkpoint(database, row["current_snapshot_id"])
             first = progress["passes"][0]
             assert first["completed_batches"] > 0
             assert first["completed_batches"] < first["total_batches"]
@@ -128,25 +121,39 @@ def test_batches_save_during_pass_and_resume_only_failed_work(repository, databa
             )
         }
         assert all(after[row["id"]] == row["attempts"] for row in saved)
-        progress = workflow_coverage(connection, row["current_snapshot_id"])["taxonomy_review"]
-        for review in progress["passes"]:
-            assert review["completed_batches"] == review["total_batches"]
-            assert review["reconciliation"] == "complete"
-            assert review["active_workers"] == 0
-        assert progress["passes"][-1]["final"]
-        final = connection.execute(
-            "SELECT d.value_json FROM semantic_taxonomies t JOIN semantic_documents d "
-            "ON d.id = t.final_document_id WHERE t.status = 'current'"
-        ).fetchone()
-        paths = {
-            member["path"]
-            for area in json.loads(final[0])["taxonomy"]["areas"]
-            for group in area["subsystems"]
-            for member in group["members"]
-        }
-        assert len(paths) == 8
-        assert not any(path.startswith("@anaxigraph/") for path in paths)
+        _assert_final_map(connection, row["current_snapshot_id"])
     assert run(config, db=reopened)["processed"] == 0
+
+
+def _wait_for_checkpoint(database, snapshot_id):
+    for _ in range(200):
+        with database.connect() as connection:
+            progress = workflow_coverage(connection, snapshot_id)["taxonomy_review"]
+        if progress["passes"] and progress["passes"][0]["completed_batches"]:
+            return progress
+        time.sleep(0.01)
+    raise AssertionError("A completed peer batch did not become visible")
+
+
+def _assert_final_map(connection, snapshot_id):
+    progress = workflow_coverage(connection, snapshot_id)["taxonomy_review"]
+    for review in progress["passes"]:
+        assert review["completed_batches"] == review["total_batches"]
+        assert review["reconciliation"] == "complete"
+        assert review["active_workers"] == 0
+    assert progress["passes"][-1]["final"]
+    final = connection.execute(
+        "SELECT d.value_json FROM semantic_taxonomies t JOIN semantic_documents d "
+        "ON d.id = t.final_document_id WHERE t.status = 'current'"
+    ).fetchone()
+    paths = {
+        member["path"]
+        for area in json.loads(final[0])["taxonomy"]["areas"]
+        for group in area["subsystems"]
+        for member in group["members"]
+    }
+    assert len(paths) == 8
+    assert not any(path.startswith("@anaxigraph/") for path in paths)
 
 
 def test_sample_limit_checkpoints_a_batch(repository, database, monkeypatch):

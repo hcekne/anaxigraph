@@ -24,17 +24,26 @@ def test_core_coding_loop_stays_precise_bounded_and_refreshes_current_evidence(
     first_scan = scanner.scan(repository)
     before = architecture_guidance(
         database,
+        details=True,
         repository_id=first_scan.repository_id,
         goal=manifest["scope_goal"],
         config=config,
     )
 
-    expected = set(manifest["scope_expected_candidates"])
+    expected = {
+        path for path in manifest["scope_expected_candidates"] if not path.startswith("tests/")
+    }
     primary = {item["path"] for item in before["primary_files"]}
     decision = before["architecture_decision"]
     encoded = json.dumps(before, separators=(",", ":"), sort_keys=True).encode()
 
     assert primary == expected
+    assert "tests/test_analyzers.py" in before["tests"]
+    brief = architecture_guidance(
+        database, repository_id=first_scan.repository_id, goal=manifest["scope_goal"], config=config
+    )
+    assert {item["path"] for item in brief["primary_files"]} == primary
+    assert len(json.dumps(brief, ensure_ascii=False, separators=(",", ":")).encode()) <= 8000
     assert len(encoded) <= config.agent.payload_limit_bytes
     assert decision["contract_version"] == "architecture-decision-v1"
     assert decision["task_path"]["module"]["path"] == "src/sample/analyzers/base.py"
@@ -86,6 +95,7 @@ def test_core_coding_loop_stays_precise_bounded_and_refreshes_current_evidence(
     third_scan = scanner.scan(repository)
     resolved = architecture_guidance(
         database,
+        details=True,
         repository_id=third_scan.repository_id,
         goal=manifest["scope_goal"],
         config=config,
