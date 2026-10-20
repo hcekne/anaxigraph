@@ -1,5 +1,6 @@
 // Display saved coverage separately from the jobs that produced it.
 import { applySavedProgress } from "/assets/workflow-freshness.js";
+import { stepRun, stepActivityLabel, workflowRuns } from "/assets/workflow-activity.js";
 
 export const statusLabels = {
   complete: "Complete", running: "Running", queued: "Queued", failed: "Needs attention",
@@ -49,7 +50,7 @@ export function buildFlows(data, files = 0, startingStep = null) {
     item.plan = data.settings?.steps[item.id];
     item.mode = data.settings?.modes[item.id];
     item.customized = data.settings?.customized.includes(item.id);
-    item.poolErrors = (data.semantic?.worker?.pool_errors || []).filter(error => error.step === item.id);
+    item.poolErrors = workflowRuns(data).flatMap(run => run.pool_errors || []).filter(error => error.step === item.id);
     if (item.poolErrors.length && item.status !== "complete") item.status = "failed";
     applyActivity(item, data, flow.id, startingStep);
   }));
@@ -57,24 +58,18 @@ export function buildFlows(data, files = 0, startingStep = null) {
 }
 
 function applyActivity(item, data, flow, startingStep) {
-  const worker = data.semantic?.worker || {};
+  const worker = stepRun(data, item.id);
   const running = Math.max(item.jobs.running || 0, (item.jobs.workers || []).reduce((sum, row) => sum + row.running, 0));
-  const requested = requestedStep(data, flow) === item.id;
+  const requested = !!worker;
   const starting = startingStep === item.id;
   if (!running && !starting && item.status === "complete") return;
   if (!running && !requested && !starting && item.status !== "running") return;
-  const plan = worker.settings?.[item.id] || item.plan;
+  const plan = worker?.settings?.[item.id] || item.plan;
   const capacity = workerCapacity(plan, item.mode, data.execution?.max_parallel_jobs);
-  const label = running ? "Running" : starting ? "Starting step" : item.jobs.retry ? "Waiting to retry" : "Preparing jobs";
+  const label = running ? "Running" : starting ? "Starting step" : stepActivityLabel(worker, item.jobs.retry, item.id);
   item.activity = { running, capacity, label };
   item.jobs.running = running;
   item.status = "running";
-}
-
-function requestedStep(data, flow) {
-  const worker = data.semantic?.worker || {};
-  if (worker.workflow !== flow || !["queued", "running"].includes(worker.status)) return null;
-  return worker.active_step || worker.step || data.client_step;
 }
 
 function workerCapacity(plan, mode, ceiling) {
@@ -158,8 +153,8 @@ function taxonomySteps(data, taxonomy) {
   ];
 }
 
-function unplannedState(worker, workflow) {
-  return worker?.workflow === workflow && ["running", "queued"].includes(worker.status) ? "running" : "not_started";
+function unplannedState(data, workflow) {
+  return workflowRuns(data).some(worker => worker.workflow === workflow && ["running", "queued"].includes(worker.status)) ? "running" : "not_started";
 }
 
 function patternFlow(data) {
@@ -173,9 +168,9 @@ function patternFlow(data) {
   const enabled = patterns.enabled || planned;
   const ready = planned && done === total;
   return { id: "patterns", name: "Pattern analysis", title: "Find patterns that fit the code",
-    state: planned ? null : unplannedState(semantic.worker, "patterns"),
+    state: planned ? null : unplannedState(data, "patterns"),
     description: "A focused assessment of candidate patterns, followed by an independent critique.",
-    note: "Complete Mapping first, then assess patterns against the saved map. Counts here are candidate–target pairs, not unique files. No source code is changed.",
+    note: "Missing Mapping prerequisites run first, then patterns are assessed against the saved map. Counts here are candidate–target pairs, not unique files. No source code is changed.",
     steps: [
       step("pattern_evidence", "Gather code evidence", "Use the map, source facts and pattern catalogue.", {
         owner: "AnaxiGraph code", done: semantic.architecture_charter?.status === "current" ? 1 : 0,

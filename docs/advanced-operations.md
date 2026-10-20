@@ -204,6 +204,12 @@ Execution continuity and remaining limits:
 - Dashboard runs wait for live peer workers and shared slots. Remote workers refill slots after
   each saved result without waiting for their slowest peer. Concurrent workers share the
   repository's `max_parallel_jobs` ceiling; nested review calls share their worker's allocation.
+- Run Step updates missing or stale prerequisites using each card's saved model settings, reuses
+  current results, and stops at the selected card. Optional reviews also update their Mapping
+  prerequisites. Different cards can be requested together; ready work overlaps while dependent
+  work waits. Overlapping requests share one pool per card and cannot multiply its worker count.
+  Progress distinguishes preparation, active model calls, shared-worker or retry waits, and final
+  completion checks. A completed card stays complete during those checks.
 - Remote packets advertise `ANAXIGRAPH_SEMANTIC_RENEW` and `renew_after_seconds`. Host executors
   renew while reading evidence, running a model, and submitting results. Manual executor clients
   must renew with the same job ID and lease token at that interval. Expired or replaced leases

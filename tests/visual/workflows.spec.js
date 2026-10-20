@@ -197,7 +197,7 @@ test("card settings survive polling and reload; a sample saves choices before ru
   expect(saved.workers[0]).toMatchObject({ provider: "codex", model: "gpt-6.1-sol", workers: 2 });
   expect(posted).toMatchObject({ workflow: "mapping", use_step_settings: true, max_jobs: 2 });
   await expect(page.locator('[data-step="intrinsic"]')).toContainText("2 / 2 workers active");
-  await expect(page.locator('[data-run-step="context"]')).toBeDisabled();
+  await expect(page.locator('[data-run-step="context"]')).toBeEnabled();
   await page.reload();
   await page.locator('[data-step="intrinsic"]').click();
   await expect(page.locator("#workflow-detail")).toContainText("GPT-6.1 Sol");
@@ -339,7 +339,7 @@ test(`Run step stays active through acceptance, planning and reload (${reportsSt
   } finally { release?.(); }
   await expect(node).toContainText("Preparing jobs…");
   await expect(node.locator("..")).toHaveClass(/running/);
-  await expect(page.locator("#workflow-run-button")).toHaveText("Worker is running…");
+  await expect(page.locator("#workflow-message")).toHaveText("Preparing pending jobs…");
   await page.waitForResponse(response => response.url().includes("/api/workflows?"));
   await expect(node.locator(".workflow-spinner")).toBeVisible();
   await page.reload();
@@ -376,7 +376,7 @@ test("observed workers keep their card active between jobs and server step chang
   await page.locator("#workflow-refresh").click();
   await expect(page.locator(".workflow-spinner")).toHaveCount(0);
   await page.reload();
-  await expect(page.locator("#workflow-run-button")).toHaveText("Worker is running…");
+  await expect(page.locator("#workflow-message")).toHaveText("Preparing pending jobs…");
   await expect(page.locator(".workflow-spinner")).toHaveCount(0); // The old scan's card must not stick.
 });
 

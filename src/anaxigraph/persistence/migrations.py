@@ -267,6 +267,8 @@ def _ensure_semantic_fact_indexes(connection: sqlite3.Connection) -> None:
         "CREATE INDEX IF NOT EXISTS idx_semantic_documents_fact "
         "ON semantic_documents(file_fact_id)",
         "CREATE INDEX IF NOT EXISTS idx_semantic_jobs_fact ON semantic_jobs(file_fact_id)",
+        "CREATE INDEX IF NOT EXISTS idx_semantic_jobs_scope "
+        "ON semantic_jobs(snapshot_id, scope_type, scope_key, job_kind, input_hash)",
         "CREATE INDEX IF NOT EXISTS idx_semantic_states_fact "
         "ON semantic_scope_states(file_fact_id)",
     ):

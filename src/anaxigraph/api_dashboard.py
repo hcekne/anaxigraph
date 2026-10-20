@@ -42,6 +42,7 @@ DASHBOARD_ASSETS = frozenset(
         "theme-boot.js",
         "workflow-events.js",
         "workflow-freshness.js",
+        "workflow-activity.js",
         "workflow-model.js",
         "workflow-render.js",
         "workflow-settings.js",

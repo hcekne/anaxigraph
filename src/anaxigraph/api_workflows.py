@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from anaxigraph.api_semantic_routes import SemanticRoutes
+from anaxigraph.operational_health import served_map_status
 from anaxigraph.persistence.workflow_read import workflow_coverage
 from anaxigraph.semantic_pattern_plan import SemanticPatternPlanner
 from anaxigraph.understanding import SemanticEngine
@@ -21,6 +22,7 @@ from anaxigraph.workflow_settings import (
     StepSettingsRequest,
     WorkerChoice,
     WorkflowSettings,
+    required_steps,
     validate_step,
 )
 
@@ -54,20 +56,10 @@ class WorkflowRoutes:
         row = self.context.selected_repository(repository_id)
         config = self.context.selected_config(row)
         snapshot = self.context.database.latest_snapshot(int(row["id"]))
-        semantic = SemanticRoutes(self.context).status(int(row["id"]))
-        fresh_eyes = SemanticEngine(self.context.database).fresh_eyes_status(
-            int(row["id"]), config.semantic
-        )
-        coverage = {}
-        if snapshot:
-            with self.context.database.connect() as connection:
-                coverage = workflow_coverage(connection, int(snapshot["id"]))
         result = {
             "repository_id": row["id"],
             "snapshot_id": snapshot["id"] if snapshot else None,
-            "semantic": semantic,
-            "fresh_eyes": fresh_eyes,
-            "coverage": coverage,
+            **self._read_progress(row, config, snapshot),
             "scan": self.context.scan_coordinator.status_for(Path(row["path"])),
             "settings": self.settings.read(
                 int(row["id"]),
@@ -87,6 +79,21 @@ class WorkflowRoutes:
                 409, "The source scan changed while reading progress. Refresh to continue."
             )
         return result
+
+    def _read_progress(self, row: Any, config: Any, snapshot: Any) -> dict[str, Any]:
+        """Re-read across a run transition so completion cannot precede its saved counts."""
+        for _ in range(2):
+            worker = self.context.semantic_refresh.status_for(Path(row["path"]))
+            semantic = SemanticRoutes(self.context).status(int(row["id"]))
+            fresh = SemanticEngine(self.context.database).fresh_eyes_status(
+                int(row["id"]), config.semantic
+            )
+            with self.context.database.connect() as connection:
+                coverage = workflow_coverage(connection, int(snapshot["id"])) if snapshot else {}
+            semantic["worker"] = worker
+            if worker == self.context.semantic_refresh.status_for(Path(row["path"])):
+                break
+        return {"semantic": semantic, "fresh_eyes": fresh, "coverage": coverage}
 
     def run(self, request: WorkflowRequest) -> dict[str, Any]:
         row = self.context.selected_repository(request.repository_id)
@@ -127,9 +134,12 @@ class WorkflowRoutes:
             config,
             request,
             execution,
-            on_step=lambda step: self.context.semantic_refresh.update_step(Path(row["path"]), step),
+            step_lock=lambda step: self.context.semantic_refresh.step_lock(Path(row["path"]), step),
+            on_progress=lambda **fields: self.context.semantic_refresh.update_run(
+                Path(row["path"]), request.workflow, request.step, **fields
+            ),
             on_pool_error=lambda error: self.context.semantic_refresh.report_pool_error(
-                Path(row["path"]), error
+                Path(row["path"]), error, request.workflow, request.step
             ),
         ).run()
 
@@ -159,18 +169,12 @@ class WorkflowRoutes:
         allowed = (*FLOW_STEPS[request.workflow], *SOFTWARE_STEPS.get(request.workflow, ()))
         if request.step is not None and request.step not in allowed:
             raise HTTPException(400, "This step does not belong to the selected workflow")
-        status = SemanticEngine(self.context.database).status(int(row["id"]), config.semantic)
-        if (
-            request.workflow != "mapping"
-            and (status.get("architecture_charter") or {}).get("status") != "current"
-        ):
-            raise HTTPException(409, "Complete Mapping first so this review has a current Charter")
         settings = self.settings.read(
             int(row["id"]),
             config.semantic.max_parallel_jobs,
             config.semantic.taxonomy.review_passes,
         )["steps"]
-        steps = (request.step,) if request.step else FLOW_STEPS[request.workflow]
+        steps = required_steps(request.workflow, request.step)
         try:
             if request.workflow == "fresh-eyes" and not request.restart:
                 validate_proposal_settings(
@@ -187,8 +191,8 @@ class WorkflowRoutes:
     def _require_ready(self, row: dict[str, Any], config: Any) -> None:
         if not config.semantic.enabled:
             raise HTTPException(400, "Enable AI mapping in this repository's service policy first")
-        status = SemanticRoutes(self.context).status(int(row["id"]))
-        if (status.get("map_status") or {}).get("state") != "current":
+        snapshot = self.context.database.latest_snapshot(int(row["id"]))
+        if not snapshot or served_map_status(Path(row["path"]), snapshot)["state"] != "current":
             raise HTTPException(409, "Refresh the source scan before starting this workflow")
         if self.context.scan_coordinator.status_for(Path(row["path"])).get("active"):
             raise HTTPException(409, "Wait for the source scan to finish")

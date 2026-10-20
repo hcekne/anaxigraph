@@ -126,6 +126,13 @@ function savedProgressDetail(item) {
   if (counts && (counts.refresh || counts.new)) {
     detail += `<section class="workflow-saved-progress"><h4>What needs updating</h4><p>${number(counts.current)} current · ${number(counts.refresh)} saved results need refresh · ${number(counts.new)} have no saved result.</p><p>${item.id === "context" ? "Context can change when a file’s neighbours, interfaces or dependency links change, even if the file itself is untouched." : "Only missing descriptions and those whose source or analysis requirements changed need to run."}</p><ul>${(item.affected || []).map(row => `<li><code>${escapeHtml(row.path)}</code><span>${row[item.id] === "new" ? "First run" : "Refresh saved result"}</span></li>`).join("")}</ul>${counts.refresh + counts.new > (item.affected || []).length ? "<p>Showing the first affected files; the totals include all files.</p>" : ""}</section>`;
   }
+  return detail + savedTaxonomyDetail(item);
+}
+
+function savedTaxonomyDetail(item) {
+  const previous = item.previous;
+  if (!previous) return "";
+  let detail = "";
   if (previous) {
     detail += `<section class="workflow-saved-progress"><h4>Saved work from the earlier source</h4><p>1 proposal · ${number(previous.reviews)} / ${number(previous.required_reviews)} review passes saved${previous.failed_reviews ? ` · ${number(previous.failed_reviews)} failed` : ""}.</p>${item.saved != null ? `<p>For the current source: ${number(item.done)} / ${number(item.total)} ${escapeHtml(item.unit)} ready. Earlier results have not been counted as current.</p>` : ""}<p>Scan ${number(previous.snapshot_id)}${previous.commit_sha ? ` · commit ${escapeHtml(previous.commit_sha.slice(0, 7))}` : ""}. ${escapeHtml([previous.proposal_model, ...(previous.review_models || [])].filter(Boolean).join(" · "))}</p><p>Refresh the affected file evidence first. Small changes reuse the saved proposal; changed evidence is reviewed again. A new proposal is needed only when the map’s responsibilities or policy have changed substantially.</p>${previous.error ? `<details><summary>Earlier review failure</summary><p class="workflow-error">${escapeHtml(previous.error)}</p></details>` : ""}</section>`;
   }

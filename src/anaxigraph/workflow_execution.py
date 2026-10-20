@@ -17,7 +17,7 @@ from anaxigraph.semantic_fresh_eyes_plan import FreshEyesPlanner
 from anaxigraph.semantic_pattern_plan import SemanticPatternPlanner
 from anaxigraph.semantic_timeouts import worker_lease_seconds
 from anaxigraph.understanding import SemanticEngine
-from anaxigraph.workflow_settings import FLOW_STEPS, STEP_MODES, WorkerChoice
+from anaxigraph.workflow_settings import FLOW_STEPS, STEP_MODES, WorkerChoice, required_steps
 
 JOB_STEPS = {
     "intrinsic": "intrinsic",
@@ -66,9 +66,12 @@ class WorkflowExecution:
         *,
         on_step: Callable[[str], None] | None = None,
         on_pool_error: Callable[[dict[str, Any]], None] | None = None,
+        on_progress: Callable[..., None] | None = None,
+        step_lock: Callable[[str], Any] | None = None,
     ) -> None:
         self.database, self.row, self.request = database, row, request
         self.engine = SemanticEngine(database)
+        self.base_config = config
         self.config = (
             config
             if request.workflow == "mapping"
@@ -76,7 +79,7 @@ class WorkflowExecution:
         )
         self.repository_id = int(row["id"])
         self.snapshot_id = int(database.latest_snapshot(self.repository_id)["id"])
-        self.steps = (request.step,) if request.step else FLOW_STEPS[request.workflow]
+        self.steps = required_steps(request.workflow, request.step)
         self.settings = settings
         self.processed = 0
         self.on_step = on_step
@@ -85,10 +88,13 @@ class WorkflowExecution:
         self.error_lock = Lock()
         self.retry_prepared = False
         self.joined_workers = False
+        self.review_started = False
+        self.on_progress = on_progress
+        self.active_step = None
+        self.step_lock = step_lock
+        self.joined_step = False
 
     def run(self) -> dict[str, Any]:
-        if self.request.workflow == "fresh-eyes":
-            self._start_review()
         self._plan()
         while True:
             if self.database.latest_snapshot(self.repository_id)["id"] != self.snapshot_id:
@@ -112,12 +118,20 @@ class WorkflowExecution:
                 return result
 
     def _after_dispatch(self, count: int) -> dict[str, Any] | None:
+        if self.joined_step:
+            self.joined_step = False
+            time.sleep(0.1)
+            return None
         if not count:
             if not self.pool_errors and self._wait_for_workers(selected_only=False):
                 return None
             return self._result(False, self._waiting_message())
         if not self._jobs() and not self._wait_for_workers(selected_only=True):
-            if self.request.step in {"intrinsic", "context", "groups"}:
+            if self.active_step == self.request.step and self.request.step in {
+                "intrinsic",
+                "context",
+                "groups",
+            }:
                 return self._finish()
             self._plan()
         return None
@@ -136,17 +150,22 @@ class WorkflowExecution:
         )
 
     def _plan(self) -> None:
+        self._progress("preparing", "Checking saved results and preparing pending jobs.")
         retry = self.request.retry_failed and not self.retry_prepared
         self.retry_prepared = True
-        if self.request.workflow == "mapping":
+        if self.request.workflow == "mapping" or not self._mapping_ready():
             self.engine.plan(
                 self.repository_id,
                 self.row["path"],
-                self.config,
+                self.base_config,
                 retry_failed=retry,
                 preserve_patterns=True,
             )
-            return
+            if self.request.workflow == "mapping" or not self._mapping_ready():
+                return
+        if self.request.workflow == "fresh-eyes" and not self.review_started:
+            self._start_review()
+            self.review_started = True
         with self.database.transaction() as connection:
             arguments = dict(
                 repository_id=self.repository_id,
@@ -158,6 +177,22 @@ class WorkflowExecution:
                 SemanticPatternPlanner().plan_patterns(connection, **arguments)
             else:
                 FreshEyesPlanner().plan_active(connection, **arguments)
+
+    def _mapping_ready(self) -> bool:
+        with self.database.connect() as connection:
+            row = connection.execute(
+                """SELECT status FROM semantic_scope_states
+                WHERE snapshot_id = ? AND scope_type = 'repository'""",
+                (self.snapshot_id,),
+            ).fetchone()
+        return row is not None and row["status"] == "current"
+
+    def _progress(self, phase: str, message: str, step: str | None = None) -> None:
+        self.active_step = step
+        if step and self.on_step:
+            self.on_step(step)
+        if self.on_progress:
+            self.on_progress(phase=phase, message=message, active_step=step)
 
     def _jobs(self) -> list[dict[str, Any]]:
         with self.database.connect() as connection:
@@ -195,20 +230,37 @@ class WorkflowExecution:
         )
         if expired:
             self.engine.plan(
-                self.repository_id, self.row["path"], self.config, preserve_patterns=True
+                self.repository_id, self.row["path"], self.base_config, preserve_patterns=True
             )
             return True
         self.joined_workers = True
-        if self.on_step and selected_only:
-            self.on_step(job_step(running[0]))
+        self._progress(
+            "waiting_workers",
+            "Waiting for shared workers to finish.",
+            job_step(running[0]) if selected_only else None,
+        )
         time.sleep(1)
         return True
 
     def _dispatch(self, jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        # Run the earliest eligible card. Distinct model pools share file jobs, never duplicate them.
-        step = next(step for step in self.steps if any(job_step(job) == step for job in jobs))
-        if self.on_step:
-            self.on_step(step)
+        # Share one pool per card across overlapping requests, while other ready cards advance.
+        for step in self.steps:
+            if not any(job_step(job) == step for job in jobs):
+                continue
+            lock = self.step_lock(step) if self.step_lock else Lock()
+            if not lock.acquire(blocking=False):
+                self.joined_workers = True
+                continue
+            try:
+                return self._dispatch_step(step, jobs)
+            finally:
+                lock.release()
+        self.joined_step = True
+        self._progress("waiting_workers", "Another request is processing these prerequisites.")
+        return []
+
+    def _dispatch_step(self, step: str, jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        self._progress("executing", "Processing pending jobs.", step)
         selected = [job for job in jobs if job_step(job) == step]
         remaining = (
             self.request.max_jobs - self.processed if self.request.max_jobs else len(selected)
@@ -254,13 +306,15 @@ class WorkflowExecution:
         ]
         delay = (min(deadlines) - datetime.now(UTC)).total_seconds() if deadlines else 0
         if delay > 0:
+            self._progress("waiting_retry", "Waiting for the scheduled retry.", step)
             time.sleep(min(delay, 1))
             return True
         return False
 
     def _run_pool(self, step: str, pool: WorkerChoice, identifiers: list[int]) -> dict[str, Any]:
+        config = self.base_config if step in FLOW_STEPS["mapping"] else self.config
         execution = replace(
-            self.config.semantic,
+            config.semantic,
             provider=pool.provider,
             model=pool.model,
             reasoning_effort=pool.reasoning_effort,
@@ -272,7 +326,7 @@ class WorkflowExecution:
             return self.engine.run_jobs(
                 self.repository_id,
                 self.row["path"],
-                self.config,
+                config,
                 limit=len(identifiers),
                 execution_semantic=execution,
                 job_ids=tuple(identifiers),
@@ -313,11 +367,12 @@ class WorkflowExecution:
         return "No worker could claim the remaining jobs. Check usage limits and active workers."
 
     def _finish(self) -> dict[str, Any]:
+        self._progress("finishing", "Results saved. Checking completion.")
         if self.database.latest_snapshot(self.repository_id)["id"] != self.snapshot_id:
             return self._result(False, "The source scan changed. Resume on the new scan.")
         status = (
             {}
-            if self.request.step in {"intrinsic", "context", "groups"}
+            if self.request.step in {"intrinsic", "context"}
             else self.engine.status(self.repository_id, self.config.semantic)
         )
         with self.database.connect() as connection:
@@ -335,7 +390,9 @@ class WorkflowExecution:
         message = (
             "Selected work is complete."
             if ready
-            else ("No eligible jobs for this step yet. Complete its preceding cards, then resume.")
+            else (
+                "A prerequisite could not complete. Saved results are kept; resume after resolving its reported issue."
+            )
         )
         if not ready and failures:
             message = f"Some files could not finish after their retries: {failures[0]['error']}"

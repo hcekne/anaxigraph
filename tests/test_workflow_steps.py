@@ -120,10 +120,6 @@ async def test_card_routing_runs_all_flows_and_keeps_ordered_reviews_and_proposa
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         ) as client:
-            blocked = await client.post(
-                "/api/workflows/run", json={"workflow": "patterns", "use_step_settings": True}
-            )
-            assert blocked.status_code == 409
             mapped = await start(client)
             assert mapped["semantic"]["taxonomy"]["current"]["stored_reviews"] == 2
             with database.connect() as connection:
@@ -173,34 +169,6 @@ async def test_card_routing_runs_all_flows_and_keeps_ordered_reviews_and_proposa
                     )
                     == file_documents
                 )
-
-
-@pytest.mark.anyio
-async def test_later_step_waits_without_running_its_prerequisites(
-    repository, database, monkeypatch
-):
-    app = prepare(repository, database, monkeypatch)
-    async with app.router.lifespan_context(app):
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            result = await start(client, step="charter", expected="waiting")
-            assert result["semantic"]["worker"]["processed"] == 0
-            with database.connect() as connection:
-                assert (
-                    connection.execute(
-                        "SELECT COUNT(*) FROM semantic_jobs WHERE status='completed'"
-                    ).fetchone()[0]
-                    == 0
-                )
-            await start(client, step="intrinsic")
-            with database.connect() as connection:
-                assert {
-                    row[0]
-                    for row in connection.execute(
-                        "SELECT DISTINCT job_kind FROM semantic_jobs WHERE status='completed'"
-                    )
-                } == {"intrinsic"}
 
 
 @pytest.mark.anyio

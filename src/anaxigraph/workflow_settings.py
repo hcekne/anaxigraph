@@ -44,6 +44,18 @@ MODEL_SUGGESTIONS = {
 }
 
 
+def required_steps(workflow: str, step: str | None) -> tuple[str, ...]:
+    """Run the dependency prefix through the requested card, reusing current results."""
+    chain = FLOW_STEPS[workflow]
+    if workflow == "patterns":
+        chain = ("pattern_plan", *chain)
+    elif workflow == "fresh-eyes":
+        chain = ("brief", *chain, "grounding")
+    if step is not None:
+        chain = chain[: chain.index(step) + 1]
+    return chain if workflow == "mapping" else (*FLOW_STEPS["mapping"], *chain)
+
+
 def canonical_model(provider: str, model: str) -> str:
     # Migrate old free-text family names to the exact IDs offered by the picker.
     if provider == "claude":

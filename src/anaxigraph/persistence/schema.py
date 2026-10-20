@@ -339,6 +339,8 @@ CREATE INDEX IF NOT EXISTS idx_semantic_documents_scope
     ON semantic_documents(repository_id, scope_type, scope_key, document_kind, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_semantic_jobs_queue
     ON semantic_jobs(repository_id, status, available_at, priority DESC, id);
+CREATE INDEX IF NOT EXISTS idx_semantic_jobs_scope
+    ON semantic_jobs(snapshot_id, scope_type, scope_key, job_kind, input_hash);
 CREATE INDEX IF NOT EXISTS idx_semantic_states_snapshot
     ON semantic_scope_states(snapshot_id, scope_type, status);
 CREATE INDEX IF NOT EXISTS idx_semantic_taxonomies_snapshot
