@@ -35,10 +35,10 @@ def planning_journey(
             evidence=evidence or [],
             actor="agent",
         )
-    result = architecture_plan_status(database, repository_id)
+    result = architecture_plan_status(database, repository_id, details=details)
     result["next_action"] = (
-        "Use the selected target and next milestone to guide code changes; report verification evidence after focused tests."
-        if result["ready"]
+        "Use the selected target and next milestone. Inspect source changes since its evidence scan and report verification after focused tests. Update planning when a new architectural decision is needed."
+        if result.get("target")
         else "Request planning with start=true and run the existing background worker to complete prepared work. Direction is optional."
     )
     return (

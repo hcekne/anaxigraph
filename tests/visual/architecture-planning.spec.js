@@ -23,7 +23,26 @@ test("full planning accepts blank direction and submits the complete workflow", 
   await expect(page.locator("#planning-evidence")).not.toContainText("not_started");
   await page.locator("#workflow-run-button").click();
   await expect.poll(() => posted?.workflow).toBe("architecture");
-  expect(posted).toMatchObject({ goal: null, use_step_settings: true, step: null });
+  expect(posted).toMatchObject({ goal: "", use_step_settings: true, step: null });
+});
+
+test("letting the agent choose clears a previously saved direction", async ({ page }) => {
+  const value = configuredProgress(), saved = plan();
+  saved.user_direction = "Scale the compute boundary";
+  value.architecture_plan = saved;
+  let posted;
+  await page.route("**/api/architecture-plan?*", route => route.fulfill({ json: saved }));
+  await page.route("**/api/workflows/run", route => {
+    posted = route.request().postDataJSON();
+    return route.fulfill({ json: { status: "started" } });
+  });
+  await open(page, value);
+  await page.locator("#workflow-tab-architecture").click();
+  await expect(page.locator("#architecture-direction")).toHaveValue(saved.user_direction);
+  await page.getByRole("button", { name: "Let the agent choose", exact: true }).click();
+  await expect(page.locator("#workflow-run-button")).toHaveText("Update architecture plan");
+  await page.locator("#workflow-run-button").click();
+  await expect.poll(() => posted?.goal).toBe("");
 });
 
 test("saved options and current versus target diagrams remain readable on laptop and phone", async ({ page }, testInfo) => {

@@ -41,6 +41,8 @@ def _saved_plan(row: Any, snapshot: Any, details: bool) -> dict[str, Any]:
     selected_key = controls.get("selected_option") or value["selected_option"]
     if selected_key not in {option["key"] for option in value["options"]}:
         selected_key = value["selected_option"]
+        for field in ("selection_source", "selection_rationale"):
+            controls.pop(field, None)
     target = next((option for option in value["options"] if option["key"] == selected_key), None)
     current = row["snapshot_id"] == snapshot["id"] and row["scope_status"] == "current"
     result = _plan_projection(value, controls, selected_key, target, current, row, snapshot)

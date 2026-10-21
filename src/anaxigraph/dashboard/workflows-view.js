@@ -403,7 +403,7 @@ async function startStep(step = null, maxJobs = null) {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ repository_id: state.repositoryId, workflow: flow.id,
       use_step_settings: true, step, max_jobs: maxJobs,
-      goal: (flow.id === "architecture" ? planningDirection() : byId("workflow-goal").value.trim()) || null, restart: byId("workflow-restart").checked }) }), step, flow.id);
+      goal: flow.id === "architecture" ? planningDirection() : byId("workflow-goal").value.trim() || null, restart: byId("workflow-restart").checked }) }), step, flow.id);
 }
 
 async function startScan() {

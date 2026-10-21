@@ -77,6 +77,27 @@ def test_user_can_select_option_and_agent_reports_milestone_evidence(repository,
     assert compact["progress"]["reuse-owner"]["status"] == "verified"
 
 
+def test_blank_direction_resets_a_previous_custom_goal_and_manual_selection(repository, database):
+    review, _ = complete_plan(repository, database, "Scale the compute boundary")
+    steer_plan(database, review.repository_id, option="preserve")
+    snapshot = database.latest_snapshot(review.repository_id)
+    with database.transaction() as connection:
+        request_plan(connection, review.repository_id, snapshot["id"], "")
+    review.engine.plan(review.repository_id, repository, review.config)
+    with database.connect() as connection:
+        row = connection.execute(
+            "SELECT metadata_json FROM semantic_jobs WHERE job_kind = 'architecture_plan' ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        controls = connection.execute(
+            "SELECT interface_hash FROM semantic_scope_states WHERE scope_type = 'architecture_plan' AND snapshot_id = ?",
+            (snapshot["id"],),
+        ).fetchone()
+    packet = json.loads(row[0])["planning_packet"]
+    assert packet["direction"] == DEFAULT_DIRECTION
+    assert packet["direction_source"] == "suggested_default"
+    assert "selected_option" not in json.loads(controls[0])
+
+
 def test_plan_rest_and_mcp_share_target_and_default_budget(repository, database):
     review, plan = complete_plan(repository, database)
     large = {**plan["value"], "summary": "s" * 4000, "direction": "d" * 4000}
@@ -113,6 +134,27 @@ def test_plan_rejects_dangling_diagrams_and_unverifiable_milestones():
         validate_plan_structure(value)
 
 
+def test_changed_options_do_not_attribute_an_agent_fallback_to_the_user(repository, database):
+    review, plan = complete_plan(repository, database)
+    with database.transaction() as connection:
+        connection.execute(
+            "UPDATE semantic_scope_states SET interface_hash = ? WHERE scope_type = 'architecture_plan'",
+            (
+                json.dumps(
+                    {
+                        "selected_option": "retired-option",
+                        "selection_source": "user",
+                        "selection_rationale": "An earlier choice",
+                    }
+                ),
+            ),
+        )
+    current = architecture_plan_status(database, review.repository_id)
+    assert current["selected_option"] == plan["selected_option"]
+    assert current["selection_source"] == "agent"
+    assert current["selection_rationale"] == plan["selection_rationale"]
+
+
 def test_plan_schema_requires_every_property_for_strict_model_output():
     def inspect(schema):
         if schema.get("type") == "object":
@@ -147,6 +189,10 @@ def test_plan_milestones_remain_usable_after_source_changes(repository, database
         reported["progress"]["reuse-owner"]["verified_against_snapshot_id"] == updated.snapshot_id
     )
     assert reported["source_snapshot_id"] == plan["source_snapshot_id"]
+    guidance = planning_journey(database, database.repository(review.repository_id), review.config)
+    assert guidance["state"] == "stale"
+    assert guidance["next_action"].startswith("Use the selected target")
+    assert "value" not in guidance
 
 
 def test_selected_plan_and_progress_travel_with_git_without_new_model_work(

@@ -10,7 +10,7 @@ from test_portable_record import git, publish_and_clone
 
 from anaxigraph.config import load_config
 from anaxigraph.portable_io import publish_record, read_record
-from anaxigraph.portable_record import load_record, save_record
+from anaxigraph.portable_record import load_record, record_status, save_record
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.storage import AnaxiIndex
 
@@ -193,3 +193,4 @@ def test_export_uses_one_read_snapshot_for_tables_and_readable_views(
     assert len(tables["snapshots"]) == 1
     readable = json.loads((repository / "anaxigraph/mapping/architecture.json").read_bytes())
     assert readable["source_commit"] == snapshot["commit_sha"]
+    assert record_status(database, first.repository_id)["snapshot_id"] == first.snapshot_id

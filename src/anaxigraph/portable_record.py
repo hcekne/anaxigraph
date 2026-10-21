@@ -53,7 +53,7 @@ def save_record(database: Any, repository_id: int) -> dict[str, Any]:
         receipt = {
             "digest": record_hash(result["manifest"]),
             "source": metadata["source"],
-            "snapshot_id": repository["current_snapshot_id"],
+            "snapshot_id": identities.get(metadata["source"]["snapshot"]),
         }
         with database.transaction() as connection:
             for key, value in (
