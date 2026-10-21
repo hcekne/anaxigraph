@@ -14,6 +14,8 @@ def main(argv: list[str] | None = None) -> None:
         result = args.handler(args)
         if result is not None:
             emit_json(result)
+            if args.command == "refresh" and result.get("status") != "complete":
+                raise SystemExit(1)
     except KeyboardInterrupt:
         print("\nStopped.", file=sys.stderr)
         raise SystemExit(130) from None

@@ -20,7 +20,7 @@ test("simultaneous steps show live workers and leave other cards runnable", asyn
   await expect(page.locator('[data-run-step="intrinsic"]')).toBeDisabled();
   await expect(page.locator('[data-run-step="taxonomy_review"]')).toBeDisabled();
   await expect(page.locator('[data-run-step="groups"]')).toBeEnabled();
-  await expect(page.locator("#workflow-run-note")).toContainText("updates its prerequisites");
+  await expect(page.locator("#workflow-run-note")).toContainText("Runs the full Mapping sequence");
 });
 
 test("preparing, saving and completion are distinct from active model calls", async ({ page }) => {
@@ -39,7 +39,8 @@ test("preparing, saving and completion are distinct from active model calls", as
   await expect(page.locator('[data-run-step="context"]')).toBeEnabled();
   value.semantic.worker = { status: "complete", message: "Selected work is complete.", processed: 8, runs: [] };
   await page.locator("#workflow-refresh").click();
-  await expect(page.locator("#workflow-message")).toContainText("Selected work is complete. 8 jobs processed");
+  await expect(page.locator("#workflow-message")).toContainText("steps remain");
+  await expect(page.locator("#workflow-message")).not.toContainText("jobs processed");
   await expect(page.locator("#workflow-message")).not.toContainText("workers active");
 });
 

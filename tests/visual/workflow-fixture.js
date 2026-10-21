@@ -33,6 +33,7 @@ export function configuredProgress() {
     taxonomy_proposal: [sol], taxonomy_review: [sol, opus], groups: [sol], charter: [sol],
     pattern_assessment: [sol], pattern_review: [opus], proposals: [sol, opus],
     adjudication: [sol], comparison: [opus], mission_filter: [sol],
+    architecture_plan: [sol],
   };
   value.settings = { steps, suggested: structuredClone(steps), customized: [],
     modes: Object.fromEntries(Object.keys(steps).map(key => [key, ["intrinsic", "context", "groups", "pattern_assessment", "pattern_review"].includes(key) ? "parallel" : key === "taxonomy_review" ? "sequence" : key === "proposals" ? "proposals" : "single"])),

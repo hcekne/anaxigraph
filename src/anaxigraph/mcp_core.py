@@ -11,13 +11,16 @@ from anaxigraph.architecture_charter import architecture_charter
 from anaxigraph.architecture_guidance import AGENT_JOURNEY_VERSION, agent_journey_manifest
 from anaxigraph.architecture_reassessment import architecture_reassessment
 from anaxigraph.mcp_context import McpToolContext as McpToolContext
+from anaxigraph.planning_mcp import planning_journey
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic_fresh_eyes_executors import parse_proposal_executors
 from anaxigraph.semantic_mcp import current_semantic_status
 from anaxigraph.semantic_scan_refresh import semantic_refresh_after_scan
 from anaxigraph.understanding import SemanticEngine
 
-_GUIDE_JOURNEYS = frozenset({"understand", "build", "improve", "refactor", "redesign", "reassess"})
+_GUIDE_JOURNEYS = frozenset(
+    {"understand", "build", "improve", "refactor", "redesign", "reassess", "plan"}
+)
 
 
 class CoreMcpTools:
@@ -72,7 +75,7 @@ class CoreMcpTools:
             self.guidance,
             name="ANAXIGRAPH_GUIDE",
             description=(
-                "Use one of five intents: understand the system, build a capability, improve "
+                "Use an intent: understand the system, build a capability, improve "
                 "existing structure, redesign from a behavior-only capability brief, or reassess "
                 "a completed edit. Build and improve return placement, affected code, reasons not "
                 "to change, focused checks, and exact next actions. Redesign uses the fixed "
@@ -156,36 +159,58 @@ class CoreMcpTools:
         reassess: bool = False,
         from_snapshot_id: int | None = None,
         details: bool = False,
+        target_option: str = "",
+        milestone: str = "",
+        milestone_status: str = "",
+        verification_evidence: list[str] | None = None,
     ) -> dict[str, Any]:
+        options = locals()
         row, root = self.context.select(repository)
         config = self.context.config_for(row, root)
         selected, redesign, compare = _guide_selection(intent, fresh_eyes, reassess)
+        if selected == "plan":
+            return self._planning_journey(row, config, options)
         if selected == "understand":
             return _guide_response(self._understand_journey(repository), details)
         if redesign:
-            return _guide_response(
-                self._redesign_journey(
-                    row,
-                    root,
-                    config,
-                    goal,
-                    start,
-                    proposal_count,
-                    retry_failed,
-                    restart,
-                    generation,
-                    compare_with,
-                    wait=wait,
-                    proposal_executors=proposal_executors,
-                    unpin=unpin,
-                ),
-                details,
-            )
+            return self._selected_redesign(row, root, config, options)
         if compare:
             return _guide_response(
                 self._reassess_journey(row, config, goal, from_snapshot_id), details
             )
         return self._build_journey(row, config, goal, intent, focus, details=details)
+
+    def _planning_journey(self, row: Any, config: Any, options: Any) -> dict[str, Any]:
+        return planning_journey(
+            self.database,
+            row,
+            config,
+            goal=options["goal"],
+            start=options["start"],
+            option=options["target_option"],
+            milestone=options["milestone"],
+            status=options["milestone_status"],
+            evidence=options["verification_evidence"],
+            details=options["details"],
+        )
+
+    def _selected_redesign(self, row: Any, root: Any, config: Any, options: Any) -> dict[str, Any]:
+        result = self._redesign_journey(
+            row,
+            root,
+            config,
+            options["goal"],
+            options["start"],
+            options["proposal_count"],
+            options["retry_failed"],
+            options["restart"],
+            options["generation"],
+            options["compare_with"],
+            wait=options["wait"],
+            proposal_executors=options["proposal_executors"],
+            unpin=options["unpin"],
+        )
+        return _guide_response(result, options["details"])
 
     def _build_journey(
         self, row: Any, config: Any, goal: str, intent: str, focus: str, *, details: bool = False

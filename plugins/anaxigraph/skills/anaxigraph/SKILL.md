@@ -29,6 +29,14 @@ model-derived interpretations visibly separate.
 
 ## Route the request
 
+- For a long-term architecture plan, call `ANAXIGRAPH_GUIDE(intent="plan")`. Direction is optional.
+  `start=true` prepares a planning job for the existing background worker. Let the agent compare
+  preserving the design with incremental evolution and select a justified target without waiting
+  for user approval. Read the target and next milestone before ordinary implementation work.
+  Use `target_option` to choose another saved option. After tests, report `milestone`,
+  `milestone_status="verified"` and actual `verification_evidence`; keep proposal, observed code
+  and reported verification distinct. A target survives code changes even when its evidence is stale.
+
 - For “map,” “understand,” “bootstrap,” or “resume semantics,” run the semantic baseline workflow.
 - For a new feature or refactor, call `ANAXIGRAPH_SEARCH`, then `ANAXIGRAPH_GUIDE` with the matching
   `build` or `refactor` intent; call
@@ -73,8 +81,12 @@ input total rather than an addition to it.
 
 ## Build or resume semantic understanding
 
-This workflow writes interpretations only to AnaxiIndex. Do not edit repository source while
-performing it.
+This workflow writes interpretations to AnaxiIndex. Explicit dashboard/headless workflows also
+save the reserved `anaxigraph/` record when writable. Do not edit repository source while
+performing it. After a Git pull, let the service load compatible shared results before launching
+new model work. The generated record is reusable analysis; active queues, leases and credentials
+stay local. `anaxigraph refresh . --workflows mapping,patterns,fresh-eyes,architecture --json`
+supports scheduled runs and saves partial results; the caller owns Git commits and pushes.
 
 For a full baseline or resume request, prefer the durable host executor whenever the authenticated
 Codex or Claude CLI is available. Do not manually consume a repository-sized queue inside the

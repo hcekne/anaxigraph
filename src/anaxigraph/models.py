@@ -107,6 +107,7 @@ class GitMetadata:
     default_branch: str | None
     working_tree_fingerprint: str | None = None
     scan_consistency: str | None = None
+    source_commit_sha: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

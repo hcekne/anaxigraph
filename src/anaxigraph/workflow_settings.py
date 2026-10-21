@@ -12,6 +12,7 @@ from filelock import FileLock
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
 FLOW_STEPS = {
+    "architecture": ("architecture_plan",),
     "mapping": (
         "intrinsic",
         "context",
@@ -24,6 +25,7 @@ FLOW_STEPS = {
     "fresh-eyes": ("proposals", "adjudication", "comparison", "mission_filter"),
 }
 STEP_MODES = {
+    "architecture_plan": "single",
     "intrinsic": "parallel",
     "context": "parallel",
     "groups": "parallel",
@@ -99,6 +101,7 @@ def suggested_settings(ceiling: int, review_passes: int = 2) -> dict[str, list[d
 
     luna, sol, opus = "gpt-6-luna", "gpt-6.1-sol", "claude-opus-5-5"
     return {
+        "architecture_plan": [worker(sol)],
         "intrinsic": [worker(luna, 4)],
         "context": [worker(luna, 4)],
         "taxonomy_proposal": [worker(sol)],
@@ -162,6 +165,26 @@ class WorkflowSettings:
             saved[request.step] = [worker.model_dump() for worker in request.workers]
             _atomic_json(path, saved)
         return self.read(repository_id, ceiling, review_passes)
+
+    def portable_choices(self, repository_id: int) -> dict[str, Any]:
+        path = self.directory / f"{repository_id}.json"
+        return json.loads(path.read_text()) if path.exists() else {}
+
+    def restore_choices(self, repository_id: int, choices: dict[str, Any]) -> None:
+        choices = {
+            step: [WorkerChoice.model_validate(row).model_dump() for row in rows]
+            for step, rows in choices.items()
+            if step in STEP_MODES and isinstance(rows, list) and 1 <= len(rows) <= 3
+        }
+        if not choices:
+            return
+        self.directory.mkdir(parents=True, exist_ok=True)
+        path = self.directory / f"{repository_id}.json"
+        with FileLock(str(path) + ".lock"):
+            current = self.portable_choices(repository_id)
+            restored = {**choices, **current}
+            if restored != current:
+                _atomic_json(path, restored)
 
 
 def _atomic_json(path: Path, value: Any) -> None:

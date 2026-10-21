@@ -8,6 +8,30 @@ try to repair a published release by replacing its artifacts.
 The authored source version can equal the latest public release between version bumps. Only an
 immutable `v<project.version>` GitHub release starts a new publication.
 
+## Current maintainer release path
+
+Follow [AGENTS.md](../AGENTS.md): commit and push directly to `main`; slow checks stay in CI.
+Prepare the version, lockfile, both plugin manifests, Claude marketplace entry and checked release
+record together. The README should describe the experience that the numbered package will ship.
+
+`auto-release.yml` treats a new version on `main` as a decision to publish. For a maintainer-driven
+release through the separately registered `release.yml` PyPI publisher, create the annotated tag
+locally and push `main` and that tag atomically. Auto release then sees the existing tag and skips
+its publication path. The tag starts the container workflow with the correct version ref. After
+checking CI, create the GitHub release for the existing tag; a maintainer's `gh release create`
+starts `release.yml` directly. This avoids depending on an additional PyPI registration for the
+auto-release caller. Do not move an existing release tag.
+
+On 21 October 2026 the `pypi` environment had no reviewer rule and permitted `main` and `v*` tags.
+The older protected-environment instructions below describe the original setup; inspect the live
+settings before each release and do not change policy as part of routine publication.
+
+After publication, verify the public wheel installation and the attached checksums/attestations.
+Update the ledger with the actual evidence and synchronize the GitHub release body with that
+record so it no longer describes a published version as a candidate. A direct-main commit is
+recorded as `protected_merge: bypassed`, not as a protected review. Production acceptance remains
+pending until the deployed service is tested independently.
+
 ## One-time repository configuration
 
 ### PyPI trusted publisher

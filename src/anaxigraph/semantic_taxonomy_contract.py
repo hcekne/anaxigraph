@@ -9,6 +9,7 @@ from anaxigraph.architecture_charter_contract import (
     is_architecture_charter_request,
     validated_architecture_charter,
 )
+from anaxigraph.architecture_plan_contract import PLAN_SCHEMA, validate_plan_structure
 from anaxigraph.pattern_evaluation_contract import (
     pattern_response_name,
     pattern_response_schema,
@@ -155,6 +156,8 @@ TAXONOMY_REVIEW_SCHEMA: dict[str, Any] = {
 
 
 def response_schema(request: dict[str, Any]) -> dict[str, Any]:
+    if request.get("analysis_kind") == "architecture_plan":
+        return PLAN_SCHEMA
     review_schema = fresh_eyes_schema(request)
     if review_schema is not None:
         return review_schema
@@ -172,6 +175,8 @@ def response_schema(request: dict[str, Any]) -> dict[str, Any]:
 
 
 def response_contract_name(request: dict[str, Any]) -> str:
+    if request.get("analysis_kind") == "architecture_plan":
+        return "architecture_plan"
     review_name = fresh_eyes_contract_name(request)
     if review_name is not None:
         return review_name
@@ -196,6 +201,43 @@ def validated_semantic_response(
     output_tokens: int = 0,
 ) -> SemanticResult:
     kind = str(request.get("analysis_kind") or "")
+    if kind == "architecture_plan":
+        return _validated_plan(value, input_tokens, output_tokens)
+    specialized = _specialized_response(value, request, input_tokens, output_tokens)
+    if specialized is not None:
+        return specialized
+    if not kind.startswith("taxonomy_"):
+        if request.get("detailed_reviews") is False:
+            return validated_mapping(value, input_tokens=input_tokens, output_tokens=output_tokens)
+        return validated_result(value, input_tokens=input_tokens, output_tokens=output_tokens)
+    review = kind.startswith("taxonomy_review")
+    schema = TAXONOMY_REVIEW_SCHEMA if review else TAXONOMY_SCHEMA
+    label = "taxonomy review" if review else "taxonomy"
+    _validate_schema(value, schema, label)
+    return SemanticResult(
+        value=value,
+        confidence=max(0.0, min(1.0, float(value.get("confidence") or 0))),
+        evidence=tuple(str(item)[:2000] for item in (value.get("evidence") or [])[:100]),
+        input_tokens=max(0, input_tokens),
+        output_tokens=max(0, output_tokens),
+    )
+
+
+def _validated_plan(value: Any, input_tokens: int, output_tokens: int) -> SemanticResult:
+    _validate_schema(value, PLAN_SCHEMA, "architecture plan")
+    validate_plan_structure(value)
+    return SemanticResult(
+        value=value,
+        confidence=float(value["confidence"]),
+        evidence=tuple(value["evidence"]),
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+    )
+
+
+def _specialized_response(
+    value: Any, request: Any, input_tokens: int, output_tokens: int
+) -> SemanticResult | None:
     fresh_result = validated_fresh_eyes_response(
         value,
         request,
@@ -218,23 +260,7 @@ def validated_semantic_response(
             input_tokens=input_tokens,
             output_tokens=output_tokens,
         )
-    if not kind.startswith("taxonomy_"):
-        if request.get("detailed_reviews") is False:
-            return validated_mapping(value, input_tokens=input_tokens, output_tokens=output_tokens)
-        return validated_result(value, input_tokens=input_tokens, output_tokens=output_tokens)
-    review = kind.startswith("taxonomy_review")
-    schema = TAXONOMY_REVIEW_SCHEMA if review else TAXONOMY_SCHEMA
-    label = "taxonomy review" if review else "taxonomy"
-    _validate_schema(value, schema, label)
-    confidence = max(0.0, min(1.0, float(value.get("confidence") or 0)))
-    evidence = tuple(str(item)[:2_000] for item in (value.get("evidence") or [])[:100])
-    return SemanticResult(
-        value=value,
-        confidence=confidence,
-        evidence=evidence,
-        input_tokens=max(0, input_tokens),
-        output_tokens=max(0, output_tokens),
-    )
+    return None
 
 
 def validated_agent_semantic_response(

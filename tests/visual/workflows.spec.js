@@ -23,7 +23,7 @@ test("the map separates current coverage from repeated jobs and keeps optional f
   await expect(intrinsic).toContainText("4 / 12 files");
   await expect(intrinsic).toContainText("2 reused");
   await expect(intrinsic).not.toContainText("gpt-6-luna");
-  await expect(page.locator("#workflow-message")).toContainText("waiting");
+  await expect(page.locator("#workflow-message")).toContainText("steps remain");
   await intrinsic.click();
   await expect(page.locator("#workflow-detail")).toContainText("15");
   await expect(page.locator("#workflow-detail")).toContainText("unknown token usage");

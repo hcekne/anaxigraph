@@ -2,6 +2,7 @@
 @import url("/assets/dashboard-shell.css");
 @import url("/assets/graph-regions.css");
 @import url("/assets/workflows.css");
+@import url("/assets/architecture-planning.css");
 
 .onboarding-guide {
   margin-bottom: 1rem;

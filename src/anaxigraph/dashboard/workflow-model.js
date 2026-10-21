@@ -1,6 +1,7 @@
 // Display saved coverage separately from the jobs that produced it.
 import { applySavedProgress } from "/assets/workflow-freshness.js";
 import { stepRun, stepActivityLabel, workflowRuns } from "/assets/workflow-activity.js";
+import { architectureWorkflow } from "/assets/architecture-workflow.js";
 
 export const statusLabels = {
   complete: "Complete", running: "Running", queued: "Queued", failed: "Needs attention",
@@ -44,7 +45,7 @@ export function workflowState(flow) {
 }
 
 export function buildFlows(data, files = 0, startingStep = null) {
-  const flows = [mappingFlow(data, files), patternFlow(data), freshFlow(data)];
+  const flows = [mappingFlow(data, files), patternFlow(data), freshFlow(data), architectureWorkflow(data, step, jobFacts)];
   flows.forEach(flow => applySavedProgress(flow, data));
   flows.forEach(flow => flow.steps.forEach(item => {
     item.plan = data.settings?.steps[item.id];
@@ -211,7 +212,7 @@ function freshFlow(data) {
   const ready = fresh.ready;
   return { id: "fresh-eyes", name: "Fresh eyes", title: "Reconsider the architecture with fresh eyes",
     description: "Independent designs become a reference, then meet the realities of your repository.",
-    note: "Proposals see the capability brief, not the current implementation or each other's answers. Later stages compare with current code. Provider diversity is shown only when recorded.",
+    note: "Independent designs see only the capability brief. The comparison then uses Mapping and available Pattern evaluations; architecture planning builds on these conclusions. Provider diversity is shown only when recorded.",
     steps: [
       step("brief", "Frame the capabilities", "Start from the Charter's purpose and constraints.", {
         owner: "AnaxiGraph code", done: fresh.capability_brief ? 1 : 0, total: 1, unit: "brief",
@@ -221,7 +222,7 @@ function freshFlow(data) {
         unit: "proposals", parallel: true, detail: "Each proposal is produced independently. More proposals add work; model or provider diversity depends on the executors that actually run them.",
       }),
       freshStep(data, "adjudication", "Build a reference design", "Compare proposals and preserve useful disagreements.", stages.filter(item => item.key === "adjudication")),
-      freshStep(data, "comparison", "Compare with reality", "Now inspect current architecture and declared context.", stages.filter(item => item.key === "comparison")),
+      freshStep(data, "comparison", "Compare with reality", "Now inspect Mapping and available Pattern evaluations.", stages.filter(item => item.key === "comparison"), { patternInputs: fresh.pattern_inputs, detail: fresh.pattern_inputs?.state === "not_compared" ? "Mapping and saved Pattern reviews enter here, after independent design. No comparison has run yet." : fresh.pattern_inputs ? `Saved comparison used ${fresh.pattern_inputs.used} Pattern evaluations. ${fresh.pattern_inputs.available_now || 0} are current now; ${fresh.pattern_inputs.changed_since_comparison || 0} used evaluations changed afterward. See step evidence for the recorded references.` : "Mapping and saved Pattern reviews enter here, after independent design. Saved provenance identifies the evidence used." }),
       freshStep(data, "mission_filter", "Rank useful changes", "Filter suggestions against the mission and review goal.", stages.filter(item => item.key === "review")),
       step("grounding", "Check the references", "Resolve cited paths and symbols against saved code.", {
         owner: "AnaxiGraph code", done: ready ? 1 : 0, total: 1, unit: "check",

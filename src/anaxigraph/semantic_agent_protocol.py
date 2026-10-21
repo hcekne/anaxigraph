@@ -9,6 +9,7 @@ import re
 from typing import Any
 
 from anaxigraph.architecture_charter_contract import ARCHITECTURE_CHARTER_SCHEMA
+from anaxigraph.architecture_plan_contract import PLAN_SCHEMA
 from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
 from anaxigraph.pattern_evaluation_contract import (
     PATTERN_EVALUATION_SCHEMA,
@@ -39,6 +40,7 @@ def semantic_agent_schema(artifact: str = "all") -> dict[str, Any]:
     result = {
         "schema_version": SEMANTIC_SCHEMA_VERSION,
         "dossier_schema": MAPPING_SCHEMA,
+        "architecture_plan_schema": PLAN_SCHEMA,
         "review_dossier_schema": DOSSIER_SCHEMA,
         "architecture_charter_schema": ARCHITECTURE_CHARTER_SCHEMA,
         "taxonomy_schema": TAXONOMY_SCHEMA,

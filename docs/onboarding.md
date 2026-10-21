@@ -10,6 +10,8 @@ repository (read-only) ──→ facts read from code ──→ AnaxiIndex
                                                     └── AnaxiMCP ──→ coding agent
 ```
 
+Run the service on the host with **uv** under the same account as your authenticated Codex or
+Claude Code CLI. This is the recommended setup for dashboard workers and coding-agent integration.
 The recommended AI-mapping mode needs no model key in AnaxiGraph. Codex or Claude Code uses its own
 model context and token allowance to read a limited amount of evidence for each file and write a
 checked, structured code description back to AnaxiIndex.
@@ -27,6 +29,12 @@ uvx anaxigraph up . --open --semantic agent --connect codex
 
 Use `--connect claude` for Claude Code. For a code-only map without AI descriptions, omit
 `--semantic agent --connect codex`.
+
+For regular use, `uv tool install anaxigraph` installs the `anaxigraph` command in an isolated
+environment. You can then use `anaxigraph up` and the CLI commands below directly. Otherwise,
+prefix those commands with `uvx`. Update an installed tool with `uv tool upgrade anaxigraph`;
+update a `uvx` run with `uvx --refresh anaxigraph up . --open --semantic agent --connect codex`.
+Restart the service after updating. Install and authenticate the selected agent CLI before AI work.
 
 The command creates an idempotent `.anaxigraph.yml`, stores AnaxiIndex outside the target
 repository, scans the current checkout, starts the loopback dashboard and MCP server, and imports
@@ -56,6 +64,11 @@ The first-run tour explains the main loop:
   independent critiques → saved evaluations → exploration.
 - **Fresh eyes:** capability brief → independent proposals → reference design → comparison
   with current code → ranked improvements → reference checks → exploration.
+- **Architecture planning:** optional direction → Mapping and available reviews → architecture
+  options → agent-selected target → current/target diagrams → migration milestones → agent work.
+  Blank direction uses suggested defaults. A person can steer or select another option, but no
+  human approval is required. Targets remain available across edits; milestone reports identify
+  their scan and actual verification evidence.
 
 Select any card to see its inputs, outputs, recorded models, usage and result links. File coverage
 counts current saved descriptions, including reuse. Model-job totals can include repeated work;
@@ -77,6 +90,11 @@ assigns one independent proposal to each row, with at most three proposals and c
 by repository policy. A single synthesis result uses one worker. Cards also show live worker counts
 by model when a lease is active. Suggested choices are starting points, not benchmark results.
 
+Mapping step 5 saves each independent review batch as it finishes. Batches within a pass run in
+parallel; configured OpenAI and Claude passes remain ordered. Progress shows completed/total
+batches, active workers, elapsed time and a final reconciliation phase. An interrupted run reuses
+successful batches and retries failed work. The worker queue refills available slots continuously.
+
 Card settings take precedence over repository stage-model defaults for these dashboard runs;
 usage limits, leases and saved provenance remain enforced. The CLI must be installed and logged in
 as the user running the service. A configured non-agent provider retains the existing workflow
@@ -94,9 +112,10 @@ review stages against that saved map. It does not enable detailed review permane
 the file-description contract. Fresh-eyes proposals run in separate sessions; the recorded
 provenance shows whether different models or providers actually participated. You can start a
 new review generation explicitly, or resume an unfinished one. A changed proposal count or pinned
-provider assignment needs a new generation. **Run step** never executes a prerequisite or another
-card's model jobs; it waits and explains when preceding work is missing. **Start / resume** runs
-only the selected flow. Runs leave source files unchanged and retain completed results across page
+provider assignment needs a new generation. **Run this step** completes missing prerequisites
+and stops at the selected step. The main **Run full…** action completes the selected sequence
+while reusing current results. Runs leave application source unchanged, save the shared
+`anaxigraph/` record when writable, and retain completed results across page
 reloads. Resume unfinished work after restarting the server. Settings live beside the index in
 `<database filename>.workflows/`; include that directory in backups.
 
@@ -127,7 +146,7 @@ Use this sentence in the coding-agent chat:
 Codex processes the saved AI task list from one background host command:
 
 ```bash
-anaxigraph understand . --executor codex --model '<worker-model>' --parallel-jobs 32 --background --json
+anaxigraph understand . --executor codex --model '<worker-model>' --parallel-jobs 4 --background --json
 anaxigraph semantic-status . --compact --json
 ```
 
@@ -161,9 +180,10 @@ included file exactly one main smaller group. No person has to approve this meta
 code, direct links, instructions, and intended job reuse current records; worker and model names
 record who created the result but do not decide whether it is stale.
 
-If a matching loopback dashboard/sidecar is live, the command identifies it from the checkout's
-Git remote and uses its saved MCP task list and persistent AnaxiIndex. Container paths therefore do not
-create a second host-local baseline. A refused connection or a reachable service with no matching
+If a matching loopback dashboard/sidecar is live, the command verifies the exact checkout and uses
+its saved MCP task list and persistent AnaxiIndex. Container path aliases must also match Git and
+working tree identity; the same remote alone is insufficient. Linked worktrees remain distinct.
+Container paths therefore do not create a second host-local baseline. A refused connection or a reachable service with no matching
 repository selects the same per-checkout user-state database as `anaxigraph up`; a timeout or
 invalid inventory fails closed because the sidecar may be busy. Use `--service-url` or
 `ANAXIGRAPH_SERVICE_URL` for a non-default endpoint; use `--db` only when you intentionally want a

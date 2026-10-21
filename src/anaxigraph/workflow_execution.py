@@ -12,14 +12,17 @@ from functools import partial
 from threading import Event, Lock
 from typing import Any
 
+from anaxigraph.architecture_plan import plan_requested, request_plan
 from anaxigraph.persistence.workflow_read import workflow_coverage
 from anaxigraph.semantic_fresh_eyes_plan import FreshEyesPlanner
 from anaxigraph.semantic_pattern_plan import SemanticPatternPlanner
 from anaxigraph.semantic_timeouts import worker_lease_seconds
 from anaxigraph.understanding import SemanticEngine
+from anaxigraph.workflow_progress import completed_steps as completed_steps
 from anaxigraph.workflow_settings import FLOW_STEPS, STEP_MODES, WorkerChoice, required_steps
 
 JOB_STEPS = {
+    "architecture_plan": "architecture_plan",
     "intrinsic": "intrinsic",
     "context": "context",
     "taxonomy_proposal": "taxonomy_proposal",
@@ -74,7 +77,7 @@ class WorkflowExecution:
         self.base_config = config
         self.config = (
             config
-            if request.workflow == "mapping"
+            if request.workflow in {"mapping", "architecture"}
             else replace(config, semantic=replace(config.semantic, detailed_reviews=True))
         )
         self.repository_id = int(row["id"])
@@ -175,6 +178,13 @@ class WorkflowExecution:
             )
             if self.request.workflow == "patterns":
                 SemanticPatternPlanner().plan_patterns(connection, **arguments)
+            elif self.request.workflow == "architecture":
+                if not self.review_started:
+                    request_plan(
+                        connection, self.repository_id, self.snapshot_id, self.request.goal
+                    )
+                    self.review_started = True
+                plan_requested(connection, **arguments)
             else:
                 FreshEyesPlanner().plan_active(connection, **arguments)
 
@@ -460,38 +470,3 @@ def assign_jobs(
             slot = slots[index % len(slots)]
         assignments[slot].append(int(job["id"]))
     return assignments
-
-
-def completed_steps(status: Any, coverage: Any, fresh: Any) -> set[str]:
-    scopes = coverage.get("scopes", {})
-    modules, groups = scopes.get("module", {}), scopes.get("group", {})
-    total = modules.get("total", 0) - modules.get("excluded", 0)
-    taxonomy = status.get("taxonomy", {})
-    current = taxonomy.get("current") or {}
-    patterns = status.get("patterns", {})
-    pattern = scopes.get("pattern", {})
-    checks = {
-        "intrinsic": bool(modules) and modules.get("intrinsic", 0) == total,
-        "context": bool(modules) and modules.get("current", 0) == total,
-        "taxonomy_proposal": bool(current) or not taxonomy.get("enabled"),
-        "taxonomy_review": taxonomy.get("ready") or not taxonomy.get("enabled"),
-        "groups": bool(groups) and groups.get("current", 0) == groups.get("total", 0),
-        "charter": (status.get("architecture_charter") or {}).get("status") == "current",
-        "pattern_plan": patterns.get("planned"),
-        "pattern_assessment": patterns.get("planned")
-        and max(pattern.get("current", 0), pattern.get("intrinsic", 0)) == patterns.get("selected"),
-        "pattern_review": patterns.get("planned")
-        and pattern.get("current", 0) == patterns.get("selected"),
-        "brief": bool(fresh.get("capability_brief")),
-        "grounding": fresh.get("ready"),
-    }
-    stages = fresh.get("stages", [])
-    for step, key in (
-        ("proposals", "proposal:"),
-        ("adjudication", "adjudication"),
-        ("comparison", "comparison"),
-        ("mission_filter", "review"),
-    ):
-        matching = [stage for stage in stages if stage["key"].startswith(key)]
-        checks[step] = bool(matching) and all(stage["state"] == "current" for stage in matching)
-    return {step for step, ready in checks.items() if ready}

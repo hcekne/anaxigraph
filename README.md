@@ -18,6 +18,7 @@
 
 <p align="center">
   <a href="docs/onboarding.md">Get started</a> ·
+  <a href="docs/releases/0.8.0.md">What's new in 0.8.0</a> ·
   <a href="docs/agent-plugin.md">Agent plugin</a> ·
   <a href="docs/docker.md">Docker</a> ·
   <a href="docs/advanced-operations.md">Advanced</a> ·
@@ -51,8 +52,12 @@ find ownership, check dependencies and tests, and compare each edit against an e
 ## 🚀 Start in four steps
 
 You need Git, Python 3.11+, and [`uv`](https://docs.astral.sh/uv/).
+**Recommended for agent integration: run AnaxiGraph on the host with uv**, under the same account
+as your authenticated Codex or Claude Code CLI. Dashboard workers can then use those logins and
+available models directly. AnaxiGraph needs **no model key** in `agent` mode; the chosen workers
+use your own agent account's model allowance. Model availability and limits depend on that account.
 
-### 1. Run one command in the repository
+### 1. Start the host service in your repository
 
 ```bash
 cd /path/to/your/repository
@@ -60,24 +65,48 @@ uvx anaxigraph up . --open --semantic agent --connect codex
 ```
 
 Use `--connect claude` for Claude Code. Omit `--semantic agent --connect codex` when you only want
-the code-only map.
+the code-only map. Install and authenticate the selected agent CLI before running AI steps.
+
+`uvx` runs AnaxiGraph in an isolated tool environment without adding it to your repository's
+dependencies. For regular use, install the command once with `uv tool install anaxigraph` and use
+`anaxigraph up . --open --semantic agent --connect codex`. Update with
+`uv tool upgrade anaxigraph`, then restart the service. To update the one-command setup, restart
+with `uvx --refresh anaxigraph up . --open --semantic agent --connect codex`.
 
 This command creates or loads repository policy, stores AnaxiIndex outside the target, completes
 the current scan, starts the loopback dashboard and AnaxiMCP, and builds representative Git history
 in the background. Stop it with Ctrl-C; restart with the same command.
 
-### 2. Open the dashboard
+### 2. Build understanding through Workflows
 
 Visit <http://127.0.0.1:8765>. Current architecture is ready before background history finishes.
 
-The dashboard opens on **Workflows**, with live diagrams of mapping, detailed pattern analysis and
-fresh-eyes review. Select a step to inspect coverage, reused results, recorded models and token
-usage, then open its results. Each model card shows its next provider, model and worker count.
-Use **Configure** to save choices, **Run step** for that stage, or **Try 2 jobs** for a small sample.
-Authenticated host Codex and Claude CLIs can run through the [persistent uv service](docs/advanced-operations.md#persistent-host-dashboard-with-uv).
-Optional work is shown as **Not run** until
-requested. See the [workflow controls](docs/onboarding.md#explore-and-run-repository-workflows)
-for worker requirements and how saved progress is counted.
+The dashboard opens on **Workflows**. The diagrams are the control surface for building and
+reviewing the map: select a step, configure its models and workers, run it, and open its results.
+
+| Workflow | What you get |
+|---|---|
+| **Mapping** | File descriptions, dependencies, a reviewed responsibility map and the Living Architecture Charter. Start here. |
+| **Pattern analysis** | Candidate patterns assessed against the saved map, independent critiques and evidence-backed evaluations. Run after Mapping. |
+| **Fresh eyes** | Independent design proposals from the capability brief, reconciliation and a comparison with the current implementation and available Pattern evaluations. Run after Mapping. |
+| **Architecture planning** | Compare options, let the agent select a target, visualize current versus proposed boundaries and follow migration milestones. Your direction is optional. |
+
+Use **Configure → Try 2 jobs** for a small sample, **Run step** for one stage, or **Run full mapping**, **Run full pattern analysis**, **Run full fresh eyes** or
+**Run full architecture planning** for the selected sequence. Choose provider, model, effort and worker count per step; settings show
+what will run next separately from the recorded models that produced saved results. Saving settings
+alone makes no model calls. Optional analysis stays **Not run** until requested.
+
+Progress shows saved coverage, reused results, active workers, elapsed time and reported token
+usage. Mapping step 5 reviews independent batches in parallel within each ordered OpenAI/Claude
+pass, saves each batch immediately, then shows **Final reconciliation**. Resume retains successful
+batches and retries failed work. The worker queue refills available slots as jobs finish.
+
+The header identifies the checkout, branch, indexed commit and current commit. Structural scans,
+AI mapping, Patterns and Fresh Eyes have separate freshness indicators. Current views load while
+history builds; file lists show loaded/total counts and fetch full descriptions when opened.
+See the [workflow controls](docs/onboarding.md#explore-and-run-repository-workflows) for details,
+or install the [persistent uv service](docs/advanced-operations.md#persistent-host-dashboard-with-uv)
+to keep the host dashboard running between sessions.
 
 ### 3. Restart Codex in the repository
 
@@ -89,80 +118,49 @@ cd /path/to/your/repository
 codex
 ```
 
-### 4. Ask it to build the AI-created code map
+### 4. Direct the agent with the shared map
+
+Once Mapping is ready, give the agent an outcome, examples, design preferences and boundaries:
+
+> Use AnaxiGraph to show me where this behavior lives, what depends on it, and which tests matter.
+> Extend the existing owner, preserve its public contract, and compare the result with the
+> pre-edit snapshot. Here is the behavior I want: …
+
+**Guide** can copy a prompt with your goal, exact checkout and comparison baseline. The agent uses
+the same map as the dashboard to inspect ownership, reuse existing code and check the change.
+Guidance and impact default to an 8 KB response budget; request `details=true` or CLI `--details`
+when more evidence is needed. Documentation and benchmark data remain identifiable as supporting
+artifacts rather than implementation starting points.
+
+You can also ask the agent to start or resume Mapping instead of using the dashboard:
 
 > Use AnaxiGraph to build or resume the AI-created code map for this repository. Choose an
 > explicit economical worker model, start or reuse the background run, and return its run ID.
 > Let the worker manage the queue. Check compact progress when I ask; do not supervise it in an
 > LLM loop or edit source while mapping.
 
-The durable command survives the invoking Codex session:
+For CLI examples below, install the command with `uv tool install anaxigraph`, or prefix each
+command with `uvx`. The durable command survives the invoking Codex session:
 
 ```bash
-anaxigraph understand . --executor codex --model '<worker-model>' --parallel-jobs 32 --background --json
+anaxigraph understand . --executor codex --model '<worker-model>' --parallel-jobs 4 --background --json
 anaxigraph semantic-status . --compact --json
 ```
 
 Replace `<worker-model>` with your chosen Codex model. For Claude Haiku workers, use
 `--executor claude --model haiku`. The repository's `max_parallel_jobs` setting limits total
-concurrency across executors; raise it to at least 32 for 32 simultaneous jobs.
+concurrency across executors. Start small and increase workers within your account's limits.
 
-With `semantic.provider: agent`, `understand` auto-detects an invoking Codex or Claude session and
-uses that authenticated local CLI as a read-only semantic executor. Use `--executor codex` or
-`--executor claude` to select one explicitly. Use `--executor mcp` when the already-connected agent
-should perform the MCP work loop itself; that mode returns `status: agent_action_required`—meaning
-the agent still has work to do—until it has submitted every task. `--background` includes the
-complete saved task list,
-records a durable run handoff in user state, and keeps the host worker alive if the coding-agent
-session exits. `semantic-status` reports whether that worker is really running, where its log is,
-whether it finished, which saved index it is using, and its model and reasoning effort. Choose
-`--model` explicitly to avoid inheriting an expensive CLI default; optional `--reasoning-effort`
-is also a runtime choice. Changing either never makes an existing AI description stale.
-`already_running` returns the existing run. Return that handle and check compact status on request
-or no more often than every five minutes; ordinary software handles waiting, scheduling, and
-retries. Direct MCP
-looping handles one limited task at a time when no authenticated host worker is available; it is
-not the default way to build the complete map.
+`--background` keeps the worker alive after the invoking agent session exits. Return the run
+handle and read compact status on request; ordinary software manages scheduling, leases and retries.
+Choose a model explicitly to control cost. Provider limits and the repository's shared worker cap
+still apply. Direct MCP work is a fallback when an authenticated host worker is unavailable.
 
-When the loopback dashboard is already running, `understand` matches the checkout to its service by
-Git remote identity and executes against that sidecar's AnaxiIndex—even when the container sees the
-checkout at `/repo`. It never creates a second default database in that case. Without a matching
-service it uses the same stable per-checkout user-state path as `anaxigraph up`; a timeout or
-invalid inventory fails closed instead of silently choosing another index. `--db` explicitly
-selects a standalone index, and `--service-url` explicitly selects a service. Every command result
-reports the chosen `index.authority` and physical/service identity for unambiguous handoff.
-
-That is the key cost model: **the chosen workers spend model tokens on code understanding**.
-The caller can launch cheaper workers without passing its conversation to them. AnaxiGraph needs
-no model key in `provider: agent` mode. It gives each worker a limited page of
-evidence for one file or code area at a time, checks the returned structured description, records
-which worker and model created it, and resumes unfinished work in a later session. Once every file
-has a current description, the same workflow automatically proposes a
-responsibility-based area/subsystem map, runs independent AI critic/revision passes, and applies
-exact membership and size checks in code. It then produces a versioned **Living Architecture
-Charter**: purpose, actors, observable capabilities, responsibilities, important flows, public
-contracts, invariants, extension points, patterns, coherence concerns, conflicts, unknowns, and a
-behavior-only Capability Brief for fresh-context review. There is no human approval gate: the
-result is versioned map metadata and never edits or controls the analyzed code. Unchanged
-fingerprints avoid rereading unchanged files or rebuilding unchanged higher-level understanding.
-Read the same Charter in Overview, `anaxigraph charter .`, or `ANAXIGRAPH_OVERVIEW`; use the Map
-selector or the responsibility map embedded in `ANAXIGRAPH_OVERVIEW` for its area/subsystem structure.
-
-A deterministic scan exposes an honest provisional Charter immediately. AI synthesis replaces it
-only when current evidence is complete; a prior Charter is labeled stale after relevant evidence
-changes. Optional declared context can clarify an inferred claim without overwriting it:
-
-```bash
-anaxigraph charter . \
-  --correct-section purpose \
-  --statement "Help teams keep AI-assisted code architecturally coherent." \
-  --author "repository owner" \
-  --rationale "This intended outcome is not fully visible in source structure."
-```
-
-The overlay retains the inferred statement, author, time, and rationale in AnaxiIndex. Repeat with
-`--withdraw` to remove it from the current presentation. Human input is never required for Charter
-generation, refresh, or agent use.
+The worker verifies the exact checkout before using a matching service's index. Linked worktrees
+remain distinct; sharing a Git remote is insufficient. The completed map includes a reviewed
+responsibility hierarchy and Living Architecture Charter, with evidence, provenance and unknowns.
+Unchanged inputs reuse saved understanding. See [advanced operation](docs/advanced-operations.md)
+for executor choices, index authority, Charter corrections and cost details.
 
 The complete [onboarding guide](docs/onboarding.md) explains the normal coding loop and setup
 diagnostics.
@@ -172,6 +170,17 @@ response exposes the same finding-state and measurement meanings for clients tha
 human interface; they are not duplicated as another agent tool.
 
 ## 🔁 Use one coding loop
+
+**Architecture planning** can choose a direction for you. Leave its direction blank to use suggested
+defaults, or add your goals and constraints. The agent compares preserving the current design with
+incremental evolution and other justified options, selects a target, and records its reasoning.
+You can choose another option later. The workflow shows current and proposed diagrams, Mermaid
+exports, and ordered milestones with owners, contracts, verification and rollback. A selected plan
+survives code changes; verification reports identify the scan they checked.
+
+Read or request it with `anaxigraph plan .` / `anaxigraph plan . --start`, or
+`ANAXIGRAPH_GUIDE(intent="plan", start=true)`. Planning uses the existing background worker queue.
+Ordinary coding guidance includes the saved target and next milestone.
 
 Keep one persistent AnaxiGraph service running throughout the coding session. The service supervises
 its structural watcher internally, so ordinary saves update cheap structural facts without a second
@@ -189,11 +198,14 @@ The agent follows one sequence:
 
 1. **Guide** — `ANAXIGRAPH_GUIDE(intent="build"|"improve")` returns one evidence-backed
    recommendation, likely files, placement, counter-reasons, bounded impact, tests, and risks.
+   Retain its `snapshot_id` as the pre-edit baseline.
 2. **Impact** — `ANAXIGRAPH_IMPACT` shows direct dependants of the shared files before they change.
 3. **Change** — edit source and run focused tests through the normal coding workflow. AnaxiGraph
    observes the repository; it does not edit it.
 4. **Refresh and reassess** — request `ANAXIGRAPH_SCAN(refresh_semantics=true)`, finish any prepared
-   AI work, then call `ANAXIGRAPH_GUIDE(intent="reassess")`. The scan compares code fingerprints,
+   AI work, then call `ANAXIGRAPH_GUIDE(intent="reassess")` with `from_snapshot_id` set to that
+   baseline. Keep the same baseline across implementation phases until you deliberately choose
+   another; the dashboard's **Changes → Compare from** provides the same control. The scan compares code fingerprints,
    reuses unchanged file meanings, and prepares only structurally changed files plus context whose
    interfaces or relationships changed. The shared before/after response explains observed changes,
    architectural consequences, possible improvements or regressions, reasons to leave the design
@@ -288,6 +300,30 @@ volume, token counts, and attempts of each. Read an earlier one in full with
 **Improve → Fresh eyes**. A recorded generation is history: it reports `superseded` and cannot be
 started, retried, or restarted.
 
+## Carry the architecture with Git
+
+Workflow runs save reusable results in a tracked root `anaxigraph/` folder when writable. It carries
+the map, file understanding, relationships, findings, Pattern and Fresh Eyes results, model choices,
+and architecture plans. Stable JSON/JSONL partitions keep unchanged results untouched; Markdown and
+Mermaid make the chosen plan readable in Git. SQLite, live workers and temporary queues stay local.
+
+After pulling a repository, start AnaxiGraph normally. It validates and loads the shared record into
+its local query cache, reuses compatible results and checks local source changes. An artifact-only
+commit leaves the source map current. Each worktree keeps its own identity and local edits.
+
+For Flowthink or another scheduler, run on a checkout with authenticated agent CLIs:
+
+```bash
+uvx anaxigraph refresh . --workflows mapping,patterns,fresh-eyes,architecture --executor codex --model '<worker-model>' --json
+```
+
+The command saves completed and partial results, returns a nonzero exit status for unfinished work
+or publication failure, and leaves Git commits/pushes to your scheduler. Configure Mapping nightly
+and the other workflows at their own cadence; unchanged model work is reused. Use
+`anaxigraph record save .` for an explicit save, or **Save shared architecture files** in Planning.
+See [repository records and scheduled runs](docs/advanced-operations.md#repository-records-and-scheduled-runs)
+for the format, interruption behavior, local overrides and container operation.
+
 ## 🐳 Durable Docker sidecar
 
 If you prefer an isolated, persistent container beside the repository:
@@ -304,6 +340,11 @@ default. Use `--connect claude` for Claude Code. Preview the full repository and
 
 See [Docker operation](docs/docker.md) for manual Compose review, updates, watchers, and the
 experimental multi-repository registry.
+
+The image does not bundle Codex or Claude CLIs or their credentials. Dashboard model execution
+needs those CLIs inside the service's environment; an installation on the host is not available
+inside the container. Host execution with uv is the recommended route for direct dashboard worker
+integration. Docker can still serve the shared map to connected agents and host workers.
 
 ## 🔌 Install the guided agent workflow
 
@@ -360,9 +401,10 @@ Three named surfaces share one index:
 - **AnaxiMCP** gives coding agents size-limited repository evidence and controlled ways to update
   the external index.
 
-AnaxiGraph does not execute target code and does not edit repository source. A generated sidecar
-mounts the target read-only. The target needs only optional `.anaxigraph.yml` policy; analysis
-state stays external.
+AnaxiGraph does not execute target code or edit application source. A generated sidecar mounts
+the target read-only. The local index serves fast queries; the tracked `anaxigraph/` record carries
+reusable analysis and plans between checkouts. Explicit workflows save that record when writable.
+Read-only services can load it, and report when they cannot publish updated files.
 
 ### Facts are not opinions
 

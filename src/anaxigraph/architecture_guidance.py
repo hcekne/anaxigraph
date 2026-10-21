@@ -23,6 +23,10 @@ def agent_journey_manifest() -> dict[str, Any]:
             {"intent": "build", "use_when": "You need to place new or changed behavior."},
             {"intent": "improve", "use_when": "You need a bounded structural improvement."},
             {"intent": "redesign", "use_when": "You want a capability-first clean-sheet review."},
+            {
+                "intent": "plan",
+                "use_when": "You want a shared architecture target and migration milestones; direction and target selection can be left to the agent.",
+            },
             {"intent": "reassess", "use_when": "You changed code and want a before/after verdict."},
         ],
         "coding_loop": [

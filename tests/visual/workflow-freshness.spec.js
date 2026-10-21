@@ -31,7 +31,7 @@ test("changed source shows retained work, refresh counts and an explicit update 
   for (const step of ["intrinsic", "context", "taxonomy_proposal", "taxonomy_review"]) {
     await expect(page.locator(`[data-step="${step}"] .workflow-status`)).toHaveText("Needs update");
   }
-  await expect(page.locator("#workflow-run-button")).toHaveText("Update affected work");
+  await expect(page.locator("#workflow-run-button")).toHaveText("Update mapping");
   await page.getByRole("button", { name: "See what changed" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await expect(page.locator("#workflow-detail")).toContainText("10 saved results need refresh");

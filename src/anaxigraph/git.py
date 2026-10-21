@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from anaxigraph.models import GitMetadata
+from anaxigraph.portable_paths import managed_record, source_pathspec
 
 
 class GitError(RuntimeError):
@@ -115,9 +116,7 @@ def metadata(root: Path, *, revision: str | None = None) -> GitMetadata:
     parent = _run(root, "rev-parse", f"{revision}^", check=False)
     parent_sha = parent.stdout.strip() if parent.returncode == 0 else None
     if revision == "HEAD":
-        branch_result = _run(root, "branch", "--show-current", check=False)
-        branch = branch_result.stdout.strip() or "detached"
-        dirty = bool(_run(root, "status", "--porcelain=v1", "-uno").stdout.strip())
+        branch, dirty = _working_state(root)
     else:
         branch = revision
         dirty = False
@@ -135,11 +134,38 @@ def metadata(root: Path, *, revision: str | None = None) -> GitMetadata:
         remote_url=remote_url,
         default_branch=default_branch,
         working_tree_fingerprint=(working_tree_fingerprint(root) if revision == "HEAD" else None),
+        source_commit_sha=source_revision(root) if revision == "HEAD" else None,
     )
 
 
 def _default_branch(result: subprocess.CompletedProcess) -> str | None:
     return result.stdout.strip().removeprefix("origin/") if result.returncode == 0 else None
+
+
+def _working_state(root: Path) -> tuple[str, bool]:
+    branch = _run(root, "branch", "--show-current", check=False).stdout.strip() or "detached"
+    dirty = bool(
+        _run(root, "status", "--porcelain=v1", "-uno", "--", *source_pathspec(root)).stdout.strip()
+    )
+    return branch, dirty
+
+
+def source_revision(root: Path) -> str | None:
+    if not managed_record(root):
+        return None
+    result = _run(
+        root, "log", "-1", "--format=%H", "HEAD", "--", *source_pathspec(root), check=False
+    )
+    return result.stdout.strip() or None if result.returncode == 0 else None
+
+
+def only_record_changed(root: Path, commit: str) -> bool:
+    if not managed_record(root):
+        return False
+    result = _run(
+        root, "diff", "--quiet", commit, "HEAD", "--", *source_pathspec(root), check=False
+    )
+    return result.returncode == 0
 
 
 def working_tree_fingerprint(root: Path) -> str | None:
@@ -153,6 +179,7 @@ def working_tree_fingerprint(root: Path) -> str | None:
         "--no-textconv",
         "HEAD",
         "--",
+        *source_pathspec(root),
         check=False,
         text=False,
     )
@@ -162,7 +189,10 @@ def working_tree_fingerprint(root: Path) -> str | None:
     if diff.returncode != 0 or untracked.returncode != 0:
         return None
     digest = hashlib.sha256(diff.stdout)
+    has_record = managed_record(root)
     for encoded_path in sorted(item for item in untracked.stdout.split(b"\0") if item):
+        if has_record and encoded_path.startswith(b"anaxigraph/"):
+            continue
         path = root / encoded_path.decode("utf-8", errors="surrogateescape")
         digest.update(encoded_path)
         digest.update(b"\0")

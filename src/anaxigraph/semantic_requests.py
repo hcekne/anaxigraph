@@ -6,10 +6,9 @@ import json
 from pathlib import Path
 from typing import Any
 
-from anaxigraph.config import SemanticConfig
 from anaxigraph.persistence.semantic_evidence import module_facts, relationships_for_artifact
 from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION
-from anaxigraph.semantic_index_port import SemanticIndex
+from anaxigraph.semantic_ports import SemanticConfig, SemanticIndex
 from anaxigraph.semantic_records import _document_by_id
 from anaxigraph.semantic_request_support import (
     INPUT_TERM_MEANINGS,
@@ -59,6 +58,10 @@ class SemanticEvidenceService:
             from anaxigraph.semantic_pattern_requests import pattern_request
 
             request = pattern_request(self._database, job, root, semantic)
+        elif job["job_kind"] == "architecture_plan":
+            from anaxigraph.architecture_plan import plan_request
+
+            request = plan_request(job)
         elif str(job["job_kind"]).startswith("fresh_"):
             from anaxigraph.semantic_fresh_eyes_requests import fresh_eyes_request
 

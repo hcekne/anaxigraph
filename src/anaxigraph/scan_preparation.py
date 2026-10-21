@@ -127,7 +127,9 @@ def content_fingerprint(
 ) -> str:
     value = hashlib.sha256()
     value.update(_version_prefix(analysis_version))
-    value.update(git_metadata.commit_sha.encode())
+    value.update(
+        (getattr(git_metadata, "source_commit_sha", None) or git_metadata.commit_sha).encode()
+    )
     value.update(_config_json(config).encode())
     for item in files:
         value.update(item.path.encode("utf-8", errors="surrogateescape"))

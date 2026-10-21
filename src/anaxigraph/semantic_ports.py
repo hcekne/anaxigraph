@@ -22,6 +22,19 @@ class SemanticReportingPort(Protocol):
     ) -> dict[str, Any]: ...
 
 
+class SemanticTaxonomyPlanningPort(Protocol):
+    def plan_taxonomy(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        repository_id: int,
+        snapshot_id: int,
+        relationships: Any,
+        config: AnaxiGraphConfig,
+        retry_failed: bool,
+    ) -> tuple[int, bool]: ...
+
+
 class SemanticPlanningPort(Protocol):
     def plan(
         self,

@@ -11,8 +11,10 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from anaxigraph.api_semantic_routes import SemanticRoutes
+from anaxigraph.architecture_plan_read import architecture_plan_status
 from anaxigraph.operational_health import served_map_status
 from anaxigraph.persistence.workflow_read import workflow_coverage
+from anaxigraph.record_publication import RecordPublisher
 from anaxigraph.semantic_pattern_plan import SemanticPatternPlanner
 from anaxigraph.understanding import SemanticEngine
 from anaxigraph.workflow_execution import WorkflowExecution, validate_proposal_settings
@@ -33,7 +35,7 @@ from anaxigraph.workflow_settings import (
 
 class WorkflowRequest(BaseModel):
     repository_id: int | None = None
-    workflow: Literal["mapping", "patterns", "fresh-eyes"]
+    workflow: Literal["mapping", "patterns", "fresh-eyes", "architecture"]
     executor: Literal["configured", "codex", "claude"] = "configured"
     model: str = Field(default="", max_length=200)
     reasoning_effort: str = Field(default="", max_length=40)
@@ -69,6 +71,9 @@ class WorkflowRoutes:
                 int(row["id"]),
                 config.semantic.max_parallel_jobs,
                 config.semantic.taxonomy.review_passes,
+            ),
+            "architecture_plan": architecture_plan_status(
+                self.context.database, int(row["id"]), details=details
             ),
             "execution": {
                 "mounted": self.context.target_for_path(Path(row["path"])) is not None,
@@ -133,15 +138,25 @@ class WorkflowRoutes:
             workflow=request.workflow,
             step=request.step,
             settings=execution if request.use_step_settings else None,
-            run=lambda: (
-                self._run_steps(row, config, request, execution)
-                if request.use_step_settings
-                else _run_workflow(self.context.database, row, config, execution, request)
-            ),
+            run=lambda: self._run_saved(row, config, request, execution),
         )
         return {"status": "started" if started else "already_running", "repository_id": row["id"]}
 
-    def _run_steps(self, row: Any, config: Any, request: Any, execution: Any) -> dict[str, Any]:
+    def _run_saved(self, row: Any, config: Any, request: Any, execution: Any) -> dict[str, Any]:
+        publisher = RecordPublisher(self.context.database, int(row["id"]))
+        try:
+            result = (
+                self._run_steps(row, config, request, execution, publisher)
+                if request.use_step_settings
+                else _run_workflow(self.context.database, row, config, execution, request)
+            )
+        finally:
+            receipt = publisher.save()
+        return {**result, "record": receipt}
+
+    def _run_steps(
+        self, row: Any, config: Any, request: Any, execution: Any, publisher: Any = None
+    ) -> dict[str, Any]:
         return WorkflowExecution(
             self.context.database,
             row,
@@ -149,13 +164,18 @@ class WorkflowRoutes:
             request,
             execution,
             step_lock=lambda step: self.context.semantic_refresh.step_lock(Path(row["path"]), step),
-            on_progress=lambda **fields: self.context.semantic_refresh.update_run(
-                Path(row["path"]), request.workflow, request.step, **fields
-            ),
+            on_progress=lambda **fields: self._workflow_progress(row, request, publisher, fields),
             on_pool_error=lambda error: self.context.semantic_refresh.report_pool_error(
                 Path(row["path"]), error, request.workflow, request.step
             ),
         ).run()
+
+    def _workflow_progress(self, row: Any, request: Any, publisher: Any, fields: Any) -> None:
+        self.context.semantic_refresh.update_run(
+            Path(row["path"]), request.workflow, request.step, **fields
+        )
+        if publisher:
+            publisher.update(**fields)
 
     def save_settings(self, request: StepSettingsRequest) -> dict[str, Any]:
         row = self.context.selected_repository(request.repository_id)
@@ -246,6 +266,10 @@ def _run_workflow(
 ) -> dict[str, Any]:
     engine = SemanticEngine(database)
     repository_id = int(row["id"])
+    if request.workflow == "architecture":
+        from anaxigraph.planning_service import prepare_architecture_plan
+
+        prepare_architecture_plan(database, repository_id, row["path"], config, request.goal or "")
     if request.workflow == "fresh-eyes":
         engine.start_fresh_eyes_review(
             repository_id,

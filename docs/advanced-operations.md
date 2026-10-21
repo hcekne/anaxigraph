@@ -256,8 +256,9 @@ deliberately excluded from semantic freshness. `--executor mcp` deliberately per
 only and returns an `agent_action_required` continuation contract instead of claiming semantic
 work completed.
 
-With no `--db`, the command first probes the configured/default loopback service and matches the
-repository by canonical Git remote (or exact path for a host-local service). A match makes that
+With no `--db`, the command first probes the configured/default loopback service and verifies the
+exact checkout. Container aliases must match remote, branch, commit, worktree identity and working
+file fingerprints; a common remote alone is insufficient. A match makes that
 service the sole index authority: lightweight planning uses its current snapshot, inference happens
 on the host, and write-back goes through AnaxiMCP. Structural scanning remains an explicit service
 operation. If the default endpoint refuses the connection or a reachable
@@ -478,6 +479,81 @@ POST /api/semantic/prepare  reconcile semantic work against the current snapshot
 ```
 
 ## Back up and restore AnaxiIndex
+
+### Repository records and scheduled runs
+
+The tracked root `anaxigraph/` directory carries reusable understanding between cloud jobs and
+local checkouts. It is a versioned logical export, not a live database copy. `record.json` marks
+the directory as AnaxiGraph-owned; `manifest.json` identifies the analyzed source, contracts,
+checksums, per-analysis readiness and saved workflow choices. Mapping and analysis rows use sorted
+JSONL with content references rather than another machine's database IDs. Large collections split
+into stable hash partitions, normally under 2 MB. Readable `mapping/architecture.json` and
+`architecture/plan.json`, `plan.md`, `current.mmd` and `target.mmd` accompany the complete data.
+
+```bash
+anaxigraph record save /path/to/repository --json
+anaxigraph record load /path/to/repository --json
+anaxigraph record status /path/to/repository --json
+```
+
+Loading is automatic during startup scans and watcher refreshes. Each checkout gets its own local
+SQLite cache. Relative source paths and logical references are translated into that cache; imports
+do not replace the whole database or erase other repositories. Existing local workflow choices
+take precedence over imported defaults. Supported file/analyzer/policy identities are checked before
+reusing results; local edits create affected work without requiring another full model pass.
+
+The folder is excluded from source analysis, source freshness and generated-code history evidence.
+Publishing its files therefore does not invalidate its own map. Deliberate changes to planning
+direction have separate fingerprints. An unrelated existing `anaxigraph/` directory is preserved
+and reported rather than overwritten. Do not put unrelated source or runtime files in this reserved
+directory after enabling the record.
+
+An explicit dashboard workflow periodically checkpoints the shared record and saves again when it
+finishes or stops. Headless refresh does the same and saves in its cleanup path:
+
+```bash
+anaxigraph refresh . --workflows mapping --json
+anaxigraph refresh . --workflows mapping,patterns --json
+anaxigraph refresh . --workflows mapping,patterns,fresh-eyes,architecture --json
+```
+
+These commands use saved or suggested per-step model pools. `--executor codex --model '<model>'`
+or `--executor claude --model '<model>'` overrides them for that run. Direction may be omitted;
+existing direction is retained. Use `--direction ''` to deliberately return target choice to the
+agent. `--no-save` keeps the run local. Configure AI mapping and authenticate the executors under
+the account running the job before scheduling it. No command here pushes Git or creates a schedule.
+
+In Flowthink, pull a specific source revision and its prior record, run the desired refresh, then
+commit/push changed architecture files through the workflow's authorized Git step. Arrange that
+save/publish step to run after partial failures too. Exit code 1 means work remains or the record
+could not be saved; the JSON distinguishes completed workflows from failed publication. A forced
+process kill can lose work since the last shared checkpoint; keep the job's local index if you need
+every completed result retained. Ignore artifact-only pushes in source-triggered automation.
+
+Partition files are checked before import and the manifest is published last. An interrupted first
+save can resume; an incomplete or incompatible record does not replace a valid local cache.
+Old generated partitions are removed only after publishing the new manifest. Unchanged exports
+leave file contents untouched, including timestamps that only describe local polling or lock waits.
+The portable format accepts up to 512 MB and 4,096 partitions; exceptionally large records fail
+explicitly and retain the previous manifest rather than publishing an unreadable record.
+
+Both uv and Docker services can read the folder. The default read-only Docker source mount cannot
+publish changes into it: save from a writable host service, or explicitly mount only the reserved
+`anaxigraph/` directory writable inside the container while retaining read-only application source.
+An automatic save failure leaves local analysis intact and is reported in the workflow result.
+
+Architecture plans retain a source snapshot and an agent-selected option. User direction and
+selection are optional; preserving the current design and incremental evolution are required
+alternatives. Agents can select an option through
+`ANAXIGRAPH_GUIDE(intent="plan", target_option="<saved option>")`. Report a milestone with
+`milestone`, `milestone_status="verified"` and `verification_evidence=[...]`, or use
+`anaxigraph plan . --milestone <key> --status verified --evidence '<actual check result>'`.
+Verification is attributed to its reporter and scan; AnaxiGraph does not claim it ran those tests.
+The target remains available when code changes, with its older evidence labelled stale. A changed
+milestone needs verification again; choosing another target does not reuse an unrelated option's
+completion history.
+
+### Full local backup and recovery
 
 `backup` is safe while AnaxiGraph is running: it uses SQLite's online-backup API, includes committed
 WAL state, validates integrity and schema version, and refuses to overwrite an existing file.

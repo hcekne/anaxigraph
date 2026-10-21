@@ -3,6 +3,7 @@ import { workflowState, statusLabels } from "/assets/workflow-model.js";
 
 const number = value => format.format(Number(value || 0));
 const diagrams = {
+  architecture: { number: "04", columns: 3, handoff: "Select target + plan transition" },
   mapping: { number: "01", columns: 4, handoff: "Validate + repair" },
   patterns: { number: "02", columns: 3, handoff: "Independent critique" },
   "fresh-eyes": { number: "03", columns: 4, handoff: "Apply mission + constraints" },
@@ -78,7 +79,7 @@ function nextRunMarkup(item) {
 }
 
 function cardActions(item) {
-  if (item.plan) return `<div class="workflow-card-actions"><button type="button" data-configure-step="${item.id}" aria-haspopup="dialog" aria-controls="workflow-step-dialog">Configure</button><button type="button" data-run-step="${item.id}">${item.status === "refresh_needed" ? "Update step" : "Run step"} →</button></div>`;
+  if (item.plan) return `<div class="workflow-card-actions"><button type="button" data-configure-step="${item.id}" aria-haspopup="dialog" aria-controls="workflow-step-dialog">Configure</button><button type="button" data-run-step="${item.id}">${item.status === "refresh_needed" ? "Update this step" : "Run this step"} →</button></div>`;
   if (item.id === "scan") return '<div class="workflow-card-actions"><button type="button" data-run-scan>Refresh source scan</button></div>';
   if (["pattern_plan", "brief", "grounding"].includes(item.id)) return `<div class="workflow-card-actions"><button type="button" data-run-step="${item.id}">Run step →</button></div>`;
   return item.view ? `<div class="workflow-card-actions"><button type="button" data-workflow-view="${item.view}">Explore results →</button></div>` : "";
@@ -111,8 +112,10 @@ export function workflowDetail(item) {
     ${activityMarkup(item)}
     ${activeWorkers(jobs.workers)}
     <p>${escapeHtml(item.detail || item.description)}</p>
+    ${patternInputDetail(item.patternInputs)}
     ${savedProgressDetail(item)}
     ${nextRunMarkup(item)}
+    ${item.plan ? "<p>Run this step completes missing earlier work, then stops here.</p>" : ""}
     ${item.jobs.models?.length ? `<p><strong>Recorded models:</strong> ${item.jobs.models.map(escapeHtml).join(", ")}</p>` : ""}
     ${item.reused ? `<p>${number(item.reused)} current results were reused from an earlier scan.</p>` : ""}
     ${jobTelemetry(jobs)}${stageDetails(item.stages)}
@@ -126,6 +129,11 @@ function reviewProgressMarkup(item, detailed = false) {
   if (!progress?.passes?.length) return "";
   const passes = detailed ? progress.passes : [progress.passes.at(-1)];
   return passes.map(pass => `<span class="workflow-review-progress"><strong>Pass ${number(pass.pass)} · ${number(pass.completed_batches)} / ${number(pass.total_batches)} batches saved</strong><span>${number(pass.active_workers)} workers active · ${number(pass.elapsed_seconds)}s elapsed</span><span>${pass.final ? "Final reconciliation" : "Pass reconciliation"} · ${escapeHtml(statusLabels[pass.reconciliation] || pass.reconciliation)}</span></span>`).join("");
+}
+
+function patternInputDetail(inputs) {
+  if (!inputs?.evaluations?.length) return "";
+  return `<details><summary>Pattern evidence used by this comparison</summary><ul>${inputs.evaluations.map(item => `<li>${escapeHtml(item.scope)} · ${item.current ? "current" : "changed since comparison"}<br><code>${escapeHtml(item.fingerprint)}</code></li>`).join("")}</ul>${inputs.omitted_evaluations ? `<p>${inputs.omitted_evaluations} additional evaluations remain in the saved comparison manifest.</p>` : ""}</details>`;
 }
 
 function savedProgressDetail(item) {

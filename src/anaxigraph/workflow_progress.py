@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from anaxigraph.review_inputs import comparison_pattern_inputs
 from anaxigraph.semantic_fresh_eyes_diversity import proposal_diversity
 from anaxigraph.semantic_fresh_eyes_plan import (
     fresh_eyes_plan_executors,
@@ -52,6 +53,7 @@ def fresh_review_progress(
         "diversity": proposal_diversity([item["provenance"] for item in proposals]),
         "previous_snapshot_id": prior,
         "details_available": "/api/fresh-eyes",
+        "pattern_inputs": comparison_pattern_inputs(connection, snapshot_id),
     }
 
 
@@ -121,3 +123,39 @@ def compact_workflow_semantic(semantic: dict[str, Any]) -> dict[str, Any]:
         }
     }
     return result
+
+
+def completed_steps(status: Any, coverage: Any, fresh: Any) -> set[str]:
+    scopes = coverage.get("scopes", {})
+    modules, groups = scopes.get("module", {}), scopes.get("group", {})
+    total = modules.get("total", 0) - modules.get("excluded", 0)
+    taxonomy = status.get("taxonomy", {})
+    current = taxonomy.get("current") or {}
+    patterns = status.get("patterns", {})
+    pattern = scopes.get("pattern", {})
+    checks = {
+        "architecture_plan": scopes.get("architecture_plan", {}).get("current", 0) > 0,
+        "intrinsic": bool(modules) and modules.get("intrinsic", 0) == total,
+        "context": bool(modules) and modules.get("current", 0) == total,
+        "taxonomy_proposal": bool(current) or not taxonomy.get("enabled"),
+        "taxonomy_review": taxonomy.get("ready") or not taxonomy.get("enabled"),
+        "groups": bool(groups) and groups.get("current", 0) == groups.get("total", 0),
+        "charter": (status.get("architecture_charter") or {}).get("status") == "current",
+        "pattern_plan": patterns.get("planned"),
+        "pattern_assessment": patterns.get("planned")
+        and max(pattern.get("current", 0), pattern.get("intrinsic", 0)) == patterns.get("selected"),
+        "pattern_review": patterns.get("planned")
+        and pattern.get("current", 0) == patterns.get("selected"),
+        "brief": bool(fresh.get("capability_brief")),
+        "grounding": fresh.get("ready"),
+    }
+    stages = fresh.get("stages", [])
+    for step, key in (
+        ("proposals", "proposal:"),
+        ("adjudication", "adjudication"),
+        ("comparison", "comparison"),
+        ("mission_filter", "review"),
+    ):
+        matching = [stage for stage in stages if stage["key"].startswith(key)]
+        checks[step] = bool(matching) and all(stage["state"] == "current" for stage in matching)
+    return {step for step, ready in checks.items() if ready}

@@ -19,7 +19,11 @@ from anaxigraph.history_discovery import (
     repository_metadata,
 )
 from anaxigraph.models import ScanStats
-from anaxigraph.scan_commit import commit_snapshot, refresh_existing_snapshot
+from anaxigraph.scan_commit import (
+    commit_snapshot,
+    prepare_repository_cache,
+    refresh_existing_snapshot,
+)
 from anaxigraph.scan_preparation import (
     analysis_counts,
     content_fingerprint,
@@ -96,10 +100,8 @@ class RepositoryScanner:
             raise ValueError(f"Repository does not exist or is not a directory: {root}")
         config = load_config(root, Path(config_path) if config_path else None)
         git_metadata = repository_metadata(root, revision)
-        repository_id = self.database.ensure_repository(
-            path=root,
-            name=config.project_name or root.name,
-            git=git_metadata,
+        repository_id = prepare_repository_cache(
+            self.database, root, config, git_metadata, revision
         )
         run_id = self.database.start_run(repository_id, run_type)
         try:
@@ -126,7 +128,9 @@ class RepositoryScanner:
                 analysis_version=ANALYSIS_VERSION,
                 registry=self.registry,
             )
-            existing_snapshot = self.database.snapshot_by_fingerprint(repository_id, fingerprint)
+            existing_snapshot = self._matching_snapshot(
+                repository_id, fingerprint, config, previous, frame
+            )
             if existing_snapshot:
                 checkpoint("refreshing", 0, 1, None, run_id=run_id)
                 return self._complete_unchanged_scan(
@@ -327,6 +331,19 @@ class RepositoryScanner:
             ).fetchone()
         metadata = json.loads(row["metadata_json"] or "{}") if row else {}
         return metadata.get("analysis_signature")
+
+    def _matching_snapshot(
+        self, repository_id: int, fingerprint: str, config: Any, previous: Any, frame: Any
+    ) -> Any:
+        existing = self.database.snapshot_by_fingerprint(repository_id, fingerprint)
+        if existing is not None or not config.repository_record:
+            return existing
+        snapshot = self.database.latest_snapshot(repository_id)
+        if not snapshot or self._snapshot_signature(snapshot["id"]) != analysis_signature(config):
+            return None
+        saved = {path: value["raw_hash"] for path, value in previous.items()}
+        current = {item.path: item.raw_hash for item in frame.discovery.files}
+        return snapshot if saved == current else None
 
 
 def _relationship_metadata(result: RelationshipBuildResult) -> dict[str, int]:

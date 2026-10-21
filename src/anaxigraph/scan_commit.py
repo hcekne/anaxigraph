@@ -12,6 +12,7 @@ from anaxigraph import __version__
 from anaxigraph.clock import utc_now
 from anaxigraph.history_discovery import available_changes
 from anaxigraph.persistence.search_read import refresh_search_projection
+from anaxigraph.portable_record import load_record
 from anaxigraph.scan_persistence import (
     ingest_git_history,
     insert_file_facts,
@@ -29,6 +30,17 @@ from anaxigraph.scan_snapshot import (
 )
 
 PersistProgress = Callable[[int], None]
+
+
+def prepare_repository_cache(
+    database: Any, root: Path, config: Any, metadata: Any, revision: Any
+) -> int:
+    repository_id = database.ensure_repository(
+        path=root, name=config.project_name or root.name, git=metadata
+    )
+    if revision is None:
+        load_record(database, repository_id, root, config=config)
+    return repository_id
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,6 +126,7 @@ def refresh_existing_snapshot(
             "analysis_signature": signature,
             "config_path": str(config.config_path) if config.config_path else None,
             "working_tree_fingerprint": git_metadata.working_tree_fingerprint,
+            "verified_commit_sha": git_metadata.commit_sha,
             **scan_consistency_metadata(git_metadata),
         }
     )

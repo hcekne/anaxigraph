@@ -85,6 +85,26 @@ The target repository is never imported or executed. Working-tree scanning reads
 non-symlink files; historical scanning uses `git ls-tree` and `git show` without checkout. The
 SQLite database is external by default under the user's state directory.
 
+The optional root `anaxigraph/` directory carries the durable logical analysis through Git.
+`portable_rows` selects repository-scoped facts and saved documents; portable references replace
+database IDs and checkout paths. The manifest names content-addressed, bounded JSONL partitions
+and checksums, and is published after its files. SQLite remains the query cache and local queue;
+active workers, leases, local timings and process state are never imported. Startup and watcher
+scans admit validated shared records, translate identities, and verify actual source hashes and
+analysis signatures. A cached manifest digest keeps unchanged scans from decoding every shard.
+Artifact-only commits are excluded from source fingerprints. Explicit workflow runs and record
+save commands write this reserved directory; application source remains read-only. An unrelated
+existing directory is never repurposed.
+
+Architecture planning is an optional semantic document and scope on the existing queue. Its
+request combines the current map with available Pattern and Fresh Eyes conclusions, plus optional
+user direction. A strict contract requires preservation and evolution options, an agent-selected
+target, structured current/target diagrams and verifiable migration milestones. Existing Guide,
+REST, CLI and illustrated workflows share that contract. Selection and milestone verification
+live in the scope controls and remain available when source evidence becomes stale; reporting
+progress against a newer scan does not force another model call. Portable records carry these
+decisions and readable Mermaid views with the evidence they refer to.
+
 Deterministic parser facts and probabilistic semantic claims never share a provenance record.
 Relationship rows name their evidence source and confidence. Semantic rows name provider, model,
 prompt version, time, confidence, and supporting evidence.

@@ -28,6 +28,7 @@ from anaxigraph.agent_payload import (
     _ScopePayloadData,
 )
 from anaxigraph.architecture_charter import architecture_charter
+from anaxigraph.architecture_plan_read import planning_guidance
 from anaxigraph.config import AnaxiGraphConfig
 from anaxigraph.storage import AnaxiIndex
 from anaxigraph.understanding import SemanticEngine
@@ -66,6 +67,7 @@ def architecture_guidance(
         database.overview(repository_id),
         SemanticEngine(database).status(repository_id, config.semantic),
     )
+    evidence["architecture_target"] = planning_guidance(database, repository_id)
     return _guidance_response(
         evidence,
         goal=goal,
@@ -119,6 +121,7 @@ def _guidance_response(
             context_limit=config.agent.context_limit,
             payload_limit_bytes=config.agent.payload_limit_bytes,
             started_at=started,
+            architecture_target=evidence.get("architecture_target"),
         )
     )
 

@@ -433,7 +433,9 @@ def _history_evidence(connection: sqlite3.Connection, repository_id: int) -> lis
                COUNT(*) AS changed_files,
                SUM(COALESCE(additions, 0)) AS additions,
                SUM(COALESCE(deletions, 0)) AS deletions
-        FROM git_changes WHERE repository_id = ? GROUP BY commit_sha
+        FROM git_changes WHERE repository_id = ?
+          AND path IN (SELECT canonical_path FROM artifacts WHERE repository_id = git_changes.repository_id)
+        GROUP BY commit_sha
         ORDER BY COALESCE(MAX(committed_at), '') DESC, commit_sha DESC LIMIT 12
         """,
         (repository_id,),
@@ -443,7 +445,9 @@ def _history_evidence(connection: sqlite3.Connection, repository_id: int) -> lis
         SELECT path, COUNT(*) AS change_count, MAX(committed_at) AS last_changed_at,
                SUM(COALESCE(additions, 0)) AS additions,
                SUM(COALESCE(deletions, 0)) AS deletions
-        FROM git_changes WHERE repository_id = ? GROUP BY path
+        FROM git_changes WHERE repository_id = ?
+          AND path IN (SELECT canonical_path FROM artifacts WHERE repository_id = git_changes.repository_id)
+        GROUP BY path
         ORDER BY COUNT(*) DESC, COALESCE(MAX(committed_at), '') DESC, path LIMIT 20
         """,
         (repository_id,),

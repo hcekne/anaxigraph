@@ -26,6 +26,14 @@ def served_map_status(root: Path, snapshot: Mapping[str, Any]) -> dict[str, Any]
     mapped_commit = str(snapshot.get("commit_sha") or "unknown")
     mapped_dirty = bool(snapshot.get("dirty"))
     state, reason = _map_state(mapped_commit, mapped_dirty, metadata, checkout)
+    if (
+        state == "stale"
+        and mapped_commit != checkout.commit_sha
+        and git.only_record_changed(root, mapped_commit)
+    ):
+        state, reason = _map_state(checkout.commit_sha, mapped_dirty, metadata, checkout)
+        if state == "current":
+            reason = "The source still matches the saved map; only AnaxiGraph records changed between commits."
     return {
         "contract_version": "served-map-status-v1",
         "state": state,
@@ -64,7 +72,7 @@ def _map_state(
     mapped_worktree = metadata.get("working_tree_fingerprint")
     if "unversioned" in {mapped_commit, checkout_commit}:
         return "uncertain", "Git could not identify both saved and current commits."
-    if mapped_commit != checkout_commit:
+    if mapped_commit != checkout_commit and metadata.get("verified_commit_sha") != checkout_commit:
         return "stale", f"The saved map uses {mapped_commit[:12]}, not {checkout_commit[:12]}."
     if metadata.get("scan_consistency") == CHANGED_DURING_SCAN:
         return "uncertain", "Files changed while this map was being scanned."

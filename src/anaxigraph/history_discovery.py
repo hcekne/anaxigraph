@@ -12,6 +12,7 @@ from typing import Any, Protocol
 
 from anaxigraph import git
 from anaxigraph.languages import JAVASCRIPT_ANALYZER_LANGUAGES, detect_language
+from anaxigraph.portable_paths import managed_record
 from anaxigraph.scan_consistency import ConsistentFrame, discover_consistent_frame
 
 
@@ -115,7 +116,12 @@ def consistent_discovery(
 
 def available_changes(root: Path) -> list[git.GitChange]:
     try:
-        return git.recent_changes(root)
+        changes = git.recent_changes(root)
+        return (
+            [item for item in changes if not item.path.startswith("anaxigraph/")]
+            if managed_record(root)
+            else changes
+        )
     except git.GitError:
         return []
 

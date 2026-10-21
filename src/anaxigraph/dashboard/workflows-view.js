@@ -1,6 +1,8 @@
 import { api, byId, escapeHtml, request, selectedRepository, state, toast } from "/assets/dashboard-core.js";
 import { switchView } from "/assets/navigation.js";
-import { buildFlows } from "/assets/workflow-model.js";
+import { buildFlows, workflowState } from "/assets/workflow-model.js";
+import { selectedFlowMessage, workflowAction, workflowRunNote } from "/assets/workflow-run-copy.js";
+import { planningDirection, renderArchitecturePlanning } from "/assets/architecture-planning-view.js";
 import { activeRuns, activityLabel, liveWorkerCount, requestedRun } from "/assets/workflow-activity.js";
 import { drawWorkflowEdges, overviewWorkflowLinks, workflowDetail, workflowDiagram, workflowTabs } from "/assets/workflow-render.js";
 import { closeStepDialog, hasUnsavedSettings, openStepDialog, renderStepSettings, resetStepSettings, setupStepDialog, setupStepSettings, stepDialogShell, updateStepDialog } from "/assets/workflow-settings.js";
@@ -29,6 +31,8 @@ export function setupWorkflowsView() {
   byId("view-overview").prepend(entry);
   document.addEventListener("click", handleClick);
   byId("workflow-run-form").addEventListener("submit", startWorkflow);
+  byId("workflow-restart").addEventListener("change", render);
+  window.addEventListener("anaxigraph:planningdirection", render);
   setupStepDialog();
   setupStepSettings(saveStepSettings, startStep, closeStepDialog, render);
   byId("workflow-tabs").addEventListener("keydown", event => {
@@ -45,7 +49,7 @@ export function setupWorkflowsView() {
     window.clearTimeout(timer);
     closeStepDialog();
     if (detail.name !== "workflows") return;
-    selectedFlow = ["mapping", "patterns", "fresh-eyes"].includes(detail.flow) ? detail.flow : "mapping";
+    selectedFlow = ["mapping", "patterns", "fresh-eyes", "architecture"].includes(detail.flow) ? detail.flow : "mapping";
     selectedStep = "";
     if (loadingState !== "ready") showLoadingState(loadingState);
     render();
@@ -250,6 +254,7 @@ function render() {
   byId("workflow-tabs").innerHTML = workflowTabs(flows, selectedFlow);
   byId("workflow-panel").setAttribute("aria-labelledby", `workflow-tab-${selectedFlow}`);
   byId("workflow-diagram").innerHTML = workflowDiagram(flow, selectedStep);
+  renderArchitecturePlanning(data, selectedFlow);
   byId("workflow-detail").innerHTML = workflowDetail(current);
   updateStepDialog(current, flow.steps.indexOf(current), !!data.settings && !!current.plan);
   if (data.settings) renderStepSettings(current, data);
@@ -263,17 +268,19 @@ function render() {
 function renderControls(flow) {
   const { active, stale, allowed, available, unsupported } = executionState(flow);
   const duplicate = requestedRun(data, flow.id);
-  byId("workflow-run-button").disabled = runningRequest || !allowed || !available || unsupported || !!duplicate;
-  byId("workflow-run-button").textContent = duplicate ? activityLabel(data, buildFlows(data)) : flow.update ? "Update affected work" : `Start / resume ${flow.name.toLowerCase()}`;
+  const changedDirection = flow.id === "architecture" && data.architecture_plan?.ready && planningDirection() !== (data.architecture_plan?.user_direction || "");
+  const complete = workflowState(flow) === "complete" && !changedDirection && !(flow.id === "fresh-eyes" && byId("workflow-restart").checked);
+  byId("workflow-run-button").disabled = runningRequest || !allowed || !available || unsupported || !!duplicate || complete;
+  byId("workflow-run-button").textContent = duplicate ? activityLabel(data, buildFlows(data)) : workflowAction(flow, byId("workflow-restart").checked);
+  if (changedDirection) byId("workflow-run-button").textContent = "Update architecture plan";
   byId("workflow-scan").disabled = loadingState !== "ready" || runningRequest || !data.execution.mounted || active || data.scan?.active;
   byId("workflow-run-title").textContent = flow.name;
-  byId("workflow-run-note").textContent = flow.id === "patterns" ? flow.note : "Starts model calls on this server and resumes saved work. Existing requested reviews can also advance on the shared queue.";
-  if (data.settings) byId("workflow-run-note").textContent = "Runs unfinished work using each card’s saved choices. Run Step also updates its prerequisites, then stops at that step. Current results are reused.";
+  byId("workflow-run-note").textContent = workflowRunNote(flow);
   if (flow.update) byId("workflow-run-note").textContent = `${flow.update.summary} Starts with ${flow.update.nextTitle.toLowerCase()}, then checks the dependent steps.`;
   byId("workflow-fresh-options").hidden = flow.id !== "fresh-eyes";
   byId("workflow-execution-note").textContent = executionNote(available, unsupported);
   byId("workflow-limits").querySelector("p").textContent = executionLimits();
-  byId("workflow-message").textContent = progressMessage(active, stale);
+  byId("workflow-message").textContent = progressMessage(active, stale, flow);
   updateStepButtons({ active, allowed, unsupported });
 }
 
@@ -318,21 +325,15 @@ function executionLimits() {
   return `${parallel} parallel workers shared by this repository. ${attempts == null ? "Failed jobs follow the repository retry policy." : `Up to ${attempts} attempts per failed job, then an explicit retry is required.`} ${timeout}; ${output}${retryOutput}; ${budget}. Run Step continues until the selected work finishes or a reported error needs attention. Active leases renew automatically. Provider account and model limits still apply.`;
 }
 
-function progressMessage(active, stale) {
+function progressMessage(active, stale, flow) {
   const semantic = data.semantic;
   const worker = semantic.worker || {};
-  return worker.error || (semantic.budget?.paused || worker.paused ? "Work is paused at the configured usage limit. Saved results remain available."
+  const ownActive = flow.steps.some(item => item.status === "running") || requestedRun(data, flow.id);
+  return (semantic.budget?.paused || worker.paused ? "Work is paused at the configured usage limit. Saved results remain available."
     : data.scan?.active ? `Source scan: ${data.scan.phase || data.scan.status} · ${data.scan.completed || 0} files processed.`
     : stale ? "These results belong to the saved scan. Refresh the source scan before running more analysis."
-      : active ? activityLabel(data, buildFlows(data))
-        : idleMessage(semantic));
-}
-
-function idleMessage(semantic) {
-  const worker = semantic.worker || {};
-  if (worker.message) return `${worker.message} ${worker.processed || 0} jobs processed in the last run.`;
-  return semantic.jobs?.pending || semantic.jobs?.retry ? "Saved tasks are waiting. Start a worker to continue; queued tasks do not run by themselves."
-    : `Saved scan ${data.snapshot_id ?? "not available"} · Select any step to explore its evidence and results.`;
+      : active && ownActive ? activityLabel(data, buildFlows(data))
+        : selectedFlowMessage(flow, data));
 }
 
 function handleClick(event) {
@@ -397,7 +398,7 @@ async function startStep(step = null, maxJobs = null) {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ repository_id: state.repositoryId, workflow: flow.id,
       use_step_settings: true, step, max_jobs: maxJobs,
-      goal: byId("workflow-goal").value.trim() || null, restart: byId("workflow-restart").checked }) }), step, flow.id);
+      goal: (flow.id === "architecture" ? planningDirection() : byId("workflow-goal").value.trim()) || null, restart: byId("workflow-restart").checked }) }), step, flow.id);
 }
 
 async function startScan() {

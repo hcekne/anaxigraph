@@ -7,6 +7,82 @@
 **Execution rule:** one phase is active at a time; the next phase does not begin until the current
 phase's exit gate is met.
 
+## Workflow experience and repository-carried architecture — 21 October 2026
+
+**Implementation and publication authorized.** This queue extends the completed usage-feedback
+repairs below. Release acceptance includes a fresh numbered GitHub release and public PyPI install.
+
+- [ ] **Explain the full-workflow action and its actual state.** Use a clear full-workflow action
+  for Mapping, Patterns and Fresh Eyes, distinguish running a whole sequence from one step, and
+  explain that valid saved results are reused. Completed flows say they are up to date; changed
+  source offers an update; interrupted flows identify what remains. Scope errors and completion
+  messages to the selected workflow, snapshot and run instead of showing an old worker failure.
+  A blocked flow names the step, concrete cause and available remedy. Keep processed-job counts
+  in run details unless they explain a current problem.
+- [ ] **Expose how the workflows connect.** Mapping supplies shared understanding. Fresh Eyes
+  proposals and adjudication remain implementation-blind; its later comparison already consumes
+  saved pattern reviews alongside the actual map. Show that boundary and identify which saved
+  evaluations were available, absent or stale when a comparison ran.
+- [ ] **Add Architecture planning on the existing review and guidance lifecycle.** Combine map,
+  pattern evaluations and Fresh Eyes conclusions into options, a selected target, and incremental
+  migration milestones. Extend the existing ranked refactor strategy and Guide rather than adding
+  a second orchestration engine. Each milestone names existing owners, affected contracts, focused
+  checks, dependencies and progress against the target.
+- [ ] **Make all user steering optional.** Direction, constraints and target selection may be
+  blank. Suggest repository-grounded defaults and useful options, including preserving the current
+  design and incremental evolution. A default goal is to preserve behavior, reuse existing
+  boundaries and reduce evidenced complexity without speculative infrastructure. Agents may select
+  the target and proceed without user approval; retain their rationale, alternatives, assumptions,
+  evidence and selection provenance. Users can steer or revise a choice without becoming a gate.
+- [ ] **Visualize current and target architecture together.** Use stable responsibility identities
+  to show retained, added, moved and retired boundaries, with links to the evidence and migration
+  milestones. Save structured diagrams for dashboard/agent use and Mermaid for readable Git output.
+  Keep a proposed target separate from observed implementation. Unknown deployment details remain
+  unknown rather than being presented as discovered infrastructure.
+- [ ] **Carry the reusable architecture record in a tracked root `anaxigraph/` directory.** The
+  normal Git pull should bring the saved map, file understanding, relationships, findings, Pattern
+  evaluations, Fresh Eyes conclusions and selected architecture plan to the next checkout. Include
+  the structured evidence and provenance needed to restore the same dashboard and agent views,
+  not just a prose summary or the existing bounded export. Preserve local analysis when importing.
+  Reuse matching results so a clone does not need new model calls to read the saved architecture.
+- [ ] **Define a stable, versioned portable contract.** Use a small manifest plus deterministic
+  JSON/JSONL partitioned by artifact kind and stable identity, with relative paths and portable
+  references. Large inventories use bounded stable partitions; do not rewrite unchanged partitions
+  or timestamps on every run. The manifest identifies the analyzed source revision/fingerprints,
+  configuration and contract versions, checksums, per-analysis readiness and recorded provenance.
+  Publish it after its referenced files are complete, and validate it before admitting results.
+  Do not depend on a remote download to obtain the normal saved record. Compression can be an
+  optional export; a single archive or live SQLite file is not the primary Git representation.
+- [ ] **Keep runtime state local and fast.** Retain SQLite as a rebuildable query cache populated
+  from the tracked record; import changes on startup and after pulls without parsing all JSON on
+  every dashboard request. Process IDs, worker leases, transient queues, machine paths, logs and
+  credentials are local state. Translate portable identities to the current checkout. Existing
+  read-only services can consume the folder; explicit save/publish operations write only the
+  reserved artifact directory, never application source. Detect an existing unrelated directory
+  instead of overwriting it. The Git publisher belongs to the user's agent or scheduler.
+- [ ] **Separate source freshness from artifact publication.** Exclude generated outputs from
+  structural analysis and source fingerprints. An artifact-only commit must not invalidate its own
+  map or launch another nightly source-analysis cycle. Deliberately edited goals, architecture
+  decisions and settings have separate input fingerprints that invalidate their consumers. Never
+  treat a common remote or commit alone as proof of matching local content; retain distinct
+  worktrees, dirty-file differences and incompatible or stale analyses.
+- [ ] **Support the unattended Flowthink round trip.** Pull the source and previous saved record,
+  incrementally run the requested workflows, save the updated folder, and let the authorized
+  scheduler commit/push it. On another machine, pull and start/refresh AnaxiGraph: restore the
+  compatible map and reviews into the local cache, show their analyzed revision and readiness,
+  and update only changed scopes. Mapping can run nightly; Patterns and Fresh Eyes have independent
+  schedules and reuse rules. Persist successful work after interruption without marking incomplete
+  reviews ready or importing active remote workers.
+
+**Acceptance:** exercise a cloud-style clean checkout → analyze → save → Git commit → second
+checkout → load → dashboard/MCP read round trip, including an artifact-only commit, unchanged
+re-export, changed local files, separate worktrees, an interrupted publication, conflicting
+generated revisions and supported/unsupported format versions. Verify that the second checkout
+reuses matching analysis without model calls, that runtime state does not travel, and that blank
+planning input can produce an agent-selected target with its rationale retained. Measure artifact
+size, changed bytes and import/UI latency on small and large repositories before choosing final
+partition sizes. Record publication and production deployment separately.
+
 ## Usage feedback and repair queue — 20 October 2026
 
 This queue records the maintainer's feedback and an agent's development experience. Ownership,

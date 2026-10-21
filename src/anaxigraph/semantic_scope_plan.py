@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import sqlite3
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from anaxigraph.architecture_plan import plan_requested
 from anaxigraph.persistence.lock_holds import measured_plan_transaction
 from anaxigraph.persistence.search_read import refresh_search_projection
 from anaxigraph.persistence.semantic_evidence import semantic_inventory
@@ -20,6 +20,7 @@ from anaxigraph.semantic_group_membership import synthesis_groups
 from anaxigraph.semantic_leases import SemanticLeaseService
 from anaxigraph.semantic_module_context import plan_context_modules
 from anaxigraph.semantic_module_intrinsic import plan_intrinsic_modules
+from anaxigraph.semantic_plan_result import SemanticPlan as SemanticPlan
 from anaxigraph.semantic_ports import (
     AnaxiGraphConfig,
     SemanticConfig,
@@ -27,6 +28,7 @@ from anaxigraph.semantic_ports import (
     SemanticIndex,
     SemanticPatternPlanningPort,
     SemanticReportingPort,
+    SemanticTaxonomyPlanningPort,
 )
 from anaxigraph.semantic_records import (
     _ensure_job,
@@ -39,37 +41,6 @@ from anaxigraph.semantic_records import (
     _supersede_duplicate_jobs,
     _upsert_state,
 )
-from anaxigraph.semantic_status_language import semantic_work_plan
-from anaxigraph.semantic_taxonomy_plan import SemanticTaxonomyPlanner
-
-
-@dataclass(frozen=True, slots=True)
-class SemanticPlan:
-    repository_id: int
-    snapshot_id: int
-    enqueued: int
-    active_jobs: int
-    stage: str
-    status: dict[str, Any]
-
-    def as_dict(self) -> dict[str, Any]:
-        return {
-            "repository_id": self.repository_id,
-            "snapshot_id": self.snapshot_id,
-            "enqueued": self.enqueued,
-            "active_jobs": self.active_jobs,
-            "stage": self.stage,
-            "work_plan": self.work_plan(),
-            "semantic": self.status,
-        }
-
-    def work_plan(self) -> dict[str, Any]:
-        return semantic_work_plan(
-            self.status,
-            stage=self.stage,
-            new_jobs=self.enqueued,
-            active_jobs=self.active_jobs,
-        )
 
 
 class SemanticPlanningService:
@@ -78,7 +49,7 @@ class SemanticPlanningService:
         database: SemanticIndex,
         reporting: SemanticReportingPort,
         leases: SemanticLeaseService,
-        taxonomy: SemanticTaxonomyPlanner,
+        taxonomy: SemanticTaxonomyPlanningPort,
         patterns: SemanticPatternPlanningPort,
         fresh_eyes: SemanticFreshEyesPlanningPort,
     ) -> None:
@@ -231,6 +202,19 @@ class SemanticPlanningService:
         )
         if not _scope_is_current(connection, snapshot_id, "repository"):
             return enqueued, "repository"
+        optional_jobs, stage = self._plan_optional_reviews(
+            connection, repository_id, snapshot_id, semantic, retry_failed
+        )
+        return enqueued + optional_jobs, stage
+
+    def _plan_optional_reviews(
+        self,
+        connection: Any,
+        repository_id: int,
+        snapshot_id: int,
+        semantic: Any,
+        retry_failed: bool,
+    ) -> tuple[int, str]:
         pattern_jobs, patterns_current = self._patterns.plan_patterns(
             connection,
             repository_id=repository_id,
@@ -238,9 +222,8 @@ class SemanticPlanningService:
             semantic=semantic,
             retry_failed=retry_failed,
         )
-        enqueued += pattern_jobs
         if not patterns_current:
-            return enqueued, "patterns"
+            return pattern_jobs, "patterns"
         review_jobs, review_stage = self._fresh_eyes.plan_active(
             connection,
             repository_id=repository_id,
@@ -248,7 +231,16 @@ class SemanticPlanningService:
             semantic=semantic,
             retry_failed=retry_failed,
         )
-        return enqueued + review_jobs, review_stage or "complete"
+        plan_jobs = plan_requested(
+            connection,
+            repository_id=repository_id,
+            snapshot_id=snapshot_id,
+            semantic=semantic,
+            retry_failed=retry_failed,
+        )
+        return pattern_jobs + review_jobs + plan_jobs, review_stage or (
+            "architecture_plan" if plan_jobs else "complete"
+        )
 
     def _plan_groups(
         self,

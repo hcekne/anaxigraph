@@ -133,7 +133,7 @@ def _non_module_metrics(
     scope_counts: dict[str, dict[str, int]],
     semantic: SemanticConfig | None,
 ) -> tuple[int, int]:
-    ignored = {"module", "fresh_eyes"}
+    ignored = {"module", "fresh_eyes", "architecture_plan"}
     if semantic and not semantic.detailed_reviews:
         ignored.update(("pattern", "pattern_plan"))
     counts = [values for key, values in scope_counts.items() if key not in ignored]

@@ -12,6 +12,7 @@ from typing import Any
 
 import yaml
 
+from anaxigraph.portable_paths import managed_record
 from anaxigraph.semantic_stage_model import SemanticStageModel, parse_stage_models
 
 DEFAULT_IGNORE = tuple(
@@ -156,11 +157,12 @@ class AnaxiGraphConfig:
     coverage_required: bool = False
     max_file_bytes: int = 2_000_000
     config_path: Path | None = None
+    repository_record: bool = False
 
     def is_ignored(self, path: str, *, is_dir: bool = False) -> bool:
-        normalized = path.replace(os.sep, "/")
-        if normalized.startswith("./"):
-            normalized = normalized[2:]
+        normalized = path.replace(os.sep, "/").removeprefix("./")
+        if self.repository_record and normalized.split("/", 1)[0] == "anaxigraph":
+            return True
         return _is_ignored(self.include, self.ignore, normalized, is_dir)
 
     def declared_group(self, path: str) -> str | None:
@@ -494,4 +496,5 @@ def load_config(repository: Path, config_path: Path | None = None) -> AnaxiGraph
         coverage_required=bool(coverage.get("required", False)),
         max_file_bytes=int(raw.get("max_file_bytes", 2_000_000)),
         config_path=selected if selected.exists() else None,
+        repository_record=managed_record(repository),
     )

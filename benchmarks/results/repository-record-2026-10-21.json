@@ -1,0 +1,29 @@
+{
+  "recorded_at": "2026-10-21",
+  "runs": [
+    {
+      "fixture": "Synthetic source, real Git, SQLite and portable JSON; no model calls.",
+      "files": 120,
+      "record_bytes": 1025341,
+      "partitions": 52,
+      "save_seconds": 0.112,
+      "unchanged_save_seconds": 0.066,
+      "unchanged_changed_files": 0,
+      "clone_load_and_source_verification_seconds": 0.45,
+      "reused_files": 120,
+      "reanalyzed_files": 0
+    },
+    {
+      "fixture": "Synthetic source, real Git, SQLite and portable JSON; no model calls.",
+      "files": 1000,
+      "record_bytes": 8400613,
+      "partitions": 50,
+      "save_seconds": 0.482,
+      "unchanged_save_seconds": 0.382,
+      "unchanged_changed_files": 0,
+      "clone_load_and_source_verification_seconds": 1.886,
+      "reused_files": 1000,
+      "reanalyzed_files": 0
+    }
+  ]
+}
