@@ -3,13 +3,29 @@
 from __future__ import annotations
 
 import json
+from contextlib import nullcontext
 from typing import Any
 
 from anaxigraph.architecture_plan_read import architecture_plan_status
 from anaxigraph.portable_paths import canonical_json
 
 
-def record_views(database: Any, repository_id: int) -> dict[str, bytes]:
+class _RecordSnapshot:
+    def __init__(self, connection: Any) -> None:
+        self.connection = connection
+
+    def connect(self) -> Any:
+        return nullcontext(self.connection)
+
+    def latest_snapshot(self, repository_id: int) -> Any:
+        return self.connection.execute(
+            "SELECT s.* FROM snapshots s JOIN repositories r ON r.current_snapshot_id = s.id WHERE r.id = ?",
+            (repository_id,),
+        ).fetchone()
+
+
+def record_views(connection: Any, repository_id: int) -> dict[str, bytes]:
+    database = _RecordSnapshot(connection)
     snapshot = database.latest_snapshot(repository_id)
     if snapshot is None:
         return {}

@@ -12,40 +12,40 @@ phase's exit gate is met.
 **Implementation and publication authorized.** This queue extends the completed usage-feedback
 repairs below. Release acceptance includes a fresh numbered GitHub release and public PyPI install.
 
-- [ ] **Explain the full-workflow action and its actual state.** Use a clear full-workflow action
+- [x] **Explain the full-workflow action and its actual state.** Use a clear full-workflow action
   for Mapping, Patterns and Fresh Eyes, distinguish running a whole sequence from one step, and
   explain that valid saved results are reused. Completed flows say they are up to date; changed
   source offers an update; interrupted flows identify what remains. Scope errors and completion
   messages to the selected workflow, snapshot and run instead of showing an old worker failure.
   A blocked flow names the step, concrete cause and available remedy. Keep processed-job counts
   in run details unless they explain a current problem.
-- [ ] **Expose how the workflows connect.** Mapping supplies shared understanding. Fresh Eyes
+- [x] **Expose how the workflows connect.** Mapping supplies shared understanding. Fresh Eyes
   proposals and adjudication remain implementation-blind; its later comparison already consumes
   saved pattern reviews alongside the actual map. Show that boundary and identify which saved
   evaluations were available, absent or stale when a comparison ran.
-- [ ] **Add Architecture planning on the existing review and guidance lifecycle.** Combine map,
+- [x] **Add Architecture planning on the existing review and guidance lifecycle.** Combine map,
   pattern evaluations and Fresh Eyes conclusions into options, a selected target, and incremental
   migration milestones. Extend the existing ranked refactor strategy and Guide rather than adding
   a second orchestration engine. Each milestone names existing owners, affected contracts, focused
   checks, dependencies and progress against the target.
-- [ ] **Make all user steering optional.** Direction, constraints and target selection may be
+- [x] **Make all user steering optional.** Direction, constraints and target selection may be
   blank. Suggest repository-grounded defaults and useful options, including preserving the current
   design and incremental evolution. A default goal is to preserve behavior, reuse existing
   boundaries and reduce evidenced complexity without speculative infrastructure. Agents may select
   the target and proceed without user approval; retain their rationale, alternatives, assumptions,
   evidence and selection provenance. Users can steer or revise a choice without becoming a gate.
-- [ ] **Visualize current and target architecture together.** Use stable responsibility identities
+- [x] **Visualize current and target architecture together.** Use stable responsibility identities
   to show retained, added, moved and retired boundaries, with links to the evidence and migration
   milestones. Save structured diagrams for dashboard/agent use and Mermaid for readable Git output.
   Keep a proposed target separate from observed implementation. Unknown deployment details remain
   unknown rather than being presented as discovered infrastructure.
-- [ ] **Carry the reusable architecture record in a tracked root `anaxigraph/` directory.** The
+- [x] **Carry the reusable architecture record in a tracked root `anaxigraph/` directory.** The
   normal Git pull should bring the saved map, file understanding, relationships, findings, Pattern
   evaluations, Fresh Eyes conclusions and selected architecture plan to the next checkout. Include
   the structured evidence and provenance needed to restore the same dashboard and agent views,
   not just a prose summary or the existing bounded export. Preserve local analysis when importing.
   Reuse matching results so a clone does not need new model calls to read the saved architecture.
-- [ ] **Define a stable, versioned portable contract.** Use a small manifest plus deterministic
+- [x] **Define a stable, versioned portable contract.** Use a small manifest plus deterministic
   JSON/JSONL partitioned by artifact kind and stable identity, with relative paths and portable
   references. Large inventories use bounded stable partitions; do not rewrite unchanged partitions
   or timestamps on every run. The manifest identifies the analyzed source revision/fingerprints,
@@ -53,20 +53,20 @@ repairs below. Release acceptance includes a fresh numbered GitHub release and p
   Publish it after its referenced files are complete, and validate it before admitting results.
   Do not depend on a remote download to obtain the normal saved record. Compression can be an
   optional export; a single archive or live SQLite file is not the primary Git representation.
-- [ ] **Keep runtime state local and fast.** Retain SQLite as a rebuildable query cache populated
+- [x] **Keep runtime state local and fast.** Retain SQLite as a rebuildable query cache populated
   from the tracked record; import changes on startup and after pulls without parsing all JSON on
   every dashboard request. Process IDs, worker leases, transient queues, machine paths, logs and
   credentials are local state. Translate portable identities to the current checkout. Existing
   read-only services can consume the folder; explicit save/publish operations write only the
   reserved artifact directory, never application source. Detect an existing unrelated directory
   instead of overwriting it. The Git publisher belongs to the user's agent or scheduler.
-- [ ] **Separate source freshness from artifact publication.** Exclude generated outputs from
+- [x] **Separate source freshness from artifact publication.** Exclude generated outputs from
   structural analysis and source fingerprints. An artifact-only commit must not invalidate its own
   map or launch another nightly source-analysis cycle. Deliberately edited goals, architecture
   decisions and settings have separate input fingerprints that invalidate their consumers. Never
   treat a common remote or commit alone as proof of matching local content; retain distinct
   worktrees, dirty-file differences and incompatible or stale analyses.
-- [ ] **Support the unattended Flowthink round trip.** Pull the source and previous saved record,
+- [x] **Support the unattended Flowthink round trip.** Pull the source and previous saved record,
   incrementally run the requested workflows, save the updated folder, and let the authorized
   scheduler commit/push it. On another machine, pull and start/refresh AnaxiGraph: restore the
   compatible map and reviews into the local cache, show their analyzed revision and readiness,
@@ -82,6 +82,24 @@ reuses matching analysis without model calls, that runtime state does not travel
 planning input can produce an agent-selected target with its rationale retained. Measure artifact
 size, changed bytes and import/UI latency on small and large repositories before choosing final
 partition sizes. Record publication and production deployment separately.
+
+Implementation acceptance: real-Git tests exercise full Mapping + Patterns + Fresh Eyes and
+planning round trips into an independent SQLite cache with zero newly queued model jobs. They
+cover dirty local sources, another repository in the same database, unsupported and corrupt
+records, excluded active workers, partial analysis, interrupted first/updated publications,
+changed readable views, consistent read snapshots, no-op exports, shared model defaults and
+local overrides. REST, CLI and Guide share target selection and attributed milestone progress.
+Browser contracts cover optional blank direction, target options, current/target diagrams,
+responsive layouts, the fourth keyboard tab, precise full-workflow actions and scoped failures.
+
+The retained `benchmarks/results/repository-record-2026-10-21.json` measures synthetic source with
+real Git/SQLite and no model calls: 120 files / 1,036,304 bytes / 52 partitions load and verify in
+0.259 seconds; 1,000 files / 8,411,832 bytes / 53 partitions in 1.649 seconds. Both reuse every
+file, perform zero structural reanalysis and produce zero changed files on an unchanged save.
+The four initial stable hash buckets reduce small-repository partition overhead compared with
+the initial sixteen-bucket trial. Live-model recommendation quality and deployment acceptance
+remain distinct from these deterministic checks; numbered publication is recorded in the release
+ledger.
 
 ## Usage feedback and repair queue — 20 October 2026
 

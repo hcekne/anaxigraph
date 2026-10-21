@@ -143,16 +143,13 @@ class WorkflowRoutes:
         return {"status": "started" if started else "already_running", "repository_id": row["id"]}
 
     def _run_saved(self, row: Any, config: Any, request: Any, execution: Any) -> dict[str, Any]:
-        publisher = RecordPublisher(self.context.database, int(row["id"]))
-        try:
+        with RecordPublisher(self.context.database, int(row["id"])) as publisher:
             result = (
                 self._run_steps(row, config, request, execution, publisher)
                 if request.use_step_settings
                 else _run_workflow(self.context.database, row, config, execution, request)
             )
-        finally:
-            receipt = publisher.save()
-        return {**result, "record": receipt}
+        return {**result, "record": publisher.receipt}
 
     def _run_steps(
         self, row: Any, config: Any, request: Any, execution: Any, publisher: Any = None

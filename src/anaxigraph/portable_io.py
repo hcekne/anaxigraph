@@ -62,9 +62,16 @@ def read_record(root: Path) -> tuple[dict[str, Any], dict[str, list[dict[str, An
     keys = [row["key"] for rows in tables.values() for row in rows]
     if len(set(keys)) != len(keys):
         raise ValueError("Portable record contains duplicate identities")
-    for view in manifest.get("views", []):
-        _read_part(directory, view)
+    total += _read_views(directory, manifest.get("views", []))
+    if total > MAX_RECORD_BYTES:
+        raise ValueError("Portable record exceeds the supported size")
     return manifest, dict(tables)
+
+
+def _read_views(directory: Path, views: Any) -> int:
+    if not isinstance(views, list) or len(views) > 64:
+        raise ValueError("Invalid portable record views")
+    return sum(len(_read_part(directory, view)) for view in views)
 
 
 def _read_part(directory: Path, part: dict[str, Any]) -> bytes:
@@ -93,25 +100,40 @@ def publish_record(
     )
     parts, changed = _write_partitions(directory, tables)
     changed += marker_changed
-    view_entries = []
-    for name, content in sorted((views or {}).items()):
-        changed += _write_if_changed(safe_record_file(directory, name), content)
-        view_entries.append(
-            {"path": name, "sha256": hashlib.sha256(content).hexdigest(), "bytes": len(content)}
-        )
+    view_entries, view_changes = _write_views(directory, views or {})
+    changed += view_changes
     manifest = {"format": RECORD_FORMAT, **metadata, "parts": parts, "views": view_entries}
+    if sum(part["bytes"] for part in (*parts, *view_entries)) > MAX_RECORD_BYTES:
+        raise ValueError("Portable record exceeds the supported size; previous manifest retained")
     changed += _write_if_changed(
         safe_record_file(directory, "manifest.json"), canonical_json(manifest)
     )
-    changed += _remove_old_partitions(directory, {part["path"] for part in parts})
+    for name, content in sorted((views or {}).items()):
+        changed += _write_if_changed(safe_record_file(directory, name), content)
+    changed += _remove_old_partitions(directory, {part["path"] for part in (*parts, *view_entries)})
     return {
         "status": "saved",
         "directory": str(directory),
         "changed_files": changed,
-        "bytes": sum(part["bytes"] for part in parts),
+        "bytes": sum(path.stat().st_size for path in directory.rglob("*") if path.is_file()),
         "parts": len(parts),
         "manifest": manifest,
     }
+
+
+def _write_views(directory: Path, views: dict[str, bytes]) -> tuple[list[Any], int]:
+    entries, changed = [], 0
+    if len(views) > 64:
+        raise ValueError("Too many portable record views")
+    for name, content in sorted(views.items()):
+        safe_record_file(directory, name)
+        if len(content) > MAX_PART_BYTES:
+            raise ValueError("Portable record view is too large")
+        digest = hashlib.sha256(content).hexdigest()
+        path = f"views/{digest[:24]}.txt"
+        changed += _write_if_changed(safe_record_file(directory, path), content)
+        entries.append(dict(path=path, display_path=name, sha256=digest, bytes=len(content)))
+    return entries, changed
 
 
 def _write_partitions(directory: Path, tables: Any) -> tuple[list[Any], int]:
@@ -157,10 +179,12 @@ def _category(table: str) -> str:
 
 def _remove_old_partitions(directory: Path, retained: set[str]) -> int:
     removed = 0
-    for folder in ("mapping", "analyses"):
-        for path in (directory / folder).glob("*.jsonl"):
+    for folder in ("mapping", "analyses", "views"):
+        for path in (directory / folder).glob("*"):
             if (
-                re.fullmatch(r"[a-z_]+-[a-f0-9]+-[a-f0-9]{24}\.jsonl", path.name)
+                re.fullmatch(
+                    r"(?:[a-z_]+-[a-f0-9]+-[a-f0-9]{24}\.jsonl|[a-f0-9]{24}\.txt)", path.name
+                )
                 and path.relative_to(directory).as_posix() not in retained
             ):
                 safe_record_file(directory, path.relative_to(directory).as_posix()).unlink()

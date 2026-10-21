@@ -4,24 +4,24 @@
     {
       "fixture": "Synthetic source, real Git, SQLite and portable JSON; no model calls.",
       "files": 120,
-      "record_bytes": 1025341,
+      "record_bytes": 1036304,
       "partitions": 52,
-      "save_seconds": 0.112,
-      "unchanged_save_seconds": 0.066,
+      "save_seconds": 0.099,
+      "unchanged_save_seconds": 0.069,
       "unchanged_changed_files": 0,
-      "clone_load_and_source_verification_seconds": 0.45,
+      "clone_load_and_source_verification_seconds": 0.259,
       "reused_files": 120,
       "reanalyzed_files": 0
     },
     {
       "fixture": "Synthetic source, real Git, SQLite and portable JSON; no model calls.",
       "files": 1000,
-      "record_bytes": 8400613,
-      "partitions": 50,
-      "save_seconds": 0.482,
-      "unchanged_save_seconds": 0.382,
+      "record_bytes": 8411832,
+      "partitions": 53,
+      "save_seconds": 0.463,
+      "unchanged_save_seconds": 0.433,
       "unchanged_changed_files": 0,
-      "clone_load_and_source_verification_seconds": 1.886,
+      "clone_load_and_source_verification_seconds": 1.649,
       "reused_files": 1000,
       "reanalyzed_files": 0
     }

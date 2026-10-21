@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from argparse import BooleanOptionalAction
+from contextlib import nullcontext
 from types import SimpleNamespace
 from typing import Any
 
@@ -101,7 +102,7 @@ def _refresh(args: Any) -> dict[str, Any]:
     row = database.repository(repository_id)
     results = {}
     publisher = RecordPublisher(database, repository_id) if args.save else None
-    try:
+    with publisher if publisher else nullcontext():
         for flow in flows:
             request = SimpleNamespace(
                 workflow=flow,
@@ -121,8 +122,7 @@ def _refresh(args: Any) -> dict[str, Any]:
             ).run()
             if results[flow]["status"] != "complete":
                 break
-    finally:
-        saved = publisher.save() if publisher else None
+    saved = publisher.receipt if publisher else None
     status = (
         "complete"
         if len(results) == len(flows)

@@ -98,3 +98,27 @@ def test_record_publication_failure_is_explicit_and_preserves_local_analysis(
     assert receipt["status"] == "not_saved"
     assert "local index" in receipt["action"]
     assert database.latest_snapshot(1)
+
+
+def test_periodic_record_checkpoint_does_not_wait_for_a_long_running_step(
+    repository, database, monkeypatch
+):
+    from threading import Event
+
+    from anaxigraph.scanner import RepositoryScanner
+
+    RepositoryScanner(database).scan(repository)
+    saved = Event()
+    original = RecordPublisher.save
+
+    def observe(publisher):
+        receipt = original(publisher)
+        saved.set()
+        return receipt
+
+    monkeypatch.setattr(RecordPublisher, "save", observe)
+    with RecordPublisher(database, 1, interval=0.01):
+        assert saved.wait(3), "completed analysis was not checkpointed while execution was busy"
+        manifest, _ = read_record(repository)
+        assert manifest["source"]["snapshot"]
+    assert original(RecordPublisher(database, 1))["changed_files"] == 0

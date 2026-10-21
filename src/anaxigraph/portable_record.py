@@ -40,15 +40,16 @@ def save_record(database: Any, repository_id: int) -> dict[str, Any]:
         with database.connect() as connection:
             connection.execute("BEGIN")
             tables, metadata = export_rows(connection, repository_id)
+            views = record_views(connection, repository_id)
+            metadata["contracts"] = {
+                "prompt_version": _saved_prompt(connection, repository_id),
+                "pattern_catalog": bundled_pattern_catalog().fingerprint,
+            }
         identities = metadata.pop("_cache_identities")
         metadata["workflow_choices"] = WorkflowSettings(database.path).portable_choices(
             repository_id
         )
-        metadata["contracts"] = {
-            "prompt_version": _saved_prompt(database, repository_id),
-            "pattern_catalog": bundled_pattern_catalog().fingerprint,
-        }
-        result = publish_record(root, tables, metadata, record_views(database, repository_id))
+        result = publish_record(root, tables, metadata, views)
         receipt = {
             "digest": record_hash(result["manifest"]),
             "source": metadata["source"],
@@ -114,10 +115,9 @@ def load_record(database: Any, repository_id: int, root: Path, *, config: Any) -
     return {"status": "loaded", **receipt}
 
 
-def _saved_prompt(database: Any, repository_id: int) -> str | None:
-    with database.connect() as connection:
-        row = connection.execute(
-            "SELECT prompt_version FROM semantic_documents WHERE repository_id = ? AND scope_type = 'repository' ORDER BY id DESC LIMIT 1",
-            (repository_id,),
-        ).fetchone()
+def _saved_prompt(connection: Any, repository_id: int) -> str | None:
+    row = connection.execute(
+        "SELECT prompt_version FROM semantic_documents WHERE repository_id = ? AND scope_type = 'repository' ORDER BY id DESC LIMIT 1",
+        (repository_id,),
+    ).fetchone()
     return row[0] if row else None

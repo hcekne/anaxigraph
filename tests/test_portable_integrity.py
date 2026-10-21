@@ -137,3 +137,59 @@ def test_large_partitions_split_stably_and_unchanged_save_is_empty(tmp_path):
     manifest, restored = read_record(tmp_path)
     assert all(part["bytes"] < 2_000_000 for part in manifest["parts"])
     assert len(restored["artifacts"]) == 3
+
+
+def test_interrupted_changed_readable_views_keep_previous_manifest_valid(tmp_path, monkeypatch):
+    import anaxigraph.portable_io as portable_io
+
+    publish_record(tmp_path, {}, {}, {"architecture/plan.md": b"Previous target\n"})
+    previous, _ = read_record(tmp_path)
+    write = portable_io._write_if_changed
+
+    def interrupted(path, content):
+        if path.name == "manifest.json":
+            raise OSError("interrupted before manifest publication")
+        return write(path, content)
+
+    monkeypatch.setattr(portable_io, "_write_if_changed", interrupted)
+    with pytest.raises(OSError, match="interrupted"):
+        publish_record(tmp_path, {}, {}, {"architecture/plan.md": b"Different target\n"})
+    assert read_record(tmp_path)[0] == previous
+    assert (tmp_path / "anaxigraph/architecture/plan.md").read_bytes() == b"Previous target\n"
+    monkeypatch.setattr(portable_io, "_write_if_changed", write)
+    publish_record(tmp_path, {}, {}, {"architecture/plan.md": b"Different target\n"})
+    assert read_record(tmp_path)[0] != previous
+    assert (
+        publish_record(tmp_path, {}, {}, {"architecture/plan.md": b"Different target\n"})[
+            "changed_files"
+        ]
+        == 0
+    )
+
+
+def test_export_uses_one_read_snapshot_for_tables_and_readable_views(
+    repository, database, monkeypatch
+):
+    import anaxigraph.portable_record as portable_record
+
+    first = RepositoryScanner(database).scan(repository)
+    snapshot = database.latest_snapshot(first.repository_id)
+    views = portable_record.record_views
+
+    def concurrent_edit(connection, repository_id):
+        (repository / "pkg" / "changed.py").write_text("CHANGED = True\n")
+        RepositoryScanner(database).scan(repository)
+        return views(connection, repository_id)
+
+    monkeypatch.setattr(portable_record, "record_views", concurrent_edit)
+    save_record(database, first.repository_id)
+    manifest, tables = read_record(repository)
+    assert manifest["source"]["snapshot"] == next(
+        row["key"]
+        for row in tables["snapshots"]
+        if row["value"]["content_fingerprint"] == snapshot["content_fingerprint"]
+    )
+    assert database.latest_snapshot(first.repository_id)["id"] != first.snapshot_id
+    assert len(tables["snapshots"]) == 1
+    readable = json.loads((repository / "anaxigraph/mapping/architecture.json").read_bytes())
+    assert readable["source_commit"] == snapshot["commit_sha"]
