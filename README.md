@@ -91,7 +91,7 @@ reviewing the map: select a step, configure its models and workers, run it, and 
 | **Fresh eyes** | Independent design proposals from the capability brief, reconciliation and a comparison with the current implementation and available Pattern evaluations. Run after Mapping. |
 | **Architecture planning** | Compare options, let the agent select a target, visualize current versus proposed boundaries and follow migration milestones. Your direction is optional. |
 
-Use **Configure → Try 2 jobs** for a small sample, **Run step** for one stage, or **Run full mapping**, **Run full pattern analysis**, **Run full fresh eyes** or
+Use **Configure → Try 2 jobs** for a small sample, **Run this step** for one stage, or **Run full mapping**, **Run full pattern analysis**, **Run full fresh eyes** or
 **Run full architecture planning** for the selected sequence. Choose provider, model, effort and worker count per step; settings show
 what will run next separately from the recorded models that produced saved results. Saving settings
 alone makes no model calls. Optional analysis stays **Not run** until requested.

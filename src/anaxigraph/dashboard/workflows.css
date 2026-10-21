@@ -98,7 +98,7 @@ body:has(#view-workflows.active) main { max-width: 1920px; padding: 20px 20px 32
 @keyframes workflow-spin { to { transform: rotate(360deg); } }
 @keyframes workflow-pulse { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }
 .workflow-card-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 7px 12px; border: 1px solid var(--card-line); border-top: 0; border-radius: 0 0 16px 16px; background: var(--card-bg); }
-.workflow-card-actions button { flex: 1; padding: 6px; border: 1px solid var(--card-line); border-radius: 8px; background: var(--flow-surface); color: var(--card-ink); font-size: 12px; cursor: pointer; }
+.workflow-card-actions button { flex: 1; padding: 6px; border: 1px solid var(--card-line); border-radius: 8px; background: var(--flow-surface); color: var(--card-ink); font-size: 11px; white-space: nowrap; cursor: pointer; }
 .workflow-card-actions button:disabled { opacity: .5; cursor: default; }
 .workflow-next-run { display: grid; gap: 7px; padding-top: 12px; border-top: 1px solid var(--flow-line); }
 .workflow-next-run > b { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--flow-muted); }

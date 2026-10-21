@@ -496,6 +496,11 @@ anaxigraph record load /path/to/repository --json
 anaxigraph record status /path/to/repository --json
 ```
 
+`record` and `plan` discover the service for the exact checkout when `--db` is omitted; their
+responses identify the index authority. Use `--service-url` for an explicit server or `--db` to
+select a local index. Headless `refresh` deliberately runs on the scheduling host, using that
+checkout's local cache and authenticated worker CLIs; give it `--db` to share a custom local index.
+
 Loading is automatic during startup scans and watcher refreshes. Each checkout gets its own local
 SQLite cache. Relative source paths and logical references are translated into that cache; imports
 do not replace the whole database or erase other repositories. Existing local workflow choices

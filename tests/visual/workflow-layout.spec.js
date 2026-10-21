@@ -27,7 +27,7 @@ test("sidebar supports vertical keyboard navigation and keeps focus during progr
   const tabs = page.getByRole("tablist", { name: "Repository workflows" });
   await expect(tabs).toHaveAttribute("aria-orientation", "vertical");
   await page.locator("#workflow-tab-mapping").focus();
-  for (const [key, flow] of [["ArrowDown", "patterns"], ["End", "fresh-eyes"], ["ArrowUp", "patterns"], ["Home", "mapping"], ["ArrowUp", "fresh-eyes"]]) {
+  for (const [key, flow] of [["ArrowDown", "patterns"], ["End", "architecture"], ["ArrowUp", "fresh-eyes"], ["Home", "mapping"], ["ArrowUp", "architecture"]]) {
     await page.keyboard.press(key);
     const selected = page.locator(`#workflow-tab-${flow}`);
     await expect(selected).toBeFocused();
@@ -36,7 +36,7 @@ test("sidebar supports vertical keyboard navigation and keeps focus during progr
     await expect(page.locator("#workflow-panel")).toHaveAttribute("aria-labelledby", `workflow-tab-${flow}`);
   }
   await page.waitForResponse(response => response.url().includes("/api/workflows?"));
-  await expect(page.locator("#workflow-tab-fresh-eyes")).toBeFocused();
+  await expect(page.locator("#workflow-tab-architecture")).toBeFocused();
 });
 
 test("narrow layouts keep the map readable and all workflow controls reachable", async ({ page }, testInfo) => {

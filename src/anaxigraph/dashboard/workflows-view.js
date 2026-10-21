@@ -268,8 +268,7 @@ function render() {
 function renderControls(flow) {
   const { active, stale, allowed, available, unsupported } = executionState(flow);
   const duplicate = requestedRun(data, flow.id);
-  const changedDirection = flow.id === "architecture" && data.architecture_plan?.ready && planningDirection() !== (data.architecture_plan?.user_direction || "");
-  const complete = workflowState(flow) === "complete" && !changedDirection && !(flow.id === "fresh-eyes" && byId("workflow-restart").checked);
+  const { changedDirection, complete } = savedWorkflowState(flow);
   byId("workflow-run-button").disabled = runningRequest || !allowed || !available || unsupported || !!duplicate || complete;
   byId("workflow-run-button").textContent = duplicate ? activityLabel(data, buildFlows(data)) : workflowAction(flow, byId("workflow-restart").checked);
   if (changedDirection) byId("workflow-run-button").textContent = "Update architecture plan";
@@ -282,6 +281,12 @@ function renderControls(flow) {
   byId("workflow-limits").querySelector("p").textContent = executionLimits();
   byId("workflow-message").textContent = progressMessage(active, stale, flow);
   updateStepButtons({ active, allowed, unsupported });
+}
+
+function savedWorkflowState(flow) {
+  const changedDirection = flow.id === "architecture" && data.architecture_plan?.ready && planningDirection() !== (data.architecture_plan?.user_direction || "");
+  const complete = workflowState(flow) === "complete" && !changedDirection && !(flow.id === "fresh-eyes" && byId("workflow-restart").checked);
+  return { changedDirection, complete };
 }
 
 function updateStepButtons({ allowed, unsupported }) {
@@ -328,7 +333,7 @@ function executionLimits() {
 function progressMessage(active, stale, flow) {
   const semantic = data.semantic;
   const worker = semantic.worker || {};
-  const ownActive = flow.steps.some(item => item.status === "running") || requestedRun(data, flow.id);
+  const ownActive = flow.steps.some(item => item.status === "running") || activeRuns(data).some(run => run.workflow === flow.id && (run.snapshot_id == null || run.snapshot_id === data.snapshot_id));
   return (semantic.budget?.paused || worker.paused ? "Work is paused at the configured usage limit. Saved results remain available."
     : data.scan?.active ? `Source scan: ${data.scan.phase || data.scan.status} · ${data.scan.completed || 0} files processed.`
     : stale ? "These results belong to the saved scan. Refresh the source scan before running more analysis."

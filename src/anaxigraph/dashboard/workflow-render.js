@@ -79,9 +79,9 @@ function nextRunMarkup(item) {
 }
 
 function cardActions(item) {
-  if (item.plan) return `<div class="workflow-card-actions"><button type="button" data-configure-step="${item.id}" aria-haspopup="dialog" aria-controls="workflow-step-dialog">Configure</button><button type="button" data-run-step="${item.id}">${item.status === "refresh_needed" ? "Update this step" : "Run this step"} →</button></div>`;
+  if (item.plan) return `<div class="workflow-card-actions"><button type="button" data-configure-step="${item.id}" aria-haspopup="dialog" aria-controls="workflow-step-dialog">Configure</button><button type="button" data-run-step="${item.id}">${item.status === "refresh_needed" ? "Update this step" : "Run this step"}</button></div>`;
   if (item.id === "scan") return '<div class="workflow-card-actions"><button type="button" data-run-scan>Refresh source scan</button></div>';
-  if (["pattern_plan", "brief", "grounding"].includes(item.id)) return `<div class="workflow-card-actions"><button type="button" data-run-step="${item.id}">Run step →</button></div>`;
+  if (["pattern_plan", "brief", "grounding"].includes(item.id)) return `<div class="workflow-card-actions"><button type="button" data-run-step="${item.id}">Run this step</button></div>`;
   return item.view ? `<div class="workflow-card-actions"><button type="button" data-workflow-view="${item.view}">Explore results →</button></div>` : "";
 }
 
