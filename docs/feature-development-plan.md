@@ -2,7 +2,7 @@
 
 **Roadmap version:** 4.4 (4.2 remains closed)
 
-**Updated:** 8 September 2026
+**Updated:** 21 October 2026
 
 **Execution rule:** one phase is active at a time; the next phase does not begin until the current
 phase's exit gate is met.
@@ -100,6 +100,13 @@ The four initial stable hash buckets reduce small-repository partition overhead 
 the initial sixteen-bucket trial. Live-model recommendation quality and deployment acceptance
 remain distinct from these deterministic checks; numbered publication is recorded in the release
 ledger.
+
+Publication acceptance: [GitHub 0.8.3](https://github.com/hcekne/anaxigraph/releases/tag/v0.8.3),
+[PyPI 0.8.3](https://pypi.org/project/anaxigraph/0.8.3/) and the multi-platform container are
+published. The tagged-source CI passed 1,424 Python tests and 93 browser contracts with 93.97%
+coverage. Public distribution hashes, plugin checksums, fresh public installation, packaged
+planning assets and a real Git record round trip were verified. Production deployment remains
+separate and unrecorded in the release ledger.
 
 ## Usage feedback and repair queue — 20 October 2026
 
