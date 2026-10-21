@@ -11,21 +11,24 @@ from anaxigraph.cli import main
 from anaxigraph.semantic_service import SemanticServiceTarget
 
 
+@pytest.mark.parametrize("details", [False, True])
 def test_guidance_uses_the_matching_service_instead_of_a_separate_local_index(
     repository: Path,
     capsys,
     monkeypatch,
+    details: bool,
 ):
     target = SemanticServiceTarget("http://127.0.0.1:9999", 7, "Fixture", "/repo")
     captured = {}
     monkeypatch.setattr(agent_commands, "discover_semantic_service", lambda *_a, **_k: target)
 
-    def guidance(service, *, goal, intent, focus):
+    def guidance(service, *, goal, intent, focus, details):
         captured.update(
             service=service,
             goal=goal,
             intent=intent,
             focus=focus,
+            details=details,
         )
         return {"snapshot_id": 42, "goal": goal}
 
@@ -38,6 +41,7 @@ def test_guidance_uses_the_matching_service_instead_of_a_separate_local_index(
             target.base_url,
             "--goal",
             "Measure semantic work",
+            *(["--details"] if details else []),
             "--json",
         ]
     )
@@ -50,6 +54,7 @@ def test_guidance_uses_the_matching_service_instead_of_a_separate_local_index(
         "goal": "Measure semantic work",
         "intent": "build",
         "focus": "",
+        "details": details,
     }
 
 

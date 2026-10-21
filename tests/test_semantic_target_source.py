@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import hashlib
 from pathlib import Path
 
@@ -239,11 +240,16 @@ def test_agent_marks_a_pattern_job_superseded_when_its_target_disappears(
 # --- durable structural guard -----------------------------------------------------------------
 
 
-def test_is_relative_to_is_only_evaluated_inside_the_shared_guard() -> None:
+def test_semantic_containment_checks_stay_inside_the_shared_source_guard() -> None:
     package = Path(anaxigraph.__file__).resolve().parent
     users = sorted(
         str(path.relative_to(package))
-        for path in package.rglob("*.py")
-        if "is_relative_to" in path.read_text(encoding="utf-8")
+        for path in package.rglob("semantic*.py")
+        if any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "is_relative_to"
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+        )
     )
     assert users == ["semantic_target_source.py"]

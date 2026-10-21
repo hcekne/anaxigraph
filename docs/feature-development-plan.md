@@ -126,6 +126,13 @@ The 28-check benchmark/guidance/usage run and the five scale/batch checks passed
 self-analysis passed after checkpoint and final-map assertions were separated into focused
 test helpers; no new finding was accepted. Full-suite coverage remains a CI responsibility.
 
+The complete CI suite later identified two test-contract failures: the CLI service fixture did
+not accept the new `details` option, and a global string check treated worktree configuration
+relocation as a semantic source-read guard. The fixture now checks both compact and expanded CLI
+requests. The structural guard inspects actual containment calls in semantic modules, while
+worktree configuration remains a separate concern. All 50 focused authority, source-guard,
+worktree and service checks passed after the correction; full CI must report its own result.
+
 ## Executive decision
 
 > **AnaxiGraph is the shared architecture intelligence layer for humans and AI agents. It explains
