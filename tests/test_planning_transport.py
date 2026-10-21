@@ -38,6 +38,9 @@ def test_planning_and_record_cli_use_matching_service_without_creating_another_i
         plan = json.loads(capsys.readouterr().out)
         assert plan["index"]["authority"] == "service"
         assert plan["selected_option"] == "preserve"
+        assert "value" not in plan
+        main(["plan", str(repository), "--details", "--json"])
+        assert "value" in json.loads(capsys.readouterr().out)
         main(["record", "save", str(repository), "--json"])
         assert json.loads(capsys.readouterr().out)["status"] == "saved"
         main(["record", "status", str(repository), "--json"])
@@ -60,7 +63,7 @@ def test_explicit_database_does_not_discover_service(repository, database, monke
 
 
 def test_planning_handoff_is_bounded_and_option_plus_progress_uses_selected_target(
-    repository, database
+    repository, database, capsys
 ):
     review, _ = complete_plan(repository, database)
     steer_plan(database, review.repository_id, option="preserve")
@@ -76,6 +79,12 @@ def test_planning_handoff_is_bounded_and_option_plus_progress_uses_selected_targ
     guidance = planning_guidance(database, review.repository_id)
     assert guidance["next_milestone"]["key"] == "reuse-owner"
     assert len(json.dumps(guidance, separators=(",", ":")).encode()) <= 1200
+    main(["plan", str(repository), "--db", str(database.path)])
+    summary = json.loads(capsys.readouterr().out)
+    assert "value" not in summary
+    assert summary["selected_option"] == "evolve"
+    main(["plan", str(repository), "--db", str(database.path), "--details"])
+    assert "value" in json.loads(capsys.readouterr().out)
 
 
 def test_workflow_preferences_travel_but_local_choices_win(repository, database, tmp_path):

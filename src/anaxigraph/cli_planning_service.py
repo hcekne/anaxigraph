@@ -19,8 +19,12 @@ def planning_service(args: Any) -> Any:
     return service
 
 
-def planning_request(service: Any, path: str, body: Any = None) -> dict[str, Any]:
+def planning_request(
+    service: Any, path: str, body: Any = None, *, details: bool | None = None
+) -> dict[str, Any]:
     query = f"repository_id={service.repository_id}"
+    if details is not None:
+        query += f"&details={str(details).lower()}"
     value = _request_json(
         f"{service.base_url}/api/{path}?{query}",
         method="GET" if body is None else "POST",

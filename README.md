@@ -18,7 +18,7 @@
 
 <p align="center">
   <a href="docs/onboarding.md">Get started</a> ·
-  <a href="docs/releases/0.8.1.md">What's new in 0.8.1</a> ·
+  <a href="docs/releases/0.8.2.md">What's new in 0.8.2</a> ·
   <a href="docs/agent-plugin.md">Agent plugin</a> ·
   <a href="docs/docker.md">Docker</a> ·
   <a href="docs/advanced-operations.md">Advanced</a> ·
@@ -178,7 +178,8 @@ You can choose another option later. The workflow shows current and proposed dia
 exports, and ordered milestones with owners, contracts, verification and rollback. A selected plan
 survives code changes; verification reports identify the scan they checked.
 
-Read or request it with `anaxigraph plan .` / `anaxigraph plan . --start`, or
+Read its summary with `anaxigraph plan .`; add `--details` for full options, diagrams and milestones.
+Request it with `anaxigraph plan . --start`, or
 `ANAXIGRAPH_GUIDE(intent="plan", start=true)`. Planning uses the existing background worker queue.
 Ordinary coding guidance includes the saved target and next milestone.
 

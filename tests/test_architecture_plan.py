@@ -79,12 +79,21 @@ def test_user_can_select_option_and_agent_reports_milestone_evidence(repository,
 
 def test_plan_rest_and_mcp_share_target_and_default_budget(repository, database):
     review, plan = complete_plan(repository, database)
+    large = {**plan["value"], "summary": "s" * 4000, "direction": "d" * 4000}
+    with database.transaction() as connection:
+        connection.execute(
+            "UPDATE semantic_documents SET value_json = ? WHERE document_kind = 'architecture_plan'",
+            (json.dumps(large),),
+        )
     with TestClient(
         create_app(database=database, repository=repository, enable_mcp=False)
     ) as client:
         response = client.get("/api/architecture-plan")
         assert response.status_code == 200
         assert response.json()["selected_option"] == plan["selected_option"]
+        assert "value" not in response.json()
+        assert len(response.content) <= 8000
+        assert "value" in client.get("/api/architecture-plan?details=true").json()
         changed = client.post("/api/architecture-plan", json={"option": "preserve"})
         assert changed.status_code == 200
         workflow = client.get("/api/workflows").json()

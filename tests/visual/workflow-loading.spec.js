@@ -63,8 +63,13 @@ test("manual refresh shows a popup while background polling keeps the map intera
 });
 
 test("failed progress stops the spinner and offers a working retry", async ({ page }) => {
-  let failed = true;
-  await page.route("**/api/workflows?*", route => route.fulfill(failed
+  await page.addInitScript(() => {
+    window.__testWorkflowRetry = false;
+    document.addEventListener("click", event => {
+      if (event.target.closest("#workflow-load-retry")) window.__testWorkflowRetry = true;
+    }, true);
+  });
+  await page.route("**/api/workflows?*", async route => route.fulfill(!await page.evaluate(() => window.__testWorkflowRetry)
     ? { status: 503, json: { detail: "Saved progress is temporarily unavailable" } }
     : { json: configuredProgress() }));
   await page.goto("/#workflows/mapping");
@@ -73,7 +78,6 @@ test("failed progress stops the spinner and offers a working retry", async ({ pa
   await expect(popup).toContainText("Saved progress is temporarily unavailable");
   await expect(popup.locator(".workflow-load-spinner")).toBeHidden();
   await expect(page.locator("#workflow-diagram")).toHaveAttribute("aria-busy", "false");
-  failed = false;
   await popup.getByRole("button", { name: "Retry loading" }).click();
   await expect(popup).toBeHidden();
   await expect(page.locator(".workflow-node")).toHaveCount(8);

@@ -8,6 +8,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from anaxigraph.agent_response import small_agent_response
 from anaxigraph.architecture_plan_read import architecture_plan_status, steer_plan
 from anaxigraph.planning_service import prepare_architecture_plan
 from anaxigraph.portable_record import load_record, record_status, save_record
@@ -22,6 +23,7 @@ class PlanningRequest(BaseModel):
     status: Literal["", "pending", "in_progress", "verified"] = ""
     evidence: list[str] = Field(default_factory=list, max_length=30)
     actor: Literal["user", "agent"] = "user"
+    details: bool = False
 
 
 def architecture_plan_router(context: Any) -> APIRouter:
@@ -39,9 +41,11 @@ class ArchitecturePlanRoutes:
     def __init__(self, context: Any) -> None:
         self.context = context
 
-    def status(self, repository_id: int | None = None, details: bool = True) -> dict[str, Any]:
+    def status(self, repository_id: int | None = None, details: bool = False) -> dict[str, Any]:
         row = self.context.selected_repository(repository_id)
-        return architecture_plan_status(self.context.database, int(row["id"]), details=details)
+        result = architecture_plan_status(self.context.database, int(row["id"]), details=details)
+        limit = self.context.selected_config(row).agent.payload_limit_bytes
+        return result if details else small_agent_response(result, limit=min(8000, limit))
 
     def update(self, request: PlanningRequest) -> dict[str, Any]:
         row = self.context.selected_repository(request.repository_id)
@@ -54,7 +58,7 @@ class ArchitecturePlanRoutes:
                     self.context.database, repository_id, row["path"], config, request.direction
                 )
             if request.option or request.milestone:
-                return steer_plan(
+                steer_plan(
                     self.context.database,
                     repository_id,
                     option=request.option,
@@ -63,7 +67,7 @@ class ArchitecturePlanRoutes:
                     evidence=request.evidence,
                     actor=request.actor,
                 )
-            return architecture_plan_status(self.context.database, repository_id)
+            return self.status(repository_id, details=request.details)
         except ValueError as error:
             raise HTTPException(400, str(error)) from error
 

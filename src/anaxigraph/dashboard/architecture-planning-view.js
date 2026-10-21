@@ -34,7 +34,7 @@ export function renderArchitecturePlanning(data, flow) {
   if (loadedKey === key || loading) return;
   loading = true;
   const repositoryId = state.repositoryId;
-  void request(api("/api/architecture-plan")).then(value => {
+  void request(api("/api/architecture-plan", { details: "true" })).then(value => {
     if (repositoryId !== state.repositoryId) return;
     full = value;
     loadedKey = key;
@@ -59,7 +59,7 @@ async function action(event) {
       byId("architecture-direction").value = button.dataset.planSuggest;
       byId("architecture-direction").dispatchEvent(new Event("input"));
     } else if (button.dataset.planOption) {
-      full = await request("/api/architecture-plan", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ repository_id: state.repositoryId, option: button.dataset.planOption }) });
+      full = await request("/api/architecture-plan", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ repository_id: state.repositoryId, option: button.dataset.planOption, details: true }) });
       loadedKey = "";
       byId("architecture-plan-results").innerHTML = planMarkup(full);
     } else if (button.dataset.planMilestone) {

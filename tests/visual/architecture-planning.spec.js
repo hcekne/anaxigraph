@@ -30,9 +30,13 @@ test("saved options and current versus target diagrams remain readable on laptop
   const value = configuredProgress(), saved = plan();
   value.architecture_plan = saved;
   value.semantic.architecture_charter = { status: "current" };
-  await page.route("**/api/architecture-plan?*", route => route.fulfill({ json: saved }));
+  await page.route("**/api/architecture-plan?*", route => {
+    expect(new URL(route.request().url()).searchParams.get("details")).toBe("true");
+    return route.fulfill({ json: saved });
+  });
   await page.route("**/api/architecture-plan", async route => {
     const body = route.request().postDataJSON();
+    expect(body.details).toBe(true);
     saved.selected_option = body.option;
     saved.selection_source = "user";
     saved.target = saved.value.options.find(option => option.key === body.option);

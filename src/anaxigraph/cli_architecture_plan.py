@@ -7,6 +7,7 @@ from contextlib import nullcontext
 from types import SimpleNamespace
 from typing import Any
 
+from anaxigraph.agent_response import small_agent_response
 from anaxigraph.architecture_plan_read import architecture_plan_status, steer_plan
 from anaxigraph.cli_common import add_repository_arguments, ensure_current
 from anaxigraph.cli_planning_service import planning_request, planning_service
@@ -33,6 +34,11 @@ def configure_planning_commands(commands: Any) -> None:
     )
     parser.add_argument("--evidence", action="append", default=[])
     parser.add_argument("--actor", choices=("user", "agent"), default="agent")
+    parser.add_argument(
+        "--details",
+        action="store_true",
+        help="Include complete options, diagrams and milestone evidence",
+    )
     parser.set_defaults(handler=_plan, db=None)
     refresh = commands.add_parser(
         "refresh", help="Run selected workflows and save a Git-ready record for scheduled jobs"
@@ -70,15 +76,17 @@ def _plan(args: Any) -> dict[str, Any]:
                 "status": args.status,
                 "evidence": args.evidence,
                 "actor": args.actor,
+                "details": args.details,
             }
             if args.start or args.select or args.milestone
             else None,
+            details=args.details,
         )
     database, repository_id, config = ensure_current(args)
     if args.start:
         prepare_architecture_plan(database, repository_id, args.repository, config, args.direction)
     if args.select or args.milestone:
-        return steer_plan(
+        steer_plan(
             database,
             repository_id,
             option=args.select,
@@ -87,7 +95,12 @@ def _plan(args: Any) -> dict[str, Any]:
             evidence=args.evidence,
             actor=args.actor,
         )
-    return architecture_plan_status(database, repository_id)
+    result = architecture_plan_status(database, repository_id, details=args.details)
+    return (
+        result
+        if args.details
+        else small_agent_response(result, limit=min(8000, config.agent.payload_limit_bytes))
+    )
 
 
 def _refresh(args: Any) -> dict[str, Any]:
