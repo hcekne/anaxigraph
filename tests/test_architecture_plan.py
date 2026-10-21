@@ -72,6 +72,9 @@ def test_user_can_select_option_and_agent_reports_milestone_evidence(repository,
         actor="agent",
     )
     assert changed["progress"]["reuse-owner"]["reported_by"] == "agent"
+    compact = architecture_plan_status(database, review.repository_id, details=False)
+    assert "evidence" not in compact["progress"]["reuse-owner"]
+    assert compact["progress"]["reuse-owner"]["status"] == "verified"
 
 
 def test_plan_rest_and_mcp_share_target_and_default_budget(repository, database):

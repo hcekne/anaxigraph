@@ -20,6 +20,7 @@ test("full planning accepts blank direction and submits the complete workflow", 
   await expect(page.locator("#architecture-direction")).toHaveValue("");
   await expect(page.locator("#workflow-run-button")).toHaveText("Run full architecture planning");
   await expect(page.locator("#architecture-planning-panel")).toContainText("Leave this blank");
+  await expect(page.locator("#planning-evidence")).not.toContainText("not_started");
   await page.locator("#workflow-run-button").click();
   await expect.poll(() => posted?.workflow).toBe("architecture");
   expect(posted).toMatchObject({ goal: null, use_step_settings: true, step: null });

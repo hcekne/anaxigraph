@@ -18,7 +18,7 @@
 
 <p align="center">
   <a href="docs/onboarding.md">Get started</a> ·
-  <a href="docs/releases/0.8.0.md">What's new in 0.8.0</a> ·
+  <a href="docs/releases/0.8.1.md">What's new in 0.8.1</a> ·
   <a href="docs/agent-plugin.md">Agent plugin</a> ·
   <a href="docs/docker.md">Docker</a> ·
   <a href="docs/advanced-operations.md">Advanced</a> ·

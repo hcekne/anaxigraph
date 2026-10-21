@@ -28,7 +28,7 @@ export function renderArchitecturePlanning(data, flow) {
     byId("architecture-direction").value = data.architecture_plan?.user_direction || "";
   }
   if (panel.hidden) return;
-  byId("planning-evidence").textContent = `Inputs: Mapping ${data.semantic?.architecture_charter?.status || "not ready"} · Patterns ${data.semantic?.patterns?.planned ? "available" : "not run"} · Fresh Eyes ${data.fresh_eyes?.state || "not run"}. Available reviews contribute; missing reviews do not prevent planning.`;
+  byId("planning-evidence").textContent = `Inputs: Mapping ${data.semantic?.architecture_charter?.status || "not ready"} · Patterns ${data.semantic?.patterns?.planned ? "available" : "not run"} · Fresh Eyes ${String(data.fresh_eyes?.state || "not run").replaceAll("_", " ")}. Available reviews contribute; missing reviews do not prevent planning.`;
   const plan = data.architecture_plan || {};
   const key = JSON.stringify([data.repository_id, plan.provenance?.created_at, plan.selected_option, plan.progress, plan.state]);
   if (loadedKey === key || loading) return;

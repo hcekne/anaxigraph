@@ -51,6 +51,10 @@ def _saved_plan(row: Any, snapshot: Any, details: bool) -> dict[str, Any]:
         )
     elif target:
         result["target"] = {key: target[key] for key in ("key", "title", "summary")}
+        result["progress"] = {
+            key: {field: item.get(field) for field in ("status", "reported_by", "reported_at")}
+            for key, item in result["progress"].items()
+        }
     return result
 
 

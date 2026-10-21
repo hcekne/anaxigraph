@@ -232,7 +232,7 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                         "diagnostic ledger",
                     ):
                         assert unexplained_term not in public_help
-                    assert "five intents" in descriptions["ANAXIGRAPH_GUIDE"]
+                    assert "plan an architecture target" in descriptions["ANAXIGRAPH_GUIDE"]
                     assert "reassess" in descriptions["ANAXIGRAPH_GUIDE"]
                     assert "refresh_semantics=true" in descriptions["ANAXIGRAPH_SCAN"]
                     assert "ordinary sentences" in descriptions["ANAXIGRAPH_FINDINGS"]
@@ -244,7 +244,11 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     assert {
                         item["intent"]
                         for item in repositories.structuredContent["agent_workflow"]["journeys"]
-                    } == {"understand", "build", "improve", "redesign", "reassess"}
+                    } == {"understand", "build", "improve", "redesign", "reassess", "plan"}
+                    plan = await session.call_tool("ANAXIGRAPH_GUIDE", arguments={"intent": "plan"})
+                    assert plan.isError is False
+                    assert plan.structuredContent["state"] == "not_started"
+                    assert plan.structuredContent["ready"] is False
                     overview = await session.call_tool("ANAXIGRAPH_OVERVIEW", arguments={})
                     assert overview.isError is False
                     assert overview.structuredContent["files"] == 8

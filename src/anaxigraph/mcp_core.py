@@ -75,9 +75,11 @@ class CoreMcpTools:
             self.guidance,
             name="ANAXIGRAPH_GUIDE",
             description=(
-                "Use an intent: understand the system, build a capability, improve "
-                "existing structure, redesign from a behavior-only capability brief, or reassess "
-                "a completed edit. Build and improve return placement, affected code, reasons not "
+                "Use one of six intents: understand the system, build a capability, improve "
+                "existing structure, redesign from a behavior-only capability brief, reassess "
+                "a completed edit, or plan an architecture target with optional direction. "
+                "Planning compares options and lets the agent choose a target and milestones. "
+                "Build and improve return placement, affected code, reasons not "
                 "to change, focused checks, and exact next actions. Redesign uses the fixed "
                 "fresh-eyes review; reassess compares compatible before and after maps."
             ),
