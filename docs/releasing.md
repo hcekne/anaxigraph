@@ -32,7 +32,7 @@ record so it no longer describes a published version as a candidate. A direct-ma
 recorded as `protected_merge: bypassed`, not as a protected review. Production acceptance remains
 pending until the deployed service is tested independently.
 
-From 0.8.4, the publication ledger job commits its generated evidence directly to `main`, following
+From 0.8.5, the publication ledger job commits its generated evidence directly to `main`, following
 the repository's maintainer policy. Verify that real write and the resulting record after publication.
 For older runs whose ledger PR could not auto-merge, apply the generated file on `main`, verify it
 against PyPI, close the redundant PR and delete its branch. Rerun only the failed ledger job;

@@ -18,12 +18,12 @@ from anaxigraph.semantic_taxonomy_contract import validated_semantic_response
 REQUEST = {"analysis_kind": "context", "detailed_reviews": False, "max_output_tokens": 4_000}
 
 
-def test_complex_mapping_can_exceed_the_writing_target_without_losing_contracts():
+def test_complex_mapping_preserves_contracts_within_storage_limits():
     value = {
-        "summary": "Coordinates order validation, reservation, payment, and rollback. " * 15,
+        "summary": "Coordinates order validation, reservation, payment, and rollback. " * 4,
         "responsibilities": [f"Handle order stage {index}." for index in range(6)],
         "public_contracts": [
-            f"Stage {index} preserves its existing caller guarantee. " * 6 for index in range(6)
+            f"Stage {index} preserves its existing caller guarantee. " * 3 for index in range(6)
         ],
         "evidence": [f"orders/stage_{index}.py::validate" for index in range(6)],
         "confidence": 0.8,
@@ -31,6 +31,23 @@ def test_complex_mapping_can_exceed_the_writing_target_without_losing_contracts(
     result = validated_semantic_response(value, REQUEST)
     assert set(result.value) == set(MAPPING_SCHEMA["required"])
     assert compact_dossier(result.value) == value
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("summary", "x" * 601),
+        ("responsibilities", ["One responsibility."] * 9),
+        ("public_contracts", ["One guarantee."] * 13),
+        ("evidence", ["orders/stage.py"] * 9),
+        ("public_contracts", ["x" * 241]),
+    ],
+)
+def test_unbounded_default_descriptions_are_rejected_before_saving(field, value):
+    dossier = _agent_dossier(REQUEST)
+    dossier[field] = value
+    with pytest.raises(SemanticAnalysisError, match=field):
+        validated_semantic_response(dossier, REQUEST)
 
 
 def _response(*, truncated=False, invalid=False):

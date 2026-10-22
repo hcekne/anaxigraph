@@ -17,34 +17,27 @@ from anaxigraph.understanding import SemanticEngine
 
 
 @pytest.mark.parametrize(
-    "contract",
+    "contract,expected",
     [
-        "module-intrinsic-v1",
-        "module-context-v1",
-        "group-synthesis-v1",
-        "architecture-charter-v1",
-        "taxonomy-proposal-v1",
-        "taxonomy-review-v1",
+        ("module-intrinsic-v1", "b6eaa6079e92de56c89d95ccbe5934c55d9995018c267d76b61d3b76e3018fc3"),
+        ("module-context-v1", "60f0768f31fb4f5ae944e051ebc5873e632e956abe6e5cc89efee055a35ce108"),
+        ("group-synthesis-v1", "3507a35e5212988ace4072060a7c9694b43c86a45cfd247463a5882527657fd8"),
+        (
+            "architecture-charter-v1",
+            "4ffcdefb95e8dba3f3b77accc51805ec26caddea69f4c85a91417f7ed4680919",
+        ),
+        (
+            "taxonomy-proposal-v1",
+            "384376b7ff93b4b37bed443a186b3d32a93c7de95ffd5570b2c701b83751c97a",
+        ),
+        ("taxonomy-review-v1", "0243ca54b1834e9ecf47884bc49cdd9d27ee88bcf50496edb24b23629a632806"),
     ],
 )
-def test_agent_review_policy_preserves_existing_routine_input_hashes(contract, monkeypatch):
+def test_agent_review_policy_preserves_existing_routine_input_hashes(
+    contract, expected, monkeypatch
+):
+    # Golden values evaluated from the actual v0.8.3 implementation, independent of new writing limits.
     evidence = {"path": "pkg/core.py", "detailed_reviews": False}
-    expected = semantic_freshness.semantic_digest(
-        {
-            "input_contract": contract,
-            "prompt": "v1",
-            "mapping_contract": semantic_freshness.semantic_digest(
-                [
-                    semantic_freshness.MAPPING_SCHEMA,
-                    semantic_freshness.MAPPING_REQUIREMENTS,
-                ]
-            ),
-            "understandability_policy": semantic_freshness.semantic_digest(
-                semantic_freshness.UNDERSTANDABILITY_POLICY
-            ),
-            "evidence": evidence,
-        }
-    )
     assert semantic_freshness.semantic_input_hash(contract, "v1", evidence) == expected
     monkeypatch.setattr(semantic_freshness, "AGENT_REVIEW_POLICY", "Revised agent review")
     assert semantic_freshness.semantic_input_hash(contract, "v1", evidence) == expected
