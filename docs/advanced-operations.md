@@ -564,12 +564,13 @@ The active budget excludes installed tools and dependencies, Git's own history, 
 retained recovery backups. Detached executors keep four recent runs per slot and trim logs to 1 MB.
 
 Ordinary scans retain the current frame and two comparison checkpoints, materializing their state
-before pruning older delta chains. Saved designs/reviews and reusable file descriptions
+before pruning older delta chains. Selected latest designs/reviews and reusable file descriptions
 are retained as analysis-only records when their old graph is unnecessary. They do not become
-empty historical maps or fabricated comparison baselines. Detailed Git mapping is opt-in: use `--history-snapshots auto`, an explicit frame count,
-`anaxigraph history`, or `storage.detailed_history: true`. The dashboard’s explicit **Import Git history** action also opts in. A requested history import records that
-choice so later watcher scans do not immediately discard its result. All retained state still fits
-its configured budget.
+empty historical maps or fabricated comparison baselines. Detailed Git mapping is opt-in: use
+`--history-snapshots auto`, an explicit frame count, `anaxigraph history`, or
+`storage.detailed_history: true`. The dashboard’s explicit **Import Git history** action also opts
+in. A requested history import records that choice so later watcher scans do not immediately discard
+its result. All retained state still fits its configured budget.
 
 To migrate an existing index on the server that owns it, first stop ongoing scans/workers and set
 its startup `--history-snapshots` or registry `history_snapshots` to `0` if it previously used the
@@ -583,13 +584,14 @@ Compaction first makes one validated `*.before-current-storage.backup` recovery 
 original AI documents, reviews, plans and provenance without copying historical structural graphs.
 It is limited to 64 MB and its allowance is reserved against the 200 MB ceiling before writing.
 The original index is left intact if saved understanding cannot fit that recovery budget.
-It shortens legacy module descriptions unless detailed reviews are explicitly enabled, retains saved
-reviews/plans and choices, prunes disposable history and reclaims SQLite disk space. It exports v2
+It shortens legacy module descriptions unless detailed reviews are explicitly enabled, retains
+selected latest reviews/plans and choices, prunes disposable history and reclaims SQLite disk space. It exports v2
 without loading a failed legacy export first. The recovery backup is retained separately and its
 path is reported; retire it after verifying migration. The existing `anaxigraph restore` command can
 load it into a local index; a normal source scan rebuilds the graphs and reuses compatible file
-analyses. If one index serves multiple repositories, compact each checkout against that same `--db`. Compaction clears an implicit history opt-in;
-an explicit `storage.detailed_history: true` is respected. A previously oversized index can remain
+analyses. If one index serves multiple repositories, compact each checkout against that same `--db`.
+Compaction clears an implicit history opt-in; an explicit `storage.detailed_history: true` is
+respected. A previously oversized index can remain
 over budget when its selected analyses alone exceed the allocation; the receipt says so and new
 analysis is refused until the operator reduces that state or changes budgets within the ceiling.
 
