@@ -43,18 +43,26 @@ UNIQUE_FIELDS = {
 
 
 def merge_record(
-    connection: Any, repository_id: int, root: str, manifest: Any, tables: Any
+    connection: Any,
+    repository_id: int,
+    root: str,
+    manifest: Any,
+    tables: Any,
+    *,
+    bindings: dict[str, int] | None = None,
 ) -> dict[str, Any]:
-    _validate_tables(connection, tables)
+    _validate_tables(connection, tables, set(bindings or {}))
     cache_key = f"portable-identities:{repository_id}"
     prior = connection.execute(
         "SELECT value FROM schema_meta WHERE key = ?", (cache_key,)
     ).fetchone()
     identities = json.loads(prior[0]) if prior else {}
+    identities.update(bindings or {})
     repository = tables.get("repositories", [])
-    if len(repository) != 1:
+    if bindings is None and len(repository) != 1:
         raise ValueError("A portable record must contain exactly one repository")
-    identities[repository[0]["key"]] = repository_id
+    if repository:
+        identities[repository[0]["key"]] = repository_id
     connection.execute("PRAGMA defer_foreign_keys = ON")
     _allocate(connection, tables, identities, repository_id)
     imported = 0
@@ -65,6 +73,8 @@ def merge_record(
                 value["id"] = identities[item["key"]]
             value = _prepare_row(table, value, repository_id)
             imported += _save_row(connection, table, value)
+    retained = {item["key"] for rows in tables.values() for item in rows} | set(bindings or {})
+    identities = {key: value for key, value in identities.items() if key in retained}
     connection.execute(
         "INSERT INTO schema_meta(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
         (cache_key, canonical_json(identities).decode()),
@@ -75,8 +85,8 @@ def merge_record(
     }
 
 
-def _validate_tables(connection: Any, tables: Any) -> None:
-    keys = {item["key"] for items in tables.values() for item in items}
+def _validate_tables(connection: Any, tables: Any, external_keys: set[str] | None = None) -> None:
+    keys = {item["key"] for items in tables.values() for item in items} | (external_keys or set())
     for table, items in tables.items():
         if table not in TABLES:
             raise ValueError(f"Unknown portable table: {table}")
@@ -183,10 +193,16 @@ def _decode(value: Any, identities: Any, root: str, *, missing: Any = ...) -> An
 
 def _prepare_row(table: str, value: Any, repository_id: int) -> dict[str, Any]:
     value = dict(value)
+    if table == "snapshots":
+        value["metadata_json"].pop("config_path", None)
     if "repository_id" in value:
         value["repository_id"] = repository_id
     if value.get("scope_type") == "repository":
         value["scope_key"] = str(repository_id)
+    elif value.get("scope_type") == "taxonomy" and str(value.get("scope_key", "")).startswith(
+        "${REPOSITORY}"
+    ):
+        value["scope_key"] = value["scope_key"].replace("${REPOSITORY}", str(repository_id), 1)
     if table in {"file_facts", "relationship_sets"}:
         field = "fact_key" if table == "file_facts" else "set_key"
         prefix = f"portable:{repository_id}:"

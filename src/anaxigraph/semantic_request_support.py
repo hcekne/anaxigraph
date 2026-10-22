@@ -9,9 +9,9 @@ from anaxigraph.understandability import compact_understandability
 MAPPING_REQUIREMENTS = {
     "purpose": "Describe what the code does and the essential behavior callers depend on.",
     "writing": (
-        "Use short, concrete English sentences. Aim for 100–200 words total; simple files need "
-        "less. This is a flexible target: include more words or items when complex code has "
-        "additional essential behavior. Preserve meaning and complete the result. State each "
+        "Use short, concrete English sentences. Aim for 40–100 words total; simple files need "
+        "less. Summary must fit 600 characters. Keep at most 8 responsibilities, 12 public "
+        "contracts and 8 evidence references, each at most 240 characters. State each "
         "fact once. Use real code names and cite supplied paths or symbols. "
         "Put essential invariants and side effects in public_contracts. Do not repeat signatures, "
         "imports, or other facts already supplied by the code reader."
@@ -24,18 +24,21 @@ MAPPING_REQUIREMENTS = {
 MAPPING_SCHEMA = {
     "type": "object",
     "properties": {
-        "summary": {"type": "string", "minLength": 1},
+        "summary": {"type": "string", "minLength": 1, "maxLength": 600},
         "responsibilities": {
             "type": "array",
-            "items": {"type": "string"},
+            "maxItems": 8,
+            "items": {"type": "string", "maxLength": 240},
         },
         "public_contracts": {
             "type": "array",
-            "items": {"type": "string"},
+            "maxItems": 12,
+            "items": {"type": "string", "maxLength": 240},
         },
         "evidence": {
             "type": "array",
-            "items": {"type": "string"},
+            "maxItems": 8,
+            "items": {"type": "string", "maxLength": 240},
         },
         "confidence": {"type": "number", "minimum": 0, "maximum": 1},
     },

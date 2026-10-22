@@ -21,6 +21,7 @@ from anaxigraph.history_discovery import (
 from anaxigraph.models import ScanStats
 from anaxigraph.scan_commit import (
     commit_snapshot,
+    complete_current_scan,
     prepare_repository_cache,
     refresh_existing_snapshot,
 )
@@ -69,7 +70,7 @@ class RepositoryScanner:
         is_cancelled: CancelCheck | None = None,
     ) -> ScanStats:
         with self.database.scan_lock():
-            return self._scan(
+            stats = self._scan(
                 repository,
                 config_path=config_path,
                 revision=revision,
@@ -79,6 +80,10 @@ class RepositoryScanner:
                 progress=progress,
                 is_cancelled=is_cancelled,
             )
+            complete_current_scan(
+                self.database, stats, Path(repository), config_path, revision, run_type
+            )
+            return stats
 
     def _scan(
         self,

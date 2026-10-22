@@ -48,8 +48,8 @@ def _add_repository_options(initialize: Any) -> None:
     initialize.add_argument("--port", type=int, default=8765, help="Local dashboard port")
     initialize.add_argument(
         "--history-snapshots",
-        default="auto",
-        help="Git history frame policy: auto or an integer from 0 to 2000 (default: auto)",
+        default=0,
+        help="Git history frame policy: auto or an integer from 0 to 2000 (default: 0; history is opt-in)",
     )
 
 

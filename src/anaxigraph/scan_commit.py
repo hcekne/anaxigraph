@@ -10,7 +10,9 @@ from typing import Any
 
 from anaxigraph import __version__
 from anaxigraph.clock import utc_now
+from anaxigraph.config import load_config
 from anaxigraph.history_discovery import available_changes
+from anaxigraph.persistence.current_retention import retain_current_index
 from anaxigraph.persistence.search_read import refresh_search_projection
 from anaxigraph.portable_record import load_record
 from anaxigraph.scan_persistence import (
@@ -32,9 +34,27 @@ from anaxigraph.scan_snapshot import (
 PersistProgress = Callable[[int], None]
 
 
+def complete_current_scan(
+    database: Any, stats: Any, root: Path, config_path: Any, revision: Any, run_type: str
+) -> None:
+    if revision is not None:
+        return
+    root = root.expanduser().resolve()
+    config = load_config(root, Path(config_path) if config_path else None)
+    load_record(database, stats.repository_id, root, config=config, after_scan=True)
+    if run_type == "history_current":
+        with database.transaction() as connection:
+            connection.execute(
+                "INSERT OR REPLACE INTO schema_meta(key,value) VALUES (?, 'true')",
+                (f"history-opt-in:{stats.repository_id}",),
+            )
+    retain_current_index(database, stats.repository_id, config.storage)
+
+
 def prepare_repository_cache(
     database: Any, root: Path, config: Any, metadata: Any, revision: Any
 ) -> int:
+    database.storage_policy = config.storage
     repository_id = database.ensure_repository(
         path=root, name=config.project_name or root.name, git=metadata
     )

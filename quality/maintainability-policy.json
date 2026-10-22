@@ -16,7 +16,7 @@
       ".css",
       ".html"
     ],
-    "baseline_lines": 72405
+    "baseline_lines": 73885
   },
   "function_limits": {
     "warning_lines": 40,
@@ -73,7 +73,8 @@
     "usage_feedback_and_review_batches_2026_10_20": "Maintainer-requested pattern-stall repair, compact impact responses and Mapping step 5 batch review. Independent taxonomy batches use the existing durable jobs and documents, save immediately, retain checkpoints across index compaction, and reconcile before the next provider pass. The dashboard shows batch counts, active workers, elapsed time and final reconciliation. A cached pattern plan now repairs retired-job gaps without repeating completed work. Impact defaults to five items per list and an 8 KB budget (or the smaller repository budget), exposes full-detail opt-in through the existing CLI, REST and MCP surfaces, and preserves counts. MCP impact and guidance no longer repeat structured JSON in text. Acceptance: test_taxonomy_review_batches.py, test_pattern_workflow_resume.py, test_impact_output_budget.py, test_mcp_runtime.py and workflow-review-batches.spec.js, plus the existing workflow, Fresh Eyes, taxonomy and browser suites. Providers are simulated; no live model run was launched. No table, service, endpoint or MCP tool is added; one internal taxonomy review planner is added. The measured production baseline changes from 68374 to 68932 lines for this explicitly requested increment. The review-planning function allowance is lowered and the old monolithic review function exception is removed; no function, module or coupling ceiling is relaxed.",
     "usage_feedback_completion_2026_10_20": "Maintainer explicitly requested completion of every usage-feedback item and responsive workflows. Exact-checkout service matching rejects sibling clones, dynamically admits registered Git worktrees and exposes commit/path identity. Guidance prioritizes executable ownership and has an 8 KB default with explicit details; module pages and current workflow progress avoid repeated full documents. AI, patterns and Fresh Eyes freshness are independently snapshot-qualified. Reassessment pins baseline IDs and reads historical semantic status from the selected target. Supporting measurements and documentation do not imply executable regressions. Existing Guide UI copies human goals, design preferences and baseline into agent directions. Acceptance: real Git worktree registration/scan through ASGI, source-owner/dependency/test/two-phase baseline tests, artifact-role and compact-response regressions, existing CLI/REST/MCP parity with details, and complete dashboard browser contracts. benchmarks.usage_latency runs the real handlers against 1000 synthetic files without model calls; first_user launches a real local runtime and submits a fixture dossier. No new service, database table, endpoint, MCP tool, dependency or CI gate. Model output quality and delivery improvements remain unmeasured. User-authorized production baseline changes from 68932 to 69878 lines; all function, coupling and module limits remain enforced.",
     "compact_guidance_preservation_2026_10_20": "Follow-up to the requested small-output and useful-core items: preserve every selected implementation path and compact verification/placement references, while tests stay in the relevant-tests collection. A final fallback shortens duplicate prose when a repository explicitly selects a 4 KB budget. Reuse the agent-response formatter for compact findings. Acceptance: the core coding loop at 120, 1000 and 3000 files checks identical selected implementation sets between brief and expanded evidence; 4 KB/8 KB response and historical benchmark tests verify the budget and rescan instructions. The batch test separates checkpoint observation and final-map assertions; deterministic self-analysis now passes without accepting new findings. Exact production baseline moves from 69878 to 69885; no ceiling is relaxed.",
-    "portable_architecture_planning": "User-authorized architecture planning and repository-carried analysis: optional agent-selected options and target diagrams extend the existing semantic queue; deterministic checksummed logical records rebuild the local SQLite cache after a normal Git pull. Acceptance uses real Git round trips with full AI results, zero-call reuse, corruption, dirty sources, partial/interrupted publication and no-op saves. Exact production baseline: 72405. Function, module and default coupling caps remain unchanged. Config adds one dependency on the shared foundation record recognizer so malformed or unrelated record.json files cannot hide source or break loading. Its existing high-fan-in exception records fan-out two rather than duplicating recognition. New modules obey normal caps."
+    "portable_architecture_planning": "User-authorized architecture planning and repository-carried analysis: optional agent-selected options and target diagrams extend the existing semantic queue; deterministic checksummed logical records rebuild the local SQLite cache after a normal Git pull. Acceptance uses real Git round trips with full AI results, zero-call reuse, corruption, dirty sources, partial/interrupted publication and no-op saves. Exact production baseline: 72405. Function, module and default coupling caps remain unchanged. Config adds one dependency on the shared foundation record recognizer so malformed or unrelated record.json files cannot hide source or break loading. Its existing high-fan-in exception records fan-out two rather than duplicating recognition. New modules obey normal caps.",
+    "current_checkout_storage": "User-authorized correctness repair of a reported 3.22 GB failed all-history export. Replaces historical SQL export with bounded current semantic rows and source fingerprints; reconstructs deterministic graphs locally, applies current exclusions, retains comparison checkpoints through validated backups, limits SQLite/cache/log growth and shortens default descriptions. Focused acceptance covers independent Git clones, complete/partial AI reuse, stale source, unchanged scans/exports, excluded historical runtime files, pre-write limits and interrupted publication. Configuration gains one storage policy; existing canonical temporal readers gain direct consumers for current export/import and checkpoint-preserving pruning. Their exact fan-in counts are recorded, their fan-out stays bounded, and no general function/module/complexity/layer ceiling is raised. The demonstrated storage-corruption/growth repair is the intentional production-source exception; the measured source baseline changes from 72405 to 73885 (+1480 lines). Acceptance: 32 focused current-storage, migration-command, portable-record and cross-index review tests pass; real application-source mapping uses about 22 MB locally. Provider fixtures are deterministic, not live model judgments."
   },
   "legacy_functions": {
     "src/anaxigraph/architecture.py::evaluate_architecture": [
@@ -117,7 +118,7 @@
       5
     ],
     "src/anaxigraph/semantic_taxonomy_plan.py::SemanticTaxonomyPlanner._enqueue_review": [
-      54,
+      52,
       4
     ],
     "src/anaxigraph/semantic_taxonomy_results.py::_store_candidate": [
@@ -147,8 +148,8 @@
       9
     ],
     "anaxigraph.config": [
-      33,
-      2
+      38,
+      3
     ],
     "anaxigraph.models": [
       10,
@@ -163,7 +164,15 @@
       8
     ],
     "anaxigraph.storage": [
-      7,
+      8,
+      3
+    ],
+    "anaxigraph.persistence.temporal_reconstruction": [
+      14,
+      1
+    ],
+    "anaxigraph.semantic_freshness": [
+      13,
       2
     ]
   }

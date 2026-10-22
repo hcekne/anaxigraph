@@ -5,10 +5,10 @@ repositories:
   maxos-agent:
     path: /repo
     config: /config/policies/maxos-agent.anaxigraph.yml
-    # Size-aware sampling always includes init and HEAD and prioritizes architecture milestones.
-    history_snapshots: auto
+    # Opt in with auto to sample Git history; the current map is the default.
+    history_snapshots: 0
 
   anaxigraph:
     path: /anaxigraph
     config: /anaxigraph/.anaxigraph.yml
-    history_snapshots: auto
+    history_snapshots: 0

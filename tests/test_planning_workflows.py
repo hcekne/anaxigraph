@@ -42,7 +42,7 @@ async def test_full_planning_runs_mapping_prerequisites_and_saves_git_record(
             assert completed["architecture_plan"]["ready"], completed
             assert completed["semantic"]["worker"]["record"]["status"] == "saved"
     manifest, tables = read_record(repository)
-    assert manifest["format"] == "anaxigraph-record-v1"
+    assert manifest["format"] == "anaxigraph-record-v2"
     assert any(
         item["value"]["document_kind"] == "architecture_plan"
         for item in tables["semantic_documents"]

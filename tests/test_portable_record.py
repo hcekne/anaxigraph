@@ -31,9 +31,7 @@ def publish_and_clone(repository, target):
     return target
 
 
-def test_git_record_restores_facts_without_rescanning_or_transferring_workers(
-    repository, database, tmp_path
-):
+def test_git_record_rebuilds_structure_without_transferring_workers(repository, database, tmp_path):
     first = RepositoryScanner(database).scan(repository)
     saved = save_record(database, first.repository_id)
     assert saved["bytes"] > 0
@@ -45,7 +43,7 @@ def test_git_record_restores_facts_without_rescanning_or_transferring_workers(
     )
     local = AnaxiIndex(tmp_path / "local.db")
     restored = RepositoryScanner(local).scan(local_root)
-    assert restored.analyzed == 0
+    assert restored.analyzed == first.discovered
     assert restored.discovered == first.discovered
     assert local.overview(restored.repository_id)["files"] == first.discovered
     with local.connect() as connection:
@@ -80,7 +78,7 @@ def test_bad_partition_leaves_local_cache_unchanged(repository, database, tmp_pa
     first = RepositoryScanner(database).scan(repository)
     save_record(database, first.repository_id)
     manifest, _ = read_record(repository)
-    part = repository / "anaxigraph" / manifest["parts"][0]["path"]
+    part = repository / "anaxigraph" / manifest["views"][0]["path"]
     part.write_text("interrupted write")
     local = AnaxiIndex(tmp_path / "local.db")
     with pytest.raises(ValueError, match="incomplete or changed"):

@@ -84,7 +84,7 @@ def test_initializer_never_overwrites_without_force(repository: Path):
         "overwritten",
     ]
     assert load_config(repository).project_name == "Replacement"
-    assert '--history-snapshots\n      - "auto"' in compose.read_text(encoding="utf-8")
+    assert '--history-snapshots\n      - "0"' in compose.read_text(encoding="utf-8")
 
 
 def test_initializer_dry_run_and_json_cli_do_not_write(repository: Path, capsys):

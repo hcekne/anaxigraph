@@ -14,6 +14,7 @@ import yaml
 
 from anaxigraph.portable_paths import managed_record
 from anaxigraph.semantic_stage_model import SemanticStageModel, parse_stage_models
+from anaxigraph.storage_policy import StoragePolicy, storage_policy
 
 DEFAULT_IGNORE = tuple(
     """
@@ -158,6 +159,7 @@ class AnaxiGraphConfig:
     max_file_bytes: int = 2_000_000
     config_path: Path | None = None
     repository_record: bool = False
+    storage: StoragePolicy = field(default_factory=StoragePolicy)
 
     def is_ignored(self, path: str, *, is_dir: bool = False) -> bool:
         normalized = path.replace(os.sep, "/").removeprefix("./")
@@ -277,8 +279,6 @@ def _rules(value: Any) -> tuple[RuleConfig, ...]:
 def _choice(
     value: dict[str, Any], name: str, default: str, allowed: tuple[str, ...], note: str = ""
 ) -> str:
-    """Read one named setting that must be one of a fixed set, and say why when it is not."""
-
     chosen = str(value.get(name, default)).strip().lower().replace("-", "_")
     if chosen not in allowed:
         raise ValueError(f"semantic.{name} must be one of {', '.join(allowed)}{note}")
@@ -286,8 +286,6 @@ def _choice(
 
 
 def _spending(value: dict[str, Any]) -> tuple[float | None, float, float]:
-    """Read the daily budget and token prices, refusing figures that cannot be spent."""
-
     budget = float(raw) if (raw := value.get("daily_budget_usd")) is not None else None
     if budget is not None and budget < 0:
         raise ValueError("semantic.daily_budget_usd cannot be negative")
@@ -497,4 +495,5 @@ def load_config(repository: Path, config_path: Path | None = None) -> AnaxiGraph
         max_file_bytes=int(raw.get("max_file_bytes", 2_000_000)),
         config_path=selected if selected.exists() else None,
         repository_record=managed_record(repository),
+        storage=storage_policy(raw.get("storage")),
     )

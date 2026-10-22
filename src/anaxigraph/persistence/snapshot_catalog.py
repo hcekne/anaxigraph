@@ -32,7 +32,7 @@ def resolve_snapshot(
     if row is not None:
         return row
     return connection.execute(
-        "SELECT * FROM snapshots WHERE repository_id = ? ORDER BY id DESC LIMIT 1",
+        "SELECT * FROM snapshots WHERE repository_id = ? AND snapshot_kind != 'portable_analysis' ORDER BY id DESC LIMIT 1",
         (repository_id,),
     ).fetchone()
 
@@ -46,7 +46,7 @@ def read_snapshots(
     rows = connection.execute(
         """
         SELECT s.* FROM snapshots s
-        WHERE s.repository_id = ?
+        WHERE s.repository_id = ? AND s.snapshot_kind != 'portable_analysis'
         ORDER BY COALESCE(datetime(s.commit_timestamp), s.analysis_timestamp) DESC, s.id DESC
         LIMIT ?
         """,

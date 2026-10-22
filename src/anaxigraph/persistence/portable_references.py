@@ -55,6 +55,7 @@ JSON_REFERENCES = {
     "from_snapshot_id": "snapshots",
     "to_snapshot_id": "snapshots",
     "document_id": "semantic_documents",
+    "document_ids": "semantic_documents",
     "intrinsic_document_id": "semantic_documents",
     "context_document_id": "semantic_documents",
     "candidate_document_id": "semantic_documents",
@@ -125,4 +126,10 @@ class PortableReferences:
             result[column] = self.reference(table, column, value)
         if table in {"file_facts", "relationship_sets"}:
             result["fact_key" if table == "file_facts" else "set_key"] = key
+        if row.get("scope_type") in {"repository", "taxonomy"}:
+            prefix = str(row.get("repository_id"))
+            if row.get("scope_key") == prefix:
+                result["scope_key"] = "${REPOSITORY}"
+            elif str(row.get("scope_key", "")).startswith(prefix + ":review:"):
+                result["scope_key"] = "${REPOSITORY}" + row["scope_key"][len(prefix) :]
         return {"key": key, "value": result}

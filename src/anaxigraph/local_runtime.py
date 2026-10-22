@@ -26,7 +26,7 @@ class LocalRuntime:
     config_path: Path
     database_path: Path
     port: int = 8765
-    history_snapshots: HistorySnapshots = "auto"
+    history_snapshots: HistorySnapshots = 0
     open_browser: bool = False
 
     @property

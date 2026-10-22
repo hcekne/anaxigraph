@@ -27,11 +27,13 @@ from anaxigraph.semantic_background_slots import (
     heartbeat_expired,
     now,
     pid_exists,
+    prune_completed_runs,
     public_record,
     recent,
     semantic_background_runs,
     semantic_background_status,
     slot_directory,
+    trim_worker_log,
     worker_is_stopped,
 )
 
@@ -127,6 +129,7 @@ def launch_semantic_background(spec: SemanticBackgroundSpec) -> dict[str, Any]:
     active = semantic_background_status(spec.repository, spec.executor)
     if active and active["active"]:
         return already_running(active, spec)
+    prune_completed_runs(directory, keep=3)
     if active and active.get("status") == "stalled" and not _terminate_stalled_run(active):
         return {
             **active,
@@ -267,10 +270,12 @@ def _run_worker(record_path: Path, latest_path: Path, lock_path: Path) -> int:
         f"AnaxiGraph semantic run {record['run_id']} ended with status {record['status']}",
         flush=True,
     )
+    trim_worker_log(Path(record.get("log_path") or record_path.with_suffix(".log")))
     return exit_code
 
 
 def _run_child(record: dict[str, Any], record_path: Path, latest_path: Path) -> int:
+    log_path = Path(record.get("log_path") or record_path.with_suffix(".log"))
     environment = os.environ.copy()
     environment[PROGRESS_PATH_ENV] = str(record["progress_path"])
     process = subprocess.Popen(record["command"], env=environment)
@@ -278,6 +283,7 @@ def _run_child(record: dict[str, Any], record_path: Path, latest_path: Path) -> 
     _write_state(record, record_path, latest_path)
     next_heartbeat = 0.0
     while process.poll() is None:
+        trim_worker_log(log_path)
         _sync_progress(record, record_path, latest_path)
         if time.monotonic() >= next_heartbeat:
             record["heartbeat_at"] = now()
@@ -285,6 +291,7 @@ def _run_child(record: dict[str, Any], record_path: Path, latest_path: Path) -> 
             next_heartbeat = time.monotonic() + 10
         time.sleep(1)
     _sync_progress(record, record_path, latest_path)
+    trim_worker_log(log_path)
     return int(process.returncode or 0)
 
 

@@ -30,6 +30,36 @@ def slot_directory(repository: Path, executor: str = "") -> Path:
     return local_state_root() / "semantic-runs" / (f"{digest}-{slot}" if slot else digest)
 
 
+def prune_completed_runs(directory: Path, keep: int = 4) -> None:
+    records = []
+    for path in directory.glob("*.json"):
+        if not re.fullmatch(r"[a-f0-9-]{36}", path.stem) or path.is_symlink():
+            continue
+        try:
+            record = json.loads(path.read_text())
+        except (OSError, ValueError):
+            continue
+        if record.get("status") in {"starting", "running"} and pid_exists(
+            int(record.get("pid") or 0)
+        ):
+            continue
+        records.append(path)
+    for path in sorted(records, key=lambda path: path.stat().st_mtime, reverse=True)[keep:]:
+        for suffix in (".json", ".log", ".progress.json"):
+            path.with_name(path.stem + suffix).unlink(missing_ok=True)
+
+
+def trim_worker_log(path: Path, limit: int = 1_000_000) -> None:
+    if path.is_symlink() or not path.exists() or path.stat().st_size <= limit:
+        return
+    with path.open("r+b") as output:
+        output.seek(-limit + 64, 2)
+        tail = b"[Earlier worker log output discarded to keep storage bounded.]\n" + output.read()
+        output.seek(0)
+        output.write(tail)
+        output.truncate()
+
+
 def semantic_background_status(repository: Path, executor: str = "") -> dict[str, Any] | None:
     """Read one executor's detached-run state, or the most relevant run of any executor."""
 

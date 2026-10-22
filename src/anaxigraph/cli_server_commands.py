@@ -71,8 +71,8 @@ def _serve_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--history-snapshots",
         type=repository_registry.parse_history_snapshots,
-        default="auto",
-        help="How many earlier Git versions to map for one repository (default: auto)",
+        default=0,
+        help="How many earlier Git versions to map for one repository (default: 0; history is opt-in)",
     )
     parser.add_argument("--allow-agent-scan", action="store_true")
     parser.add_argument(

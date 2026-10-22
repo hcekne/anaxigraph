@@ -9,6 +9,7 @@ from functools import partial
 from typing import Any
 
 from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
+from anaxigraph.persistence.review_identity import prepare_review_identity
 from anaxigraph.persistence.semantic_taxonomy_carry import (
     TaxonomyCarry,
     TaxonomyStability,
@@ -17,7 +18,6 @@ from anaxigraph.persistence.semantic_taxonomy_carry import (
 from anaxigraph.persistence.semantic_taxonomy_resume import resume_taxonomy_proposal
 from anaxigraph.semantic_freshness import (
     TAXONOMY_PROPOSAL_CONTRACT,
-    TAXONOMY_REVIEW_CONTRACT,
     TAXONOMY_STABILITY_CONTRACT,
     semantic_input_hash,
 )
@@ -168,10 +168,8 @@ class SemanticTaxonomyPlanner:
             "review_pass": review_pass,
             "validation": validation,
         }
-        review_hash = semantic_input_hash(
-            TAXONOMY_REVIEW_CONTRACT,
-            semantic.prompt_version,
-            review_input,
+        review_hash = prepare_review_identity(
+            connection, repository_id, snapshot_id, semantic.prompt_version, review_input
         )
         review_metadata = {
             **metadata,

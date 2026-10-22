@@ -27,6 +27,10 @@ def resolved_graph_snapshot(
     snapshot = index.resolve_snapshot(repository_id, snapshot_id)
     if snapshot is None and snapshot_id is not None:
         raise ValueError(f"{label} snapshot does not belong to the repository")
+    if snapshot is not None and dict(snapshot).get("snapshot_kind") == "portable_analysis":
+        raise ValueError(
+            f"{label} was pruned from the local cache; saved analyses remain. Rebuild that Git revision before comparing its graph."
+        )
     return snapshot
 
 

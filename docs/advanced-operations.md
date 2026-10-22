@@ -482,13 +482,17 @@ POST /api/semantic/prepare  reconcile semantic work against the current snapshot
 
 ### Repository records and scheduled runs
 
-The tracked root `anaxigraph/` directory carries reusable understanding between cloud jobs and
-local checkouts. It is a versioned logical export, not a live database copy. `record.json` marks
-the directory as AnaxiGraph-owned; `manifest.json` identifies the analyzed source, contracts,
-checksums, per-analysis readiness and saved workflow choices. Mapping and analysis rows use sorted
-JSONL with content references rather than another machine's database IDs. Large collections split
-into stable hash partitions, normally under 2 MB. Readable `mapping/architecture.json` and
-`architecture/plan.json`, `plan.md`, `current.mmd` and `target.mmd` accompany the complete data.
+The tracked root `anaxigraph/` directory carries current understanding between cloud jobs and
+local checkouts. Record v2 contains concise module descriptions, the reviewed architecture,
+selected Pattern/Fresh Eyes analyses and plans, their model provenance and saved workflow choices.
+It does not exchange the historical SQL cache, symbols, dependency edges, findings, Git history,
+metrics, worker leases or queue payloads. Git is the history of the portable record.
+
+`record.json` marks the managed directory. `manifest.json` identifies source and analysis contracts,
+readiness and checksums. Small JSONL parts carry source file fingerprints and semantic results;
+relative paths and logical identities survive a clone at a different absolute path. Readable
+`mapping/architecture.json`, `architecture/plan.json`, `plan.md`, `current.mmd` and `target.mmd`
+are bounded by the same byte/file limits. Each server owns its MCP service and local SQLite cache.
 
 ```bash
 anaxigraph record save /path/to/repository --json
@@ -535,12 +539,66 @@ could not be saved; the JSON distinguishes completed workflows from failed publi
 process kill can lose work since the last shared checkpoint; keep the job's local index if you need
 every completed result retained. Ignore artifact-only pushes in source-triggered automation.
 
-Partition files are checked before import and the manifest is published last. An interrupted first
-save can resume; an incomplete or incompatible record does not replace a valid local cache.
-Old generated partitions are removed only after publishing the new manifest. Unchanged exports
-leave file contents untouched, including timestamps that only describe local polling or lock waits.
-The portable format accepts up to 512 MB and 4,096 partitions; exceptionally large records fail
-explicitly and retain the previous manifest rather than publishing an unreadable record.
+Byte and file-count checks run before any output is written. Failed writes remove new partitions
+and retain the last valid record. The manifest commits a checked set of content-addressed parts;
+old partitions are removed after successful publication. Unchanged exports leave file bytes alone.
+Current exclusions apply even when the old database still contains previously indexed runtime data.
+
+Default storage policy in `.anaxigraph.yml`:
+
+```yaml
+storage:
+  budget_bytes: 100000000
+  record_bytes: 25000000
+  index_bytes: 64000000
+  record_files: 32
+  comparison_checkpoints: 2
+  detailed_history: false
+```
+
+The record and index budgets must fit the total; the total cannot exceed 200 MB. SQLite page limits
+reject growth beyond the index allocation and roll back the write. The write-ahead log is also
+checked before admitting more analysis. A record is refused before export if it cannot fit; AnaxiGraph
+does not silently drop a selected plan to make room. Status reports actual index/WAL/record bytes.
+The active budget excludes installed tools and dependencies, Git's own history, and explicitly
+retained recovery backups. Detached executors keep four recent runs per slot and trim logs to 1 MB.
+
+Ordinary scans retain the current frame and two comparison checkpoints, materializing their state
+before pruning older delta chains. Saved designs/reviews and reusable file descriptions
+are retained as analysis-only records when their old graph is unnecessary. They do not become
+empty historical maps or fabricated comparison baselines. Detailed Git mapping is opt-in: use `--history-snapshots auto`, an explicit frame count,
+`anaxigraph history`, or `storage.detailed_history: true`. The dashboard’s explicit **Import Git history** action also opts in. A requested history import records that
+choice so later watcher scans do not immediately discard its result. All retained state still fits
+its configured budget.
+
+To migrate an existing index on the server that owns it, first stop ongoing scans/workers and set
+its startup `--history-snapshots` or registry `history_snapshots` to `0` if it previously used the
+old automatic default:
+
+```bash
+anaxigraph record compact /path/to/repository --db /path/to/anaxi-index.db --json
+```
+
+Compaction first makes one validated `*.before-current-storage.backup` recovery index, preserving
+original AI documents, reviews, plans and provenance without copying historical structural graphs.
+It is limited to 64 MB and its allowance is reserved against the 200 MB ceiling before writing.
+The original index is left intact if saved understanding cannot fit that recovery budget.
+It shortens legacy module descriptions unless detailed reviews are explicitly enabled, retains saved
+reviews/plans and choices, prunes disposable history and reclaims SQLite disk space. It exports v2
+without loading a failed legacy export first. The recovery backup is retained separately and its
+path is reported; retire it after verifying migration. The existing `anaxigraph restore` command can
+load it into a local index; a normal source scan rebuilds the graphs and reuses compatible file
+analyses. If one index serves multiple repositories, compact each checkout against that same `--db`. Compaction clears an implicit history opt-in;
+an explicit `storage.detailed_history: true` is respected. A previously oversized index can remain
+over budget when its selected analyses alone exceed the allocation; the receipt says so and new
+analysis is refused until the operator reduces that state or changes budgets within the ceiling.
+
+Start a fresh clone normally: its inexpensive source scan rebuilds deterministic indexes, validates
+file and analyzer fingerprints and reuses compatible AI descriptions. Changed files are not labelled
+current; older plans remain available with their original source. A record-only commit does not force
+new AI calls. Compatible small v1 records remain readable; oversized legacy records must be compacted
+from the server's original index before import. Local mapping, record export and Git delivery are
+reported separately; `committed`/`pushed` are unknown unless the caller verifies Git publication.
 
 Both uv and Docker services can read the folder. The default read-only Docker source mount cannot
 publish changes into it: save from a writable host service, or explicitly mount only the reserved

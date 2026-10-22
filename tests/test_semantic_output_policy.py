@@ -49,7 +49,7 @@ def test_claude_uses_native_or_inherited_output_allowance(monkeypatch, inherited
         "modules": [{"path": "core.py"}],
     }
     value = _agent_dossier(request)
-    value["summary"] = "Complete structured review with evidence. " * 9_000
+    value["summary"] = "Complete structured review with evidence. " * 10
     calls = []
 
     def run(command, **options):

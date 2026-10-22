@@ -60,7 +60,10 @@
         "anaxigraph.semantic_target_source",
         "anaxigraph.semantic_taxonomy_language",
         "anaxigraph.semantic_timeouts",
-        "anaxigraph.understandability"
+        "anaxigraph.understandability",
+        "anaxigraph.storage_policy",
+        "anaxigraph.storage_status",
+        "anaxigraph.portable_text"
       ],
       "may_import": [
         "foundation"
@@ -217,7 +220,8 @@
         "anaxigraph.understanding",
         "anaxigraph.workflow_execution",
         "anaxigraph.workflow_progress",
-        "anaxigraph.workflow_settings"
+        "anaxigraph.workflow_settings",
+        "anaxigraph.portable_binding"
       ],
       "may_import": [
         "foundation",

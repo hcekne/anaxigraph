@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -56,6 +57,8 @@ class HistoryRoutes:
         if not git.has_commits(target.path):
             raise HTTPException(status_code=400, detail="Repository has no Git history")
         self.context.admit_operation(int(row["id"]), "history_import", hold=False)
+        if target.history_snapshots == 0:
+            target = replace(target, history_snapshots="auto")
         started = self.context.history_service.start(target)
         return {
             "status": (

@@ -22,6 +22,10 @@ def requested_baseline(
     row = resolve_snapshot(connection, repository_id, requested)
     if row is None:
         raise ValueError("comparison snapshot does not belong to the selected repository")
+    if row["snapshot_kind"] == "portable_analysis":
+        raise ValueError(
+            "Comparison graph was pruned; saved analysis is retained. Rebuild that Git revision before reassessing against it."
+        )
     if int(row["id"]) > int(target["id"]):
         raise ValueError("comparison baseline must precede the target snapshot")
     _require_compatible(row, target)

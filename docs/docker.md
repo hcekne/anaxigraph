@@ -1,6 +1,7 @@
 # Docker operation
 
-Docker Compose is the recommended way to run AnaxiGraph. Target repositories are mounted
+Docker Compose runs AnaxiGraph as an isolated repository sidecar. Host uv is recommended for
+agent integration when the coding-agent logins already live on the host. Target repositories are mounted
 read-only, the SQLite graph lives in a named volume, and the dashboard is bound to localhost by
 default. One service can index and switch between multiple repositories.
 
@@ -96,7 +97,7 @@ repositories:
     history_snapshots: auto
 ```
 
-`history_snapshots: auto` is the default. It chooses at most 32 frames for up to 500 eligible files,
+Historical mapping is off by default. Opt in with `history_snapshots: auto`; it chooses at most 32 frames for up to 500 eligible files,
 24 for 501–2,000, 16 for 2,001–5,000, and 12 above 5,000. Sampling always keeps the initial commit
 and HEAD, then prioritizes release tags, architecture/configuration changes, calendar checkpoints,
 and dense recent history. Use an integer for an explicit cap, `0` to disable automatic history for

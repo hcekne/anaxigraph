@@ -18,7 +18,7 @@
 
 <p align="center">
   <a href="docs/onboarding.md">Get started</a> ·
-  <a href="docs/releases/0.8.3.md">What's new in 0.8.3</a> ·
+  <a href="docs/releases/0.8.4.md">What's new in 0.8.4</a> ·
   <a href="docs/agent-plugin.md">Agent plugin</a> ·
   <a href="docs/docker.md">Docker</a> ·
   <a href="docs/advanced-operations.md">Advanced</a> ·
@@ -74,8 +74,8 @@ dependencies. For regular use, install the command once with `uv tool install an
 with `uvx --refresh anaxigraph up . --open --semantic agent --connect codex`.
 
 This command creates or loads repository policy, stores AnaxiIndex outside the target, completes
-the current scan, starts the loopback dashboard and AnaxiMCP, and builds representative Git history
-in the background. Stop it with Ctrl-C; restart with the same command.
+the current scan, starts the loopback dashboard and AnaxiMCP. Historical mapping is opt-in with
+`--history-snapshots auto` or an explicit count. Stop it with Ctrl-C; restart with the same command.
 
 ### 2. Build understanding through Workflows
 
@@ -304,9 +304,16 @@ started, retried, or restarted.
 ## Carry the architecture with Git
 
 Workflow runs save reusable results in a tracked root `anaxigraph/` folder when writable. It carries
-the map, file understanding, relationships, findings, Pattern and Fresh Eyes results, model choices,
-and architecture plans. Stable JSON/JSONL partitions keep unchanged results untouched; Markdown and
-Mermaid make the chosen plan readable in Git. SQLite, live workers and temporary queues stay local.
+concise current file understanding, the reviewed architecture, selected Pattern/Fresh Eyes results,
+model provenance, workflow choices and architecture plans. Git preserves previous records. Each
+server rebuilds dependency graphs, symbols and other code-derived indexes locally; historical SQL
+caches, runtime data and worker queues are never exported by the current record format.
+
+The default budget is **100 MB of active analysis state**: at most **25 MB and 32 files** in the
+tracked record and **64 MB** for its local index. Configured budgets cannot exceed **200 MB**.
+Exports apply today's exclusions and check size/file limits before writing. Unchanged scans and
+exports reuse their existing state. Current plus two comparison checkpoints are retained locally;
+detailed historical mapping is opt-in. Markdown and Mermaid keep the chosen plan readable in Git.
 
 After pulling a repository, start AnaxiGraph normally. It validates and loads the shared record into
 its local query cache, reuses compatible results and checks local source changes. An artifact-only
@@ -322,8 +329,12 @@ The command saves completed and partial results, returns a nonzero exit status f
 or publication failure, and leaves Git commits/pushes to your scheduler. Configure Mapping nightly
 and the other workflows at their own cadence; unchanged model work is reused. Use
 `anaxigraph record save .` for an explicit save, or **Save shared architecture files** in Planning.
-See [repository records and scheduled runs](docs/advanced-operations.md#repository-records-and-scheduled-runs)
-for the format, interruption behavior, local overrides and container operation.
+Local mapping, record export and Git commit/push are separate results. For an existing bloated
+index, run `anaxigraph record compact . --db /path/to/anaxi-index.db --json` on its server. This
+backs up original saved understanding, preserves selected analyses, prunes disposable history, reclaims SQLite
+disk space and replaces the record with the compact format. Recovery backups are reported separately
+and remain until the operator retires them. See [repository records and scheduled runs](docs/advanced-operations.md#repository-records-and-scheduled-runs)
+for migration, limits and scheduling.
 
 ## 🐳 Durable Docker sidecar
 

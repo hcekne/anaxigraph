@@ -5199,3 +5199,22 @@ work, or weaken the public acceptance evidence recorded above. The deferred item
 deliberately did not admit — an AI adjudication job kind across generations, stable evidence
 identifiers, and feeding corrections into Charter synthesis — remain unadmitted and each names the
 evidence that would justify reopening it.
+
+
+## Current-checkout storage repair — 22 October 2026
+
+This admitted correctness repair strengthens Understand, Guide and Keep coherent by preventing a
+reported 3.22 GB failed export from making shared architecture unusable. It replaces the all-history
+SQL export with current semantic records, source fingerprints and local graph reconstruction; uses
+existing record/scan/workflow surfaces; makes historical mapping opt-in; and adds backed-up bounded
+retention, pre-write budgets, failed-write cleanup and concise module output. It adds no model
+provider, database table, MCP tool, primary screen or analysis pipeline. Acceptance covers excluded
+historical runtime files, independent Git clones, changed-file invalidation, unchanged scan/export
+growth, complete and partial AI reuse, backed-up saved reviews, partition failure and SQLite budget
+rollback. Tests use local synthetic repositories and deterministic model fixtures, not live model calls.
+
+The focused acceptance run passes 32 tests, including the actual migration command against verbose
+legacy AI data and review resumption with different local repository/document IDs. A real scan of
+AnaxiGraph's application source maps 719 files and 7,548 relationships in about 22 MB of SQLite.
+The exact source ratchet is recorded in `quality/maintainability-policy.json`; no general module,
+function, complexity, coverage or layer ceiling is raised.

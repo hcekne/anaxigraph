@@ -8,18 +8,22 @@ from typing import Any
 
 from filelock import FileLock
 
+from anaxigraph.config import load_config
 from anaxigraph.pattern_catalog import bundled_pattern_catalog
 from anaxigraph.persistence.portable_export import export_rows
 from anaxigraph.persistence.portable_import import merge_record
+from anaxigraph.portable_binding import bind_current_record, restore_inventory_claims
 from anaxigraph.portable_io import publish_record, read_record
-from anaxigraph.portable_paths import managed_record, record_directory, record_hash
+from anaxigraph.portable_paths import RECORD_FORMAT, managed_record, record_directory, record_hash
 from anaxigraph.portable_rebind import rebind_pattern_cache
 from anaxigraph.portable_views import record_views
 from anaxigraph.semantic_fresh_eyes_grounding import write_review_grounding
+from anaxigraph.storage_status import storage_status
 from anaxigraph.workflow_settings import WorkflowSettings
 
 
 def record_status(database: Any, repository_id: int) -> dict[str, Any]:
+    repository = database.repository(repository_id)
     with database.connect() as connection:
         row = connection.execute(
             "SELECT value FROM schema_meta WHERE key = ?", (f"portable-record:{repository_id}",)
@@ -27,35 +31,45 @@ def record_status(database: Any, repository_id: int) -> dict[str, Any]:
     return {
         "status": "loaded" if row else "not_present",
         "repository_id": repository_id,
+        "mapped_locally": database.latest_snapshot(repository_id) is not None,
+        "record_exported": bool(row)
+        and repository is not None
+        and (record_directory(Path(repository["path"])) / "manifest.json").is_file(),
+        "committed": None,
+        "pushed": None,
         **(json.loads(row[0]) if row else {}),
     }
 
 
-def save_record(database: Any, repository_id: int) -> dict[str, Any]:
+def save_record(
+    database: Any, repository_id: int, *, maintenance: bool = False, config: Any = None
+) -> dict[str, Any]:
     repository = database.repository(repository_id)
     if repository is None:
         raise ValueError("Repository is not indexed")
     root = Path(repository["path"])
+    config = config or _active_policy(database, repository_id, root)
+    policy = config.storage
     with FileLock(f"{database.path}.record.lock"):
         with database.connect() as connection:
             connection.execute("BEGIN")
-            tables, metadata = export_rows(connection, repository_id)
-            views = record_views(connection, repository_id)
+            tables, metadata = export_rows(connection, repository_id, config=config)
+            views = record_views(connection, repository_id, config=config)
             metadata["contracts"] = {
-                "prompt_version": _saved_prompt(connection, repository_id),
+                "prompt_version": config.semantic.prompt_version,
                 "pattern_catalog": bundled_pattern_catalog().fingerprint,
             }
         identities = metadata.pop("_cache_identities")
         metadata["workflow_choices"] = WorkflowSettings(database.path).portable_choices(
             repository_id
         )
-        result = publish_record(root, tables, metadata, views)
+        result = publish_record(root, tables, metadata, views, policy=policy)
         receipt = {
             "digest": record_hash(result["manifest"]),
             "source": metadata["source"],
             "snapshot_id": identities.get(metadata["source"]["snapshot"]),
         }
-        with database.transaction() as connection:
+        with database.transaction(maintenance=maintenance) as connection:
             for key, value in (
                 (f"portable-identities:{repository_id}", identities),
                 (f"portable-record:{repository_id}", receipt),
@@ -65,10 +79,20 @@ def save_record(database: Any, repository_id: int) -> dict[str, Any]:
                     (key, json.dumps(value, sort_keys=True)),
                 )
     result.pop("manifest", None)
+    result["storage"] = storage_status(database, root, policy)
     return result
 
 
-def load_record(database: Any, repository_id: int, root: Path, *, config: Any) -> dict[str, Any]:
+def _active_policy(database: Any, repository_id: int, root: Path) -> Any:
+    snapshot = database.latest_snapshot(repository_id)
+    metadata = json.loads(snapshot["metadata_json"] or "{}") if snapshot else {}
+    path = Path(metadata["config_path"]) if metadata.get("config_path") else None
+    return load_config(root, path if path and path.is_file() else None)
+
+
+def load_record(
+    database: Any, repository_id: int, root: Path, *, config: Any, after_scan: bool = False
+) -> dict[str, Any]:
     if not managed_record(root):
         return {"status": "not_present"}
     path = record_directory(root) / "manifest.json"
@@ -84,16 +108,47 @@ def load_record(database: Any, repository_id: int, root: Path, *, config: Any) -
     if prior and json.loads(prior[0]).get("digest") == digest:
         return {"status": "unchanged", **json.loads(prior[0])}
     manifest, tables = read_record(root)
+    if manifest.get("format") == RECORD_FORMAT and not after_scan:
+        return {"status": "awaiting_local_scan"}
     if manifest.get("index_schema") != 11:
         raise ValueError("Unsupported portable index schema")
     WorkflowSettings(database.path).restore_choices(
         repository_id, manifest.get("workflow_choices", {})
     )
+    receipt = _restore_understanding(
+        database, repository_id, root, manifest, tables, config, digest, key
+    )
+    return {"status": "loaded", **receipt}
+
+
+def _restore_understanding(
+    database: Any,
+    repository_id: int,
+    root: Path,
+    manifest: Any,
+    tables: Any,
+    config: Any,
+    digest: str,
+    key: str,
+) -> dict[str, Any]:
     with database.transaction() as connection:
-        result = merge_record(connection, repository_id, str(root), manifest, tables)
+        bindings = None
+        if manifest.get("format") == RECORD_FORMAT:
+            manifest = {
+                **manifest,
+                "files": [item["value"] for item in tables.pop("source_files", [])],
+            }
+            bindings, tables = bind_current_record(
+                connection, repository_id, manifest, tables, config
+            )
+        result = merge_record(
+            connection, repository_id, str(root), manifest, tables, bindings=bindings
+        )
+        if bindings is not None:
+            restore_inventory_claims(connection, repository_id)
         rebind_pattern_cache(connection, repository_id, manifest, config.semantic)
         reviews = connection.execute(
-            "SELECT id,snapshot_id FROM semantic_documents WHERE repository_id = ? AND document_kind = 'fresh_review'",
+            "SELECT d.id,d.snapshot_id FROM semantic_documents d JOIN snapshots s ON s.id=d.snapshot_id WHERE d.repository_id = ? AND d.document_kind = 'fresh_review' AND s.snapshot_kind != 'portable_analysis'",
             (repository_id,),
         ).fetchall()
         for review in reviews:
@@ -112,12 +167,4 @@ def load_record(database: Any, repository_id: int, root: Path, *, config: Any) -
             "INSERT INTO schema_meta(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
             (key, json.dumps(receipt, sort_keys=True)),
         )
-    return {"status": "loaded", **receipt}
-
-
-def _saved_prompt(connection: Any, repository_id: int) -> str | None:
-    row = connection.execute(
-        "SELECT prompt_version FROM semantic_documents WHERE repository_id = ? AND scope_type = 'repository' ORDER BY id DESC LIMIT 1",
-        (repository_id,),
-    ).fetchone()
-    return row[0] if row else None
+    return receipt

@@ -8,6 +8,7 @@ from typing import Any
 
 from anaxigraph.architecture_plan_read import architecture_plan_status
 from anaxigraph.portable_paths import canonical_json
+from anaxigraph.portable_text import filter_excluded
 
 
 class _RecordSnapshot:
@@ -24,7 +25,7 @@ class _RecordSnapshot:
         ).fetchone()
 
 
-def record_views(connection: Any, repository_id: int) -> dict[str, bytes]:
+def record_views(connection: Any, repository_id: int, *, config: Any = None) -> dict[str, bytes]:
     database = _RecordSnapshot(connection)
     snapshot = database.latest_snapshot(repository_id)
     if snapshot is None:
@@ -47,7 +48,9 @@ def record_views(connection: Any, repository_id: int) -> dict[str, bytes]:
                         if row["scope_type"] != "repository"
                         else "repository",
                         "fingerprint": row["input_hash"],
-                        "value": json.loads(row["value_json"]),
+                        "value": filter_excluded(json.loads(row["value_json"]), config)
+                        if config
+                        else json.loads(row["value_json"]),
                     }
                     for row in rows
                 ],

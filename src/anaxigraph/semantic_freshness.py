@@ -50,7 +50,9 @@ def semantic_input_hash(
     value = {
         "input_contract": contract,
         "prompt": prompt_version,
-        "mapping_contract": semantic_digest([MAPPING_SCHEMA, MAPPING_REQUIREMENTS]),
+        # Output brevity is presentation, not new code evidence. Keep the 0.8.3 identity so
+        # migrating existing descriptions does not schedule another complete paid AI pass.
+        "mapping_contract": "655d0971ab7ef7c85dda6bb9d1a2229cec1427ae14a05699c1ef946f198310f5",
         "understandability_policy": semantic_digest(UNDERSTANDABILITY_POLICY),
         "evidence": dict(evidence),
     }

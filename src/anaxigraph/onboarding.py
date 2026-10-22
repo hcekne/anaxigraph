@@ -30,7 +30,7 @@ def initialize_repository(
     compose_name: str | None = DEFAULT_COMPOSE_FILE,
     image: str = DEFAULT_CONTAINER_IMAGE,
     port: int = 8765,
-    history_snapshots: int | str = "auto",
+    history_snapshots: int | str = 0,
     semantic_mode: str | None = None,
     force: bool = False,
     dry_run: bool = False,

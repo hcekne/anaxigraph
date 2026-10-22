@@ -5,19 +5,27 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from anaxigraph.persistence.portable_current import (
+    SEMANTIC_TABLES,
+    current_rows,
+    portable_file_references,
+    preflight_rows,
+)
 from anaxigraph.persistence.portable_references import PortableReferences
 from anaxigraph.persistence.portable_rows import (
     decoded_row,
-    durable_rows,
     primary_columns,
     table_references,
 )
 
 
-def export_rows(connection: Any, repository_id: int) -> tuple[dict[str, Any], dict[str, Any]]:
-    source = durable_rows(connection, repository_id)
+def export_rows(
+    connection: Any, repository_id: int, *, config: Any
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    source = current_rows(connection, repository_id, config)
     repository = source["repositories"][0]
     root = repository["path"]
+    preflight_rows(source, config.storage.record_bytes)
     rows = {table: [decoded_row(row, root) for row in items] for table, items in source.items()}
     _normalize_volatile(rows)
     references = {table: table_references(connection, table) for table in rows}
@@ -29,39 +37,40 @@ def export_rows(connection: Any, repository_id: int) -> tuple[dict[str, Any], di
         rows, references, primary, json.loads(cached[0]) if cached else {}
     )
     tables = {
-        table: [identities.encode(table, row) for row in items] for table, items in rows.items()
+        table: [identities.encode(table, row) for row in items]
+        for table, items in rows.items()
+        if table in SEMANTIC_TABLES
     }
-    snapshot = next(
-        (row for row in source["snapshots"] if row["id"] == repository["current_snapshot_id"]), None
-    )
+    snapshot = source["snapshots"][0]
     metadata = _metadata(source, snapshot, identities)
+    tables["source_files"] = [
+        {"key": "source_files:" + item["fact"].split(":", 1)[1], "value": item}
+        for item in portable_file_references(source, identities)
+    ]
+    metadata["repository"]["key"] = identities.key("repositories", rows["repositories"][0])
+    metadata["contents"] = "current_understanding"
+    metadata["saved_sources"] = [
+        {
+            "snapshot": identities.key("snapshots", row),
+            "commit": row["commit_sha"],
+            "branch": row["branch"],
+            "fingerprint": row["content_fingerprint"],
+        }
+        for row in source["snapshots"]
+        if row["id"] != snapshot["id"]
+    ]
+    selected = {
+        (table, row["id"]) for table, items in source.items() for row in items if "id" in row
+    }
     metadata["_cache_identities"] = {
-        key: identifier for (table, identifier), key in identities.keys.items()
+        key: identifier
+        for (table, identifier), key in identities.keys.items()
+        if (table, identifier) in selected
     }
     return tables, metadata
 
 
 def _normalize_volatile(rows: Any) -> None:
-    snapshots = {row["id"]: row for row in rows["snapshots"]}
-    for repository in rows["repositories"]:
-        repository.pop("updated_at", None)
-    for snapshot in rows["snapshots"]:
-        snapshot["metadata_json"].pop("config_path", None)
-        snapshot["metadata_json"].pop("verified_commit_sha", None)
-        earliest = min(
-            (
-                run["started_at"]
-                for run in rows["analysis_runs"]
-                if run["snapshot_id"] == snapshot["id"]
-            ),
-            default=None,
-        )
-        if earliest:
-            snapshot["analysis_timestamp"] = earliest
-    for finding in rows["findings"]:
-        finding["last_detected_at"] = snapshots[finding["last_snapshot_id"]]["analysis_timestamp"]
-    for occurrence in rows["finding_occurrences"]:
-        occurrence["detected_at"] = snapshots[occurrence["snapshot_id"]]["analysis_timestamp"]
     documents = {row["id"]: row for row in rows["semantic_documents"]}
     for state in rows["semantic_scope_states"]:
         document = documents.get(

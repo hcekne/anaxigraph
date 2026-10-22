@@ -18,7 +18,7 @@ class RepositoryTarget:
     key: str
     path: Path
     config_path: Path | None = None
-    history_snapshots: HistorySnapshots = "auto"
+    history_snapshots: HistorySnapshots = 0
 
 
 def load_repository_registry(path: str | Path) -> tuple[RepositoryTarget, ...]:
@@ -60,7 +60,7 @@ def load_repository_registry(path: str | Path) -> tuple[RepositoryTarget, ...]:
         config_value = value.get("config")
         if config_value is not None and not isinstance(config_value, str):
             raise ValueError(f"Repository '{key}' config must be a path string")
-        history_snapshots = parse_history_snapshots(value.get("history_snapshots", "auto"))
+        history_snapshots = parse_history_snapshots(value.get("history_snapshots", 0))
         targets.append(
             RepositoryTarget(
                 key=key,

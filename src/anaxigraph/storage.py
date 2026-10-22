@@ -15,6 +15,7 @@ from filelock import FileLock
 
 import anaxigraph.persistence.index_facade as persistence
 from anaxigraph.models import GitMetadata
+from anaxigraph.storage_policy import StoragePolicy, admit_index_write
 
 SCHEMA_VERSION = persistence.SCHEMA_VERSION
 _WRITE_LOCK_WAIT_SECONDS = 120
@@ -49,12 +50,18 @@ class AnaxiIndex:
 
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path).expanduser().resolve()
+        self.storage_policy = StoragePolicy()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.initialize()
 
     def connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.path, timeout=30)
         connection.row_factory = sqlite3.Row
+        page_size = connection.execute("PRAGMA page_size").fetchone()[0]
+        connection.execute(
+            f"PRAGMA max_page_count = {self.storage_policy.index_bytes // page_size}"
+        )
+        connection.execute("PRAGMA journal_size_limit = 4000000")
         connection.execute("PRAGMA foreign_keys = ON")
         connection.execute("PRAGMA journal_mode = WAL")
         connection.execute("PRAGMA busy_timeout = 30000")
@@ -69,14 +76,23 @@ class AnaxiIndex:
         )
 
     @contextlib.contextmanager
-    def transaction(self) -> Iterator[sqlite3.Connection]:
+    def transaction(self, *, maintenance: bool = False) -> Iterator[sqlite3.Connection]:
         connection = self.connect()
         try:
             _begin_write(connection)
+            if not maintenance:
+                admit_index_write(connection, self.path, self.storage_policy)
             yield connection
             connection.commit()
-        except Exception:
+        except Exception as error:
             connection.rollback()
+            if (
+                isinstance(error, sqlite3.OperationalError)
+                and getattr(error, "sqlite_errorcode", None) == sqlite3.SQLITE_FULL
+            ):
+                raise ValueError(
+                    "AnaxiGraph local index budget reached. Run 'anaxigraph record compact' on this server, exclude generated/runtime files or retain fewer checkpoints; the write was rolled back."
+                ) from error
             raise
         finally:
             connection.close()

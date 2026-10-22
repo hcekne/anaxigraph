@@ -91,10 +91,13 @@ def test_interrupted_update_retains_the_previous_complete_record(repository, dat
 def test_checked_foreign_keys_cannot_point_at_another_local_repository(
     repository, database, tmp_path
 ):
+    from fresh_eyes_support import baseline_review
+
+    review = baseline_review(repository, database)
     stats = RepositoryScanner(database).scan(repository)
-    save_record(database, stats.repository_id)
+    save_record(database, review.repository_id)
     manifest, _ = read_record(repository)
-    part = next(item for item in manifest["parts"] if item["table"] == "artifacts")
+    part = next(item for item in manifest["parts"] if item["table"] == "semantic_documents")
     path = repository / "anaxigraph" / part["path"]
     rows = [json.loads(line) for line in path.read_text().splitlines()]
     rows[0]["value"]["repository_id"] = 999
@@ -107,7 +110,7 @@ def test_checked_foreign_keys_cannot_point_at_another_local_repository(
         RepositoryScanner(local).scan(repository)
     assert database.latest_snapshot(stats.repository_id)["id"] == stats.snapshot_id
     with local.connect() as connection:
-        assert connection.execute("SELECT COUNT(*) FROM snapshots").fetchone()[0] == 0
+        assert connection.execute("SELECT COUNT(*) FROM snapshots").fetchone()[0] == 1
 
 
 def test_cached_record_is_not_decoded_again_on_each_scan(
@@ -176,21 +179,47 @@ def test_export_uses_one_read_snapshot_for_tables_and_readable_views(
     snapshot = database.latest_snapshot(first.repository_id)
     views = portable_record.record_views
 
-    def concurrent_edit(connection, repository_id):
+    def concurrent_edit(connection, repository_id, **options):
         (repository / "pkg" / "changed.py").write_text("CHANGED = True\n")
         RepositoryScanner(database).scan(repository)
-        return views(connection, repository_id)
+        return views(connection, repository_id, **options)
 
     monkeypatch.setattr(portable_record, "record_views", concurrent_edit)
     save_record(database, first.repository_id)
     manifest, tables = read_record(repository)
-    assert manifest["source"]["snapshot"] == next(
-        row["key"]
-        for row in tables["snapshots"]
-        if row["value"]["content_fingerprint"] == snapshot["content_fingerprint"]
-    )
+    assert manifest["source"]["fingerprint"] == snapshot["content_fingerprint"]
     assert database.latest_snapshot(first.repository_id)["id"] != first.snapshot_id
-    assert len(tables["snapshots"]) == 1
+    assert "snapshots" not in tables
     readable = json.loads((repository / "anaxigraph/mapping/architecture.json").read_bytes())
     assert readable["source_commit"] == snapshot["commit_sha"]
     assert record_status(database, first.repository_id)["snapshot_id"] == first.snapshot_id
+
+
+def test_orphan_cleanup_failure_blocks_new_output_before_it_can_accumulate(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    import anaxigraph.portable_io as io
+
+    publish_record(tmp_path, {}, {})
+    orphan = tmp_path / "anaxigraph/mapping/artifacts-0-000000000000000000000000.jsonl"
+    orphan.parent.mkdir(exist_ok=True)
+    orphan.write_text("left by an earlier interrupted writer")
+    before = {str(path): path.read_bytes() for path in tmp_path.rglob("*") if path.is_file()}
+    unlink = Path.unlink
+
+    def cannot_remove(path, *args, **kwargs):
+        if path == orphan:
+            raise PermissionError("orphan cleanup blocked")
+        return unlink(path, *args, **kwargs)
+
+    def no_write(*args):
+        raise AssertionError("a blocked cleanup must stop before writing more partitions")
+
+    monkeypatch.setattr(Path, "unlink", cannot_remove)
+    monkeypatch.setattr(io, "_write_if_changed", no_write)
+    with pytest.raises(PermissionError, match="cleanup blocked"):
+        publish_record(tmp_path, {"new": [{"key": "new:a", "value": 1}]}, {})
+    assert {
+        str(path): path.read_bytes() for path in tmp_path.rglob("*") if path.is_file()
+    } == before
+    read_record(tmp_path)

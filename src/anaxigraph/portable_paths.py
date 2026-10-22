@@ -8,7 +8,8 @@ from pathlib import Path
 from typing import Any
 
 RECORD_DIRECTORY = "anaxigraph"
-RECORD_FORMAT = "anaxigraph-record-v1"
+RECORD_FORMAT = "anaxigraph-record-v2"
+LEGACY_RECORD_FORMAT = "anaxigraph-record-v1"
 
 
 def record_directory(root: Path) -> Path:

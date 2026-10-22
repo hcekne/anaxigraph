@@ -41,32 +41,6 @@ EXTRA_REFERENCES = {
 }
 
 
-def durable_rows(connection: Any, repository_id: int) -> dict[str, list[dict[str, Any]]]:
-    result = {"repositories": _query(connection, "repositories", "id = ?", (repository_id,))}
-    for table in REPOSITORY_TABLES:
-        result[table] = _query(connection, table, "repository_id = ?", (repository_id,))
-    for table, (column, parent) in RELATED_TABLES.items():
-        identifiers = [row["id"] for row in result[parent]]
-        result[table] = _selected(connection, table, column, identifiers)
-    result["metrics"] = [
-        row for row in result["metrics"] if row["entity_type"] != "semantic_plan_transaction"
-    ]
-    result["semantic_jobs"] = _query(
-        connection, "semantic_jobs", "repository_id = ? AND status = 'completed'", (repository_id,)
-    )
-    result["analysis_runs"] = _query(
-        connection,
-        "analysis_runs",
-        "repository_id = ? AND run_type IN ('scan', 'agent_context', 'watch', 'up') "
-        "AND status IN ('completed', 'completed_with_errors')",
-        (repository_id,),
-    )
-    for row in result["semantic_jobs"]:
-        for field in ("worker_id", "lease_expires_at", "lease_token_hash", "error"):
-            row[field] = None
-    return result
-
-
 def table_references(connection: Any, table: str) -> dict[str, str]:
     references = {
         row["from"]: "snapshots" if row["to"] == "snapshot_id" else row["table"]
@@ -113,20 +87,24 @@ def decoded_row(row: dict[str, Any], root: str) -> dict[str, Any]:
     return result
 
 
-def _query(connection: Any, table: str, where: str, parameters: Any) -> list[dict[str, Any]]:
+def _query(
+    connection: Any, table: str, where: str, parameters: Any, columns: str = "*"
+) -> list[dict[str, Any]]:
     return [
         dict(row)
-        for row in connection.execute(f'SELECT * FROM "{table}" WHERE {where}', parameters)
+        for row in connection.execute(f'SELECT {columns} FROM "{table}" WHERE {where}', parameters)
     ]
 
 
 def _selected(
-    connection: Any, table: str, column: str, identifiers: list[int]
+    connection: Any, table: str, column: str, identifiers: list[int], *, columns: str = "*"
 ) -> list[dict[str, Any]]:
     rows = []
     for offset in range(0, len(identifiers), 500):
         chunk = identifiers[offset : offset + 500]
         rows.extend(
-            _query(connection, table, f"{column} IN ({','.join('?' for _ in chunk)})", chunk)
+            _query(
+                connection, table, f"{column} IN ({','.join('?' for _ in chunk)})", chunk, columns
+            )
         )
     return rows

@@ -40,8 +40,8 @@ def configure_up_command(
     up.add_argument(
         "--history-snapshots",
         type=parse_history_snapshots,
-        default="auto",
-        help="Background Git history frames: auto or 0 to 2000 (default: auto)",
+        default=0,
+        help="Background Git history frames: auto or 0 to 2000 (default: 0; history is opt-in)",
     )
     up.add_argument(
         "--db", type=Path, help="Explicit AnaxiIndex path (default: per-repo user state)"
@@ -165,7 +165,7 @@ def _restart_command(args: Namespace, repository: Path) -> str:
     command = ["uvx", "anaxigraph", "up", str(repository)]
     if args.port != 8765:
         command.extend(("--port", str(args.port)))
-    if args.history_snapshots != "auto":
+    if args.history_snapshots != 0:
         command.extend(("--history-snapshots", str(args.history_snapshots)))
     if args.db:
         command.extend(("--db", str(args.db.expanduser().resolve())))

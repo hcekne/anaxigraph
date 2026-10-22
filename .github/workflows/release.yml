@@ -230,23 +230,17 @@ jobs:
           path.write_text("---\n" + head + "\n---\n" + body, encoding="utf-8")
           pathlib.Path(os.environ["GITHUB_OUTPUT"]).open("a").write("changed=true\n")
           PY
-      - name: Open a self-merging pull request with the evidence
+      - name: Commit publication evidence to main
         if: steps.ledger.outputs.changed == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.build.outputs.version }}
         run: |
           set -euo pipefail
-          branch="docs/close-${VERSION}-ledger"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b "${branch}"
           git commit -am "docs: record ${VERSION} publication evidence"
-          git push origin "${branch}"
-          gh pr create --base main --head "${branch}" \
-            --title "docs: record ${VERSION} publication evidence" \
-            --body "Filled in by the release workflow so the ledger agrees with PyPI. The pre-push record check fails while it does not."
-          gh pr merge "${branch}" --rebase --auto --delete-branch
+          git pull --rebase origin main
+          git push origin HEAD:main
 
   verify-pypi:
     name: Verify public installation

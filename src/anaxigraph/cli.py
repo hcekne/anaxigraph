@@ -16,6 +16,12 @@ def main(argv: list[str] | None = None) -> None:
             emit_json(result)
             if args.command == "refresh" and result.get("status") != "complete":
                 raise SystemExit(1)
+            if (
+                args.command == "record"
+                and args.action == "compact"
+                and not result["storage"]["within_budget"]
+            ):
+                raise SystemExit(1)
     except KeyboardInterrupt:
         print("\nStopped.", file=sys.stderr)
         raise SystemExit(130) from None
