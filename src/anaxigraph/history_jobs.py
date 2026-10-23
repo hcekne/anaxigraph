@@ -17,6 +17,7 @@ from anaxigraph.clock import utc_now
 from anaxigraph.history import HistoryImportCancelled, import_git_history
 from anaxigraph.registry import RepositoryTarget
 from anaxigraph.storage import AnaxiIndex
+from anaxigraph.storage_usage import file_size_if_present
 
 ACTIVE_STATES = frozenset({"queued", "enumerating", "importing", "finalizing"})
 JOB_TYPE = "history_import"
@@ -452,9 +453,8 @@ class HistoryJobService:
                 """
             ).fetchone()
         size = sum(
-            path.stat().st_size
+            file_size_if_present(path)
             for path in (self.database.path, Path(f"{self.database.path}-wal"))
-            if path.exists()
         )
         return int(row["rows"]), size
 

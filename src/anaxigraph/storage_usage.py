@@ -68,10 +68,17 @@ def registered_record_usage(connection, *, replacing_root=None, replacement_byte
     return {"bytes": size, "records": count + int(replaced is not None)}
 
 
+def file_size_if_present(path):
+    try:
+        return Path(path).stat().st_size
+    except FileNotFoundError:
+        return 0
+
+
 def index_file_usage(path):
     path = Path(path)
     return {
-        name: candidate.stat().st_size if candidate.exists() else 0
+        name: file_size_if_present(candidate)
         for name, candidate in (
             ("index_bytes", path),
             ("wal_bytes", Path(str(path) + "-wal")),

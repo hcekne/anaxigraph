@@ -16,7 +16,7 @@
       ".css",
       ".html"
     ],
-    "baseline_lines": 79053
+    "baseline_lines": 79060
   },
   "function_limits": {
     "warning_lines": 40,
@@ -29,6 +29,7 @@
     "hard": 12
   },
   "policy_notes": {
+    "sqlite_sidecar_measurement": "Release CI reproduced a normal SQLite checkpoint removing WAL between existence and size checks, failing durable history recovery. One shared stat helper tolerates only FileNotFoundError; history retains DB plus WAL accounting and storage retains DB/WAL/SHM fields. Three deterministic disappearance cases fail on the previous code; all seven new cases and 22 focused recovery/storage tests pass after the repair, including propagation of permission and other I/O errors. The measured production baseline increases exactly seven lines from 79053 to 79060. No storage policy, generic complexity, module or dependency ceiling changes.",
     "optional_model_deadlines": "User-reported step-5 Claude failure was a 300-second AnaxiGraph subprocess timeout hidden behind the full JSON-schema command. Model deadlines now default to null; explicit limits remain enforced and renewable leases retain bounded crash recovery. Runtime and historical workflow errors show the cause before truncation, and dashboard settings explain the effective deadline. Acceptance: 151 focused Python tests include a real local fake-Claude process, explicit termination, nullable policy/background transport, lease contention and recovery, and a SQLite review retry that preserves the completed OpenAI pass; seven browser contracts cover settings and retained workflow evidence. No live model calls are made. Exact production baseline moves from 67837 to 67899 lines for this repair, with existing module, function and dependency limits retained.",
     "function_identity": "path::qualified_name maps to [physical lines, cyclomatic complexity]",
     "coupling_identity": "module maps to [fan-in, fan-out]",
