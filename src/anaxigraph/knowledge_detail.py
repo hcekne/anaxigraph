@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-from contextlib import closing
-
 from anaxigraph.knowledge_legacy import legacy_connections, legacy_node, legacy_obligations
 from anaxigraph.knowledge_query import graph_context
-from anaxigraph.knowledge_sync import ensure_knowledge
+from anaxigraph.knowledge_sync import graph_read
 from anaxigraph.knowledge_unresolved import (
     unresolved_connections,
     unresolved_counts,
@@ -25,9 +23,7 @@ from anaxigraph.knowledge_values import (
 def entity_detail(
     database, repository_id, entity_id, snapshot_id=None, *, legacy_offset=0, legacy_limit=25
 ):
-    snapshot = ensure_knowledge(database, repository_id, snapshot_id)
-    with closing(database.connect()) as connection:
-        connection.execute("BEGIN")
+    with graph_read(database, repository_id, snapshot_id) as (connection, snapshot):
         node = _node(connection, snapshot, entity_id)
         clause, parameters = _child_scope(node, snapshot)
         children = connection.execute(
@@ -143,14 +139,12 @@ def neighborhood(
     limit=100,
     evidence_state="",
 ):
-    snapshot = ensure_knowledge(database, repository_id, snapshot_id)
     if direction not in {"incoming", "outgoing", "both"} or not 1 <= depth <= 3:
         raise ValueError("Invalid neighborhood direction or depth")
     if evidence_state not in EVIDENCE_STATES:
         raise ValueError("Unsupported evidence state")
     limit = min(500, max(1, int(limit)))
-    with closing(database.connect()) as connection:
-        connection.execute("BEGIN")
+    with graph_read(database, repository_id, snapshot_id) as (connection, snapshot):
         _node(connection, snapshot, entity_id)
         selected, links, bounded = _walk(
             connection,

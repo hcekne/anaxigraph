@@ -31,7 +31,7 @@ from anaxigraph.architecture_charter import architecture_charter
 from anaxigraph.architecture_plan_read import planning_guidance
 from anaxigraph.config import AnaxiGraphConfig
 from anaxigraph.knowledge_agent import focus_context, resolve_entity_focus
-from anaxigraph.knowledge_sync import ensure_knowledge
+from anaxigraph.knowledge_sync import graph_read
 from anaxigraph.storage import AnaxiIndex
 from anaxigraph.understanding import SemanticEngine
 
@@ -49,8 +49,7 @@ def architecture_guidance(
     started = time.perf_counter()
     config = config if details else _compact_config(config)
     repository, snapshot_id, map_status = _repository_map_state(database, repository_id)
-    ensure_knowledge(database, repository_id, snapshot_id)
-    with database.connect() as connection:
+    with graph_read(database, repository_id, snapshot_id) as (connection, snapshot_id):
         evidence = _guidance_evidence(connection, repository_id, snapshot_id, goal, focus, config)
     decision = _scope_decision(
         database,

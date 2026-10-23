@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections import defaultdict
+from contextlib import closing, contextmanager
 from typing import Any
 
 from anaxigraph.knowledge_annotation import attach_annotation
@@ -19,6 +20,34 @@ from anaxigraph.knowledge_nodes import (
 )
 from anaxigraph.knowledge_schema import KNOWLEDGE_VERSION, install_knowledge_schema
 from anaxigraph.persistence.semantic_evidence import knowledge_snapshot_inputs
+
+
+class GraphCacheBusyError(RuntimeError):
+    """Another graph revision repeatedly replaced the requested rebuildable cache."""
+
+
+@contextmanager
+def graph_read(database: Any, repository_id: int, snapshot_id: int | None = None):
+    """Pin the selected graph, source facts and semantic references in one read snapshot."""
+    chosen = snapshot_id
+    for _attempt in range(3):
+        chosen = ensure_knowledge(database, repository_id, chosen)
+        with closing(database.connect()) as connection:
+            connection.execute("BEGIN")
+            if _graph_ready(connection, chosen):
+                yield connection, chosen
+                return
+        # Rebuilding can write and compact the index: release the reader first.
+    raise GraphCacheBusyError("Graph cache changed repeatedly; retry the request")
+
+
+def _graph_ready(connection, snapshot):
+    return connection.execute(
+        "SELECT 1 FROM graph_revisions r JOIN snapshots s ON s.id=r.snapshot_id "
+        "WHERE r.snapshot_id=? AND r.contract_version=? "
+        "AND r.source_fingerprint=s.content_fingerprint",
+        (snapshot, KNOWLEDGE_VERSION),
+    ).fetchone()
 
 
 def sync_knowledge(connection: sqlite3.Connection, snapshot_id: int, *, force=False) -> None:
@@ -172,10 +201,7 @@ def ensure_knowledge(database: Any, repository_id: int, snapshot_id: int | None 
         ).fetchone()
         if not snapshot or snapshot[0] != repository_id:
             raise ValueError("Snapshot does not belong to this repository")
-        ready = connection.execute(
-            "SELECT 1 FROM graph_revisions WHERE snapshot_id=? AND contract_version=?",
-            (chosen, KNOWLEDGE_VERSION),
-        ).fetchone()
+        ready = _graph_ready(connection, chosen)
     if not ready:
         database.rebuild_graph_cache(int(chosen))
     return int(chosen)

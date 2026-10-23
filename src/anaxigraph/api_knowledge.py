@@ -13,6 +13,7 @@ from anaxigraph.knowledge_subjects import (
     subject_neighborhood,
     subject_page,
 )
+from anaxigraph.knowledge_sync import GraphCacheBusyError
 
 
 class KnowledgeRoutes:
@@ -68,6 +69,8 @@ class KnowledgeRoutes:
                 return subject_page(graph, **filters)
             _require_observed(graph_kind)
             return entity_page(self.database, int(repository["id"]), snapshot_id, **filters)
+        except GraphCacheBusyError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -99,6 +102,8 @@ class KnowledgeRoutes:
                 legacy_offset=legacy_offset,
                 legacy_limit=legacy_limit,
             )
+        except GraphCacheBusyError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -142,6 +147,8 @@ class KnowledgeRoutes:
                 limit=limit,
                 evidence_state=evidence_state,
             )
+        except GraphCacheBusyError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 

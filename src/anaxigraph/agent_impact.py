@@ -15,7 +15,7 @@ from anaxigraph.agent_payload import (
 )
 from anaxigraph.graph_contract import _response_payload_bytes, _with_response_telemetry
 from anaxigraph.knowledge_agent import focus_context, resolve_entity_focus, scoped_dependencies
-from anaxigraph.knowledge_sync import ensure_knowledge
+from anaxigraph.knowledge_sync import graph_read
 from anaxigraph.persistence.snapshot_projection import resolve_projected_target
 
 
@@ -111,8 +111,7 @@ def _impact_graph(database: Any, repository_id: int, target: str) -> _ImpactGrap
     _repository, snapshot_id, map_status = agent_graph._repository_map_state(
         database, repository_id
     )
-    ensure_knowledge(database, repository_id, snapshot_id)
-    with database.connect() as connection:
+    with graph_read(database, repository_id, snapshot_id) as (connection, snapshot_id):
         files, outgoing, incoming = agent_graph._projected_graph_maps(connection, snapshot_id)
         selected = resolve_entity_focus(connection, snapshot_id, target)
         target_id = resolve_projected_target(

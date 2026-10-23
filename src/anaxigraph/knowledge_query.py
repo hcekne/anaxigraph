@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import json
-from contextlib import closing
 from typing import Any
 
 from anaxigraph.knowledge_schema import KNOWLEDGE_VERSION
-from anaxigraph.knowledge_sync import ensure_knowledge
+from anaxigraph.knowledge_sync import graph_read
 from anaxigraph.knowledge_unresolved_query import unresolved_page
 from anaxigraph.knowledge_values import (
     EVIDENCE_STATES,
@@ -86,7 +85,6 @@ def _structural_context(metadata):
 
 
 def entity_page(database, repository_id, snapshot_id=None, **filters) -> dict[str, Any]:
-    snapshot_id = ensure_knowledge(database, repository_id, snapshot_id)
     limit = min(1000, max(1, int(filters.get("limit", 100))))
     offset = max(0, int(filters.get("offset", 0)))
     sort = filters.get("sort", "path")
@@ -95,12 +93,11 @@ def entity_page(database, repository_id, snapshot_id=None, **filters) -> dict[st
     direction = str(filters.get("direction", "asc")).lower()
     if direction not in {"asc", "desc"}:
         raise ValueError("Sort direction must be asc or desc")
-    where, parameters = _where(snapshot_id, filters)
     map_layer = filters.get("map_layer", "current")
     if map_layer not in {"current", "responsibility", "declared", "path"}:
         raise ValueError("Unsupported graph grouping layer")
-    with closing(database.connect()) as connection:
-        connection.execute("BEGIN")
+    with graph_read(database, repository_id, snapshot_id) as (connection, snapshot_id):
+        where, parameters = _where(snapshot_id, filters)
         if filters.get("kind") == "unresolved" or filters.get("evidence_state") == "unresolved":
             return unresolved_page(
                 connection,

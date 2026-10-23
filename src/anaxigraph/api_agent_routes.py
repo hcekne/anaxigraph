@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 import anaxigraph.api_support as api_support
 from anaxigraph.architecture_reassessment import architecture_reassessment
+from anaxigraph.knowledge_sync import GraphCacheBusyError
 
 FRESH_EYES_START_OPERATION = "fresh_eyes_start"
 
@@ -96,6 +97,8 @@ class AgentRoutes:
                 finding_id=finding_id,
                 config=self.context.selected_config(row),
             )
+        except GraphCacheBusyError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -111,6 +114,8 @@ class AgentRoutes:
                 focus=request.focus,
                 details=request.details,
             )
+        except GraphCacheBusyError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -124,6 +129,8 @@ class AgentRoutes:
                 config=self.context.selected_config(row),
                 details=request.details,
             )
+        except GraphCacheBusyError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
