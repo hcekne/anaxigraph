@@ -15,6 +15,11 @@ and use the [code audit, prompt drafts and research checklist](graph-and-archite
 for follow-up. These are investigation and design proposals; their implementation is not claimed
 by the earlier completed workflow and storage checklists.
 
+The clarified requirements are source-blind Fresh Eyes at product/capability/subsystem levels with
+several retained alternatives, and explicit evaluation of every pattern catalogue entry with ratings,
+pros and cons. Pattern usefulness does not require a bug. The common agent-interface example is
+one opportunity among many, not a preferred answer or a filter for the catalogue.
+
 ## Workflow experience and repository-carried architecture — 21 October 2026
 
 **Implementation and publication authorized.** This queue extends the completed usage-feedback

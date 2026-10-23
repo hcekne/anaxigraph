@@ -16,8 +16,9 @@ misses known problems is a product failure to investigate, even when storage fit
 - Study the gap between recalling a principle and applying it in a new situation. Preserve the
   analogy between reciting a car manual or UK driving rules and actually driving or passing a test.
   Investigate model training, combinations of learned skills, and the surrounding agent harness.
-- Draft stronger prompts: five different ways to organize the same application, comparison of all
-  alternatives, and the strongest concrete criticism of an existing boundary or subsystem.
+- Draft explicit prompts for alternatives at product, capability and subsystem levels: three
+  retained designs, optionally explored from five sketches, compared without collapsing to one.
+  Fresh Eyes remains implementation-blind; source-aware criticism belongs outside that workflow.
 - Make the code graph the primary product, approximately 90% of the maintainer's intended value.
   Show modules, functions, interfaces and their relationships; explain how behavior flows through
   them. Include module LOC and function counts, a one-sentence overview, a short paragraph for
@@ -38,6 +39,31 @@ misses known problems is a product failure to investigate, even when storage fit
   whether extensive writing and per-file analysis are displacing those outcomes.
 - Preserve the earlier storage preference: roughly 100 MB of generated state is preferred, with
   200 MB described as an absolute ceiling. A cache being below the latter does not justify its size.
+
+## Clarified requirements from the maintainer
+
+- Fresh Eyes must never inspect raw code or learn the existing architecture. Its input is purpose,
+  functionality, observable inputs/outputs and functional dependencies, with implementation details
+  removed. Source blindness is the point of the workflow, not a defect to repair.
+- Work through functional hierarchies: overall product purpose, capability areas and the functions
+  of subsystems/modules, including frontend/backend roles where relevant. At each reviewed level,
+  propose several good ways to deliver the same functionality. Preserve three strong alternatives;
+  exploring five materially different sketches is also consistent with the request.
+- Flowthink's top-level promise is a second brain combining files/folders and connected tools—email,
+  Google Drive, Shopify and other MCP servers—with the ability to run agentic workflows. Mapping
+  should be able to extract that kind of high-level description.
+- Patterns deliberately uses a catalogue. The requirement is explicit consideration of the entire
+  catalogue, with contextual ratings, pros, cons and reasons for every entry. Priority can order
+  deeper investigation, but must not silently remove patterns from consideration.
+- Useful patterns can improve working code. A concrete bug or failure is not a prerequisite.
+  Evaluate opportunities for clearer abstractions and better architecture, as well as existing fit.
+- A common agent contract with provider-specific implementations is one supplied example among
+  dozens of possibilities. The review and benchmark must cover many catalogue families rather than
+  anchor on that one abstraction. The missed opportunity is applying a known useful idea without
+  being told its name or the desired answer.
+- Instructions must spell out the work for each catalogue entry. Do not rely on agents volunteering
+  suitable patterns from a general request for a review. Track every catalogue ID and distinguish
+  assessed poor fit, unresolved evidence and work that was never assessed.
 
 ## Run figures supplied with the feedback
 
@@ -82,3 +108,15 @@ The following preserves the original wording, including the examples and reporte
 ## Request to retain the feedback
 
 > also write all this i have written here down so we dont forget it
+
+## Full clarification on Fresh Eyes and Patterns
+
+> I have a couple of comments to what you're just writing. Your critique of FreshEyes is exactly, but that's exactly what it's supposed to do. So that's completely by design. It is supposed to receive sample summaries and dependencies without raw model source. That's the whole fucking point, you fucking retarded idiot. Fresh Eyes is supposed to be a completely new way of Of analyzing the system, you're only, you're not supposed to be looking at the actual code and raw source, right? That's the whole point. You're supposed to be looking at summaries and then figuring out what would be a better way to design this without actually knowing how it was designed. Because you don't want to anchor the large language model to that previous design, right? That's the whole point. You're supposed to, fresh eyes is supposed to You're supposed to be looking at what are the functionalities? What is the functionality? What is it actually able to achieve? What is this tool doing? What is the primary purpose? Actually, so what we probably want to do when we redesign Fresh Eyes is we want to look at the tool in different hierarchies. So, so like what is the main, like for instance for flow thinking, I can easily say, what is the main objective of flow thinking? The main objective of flow thinking is to fulfill like to be a second brain for people to use Like where they have all their files and folders connected. And some of their tools are also connected to it. So their email, their Google Drive, Shopify and other MCP servers. And in addition, this is also all connected to a way of running agentic workflows. These two things, that is what the sort of core part of Flowthink is. And a fresh eyes And that's what I would want, like that kind of description is what I would want out from a, from a mapping of the tool, like on a very, very high level, right? That's the highest level of the tool. That is what it's, that is its function, right? That's what it does. And so that's what I would want tools to actually be able to extract on the highest level. Now then a fresh eyes review to But then, then what I want a fresh eyes review to do is like, okay, given that, what's the best way to implement that? Right? Or what are the three, top three best ways to implement something like that? Yes, and I, and I probably, it's probably a bad idea to reduce to fresh eyes suggestion down to one because that limits the amount of sort of, you know, ways we can look Look at this system. So given that, given what we're actually, given what this system is supposed to do, what are like the top three ways we could build something that would actually deliver on that promise? And then I want you, then, then also I want you to go a little bit further down. So given that we have, this is what we've, this is the functionality of the different modules. Like we've got a front end, we've got a back end, we've got all these different things. And they, their output Are there function is this? What would be three alternative, three good ways to deliver or to actually encodeify an architect that functionality? That is what I want Fresh Eyes to do. But because I never want Fresh Eyes to actually look at the code, right? I never want Fresh Eyes to actually look at what is actually being written because the whole point of Fresh Eyes is that it's not
+>
+> Also, yeah, in regards to patterns, there's supposed to have a catalog, you know, there's supposed to have some selected patterns that they actually select from. That's the whole point. But I agree with your proposed prompt direction is to generate five materially different architectures preserving the required behavior. Yeah, I agree with that. And for patterns you don't need to always identify a concrete problem, right? Like, okay I don't know how to actually solve this problem because I find it so difficult to solve. But the key insight is that I have worked with so many LLMs. And whenever I, for instance, ask them to, oh, what kind of abstractions could you see in this kind of codebase? They're unable to find it. And typically this would be, a typical example would be when I was integrating many different LLM providers into a tool. And I wanted to have, and it turned out it was way easier for the tool to have one abstract agent class that the tool interacted with and then have that agent class itself interact with all the LLM providers. But no matter how many times I asked the LLMs to give me this pattern or like to find a useful pattern, not this specifically, right? But a useful pattern. None of them was able to identify this specific pattern. And this is such a normal pattern in coding, especially object-oriented coding. And it was appalling that, you know, after several attempts of asking for code reviews, they just didn't identify this. And that is the problem, that is the core problem I need to attack with patterns, with my pattern review, right? I need to increase the ability to find this kind of useful patterns that makes the code easier and better architected. Do you understand? And if not, please reply if you don't, because this should be fucking pretty easy now. I've spelled it out
+
+## Full clarification on catalogue coverage
+
+> also understnad this " it should recognize an opportunity for a shared agent contract with provider-specific implementations" is just one of dousins of possilbe patterns that could be useful in an architecture.... RIGHT???? dont anchor toooo much to this one example... thats why I have the pattern catalogue... I want ALLL POSSIBLE FUCKING USEFUL PATTERNS TO BE CONSIDERED AND RATED AND GIVEN PROS AND CONS.. otherwise i dont believe the agents will be able to find and idenfity them
+>
+> IT needs to be so fuking spelled out ... otherwise just fucking forget about agents finding the right patterns and suggesting them
