@@ -7,13 +7,29 @@
 **Execution rule:** one phase is active at a time; the next phase does not begin until the current
 phase's exit gate is met.
 
-## Graph purpose and review quality investigation — 23 October 2026
+## Semantic graph redesign — 23 October 2026
 
-**Runtime implementation paused by the maintainer for design review.** The
-[semantic-graph proposal](design/semantic-graph-redesign-2026-10-23.md) compares today's architecture,
+**Selected destination: one authoritative semantic graph.** The
+[semantic-graph design](design/semantic-graph-redesign-2026-10-23.md) compares today's architecture,
 exact completed-run storage, offline format experiments and potential gains/losses for coding
-agents. Those experiments are not an implemented replacement or a released product. Review this
-design before resuming the new implementation; prior completed checklists do not cover it.
+agents. The maintainer confirmed this destination: delivery can be phased, but an incremental
+cleanup of the old knowledge model cannot be the endpoint. The graph must improve modularity,
+clear interfaces and bounded change propagation, as well as concise, fast understanding.
+
+The design now defines sentences-first retrieval (one module overview sentence and a short detail
+paragraph), function/interface/contract traversal, graph-led improvement analysis and concrete
+change-isolation acceptance cases. Those requirements and the storage experiments are not an
+implemented replacement or a released product. Prior completed checklists do not cover this rewrite.
+
+- [x] Record the selected graph destination, full feedback, current comparison and product criteria.
+- [ ] Implement canonical module/function/interface/contract graph identities and relationships.
+- [ ] Serve the same concise overview/detail fields through agents, CLI, dashboard and portable records.
+- [ ] Apply graph evidence to all-catalogue assessments and source-aware planning; keep Fresh Eyes
+  on its implementation-free functional graph with retained alternatives.
+- [ ] Prove behavior tracing, stable-contract changes, frontend change isolation and justified hub
+  decomposition, including healthy controls that should remain intact.
+- [ ] Complete backed-up migration, current-state retention and storage/performance validation;
+  retire the old parallel document pipeline and verify the resulting public product separately.
 
 The maintainer requests analysis of missed architectural opportunities, excessive descriptions and
 cache size, and a graph-centered product direction. Preserve the [full feedback](feedback/2026-10-23-architecture-and-storage.md)

@@ -1,10 +1,11 @@
 # A lightweight semantic graph for AnaxiGraph
 
-**Status:** Proposed design for maintainer review. Runtime implementation is paused.
+**Status:** Semantic graph destination confirmed by the maintainer. Design and acceptance criteria;
+runtime implementation is not claimed by this document.
 
 **Design requirement:** [Full feedback and clarifications](../feedback/2026-10-23-architecture-and-storage.md).
 
-AnaxiGraph should make a semantic graph its primary model: code entities, their relationships,
+AnaxiGraph will make a semantic graph its authoritative knowledge model: code entities, their relationships,
 what they do, the contracts they preserve, and evidence for that understanding. Reviews and plans
 attach to that graph. The design should remove duplicated representations and repeated per-file
 writing while preserving the coding assistance that agents already find useful.
@@ -13,6 +14,19 @@ This is a replacement of the knowledge model, not another graph view layered ove
 document pipeline. A graph data model does not require a new graph database. The recommendation is
 to retain SQLite's transaction/query machinery and the existing durable executor, simplify what
 they store, and preserve the current MCP and dashboard coding journeys.
+
+## Committed destination and product objectives
+
+The maintainer has selected the semantic graph as AnaxiGraph's destination. Delivery can be staged,
+but completion means mapping, reviews, planning, agent queries and the app use that graph, and the
+old parallel document pipeline has been retired. Deduplicating the existing system is useful work
+on that migration; it is not the final architecture or an alternative stopping point.
+
+The product should help developers build cohesive modules with clear interfaces, understand them
+quickly, and make bounded changes without unexpected effects in unrelated areas. A smaller index
+and a readable diagram support those outcomes. They do not establish that the objectives are met.
+Measure correct understanding, preserved behavior, necessary changes and unnecessary interventions
+as well as storage, latency and graph metrics.
 
 ## What Graphify contributes to the comparison
 
@@ -89,7 +103,8 @@ in Architecture Planning. Proposed graphs remain distinct from the observed grap
 
 | Entity | Meaning stored once |
 | --- | --- |
-| Module, function, type or interface | Stable scoped identity; source location/fingerprint; metrics; short description; important detail and contract references. |
+| Module | Stable scoped identity; source location/fingerprint; LOC/function count; one overview sentence; one short detail paragraph; interface and contract references. |
+| Function, type or interface | Scoped identity, location/fingerprint, concise summary, inputs/outputs and contract references; each function has one overview sentence. |
 | Capability or functional area | Purpose, responsibilities, required inputs/outputs, constraints and functional relationships. |
 | Contract or scoped domain concept | Obligations, invariants, side effects, failure behavior and the scope in which a term has its meaning. |
 | Evidence and provenance | Source/revision, location or observation, extraction method, confidence, model/input identity and verification state. |
@@ -136,6 +151,49 @@ Descriptions are concise defaults, not a rule to delete important qualifications
 enough for a simple function; cancellation, transaction ordering and caller obligations can require
 a richer structured contract. Detailed source and evidence remain available through focused reads.
 
+### Sentences first, progressive detail without source reads
+
+Each module stores one `overview` sentence and one `detail` paragraph in its graph properties.
+Initial authoring guidance is approximately 15–30 words for the sentence and 40–80 for the
+paragraph. These are writing targets, not truncation rules. Put important obligations in linked
+contracts rather than growing another per-file essay. Each function has its own overview sentence.
+
+| Read level | Information returned |
+| --- | --- |
+| Inventory, search or overview subgraph | Module identities and overview sentences, with essential metrics and typed links. Detail paragraphs and full review documents are not included by default. |
+| Expanded module | The short detail paragraph, relevant function sentences, interfaces and contract references, with evidence and readiness. |
+| Focused behavior or contract | Callers/callees, state ownership, input/output obligations, errors, side effects, ordering and relevant tests, including uncertainty and provenance. |
+
+The same canonical properties serve MCP, CLI, dashboard and portable records. An agent must be
+able to obtain the deeper explanation from the saved graph without reopening source or asking a
+model to regenerate it. Missing understanding is reported explicitly. Source remains available to
+the coding agent for implementation and verification. Preserve the small response budget, paging
+and full counts; do not force agents to read every paragraph or make one call per graph node.
+
+### Graph analysis that improves modularity and change isolation
+
+Graph observations should drive specific architectural questions. Track distinct consumers,
+incoming/outgoing relationship types, cross-boundary dependencies, cycles, responsibility clusters,
+shared mutable state and dependencies on another component's internals. Keep executable consumers,
+tests and documentation separate in counts; repeated edges do not become distinct callers.
+
+A node with 100 incoming connections deserves examination. It might combine unrelated
+responsibilities or expose unstable internals, making changes ripple through many areas. It might
+also be a cohesive utility consumed through one stable contract. Compare responsibility separation,
+boundary ownership and alternatives before recommending a split. Fewer edges, files or lines alone
+are not the goal; a useful interface can add edges while reducing knowledge shared by its callers.
+
+For each improvement recommendation, identify the affected nodes and contracts, the graph evidence,
+competing approaches and contextual pros/cons. Explain expected changes in propagation, new
+complexity or indirection, migration consequences and focused verification. Keep scope and unknowns
+explicit. Static reachability, predicted behavioral impact and verified change effects are separate.
+
+Patterns and Architecture Planning can inspect the actual graph, question dense nodes and look
+for better boundaries. These signals guide placement and deeper investigation while every loaded
+catalogue card is still assessed. Fresh Eyes receives only the implementation-free functional
+graph and develops alternative designs. Planning subsequently compares those designs with the
+actual graph; actual degree counts or implementation topology must not leak into Fresh Eyes.
+
 ### What happens to lookup tables
 
 There are two different things currently called lookup:
@@ -159,8 +217,8 @@ Avoid introducing Neo4j, a vector store or a generic workflow engine for this re
 
 | Choice | Benefit | Cost or risk |
 | --- | --- | --- |
-| Keep today's knowledge model; canonicalize document references and search | Lower-risk removal of measured copies while retaining mature readers. Review-workflow repairs can proceed independently. | Does not itself supply first-class function/interface semantics or one consistent behavior-query model. Its final physical size has not been measured. |
-| **Recommended starting point: local SQLite property graph plus a portable graph projection** | Reuses transactions, incremental writes, query machinery and durable workers. Removes full-payload lookup/search copies without building a custom storage engine. | Local and portable encodings both consume disk; both must be counted. Exact final bytes depend on the chosen schema and index layout. |
+| Previously considered: keep today's knowledge model and deduplicate | Removes measured copies while retaining mature readers. | This does not deliver the selected semantic graph destination. Deduplication may be a migration task, but completion cannot stop here. |
+| **Target: local SQLite property graph plus a portable graph projection** | Reuses transactions, incremental writes, query machinery and durable workers. Removes full-payload lookup/search copies without building a custom storage engine. | Local and portable encodings both consume disk; both must be counted. Exact final bytes depend on the chosen schema and index layout. |
 | File-first JSONL graph with a small derived index | One canonical file representation can serve both Git and local reads; an offline encoding experiment can measure it before a runtime exists. | Incremental atomic updates, concurrent reads and indexing need design work. Rewriting a whole graph after each model result could be much slower. |
 | Compressed graph archive as the runtime | Small transport artifact. | Whole-file gzip is not seekable; counting only its compressed bytes hides decompression, memory or an additional uncompressed copy. It is not the recommended runtime. |
 
@@ -443,16 +501,41 @@ Do not hide an archive or decompressed graph when reporting the new total.
 Much of the storage gain could be achieved by removing duplicates in today's implementation.
 Catalogue coverage and Fresh Eyes boundaries can also be corrected without waiting for a complete
 storage rewrite. The stronger reason for changing the knowledge model is coherent function,
-contract and behavior traversal. If that does not improve the coding tasks, an incremental cleanup
-of today's architecture is the lower-risk choice.
+contract and behavior traversal. These improvements contribute to the committed migration; they
+do not replace it. Failed acceptance cases identify problems to fix in the graph implementation,
+rather than making retention of the legacy knowledge model the planned endpoint.
 
-Do not replace the current system if the smaller representation loses contracts, domain scopes,
-evidence, aliases, relevant tests, exact checkout identity or explicit baselines. A faithful hybrid
-semantic graph can be better; an aggressively abbreviated diagram can be worse for coding agents.
+The replacement must preserve contracts, domain scopes, evidence, aliases, relevant tests, exact
+checkout identity and explicit baselines. An aggressively abbreviated diagram can be worse for
+coding agents and does not satisfy the selected semantic graph design.
 
-## Review and validation before replacement
+## Product acceptance for the rewrite
 
-1. Agree on the graph model, input boundaries, physical-store choice and retained-information policy.
+These are required scenarios for the replacement, not results already demonstrated. Use controlled
+cases with known dependencies and obligations, and matched real maintenance tasks. Include positive
+opportunities from several catalogue families and healthy controls, rather than one preferred pattern.
+
+| Scenario | Required outcome |
+| --- | --- |
+| Quick understanding followed by detail | Default inventory exposes module sentences. Expansion supplies the short paragraph, function sentences and linked contracts from saved graph data without source reads or new model calls. |
+| Trace behavior across a boundary | The agent can follow the relevant function/interface path, identify ownership and caller obligations, and find the tests that exercise them. Unknown dynamic links stay explicit. |
+| Change frontend presentation without changing a public contract | Identify actual local consumers and relevant tests without inventing unrelated backend edits. Existing backend dependencies remain visible without automatically becoming required changes. |
+| Change an implementation behind a stable interface | Identify the exposed contract and its checks. Preserve caller-visible behavior in the fixture; callers do not require unrelated rewrites. |
+| Deliberately change a public contract | Identify affected producers/consumers, broken obligations, necessary companion changes and compatibility/migration checks. Legitimate cross-boundary consequences must not be hidden. |
+| Review an overloaded dependency hub | Explain distinct responsibility clusters or internal dependencies and offer useful decomposition/boundary alternatives, with pros/cons and verifiable expected effects. |
+| Review a healthy high-degree utility | Recognize its cohesive role and stable interface; avoid unnecessary splitting, wrappers or service extraction solely because of connection count. |
+| Assess patterns and explore fresh designs | Account for every catalogue ID and placement evidence; retain three materially different functional alternatives per reviewed Fresh Eyes scope without exposing the existing implementation. |
+
+Compare correct affected scopes, missed contracts, unnecessary changes, behavior preserved and the
+effort required to reach a correct decision. A frontend change is not assumed isolated merely
+because an interface is drawn: trace its actual obligations and check the behavior. Record which
+conclusions were structurally derived, inferred or exercised. No claim of production robustness
+follows from graph shape alone.
+
+## Migration sequence and completion criteria
+
+1. Specify the target graph schema, progressive description fields, input boundaries and retention
+   policy around the confirmed product objectives.
 2. Validate lossless conversion of existing paid results and required facts, with all copies and
    indexes included in footprint comparisons. Keep recovery explicit and bounded.
 3. Compare matched agent tasks on the same revisions and budgets: locate behavior, trace impact,
@@ -460,8 +543,10 @@ semantic graph can be better; an aggressively abbreviated diagram can be worse f
 4. Measure correctness, missed obligations, unnecessary changes, query/startup latency, memory,
    changed-write volume, Git pack growth over nightly updates, model usage and storage. Keep
    healthy controls and disagreement.
-5. Replace producers/readers incrementally while preserving tool contracts and queue reliability;
-   remove the old duplicate pipelines rather than leave two permanent architectures.
+5. Move all producers/readers onto the semantic graph while preserving tool contracts and queue
+   reliability. Finish by removing the old duplicate pipelines; a compatibility adapter or phased
+   rollout is delivery machinery, not a second permanent architecture.
 
 No production code, live index or published release is changed by this design work. The maintainer
-requested this review before implementation; runtime implementation remains paused.
+has confirmed the destination and clarified the product outcomes. This update specifies their
+acceptance criteria; it does not claim that runtime migration or measured benefits are complete.

@@ -42,6 +42,26 @@ misses known problems is a product failure to investigate, even when storage fit
 - Preserve the earlier storage preference: roughly 100 MB of generated state is preferred, with
   200 MB described as an absolute ceiling. A cache being below the latter does not justify its size.
 
+## Confirmed destination and product outcomes
+
+- The semantic graph is the selected destination. Delivery can be phased, but completing a small
+  cleanup of the existing knowledge model is not an acceptable endpoint.
+- Each module has one concise overview sentence and one short detail paragraph. Agents first read
+  the sentences, then expand relevant modules, functions, interfaces and contracts without reading
+  raw source to obtain the deeper saved explanation.
+- Make function/interface traversal and linked contracts useful for understanding behavior and
+  finding safe places to make changes. The same compact understanding should serve people.
+- Use graph structure to question complexity, overloaded responsibilities and dependencies across
+  boundaries. A hundred incoming connections should prompt contextual investigation and alternatives,
+  including retaining a cohesive utility rather than automatically splitting every busy node.
+- Help developers build modular software with clear interfaces. A frontend-only change should not
+  unexpectedly require unrelated backend changes when its public contracts remain unchanged.
+- Assess actual behavior preservation and change propagation, not just fewer graph edges or smaller
+  modules. These are explicit acceptance scenarios for the rewrite, not benefits already proven.
+- Patterns and source-aware planning use the actual graph. Fresh Eyes keeps its earlier blindness
+  requirement and receives only the functional projection; planning connects its proposed designs
+  back to the actual graph.
+
 ## Clarified requirements from the maintainer
 
 - Fresh Eyes must never inspect raw code or learn the existing architecture. Its input is purpose,
@@ -125,15 +145,20 @@ The following preserves the original wording, including the examples and reporte
 
 ## Design before further implementation
 
-The maintainer paused implementation and clarified that the requested change is a radical,
+At this point in the discussion, the maintainer paused implementation and clarified that the requested change is a radical,
 lightweight redesign. Produce a concrete design first, compare it with actual current behavior,
 measure complete Mapping/Patterns/Fresh Eyes storage, explain the lookup tables, and show how
 semantic understanding becomes part of the graph. Compare gains and losses against previous
-agent feedback, including reasons the new approach could make their work worse. Runtime
-implementation and release publication remain paused pending that review.
+agent feedback, including reasons the new approach could make their work worse. The request was
+to review that design before further implementation or release. The later clarification below
+confirms the semantic graph destination and its required product outcomes.
 
 > wait
 
 > I've got a slight update for you, and I just want to make sure that this is actually quite a radical, to understand what I'm asking you. It's quite a radical redesign of how an anaxigraph kind of works right now, right? I'm probably looking for a much more lightweight architecture for an anaxigraph. And before you just go and like fucking implement it, I want you to design it and then come back to me with how it's actually going to look and compare that with the current implementation. Also, when you do that comparison, I also want you to compare the exact size of a full an axiograph map and fresh eyes and everything, all this compared to what it is today. I also want you to compare like, what is this lookup table thing? How would this be changed in the future with your new implementation? Because what I'm really looking for is just like more graphify approach, right? Like, what is it graphify actually does? It graphs your whole code base, right? That's kind of what I want for an anaxigraph to do as well, but I want it to be more, right? I want it to be the semantic understanding as well, and I want that to be written into the graph itself so that it kind of, right? You understand what I'm actually asking you here, right?
 
 > and compare that to what anaxigraph does today.. argue for why this is worse or better than todays version. argue for what are are potentially gaining and what we are loosing. Look at previous feedbback in your documentation .. especially from other agents.. would this new change make the tool better or worse for them???
+
+## Full clarification confirming the graph destination
+
+> For your proposal here and I mean we want to, we don't want to just do an incremental migration towards semantic graph. That's our new, that's where we want to go, right? That's, that's where we want to take the tool. And so that's where we want to migrate. And yeah, I think function interface traversal and late contracts could improve substantially what the agents actually get out of it, right? And, and also yeah, we want to, for each module, like how we describe them. It's like one sentence and then a short paragraph. Very concise, very to the point. And so that when, when, when an agent is running through this, it will first just read the sentences, you know, about each or whatever and get that short kind of understanding quickly. And then it can, if it needs to go deeper, it'll, it can do that. It can go deeper into that without actually reading the modules, right?  and then Of course, and then when we actually do the fresh eyes and when we do the pattern matching, the, the graph is supposed to be a inspiration for finding the better like versions, right? Like the AI, I want the AI to be able to say, hey, look at this graph note here. It's got like 100 incoming whatever connections or something. Like maybe it would be better just to break this up or, you know, reduce the complexity here so that it's easier to work with or whatever, right? You know, from a, from a conceptual standpoint, from, from an understanding standpoint, from a human standpoint, it makes a lot of sense to have separate things doing separate things, right? Like so for instance, if I have a front end, I want to be able to adjust things in the front end without, you know, breaking things otherwhere in the software. That's typically what I'm after, right? So I'm, I want my, the design of my software to be modular and have clear interfaces, not to be overly complex. And I want an AnaxiGraph to help me do this. So as I build this software and use an AnaxiGraph as a helping tool, that is what I want to achieve. And so you need to make sure that when we now re-engineer the code that those objectives are met.
