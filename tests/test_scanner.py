@@ -12,7 +12,7 @@ from anaxigraph.ir import analysis_from_stored
 from anaxigraph.ir_conformance import validate_analysis
 from anaxigraph.persistence.architecture_evidence import architecture_evidence
 from anaxigraph.persistence.temporal_reads import snapshot_files, symbols_for_files
-from anaxigraph.scanner import RepositoryScanner
+from anaxigraph.scanner import ANALYSIS_VERSION, RepositoryScanner
 
 
 def test_scan_persists_graph_metrics_coverage_and_findings(repository, database):
@@ -89,9 +89,9 @@ def test_scan_persists_graph_metrics_coverage_and_findings(repository, database)
             if item["artifact_id"] == stored["artifact_id"]
         ]
     metadata = json.loads(stored["metadata_json"])
-    assert metadata["analysis_version"] == 5
+    assert metadata["analysis_version"] == ANALYSIS_VERSION
     assert metadata["ir"]["schema_version"] == "anaxigraph-ir-v2"
-    assert metadata["ir"]["analyzer_version"] == "1"
+    assert metadata["ir"]["analyzer_version"] == "2"
     assert metadata["ir"]["analyzer_capabilities"] == PythonAnalyzer.capabilities.as_dict()
     assert metadata["ir"]["module_identity"]["canonical_name"] == "pkg.core"
     assert metadata["ir"]["resolver_context"]["configured_aliases"] == [["@/", "web/"]]
@@ -210,7 +210,7 @@ def test_dead_code_advice_is_suppressed_when_relationship_resolution_is_weak(rep
 
     with database.transaction() as connection:
         connection.execute(
-            "UPDATE git_changes SET committed_at = '2000-01-01T00:00:00+00:00' "
+            "UPDATE git_path_metrics SET last_changed_at = '2000-01-01T00:00:00+00:00' "
             "WHERE repository_id = ? AND path IN "
             "('pkg/orphan.py', 'pkg/registered.py', 'pkg/legacy.go')",
             (stats.repository_id,),

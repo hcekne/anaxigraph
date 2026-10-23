@@ -155,21 +155,28 @@ anaxigraph understand . --executor claude --model haiku --parallel-jobs 32 --bac
 anaxigraph semantic-status . --compact --json
 ```
 
-Routine mapping uses five fields: a short summary, responsibilities, essential caller contracts,
-source references, and confidence. Ordinary files target 100–200 words total; simple files need
-less and complex files may need more. Field lengths and list counts do not reject extra essential
-behavior. Detailed refactoring and understandability reports and pattern assessment/critique
-jobs are opt-in. Set `semantic.detailed_reviews: true` in the authoritative repository policy and
-run `understand` to request them; restore `false` for lean mapping. Changing this setting refreshes
-the affected description contracts. Saved historical reviews remain available.
+Routine mapping writes one compact graph annotation per module: an overview sentence, a short
+detail paragraph (normally 40–80 words), a behavior sentence for every supplied function, named
+caller contracts, capabilities, evidence and confidence. Contracts bind obligations and invariants
+to their functions once. It does not produce separate intrinsic/context essays or embedded
+refactoring reports. Large source inputs can be partitioned into bounded annotation work and
+reconciled before the module becomes current; successful work survives interruption.
+
+Pattern and Fresh Eyes reviews are optional. An explicit Pattern workflow considers and rates every
+loaded catalogue card (133 today), then independently reviews its assessment, including pros, cons
+and plausible placements. Evidence gaps remain unresolved rather than suppressing the card.
+`semantic.detailed_reviews: true` also requests Pattern work through the lower-level semantic
+planner; dashboard Mapping keeps these reviews separate. This flag never restores the retired
+two-description module writer. Original saved historical reviews remain readable.
 
 Upgrading a map written by 0.5.x does not require paying to reread unchanged code.
 For ordinary mapping, preparation recognizes that release's v5 evidence signatures
-and re-links compatible saved descriptions, taxonomy, and synthesis in place. It
+and re-links compatible saved understanding, taxonomy, and synthesis in place. It
 also retires redundant pending jobs left by an earlier unsuccessful upgrade.
 Original JSON and model provenance remain unchanged. Changed source or dependency
-evidence, expired results, an explicit forced reread, and newly requested detailed
-reviews still require fresh work. Check `--plan-only --no-scan` against the saved
+evidence, expired results, an explicit forced reread, or a genuinely incompatible annotation
+contract can still require fresh work. Legacy prose remains an attributed archive rather than
+being silently promoted to verified function contracts. Check `--plan-only --no-scan` against the saved
 snapshot before launching workers when diagnosing an upgrade.
 
 Model calls have no AnaxiGraph wall-clock cutoff by default (`semantic.timeout_seconds: null`).
@@ -184,7 +191,10 @@ Calls use the executor's model-specific output allowance by default. AnaxiGraph 
 `CLAUDE_CODE_MAX_OUTPUT_TOKENS` or put an output cap in the work packet unless
 `semantic.max_output_tokens` is explicitly configured. Existing executor environment settings
 are preserved. The concise writing instructions control style without cutting off complete JSON.
-Large maps still use bounded evidence partitions; their sizing target is not an output cap.
+Source-aware mapping can use bounded evidence partitions; their sizing target is not an output
+cap. Fresh Eyes is different: every functional packet stays inline. An oversized blind packet
+fails its durable job with a reduce-scope/increase-input-limit remedy; it never exposes repository
+files, evidence pages or tool-readable spill files to the blind worker.
 
 Mapping step 5 saves each independent review batch as a durable job. Batches within a pass run
 in parallel up to that pass's worker setting and the repository ceiling. Reconciliation combines
@@ -221,8 +231,9 @@ Execution continuity and remaining limits:
   renew while reading evidence, running a model, and submitting results. Manual executor clients
   must renew with the same job ID and lease token at that interval. Expired or replaced leases
   cannot renew, and results from a replaced owner remain rejected.
-- Valid executor results have no AnaxiGraph byte ceiling, including through `/executor/mcp`.
-  The ordinary REST and normal MCP control endpoints keep a 2 MiB request boundary. JSON shape,
+- The dedicated `/executor/mcp` route bypasses AnaxiGraph's 2 MiB control-request boundary.
+  The installed MCP transport still has its own request limit (4 MiB in the locked SDK).
+  Ordinary REST and normal MCP controls retain the 2 MiB boundary. JSON shape,
   source freshness, lease ownership, and evidence validation still apply to results.
 - `max_attempts` bounds genuinely failed jobs. An explicit retry resets exhausted work once;
   repeated queue polls do not reset it indefinitely. Failed optional reviews are reported as
@@ -305,8 +316,9 @@ includes host run records. REST offers `GET /api/semantic?compact=true`. No mode
 schedule jobs, wait, or count progress. Avoid sending full logs or status documents back through
 the expensive calling model. A started background run is not a completed semantic map.
 
-A fresh-eyes review can reserve one proposal slot per executor family
-(`anaxigraph fresh-eyes . --start --proposals 2 --proposal-executors codex,claude`). The family of
+A Fresh Eyes review can reserve its three proposal slots per functional scope
+(`anaxigraph fresh-eyes . --start --proposals 3 --proposal-executors codex,claude,any`). The CLI
+also accepts five alternatives. The family of
 a claimant comes from its `cli:<family>:<pid>` worker identity, or from an explicit
 `executor_family` argument on `ANAXIGRAPH_SEMANTIC_WORK`; a claimant with neither takes only
 unpinned work. A worker offered nothing but another family's reserved slot receives the
@@ -335,12 +347,27 @@ map:
     src/billing/ledger.py: billing-ledger
 ```
 
-The normal executor is `anaxigraph understand . --executor codex|claude`. The Codex adapter invokes
-non-interactive `codex exec` in an ephemeral read-only sandbox with a strict output schema; the
-Claude adapter uses non-persistent, tool-free print mode. An advanced `command` provider can receive
+The normal executor is `anaxigraph understand . --executor codex|claude`. Both native adapters use
+strict structured output. For Fresh Eyes, each hierarchy, proposal, comparison and final review
+receives only purpose/capability/subsystem requirements in a fresh context with repository access
+and tools disabled by the requested executor settings. It never sees current source, paths,
+frameworks, topology or Pattern judgments. The runtime checks supported isolation controls and
+keeps execution isolation labelled **unverified** when it cannot independently establish it;
+an external agent's self-report never becomes verification. Source-aware comparison and migration
+belong to the separate Architecture Planning workflow, whose direction may be blank.
+
+The functional result retains three alternatives per scope, explicit control/data/failure
+boundaries, pros, cons and compatible proposed-parent identities. Comparison reports convergence
+and unexplored directions honestly; repeated graph shapes alone do not establish equivalent
+semantics. Read one scope with `fresh-eyes . --scope <scope-id>`, REST `scope_id`/`details=true`, or
+`ANAXIGRAPH_GUIDE(intent="redesign", scope_id="<scope-id>", details=true)`. Implementation-only
+changes can reuse an unchanged functional-brief revision. A changed requirement creates a new
+generation; legacy source-aware Fresh Eyes results remain read-only original records.
+
+An advanced `command` provider can receive
 one JSON request on standard input and must return
 `{"result": {...}, "usage": {...}}` on standard output. `dossier` remains accepted for existing
-module-dossier integrations; taxonomy requests require the dynamic schema named by
+module integrations; new mapping uses the graph-annotation schema, and taxonomy requests require the schema named by
 `analysis_kind`.
 
 The stock Docker image deliberately bundles no coding CLI and accepts no hosted-model key. Run the
@@ -353,15 +380,15 @@ failed/retried, age-expired, prompt-contract-stale, structurally changed, or con
 records:
 
 - structural hashes decide when source needs to be read again;
-- interface and relationship fingerprints can refresh context without rereading unchanged source;
+- interface and relationship fingerprints refresh graph context without creating another prose copy;
 - normalized intent changes invalidate affected parent synthesis;
 - prompt, analyzer, enrollment policy, or an incompatible stage-contract change produces versioned
   work only at the affected stage;
 - provider and model changes do not invalidate semantic work; they remain queryable provenance on
   jobs, documents, claims, usage, and cost records.
 
-The reviewed taxonomy is not regenerated for every changed context dossier. An incremental check
-first requires the same included paths and map policy, then compares intrinsic module-role
+The reviewed taxonomy is not regenerated for every changed annotation. An incremental check
+first requires the same included paths and map policy, then compares module-role
 fingerprints with the last reviewed map. If the stable fraction meets
 `semantic.taxonomy.stability_bias` (default `0.8`), AnaxiGraph carries that reviewed map forward and
 refreshes only affected descendants and ancestors. A saved proposal that is still under review
@@ -370,7 +397,7 @@ the latest saved candidate as the starting point for fresh reviews, without anot
 Completed reviews are carried only when the proposal evidence is identical; reviews of older
 evidence remain saved as history. Policy changes or responsibility drift beyond the threshold
 queue a new proposal and its agent reviews.
-`work_plan` reports the current file, context, taxonomy, group, repository, and pattern scope before
+`work_plan` reports current annotation, taxonomy, group, repository and review scopes before
 model execution.
 
 The workflow view separates current results, saved results needing refresh, and files with no
@@ -410,7 +437,7 @@ provider, model, prompt/schema, evidence, and confidence rather than replacing p
 ### Measured plan-transaction lock holds
 
 Semantic planning takes one `BEGIN IMMEDIATE` write transaction over reconciliation, inventory,
-module, context, and downstream planning, and the search-projection refresh. Every plan measures
+graph annotation and downstream planning, and the search-projection refresh. Every plan measures
 what that write lock cost and stores the running total for the current snapshot; `semantic status`
 reports it under `telemetry.lock_holds` beside the action totals:
 
@@ -449,7 +476,8 @@ current snapshot remains valid.
 
 ## History, refresh, and cancellation
 
-History import is a durable background job. The dashboard remains useful while it shows selected
+Detailed Git-history mapping is opt-in, not part of ordinary startup. History import is a durable
+background job. The dashboard remains useful while it shows selected
 and completed frames, current commit, analyzed/reused work, elapsed time, and estimated remaining
 time. Closing a tab does not cancel it.
 
@@ -483,13 +511,16 @@ POST /api/semantic/prepare  reconcile semantic work against the current snapshot
 ### Repository records and scheduled runs
 
 The tracked root `anaxigraph/` directory carries current understanding between cloud jobs and
-local checkouts. Record v2 contains concise module descriptions, the reviewed architecture,
-selected Pattern/Fresh Eyes analyses and plans, their model provenance and saved workflow choices.
-It does not exchange the historical SQL cache, symbols, dependency edges, findings, Git history,
-metrics, worker leases or queue payloads. Git is the history of the portable record.
+local checkouts. Record v4 contains current compact graph annotations, reviewed architecture,
+retained functional alternatives, selected Pattern reviews/plans, provenance and saved workflow
+choices. It does not exchange the entire historical SQL cache, deterministic symbol/dependency
+indexes, findings, Git history, metrics, active worker leases or pending queue payloads. Completed
+stage manifests retain the identities needed for compatible reuse. Git is the portable history.
 
 `record.json` marks the managed directory. `manifest.json` identifies source and analysis contracts,
-readiness and checksums. Small JSONL parts carry source file fingerprints and semantic results;
+readiness and checksums. Current graph annotations and modern review records remain readable JSONL;
+large legacy results use bounded, checksummed compressed archive parts without changing their
+original values. Small parts carry source file fingerprints and semantic results;
 relative paths and logical identities survive a clone at a different absolute path. Readable
 `mapping/architecture.json`, `architecture/plan.json`, `plan.md`, `current.mmd` and `target.mmd`
 are bounded by the same byte/file limits. Each server owns its MCP service and local SQLite cache.
@@ -550,15 +581,23 @@ Default storage policy in `.anaxigraph.yml`:
 storage:
   budget_bytes: 100000000
   record_bytes: 25000000
-  index_bytes: 64000000
+  index_bytes: 95000000
   record_files: 32
   comparison_checkpoints: 2
   detailed_history: false
 ```
 
-The record and index budgets must fit the total; the total cannot exceed 200 MB. SQLite page limits
-reject growth beyond the index allocation and roll back the write. The write-ahead log is also
-checked before admitting more analysis. A record is refused before export if it cannot fit; AnaxiGraph
+The 100 MB total is a shared pool for steady retained state, not a reservation of each component's
+maximum. The index may use up to 95 MB and a record up to 25 MB, but the retained database, SHM and
+actual managed records across this index's registered checkouts must fit the same 100 MB. Each component ceiling must fit the configured
+pool; their maxima need not add up to it. Explicit smaller index limits remain effective, and the
+absolute physical ceiling stays 200 MB. Atomic SQLite rewrites temporarily need WAL space alongside
+the database; this transient space is counted and bounded by that hard ceiling, then checkpointed.
+Status reports actual physical bytes, steady bytes, transient bytes and pending WAL cleanup separately.
+SQLite page limits reject index growth beyond its ceiling and roll back the write. Shared-pool
+admission also checks projected database growth and actual portable
+bytes. Export checks the proposed replacement before writing, preserving the last valid record if
+it cannot fit; AnaxiGraph
 does not silently drop a selected plan to make room. Status reports actual index/WAL/record bytes.
 The active budget excludes installed tools and dependencies, Git's own history, and explicitly
 retained recovery backups. Detached executors keep four recent runs per slot and trim logs to 1 MB.
@@ -584,9 +623,10 @@ Compaction first makes one validated `*.before-current-storage.backup` recovery 
 original AI documents, reviews, plans and provenance without copying historical structural graphs.
 It is limited to 64 MB and its allowance is reserved against the 200 MB ceiling before writing.
 The original index is left intact if saved understanding cannot fit that recovery budget.
-It shortens legacy module descriptions unless detailed reviews are explicitly enabled, retains
-selected latest reviews/plans and choices, prunes disposable history and reclaims SQLite disk space. It exports v2
-without loading a failed legacy export first. The recovery backup is retained separately and its
+It preserves selected original paid analyses and provenance, stores legacy results in a compressed
+read-only archive, retains current annotations/reviews/plans and choices, prunes disposable history
+and reclaims SQLite disk space. It exports v4 without loading a failed legacy export first.
+The recovery backup is retained separately and its
 path is reported; retire it after verifying migration. The existing `anaxigraph restore` command can
 load it into a local index; a normal source scan rebuilds the graphs and reuses compatible file
 analyses. If one index serves multiple repositories, compact each checkout against that same `--db`.
@@ -728,7 +768,10 @@ anaxigraph mcp --repository /path/to/repository --port 8765
 
 Impact returns short lists and compact file descriptions by default, with total and shown counts.
 Use `impact --details` for full lists and descriptions, `details=true` with `ANAXIGRAPH_IMPACT`,
-or `"details": true` in `/api/impact`. `ANAXIGRAPH_FILE` retrieves one full saved file description.
+or `"details": true` in `/api/impact`. `ANAXIGRAPH_FILE` is compact by default; pass `details=true`
+for deeper file evidence. `ANAXIGRAPH_GRAPH` pages module/function/interface/contract sentences and
+typed neighborhoods; `ANAXIGRAPH_ENTITY` expands a stable entity ID into its saved paragraph,
+function contracts, relevant tests and provenance without rereading source or calling a model.
 
 The `serve` and `mcp` commands expose the dashboard/API and Streamable HTTP MCP and supervise
 repository watching by default. Use `--no-watch` only for a deliberately frozen map. Use `up` for

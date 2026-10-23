@@ -6,7 +6,11 @@ from pathlib import Path
 from typing import Any
 
 from anaxigraph.agent import architecture_guidance, impact_analysis
-from anaxigraph.agent_response import small_agent_response
+from anaxigraph.agent_response import (
+    compact_file_response,
+    compact_search_response,
+    small_agent_response,
+)
 from anaxigraph.architecture_charter import architecture_charter
 from anaxigraph.architecture_guidance import AGENT_JOURNEY_VERSION, agent_journey_manifest
 from anaxigraph.architecture_reassessment import architecture_reassessment
@@ -65,7 +69,7 @@ class CoreMcpTools:
             (
                 self.file_details,
                 "ANAXIGRAPH_FILE",
-                "Inspect one file: what it does, direct links to other files, Git history, named code parts, saved AI description, evidence, and who or what created that description.",
+                "Read a compact file overview, function sentences, direct dependencies and provenance. Set details=true for the complete saved record, contract qualifications and history.",
             ),
         ):
             self.server.add_tool(handler, name=name, description=description)
@@ -125,22 +129,31 @@ class CoreMcpTools:
         result["architecture_charter"] = architecture_charter(row, result, semantic)
         return result
 
-    def search(self, query: str, limit: int = 20, repository: str = "") -> dict[str, Any]:
+    def search(
+        self, query: str, limit: int = 20, repository: str = "", details: bool = False
+    ) -> dict[str, Any]:
         row, root = self.context.select(repository)
         bounded = max(1, min(limit, 50))
-        return {
+        result = {
             "query": query,
             "results": self.database.search(int(row["id"]), query, limit=bounded),
             "map_status": self.context.map_status(row, root),
+            "details_available": {
+                "tool": "ANAXIGRAPH_SEARCH",
+                "arguments": {"query": query, "limit": bounded, "details": True},
+            },
         }
+        return result if details else compact_search_response(result)
 
-    def file_details(self, path: str, repository: str = "") -> dict[str, Any]:
+    def file_details(
+        self, path: str, repository: str = "", details: bool = False
+    ) -> dict[str, Any]:
         row, root = self.context.select(repository)
         result = self.database.file_details(int(row["id"]), _safe_relative_path(path))
         if result is None:
             raise ValueError(f"File is not present in the current saved scan: {path}")
         result["map_status"] = self.context.map_status(row, root)
-        return result
+        return result if details else compact_file_response(result)
 
     def guidance(
         self,
@@ -150,7 +163,7 @@ class CoreMcpTools:
         repository: str = "",
         fresh_eyes: bool = False,
         start: bool = False,
-        proposal_count: int = 2,
+        proposal_count: int = 3,
         proposal_executors: str = "",
         retry_failed: bool = False,
         restart: bool = False,
@@ -165,6 +178,7 @@ class CoreMcpTools:
         milestone: str = "",
         milestone_status: str = "",
         verification_evidence: list[str] | None = None,
+        scope_id: str = "",
     ) -> dict[str, Any]:
         options = locals()
         row, root = self.context.select(repository)
@@ -211,6 +225,8 @@ class CoreMcpTools:
             wait=options["wait"],
             proposal_executors=options["proposal_executors"],
             unpin=options["unpin"],
+            scope_id=options["scope_id"],
+            details=options["details"],
         )
         return _guide_response(result, options["details"])
 
@@ -247,6 +263,8 @@ class CoreMcpTools:
         wait: bool = True,
         proposal_executors: str = "",
         unpin: bool = False,
+        scope_id: str = "",
+        details: bool = True,
     ) -> dict[str, Any]:
         engine = SemanticEngine(self.database)
         result = (
@@ -269,6 +287,8 @@ class CoreMcpTools:
                 config.semantic,
                 generation=generation,
                 compare_with=compare_with,
+                scope_id=scope_id,
+                details=details,
             )
         )
         return _journey_result(result, "redesign", goal)
@@ -364,8 +384,8 @@ def _redesign_next_action(result: dict[str, Any], goal: str) -> dict[str, Any]:
 
     state = str(result.get("state") or (result.get("review") or {}).get("state") or "")
     if state in {"not_started", "stale"}:
-        arguments: dict[str, Any] = {"intent": "redesign", "start": True, "proposal_count": 2}
-        reason = "Start two independent capability-first proposals."
+        arguments: dict[str, Any] = {"intent": "redesign", "start": True, "proposal_count": 3}
+        reason = "Build a functional hierarchy and retain three independent alternatives per scope."
     elif state == "failed":
         arguments = {"intent": "redesign", "start": True, "retry_failed": True}
         reason = "Retry the failed review stage; the existing proposal count is kept."
@@ -376,7 +396,7 @@ def _redesign_next_action(result: dict[str, Any], goal: str) -> dict[str, Any]:
         reason = "Use the architecture result for one bounded coding decision."
         if state == "current":
             reason = (
-                "Use one ranked recommendation for a bounded coding decision; pass start=true "
+                "Compare the retained alternatives in Architecture Planning; pass start=true "
                 "and restart=true only when you deliberately want a new review generation."
             )
         return _build_next_action(goal, reason)

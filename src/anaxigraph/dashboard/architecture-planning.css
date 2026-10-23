@@ -1,26 +1,29 @@
-.architecture-planning.panel { background: var(--flow-surface); border-color: var(--flow-line); }
+.architecture-planning.panel { background: var(--flow-surface, var(--panel)); border-color: var(--flow-line, var(--line)); }
 .architecture-planning { margin-top: 1rem; min-width: 0; }
-.architecture-planning textarea { width: 100%; box-sizing: border-box; padding: .7rem; border: 1px solid var(--flow-line); border-radius: 8px; background: var(--flow-surface); color: var(--flow-ink); }
+.architecture-planning textarea { width: 100%; box-sizing: border-box; padding: .7rem; border: 1px solid var(--flow-line, var(--line)); border-radius: 8px; background: var(--flow-surface, var(--panel)); color: var(--flow-ink, var(--text)); }
 .planning-suggestions { display: flex; flex-wrap: wrap; gap: .5rem; margin: .7rem 0; }
 .architecture-options, .architecture-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin: 1rem 0; }
-.architecture-options article, .architecture-diagram { border: 1px solid var(--flow-line); border-radius: 12px; padding: 1rem; margin: 0; min-width: 0; }
+.architecture-options article, .architecture-diagram { border: 1px solid var(--flow-line, var(--line)); border-radius: 12px; padding: 1rem; margin: 0; min-width: 0; }
 .architecture-options .selected { border-color: var(--accent); }
 .architecture-diagram svg { width: 100%; height: auto; }
 .architecture-diagram figcaption { font-weight: 700; margin-bottom: .7rem; }
-.architecture-diagram .plan-node rect { fill: var(--flow-surface); stroke: var(--flow-line); }
-.architecture-diagram .plan-node text { fill: var(--flow-ink); font-size: 17px; }
+.architecture-diagram .plan-node rect { fill: var(--flow-surface, var(--panel)); stroke: var(--flow-line, var(--line)); }
+.architecture-diagram .plan-node text { fill: var(--flow-ink, var(--text)); font-size: 17px; }
 .architecture-diagram .plan-node .plan-node-state { font-size: 13px; opacity: .7; }
 .architecture-diagram .plan-node.added rect { stroke: #29a57c; stroke-width: 3; }
 .architecture-diagram .plan-node.changed rect { stroke: #be8b25; stroke-width: 3; }
 .architecture-diagram .plan-node.moved rect { stroke: #be8b25; stroke-width: 3; }
 .architecture-diagram .plan-node.retired { opacity: .6; }
-.architecture-diagram .plan-links path { stroke: var(--flow-ink); fill: none; opacity: .5; }
-.architecture-diagram marker path { fill: var(--flow-ink); }
+.architecture-diagram .plan-links path { stroke: var(--flow-ink, var(--text)); fill: none; opacity: .5; }
+.architecture-diagram marker path { fill: var(--flow-ink, var(--text)); }
 .architecture-milestones li { padding-bottom: 1rem; }
 .architecture-planning pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (max-width: 900px) { .architecture-options, .architecture-comparison { grid-template-columns: 1fr; } }
 
 .architecture-planning button { font: inherit; font-size: .8rem; }
-.architecture-planning textarea { font: inherit; font-size: .9rem; background: var(--flow-code-bg); color: var(--flow-ink); }
-.architecture-options .selected { background: var(--flow-model-bg); }
+.architecture-planning textarea { font: inherit; font-size: .9rem; background: var(--flow-code-bg, var(--panel)); color: var(--flow-ink, var(--text)); }
+.architecture-options .selected { background: var(--flow-model-bg, var(--panel)); }
 .plan-graph-scroll { max-height: 560px; overflow: auto; }
+
+.plan-graph-scroll svg { min-width: 560px; display: block; }
+.proposed-relationships { overflow-wrap: anywhere; }

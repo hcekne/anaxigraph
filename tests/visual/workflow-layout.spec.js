@@ -47,7 +47,7 @@ test("narrow layouts keep the map readable and all workflow controls reachable",
     const controls = await page.locator("#workflow-run-controls").boundingBox();
     expect(controls.y).toBeGreaterThanOrEqual(map.y + map.height);
     expect(await page.evaluate(() => document.body.scrollWidth)).toBeLessThanOrEqual(width);
-    await page.locator('[data-configure-step="context"]').click();
+    await page.locator('[data-configure-step="groups"]').click();
     await expect(page.getByRole("dialog")).toBeVisible();
     await page.keyboard.press("Escape");
     await page.locator("#workflow-run-button").scrollIntoViewIfNeeded();

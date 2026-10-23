@@ -11,6 +11,7 @@ from anaxigraph.semantic_timeouts import readable_failure
 
 def workflow_coverage(connection: Any, snapshot_id: int) -> dict[str, Any]:
     return {
+        "graph": _graph_coverage(connection, snapshot_id),
         "scopes": _scopes(connection, snapshot_id),
         **_execution(connection, snapshot_id),
         "scan": _scan(connection, snapshot_id),
@@ -18,6 +19,35 @@ def workflow_coverage(connection: Any, snapshot_id: int) -> dict[str, Any]:
         "workers": _workers(connection, snapshot_id),
         "history": workflow_history(connection, snapshot_id),
         "taxonomy_review": _taxonomy_review(connection, snapshot_id),
+    }
+
+
+def _graph_coverage(connection: Any, snapshot_id: int) -> dict[str, Any]:
+    kinds = dict(
+        connection.execute(
+            "SELECT kind,COUNT(*) FROM graph_entities WHERE snapshot_id=? GROUP BY kind",
+            (snapshot_id,),
+        ).fetchall()
+    )
+    annotations = connection.execute(
+        """SELECT COUNT(*),COALESCE(SUM(status='current'),0) FROM semantic_scope_states
+        WHERE snapshot_id=? AND scope_type='module' AND status!='excluded'""",
+        (snapshot_id,),
+    ).fetchone()
+    brief = connection.execute(
+        "SELECT 1 FROM semantic_scope_states WHERE snapshot_id=? AND scope_type='repository' "
+        "AND status='current' LIMIT 1",
+        (snapshot_id,),
+    ).fetchone()
+    return {
+        "module_count": kinds.get("module", 0),
+        "function_count": kinds.get("function", 0),
+        "interface_count": kinds.get("interface", 0),
+        "contract_count": kinds.get("contract", 0),
+        "annotation_total": annotations[0],
+        "annotation_current": annotations[1],
+        "contracts_ready": annotations[0] > 0 and annotations[0] == annotations[1],
+        "functional_brief_ready": bool(brief),
     }
 
 
@@ -33,8 +63,8 @@ def _scopes(connection: Any, snapshot_id: int) -> dict[str, Any]:
             ('pending_intrinsic', 'failed_intrinsic', 'excluded')) AS intrinsic_reused,
           SUM(c.snapshot_id != ss.snapshot_id AND ss.status = 'current') AS reused
         FROM semantic_scope_states ss
-        LEFT JOIN semantic_documents i ON i.id = ss.intrinsic_document_id
-        LEFT JOIN semantic_documents c ON c.id = ss.context_document_id
+        LEFT JOIN semantic_document_values i ON i.id = ss.intrinsic_document_id
+        LEFT JOIN semantic_document_values c ON c.id = ss.context_document_id
         WHERE ss.snapshot_id = ? GROUP BY ss.scope_type
         """,
         (snapshot_id,),
@@ -61,7 +91,7 @@ def _execution(connection: Any, snapshot_id: int) -> dict[str, Any]:
         SELECT ss.scope_type, d.document_kind,
           GROUP_CONCAT(DISTINCT COALESCE(NULLIF(d.executor_model, ''), NULLIF(d.model, '')))
             AS models
-        FROM semantic_scope_states ss JOIN semantic_documents d
+        FROM semantic_scope_states ss JOIN semantic_document_values d
           ON d.id IN (ss.intrinsic_document_id, ss.context_document_id)
         WHERE ss.snapshot_id = ? AND (ss.status = 'current' OR
           (d.id = ss.intrinsic_document_id AND ss.status NOT IN
@@ -121,7 +151,7 @@ def _taxonomy_review(connection: Any, snapshot_id: int) -> dict[str, Any]:
            MAX(j.completed_at) AS finished
            FROM semantic_jobs j WHERE j.snapshot_id = ? AND j.job_kind = 'taxonomy_review'
            AND j.status != 'superseded' AND json_extract(j.metadata_json, '$.taxonomy_input_hash') =
-             (SELECT input_hash FROM semantic_taxonomies WHERE snapshot_id = ? ORDER BY id DESC LIMIT 1)
+             (SELECT input_hash FROM semantic_taxonomy_values WHERE snapshot_id = ? ORDER BY id DESC LIMIT 1)
            GROUP BY pass, phase ORDER BY pass, phase""",
         (datetime.now(UTC).isoformat(), snapshot_id, snapshot_id),
     ).fetchall()

@@ -76,6 +76,14 @@ def _source_chunks(
 
 
 def _intent_fingerprint(value: dict[str, Any]) -> str:
+    if "overview" in value:
+        return semantic_digest(
+            {
+                key: value.get(key)
+                for key in ("overview", "detail", "functions", "contracts", "capabilities")
+            }
+        )
+
     def normalized_terms(key: str) -> list[str]:
         terms = {
             " ".join(str(item).split()).casefold()

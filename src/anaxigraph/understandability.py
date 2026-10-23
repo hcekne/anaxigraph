@@ -59,69 +59,6 @@ UNDERSTANDABILITY_POLICY = {
 }
 
 
-def _object(**properties: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "type": "object",
-        "properties": properties,
-        "required": list(properties),
-        "additionalProperties": False,
-    }
-
-
-_TEXT = {"type": "string", "maxLength": 1_000}
-_STRINGS = {"type": "array", "items": _TEXT, "maxItems": 6}
-_TASK = _object(
-    key={"type": "string", "minLength": 1, "maxLength": 100},
-    task={**_TEXT, "minLength": 1},
-    status={"type": "string", "enum": ["clear", "obstructed", "unknown"]},
-    knowledge_sources={
-        "type": "array",
-        "items": {
-            "type": "string",
-            "enum": [
-                "names",
-                "boundaries",
-                "interfaces",
-                "types",
-                "tests",
-                "glossary",
-                "decisions",
-                "navigation",
-                "distributed_behavior",
-                "external_explanation",
-            ],
-        },
-        "maxItems": 10,
-    },
-    evidence=_STRINGS,
-    obstacle=_TEXT,
-    smallest_change=_TEXT,
-    expected_benefit=_TEXT,
-    migration_cost={"type": "string", "enum": ["low", "medium", "high", "unknown"]},
-    counter_evidence=_STRINGS,
-    verification=_TEXT,
-    confidence={"type": "number", "minimum": 0, "maximum": 1},
-    caller_obligations={
-        "type": "array",
-        "items": _TEXT,
-        "maxItems": 6,
-        "description": (
-            "What every caller must already know or guarantee because this interface does not "
-            "enforce it: an ordering rule, a precondition, a resource the caller must release, "
-            "or a detail the caller must repeat. Obligations a caller cannot discover from the "
-            "interface are the cost this task pays; an empty list means none were found, which "
-            "is not the same as none existing."
-        ),
-    },
-)
-# Optional: assessments saved before this field remain valid and are not re-requested.
-_TASK["required"] = [name for name in _TASK["required"] if name != "caller_obligations"]
-UNDERSTANDABILITY_SCHEMA = _object(
-    contract_version={"type": "string", "enum": [UNDERSTANDABILITY_VERSION]},
-    tasks={"type": "array", "items": _TASK, "maxItems": 3},
-)
-
-
 def assessment_tasks(semantic: dict[str, Any]) -> list[dict[str, Any]]:
     """Withhold stale or older assessments without treating absence as clarity."""
     assessment = semantic.get("understandability") or {}

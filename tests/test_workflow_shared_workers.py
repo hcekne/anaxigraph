@@ -39,8 +39,8 @@ def test_dashboard_joins_external_work_and_finishes_remaining_files(
         database,
         row,
         config,
-        WorkflowRequest(workflow="mapping", step="intrinsic"),
-        {"intrinsic": [choice()]},
+        WorkflowRequest(workflow="mapping", step="annotation"),
+        {"annotation": [choice()]},
     )
     with ThreadPoolExecutor(max_workers=1) as pool:
         future = pool.submit(run.run)
@@ -64,7 +64,7 @@ def test_dashboard_joins_external_work_and_finishes_remaining_files(
     assert result["processed"] == (0 if only_one else 7)
     with database.connect() as connection:
         rows = connection.execute(
-            "SELECT status, attempts FROM semantic_jobs WHERE job_kind = 'intrinsic'"
+            "SELECT status, attempts FROM semantic_jobs WHERE job_kind = 'annotation'"
         ).fetchall()
     assert all(tuple(row) == ("completed", 1) for row in rows)
 
@@ -85,8 +85,8 @@ def test_dashboard_reclaims_an_expired_external_lease(repository, database, monk
         database,
         row,
         config,
-        WorkflowRequest(workflow="mapping", step="intrinsic"),
-        {"intrinsic": [choice()]},
+        WorkflowRequest(workflow="mapping", step="annotation"),
+        {"annotation": [choice()]},
     ).run()
     assert result["status"] == "complete"
     assert result["processed"] == 1

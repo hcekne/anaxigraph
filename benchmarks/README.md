@@ -1,5 +1,28 @@
 # AnaxiGraph benchmark suite
 
+## Matched semantic graph maintenance evidence
+
+Run the offline controlled comparison against the recorded baseline with:
+
+```bash
+uv run python benchmarks/semantic_maintenance.py \
+  --baseline 16c672b832ac167264aa76364857ab7580c18e27 \
+  --output /tmp/semantic-maintenance.json
+```
+
+The [23 October result](results/semantic-maintenance-2026-10-23.json) compares archived 0.8.5
+and a frozen current source copy on identical 62-file fixtures across five source states. It
+exercises real search/file/impact projections, function consumers and tests, frontend-only and
+stable-provider changes, a deliberately broken public output contract, and its companion migration.
+Saved detail reads run with the source directory temporarily unavailable. The healthy utility and
+mixed-responsibility hub each have 24 consumers, so degree alone cannot establish design quality.
+
+Semantic facts are manually authored and matched between versions; no models or live services
+are used. The report separates exact observed scopes, response bytes and exercised checks from
+unmeasured agent judgment, novelty and robustness. Timings are local observations under concurrent
+test activity. It also retains the cost: the typed graph uses more local space in this small
+fixture, despite smaller default replies. Explicit detail expansion is measured separately.
+
 ## Usage latency and response size
 
 Run `python -m benchmarks.usage_latency --files 1000 --trials 10 --output /tmp/usage-latency.json`
@@ -262,3 +285,18 @@ capability drop, no-new-privileges, and loopback binding:
 ```bash
 uv run python scripts/smoke_container_sidecar.py
 ```
+
+## Semantic control-plane overhead
+
+The offline control-plane profile builds a completed deterministic 200-module map with all 133
+catalogue cards. It compares the current implementation with only the two previous status/witness
+hot paths restored in memory, using the same saved fixture and five warmed timing samples. It
+checks that the complete eight-witness request remains byte-identical. The fixture provider has
+no model or network calls; these measurements do not establish whole-workflow speed or review quality.
+
+```bash
+PYTHONPATH=src:tests:. .venv/bin/python benchmarks/semantic_control_plane.py
+```
+
+The timing samples and separate CPU profiles are retained in
+`results/semantic-control-plane-2026-10-23.json`.

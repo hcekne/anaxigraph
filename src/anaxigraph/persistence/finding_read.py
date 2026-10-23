@@ -138,8 +138,8 @@ def _module_stats(
             GROUP BY source_artifact_id
         ) outgoing ON outgoing.source_artifact_id = fv.artifact_id
         LEFT JOIN (
-            SELECT path, COUNT(*) AS change_count FROM git_changes
-            WHERE repository_id = ? GROUP BY path
+            SELECT path, change_count FROM git_path_metrics
+            WHERE repository_id = ?
         ) history ON history.path = fv.path
         LEFT JOIN (
             SELECT artifact_id, MAX(line_coverage) AS line_coverage

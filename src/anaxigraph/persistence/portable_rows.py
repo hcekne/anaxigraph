@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from anaxigraph.persistence.semantic_payloads import semantic_read_table
+
 REPOSITORY_TABLES = (
     "snapshots",
     "artifacts",
@@ -38,6 +40,14 @@ TABLES = ("repositories", *REPOSITORY_TABLES, *RELATED_TABLES, "semantic_jobs", 
 EXTRA_REFERENCES = {
     "repositories": {"current_snapshot_id": "snapshots"},
     "snapshots": {"base_snapshot_id": "snapshots"},
+    "semantic_scope_states": {
+        "repository_id": "repositories",
+        "snapshot_id": "snapshots",
+        "artifact_id": "artifacts",
+        "file_fact_id": "file_facts",
+        "intrinsic_document_id": "semantic_documents",
+        "context_document_id": "semantic_documents",
+    },
 }
 
 
@@ -51,18 +61,21 @@ def table_references(connection: Any, table: str) -> dict[str, str]:
 
 
 def primary_columns(connection: Any, table: str) -> list[str]:
+    if table == "semantic_scope_states":
+        return ["snapshot_id", "scope_type", "scope_key"]
     columns = list(connection.execute(f'PRAGMA table_info("{table}")'))
     return [row["name"] for row in sorted(columns, key=lambda row: row["pk"]) if row["pk"]]
 
 
-def clean_runtime(value: Any, root: str) -> Any:
+def clean_runtime(value: Any, root: str, *, semantic_value: bool = False) -> Any:
     if isinstance(value, list):
-        return [clean_runtime(item, root) for item in value]
+        return [clean_runtime(item, root, semantic_value=semantic_value) for item in value]
     if isinstance(value, dict):
         return {
-            key: clean_runtime(item, root)
+            key: clean_runtime(item, root, semantic_value=semantic_value)
             for key, item in value.items()
-            if key
+            if semantic_value
+            or key
             not in {
                 "worker_id",
                 "lease_token",
@@ -83,16 +96,17 @@ def decoded_row(row: dict[str, Any], root: str) -> dict[str, Any]:
     for key, value in row.items():
         if key.endswith("_json") and isinstance(value, str):
             value = json.loads(value)
-        result[key] = clean_runtime(value, root)
+        result[key] = clean_runtime(value, root, semantic_value=key == "value_json")
     return result
 
 
 def _query(
     connection: Any, table: str, where: str, parameters: Any, columns: str = "*"
 ) -> list[dict[str, Any]]:
+    source = semantic_read_table(table)
     return [
         dict(row)
-        for row in connection.execute(f'SELECT {columns} FROM "{table}" WHERE {where}', parameters)
+        for row in connection.execute(f'SELECT {columns} FROM "{source}" WHERE {where}', parameters)
     ]
 
 

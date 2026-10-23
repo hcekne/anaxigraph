@@ -1,0 +1,63 @@
+.entity-inspector { min-width: 0; }
+.entity-inspector h2, .entity-inspector p, .entity-inspector li { overflow-wrap: anywhere; }
+.entity-overview { font-weight: 600; }
+.entity-detail { max-width: 70ch; line-height: 1.6; }
+.entity-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.entity-metrics div { padding: 8px; border: 1px solid var(--line); border-radius: 9px; }
+.entity-metrics dt { font-size: 11px; color: var(--muted); }
+.entity-metrics dd { margin: 4px 0 0; font-weight: 700; }
+.entity-relations ul, .entity-contracts ul { margin: 0; padding-left: 17px; }
+.entity-relations li { margin: 8px 0; }
+.entity-relations li small { display: block; color: var(--muted); }
+.entity-relations li p { font-size: 12px; margin: 3px 0; }
+.entity-link { background: transparent; border: 0; padding: 2px 0; color: var(--accent); text-align: left; text-decoration: underline; overflow-wrap: anywhere; cursor: pointer; }
+.entity-evidence pre { max-width: 100%; overflow: auto; white-space: pre-wrap; font-size: 11px; }
+.shared-entity-detail { display: block; max-width: 100%; }
+.shared-entity-detail .entity-inspector { max-width: 900px; }
+.module-select { width: 30px; }
+.module-select button { min-width: 28px; min-height: 28px; border: 1px solid var(--line); border-radius: 7px; color: var(--text); background: var(--panel); cursor: pointer; }
+.module-table th { white-space: nowrap; }
+.module-table { min-width: 900px; }
+.module-summary { display: block; min-width: 200px; max-width: 360px; }
+.graph-text-view { padding: 14px; border-top: 1px solid var(--line); }
+.graph-text-view summary, .advanced-history > summary { cursor: pointer; font-weight: 650; padding: 4px 0; }
+#graph-entity-list { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0; max-height: 240px; overflow: auto; }
+#graph-entity-list button { padding: 5px 8px; border: 1px solid var(--line); border-radius: 7px; }
+#graph-relationship-list { max-height: 300px; overflow: auto; }
+.graph-edge-row { padding: 8px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.graph-edge-row small { color: var(--muted); }
+.graph-controls { flex-wrap: wrap; }
+.graph-controls label { min-width: 120px; }
+.advanced-history { margin-top: 18px; }
+.catalogue-table-wrap { overflow: auto; max-width: 100%; }
+.catalogue-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.catalogue-table th, .catalogue-table td { text-align: left; padding: 12px; vertical-align: top; border-bottom: 1px solid var(--line); min-width: 100px; }
+.catalogue-table td p { margin: 4px 0; max-width: 45ch; }
+.catalogue-counts { display: flex; gap: 10px; flex-wrap: wrap; }
+.catalogue-counts span { padding: 8px; border: 1px solid var(--line); border-radius: 9px; }
+.functional-scope { margin-bottom: 18px; }
+.functional-alternatives { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.functional-alternative { min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
+.functional-alternative h3, .functional-alternative p, .functional-alternative li { overflow-wrap: anywhere; }
+.functional-scope-select { max-width: 100%; min-height: 40px; }
+button:focus-visible, summary:focus-visible, canvas:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+@media (max-width: 800px) {
+  .functional-alternatives { grid-template-columns: 1fr; }
+  .entity-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .entity-inspector .module-detail-actions { flex-wrap: wrap; }
+  .graph-controls label { flex: 1 1 140px; }
+}
+
+.semantic-diagram-label { font: 12px/1.25 ui-sans-serif, system-ui, sans-serif; color: var(--text); overflow-wrap: anywhere; }
+.proposed-entity-list { font-size: 12px; margin-top: 8px; }
+.proposed-entity-list > details { padding: 6px 0; }
+
+.graph-controls select { max-width: 100%; min-width: 0; text-overflow: ellipsis; }
+
+#view-settings pre { max-width: 100%; overflow-x: auto; }
+
+.functional-alternatives > .panel { margin: 0; }
+.fresh-eyes-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+.fresh-eyes-controls label { display: grid; gap: 4px; }
+
+.graph-controls [hidden] { display: none; }

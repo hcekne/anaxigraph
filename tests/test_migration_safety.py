@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 import subprocess
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -22,6 +23,7 @@ from anaxigraph.persistence import (
     transactional_schema_change,
     validate_schema_backup,
 )
+from anaxigraph.persistence.schema import SCHEMA_VERSION
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.storage import AnaxiIndex
 
@@ -109,6 +111,9 @@ def _downgrade_to_schema_six(database: AnaxiIndex) -> None:
         ):
             connection.execute(statement)
         _materialize_schema_six_frames(connection)
+        connection.execute("DROP VIEW IF EXISTS graph_connections")
+        for table in ("graph_links", "graph_revisions", "graph_entities"):
+            connection.execute(f"DROP TABLE IF EXISTS {table}")
         for table in (
             "schema_migrations",
             "checkpoint_relationships",
@@ -243,7 +248,7 @@ def test_schema_change_rolls_back_every_ddl_and_fact_on_failure(repository, data
         ).fetchone()
 
     assert probe is None
-    assert _version(database) == 11
+    assert _version(database) == SCHEMA_VERSION
     assert _canonical_frames(database) == before
 
 
@@ -304,7 +309,7 @@ def test_real_schema_six_index_has_idempotent_backup_and_exact_restore(repositor
     report = inspect_index(reopened.path, reopened.connect)
     assert report["status"] == "healthy"
     assert report["migration"]["from_version"] == 6
-    assert report["migration"]["to_version"] == 11
+    assert report["migration"]["to_version"] == SCHEMA_VERSION
     assert report["backup"]["status"] == "valid"
     reused = create_schema_backup(database.path, schema_version=6)
     assert reused.reused is True
@@ -323,13 +328,13 @@ def test_real_schema_six_index_has_idempotent_backup_and_exact_restore(repositor
     )
     reopened = AnaxiIndex(database.path)
     assert restored.sha256
-    assert _version(reopened) == 11
+    assert _version(reopened) == SCHEMA_VERSION
     assert _canonical_frames(reopened) == before
     assert created.path.exists(), "recovery backup must survive a restore"
 
 
 def test_backup_validation_fails_closed_for_wrong_schema(database):
-    backup = create_schema_backup(database.path, schema_version=11)
+    backup = create_schema_backup(database.path, schema_version=SCHEMA_VERSION)
 
     with pytest.raises(RuntimeError, match="expected 6"):
         validate_schema_backup(backup.path, expected_version=6)
@@ -354,7 +359,7 @@ def test_schema_six_upgrade_is_restartable_after_injected_failure(
     with pytest.raises(RuntimeError, match="post-backfill"):
         AnaxiIndex(database.path)
 
-    with sqlite3.connect(database.path) as connection:
+    with closing(sqlite3.connect(database.path)) as connection, connection:
         version = int(
             connection.execute(
                 "SELECT value FROM schema_meta WHERE key = 'schema_version'"
@@ -369,7 +374,7 @@ def test_schema_six_upgrade_is_restartable_after_injected_failure(
 
     monkeypatch.setattr(initialization_module, "migrate_schema", real_migrate)
     reopened = AnaxiIndex(database.path)
-    assert _version(reopened) == 11
+    assert _version(reopened) == SCHEMA_VERSION
     assert _canonical_frames(reopened) == before
 
 

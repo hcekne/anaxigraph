@@ -5,9 +5,13 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from anaxigraph.ir_codec import decode_metadata
+from anaxigraph.ir_codec import storage_metadata as encode_identity_cache
 from anaxigraph.persistence.portable_references import IDENTITY_FIELDS
 from anaxigraph.persistence.portable_rows import TABLES, primary_columns, table_references
-from anaxigraph.portable_paths import canonical_json
+from anaxigraph.persistence.search_storage import clear_search_cache
+from anaxigraph.persistence.semantic_payloads import store_taxonomy_fields, stored_semantic_value
+from anaxigraph.semantic_payload import modern_semantic_value
 
 ID_ORDER = (
     "snapshots",
@@ -28,6 +32,31 @@ ID_ORDER = (
     "coverage_measurements",
     "semantic_claims",
 )
+IMMUTABLE_FIELDS = {
+    "semantic_documents": (
+        "scope_type",
+        "scope_key",
+        "document_kind",
+        "input_hash",
+        "created_at",
+        "intent_fingerprint",
+        "provider",
+        "model",
+        "prompt_version",
+        "schema_version",
+    ),
+    "semantic_jobs": (
+        "scope_type",
+        "scope_key",
+        "job_kind",
+        "input_hash",
+        "completed_at",
+        "provider",
+        "model",
+        "prompt_version",
+        "schema_version",
+    ),
+}
 UNIQUE_FIELDS = {
     "snapshots": ("repository_id", "content_fingerprint"),
     "artifacts": ("repository_id", "canonical_path"),
@@ -40,6 +69,13 @@ UNIQUE_FIELDS = {
     "git_changes": ("repository_id", "commit_sha", "path"),
     "fact_symbols": ("file_fact_id", "symbol_type", "qualified_name", "start_line", "end_line"),
 }
+
+
+def prepare_record_import(connection):
+    clear_search_cache(connection)
+    connection.execute(
+        "INSERT OR REPLACE INTO schema_meta VALUES ('index-compaction-pending','true')"
+    )
 
 
 def merge_record(
@@ -56,7 +92,7 @@ def merge_record(
     prior = connection.execute(
         "SELECT value FROM schema_meta WHERE key = ?", (cache_key,)
     ).fetchone()
-    identities = json.loads(prior[0]) if prior else {}
+    identities = decode_metadata(prior[0]) if prior else {}
     identities.update(bindings or {})
     repository = tables.get("repositories", [])
     if bindings is None and len(repository) != 1:
@@ -75,14 +111,26 @@ def merge_record(
             imported += _save_row(connection, table, value)
     retained = {item["key"] for rows in tables.values() for item in rows} | set(bindings or {})
     identities = {key: value for key, value in identities.items() if key in retained}
-    connection.execute(
-        "INSERT INTO schema_meta(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-        (cache_key, canonical_json(identities).decode()),
-    )
+    write_identity_cache(connection, repository_id, identities)
     return {
         "imported_rows": imported,
         "snapshot_id": identities.get(manifest["source"]["snapshot"]),
     }
+
+
+def write_identity_cache(connection, repository_id, identities):
+    key = f"portable-identities:{repository_id}"
+    packed = encode_identity_cache(identities)
+    existing = connection.execute("SELECT value FROM schema_meta WHERE key=?", (key,)).fetchone()
+    if existing and existing[0] == packed:
+        return
+    # Release the old overflow pages before allocating the smaller lossless value.
+    connection.execute("UPDATE schema_meta SET value='{}' WHERE key=?", (key,))
+    connection.execute(
+        "INSERT INTO schema_meta(key,value) VALUES (?,?) "
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+        (key, packed),
+    )
 
 
 def _validate_tables(connection: Any, tables: Any, external_keys: set[str] | None = None) -> None:
@@ -127,6 +175,7 @@ def _validate_references(value: Any, keys: set[str]) -> None:
 
 def _allocate(connection: Any, tables: Any, identities: Any, repository_id: int) -> None:
     for table in ID_ORDER:
+        stable = _immutable_ids(connection, table, repository_id)
         next_id = connection.execute(f'SELECT COALESCE(MAX(id),0)+1 FROM "{table}"').fetchone()[0]
         for item in sorted(tables.get(table, []), key=_record_order):
             key = item["key"]
@@ -136,8 +185,12 @@ def _allocate(connection: Any, tables: Any, identities: Any, repository_id: int)
                 connection, table, identities[key], value
             ):
                 continue
-            existing = _existing_id(connection, table, value)
+            signature = _immutable_signature(table, value)
+            existing = stable.get(signature) if signature else None
+            existing = existing or _existing_id(connection, table, value)
             identities[key] = existing or next_id
+            if signature:
+                stable[signature] = identities[key]
             next_id += existing is None
 
 
@@ -145,7 +198,7 @@ def _cached_identity_matches(connection: Any, table: str, identifier: int, value
     row = connection.execute(f'SELECT * FROM "{table}" WHERE id = ?', (identifier,)).fetchone()
     if row is None:
         return False
-    fields = {
+    fields = IMMUTABLE_FIELDS.get(table) or {
         "file_facts": ("artifact_id", "raw_hash", "analysis_signature"),
         "relationship_sets": (
             "source_artifact_id",
@@ -155,6 +208,23 @@ def _cached_identity_matches(connection: Any, table: str, identifier: int, value
         ),
     }.get(table, IDENTITY_FIELDS.get(table, ()))
     return bool(fields) and all(row[field] == value.get(field) for field in fields)
+
+
+def _immutable_signature(table, value):
+    fields = IMMUTABLE_FIELDS.get(table)
+    return tuple(value[field] for field in fields) if fields else None
+
+
+def _immutable_ids(connection, table, repository_id):
+    if table not in IMMUTABLE_FIELDS:
+        return {}
+    return {
+        _immutable_signature(table, row): int(row["id"])
+        for row in connection.execute(
+            f"SELECT id,{','.join(IMMUTABLE_FIELDS[table])} FROM {table} WHERE repository_id=?",
+            (repository_id,),
+        )
+    }
 
 
 def _existing_id(connection: Any, table: str, value: Any) -> int | None:
@@ -217,9 +287,13 @@ def _prepare_row(table: str, value: Any, repository_id: int) -> dict[str, Any]:
 def _save_row(connection: Any, table: str, value: dict[str, Any]) -> int:
     primary = primary_columns(connection, table)
     where = " AND ".join(f'"{field}" = ?' for field in primary)
+    fields = "id" if table in IMMUTABLE_FIELDS else "*"
     existing = connection.execute(
-        f'SELECT * FROM "{table}" WHERE {where}', [value[field] for field in primary]
+        f'SELECT {fields} FROM "{table}" WHERE {where}', [value[field] for field in primary]
     ).fetchone()
+    if existing and table in IMMUTABLE_FIELDS:
+        return 0
+    _store_cold_values(connection, table, value)
     if existing:
         if table in {"semantic_scope_states", "semantic_taxonomies"} and _newer_local(
             existing, value
@@ -238,6 +312,16 @@ def _save_row(connection: Any, table: str, value: dict[str, Any]) -> int:
             [value[field] for field in fields],
         )
     return 1
+
+
+def _store_cold_values(connection: Any, table: str, value: Any) -> None:
+    store_taxonomy_fields(connection, table, value)
+    if table == "semantic_claims" or (
+        table == "semantic_documents"
+        and not modern_semantic_value(value["document_kind"], value["value_json"])
+    ):
+        for field in ("value_json", "supporting_evidence_json"):
+            value[field] = stored_semantic_value(connection, value[field])
 
 
 def _newer_local(existing: Any, incoming: Any) -> bool:

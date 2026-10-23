@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import json
-import re
 from collections.abc import Sequence
 from typing import Any
 
-from anaxigraph.semantic_contract import SemanticAnalysisError, SemanticResult, _validate_schema
 from anaxigraph.semantic_freshness import semantic_digest as semantic_digest
 from anaxigraph.semantic_freshness import semantic_input_hash as semantic_input_hash
+from anaxigraph.semantic_model_contract import (
+    SemanticAnalysisError,
+    SemanticResult,
+)
 
 FRESH_EYES_REVIEW_VERSION = "fresh-eyes-review-v1"
 FRESH_EYES_PROPOSAL_VERSION = "fresh-eyes-proposal-v1"
@@ -28,12 +30,15 @@ def fresh_eyes_plan_options(plan: dict[str, Any]) -> tuple[int, int]:
     """Read proposal count and explicit rerun generation from one plan row."""
 
     proposal_text, generation_text, _executors = _plan_token_parts(plan)
+    functional = str(plan.get("interface_hash") or "").startswith("functional-v2|")
     try:
         proposal_count = int(proposal_text)
         generation = int(generation_text) if generation_text else 1
     except ValueError:
-        return 2, 1
-    return max(1, min(3, proposal_count)), max(1, generation)
+        return (3 if functional else 2), 1
+    return max(3 if functional else 1, min(5 if functional else 3, proposal_count)), max(
+        1, generation
+    )
 
 
 def fresh_eyes_plan_executors(plan: dict[str, Any]) -> tuple[str, ...]:
@@ -48,6 +53,8 @@ def fresh_eyes_required_executor(executors: Sequence[str], scope_key: str) -> st
     """Name the executor family pinned to one proposal slot, or None when any may take it."""
 
     key = str(scope_key)
+    if ":proposal:" in key:
+        key = "proposal:" + key.rsplit(":proposal:", 1)[1]
     if not key.startswith(PROPOSAL_SCOPE_PREFIX):
         return None
     slot = key[len(PROPOSAL_SCOPE_PREFIX) :]
@@ -58,7 +65,12 @@ def fresh_eyes_required_executor(executors: Sequence[str], scope_key: str) -> st
 
 
 def fresh_eyes_plan_token(
-    proposal_count: int, generation: int, executors: Sequence[str] = (), *, goal: str = ""
+    proposal_count: int,
+    generation: int,
+    executors: Sequence[str] = (),
+    *,
+    goal: str = "",
+    functional: bool = True,
 ) -> str:
     """Encode small plan controls without adding model identity to semantic freshness.
 
@@ -69,12 +81,14 @@ def fresh_eyes_plan_token(
     families = proposal_executor_families(executors, proposal_count)
     token = f"{proposal_count}:{generation}"
     if goal:
-        return f"{token}:{','.join(families)}:{json.dumps(goal, ensure_ascii=True)}"
-    return f"{token}:{','.join(families)}" if families else token
+        token = f"{token}:{','.join(families)}:{json.dumps(goal, ensure_ascii=True)}"
+    elif families:
+        token = f"{token}:{','.join(families)}"
+    return f"functional-v2|{token}" if functional else token
 
 
 def fresh_eyes_plan_goal(plan: dict[str, Any]) -> str:
-    parts = str(plan.get("interface_hash") or "").split(":", 3)
+    parts = str(plan.get("interface_hash") or "").removeprefix("functional-v2|").split(":", 3)
     return str(json.loads(parts[3])) if len(parts) == 4 else ""
 
 
@@ -121,190 +135,9 @@ def parse_proposal_executors(value: Any) -> tuple[str, ...]:
 
 
 def _plan_token_parts(plan: dict[str, Any]) -> tuple[str, str, str]:
-    parts = str(plan.get("interface_hash") or "2").split(":")
+    parts = str(plan.get("interface_hash") or "3").removeprefix("functional-v2|").split(":")
     padded = (*parts, "", "")
     return padded[0], padded[1], padded[2]
-
-
-def _object(**properties: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "type": "object",
-        "properties": properties,
-        "required": list(properties),
-        "additionalProperties": False,
-    }
-
-
-def _array(item: dict[str, Any]) -> dict[str, Any]:
-    return {"type": "array", "items": item}
-
-
-_STRING = {"type": "string"}
-_STRINGS = _array(_STRING)
-_EVIDENCE = {**_array({"type": "string", "minLength": 1}), "minItems": 1}
-_CONFIDENCE = {"type": "number", "minimum": 0, "maximum": 1}
-
-_COMPONENT = _object(
-    key=_STRING,
-    name=_STRING,
-    responsibility=_STRING,
-    collaborators=_STRINGS,
-    extension_points=_STRINGS,
-)
-_FLOW = _object(name=_STRING, steps=_STRINGS, rationale=_STRING)
-_PATTERN = _object(name=_STRING, purpose=_STRING, tradeoffs=_STRINGS)
-_DESIGN = _object(
-    summary=_STRING,
-    components=_array(_COMPONENT),
-    information_flows=_array(_FLOW),
-    boundary_rules=_STRINGS,
-    operating_model=_STRINGS,
-    extension_strategy=_STRINGS,
-    patterns=_array(_PATTERN),
-    simplifications=_STRINGS,
-    tradeoffs=_STRINGS,
-    assumptions=_STRINGS,
-    unknowns=_STRINGS,
-)
-
-FRESH_EYES_PROPOSAL_SCHEMA: dict[str, Any] = _object(
-    contract_version={"type": "string", "enum": [FRESH_EYES_PROPOSAL_VERSION]},
-    design=_DESIGN,
-    isolation=_object(
-        requested={"type": "string", "enum": ["fresh_context"]},
-        status={"type": "string", "enum": ["self_reported", "unverified"]},
-        note=_STRING,
-    ),
-    confidence=_CONFIDENCE,
-    evidence=_EVIDENCE,
-)
-
-_DISAGREEMENT = _object(
-    topic=_STRING,
-    positions=_STRINGS,
-    adjudication=_STRING,
-    preserved_alternative=_STRING,
-)
-FRESH_EYES_ADJUDICATION_SCHEMA: dict[str, Any] = _object(
-    contract_version={"type": "string", "enum": [FRESH_EYES_ADJUDICATION_VERSION]},
-    summary=_STRING,
-    shared_ground=_STRINGS,
-    disagreements=_array(_DISAGREEMENT),
-    common_blind_spots=_STRINGS,
-    proposal_assessments=_array(_object(proposal=_STRING, strengths=_STRINGS, weaknesses=_STRINGS)),
-    reference_design=_DESIGN,
-    confidence=_CONFIDENCE,
-    evidence=_EVIDENCE,
-)
-
-_CLASSIFICATIONS = [
-    "already_satisfies",
-    "good_reason_to_differ",
-    "useful_simplification",
-    "missing_capability",
-    "migration_cost_outweighs_value",
-    "insufficient_evidence",
-]
-_MAPPING = _object(
-    reference_responsibility=_STRING,
-    current_responsibilities=_STRINGS,
-    classification={"type": "string", "enum": _CLASSIFICATIONS},
-    explanation=_STRING,
-    evidence=_EVIDENCE,
-    counter_evidence=_STRINGS,
-    migration_cost={"type": "string", "enum": ["none", "low", "medium", "high"]},
-)
-_CANDIDATE_CHANGE = _object(
-    title=_STRING,
-    classification={"type": "string", "enum": _CLASSIFICATIONS},
-    explanation=_STRING,
-    affected_responsibilities=_STRINGS,
-    evidence=_EVIDENCE,
-    counter_evidence=_STRINGS,
-    migration_cost={"type": "string", "enum": ["low", "medium", "high"]},
-)
-FRESH_EYES_COMPARISON_SCHEMA: dict[str, Any] = _object(
-    contract_version={"type": "string", "enum": [FRESH_EYES_COMPARISON_VERSION]},
-    summary=_STRING,
-    mappings=_array(_MAPPING),
-    current_strengths=_STRINGS,
-    candidate_changes=_array(_CANDIDATE_CHANGE),
-    unknowns=_STRINGS,
-    confidence=_CONFIDENCE,
-    evidence=_EVIDENCE,
-)
-
-_VERIFICATION_RESULT = _object(
-    status={
-        "type": "string",
-        "enum": ["unverified", "passed", "failed"],
-        "description": (
-            "Whether the check was actually run. It stays unverified unless a tool that ran it "
-            "supplied the outcome; a structural improvement is not a result."
-        ),
-    },
-    revision={
-        **_STRING,
-        "description": (
-            "The revision the result belongs to. A result from another revision is not evidence "
-            "about this one."
-        ),
-    },
-    source={**_STRING, "description": "What produced the result, for example a test command."},
-    observed_at=_STRING,
-)
-_TRANSFORMATION = _object(
-    target={**_STRING, "description": "The exact path or symbol the change applies to."},
-    preconditions={
-        "type": "array",
-        "items": _STRING,
-        "maxItems": 6,
-        "description": "What must already hold before the first step is safe.",
-    },
-    sequence={
-        "type": "array",
-        "items": _STRING,
-        "maxItems": 8,
-        "description": "Small ordered steps, each leaving the code working.",
-    },
-    preserved_behavior={
-        **_STRING,
-        "description": "The observable behavior that must be identical afterwards.",
-    },
-    verification_command={
-        **_STRING,
-        "description": "The check that would establish the behavior was preserved.",
-    },
-    rollback={**_STRING, "description": "How to undo the change if the check fails."},
-    result=_VERIFICATION_RESULT,
-)
-# A recommendation may carry a plan without anyone having run it yet.
-_TRANSFORMATION["required"] = [n for n in _TRANSFORMATION["required"] if n != "result"]
-
-_ACTIONS = ["retain", "move", "split", "consolidate", "delete", "refactor"]
-_RECOMMENDATION = _object(
-    rank={"type": "integer", "minimum": 1},
-    title=_STRING,
-    action={"type": "string", "enum": _ACTIONS},
-    mission_capability=_STRING,
-    current_evidence=_EVIDENCE,
-    reference_insight=_STRING,
-    smallest_change=_STRING,
-    expected_benefit=_STRING,
-    expected_deletions=_STRINGS,
-    protected_behavior=_STRINGS,
-    affected_contracts=_STRINGS,
-    risks=_STRINGS,
-    counter_evidence=_STRINGS,
-    reasons_not_to_proceed=_STRINGS,
-    dependencies=_STRINGS,
-    verification=_STRINGS,
-    reversible={"type": "boolean"},
-    confidence=_CONFIDENCE,
-    transformation=_TRANSFORMATION,
-)
-# Optional: reviews saved before the transformation block stay valid.
-_RECOMMENDATION["required"] = [n for n in _RECOMMENDATION["required"] if n != "transformation"]
 
 
 def attributed_verification(recommendation: dict[str, Any]) -> str:
@@ -321,42 +154,34 @@ def attributed_verification(recommendation: dict[str, Any]) -> str:
     return "unchecked"
 
 
-FRESH_EYES_REVIEW_SCHEMA: dict[str, Any] = _object(
-    contract_version={"type": "string", "enum": [FRESH_EYES_REVIEW_VERSION]},
-    summary=_STRING,
-    mission_alignment=_STRING,
-    recommendations=_array(_RECOMMENDATION),
-    rejected_ideas=_array(_object(idea=_STRING, reason=_STRING, evidence=_EVIDENCE)),
-    sequence=_STRINGS,
-    caveats=_STRINGS,
-    confidence=_CONFIDENCE,
-    evidence=_EVIDENCE,
-)
-
-_SCHEMAS = {
-    "fresh_proposal": FRESH_EYES_PROPOSAL_SCHEMA,
-    "fresh_adjudication": FRESH_EYES_ADJUDICATION_SCHEMA,
-    "fresh_comparison": FRESH_EYES_COMPARISON_SCHEMA,
-    "fresh_review": FRESH_EYES_REVIEW_SCHEMA,
-}
-_NAMES = {
-    "fresh_proposal": "fresh_eyes_proposal",
-    "fresh_adjudication": "fresh_eyes_adjudication",
-    "fresh_comparison": "fresh_eyes_comparison",
-    "fresh_review": "fresh_eyes_review",
-}
-_IMPLEMENTATION_IDENTITY = re.compile(
-    r"(?:^|[\s'\"`(])(?:\.?\.?/|src/|tests?/|packages?/|[\w.-]+\.(?:py|js|jsx|ts|tsx|rs|go|java))(?:$|[\s'\"`),:])",
-    re.IGNORECASE,
-)
+def _reject_legacy_request(request: dict[str, Any]) -> None:
+    if str(request.get("analysis_kind") or "") in {
+        "fresh_proposal",
+        "fresh_adjudication",
+        "fresh_comparison",
+        "fresh_review",
+    }:
+        raise SemanticAnalysisError(
+            "Fresh Eyes executor work requires functional review v2; saved legacy results are read-only"
+        )
 
 
 def fresh_eyes_schema(request: dict[str, Any]) -> dict[str, Any] | None:
-    return _SCHEMAS.get(str(request.get("analysis_kind") or ""))
+    from anaxigraph.semantic_fresh_eyes_v2_contract import schema_for
+
+    schema = schema_for(request)
+    if schema is None:
+        _reject_legacy_request(request)
+    return schema
 
 
 def fresh_eyes_contract_name(request: dict[str, Any]) -> str | None:
-    return _NAMES.get(str(request.get("analysis_kind") or ""))
+    from anaxigraph.semantic_fresh_eyes_v2_contract import contract_name
+
+    name = contract_name(request)
+    if name is None:
+        _reject_legacy_request(request)
+    return name
 
 
 def validated_fresh_eyes_response(
@@ -366,23 +191,11 @@ def validated_fresh_eyes_response(
     input_tokens: int = 0,
     output_tokens: int = 0,
 ) -> SemanticResult | None:
-    kind = str(request.get("analysis_kind") or "")
-    schema = _SCHEMAS.get(kind)
-    if schema is None:
-        return None
-    _validate_schema(value, schema, _NAMES[kind])
-    if kind in {"fresh_proposal", "fresh_adjudication"}:
-        leaked = _IMPLEMENTATION_IDENTITY.search(json.dumps(value, ensure_ascii=False))
-        if leaked:
-            raise SemanticAnalysisError(
-                "implementation-blind architecture result contains a repository path or file identity"
-            )
-    confidence = max(0.0, min(1.0, float(value.get("confidence") or 0)))
-    evidence = tuple(str(item)[:2_000] for item in (value.get("evidence") or [])[:100])
-    return SemanticResult(
-        value=value,
-        confidence=confidence,
-        evidence=evidence,
-        input_tokens=max(0, input_tokens),
-        output_tokens=max(0, output_tokens),
+    from anaxigraph.semantic_fresh_eyes_v2_contract import validate_functional
+
+    result = validate_functional(
+        value, request, input_tokens=input_tokens, output_tokens=output_tokens
     )
+    if result is None:
+        _reject_legacy_request(request)
+    return result

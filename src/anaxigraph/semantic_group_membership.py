@@ -8,6 +8,18 @@ from typing import Any
 from anaxigraph.config import AnaxiGraphConfig
 
 
+def group_synthesis_evidence(group, taxonomy, documents, missing):
+    return {
+        "scope": group,
+        "taxonomy": taxonomy,
+        "documents": [
+            (item["scope_key"], item["intent_fingerprint"], item["input_hash"])
+            for item in documents
+        ],
+        "missing": missing,
+    }
+
+
 def synthesis_groups(
     connection: sqlite3.Connection,
     *,
@@ -17,7 +29,7 @@ def synthesis_groups(
 ) -> tuple[dict[str, set[str]], dict[str, dict[str, Any]]]:
     taxonomy = connection.execute(
         """
-        SELECT * FROM semantic_taxonomies
+        SELECT * FROM semantic_taxonomy_values
         WHERE snapshot_id = ? AND status = 'current' ORDER BY id DESC LIMIT 1
         """,
         (snapshot_id,),
@@ -35,7 +47,7 @@ def _semantic_groups(
     rows = connection.execute(
         """
         SELECT node_key, name, level, parent_key, description, responsibility, confidence
-        FROM semantic_taxonomy_nodes WHERE taxonomy_id = ?
+        FROM semantic_taxonomy_node_values WHERE taxonomy_id = ?
         """,
         (taxonomy_id,),
     ).fetchall()
@@ -50,7 +62,7 @@ def _semantic_groups(
     memberships = connection.execute(
         """
         SELECT a.canonical_path AS path, stm.node_key
-        FROM semantic_taxonomy_memberships stm
+        FROM semantic_taxonomy_membership_values stm
         JOIN artifacts a ON a.id = stm.artifact_id
         WHERE stm.taxonomy_id = ?
         """,

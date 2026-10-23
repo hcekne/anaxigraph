@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,7 @@ import anaxigraph.persistence.index_initialization as initialization_module
 import anaxigraph.persistence.migrations as migrations_module
 from anaxigraph.config import load_config
 from anaxigraph.persistence import SUPPORTED_SCHEMA_VERSIONS
+from anaxigraph.persistence.semantic_payloads import register_semantic_payloads
 from anaxigraph.persistence.temporal_hashing import digest
 from anaxigraph.persistence.temporal_reconstruction import (
     _insert_checkpoint,
@@ -54,8 +56,8 @@ def test_fresh_and_current_schema_initialization_is_idempotent(tmp_path, monkeyp
     monkeypatch.setattr(initialization_module, "migrate_schema", unexpected_migration)
     second = AnaxiIndex(path)
 
-    assert SUPPORTED_SCHEMA_VERSIONS == frozenset({2, 6, 7, 8, 9, 10, 11})
-    assert _schema_version(first) == _schema_version(second) == SCHEMA_VERSION == 11
+    assert SUPPORTED_SCHEMA_VERSIONS == frozenset({2, 6, 7, 8, 9, 10, 11, 12, 13})
+    assert _schema_version(first) == _schema_version(second) == SCHEMA_VERSION == 13
     assert {"base_snapshot_id", "sequence"} <= _columns(first, "snapshots")
     assert _columns(first, "file_facts")
     assert _columns(first, "snapshot_file_changes")
@@ -121,7 +123,7 @@ def test_relationship_lookup_index_precedes_upgrade_compaction_and_survives_reop
     with reopened.connect() as connection:
         _assert_indexed_relationship_lookup(connection)
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
-    assert len(calls) == (1 if version == 10 else 0)
+    assert len(calls) == 1
     assert reopened.overview(stats.repository_id)["files"] == stats.discovered
     assert reopened.graph(stats.repository_id)["nodes"]
 
@@ -212,12 +214,13 @@ def test_schema_10_duplicate_cleanup_preserves_references_without_cascade(reposi
 def test_released_v2_schema_migrates_without_losing_repository_data(tmp_path):
     path = tmp_path / "v2.db"
     fixture = Path(__file__).parent / "fixtures" / "schema-v2.sql"
-    with sqlite3.connect(path) as connection:
+    with closing(sqlite3.connect(path)) as connection, connection:
+        register_semantic_payloads(connection)
         connection.executescript(fixture.read_text(encoding="utf-8"))
 
     database = AnaxiIndex(path)
 
-    assert _schema_version(database) == 11
+    assert _schema_version(database) == 13
     assert database.repository(1)["name"] == "Preserved v2 repository"
     assert {"worker_id", "lease_expires_at", "lease_token_hash", "executor_id"} <= _columns(
         database, "semantic_jobs"
@@ -239,7 +242,10 @@ def _write_schema_10_usage_rows(path: Path, repository_id: int, snapshot_id: int
         ("agent-unknown", "completed", "agent", None),
         ("failed-attempt", "failed", "codex", None),
     )
-    with sqlite3.connect(path) as connection:
+    with closing(sqlite3.connect(path)) as connection, connection:
+        register_semantic_payloads(connection)
+        connection.execute("DROP VIEW IF EXISTS semantic_document_values")
+        connection.execute("DROP VIEW IF EXISTS semantic_claim_values")
         for scope_key, status, provider, cost in rows:
             connection.execute(
                 """
@@ -286,7 +292,7 @@ def test_schema_11_backfills_usage_source_on_rows_written_before_the_column(repo
 
     database = AnaxiIndex(path)
 
-    assert _schema_version(database) == 11
+    assert _schema_version(database) == 13
     assert _usage_sources(database, "semantic_jobs") == {
         "reported-cost": "reported",
         "estimated-only": "estimated",
@@ -303,10 +309,11 @@ def test_schema_11_backfills_usage_source_on_rows_written_before_the_column(repo
     assert totals == 28
 
 
-@pytest.mark.parametrize("version", [1, 3, 4, 5, 12])
+@pytest.mark.parametrize("version", [1, 3, 4, 5, 14])
 def test_untested_or_future_schema_versions_fail_closed(tmp_path, version):
     path = tmp_path / f"unsupported-{version}.db"
-    with sqlite3.connect(path) as connection:
+    with closing(sqlite3.connect(path)) as connection, connection:
+        register_semantic_payloads(connection)
         connection.execute("CREATE TABLE schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
         connection.execute(
             "INSERT INTO schema_meta(key, value) VALUES ('schema_version', ?)",
@@ -334,7 +341,10 @@ def _additive_columns() -> dict[str, dict[str, str]]:
 def _drop_columns(path: Path, columns: dict[str, dict[str, str]]) -> None:
     """Turn a current-version index into one built before these columns existed."""
 
-    with sqlite3.connect(path) as connection:
+    with closing(sqlite3.connect(path)) as connection, connection:
+        register_semantic_payloads(connection)
+        connection.execute("DROP VIEW IF EXISTS semantic_document_values")
+        connection.execute("DROP VIEW IF EXISTS semantic_claim_values")
         for table, definitions in columns.items():
             for name in definitions:
                 connection.execute(f"ALTER TABLE {table} DROP COLUMN {name}")

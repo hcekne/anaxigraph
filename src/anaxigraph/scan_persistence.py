@@ -10,6 +10,7 @@ from anaxigraph import __version__
 from anaxigraph.architecture_vocabulary import INFERRED_GROUPS, inferred_group
 from anaxigraph.clock import utc_now
 from anaxigraph.ir import analysis_metadata, artifact_type
+from anaxigraph.persistence.git_metrics import observe_git_changes
 from anaxigraph.persistence.temporal_facts import record_canonical_file_facts
 from anaxigraph.scan_preparation import PreparedFile
 
@@ -167,29 +168,10 @@ def ingest_git_history(
     *,
     repository_id: int,
     changes: list[Any],
+    observed_head: str,
+    detailed: bool = False,
 ) -> None:
-    connection.executemany(
-        """
-        INSERT OR IGNORE INTO git_changes(
-            repository_id, commit_sha, committed_at, author_name, subject, path,
-            change_type, additions, deletions
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        [
-            (
-                repository_id,
-                item.commit_sha,
-                item.committed_at,
-                item.author_name,
-                item.subject,
-                item.path,
-                item.change_type,
-                item.additions,
-                item.deletions,
-            )
-            for item in changes
-        ],
-    )
+    observe_git_changes(connection, repository_id, changes, head=observed_head, detailed=detailed)
 
 
 def _version_record(

@@ -16,6 +16,19 @@ from anaxigraph.persistence.temporal_reads import (
 from anaxigraph.relationships import relationship_metadata
 
 
+def knowledge_snapshot_inputs(connection: sqlite3.Connection, snapshot_id: int):
+    """Share one canonical evidence read between graph construction and semantic planning."""
+    files = snapshot_files(connection, snapshot_id)
+    types = artifact_types_for_files(connection, files)
+    for file in files:
+        file["artifact_type"] = types.get(file["artifact_id"], "source")
+    return (
+        files,
+        symbols_for_files(connection, files),
+        snapshot_relationship_edges(connection, snapshot_id),
+    )
+
+
 def semantic_inventory(
     connection: sqlite3.Connection,
     snapshot_id: int,

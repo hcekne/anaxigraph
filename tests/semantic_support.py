@@ -8,6 +8,7 @@ from pathlib import Path
 
 import yaml
 from fresh_eyes_fixtures import agent_fresh_eyes
+from semantic_charter_fixtures import _agent_charter
 
 from anaxigraph.semantic import SemanticResult
 from anaxigraph.semantic_service import SemanticServiceTarget
@@ -18,7 +19,7 @@ def _semantic_config(repository: Path, provider: Path, log: Path, **overrides) -
     value = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     value["semantic"] = {
         "enabled": True,
-        "detailed_reviews": True,  # Existing lifecycle fixtures exercise the full review workflow.
+        "detailed_reviews": False,  # Pattern lifecycle cases explicitly request their separate workflow.
         "provider": "command",
         "command": [sys.executable, str(provider), str(log)],
         "prompt_version": "test-v1",
@@ -30,16 +31,17 @@ def _semantic_config(repository: Path, provider: Path, log: Path, **overrides) -
     config_path.write_text(yaml.safe_dump(value, sort_keys=False), encoding="utf-8")
 
 
-def _enable_agent_semantics(repository: Path) -> None:
+def _enable_agent_semantics(repository: Path, **overrides) -> None:
     path = repository / ".anaxigraph.yml"
     policy = yaml.safe_load(path.read_text(encoding="utf-8"))
     policy["semantic"] = {
         "enabled": True,
-        "detailed_reviews": True,
+        "detailed_reviews": False,
         "provider": "agent",
         "max_parallel_jobs": 16,
         "agent_lease_seconds": 120,
         "taxonomy": {"enabled": True, "review_passes": 2},
+        **overrides,
     }
     path.write_text(yaml.safe_dump(policy, sort_keys=False), encoding="utf-8")
 
@@ -90,7 +92,7 @@ shifted_intent = bool(INTENT_MARKER and (
 ))
 with open(sys.argv[1], "a", encoding="utf-8") as stream:
     stream.write(json.dumps({"path": path, "kind": kind}) + "\\n")
-if FAIL_PATH and path == FAIL_PATH and kind == "intrinsic":
+if FAIL_PATH and path == FAIL_PATH and kind in {"intrinsic", "annotation"}:
     raise SystemExit(7)
 def taxonomy_value():
     modules = request.get("modules") or []
@@ -182,7 +184,7 @@ def pattern_evaluation():
         "execution_safety": 65, "migration_cost": 35,
     }
     return {
-        "score_contract_version": "pattern-scores-v2",
+        "score_contract_version": request.get("score_contract_version", "pattern-scores-v2"),
         "candidate_fingerprint": candidate["input_fingerprint"],
         "pattern_key": pattern_key,
         "target_key": target_key,
@@ -204,17 +206,29 @@ def pattern_evaluation():
         "risks": ["The abstraction could cost more than it saves."],
         "invariants": list(request["pattern"]["verification_invariants"]),
         "invalidation_conditions": ["The supporting evidence no longer applies."],
+        **({
+            "pros": [f"The supplied behavior in {target_key} can gain a clearer boundary."],
+            "cons": [f"Changing {target_key} requires preserving its existing callers."],
+            "placements": [{
+                "target_key": target_key,
+                "reason": "The fixture requires the supplied behavior at this scope.",
+                "evidence": [target_key],
+                "pros": ["Keep behavior behind an explicit contract."],
+                "cons": ["An extra boundary has a maintenance cost."],
+            }],
+        } if request.get("score_contract_version") == "pattern-scores-v3" else {}),
     }
 if kind == "pattern_assessment":
     value = pattern_evaluation()
 elif kind == "pattern_review":
     value = {
-        "review_contract_version": "pattern-review-v1",
+        "review_contract_version": request.get("review_contract_version", "pattern-review-v1"),
         "candidate_fingerprint": request["candidate"]["input_fingerprint"],
         "verdict": "approve",
         "summary": "The independent critique found the evidence and scores coherent.",
         "issues": [],
-        "evaluation": request["assessment"],
+        "evaluation": None if request.get("review_contract_version") == "pattern-review-v2" else request["assessment"],
+        **({"assessment_fingerprint": request["assessment_fingerprint"], "assessment_input_hash": request["assessment_input_hash"]} if request.get("review_contract_version") == "pattern-review-v2" else {}),
         "competing_interpretations": [],
         "confidence": 80,
         "evidence": [request["candidate"]["target"]["key"]],
@@ -230,6 +244,15 @@ elif kind.startswith("taxonomy_review"):
     }
 elif kind.startswith("taxonomy_"):
     value = taxonomy_value()
+elif kind == "annotation":
+    value = {
+        "overview": f"Own {path}" + (f" for {INTENT_MARKER}" if shifted_intent else "") + ".",
+        "detail": f"Provides the behavior described by the supplied {path} source.",
+        "functions": [{"qualified_name": item["qualified_name"],
+                       "overview": item.get("summary") or "Implements the supplied function."}
+                      for item in request.get("functions", [])],
+        "contracts": [], "capabilities": [], "evidence": [path], "confidence": 0.85,
+    }
 elif kind.startswith("synthesis") and request.get("scope_type") == "repository":
     value = CHARTER_VALUE
 else:
@@ -251,9 +274,30 @@ def _calls(log: Path) -> list[dict[str, str]]:
     return [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
 
 
+def _agent_annotation(request: dict) -> dict:
+    path = str(request.get("path") or "module")
+    return {
+        "overview": f"Own {path} behavior.",
+        "detail": "Implements and exposes the supplied behavior through its public functions.",
+        "functions": [
+            {
+                "qualified_name": item["qualified_name"],
+                "overview": item.get("summary") or "Implements the supplied function.",
+            }
+            for item in request.get("functions", [])
+        ],
+        "contracts": [],
+        "capabilities": [],
+        "evidence": [path],
+        "confidence": 0.85,
+    }
+
+
 def _agent_dossier(request: dict) -> dict:
     scope = str(request.get("path") or request.get("scope_key") or "repository")
     kind = str(request.get("analysis_kind") or "semantic")
+    if kind == "annotation":
+        return _agent_annotation(request)
     if kind.startswith("fresh_"):
         return agent_fresh_eyes(request, kind)
     if kind.startswith("pattern_"):
@@ -361,90 +405,26 @@ def _agent_taxonomy_area(modules: list[dict], members: list[dict]) -> dict:
     }
 
 
-def _agent_charter() -> dict:
-    def claim(statement: str) -> dict:
-        return {
-            "statement": statement,
-            "evidence": ["supplied repository descriptions"],
-            "counter_evidence": [],
-            "confidence": 0.85,
-        }
-
-    def item(key: str, name: str, statement: str) -> dict:
-        return {
-            "key": key,
-            "name": name,
-            "statement": statement,
-            "related": [],
-            "entry_points": [],
-            "evidence": ["supplied repository descriptions"],
-            "counter_evidence": [],
-            "confidence": 0.85,
-        }
-
-    return {
-        "contract_version": "architecture-charter-v1",
-        "purpose": claim("Help people understand and improve a software repository."),
-        "actors": [item("developer", "Developer", "Uses the repository map to guide changes.")],
-        "capabilities": [item("repository-map", "Repository map", "Explains saved code behavior.")],
-        "responsibilities": [
-            item("understanding", "Understanding", "Keeps code explanations current.")
-        ],
-        "execution_flows": [
-            item("inspect", "Inspect", "A user requests and receives an explanation.")
-        ],
-        "public_contracts": [
-            item(
-                "saved-evidence",
-                "Saved evidence",
-                "Saved explanations remain tied to indexed evidence.",
-            )
-        ],
-        "invariants": [
-            item(
-                "read-only-source",
-                "Read-only source",
-                "Repository source remains read-only during analysis.",
-            )
-        ],
-        "extension_points": [],
-        "patterns": [],
-        "coherence_concerns": [],
-        "unknowns": [],
-        "conflicts": [],
-        "capability_brief": {
-            "contract_version": "capability-brief-v1",
-            "purpose": "Help people understand and improve a software repository.",
-            "actors": ["A person or coding agent planning a software change."],
-            "observable_capabilities": [
-                "Explain what the software does and how its parts cooperate."
-            ],
-            "user_journeys": ["Ask where a change belongs and receive evidence-backed guidance."],
-            "external_interfaces": [
-                "A dashboard, command line, and agent tool expose the same understanding."
-            ],
-            "non_functional_requirements": ["Analysis does not modify the inspected repository."],
-            "compatibility_obligations": [],
-            "non_goals": ["It does not edit source code by itself."],
-            "unknowns": [],
-            "evidence": ["indexed repository behavior"],
-            "confidence": 0.85,
-        },
-        "confidence": 0.85,
-        "evidence": ["supplied repository descriptions"],
-    }
-
-
 def _agent_pattern_response(request: dict, kind: str) -> dict:
     if kind == "pattern_assessment":
         return _pattern_evaluation(request)
     return {
-        "review_contract_version": "pattern-review-v1",
+        "review_contract_version": request.get("review_contract_version", "pattern-review-v1"),
         "candidate_fingerprint": request["candidate"]["input_fingerprint"],
         "verdict": "approve",
         "summary": "Independent agent critique found the assessment coherent.",
         "issues": [],
-        "evaluation": request["assessment"],
+        "evaluation": None
+        if request.get("review_contract_version") == "pattern-review-v2"
+        else request["assessment"],
+        **(
+            {
+                "assessment_fingerprint": request["assessment_fingerprint"],
+                "assessment_input_hash": request["assessment_input_hash"],
+            }
+            if request.get("review_contract_version") == "pattern-review-v2"
+            else {}
+        ),
         "competing_interpretations": [],
         "confidence": 80,
         "evidence": [request["candidate"]["target"]["key"]],
@@ -466,7 +446,7 @@ def _pattern_evaluation(request: dict) -> dict:
         "migration_cost": 35,
     }
     return {
-        "score_contract_version": "pattern-scores-v2",
+        "score_contract_version": request.get("score_contract_version", "pattern-scores-v2"),
         "candidate_fingerprint": candidate["input_fingerprint"],
         "pattern_key": candidate["pattern_key"],
         "target_key": target_key,
@@ -491,4 +471,21 @@ def _pattern_evaluation(request: dict) -> dict:
         "risks": ["The abstraction could cost more than it saves."],
         "invariants": list(request["pattern"]["verification_invariants"]),
         "invalidation_conditions": ["The supporting evidence no longer applies."],
+        **(
+            {
+                "pros": [f"The supplied behavior in {target_key} can gain a clearer boundary."],
+                "cons": [f"Changing {target_key} requires preserving its existing callers."],
+                "placements": [
+                    {
+                        "target_key": target_key,
+                        "reason": "The fixture requires the supplied behavior at this scope.",
+                        "evidence": [target_key],
+                        "pros": ["Keep behavior behind an explicit contract."],
+                        "cons": ["An extra boundary has a maintenance cost."],
+                    }
+                ],
+            }
+            if request.get("score_contract_version") == "pattern-scores-v3"
+            else {}
+        ),
     }

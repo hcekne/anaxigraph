@@ -13,6 +13,7 @@ from anaxigraph.persistence import (
     restore_index_backup,
     validate_index_backup,
 )
+from anaxigraph.persistence.schema import SCHEMA_VERSION
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.storage import AnaxiIndex
 
@@ -48,7 +49,7 @@ def test_restore_accepts_a_closed_legacy_wal_backup_from_read_only_storage(datab
     directory.chmod(0o555)
     try:
         restored = restore_index_backup(tmp_path / "restored.db", backup)
-        assert restored.schema_version == 11
+        assert restored.schema_version == SCHEMA_VERSION
         assert backup.read_bytes() == before
         assert sorted(path.name for path in directory.iterdir()) == ["legacy.backup"]
     finally:
@@ -144,5 +145,5 @@ def test_backup_and_restore_cli_require_explicit_replacement_confirmation(
     assert backup_report["backup"]["path"] == str(backup_path)
     assert restore_report["status"] == "complete"
     assert restore_report["health"] == "healthy"
-    assert restore_report["final_schema_version"] == 11
+    assert restore_report["final_schema_version"] == SCHEMA_VERSION
     assert AnaxiIndex(database_path).repository(stats.repository_id)["name"] == original_name

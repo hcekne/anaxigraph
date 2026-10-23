@@ -17,8 +17,8 @@ def test_file_step_finishes_without_planning_next_card_or_rebuilding_repository_
         database,
         database.repository(repository),
         load_config(repository),
-        WorkflowRequest(workflow="mapping", step="intrinsic"),
-        {"intrinsic": [choice(workers=2)]},
+        WorkflowRequest(workflow="mapping", step="annotation"),
+        {"annotation": [choice(workers=2)]},
     )
     plan, run = execution.engine.plan, execution.engine.run_jobs
     plans, runs = [], []
@@ -46,7 +46,7 @@ def test_file_step_finishes_without_planning_next_card_or_rebuilding_repository_
     with database.connect() as connection:
         assert (
             connection.execute(
-                "SELECT COUNT(*) FROM semantic_jobs WHERE job_kind != 'intrinsic'"
+                "SELECT COUNT(*) FROM semantic_jobs WHERE job_kind != 'annotation'"
             ).fetchone()[0]
             == 0
         )

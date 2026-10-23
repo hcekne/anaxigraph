@@ -14,19 +14,20 @@ export function applySavedProgress(flow, data) {
   if (!needsUpdate) return;
   const next = flow.steps.find(item => !["complete", "skipped"].includes(item.status));
   flow.update = { next: next?.id, nextTitle: next?.title,
-    summary: modules.reuse_pending ? "The new source scan needs a reuse check. Saved results are retained; the update first checks which ones are still current." : `${modules.intrinsic?.current || 0} descriptions and ${modules.context?.current || 0} context results are current. Saved proposals remain available for reuse.`,
+    summary: modules.reuse_pending ? "The new source scan needs a reuse check. Saved results are retained; the update first checks which ones are still current." : `${(modules.annotation || modules.context || modules.intrinsic)?.current || 0} graph annotations are current. Saved proposals remain available for reuse.`,
     commit: history.commit_sha?.slice(0, 7) };
 }
 
 function applyModuleProgress(item, modules) {
-  const counts = modules[item.id];
+  const counts = moduleProgressValue(modules, item.id);
   if (!counts) return;
   item.freshness = counts;
-  item.affected = (modules.affected || []).filter(row => row[item.id] !== "current");
+  item.affected = moduleAffected(modules.affected || [], item.id);
   if (counts.refresh) markRefresh(item);
   item.updateNote = [counts.refresh ? `${counts.refresh.toLocaleString()} to refresh` : "", counts.new ? `${counts.new.toLocaleString()} first run` : ""].filter(Boolean).join(" · ");
-  if (modules.reuse_pending && modules.saved?.[item.id]) {
-    item.saved = modules.saved[item.id];
+  const saved = moduleProgressValue(modules.saved || {}, item.id);
+  if (modules.reuse_pending && saved) {
+    item.saved = saved;
     item.reusePending = modules.previous_snapshot_id;
     item.updateNote = "New scan · reuse check pending";
     markRefresh(item);
@@ -49,4 +50,12 @@ function applyTaxonomyProgress(item, previous, map) {
 
 function markRefresh(item) {
   if (!["running", "failed", "interrupted", "complete", "skipped"].includes(item.status)) item.status = "refresh_needed";
+}
+
+function moduleProgressValue(values, key) {
+  return key === "annotation" ? values.annotation || values.context || values.intrinsic : values[key];
+}
+
+function moduleAffected(values, key) {
+  return values.map(row => key === "annotation" ? { ...row, annotation: moduleProgressValue(row, key) } : row).filter(row => row[key] !== "current");
 }

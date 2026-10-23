@@ -39,7 +39,7 @@ ORDER BY id DESC LIMIT 1
 _DOCUMENT_SQL = """
 SELECT id AS document_id, LENGTH(value_json) AS output_bytes, created_at AS recorded_at,
        confidence
-FROM semantic_documents WHERE id = ?
+FROM semantic_document_values WHERE id = ?
 """
 
 

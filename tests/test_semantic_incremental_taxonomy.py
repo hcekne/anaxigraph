@@ -49,7 +49,7 @@ def test_local_interface_change_keeps_validated_taxonomy_and_limits_the_cascade(
     calls = _calls(log)[before:]
     assert refreshed["semantic"]["semantically_ready"] is True
     assert {item["kind"] for item in calls}.isdisjoint({"taxonomy_proposal", "taxonomy_review"})
-    assert any(item["kind"] == "context" for item in calls)
+    assert any(item["kind"] == "annotation" for item in calls)
     taxonomy = database.semantic_taxonomy(changed.repository_id)
     assert refreshed["work_plan"]["mode"] == "incremental"
     assert refreshed["work_plan"]["modules"]["reread"] == 1

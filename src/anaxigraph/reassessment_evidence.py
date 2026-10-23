@@ -186,7 +186,7 @@ def _module_semantics(
                ss.context_input_hash, ss.interface_hash, ss.relationship_hash,
                sd.id AS document_id, sd.value_json, sd.confidence, sd.document_kind
         FROM semantic_scope_states ss
-        LEFT JOIN semantic_documents sd
+        LEFT JOIN semantic_document_values sd
           ON sd.id = COALESCE(ss.context_document_id, ss.intrinsic_document_id)
         WHERE ss.snapshot_id = ? AND ss.scope_type = 'module'
         """,

@@ -6,6 +6,7 @@ import json
 import sqlite3
 from typing import Any
 
+from anaxigraph.ir_codec import decode_metadata
 from anaxigraph.ir_serialization import expand_stored_metadata
 from anaxigraph.persistence.temporal_reconstruction import (
     ReconstructionDiagnostics,
@@ -114,7 +115,7 @@ def _expanded_metadata_json(
     value: dict[str, Any],
     placement: dict[str, Any],
 ) -> str:
-    metadata = json.loads(value["metadata_json"] or "{}")
+    metadata = decode_metadata(value["metadata_json"] or "{}")
     metadata.update(json.loads(placement.get("metadata_json") or "{}"))
     expanded = expand_stored_metadata(
         metadata,

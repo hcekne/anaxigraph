@@ -1,100 +1,47 @@
-"""An interface that pushes work onto callers is where complexity actually lands.
-
-The maintenance-task assessment records those obligations so a reader can see the
-cost an interface charges. The field is optional: assessments saved before it exist
-stay valid, and adding it must not invalidate saved module meaning.
-"""
-
-from __future__ import annotations
+"""Caller obligations are named graph contracts, with no fabricated behavior checks."""
 
 import pytest
-from semantic_support import _agent_dossier
+from annotation_contract_support import annotation_case
 
-from anaxigraph.semantic_contract import SemanticAnalysisError, validated_result
-from anaxigraph.semantic_freshness import semantic_input_hash
-from anaxigraph.understandability import (
-    UNDERSTANDABILITY_VERSION,
-    understandability_advice,
-)
+from anaxigraph.knowledge_annotation_contract import validated_annotation
+from anaxigraph.semantic_model_contract import SemanticAnalysisError
 
 
-def _task(**changes):
-    return {
-        "key": "change-calculation",
-        "task": "Change the calculation while preserving its caller contract.",
-        "status": "obstructed",
-        "knowledge_sources": ["names", "interfaces"],
-        "evidence": ["pkg/core.py::Calculator.calculate"],
-        "obstacle": "Every caller must close the session the constructor opened.",
-        "smallest_change": "Close the session inside the calculation.",
-        "expected_benefit": "A caller stops carrying a rule the interface can enforce.",
-        "migration_cost": "low",
-        "counter_evidence": ["Two callers reuse one session deliberately."],
-        "verification": "Run the calculation tests plus the session lifetime test.",
-        "confidence": 0.85,
-        **changes,
-    }
+def test_caller_obligations_are_written_once_and_bound_to_owning_functions():
+    obligations = ["Close the session the constructor opened", "Call configure before calculation"]
+    request, value = annotation_case(*obligations)
+    result = validated_annotation(value, request=request)
+    contract = result.value["contracts"][0]
+    assert contract["invariants"] == obligations
+    assert contract["functions"] == ["pkg.core.calculate"]
+    assert len(result.value["contracts"]) == 1
+    assert "caller_obligations" not in result.value["functions"][0]
 
 
-def _dossier(task):
-    value = _agent_dossier({"path": "pkg/core.py", "analysis_kind": "module_intrinsic"})
-    value["understandability"] = {
-        "contract_version": UNDERSTANDABILITY_VERSION,
-        "tasks": [task],
-    }
-    return value
+def test_unknown_obligations_remain_unknown_without_inventing_an_empty_guarantee():
+    request, value = annotation_case()
+    value["contracts"] = []
+    value["detail"] = "The session lifetime contract is unknown from supplied evidence."
+    value["confidence"] = 0.1
+    result = validated_annotation(value, request=request)
+    assert result.value["contracts"] == []
+    assert "unknown" in result.value["detail"]
+    assert result.confidence == 0.1
 
 
-def _module(task):
-    return {
-        "path": "pkg/core.py",
-        "semantic": {
-            "status": "current",
-            "understandability": {
-                "contract_version": UNDERSTANDABILITY_VERSION,
-                "tasks": [task],
-            },
-        },
-    }
+def test_blank_obligations_and_unknown_function_bindings_are_refused():
+    request, value = annotation_case(" ")
+    with pytest.raises(SemanticAnalysisError, match="cannot be blank"):
+        validated_annotation(value, request=request)
+    value["contracts"][0]["invariants"] = ["Preserve ordering"]
+    value["contracts"][0]["functions"] = ["pkg.other.unprovided"]
+    with pytest.raises(SemanticAnalysisError, match="supplied functions"):
+        validated_annotation(value, request=request)
 
 
-def test_an_assessment_saved_without_caller_obligations_stays_valid():
-    result = validated_result(_dossier(_task()), input_tokens=0, output_tokens=0)
-
-    assert result.value["understandability"]["tasks"][0].get("caller_obligations") is None
-
-
-def test_recorded_obligations_reach_the_reader_advice():
-    obligations = [
-        "The caller must close the session the constructor opened.",
-        "The caller must call configure before the first calculation.",
-    ]
-
-    advice = understandability_advice([_module(_task(caller_obligations=obligations))])
-
-    assert advice["items"][0]["caller_obligations"] == obligations
-
-
-def test_a_blank_obligation_is_refused_like_blank_evidence():
-    with pytest.raises(SemanticAnalysisError):
-        validated_result(
-            _dossier(_task(caller_obligations=["  "])), input_tokens=0, output_tokens=0
-        )
-
-
-def test_the_advice_reports_no_aggregate_quality_score():
-    advice = understandability_advice([_module(_task(caller_obligations=["Close the session."]))])
-
-    assert "score" not in advice
-    assert not any(key.endswith("_score") for key in advice)
-    assert advice["basis"].endswith("reader performance has not been measured.")
-
-
-def test_adding_the_field_does_not_invalidate_saved_module_meaning():
-    """The field lives in the response schema, never in the input identity."""
-
-    first = semantic_input_hash("module-intrinsic-v1", "v1", {"path": "pkg/core.py"})
-    second = semantic_input_hash("module-intrinsic-v1", "v1", {"path": "pkg/core.py"})
-
-    assert first == second
-    assert "caller_obligations" not in first
+def test_inferred_contracts_have_confidence_and_no_aggregate_quality_grade():
+    request, value = annotation_case("Preserve the caller's quantity")
+    result = validated_annotation(value, request=request)
+    assert 0 <= result.confidence <= 1
+    assert "score" not in result.value
+    assert not any(key.endswith("_score") for key in result.value)

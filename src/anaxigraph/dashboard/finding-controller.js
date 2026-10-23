@@ -335,6 +335,7 @@ export async function reloadFindings({ append = false } = {}) {
   const cursor = append ? state.findingPage?.next_cursor || "" : "";
   if (append && !cursor) return;
   more.disabled = true;
+  if (!state.findingPage) renderFindings();
   try {
     const page = await request(api("/api/findings", findingQueryParams(cursor)));
     if (repositoryLoadToken !== state.repositoryLoadToken) return;

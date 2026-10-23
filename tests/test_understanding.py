@@ -38,12 +38,15 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
     assert charter["value"]["capability_brief"]["contract_version"] == "capability-brief-v1"
     assert status["taxonomy"]["ready"] is True
     assert status["taxonomy"]["current"]["review_passes"] == 2
-    assert status["patterns"]["ready"] is True
-    assert status["patterns"]["selected"] == status["patterns"]["finalized"] > 0
-    assert {"intrinsic", "context", "synthesis"} <= {item["kind"] for item in _calls(log)}
+    assert status["patterns"]["enabled"] is False
+    assert status["patterns"]["selected"] == status["patterns"]["finalized"] == 0
+    kinds = {item["kind"] for item in _calls(log)}
+    assert {"annotation", "synthesis", "taxonomy_proposal", "taxonomy_review"} <= kinds
+    assert not {"intrinsic", "context", "pattern_assessment", "pattern_review"} & kinds
     modules = database.modules(stats.repository_id)
     core_module = next(item for item in modules if item["path"] == "pkg/core.py")
-    assert core_module["summary_source"] == "command AI description using repository context"
+    assert core_module["summary_source"] == "command AI description"
+    assert core_module["summary_confidence"] == 0.85
     assert core_module["architecture_layer"] == "declared"
     assert core_module["architecture_layers"]["current"]["map_layer"] == "declared"
     assert core_module["architecture_layers"]["responsibility"]["map_layer"] == ("responsibility")
@@ -79,7 +82,7 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
         config=config,
     )
     assert scope["primary_files"][0]["semantic"]["status"] == "current"
-    assert scope["primary_files"][0]["semantic"]["pattern_opportunities"][0]["score"] == 84
+    assert scope["primary_files"][0]["semantic"]["pattern_opportunities"] == []
     file_language = scope["primary_files"][0]["semantic"]["plain_language"]
     assert file_language["version"] == "semantic-file-explanation-v4"
     assert "early AI notes, not instructions" in file_language["how_to_use_the_raw_fields"]
@@ -101,7 +104,7 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
         search_result["summary"]
         == search_result["semantic"]["plain_language"]["what_this_file_does"]
     )
-    semantic_query = "Evidence-grounded context dossier"
+    semantic_query = "supplied"
     assert "pkg/core.py" in _search_paths(database, stats.repository_id, semantic_query)
 
     first_call_count = len(_calls(log))
@@ -121,21 +124,9 @@ def test_full_semantic_bootstrap_is_resumable_and_incremental(repository, databa
     refreshed = SemanticEngine(database).bootstrap(changed.repository_id, repository, config)
     assert refreshed["processed"] > 1
     new_calls = _calls(log)[first_call_count:]
-    assert new_calls[0] == {"path": "pkg/core.py", "kind": "intrinsic"}
-    assert {item["kind"] for item in new_calls[1:]} == {
-        "context",
-        "synthesis",
-        "pattern_assessment",
-        "pattern_review",
-    }
-    assert [item["path"] for item in new_calls if item["kind"] == "context"] == ["pkg/core.py"]
-    assert {item["path"] for item in new_calls[1:] if item["kind"] != "synthesis"} <= {
-        "pkg/core.py",
-        "scope",
-    }
-    assert sum(item["kind"] == "pattern_assessment" for item in new_calls) == sum(
-        item["kind"] == "pattern_review" for item in new_calls
-    )
+    assert new_calls[0] == {"path": "pkg/core.py", "kind": "annotation"}
+    assert {item["kind"] for item in new_calls[1:]} == {"synthesis"}
+    assert [item["path"] for item in new_calls if item["kind"] == "annotation"] == ["pkg/core.py"]
     retained_map = database.semantic_taxonomy(changed.repository_id)
     assert retained_map["source"] == "incrementally_validated_taxonomy"
     assert [item["name"] for item in retained_map["hierarchy"]] == [
@@ -152,7 +143,7 @@ def _search_paths(database, repository_id: int, query: str) -> set[str]:
     return {item["path"] for item in database.search(repository_id, query, limit=100)}
 
 
-def test_unaffected_context_dossiers_remain_current_while_changed_modules_wait(
+def test_unaffected_annotations_remain_current_while_changed_modules_wait(
     repository, database, tmp_path
 ):
     log = tmp_path / "semantic-partial-carry.log"
@@ -175,12 +166,12 @@ def test_unaffected_context_dossiers_remain_current_while_changed_modules_wait(
     changed = RepositoryScanner(database).scan(repository, run_type="update")
     planned = engine.bootstrap(changed.repository_id, repository, config, plan_only=True)
 
-    assert planned["semantic"]["counts"]["pending_intrinsic"] == 1
+    assert planned["semantic"]["counts"]["pending_annotation"] == 1
     assert planned["semantic"]["current"] > 0
     assert planned["semantic"]["coverage"] > 0
 
 
-def test_scan_refresh_reuses_text_only_changes_and_prepares_hash_changed_modules(
+def test_scan_refresh_distinguishes_structural_text_changes_from_annotation_rereads(
     repository, database, tmp_path
 ):
     log = tmp_path / "semantic-scan-refresh.log"
@@ -214,7 +205,7 @@ def test_scan_refresh_reuses_text_only_changes_and_prepares_hash_changed_modules
     assert text_refresh["refresh"]["preparation"]["status"] == "prepared"
     assert text_refresh["refresh"]["text_only_modules"] == ["web/App.tsx"]
     assert text_refresh["refresh"]["semantic_reread_modules"] == []
-    assert text_refresh["semantic"]["counts"].get("pending_intrinsic", 0) == 0
+    assert text_refresh["semantic"]["counts"]["pending_annotation"] == 1
     assert text_refresh["refresh"]["full_repository_rerun_required"] is False
     core = repository / "pkg" / "core.py"
     core.write_text(
@@ -235,12 +226,22 @@ def test_scan_refresh_reuses_text_only_changes_and_prepares_hash_changed_modules
     refresh = code_refresh["refresh"]
     assert refresh["semantic_reread_modules"] == ["pkg/core.py"]
     assert refresh["text_only_modules"] == []
-    assert refresh["preparation"]["enqueued"] == 1
+    assert refresh["preparation"]["enqueued"] == 2
     assert refresh["preparation"]["work_plan"]["mode"] == "incremental"
-    assert refresh["preparation"]["work_plan"]["modules"]["reread"] == 1
+    assert refresh["preparation"]["work_plan"]["modules"]["reread"] == 2
     assert "saved fingerprint" in refresh["preparation"]["work_plan"]["explanation"]
     assert refresh["full_repository_rerun_required"] is False
-    assert code_refresh["semantic"]["counts"]["pending_intrinsic"] == 1
+    assert code_refresh["semantic"]["counts"]["pending_annotation"] == 2
+    with database.connect() as connection:
+        pending_paths = {
+            row[0]
+            for row in connection.execute(
+                "SELECT scope_key FROM semantic_jobs WHERE snapshot_id=? "
+                "AND job_kind='annotation' AND status='pending'",
+                (code_scan.snapshot_id,),
+            )
+        }
+    assert pending_paths == {"web/App.tsx", "pkg/core.py"}
 
 
 def test_semantic_failure_and_exclusion_are_visible_terminal_states(repository, database, tmp_path):
@@ -260,7 +261,7 @@ def test_semantic_failure_and_exclusion_are_visible_terminal_states(repository, 
     assert status["pending"] == 0
     core = SemanticEngine(database).dossier(stats.repository_id, "pkg/core.py")
     documentation = SemanticEngine(database).dossier(stats.repository_id, "docs/architecture.md")
-    assert core["status"] == "failed_intrinsic"
+    assert core["status"] == "failed_annotation"
     assert "exited with 7" in core["reason"]
     assert documentation["status"] == "excluded"
 
@@ -394,10 +395,12 @@ def test_forced_plan_survives_until_a_later_worker_run(repository, database, tmp
     assert resumed["processed"] == 8
     assert resumed["semantic"]["semantically_ready"] is True
     assert len(_calls(log)) == initial_calls + 8
-    assert {item["kind"] for item in _calls(log)[initial_calls:]} == {"intrinsic"}
+    assert {item["kind"] for item in _calls(log)[initial_calls:]} == {"annotation"}
 
 
-def test_age_expired_dossiers_are_rebuilt_instead_of_left_pending(repository, database, tmp_path):
+def test_age_expired_annotations_are_rebuilt_instead_of_left_pending(
+    repository, database, tmp_path
+):
     log = tmp_path / "semantic-age.log"
     provider = _fake_provider(tmp_path)
     _semantic_config(repository, provider, log, max_age_days=1)
@@ -412,19 +415,19 @@ def test_age_expired_dossiers_are_rebuilt_instead_of_left_pending(repository, da
 
     with database.transaction() as connection:
         connection.execute("UPDATE semantic_documents SET created_at = '2000-01-01T00:00:00+00:00'")
+    planned = engine.bootstrap(stats.repository_id, repository, config, plan_only=True)
+    assert planned["planned"] == 8
+    assert planned["semantic"]["counts"]["pending_annotation"] == 8
+    assert engine.bootstrap(stats.repository_id, repository, config, plan_only=True)["planned"] == 0
     rebuilt = engine.bootstrap(stats.repository_id, repository, config)
 
     assert rebuilt["processed"] > 9
     assert rebuilt["semantic"]["semantically_ready"] is True
     new_calls = _calls(log)[initial_calls:]
     assert len(new_calls) == rebuilt["processed"]
-    assert {item["kind"] for item in new_calls} == {
-        "intrinsic",
-        "context",
-        "synthesis",
-        "pattern_assessment",
-        "pattern_review",
-    }
+    assert {item["kind"] for item in new_calls} == {"annotation", "synthesis"}
+    assert sum(item["kind"] == "annotation" for item in new_calls) == 8
+    assert engine.bootstrap(stats.repository_id, repository, config)["processed"] == 0
 
 
 def test_large_scope_synthesis_is_chunked_and_reduced(database):

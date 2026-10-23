@@ -7,6 +7,7 @@ import sqlite3
 from collections import Counter
 from typing import Any
 
+from anaxigraph.architecture_dead_code_scopes import assessment_report
 from anaxigraph.architecture_models import DEFAULT_RULES, Finding
 from anaxigraph.clock import utc_now
 from anaxigraph.config import RuleConfig
@@ -99,6 +100,7 @@ def _record_evaluation(
     cycles: list[set[int]],
     findings: list[Finding],
     manage_lifecycle: bool,
+    dead_code_enabled: bool = False,
 ) -> None:
     _record_metrics(
         connection,
@@ -111,7 +113,7 @@ def _record_evaluation(
         cycles=cycles,
         findings=findings,
     )
-    _mark_finding_observations(connection, snapshot_id)
+    _mark_finding_observations(connection, snapshot_id, findings, dead_code_enabled)
     recorder = (
         _update_finding_lifecycle if manage_lifecycle else _record_historical_finding_occurrences
     )
@@ -312,7 +314,7 @@ def _insert_historical_finding(
     return int(cursor.lastrowid)
 
 
-def _mark_finding_observations(connection: sqlite3.Connection, snapshot_id: int) -> None:
+def _mark_finding_observations(connection, snapshot_id, findings, dead_code_enabled) -> None:
     row = connection.execute(
         "SELECT metadata_json FROM snapshots WHERE id = ?", (snapshot_id,)
     ).fetchone()
@@ -320,6 +322,7 @@ def _mark_finding_observations(connection: sqlite3.Connection, snapshot_id: int)
         return
     metadata = json.loads(row["metadata_json"] or "{}")
     metadata["finding_observation_version"] = FINDING_OBSERVATION_VERSION
+    metadata["dead_code_assessment"] = assessment_report(findings, dead_code_enabled)
     connection.execute(
         "UPDATE snapshots SET metadata_json = ? WHERE id = ?",
         (json.dumps(metadata, sort_keys=True), snapshot_id),

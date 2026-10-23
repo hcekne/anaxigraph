@@ -42,8 +42,16 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert (await client.get("/assets/graph-regions.css")).status_code == 200
         assert (await client.get("/assets/journey-navigation.css")).status_code == 200
         assert (await client.get("/assets/fresh-eyes-view.js")).status_code == 200
-        assert (await client.get("/assets/fresh-eyes-compare.js")).status_code == 200
-        assert (await client.get("/assets/fresh-eyes.css")).status_code == 200
+        assert (await client.get("/assets/fresh-eyes-compare.js")).status_code == 404
+        assert (await client.get("/assets/fresh-eyes.css")).status_code == 404
+        for asset in (
+            "entity-client.js",
+            "entity-inspector.js",
+            "semantic-graph-layout.js",
+            "semantic-graph.css",
+            "graph-subjects.js",
+        ):
+            assert (await client.get(f"/assets/{asset}")).status_code == 200
         assert (await client.get("/assets/patterns-view.js")).status_code == 200
         assert (await client.get("/assets/patterns-render.js")).status_code == 200
         assert (await client.get("/assets/patterns.css")).status_code == 200
@@ -129,7 +137,7 @@ async def test_dashboard_rest_api_exposes_current_intelligence(repository, datab
         assert documentation["evaluation"]["attention_score"] is None
         search = (await client.get("/api/search", params={"q": "Calculator", "limit": 5})).json()
         assert search["results"][0]["path"] == "pkg/core.py"
-        assert search["results"][0]["search"]["contract_version"] == "module-search-fts-v1"
+        assert search["results"][0]["search"]["contract_version"] == "module-search-contentless-v2"
         graph = (await client.get("/api/graph")).json()
         assert graph["nodes"]
         patterns = (await client.get("/api/patterns")).json()
@@ -215,13 +223,15 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                         "ANAXIGRAPH_SEMANTIC_STATUS",
                         "ANAXIGRAPH_SEARCH",
                         "ANAXIGRAPH_FILE",
+                        "ANAXIGRAPH_GRAPH",
+                        "ANAXIGRAPH_ENTITY",
                         "ANAXIGRAPH_GUIDE",
                         "ANAXIGRAPH_IMPACT",
                         "ANAXIGRAPH_FINDINGS",
                         "ANAXIGRAPH_FINDING_CONTEXT",
                         "ANAXIGRAPH_SCAN",
                     }
-                    assert len(names) <= 10
+                    assert len(names) <= 12
                     descriptions = {tool.name: str(tool.description or "") for tool in tools.tools}
                     public_help = " ".join(descriptions.values()).lower()
                     for unexplained_term in (
@@ -267,14 +277,43 @@ async def test_streamable_http_mcp_exposes_anaxigraph_tools(repository, database
                     )
                     search = await session.call_tool(
                         "ANAXIGRAPH_SEARCH",
-                        arguments={"query": "Calculator", "limit": 5},
+                        arguments={"query": "Calculator", "limit": 5, "details": True},
                     )
                     assert search.isError is False
                     assert search.structuredContent["results"][0]["path"] == "pkg/core.py"
                     assert (
                         search.structuredContent["results"][0]["search"]["contract_version"]
-                        == "module-search-fts-v1"
+                        == "module-search-contentless-v2"
                     )
+                    graph = await session.call_tool(
+                        "ANAXIGRAPH_GRAPH", arguments={"query": "calculation", "limit": 5}
+                    )
+                    assert graph.isError is False
+                    module = next(
+                        node
+                        for node in graph.structuredContent["nodes"]
+                        if node["path"] == "pkg/core.py"
+                    )
+                    entity = await session.call_tool(
+                        "ANAXIGRAPH_ENTITY", arguments={"entity_id": module["id"]}
+                    )
+                    assert entity.isError is False
+                    assert (
+                        entity.structuredContent["context"]["revision"]
+                        == graph.structuredContent["context"]["revision"]
+                    )
+                    assert entity.structuredContent["functions"]
+                    compact_file = await session.call_tool(
+                        "ANAXIGRAPH_FILE", arguments={"path": "pkg/core.py"}
+                    )
+                    assert compact_file.isError is False
+                    assert compact_file.structuredContent["file"]["entity_id"] == module["id"]
+                    assert "semantic_documents" not in compact_file.structuredContent
+                    full_file = await session.call_tool(
+                        "ANAXIGRAPH_FILE", arguments={"path": "pkg/core.py", "details": True}
+                    )
+                    assert full_file.isError is False
+                    assert full_file.structuredContent["symbols"]
                     guidance = await session.call_tool(
                         "ANAXIGRAPH_GUIDE",
                         arguments={"goal": "Change Calculator behavior"},
@@ -355,7 +394,7 @@ async def test_semantic_prepare_reconciles_current_snapshot_without_scanning(
     assert response.status_code == 200
     result = response.json()
     assert result["status"] == "prepared"
-    assert result["stage"] == "intrinsic"
+    assert result["stage"] == "annotation"
     assert "scan" not in result
     assert result["semantic"]["jobs"]["pending"] > 0
 

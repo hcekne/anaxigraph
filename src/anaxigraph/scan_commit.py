@@ -12,8 +12,11 @@ from anaxigraph import __version__
 from anaxigraph.clock import utc_now
 from anaxigraph.config import load_config
 from anaxigraph.history_discovery import available_changes
+from anaxigraph.knowledge_sync import clear_knowledge_cache, refresh_metrics
 from anaxigraph.persistence.current_retention import retain_current_index
 from anaxigraph.persistence.search_read import refresh_search_projection
+from anaxigraph.persistence.semantic_state_carry import carry_compatible_states
+from anaxigraph.persistence.temporal_cache_reindex import reindex_identical_source
 from anaxigraph.portable_record import load_record
 from anaxigraph.scan_persistence import (
     ingest_git_history,
@@ -89,6 +92,7 @@ def commit_snapshot(
     analysis_version: int,
 ) -> SnapshotCommit:
     with database.transaction() as connection:
+        clear_knowledge_cache(connection)
         snapshot_id, artifacts, deleted = _persist_files(
             connection,
             repository_id,
@@ -102,14 +106,8 @@ def commit_snapshot(
             progress,
             analysis_version,
         )
-        relationships = build_snapshot_graph(
-            connection,
-            snapshot_id=snapshot_id,
-            base_snapshot_id=previous_snapshot_id,
-            prepared=prepared,
-            artifacts=artifacts,
-            config=config,
-        )
+        graph_frame = (connection, repository_id, snapshot_id, previous_snapshot_id)
+        relationships = _current_relationships(*graph_frame, prepared, artifacts, config)
         findings, coverage_count = _finish_snapshot(
             connection,
             repository_id,
@@ -121,7 +119,26 @@ def commit_snapshot(
             git_changes,
             progress,
         )
+    database.finish_cache_maintenance()
     return SnapshotCommit(snapshot_id, deleted, relationships, len(findings), coverage_count)
+
+
+def _current_relationships(
+    connection, repository_id, snapshot_id, previous_snapshot_id, prepared, artifacts, config
+):
+    result = build_snapshot_graph(
+        connection,
+        snapshot_id=snapshot_id,
+        base_snapshot_id=previous_snapshot_id,
+        prepared=prepared,
+        artifacts=artifacts,
+        config=config,
+    )
+    reindex_identical_source(
+        connection, repository_id, snapshot_id, detailed=config.storage.detailed_history
+    )
+    carry_compatible_states(connection, repository_id, snapshot_id, previous_snapshot_id, config)
+    return result
 
 
 def refresh_existing_snapshot(
@@ -229,7 +246,21 @@ def _finish_snapshot(
     progress(4)
     upsert_groups(connection, repository_id=repository_id, config=config)
     progress(5)
-    ingest_git_history(connection, repository_id=repository_id, changes=git_changes)
+    if revision is not None:
+        connection.execute(
+            "INSERT OR REPLACE INTO schema_meta(key,value) VALUES (?, 'true')",
+            (f"history-opt-in:{repository_id}",),
+        )
+    head = connection.execute(
+        "SELECT commit_sha FROM snapshots WHERE id=?", (snapshot_id,)
+    ).fetchone()[0]
+    ingest_git_history(
+        connection,
+        repository_id=repository_id,
+        changes=git_changes,
+        observed_head=head,
+        detailed=config.storage.detailed_history,
+    )
     progress(6)
     findings, coverage_count = refresh_snapshot_intelligence(
         connection,
@@ -246,8 +277,16 @@ def _finish_snapshot(
             "UPDATE repositories SET current_snapshot_id = ?, updated_at = ? WHERE id = ?",
             (snapshot_id, utc_now(), repository_id),
         )
-        refresh_search_projection(connection, repository_id, snapshot_id, force=True)
+        refresh_search_projection(connection, repository_id, snapshot_id)
+    _defer_knowledge(connection, snapshot_id)
     return findings, coverage_count
+
+
+def _defer_knowledge(connection, snapshot_id):
+    connection.executemany(
+        "INSERT OR REPLACE INTO schema_meta VALUES (?,?)",
+        (("graph-import-pending", str(snapshot_id)), ("index-compaction-pending", "true")),
+    )
 
 
 def _refresh_current_intelligence(
@@ -264,6 +303,8 @@ def _refresh_current_intelligence(
             connection,
             repository_id=repository_id,
             changes=available_changes(root),
+            observed_head=git_metadata.commit_sha,
+            detailed=config.storage.detailed_history,
         )
         connection.execute("DELETE FROM metrics WHERE snapshot_id = ?", (snapshot_id,))
         connection.execute(
@@ -278,6 +319,7 @@ def _refresh_current_intelligence(
             config=config,
             artifacts=snapshot_artifacts(connection, snapshot_id),
         )
+        refresh_metrics(connection, snapshot_id, repository_id)
         connection.execute(
             """
             UPDATE snapshots SET snapshot_kind = 'working_tree', dirty = ?,
@@ -285,7 +327,7 @@ def _refresh_current_intelligence(
             """,
             (int(git_metadata.dirty), git_metadata.branch, utc_now(), snapshot_id),
         )
-        refresh_search_projection(connection, repository_id, snapshot_id, force=True)
+        refresh_search_projection(connection, repository_id, snapshot_id)
 
 
 def refresh_historical_snapshot_intelligence(

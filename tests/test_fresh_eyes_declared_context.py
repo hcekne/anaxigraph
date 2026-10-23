@@ -1,4 +1,4 @@
-"""Declared Charter context reaches only the repository-aware fresh-eyes packets."""
+"""Implementation context belongs to source-aware Planning, never blind Fresh Eyes."""
 
 from __future__ import annotations
 
@@ -7,15 +7,21 @@ import json
 from semantic_support import _agent_dossier, _enable_agent_semantics
 
 from anaxigraph.architecture_charter_corrections import save_charter_correction
+from anaxigraph.architecture_plan_evidence import current_graph_evidence
 from anaxigraph.config import load_config
 from anaxigraph.scanner import RepositoryScanner
-from anaxigraph.semantic_freshness import semantic_digest, semantic_input_hash
+from anaxigraph.semantic_fresh_eyes_evidence import current_charter
 from anaxigraph.understanding import SemanticEngine
 
-_NO_DECLARED_CONTEXT = {"included": 0, "fingerprint": None, "keys": []}
 _DECLARED_INVARIANT = "Analysis never writes to the target repository, by design."
+
+
 _DECLARED_REASON = "The invariant is a deliberate product promise, not an accident."
+
+
 _REFUTED_REASON = "Every connection opens its own temporary projection, so no reader shares one."
+
+
 _CONCERN = {
     "key": "temp-tables",
     "name": "Temporary projection tables",
@@ -26,18 +32,6 @@ _CONCERN = {
     "counter_evidence": [],
     "confidence": 0.6,
 }
-_COMPARISON_INCLUDED = [
-    "reference_design",
-    "current_charter",
-    "responsibility_map",
-    "area_summaries",
-    "module_dossiers",
-    "patterns",
-    "dependency_evidence",
-    "findings",
-    "history",
-]
-_REVIEW_INCLUDED = ["capability_brief", "as_built_comparison", "engineering_economics"]
 
 
 def _drain(engine, repository_id, repository, config, *, prefix, requests=None) -> None:
@@ -94,15 +88,14 @@ def _add_inferred_concern(database, snapshot_id) -> None:
         )
 
 
-def _by_kind(requests) -> dict:
-    return {item["analysis_kind"]: item for item in requests}
+def _planning(database, repository_id, snapshot_id):
+    with database.connect() as connection:
+        return current_graph_evidence(
+            connection, repository_id, snapshot_id, current_charter(connection, snapshot_id)
+        )
 
 
-def _manifests(status) -> dict:
-    return {item["job_kind"]: item for item in status["input_manifests"]}
-
-
-def test_a_refuted_concern_reaches_the_comparison_and_review_packets_only(repository, database):
+def test_source_context_reaches_planning_and_no_fresh_eyes_pass(repository, database):
     engine, repository_id, snapshot_id, config = _baseline(repository, database)
     _add_inferred_concern(database, snapshot_id)
     refutation = save_charter_correction(
@@ -115,156 +108,60 @@ def test_a_refuted_concern_reaches_the_comparison_and_review_packets_only(reposi
         disposition="refute",
     )
     engine.start_fresh_eyes_review(repository_id, repository, config)
-    requests: list[dict] = []
+    requests = []
     _drain(engine, repository_id, repository, config, prefix="review", requests=requests)
-
-    packets = _by_kind(requests)
-    declared = packets["fresh_comparison"]["current_system"]["declared_context"]
-    assert declared == [
-        {
-            "section": "coherence_concerns",
-            "key": "temp-tables",
-            "disposition": "refute",
-            "statement": "",
-            "inferred_statement": _CONCERN["statement"],
-            "author": "repository owner",
-            "rationale": _REFUTED_REASON,
-            "document_id": refutation["document_id"],
-        }
-    ]
-    assert packets["fresh_review"]["declared_context"] == declared
-    assert "declared_context" in packets["fresh_comparison"]["contract"]
-    assert "declared_context" not in json.dumps(packets["fresh_proposal"])
-    assert "declared_context" not in json.dumps(packets["fresh_adjudication"])
-
-    comparison_manifest = packets["fresh_comparison"]["input_manifest"]
-    assert comparison_manifest["included"] == [*_COMPARISON_INCLUDED, "declared_context"]
-    assert packets["fresh_review"]["input_manifest"]["included"] == [
-        *_REVIEW_INCLUDED,
-        "declared_context",
-    ]
-    assert comparison_manifest["current_system"]["declared_context"] == {
-        "fingerprint": semantic_digest(declared),
-        "included": 1,
-        "keys": [
-            {
-                "section": "coherence_concerns",
-                "key": "temp-tables",
-                "disposition": "refute",
-                "document_id": refutation["document_id"],
-            }
-        ],
+    assert {item["analysis_kind"] for item in requests} == {
+        "fresh_proposal",
+        "fresh_adjudication",
+        "fresh_comparison",
+        "fresh_review",
     }
-    status = engine.fresh_eyes_status(repository_id, config.semantic)
-    assert status["declared_context"] == comparison_manifest["current_system"]["declared_context"]
+    for packet in requests:
+        encoded = json.dumps(packet)
+        assert _REFUTED_REASON not in encoded
+        assert "temp-tables" not in encoded
+        assert "declared_context" not in packet
+        assert "current_system" not in packet
+    current, _ = _planning(database, repository_id, snapshot_id)
+    declared = current["declared_context"]
+    assert len(declared) == 1
+    assert declared[0]["rationale"] == _REFUTED_REASON
+    assert declared[0]["inferred_statement"] == _CONCERN["statement"]
+    assert declared[0]["document_id"] == refutation["document_id"]
 
 
-def test_saving_then_withdrawing_a_correction_requeues_only_comparison_and_review(
-    repository, database
-):
+def test_implementation_corrections_preserve_functional_alternatives(repository, database):
     engine, repository_id, snapshot_id, config = _baseline(repository, database)
     engine.start_fresh_eyes_review(repository_id, repository, config)
     _drain(engine, repository_id, repository, config, prefix="first-review")
     first = engine.fresh_eyes_status(repository_id, config.semantic)
-    reference_ids = [stage["document_id"] for stage in first["stages"][:3]]
-    assert first["declared_context"] == _NO_DECLARED_CONTEXT
-
+    identifiers = [item["document_id"] for item in first["stages"]]
     target = {"section": "invariants", "key": "read-only-source", "author": "repository owner"}
-    correction = save_charter_correction(
-        database,
-        repository_id,
-        statement=_DECLARED_INVARIANT,
-        rationale=_DECLARED_REASON,
-        **target,
+    save_charter_correction(
+        database, repository_id, statement=_DECLARED_INVARIANT, rationale=_DECLARED_REASON, **target
     )
     corrected = engine.start_fresh_eyes_review(repository_id, repository, config)
-
-    assert corrected["status"] == "already_started"
-    assert corrected["plan_stage"] == "fresh_eyes_comparison"
-    assert corrected["review"]["fingerprints"]["comparison"] != first["fingerprints"]["comparison"]
-    with database.connect() as connection:
-        queued = [
-            row[0]
-            for row in connection.execute(
-                "SELECT job_kind FROM semantic_jobs WHERE snapshot_id = ? "
-                "AND scope_type = 'fresh_eyes' AND status = 'pending'",
-                (snapshot_id,),
-            ).fetchall()
-        ]
-    assert queued == ["fresh_comparison"]
-
-    requests: list[dict] = []
-    _drain(engine, repository_id, repository, config, prefix="second-review", requests=requests)
-    second = engine.fresh_eyes_status(repository_id, config.semantic)
-    assert [stage["document_id"] for stage in second["stages"][:3]] == reference_ids
-    assert _by_kind(requests)["fresh_comparison"]["current_system"]["declared_context"] == [
-        {
-            "section": "invariants",
-            "key": "read-only-source",
-            "disposition": "correct",
-            "statement": _DECLARED_INVARIANT,
-            "inferred_statement": "Repository source remains read-only during analysis.",
-            "author": "repository owner",
-            "rationale": _DECLARED_REASON,
-            "document_id": correction["document_id"],
-        }
-    ]
-    assert second["declared_context"]["keys"] == [
-        {
-            "section": "invariants",
-            "key": "read-only-source",
-            "disposition": "correct",
-            "document_id": correction["document_id"],
-        }
-    ]
-
+    assert corrected["plan_stage"] == "fresh_eyes_complete"
+    assert [item["document_id"] for item in corrected["review"]["stages"]] == identifiers
+    current, _ = _planning(database, repository_id, snapshot_id)
+    assert current["declared_context"][0]["statement"] == _DECLARED_INVARIANT
     save_charter_correction(
-        database,
-        repository_id,
-        rationale="The Charter now states the invariant directly.",
-        active=False,
-        **target,
+        database, repository_id, rationale="The Charter now states it.", active=False, **target
     )
-    withdrawn = engine.start_fresh_eyes_review(repository_id, repository, config)
-
-    assert withdrawn["plan_stage"] == "fresh_eyes_complete"
-    assert withdrawn["review"]["declared_context"] == _NO_DECLARED_CONTEXT
-    assert withdrawn["review"]["fingerprints"] == first["fingerprints"]
-    assert [stage["document_id"] for stage in withdrawn["review"]["stages"]] == [
-        stage["document_id"] for stage in first["stages"]
-    ]
+    current, _ = _planning(database, repository_id, snapshot_id)
+    assert current["declared_context"] == []
+    assert engine.start_fresh_eyes_review(repository_id, repository, config)["review"]["ready"]
 
 
-def test_a_repository_without_corrections_keeps_every_stored_fingerprint(repository, database):
-    engine, repository_id, _snapshot_id, config = _baseline(repository, database)
-    engine.start_fresh_eyes_review(repository_id, repository, config)
-    requests: list[dict] = []
-    _drain(engine, repository_id, repository, config, prefix="review", requests=requests)
-    status = engine.fresh_eyes_status(repository_id, config.semantic)
-
-    manifests = _manifests(status)
-    comparison = manifests["fresh_comparison"]["manifest"]
-    review = manifests["fresh_review"]["manifest"]
-    assert comparison["included"] == _COMPARISON_INCLUDED
-    assert review["included"] == _REVIEW_INCLUDED
-    assert "declared_context" not in comparison
-    assert "declared_context" not in comparison["current_system"]
-    assert "declared_context" not in review
-    assert comparison["reference_fingerprint"] == status["fingerprints"]["reference"]
-    assert status["fingerprints"]["comparison"] == semantic_digest(
-        {
-            "reference_fingerprint": status["fingerprints"]["reference"],
-            "current_system": comparison["current_system"],
-        }
+def test_planning_fingerprint_tracks_saved_implementation_context(repository, database):
+    _engine, repository_id, snapshot_id, _config = _baseline(repository, database)
+    current, before = _planning(database, repository_id, snapshot_id)
+    assert current["declared_context"] == []
+    target = {"section": "invariants", "key": "read-only-source", "author": "repository owner"}
+    save_charter_correction(
+        database, repository_id, statement=_DECLARED_INVARIANT, rationale=_DECLARED_REASON, **target
     )
-    for kind, contract in (
-        ("fresh_comparison", "fresh-eyes-comparison-v1"),
-        ("fresh_review", "fresh-eyes-review-v1"),
-    ):
-        assert manifests[kind]["input_hash"] == semantic_input_hash(
-            contract, config.semantic.prompt_version, manifests[kind]["manifest"]
-        )
-    packets = _by_kind(requests)
-    assert "declared_context" not in json.dumps(packets["fresh_comparison"]["current_system"])
-    assert "declared_context" not in packets["fresh_review"]
-    assert status["declared_context"] == _NO_DECLARED_CONTEXT
+    current, after = _planning(database, repository_id, snapshot_id)
+    assert current["declared_context"]
+    assert before["packet_fingerprint"] != after["packet_fingerprint"]
+    assert before["graph_node_ids"] == after["graph_node_ids"]

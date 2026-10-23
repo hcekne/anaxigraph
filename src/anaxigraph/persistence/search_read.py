@@ -9,55 +9,27 @@ from pathlib import PurePosixPath
 from typing import Any, Iterable
 
 from anaxigraph.agent_lexicon import goal_artifact_type, goal_terms, split_camel
+from anaxigraph.knowledge_values import annotation_compatibility
 from anaxigraph.persistence.module_read import read_modules
 from anaxigraph.persistence.row_decoding import _decode_json_value
+from anaxigraph.persistence.search_delta import projection_changes, taxonomy_provenance
+from anaxigraph.persistence.search_storage import (
+    SEARCH_CONTRACT_VERSION,
+    clear_search_cache,
+    delete_search_rows,
+    ensure_search_schema,
+    insert_search_rows,
+    move_search_snapshot,
+)
+from anaxigraph.persistence.search_storage import (
+    STATE_PREFIX as _STATE_PREFIX,
+)
 from anaxigraph.persistence.semantic_taxonomy_read import taxonomy_assignments
 from anaxigraph.persistence.temporal_reads import (
     artifact_types_for_files,
     snapshot_files,
     symbols_for_files,
 )
-
-SEARCH_CONTRACT_VERSION = "module-search-fts-v1"
-_CONTRACT_KEY = "module_search_contract"
-_STATE_PREFIX = "module_search_state:"
-_CREATE_SEARCH = """
-CREATE VIRTUAL TABLE module_search USING fts5(
-    repository_id UNINDEXED,
-    snapshot_id UNINDEXED,
-    artifact_id UNINDEXED,
-    artifact_type UNINDEXED,
-    path,
-    name,
-    symbols,
-    summary,
-    responsibilities,
-    contracts,
-    aliases,
-    provenance UNINDEXED,
-    tokenize = 'unicode61 remove_diacritics 2'
-)
-"""
-
-
-def ensure_search_schema(connection: sqlite3.Connection) -> None:
-    """Install or replace the disposable projection without changing canonical schema."""
-
-    row = connection.execute(
-        "SELECT value FROM schema_meta WHERE key = ?", (_CONTRACT_KEY,)
-    ).fetchone()
-    table = connection.execute(
-        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'module_search'"
-    ).fetchone()
-    if row is not None and row[0] == SEARCH_CONTRACT_VERSION and table is not None:
-        return
-    connection.execute("DROP TABLE IF EXISTS module_search")
-    connection.execute(_CREATE_SEARCH)
-    connection.execute("DELETE FROM schema_meta WHERE key LIKE ?", (f"{_STATE_PREFIX}%",))
-    connection.execute(
-        "INSERT OR REPLACE INTO schema_meta(key, value) VALUES (?, ?)",
-        (_CONTRACT_KEY, SEARCH_CONTRACT_VERSION),
-    )
 
 
 def refresh_current_search_projections(connection: sqlite3.Connection) -> None:
@@ -66,6 +38,14 @@ def refresh_current_search_projections(connection: sqlite3.Connection) -> None:
     query = "SELECT id, current_snapshot_id FROM repositories WHERE current_snapshot_id IS NOT NULL"
     for repository_id, snapshot_id in connection.execute(query):
         refresh_search_projection(connection, int(repository_id), int(snapshot_id))
+
+
+def defer_search_projection(connection):
+    """Free disposable token pages before canonical planning; maintenance resumes the rebuild."""
+    clear_search_cache(connection)
+    connection.execute(
+        "INSERT OR REPLACE INTO schema_meta VALUES ('index-compaction-pending','true')"
+    )
 
 
 def refresh_search_projection(
@@ -83,23 +63,25 @@ def refresh_search_projection(
     state = _projection_state(connection, repository_id)
     if selected is None and not force and state.get("snapshot_id") == snapshot_id:
         return int(state.get("rows", 0))
-    if selected is not None and state.get("snapshot_id") != snapshot_id:
-        selected = None
+    selected = projection_changes(connection, repository_id, snapshot_id, state, selected)
+    _refresh_selected_rows(connection, repository_id, snapshot_id, selected)
+    move_search_snapshot(connection, repository_id, snapshot_id)
+    count_sql = "SELECT COUNT(*) FROM module_search_rows WHERE repository_id = ?"
+    count = int(connection.execute(count_sql, (repository_id,)).fetchone()[0])
+    if state.get("snapshot_id") != snapshot_id or count != state.get("rows"):
+        _write_projection_state(connection, repository_id, snapshot_id, count)
+    return count
 
-    if selected is None:
-        connection.execute("DELETE FROM module_search WHERE repository_id = ?", (repository_id,))
-    elif selected:
-        placeholders = ",".join("?" for _ in selected)
-        connection.execute(
-            f"DELETE FROM module_search WHERE repository_id = ? "
-            f"AND artifact_id IN ({placeholders})",
-            (repository_id, *selected),
-        )
+
+def _refresh_selected_rows(connection, repository_id, snapshot_id, selected):
+    if selected == ():
+        return
+    rowids = delete_search_rows(connection, repository_id, selected)
     rows = _search_rows(connection, snapshot_id, selected)
     semantics = _semantic_documents(connection, snapshot_id, selected)
     assignments = taxonomy_assignments(connection, snapshot_id, artifact_ids=selected)
-    connection.executemany(
-        "INSERT INTO module_search VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    insert_search_rows(
+        connection,
         [
             _projection_row(
                 repository_id,
@@ -110,11 +92,8 @@ def refresh_search_projection(
             )
             for row in rows
         ],
+        rowids=rowids,
     )
-    count_sql = "SELECT COUNT(*) FROM module_search WHERE repository_id = ?"
-    count = int(connection.execute(count_sql, (repository_id,)).fetchone()[0])
-    _write_projection_state(connection, repository_id, snapshot_id, count)
-    return count
 
 
 def search_modules(
@@ -158,11 +137,11 @@ def search_module_hits(
     candidate_limit = min(500, max(50, limit * 5))
     matches = connection.execute(
         """
-        SELECT artifact_id, artifact_type, path, name, symbols, provenance,
+        SELECT r.artifact_id, r.artifact_type, r.path, r.name, r.symbols, r.provenance,
                bm25(module_search, 0, 0, 0, 0, 12, 14, 8, 4, 3, 2, 2, 0) AS rank
-        FROM module_search
-        WHERE module_search MATCH ? AND repository_id = ? AND snapshot_id = ?
-        ORDER BY rank, path LIMIT ?
+        FROM module_search JOIN module_search_rows r ON r.rowid=module_search.rowid
+        WHERE module_search MATCH ? AND r.repository_id = ? AND r.snapshot_id = ?
+        ORDER BY rank, r.path LIMIT ?
         """,
         (match, repository_id, snapshot_id, candidate_limit),
     ).fetchall()
@@ -178,7 +157,11 @@ def search_module_hits(
             "search": {
                 "contract_version": SEARCH_CONTRACT_VERSION,
                 "snapshot_id": snapshot_id,
-                "provenance": json.loads(row["provenance"] or "{}"),
+                "provenance": {
+                    key: value
+                    for key, value in json.loads(row["provenance"] or "{}").items()
+                    if not key.startswith("_")
+                },
             },
         }
         for score, row in ranked
@@ -224,7 +207,7 @@ def _semantic_documents(
         f"""
         SELECT ss.artifact_id, sd.id AS document_id, sd.value_json, sd.provider, sd.confidence
         FROM semantic_scope_states ss
-        JOIN semantic_documents sd
+        JOIN semantic_document_values sd
           ON sd.id = COALESCE(ss.context_document_id, ss.intrinsic_document_id)
         WHERE ss.snapshot_id = ? AND ss.scope_type = 'module'
           AND ss.status IN ('current', 'intrinsic_current') {restriction}
@@ -232,7 +215,10 @@ def _semantic_documents(
         parameters,
     ).fetchall()
     return {
-        int(row["artifact_id"]): {**dict(row), "value": json.loads(row["value_json"] or "{}")}
+        int(row["artifact_id"]): {
+            **dict(row),
+            "value": annotation_compatibility(json.loads(row["value_json"] or "{}")),
+        }
         for row in rows
     }
 
@@ -255,26 +241,25 @@ def _projection_row(
         value.get("domain_concepts"),
         value.get("architecture_role"),
         value.get("placement_guidance"),
-        (assignment or {}).values(),
+        [(assignment or {}).get(key) for key in ("area_name", "subsystem_name")],
     )
     contracts = _joined(
         _decode_json_value(item.get("public_interfaces_json")),
         _decode_json_value(item.get("inputs_json")),
         _decode_json_value(item.get("outputs_json")),
-        value.get("public_contracts"),
+        value.get("contracts") or value.get("public_contracts"),
         value.get("extension_points"),
     )
-    summary = _joined(item.get("summary"), value.get("summary"), value.get("detailed_summary"))
+    summary = _joined(item.get("summary"), value.get("summary"), value.get("detail"))
     symbols = str(item.get("symbol_names") or "")
-    alias_source = " ".join((path, name, symbols, summary, responsibilities, contracts))
+    alias_source = " ".join((path, name, symbols))
     aliases = " ".join(sorted(goal_terms(split_camel(alias_source))))
     provenance = {
         "deterministic": True,
         "semantic_document_id": (semantic or {}).get("document_id"),
         "semantic_provider": (semantic or {}).get("provider"),
         "semantic_confidence": (semantic or {}).get("confidence"),
-        "taxonomy_id": (assignment or {}).get("taxonomy_id"),
-        "taxonomy_confidence": (assignment or {}).get("confidence"),
+        **taxonomy_provenance(assignment),
     }
     identity = (repository_id, snapshot_id, item["artifact_id"], item["artifact_type"], path, name)
     content = (symbols, summary, responsibilities, contracts, aliases)

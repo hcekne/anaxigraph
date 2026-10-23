@@ -1,0 +1,69 @@
+{
+  "measurement_kind": "real_browser_isolated_saved_fixture_no_api_mocks",
+  "subjects": [
+    {
+      "id": "observed",
+      "label": "Observed implementation",
+      "node": "routes.py",
+      "note": "Observed source graph. Detail and grouping are independent of the graph subject.",
+      "sourcePaths": 1,
+      "metrics": 1,
+      "nodes": 4
+    },
+    {
+      "id": "subject:9e090c528540f2eb7614b2097291e830",
+      "label": "Functional purpose and capabilities",
+      "node": "product",
+      "note": "Saved functional brief · revision 9edd05a8b51e41d2d7b5. Explore its functionality, proposed relationships and assumptions. Grouping and source metrics apply to observed implementation.",
+      "sourcePaths": 0,
+      "metrics": 0,
+      "nodes": 2
+    },
+    {
+      "id": "subject:a2aee57271d742edc37cd78d46c4bea7",
+      "label": "Fresh Eyes · product · A",
+      "node": "Responsibility 0",
+      "note": "Saved fresh alternative · revision 41c7ffb5b089a1c72a72. Explore its functionality, proposed relationships and assumptions. Grouping and source metrics apply to observed implementation.",
+      "sourcePaths": 0,
+      "metrics": 0,
+      "nodes": 2
+    },
+    {
+      "id": "subject:a18f7a21f731982b1ba8a24e94d45b3e",
+      "label": "Fresh Eyes · product · B",
+      "node": "Responsibility 0",
+      "note": "Saved fresh alternative · revision ae67e8fad1426a2e095f. Explore its functionality, proposed relationships and assumptions. Grouping and source metrics apply to observed implementation.",
+      "sourcePaths": 0,
+      "metrics": 0,
+      "nodes": 3
+    },
+    {
+      "id": "subject:5e514c670426af6bde561df65dd9eb21",
+      "label": "Fresh Eyes · product · C",
+      "node": "Responsibility 0",
+      "note": "Saved fresh alternative · revision 59ade9b5d2f9d37b4027. Explore its functionality, proposed relationships and assumptions. Grouping and source metrics apply to observed implementation.",
+      "sourcePaths": 0,
+      "metrics": 0,
+      "nodes": 3
+    },
+    {
+      "id": "subject:225d4459b8d6b8b2b566c8dbed639a93",
+      "label": "Planning · Preserve current architecture",
+      "node": "Calculation domain",
+      "note": "Saved planning target · revision f1e830919682ba18ea7c. Explore its functionality, proposed relationships and assumptions. Grouping and source metrics apply to observed implementation.",
+      "sourcePaths": 0,
+      "metrics": 0,
+      "nodes": 1
+    },
+    {
+      "id": "subject:7601d4705946ea31790dd6aa08a0f484",
+      "label": "Planning · Stable responsibility boundary · selected",
+      "node": "Shared knowledge interface",
+      "note": "Saved planning target · revision f1e830919682ba18ea7c. Explore its functionality, proposed relationships and assumptions. Grouping and source metrics apply to observed implementation.",
+      "sourcePaths": 0,
+      "metrics": 0,
+      "nodes": 2
+    }
+  ],
+  "page_errors": []
+}

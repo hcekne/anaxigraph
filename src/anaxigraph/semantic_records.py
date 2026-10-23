@@ -9,9 +9,18 @@ from typing import Any
 from anaxigraph.clock import utc_now
 from anaxigraph.config import SemanticConfig
 from anaxigraph.persistence.semantic_fact_references import semantic_fact_id
+from anaxigraph.persistence.semantic_state_storage import upsert_semantic_state
 from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION
-from anaxigraph.semantic_freshness import legacy_input_matches
-from anaxigraph.semantic_graph import SupersededSemanticJob, _cost
+from anaxigraph.semantic_document_read import (
+    _document_by_id as _document_by_id,
+)
+from anaxigraph.semantic_document_read import (
+    _latest_document as _latest_document,
+)
+from anaxigraph.semantic_document_read import (
+    _matching_document as _matching_document,
+)
+from anaxigraph.semantic_graph import _cost
 from anaxigraph.semantic_job_state import (
     semantic_job_bulk_transition,
     semantic_job_transition,
@@ -26,96 +35,6 @@ INSERT INTO semantic_jobs(
     estimated_input_tokens, estimated_cost_usd, available_at, metadata_json
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
-
-_UPSERT_STATE_SQL = """
-INSERT INTO semantic_scope_states(
-    repository_id, snapshot_id, scope_type, scope_key, artifact_id,
-    artifact_version_id, file_fact_id, status, reason, intrinsic_input_hash,
-    context_input_hash, interface_hash, relationship_hash, context_fingerprint,
-    intrinsic_document_id, context_document_id, last_checked_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(snapshot_id, scope_type, scope_key) DO UPDATE SET
-    artifact_id = excluded.artifact_id,
-    artifact_version_id = excluded.artifact_version_id,
-    file_fact_id = excluded.file_fact_id,
-    status = excluded.status,
-    reason = excluded.reason,
-    intrinsic_input_hash = COALESCE(excluded.intrinsic_input_hash, intrinsic_input_hash),
-    context_input_hash = COALESCE(excluded.context_input_hash, context_input_hash),
-    interface_hash = COALESCE(excluded.interface_hash, interface_hash),
-    relationship_hash = COALESCE(excluded.relationship_hash, relationship_hash),
-    context_fingerprint = COALESCE(excluded.context_fingerprint, context_fingerprint),
-    intrinsic_document_id = COALESCE(excluded.intrinsic_document_id, intrinsic_document_id),
-    context_document_id = COALESCE(excluded.context_document_id, context_document_id),
-    last_checked_at = excluded.last_checked_at
-"""
-
-
-def _matching_document(
-    connection: sqlite3.Connection,
-    repository_id: int,
-    scope_type: str,
-    scope_key: str,
-    kind: str,
-    input_hash: str,
-    semantic: SemanticConfig,
-    *,
-    legacy_evidence: Any | None = None,
-    intrinsic_document_id: int | None = None,
-) -> dict[str, Any] | None:
-    rows = connection.execute(
-        """
-        SELECT * FROM semantic_documents
-        WHERE repository_id = ? AND scope_type = ? AND scope_key = ?
-          AND document_kind = ? AND prompt_version = ?
-        ORDER BY id DESC
-        """,
-        (
-            repository_id,
-            scope_type,
-            scope_key,
-            kind,
-            semantic.prompt_version,
-        ),
-    ).fetchall()
-    for row in rows:
-        document = dict(row)
-        if str(document["input_hash"]) == input_hash:
-            return document
-        if legacy_evidence is not None and legacy_input_matches(
-            document,
-            legacy_evidence,
-            prompt_version=semantic.prompt_version,
-        ):
-            if kind == "context" and document["schema_version"] == "repository-understanding-v5":
-                # 0.5.x hashed intrinsic intent, not its source. A same-role edit
-                # must not reuse old context merely because that intent survived.
-                source = connection.execute(
-                    "SELECT file_fact_id FROM semantic_documents WHERE id = ?",
-                    (intrinsic_document_id,),
-                ).fetchone()
-                if source is None or not source[0] or source[0] != document["file_fact_id"]:
-                    continue
-            return document
-    return None
-
-
-def _latest_document(
-    connection: sqlite3.Connection,
-    repository_id: int,
-    scope_type: str,
-    scope_key: str,
-    kind: str,
-) -> dict[str, Any] | None:
-    row = connection.execute(
-        """
-        SELECT * FROM semantic_documents
-        WHERE repository_id = ? AND scope_type = ? AND scope_key = ? AND document_kind = ?
-        ORDER BY id DESC LIMIT 1
-        """,
-        (repository_id, scope_type, scope_key, kind),
-    ).fetchone()
-    return dict(row) if row else None
 
 
 def _ensure_job(
@@ -359,8 +278,8 @@ def _upsert_state(
     context_document_id: int | None = None,
 ) -> None:
     resolved_fact_id = _resolved_fact_id(connection, snapshot_id, artifact_id, file_fact_id)
-    connection.execute(
-        _UPSERT_STATE_SQL,
+    upsert_semantic_state(
+        connection,
         (
             repository_id,
             snapshot_id,
@@ -414,7 +333,8 @@ def _state_intents(
         document_id = state.get("intrinsic_document_id")
         if document_id:
             row = connection.execute(
-                "SELECT intent_fingerprint FROM semantic_documents WHERE id = ?", (document_id,)
+                "SELECT intent_fingerprint FROM semantic_document_values WHERE id = ?",
+                (document_id,),
             ).fetchone()
             if row:
                 result[key] = str(row["intent_fingerprint"])
@@ -441,19 +361,15 @@ def _member_documents(
     return documents, missing
 
 
-def _document_by_id(connection: sqlite3.Connection, document_id: int) -> dict[str, Any]:
-    row = connection.execute(
-        "SELECT * FROM semantic_documents WHERE id = ?", (document_id,)
-    ).fetchone()
-    if row is None:
-        raise SupersededSemanticJob("A required semantic document no longer exists")
-    result = dict(row)
-    result["value"] = json.loads(result.pop("value_json") or "{}")
-    result["supporting_evidence"] = json.loads(result.pop("supporting_evidence_json") or "[]")
-    return result
-
-
 def _has_active_module_stage(connection: sqlite3.Connection, snapshot_id: int, stage: str) -> bool:
+    if stage == "annotation":
+        return bool(
+            connection.execute(
+                "SELECT 1 FROM semantic_scope_states WHERE snapshot_id=? AND scope_type='module' "
+                "AND status='pending_annotation' LIMIT 1",
+                (snapshot_id,),
+            ).fetchone()
+        )
     statuses = (
         ("pending_intrinsic",)
         if stage == "intrinsic"

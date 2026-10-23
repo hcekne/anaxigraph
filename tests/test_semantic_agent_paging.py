@@ -12,7 +12,7 @@ from anaxigraph.semantic_agent_protocol import (
 
 
 def test_agent_packetization_leaves_small_and_unpageable_requests_unchanged():
-    small = {"analysis_kind": "context", "neighbor_dossiers": []}
+    small = {"analysis_kind": "annotation", "functions": []}
     oversized_unknown = {"analysis_kind": "unknown", "payload": "x" * 5_000}
     semantic = SemanticConfig(max_source_chars=4_000)
 
@@ -24,47 +24,28 @@ def test_agent_packetization_leaves_small_and_unpageable_requests_unchanged():
     )
 
 
-@pytest.mark.parametrize(
-    ("kind", "field"),
-    [("context", "neighbor_dossiers"), ("synthesis", "child_dossiers")],
-)
-def test_agent_packetization_pages_primary_list_evidence(kind, field):
-    request = {"analysis_kind": kind, field: _large_evidence("primary")}
-    if kind == "context":
-        request["relationships"] = _large_evidence("relationship")
-
+def test_agent_packetization_pages_compact_group_evidence():
+    request = {"analysis_kind": "synthesis", "child_dossiers": _large_evidence("child")}
     bounded, manifest, pages = packetize_agent_request(
         request, SemanticConfig(max_source_chars=4_000)
     )
-
-    assert manifest is not None
-    assert field in manifest["contains"]
-    assert ("relationships" in manifest["contains"]) is (kind == "context")
+    assert manifest["contains"] == ["child_dossiers"]
     assert rehydrate_agent_request(bounded, pages) == request
 
 
-def test_agent_packetization_pages_intrinsic_facts_after_source():
+def test_agent_packetization_preserves_annotation_source_functions_and_relationships():
     request = {
-        "analysis_kind": "intrinsic",
+        "analysis_kind": "annotation",
         "path": "large.py",
         "source": "value = 1\n" * 1_000,
-        "deterministic_facts": {
-            "symbols": [],
-            "relationships": _large_evidence("relationship"),
-            "recent_changes": _large_evidence("change"),
-        },
+        "functions": _large_evidence("function"),
+        "relationships": _large_evidence("relationship"),
     }
-
     bounded, manifest, pages = packetize_agent_request(
         request, SemanticConfig(max_source_chars=4_000)
     )
-
-    assert manifest is not None
-    assert set(manifest["contains"]) == {
-        "source_chunks",
-        "deterministic_facts.relationships",
-        "deterministic_facts.recent_changes",
-    }
+    assert set(manifest["contains"]) == {"source_chunks", "functions", "relationships"}
+    assert "source" not in bounded
     assert rehydrate_agent_request(bounded, pages) == request
 
 
@@ -128,42 +109,50 @@ def test_agent_packetization_pages_pattern_source_and_features():
     assert rehydrate_agent_request(bounded, pages) == request
 
 
-def test_agent_packetization_pages_fresh_eyes_declared_context_last():
+@pytest.mark.parametrize(
+    "kind", ["fresh_adjudication", "fresh_proposal", "fresh_comparison", "fresh_review"]
+)
+def test_functional_passes_stay_inline_and_reject_oversize_without_pages(kind):
     request = {
-        "analysis_kind": "fresh_comparison",
-        "current_system": {
-            "module_dossiers": _large_evidence("dossier"),
-            "declared_context": _large_evidence("declared"),
-        },
+        "analysis_kind": kind,
+        "protocol_version": "fresh-eyes-recipe-v2",
+        "scope": {"purpose": "Deliver useful understanding"},
     }
-
-    bounded, manifest, pages = packetize_agent_request(
-        request, SemanticConfig(max_source_chars=4_000)
-    )
-
-    assert manifest is not None
-    assert manifest["contains"] == [
-        "current_system.module_dossiers",
-        "current_system.declared_context",
-    ]
-    assert rehydrate_agent_request(bounded, pages) == request
-
-
-def test_agent_packetization_pages_mission_filter_declared_context_after_the_comparison():
-    request = {
-        "analysis_kind": "fresh_review",
-        "comparison": {"candidate_changes": _large_evidence("change")},
-        "declared_context": _large_evidence("declared"),
-    }
-
-    bounded, manifest, pages = packetize_agent_request(
-        request, SemanticConfig(max_source_chars=4_000)
-    )
-
-    assert manifest is not None
-    assert manifest["contains"] == ["comparison.candidate_changes", "declared_context"]
-    assert rehydrate_agent_request(bounded, pages) == request
+    config = SemanticConfig(max_source_chars=4_000)
+    assert packetize_agent_request(request, config) == (request, None, [])
+    oversized = {**request, "required_capabilities": _large_evidence("functional capability")}
+    with pytest.raises(ValueError, match="reduce the functional scope.*context budget"):
+        packetize_agent_request(oversized, config)
+    assert "evidence_manifest" not in oversized
+    assert oversized["required_capabilities"] == _large_evidence("functional capability")
 
 
 def _large_evidence(label: str) -> list[dict[str, str]]:
     return [{"kind": label, "detail": f"{label}-{index}-" + "x" * 2_000} for index in range(4)]
+
+
+def test_architecture_plan_pages_keep_all_contract_qualifications_and_alternatives():
+    request = {
+        "analysis_kind": "architecture_plan",
+        "current_system": {
+            "semantic_graph": {
+                "nodes": _large_evidence("contract"),
+                "edges": _large_evidence("edge"),
+                "totals_by_kind": {"contract": 20},
+            },
+            "pattern_reviews": _large_evidence("pattern"),
+        },
+        "fresh_eyes": _large_evidence("alternative"),
+        "direction": "",
+    }
+    bounded, manifest, pages = packetize_agent_request(
+        request, SemanticConfig(max_source_chars=4000)
+    )
+    assert manifest["page_count"] == len(pages)
+    assert {
+        "fresh_eyes",
+        "current_system.pattern_reviews",
+        "current_system.semantic_graph.nodes",
+        "current_system.semantic_graph.edges",
+    } <= set(manifest["contains"])
+    assert rehydrate_agent_request(bounded, pages) == request

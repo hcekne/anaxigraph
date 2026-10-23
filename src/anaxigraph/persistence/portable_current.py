@@ -5,10 +5,10 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from anaxigraph.persistence.portable_references import JSON_REFERENCES
 from anaxigraph.persistence.portable_rows import _query, _selected
 from anaxigraph.persistence.review_identity import normalize_review_export
 from anaxigraph.persistence.temporal_reconstruction import reconstruct_files
-from anaxigraph.portable_text import concise_module, filter_excluded
 
 SEMANTIC_TABLES = (
     "semantic_documents",
@@ -59,9 +59,13 @@ def _validate_saved_prompt(connection: Any, result: Any, prompt: str) -> None:
         row[field] for row in result["semantic_scope_states"] for field in fields if row.get(field)
     }
     versions = {
-        row["id"]: row["prompt_version"]
+        row["id"]: prompt if row["document_kind"] == "pattern_manifest" else row["prompt_version"]
         for row in _selected(
-            connection, "semantic_documents", "id", sorted(identifiers), columns="id,prompt_version"
+            connection,
+            "semantic_documents",
+            "id",
+            sorted(identifiers),
+            columns="id,prompt_version,document_kind",
         )
     }
     for state in result["semantic_scope_states"]:
@@ -110,7 +114,7 @@ def _reuse_file_understanding(
         if row["scope_type"] == "module"
     }
     rows = connection.execute(
-        "SELECT s.*,f.raw_hash,f.analysis_signature FROM semantic_scope_states s JOIN file_facts f ON s.file_fact_id=f.id JOIN semantic_documents d ON d.id=s.intrinsic_document_id AND d.input_hash=s.intrinsic_input_hash WHERE s.repository_id=? AND s.scope_type='module' ORDER BY s.snapshot_id DESC",
+        "SELECT s.*,f.raw_hash,f.analysis_signature FROM semantic_scope_states s JOIN file_facts f ON s.file_fact_id=f.id JOIN semantic_document_values d ON d.id=s.intrinsic_document_id AND d.input_hash=s.intrinsic_input_hash WHERE s.repository_id=? AND s.scope_type='module' ORDER BY s.snapshot_id DESC",
         (repository_id,),
     )
     for row in rows:
@@ -147,6 +151,7 @@ def _semantic_rows(connection: Any, result: Any, snapshot_id: int, allowed: set[
         if row.get("intrinsic_document_id")
         or row.get("context_document_id")
         or (row["scope_type"] != "module" and row.get("interface_hash"))
+        or (row["scope_type"] == "pattern" and row.get("intrinsic_input_hash"))
     ]
     _validate_file_states(result)
     # Retain completed batch results for interrupted reviews, not queue payloads or workers.
@@ -179,7 +184,7 @@ def _snapshot_semantics(
         return _query(connection, table, "snapshot_id = ?", (snapshot_id,))
     where = "snapshot_id = ?"
     if table == "semantic_documents":
-        where += " AND id IN (SELECT MAX(id) FROM semantic_documents WHERE snapshot_id = ? GROUP BY scope_type,scope_key,document_kind)"
+        where += " AND (scope_type='fresh_eyes' OR id IN (SELECT MAX(id) FROM semantic_document_values WHERE snapshot_id = ? GROUP BY scope_type,scope_key,document_kind))"
     parameters = (snapshot_id, snapshot_id) if table == "semantic_documents" else (snapshot_id,)
     rows = _query(
         connection, table, where + " AND artifact_id IS NULL AND scope_type != 'module'", parameters
@@ -220,7 +225,12 @@ def _select_documents(
     for row in sorted(result["semantic_documents"], key=lambda row: row["id"]):
         if row["scope_type"] == "module" and row["id"] not in document_ids:
             continue
-        latest[(row["scope_type"], row["scope_key"], row["document_kind"])] = row
+        identity = (
+            row["id"]
+            if row["scope_type"] == "fresh_eyes"
+            else (row["scope_type"], row["scope_key"], row["document_kind"])
+        )
+        latest[identity] = row
     documents = {row["id"]: row for row in latest.values()}
     documents.update(
         {
@@ -229,11 +239,55 @@ def _select_documents(
             if row.get("artifact_id") is None or row["artifact_id"] in allowed
         }
     )
+    _include_dependencies(connection, documents, result, config)
     _format_documents(result, documents, snapshot_id, config)
 
 
+def _include_dependencies(connection: Any, documents: Any, result: Any, config: Any) -> None:
+    pending = _document_references([row["metadata_json"] for row in result["semantic_jobs"]])
+    seen = set()
+    while True:
+        pending.update(_document_references([row["value_json"] for row in documents.values()]))
+        missing = pending - documents.keys() - seen
+        if not missing:
+            return
+        seen.update(missing)
+        found = _selected(connection, "semantic_documents", "id", sorted(missing))
+        documents.update(
+            {
+                row["id"]: row
+                for row in found
+                if row["scope_type"] != "module" or not config.is_ignored(row["scope_key"])
+            }
+        )
+
+
+def _document_references(values: Any) -> set[int]:
+    identifiers = set()
+
+    def visit(value: Any, field: str = "") -> None:
+        if JSON_REFERENCES.get(field) == "semantic_documents" and isinstance(value, int):
+            identifiers.add(value)
+        elif isinstance(value, dict):
+            for key, item in value.items():
+                visit(item, key)
+        elif isinstance(value, list):
+            for item in value:
+                visit(item, field)
+
+    for value in values:
+        visit(json.loads(value) if isinstance(value, str) else value)
+    return identifiers
+
+
 def _format_documents(result: Any, documents: Any, snapshot_id: int, config: Any) -> None:
-    origins = {document["id"]: snapshot_id for document in documents.values()}
+    snapshots = {row["id"] for row in result["snapshots"]}
+    origins = {
+        document["id"]: document["snapshot_id"]
+        if document["snapshot_id"] in snapshots
+        else snapshot_id
+        for document in documents.values()
+    }
     for state in result["semantic_scope_states"]:
         for field in ("intrinsic_document_id", "context_document_id"):
             if state.get(field):
@@ -247,16 +301,11 @@ def _format_documents(result: Any, documents: Any, snapshot_id: int, config: Any
             if fact:
                 document["file_fact_id"] = fact["id"]
     result["semantic_documents"] = list(documents.values())
-    _concise_documents(result, config)
+    _completed_document_jobs(result)
 
 
-def _concise_documents(result: Any, config: Any) -> None:
-    for document in result["semantic_documents"]:
-        value = filter_excluded(json.loads(document["value_json"]), config)
-        if document["scope_type"] == "module" and not config.semantic.detailed_reviews:
-            value = concise_module(value)
-        document["value_json"] = json.dumps(value, sort_keys=True)
-        document["supporting_evidence_json"] = json.dumps(value.get("evidence", [])[:8])
+def _completed_document_jobs(result: Any) -> None:
+    # Values and provenance are canonical. Compact views must never rewrite paid results.
     fields = ("scope_type", "scope_key", "input_hash")
     inputs = {tuple(row[field] for field in fields) for row in result["semantic_documents"]}
     jobs = {
@@ -265,6 +314,9 @@ def _concise_documents(result: Any, config: Any) -> None:
         if tuple(row[field] for field in fields) in inputs
     }
     result["semantic_jobs"] = list(jobs.values())
+    for job in result["semantic_jobs"]:
+        for field in ("worker_id", "lease_token_hash", "lease_expires_at", "error"):
+            job[field] = None
 
 
 def _selected_reviews(connection: Any, repository_id: int, current: int, result: Any) -> None:
@@ -285,6 +337,23 @@ def _selected_reviews(connection: Any, repository_id: int, current: int, result:
                 (source["snapshot_id"], source["scope_type"]),
             )
         )
+        if source["scope_type"] == "fresh_eyes":
+            result["semantic_documents"].extend(
+                _query(
+                    connection,
+                    "semantic_documents",
+                    "snapshot_id=? AND scope_type='fresh_eyes'",
+                    (source["snapshot_id"],),
+                )
+            )
+            result["semantic_jobs"].extend(
+                _query(
+                    connection,
+                    "semantic_jobs",
+                    "snapshot_id=? AND scope_type='fresh_eyes' AND status='completed'",
+                    (source["snapshot_id"],),
+                )
+            )
     result["snapshots"].extend(_selected(connection, "snapshots", "id", sorted(identifiers)))
     for snapshot in result["snapshots"]:
         snapshot["base_snapshot_id"] = None

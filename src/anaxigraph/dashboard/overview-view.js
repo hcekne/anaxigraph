@@ -37,7 +37,8 @@ export function renderOverview() {
       ? "No internal refs" : `${(graphQuality.resolution_rate * 100).toFixed(1)}%`],
     ["Decision branches per file (average)", Number(value.average_complexity || 0).toFixed(1)],
     ["Active findings (including diagnostics)", findingCount],
-    ["Files with current AI descriptions", semantic.enabled === false ? "Off"
+    ["Unused-code checks", deadCodeCoverage(value.dead_code_assessment)],
+    ["Modules with current graph annotation", semantic.enabled === false ? "Off"
       : semantic.coverage == null ? "Not started" : `${(semantic.coverage * 100).toFixed(1)}%`],
     ["Line coverage", value.coverage?.line_coverage == null
       ? "No report" : `${(value.coverage.line_coverage * 100).toFixed(1)}%`],
@@ -59,6 +60,12 @@ export function renderOverview() {
   renderCoverageNotice(value.coverage || {});
 }
 
+function deadCodeCoverage(value) {
+  if (!value || value.state === "not_recorded") return "Not recorded";
+  if (value.state === "off") return "Off";
+  return `${value.candidate_count} candidates · ${value.unassessed_file_count} unassessed`;
+}
+
 function renderGraphQualityNotice(graphQuality) {
   const notice = byId("graph-quality-notice");
   const fallback = Number(graphQuality.fallback_files || 0);
@@ -73,7 +80,7 @@ function renderGraphQualityNotice(graphQuality) {
   const actions = (language.what_to_do || []).map(
     (item) => `<li>${escapeHtml(item)}</li>`,
   ).join("");
-  notice.innerHTML = `<strong>${escapeHtml(language.conclusion)}</strong>
+  notice.innerHTML = `<strong>${escapeHtml(language.conclusion || "Structural graph and saved understanding have separate readiness.")}</strong>
     <p>${escapeHtml(language.what_was_checked)}</p>
     ${limits ? `<h3>What this limits</h3><ul>${limits}</ul>` : ""}
     ${actions ? `<div class="coverage-next"><strong>What to do</strong><ul>${actions}</ul></div>` : ""}`;
@@ -181,19 +188,16 @@ function renderSemanticNotice(semantic) {
     return;
   }
   notice.hidden = false;
-  const agentFunded = semantic.provider === "agent";
-  const current = Number(semantic.current || 0);
-  const language = semantic.plain_language;
-  const action = repository?.scannable && semantic.enabled
-    ? `<button class="secondary-button" type="button" data-semantic-refresh ${running ? "disabled" : ""}>${agentFunded ? running ? "Agent is mapping…" : "Prepare AI tasks" : running ? "Mapping repository…" : current ? "Resume AI mapping" : "Build AI map"}</button>`
-    : "";
+  const language = semantic.plain_language || {};
+  const action = repository?.scannable
+    ? '<button class="secondary-button" type="button" data-open-flow="mapping">Open Mapping workflow</button>' : "";
   notice.innerHTML = `<div class="semantic-notice-heading"><div>
-    <strong>${escapeHtml(language.conclusion)}</strong>
+    <strong>${escapeHtml(language.conclusion || "Structural graph and saved understanding have separate readiness.")}</strong>
     <p>${escapeHtml(language.progress)}</p><p>${escapeHtml(language.work_state)}</p>
-    ${semanticStatusList("Work still to finish", language.remaining_work)}
+    <details><summary>Readiness and run details</summary>${semanticStatusList("Work still to finish", language.remaining_work)}
     ${semanticStatusList("What to do", language.what_to_do)}
     <div class="coverage-next">${(language.how_to_read_progress || []).map((item) => `<p>${escapeHtml(item)}</p>`).join("")}</div>
-    </div>${action}</div>`;
+    </details></div>${action}</div>`;
 }
 
 function renderAnalysisFreshness(semantic) {

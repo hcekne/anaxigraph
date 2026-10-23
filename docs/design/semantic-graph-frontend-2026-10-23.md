@@ -1,6 +1,9 @@
 # Frontend design for the semantic graph
 
-**Status:** Frontend evaluation and required plan changes. Product UI changes are not implemented.
+**Pre-migration source references:** [commit 16c672b8](https://github.com/hcekne/anaxigraph/tree/16c672b832ac167264aa76364857ab7580c18e27); implementation evidence is dated separately below.
+
+**Status:** Implemented for the 0.9.0 candidate. The original evaluation below records the
+pre-migration surfaces; the final implementation and acceptance section records the delivered UI.
 
 **Parent design:** [Semantic graph architecture and product objectives](semantic-graph-redesign-2026-10-23.md).
 
@@ -9,7 +12,7 @@ sortable module table and workflow workspace, rebuild graph exploration around t
 relationships, and share selection, concise descriptions and evidence across those views. This is
 part of the architecture migration, not a cosmetic pass after the backend is finished.
 
-## Current frontend and purpose of each surface
+## Pre-migration frontend and purpose of each surface
 
 The current six journeys remain useful: **Workflows runs analysis; Understand explores; Guide
 answers coding questions; Improve reviews saved findings and alternatives; Changes verifies
@@ -19,29 +22,29 @@ overview, module table and graph as complementary entry points.
 
 | Current surface and user purpose | Decision | Required change |
 | --- | --- | --- |
-| Repository, checkout and map controls: establish what is being inspected | Keep and clarify | Preserve exact checkout/revision. Separate graph subject, detail level and grouping; scanning, analysis and publication have different actions and status. [Shell](../../src/anaxigraph/dashboard/index.html#L38). |
-| Workflows: control and inspect Mapping, Patterns, Fresh Eyes and Planning | Keep and build on | Preserve cards, arrows, manual step control, full runs, configuration and resume. Change their outputs/counts to reflect the new graph. [Workspace](../../src/anaxigraph/dashboard/workflows-view.js#L63). |
-| Charter and overview: understand the product and its responsibilities | Reprioritize | Lead with purpose, capabilities, important flows, unknowns and readiness. Repository totals, languages and size composition remain secondary information. [Overview](../../src/anaxigraph/dashboard/overview-view.js#L26). |
-| Module table: compare, sort and find source modules | Keep and improve | Preserve LOC sorting and useful filters/metrics; use canonical overview sentences and add function/interface information. Advanced columns are optional. [Inventory](../../src/anaxigraph/dashboard/index.html#L115). |
-| Expanded table rows and graph detail: understand one entity | Share one inspector | Sentence, short paragraph, functions/interfaces, contracts, connections/tests and expandable evidence. Replace separately assembled intrinsic/context dossiers. [Table detail](../../src/anaxigraph/dashboard/module-view.js#L188), [graph detail](../../src/anaxigraph/dashboard/graph-view.js#L204). |
-| Graph: see relationships and architectural boundaries | Substantial redesign | Capability overview, focused module/function/interface paths, directed typed relationships, contracts and explicit evidence. Expand on demand. [Current controls](../../src/anaxigraph/dashboard/index.html#L192). |
-| Guide: answer a concrete coding question and hand work to an agent | Keep and connect | Open from any selected entity/contract; show relevant paths, owners and tests. Preserve quick questions without requiring a long analysis workflow. [Guide](../../src/anaxigraph/dashboard/index.html#L370). |
-| Findings: review observations and maintain disposition | Keep as a review ledger | Link findings to graph evidence, affected contracts and plans. Keep reviewed/planned/accepted/dismissed/resolved states; collapse repeated workflow instructions after onboarding. [Findings](../../src/anaxigraph/dashboard/findings-view.js#L24). |
-| Pattern results: judge useful applications of the catalogue | Change primary presentation | Full catalogue rating/pro/con table, coverage states and relevant placements. Expand detailed evidence on demand. Old selected/skipped-candidate diagnostics become legacy/advanced information. [Patterns](../../src/anaxigraph/dashboard/patterns-view.js#L87). |
-| Fresh Eyes results: explore different ways to deliver the functionality | Redesign | Functional scope hierarchy and three retained alternative graphs with trade-offs. Existing-system comparison and refactoring advice belong in Planning. [Current result/control surface](../../src/anaxigraph/dashboard/fresh-eyes-view.js#L53). |
-| Architecture Planning: choose a target and guide migration | Keep and extend | Preserve optional direction, agent defaults, target choices, Mermaid and milestones with verification instructions and evidence/state. Use the shared graph model for actual/target comparison. [Planning](../../src/anaxigraph/dashboard/architecture-planning-view.js#L11). |
-| Changes: understand effects and check the chosen baseline | Reprioritize | Pinned baseline versus current graph, affected contracts and verification are primary. Detailed Git import/replay moves to optional advanced history. [Reassessment](../../src/anaxigraph/dashboard/reassessment-view.js#L23), [history](../../src/anaxigraph/dashboard/history-view.js#L37). |
-| Settings and onboarding: connect a runtime and maintain reusable knowledge | Keep and update | Runtime-aware uv/container instructions, MCP connection, storage/retention and portable-record state. Remove the promise of automatic background Git biography. [Onboarding](../../src/anaxigraph/dashboard/repository-view.js#L40), [setup copy](../../src/anaxigraph/dashboard/index.html#L443). |
+| Repository, checkout and map controls: establish what is being inspected | Keep and clarify | Preserve exact checkout/revision. Separate graph subject, detail level and grouping; scanning, analysis and publication have different actions and status. [Shell](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/index.html#L38). |
+| Workflows: control and inspect Mapping, Patterns, Fresh Eyes and Planning | Keep and build on | Preserve cards, arrows, manual step control, full runs, configuration and resume. Change their outputs/counts to reflect the new graph. [Workspace](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/workflows-view.js#L63). |
+| Charter and overview: understand the product and its responsibilities | Reprioritize | Lead with purpose, capabilities, important flows, unknowns and readiness. Repository totals, languages and size composition remain secondary information. [Overview](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/overview-view.js#L26). |
+| Module table: compare, sort and find source modules | Keep and improve | Preserve LOC sorting and useful filters/metrics; use canonical overview sentences and add function/interface information. Advanced columns are optional. [Inventory](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/index.html#L115). |
+| Expanded table rows and graph detail: understand one entity | Share one inspector | Sentence, short paragraph, functions/interfaces, contracts, connections/tests and expandable evidence. Replace separately assembled intrinsic/context dossiers. [Table detail](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/module-view.js#L188), [graph detail](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/graph-view.js#L204). |
+| Graph: see relationships and architectural boundaries | Substantial redesign | Capability overview, focused module/function/interface paths, directed typed relationships, contracts and explicit evidence. Expand on demand. [Current controls](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/index.html#L192). |
+| Guide: answer a concrete coding question and hand work to an agent | Keep and connect | Open from any selected entity/contract; show relevant paths, owners and tests. Preserve quick questions without requiring a long analysis workflow. [Guide](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/index.html#L370). |
+| Findings: review observations and maintain disposition | Keep as a review ledger | Link findings to graph evidence, affected contracts and plans. Keep reviewed/planned/accepted/dismissed/resolved states; collapse repeated workflow instructions after onboarding. [Findings](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/findings-view.js#L24). |
+| Pattern results: judge useful applications of the catalogue | Change primary presentation | Full catalogue rating/pro/con table, coverage states and relevant placements. Expand detailed evidence on demand. Old selected/skipped-candidate diagnostics become legacy/advanced information. [Patterns](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/patterns-view.js#L87). |
+| Fresh Eyes results: explore different ways to deliver the functionality | Redesign | Functional scope hierarchy and three retained alternative graphs with trade-offs. Existing-system comparison and refactoring advice belong in Planning. [Current result/control surface](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/fresh-eyes-view.js#L53). |
+| Architecture Planning: choose a target and guide migration | Keep and extend | Preserve optional direction, agent defaults, target choices, Mermaid and milestones with verification instructions and evidence/state. Use the shared graph model for actual/target comparison. [Planning](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/architecture-planning-view.js#L11). |
+| Changes: understand effects and check the chosen baseline | Reprioritize | Pinned baseline versus current graph, affected contracts and verification are primary. Detailed Git import/replay moves to optional advanced history. [Reassessment](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/reassessment-view.js#L23), [history](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/history-view.js#L37). |
+| Settings and onboarding: connect a runtime and maintain reusable knowledge | Keep and update | Runtime-aware uv/container instructions, MCP connection, storage/retention and portable-record state. Remove the promise of automatic background Git biography. [Onboarding](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/repository-view.js#L40), [setup copy](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/index.html#L443). |
 
 ## How graph exploration changes
 
 Today, the graph positions file nodes in area rectangles and an alphabetical grid with jitter;
 connections do not determine placement. All edges use one undirected visual style. The underlying
 API already provides type, confidence, evidence and resolution, but the projection excludes symbol
-nodes. See [layout](../../src/anaxigraph/dashboard/graph-model.js#L207),
-[edges](../../src/anaxigraph/dashboard/graph-view.js#L62),
-[relationship data](../../src/anaxigraph/persistence/graph_read.py#L326) and
-[module-only projection](../../src/anaxigraph/persistence/graph_projection.py#L11).
+nodes. See [layout](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/graph-model.js#L207),
+[edges](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/graph-view.js#L62),
+[relationship data](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/persistence/graph_read.py#L326) and
+[module-only projection](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/persistence/graph_projection.py#L11).
 
 The area/footprint display remains useful for composition and LOC comparisons. Keep it as a view
 option. The principal semantic view should instead explain responsibilities and interaction:
@@ -80,10 +83,10 @@ Search covers the selected graph revision, not only the visible nodes.
 
 The current table and inspector links work only if the destination is already in the graph page,
 and graph search dims nodes in that loaded page. Reuse and extend the existing bounded neighborhood
-API instead of building a second graph service. See [table navigation](../../src/anaxigraph/dashboard/module-events.js#L74),
-[inspector navigation](../../src/anaxigraph/dashboard/graph-events.js#L92),
-[current graph search](../../src/anaxigraph/dashboard/graph-view.js#L136) and
-[neighbors API](../../src/anaxigraph/api_graph.py#L75).
+API instead of building a second graph service. See [table navigation](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/module-events.js#L74),
+[inspector navigation](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/graph-events.js#L92),
+[current graph search](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/graph-view.js#L136) and
+[neighbors API](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/api_graph.py#L75).
 
 An illustrative relationship view could explain a behavior like this; it is not a finding about
 the current repository:
@@ -119,8 +122,8 @@ Keep area, subsystem, language and reference-artifact filters. Sorting must be g
 selected revision, including rows not yet fetched, with stable tie-breaking and clear filtered/
 returned/total counts. The current implementation loads all modules and sorts in the browser;
 extend indexed server queries for global sorting/filtering/paging before adding many more entities.
-See [background loading](../../src/anaxigraph/dashboard/module-loading.js#L4) and
-[sorting/filtering](../../src/anaxigraph/dashboard/module-view.js#L61).
+See [background loading](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/module-loading.js#L4) and
+[sorting/filtering](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/module-view.js#L61).
 
 Replace the prominent generic "Pattern idea" column with optional, explicitly reviewed opportunity
 and coverage information. Unreviewed, insufficient-evidence and poor-fit states are different.
@@ -174,7 +177,7 @@ Planning's current/target SVGs currently use a separate fixed-column renderer an
 Replace their disconnected model with graph projections and readable selection/detail, retaining
 Mermaid exports. Splits/merges may have many-to-many correspondences; report uncertain mappings
 rather than silently claiming a target node already exists. Keep actual/target graph positions and
-correspondence stable where possible. See [current renderer](../../src/anaxigraph/dashboard/architecture-plan-diagram.js#L4).
+correspondence stable where possible. See [current renderer](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/architecture-plan-diagram.js#L4).
 
 ## Simplify repeated and secondary information
 
@@ -212,7 +215,7 @@ Define the frontend query contract before finalizing the new storage/read model:
   demand. Do not extend today's all-module browser preload to all functions and contracts.
 
 Today startup waits for overview, then modules/graph/semantic data before finishing the shared load,
-and subsequently loads all module pages. See [startup](../../src/anaxigraph/dashboard/app.js#L88).
+and subsequently loads all module pages. See [startup](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/app.js#L88).
 The future plan needs an independently ready shell/workflow and scoped view loaders. Measure cold
 load, warm navigation, sort/search response, peak browser memory, payloads and interaction delays on
 declared large fixtures; the small audit fixture is not a scale benchmark.
@@ -222,8 +225,8 @@ keyboard navigation. Provide a keyboard-accessible entity/relationship list equi
 graph, visible focus and a usable back trail. Labels/shapes supplement color. On phones, table
 horizontal scrolling is intentional and the inspector can open as a sheet; neither makes the whole
 document overflow. Preserve the workflow keyboard controls and responsive layout. See
-[canvas interactions](../../src/anaxigraph/dashboard/graph-view.js#L375) and
-[canvas markup](../../src/anaxigraph/dashboard/index.html#L256).
+[canvas interactions](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/graph-view.js#L375) and
+[canvas markup](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/dashboard/index.html#L256).
 
 ## Revised implementation order and acceptance
 
@@ -257,8 +260,67 @@ for all views, including visual inspection of graph, inventory, workflows, overv
 Phone captures for modules/workflows were retained locally; the workflow capture was also visually
 inspected.
 
-Existing browser contracts were inspected for workflow layout, module loading, contract visibility,
-baseline identity, and optional planning. They establish useful behaviors to preserve; neither that
-inspection nor the walkthrough establishes that the proposed semantic frontend is implemented or
-that its scale/performance targets have been met. This frontend plan supplements the parent design
-and changes the migration order before product re-engineering proceeds.
+That original walkthrough and contract inspection established the pre-migration baseline. The
+implementation evidence below is separate, so the earlier audit is not presented as a test of the
+new frontend.
+
+
+## Implementation and acceptance
+
+**23 October 2026 — 0.9.0 candidate.** The six existing journeys and themes remain. Workflows still
+opens first and owns model configuration, complete runs, individual steps, durable batches and
+resume. Result pages share that execution state instead of maintaining independent worker controls.
+
+- **Understand:** purpose-first overview, server-paged module inventory and relationship-based graph.
+  The inventory defaults to concise columns and offers persistent per-column choices including LOC,
+  functions, consumers, dependencies, branches, coverage, changes, dates, interfaces and contracts.
+  Sorting/filtering applies globally before paging; reference artifacts are explicit opt-ins.
+- **One inspector:** table expansion and graph selection use the same saved sentence/detail,
+  functions, interfaces, full named obligations, tests and evidence. Legacy obligations have their
+  own paged section with unknown function bindings. Selection outside the loaded graph is focused
+  through the bounded neighborhood API; a back trail and text relationship list support keyboards.
+- **Independent graph choices:** observed code, functional brief, retained Fresh Eyes alternatives
+  and Planning options have their own subject identities/revisions. Grouping/detail remain separate.
+  Evidence filters distinguish extracted, inferred and unresolved observed relationships from
+  functional/proposed subjects. Proposed designs never inherit source paths or LOC metrics.
+  Unresolved targets remain directly selectable; known dependency counts are separate from unknown
+  targets/call sites. Git counts and dates identify their observed window rather than imply lifetime history.
+  A historical graph discloses when matching source files were reanalyzed with a newer extractor;
+  changed-source files and original paid results retain their own recorded provenance.
+- **Review results:** all-catalogue Pattern counts remain global across paged ratings/pros/cons.
+  Fresh Eyes exposes scope hierarchy, all retained alternatives, parent compatibility and blind
+  trade-offs; convergence/limitations and unverified novelty are explicit. Planning keeps optional
+  direction, agent defaults, current/target diagrams, Mermaid and milestone verification.
+- **Changes and Settings:** the chosen baseline is primary; Git import/replay is advanced. uv/container
+  setup, portable storage and mapped/exported/committed/pushed states are separate. Active views and
+  compact status load independently; history failures do not block Workflows or the inventory.
+
+The frontend consumes `/api/graph/entities`, `/api/graph/entity`, `/api/graph/neighborhood` and
+`/api/graph/subjects`, with repository/revision-qualified paging and response guards. It does not
+preload the full module inventory or every function. Canonical paragraphs and annotations are
+fetched on demand. Current graph subjects refresh when returning to Graph after new results save.
+
+**Verification:** the full **114-case browser suite passed**, including evidence/column/diversity
+changes, traversal, global paging, manual workflows and stale-response behavior. The subsequent
+helper-only Fresh Eyes rendering refactor passed a focused 14-case browser rerun. Final uncertainty
+selectors, known/unknown counts and Git-window captions passed a 13-case graph/subject rerun. Production
+JavaScript analysis reports no symbols over the existing complexity limit in the eight refactored
+UI modules; the limit was not raised. New browser
+contracts are in `tests/visual/semantic-graph.spec.js`, `graph-subjects.spec.js` and
+`semantic-reviews.spec.js`; the existing manual workflow, theme, loading and phone cases remain.
+
+The [5,000-module browser fixture](../../benchmarks/results/semantic-graph-browser-2026-10-23.json)
+returns 100 table rows (48,152 bytes) or 50 graph nodes (24,892 bytes), rather than downloading the
+complete inventory. Its measured cold view was 522 ms, global sort 73 ms, search including debounce
+319 ms, graph navigation 98 ms and warm navigation 101 ms; sampled JS heap peaked at 4,341,520 bytes.
+These are one declared synthetic browser measurement with a mocked backend, not production latency.
+The [unmocked saved-subject walkthrough](../../benchmarks/results/semantic-graph-subjects-2026-10-23.json)
+opens observed code, a functional brief, three alternatives and two Planning options through real
+isolated handlers; it recorded zero page errors and no fabricated source metrics for proposals.
+The [unresolved-target walkthrough](../../benchmarks/results/semantic-graph-unresolved-2026-10-23.json)
+uses real v4 handlers to follow an unresolved target back to its caller, keeps known-zero and unknown
+counts separate, and checks subject return and phone bounds without model calls.
+
+Source parsing/degree counts, inferred meaning and checked behavior remain different evidence.
+A readable graph and successful browser suite do not establish architectural novelty or reduced
+maintenance effort; those require the matched task evaluation in the parent design.

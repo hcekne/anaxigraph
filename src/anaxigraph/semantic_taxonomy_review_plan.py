@@ -187,7 +187,7 @@ def _plan_batch(
         },
     )
     saved = connection.execute(
-        """SELECT d.id FROM semantic_jobs j JOIN semantic_documents d
+        """SELECT d.id FROM semantic_jobs j JOIN semantic_document_values d
            ON d.snapshot_id = j.snapshot_id AND d.scope_key = j.scope_key
            AND d.input_hash = j.input_hash AND d.document_kind = j.job_kind
            WHERE j.snapshot_id = ? AND j.scope_key = ? AND j.input_hash = ?

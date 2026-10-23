@@ -6,14 +6,16 @@ import hashlib
 import json
 from typing import Any
 
+from anaxigraph.ir_codec import decode_metadata
+
 
 def analysis_signature(metadata_json: str) -> str:
-    metadata = json.loads(metadata_json or "{}")
+    metadata = decode_metadata(metadata_json or "{}")
     return str(metadata.get("analysis_signature") or "legacy-unknown")
 
 
 def resolver_context_hash(metadata_json: str) -> str:
-    metadata = json.loads(metadata_json or "{}")
+    metadata = decode_metadata(metadata_json or "{}")
     return digest((metadata.get("ir") or {}).get("resolver_context") or {})
 
 

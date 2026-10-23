@@ -40,7 +40,7 @@ def test_capability_change_reanalyzes_only_languages_owned_by_that_analyzer(repo
     assert changed.reused == initial.discovered - 5
 
 
-def test_package_version_change_reuses_semantics_and_reports_incompatible_comparison(
+def test_package_version_change_reuses_structure_and_semantics(
     repository, database, tmp_path, monkeypatch
 ):
     log = tmp_path / "semantic-release-change.log"
@@ -53,7 +53,8 @@ def test_package_version_change_reuses_semantics_and_reports_incompatible_compar
     ]
     baseline_calls = len(_calls(log))
 
-    monkeypatch.setattr("anaxigraph.scan_preparation.__version__", "next-release-test")
+    monkeypatch.setattr("anaxigraph.__version__", "next-release-test")
+    monkeypatch.setattr("anaxigraph.scan_commit.__version__", "next-release-test")
     current = RepositoryScanner(database).scan(repository, run_type="update")
     repeated = semantic_refresh_after_scan(
         database,
@@ -65,7 +66,9 @@ def test_package_version_change_reuses_semantics_and_reports_incompatible_compar
         prepare=True,
     )
 
-    assert "different analysis contracts" in repeated["refresh"]["comparison_caveat"]
+    assert current.snapshot_id == first.snapshot_id
+    assert current.analyzed == 0
+    assert "different analysis contracts" not in (repeated["refresh"]["comparison_caveat"] or "")
     assert repeated["refresh"]["preparation"]["enqueued"] == 0
     assert repeated["semantic"]["current"] == repeated["semantic"]["eligible_modules"]
     assert repeated["semantic"]["semantically_ready"] is True

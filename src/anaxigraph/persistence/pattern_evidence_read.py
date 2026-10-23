@@ -42,13 +42,18 @@ def read_pattern_evidence(
     snapshot_id: int,
     *,
     target: str = "",
+    metadata_loader: Any = None,
 ) -> PatternEvidenceProjection:
     if target:
-        leaf_projection = _leaf_projection(connection, repository_id, snapshot_id, target)
+        leaf_projection = _leaf_projection(
+            connection, repository_id, snapshot_id, target, metadata_loader
+        )
         if leaf_projection is not None:
             return leaf_projection
     repository_name = _repository_name(connection, repository_id, snapshot_id)
-    modules, raw, symbols, semantic = _snapshot_inputs(connection, repository_id, snapshot_id)
+    modules, raw, symbols, semantic = _snapshot_inputs(
+        connection, repository_id, snapshot_id, metadata_loader
+    )
     contracts = capability_contracts(raw.values())
     facts = facts_by_artifact(raw.values())
     areas, subsystems, module_targets = _architecture_targets(modules)
@@ -84,6 +89,7 @@ def _leaf_projection(
     repository_id: int,
     snapshot_id: int,
     target: str,
+    metadata_loader: Any = None,
 ) -> PatternEvidenceProjection | None:
     install_snapshot_projection(connection, snapshot_id)
     path = _leaf_target_path(connection, snapshot_id, target)
@@ -111,6 +117,7 @@ def _leaf_projection(
         ).fetchall()
     }
     symbols = [dict(row) for row in connection.execute(_SYMBOL_FOR_PATH_SQL, (path,)).fetchall()]
+    _restore_evidence(raw, metadata_loader)
     semantic = semantic_documents(connection, snapshot_id, scope_key=path)
     contracts = capability_contracts(raw.values())
     facts = facts_by_artifact(raw.values())
@@ -190,6 +197,7 @@ def _snapshot_inputs(
     connection: sqlite3.Connection,
     repository_id: int,
     snapshot_id: int,
+    metadata_loader: Any = None,
 ) -> tuple[
     list[dict[str, Any]], dict[int, dict[str, Any]], list[dict[str, Any]], dict[str, dict[str, Any]]
 ]:
@@ -198,9 +206,16 @@ def _snapshot_inputs(
         int(row["artifact_id"]): dict(row)
         for row in connection.execute("SELECT * FROM projected_file_versions").fetchall()
     }
+    _restore_evidence(raw, metadata_loader)
     install_snapshot_projection(connection, snapshot_id)
     symbols = [dict(row) for row in connection.execute(_SYMBOL_SQL).fetchall()]
     return modules, raw, symbols, semantic_documents(connection, snapshot_id)
+
+
+def _restore_evidence(rows, loader):
+    if loader is not None:
+        for row in rows.values():
+            row["metadata_json"] = loader(row)
 
 
 def _leaf_items(

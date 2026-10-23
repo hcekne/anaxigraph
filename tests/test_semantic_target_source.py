@@ -20,8 +20,8 @@ from anaxigraph.semantic_target_source import read_mounted_source, require_uncha
 from anaxigraph.understanding import SemanticEngine
 
 TARGET = "pkg/util.py"
-INTRINSIC_MISSING = "The target module no longer exists in the mounted tree"
-INTRINSIC_CHANGED = "The module changed after this semantic job was planned"
+ANNOTATION_MISSING = "The annotation source no longer exists"
+ANNOTATION_CHANGED = "Source changed since annotation planning"
 PATTERN_MISSING = "The file for this pattern check no longer exists"
 PATTERN_CHANGED = "The pattern target changed after this work was planned"
 
@@ -94,7 +94,7 @@ def _job(stats, artifact_id: int, kind: str, path: str) -> dict:
     if kind == "pattern_assessment":
         metadata = {
             "candidate": {"target": {"path": path, "level": "module", "label": path}},
-            "pattern": {},
+            "pattern": {"key": "strategy", "kind": "constructive"},
             "target_evidence": {},
         }
     return {
@@ -129,16 +129,16 @@ SCENARIOS = ["outside", "deleted", "changed", "escaping_symlink"]
 
 
 @pytest.mark.parametrize("scenario", SCENARIOS)
-def test_intrinsic_request_supersedes_a_job_whose_target_is_gone_or_changed(
+def test_annotation_request_supersedes_a_job_whose_target_is_gone_or_changed(
     repository: Path, database, scenario: str
 ) -> None:
     stats, artifact_id = _scan(repository, database)
     path = _disturb(repository, scenario)
-    expected = INTRINSIC_CHANGED if scenario == "changed" else INTRINSIC_MISSING
+    expected = ANNOTATION_CHANGED if scenario == "changed" else ANNOTATION_MISSING
 
     with pytest.raises(SupersededSemanticJob) as raised:
-        SemanticEvidenceService(database)._intrinsic_request(
-            _job(stats, artifact_id, "intrinsic", path), repository.resolve(), SemanticConfig()
+        SemanticEvidenceService(database).job_request(
+            _job(stats, artifact_id, "annotation", path), repository.resolve(), SemanticConfig()
         )
     assert str(raised.value) == expected
 
@@ -181,7 +181,7 @@ def test_pattern_source_evidence_still_serves_an_untouched_target(
 # --- the agent marks the job superseded with the same text ------------------------------------
 
 
-def test_agent_marks_an_intrinsic_job_superseded_when_its_target_disappears(
+def test_agent_marks_an_annotation_job_superseded_when_its_target_disappears(
     repository: Path, database
 ) -> None:
     _enable_agent_semantics(repository)
@@ -198,7 +198,7 @@ def test_agent_marks_an_intrinsic_job_superseded_when_its_target_disappears(
             row = connection.execute(
                 """
                 SELECT status, error FROM semantic_jobs
-                WHERE snapshot_id = ? AND job_kind = 'intrinsic' AND scope_key = ?
+                WHERE snapshot_id = ? AND job_kind = 'annotation' AND scope_key = ?
                 """,
                 (stats.snapshot_id, TARGET),
             ).fetchone()
@@ -206,7 +206,7 @@ def test_agent_marks_an_intrinsic_job_superseded_when_its_target_disappears(
             break
 
     assert row is not None
-    assert tuple(row) == ("superseded", INTRINSIC_MISSING)
+    assert tuple(row) == ("superseded", ANNOTATION_MISSING)
 
 
 class _RecordingPersistence:

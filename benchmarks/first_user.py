@@ -1,4 +1,4 @@
-"""Measure the supported local path from an empty checkout to the first semantic dossier."""
+"""Measure the supported local path from an empty checkout to the first compact graph annotation."""
 
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ import httpx
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
+from anaxigraph.semantic_agent_protocol import rehydrate_agent_request
 from anaxigraph.semantic_contract import SEMANTIC_SCHEMA_VERSION
 
 
@@ -30,13 +31,14 @@ def measure_first_user_path(root: Path, *, runs: int = 3) -> dict[str, Any]:
         for index in range(1, runs + 1):
             results.append(_run_trial(root, work, index))
     dashboard = [float(item["dashboard_seconds"]) for item in results]
-    dossier = [float(item["first_dossier_seconds"]) for item in results]
+    annotations = [float(item["first_annotation_seconds"]) for item in results]
     return {
         "status": "complete",
+        "measurement_kind": "synthetic_first_user_runtime_no_model",
         "runs": results,
         "median_dashboard_seconds": statistics.median(dashboard),
-        "median_first_dossier_seconds": statistics.median(dossier),
-        "budgets": {"dashboard_seconds": 300, "first_dossier_seconds": 600},
+        "median_first_annotation_seconds": statistics.median(annotations),
+        "budgets": {"dashboard_seconds": 300, "first_annotation_seconds": 600},
     }
 
 
@@ -54,8 +56,10 @@ def _run_trial(root: Path, work: Path, index: int) -> dict[str, Any]:
         try:
             _wait_for_health(process, port, log_path)
             dashboard_seconds = time.monotonic() - started
-            submission = asyncio.run(_submit_first_dossier(f"http://127.0.0.1:{port}/executor/mcp"))
-            first_dossier_seconds = time.monotonic() - started
+            submission = asyncio.run(
+                _submit_first_annotation(f"http://127.0.0.1:{port}/executor/mcp")
+            )
+            first_annotation_seconds = time.monotonic() - started
         finally:
             _stop_runtime(process)
     if process.returncode != 0:
@@ -63,8 +67,10 @@ def _run_trial(root: Path, work: Path, index: int) -> dict[str, Any]:
     return {
         "run": index,
         "dashboard_seconds": round(dashboard_seconds, 3),
-        "first_dossier_seconds": round(first_dossier_seconds, 3),
+        "first_annotation_seconds": round(first_annotation_seconds, 3),
         "submission_status": submission["status"],
+        "artifact": submission["artifact"],
+        "function_count": submission["functions"],
         "evidence_pages": submission["evidence_pages"],
         "command": command[3:],
         "project_connection_created": (repository / ".codex/config.toml").is_file(),
@@ -102,6 +108,10 @@ def _create_repository(repository: Path) -> Path:
         "    return f'Hello {name}'\n",
         encoding="utf-8",
     )
+    (repository / ".anaxigraph.yml").write_text(
+        "semantic:\n  enabled: true\n  provider: agent\n  detailed_reviews: false\n  include: [src/**]\n",
+        encoding="utf-8",
+    )
     commands = (
         ("init", "--initial-branch=main"),
         ("config", "user.name", "AnaxiGraph first-user gate"),
@@ -128,7 +138,7 @@ def _wait_for_health(process: subprocess.Popen[str], port: int, log_path: Path) 
     raise RuntimeError(f"dashboard did not become healthy:\n{log_path.read_text()}")
 
 
-async def _submit_first_dossier(mcp_url: str) -> dict[str, Any]:
+async def _submit_first_annotation(mcp_url: str) -> dict[str, Any]:
     async with httpx.AsyncClient(timeout=10) as http_client:
         async with streamable_http_client(
             mcp_url,
@@ -136,9 +146,6 @@ async def _submit_first_dossier(mcp_url: str) -> dict[str, Any]:
             terminate_on_close=False,
         ) as (read_stream, write_stream, _):
             async with ClientSession(read_stream, write_stream) as session:
-                schema = await session.call_tool("ANAXIGRAPH_SEMANTIC_SCHEMA", arguments={})
-                if schema.structuredContent["schema_version"] != SEMANTIC_SCHEMA_VERSION:
-                    raise RuntimeError("unexpected semantic dossier schema")
                 work = await session.call_tool(
                     "ANAXIGRAPH_SEMANTIC_WORK",
                     arguments={"agent_id": "first-user-gate", "agent_model": "fixture"},
@@ -146,24 +153,51 @@ async def _submit_first_dossier(mcp_url: str) -> dict[str, Any]:
                 packet = work.structuredContent
                 if packet["status"] != "work":
                     raise RuntimeError(f"semantic work was not available: {packet['status']}")
+                schema = await session.call_tool(
+                    "ANAXIGRAPH_SEMANTIC_SCHEMA",
+                    arguments=packet["response_contract"]["schema_arguments"],
+                )
+                if (
+                    schema.isError
+                    or schema.structuredContent["schema_version"] != SEMANTIC_SCHEMA_VERSION
+                ):
+                    raise RuntimeError("unexpected semantic graph annotation schema")
+                if (
+                    packet["job"]["kind"] != "annotation"
+                    or schema.structuredContent["artifact"] != "graph_annotation"
+                ):
+                    raise RuntimeError(
+                        "first semantic work did not use the graph annotation contract"
+                    )
                 pages = await _fetch_evidence_pages(session, packet)
+                request = rehydrate_agent_request(packet["analysis_request"], pages)
                 submitted = await session.call_tool(
                     "ANAXIGRAPH_SEMANTIC_SUBMIT",
                     arguments={
                         "job_id": packet["job"]["id"],
                         "lease_token": packet["lease"]["token"],
-                        "dossier": _dossier(packet["job"]["scope_key"]),
+                        "dossier": _annotation(request),
                     },
                 )
+                if submitted.isError:
+                    raise RuntimeError(f"annotation submission failed: {submitted.content}")
                 status = submitted.structuredContent["status"]
                 if status not in {"completed", "already_completed"}:
                     raise RuntimeError(f"semantic submission failed: {status}")
-                return {"status": status, "evidence_pages": pages}
+                return {
+                    "status": status,
+                    "evidence_pages": len(pages),
+                    "artifact": "graph_annotation",
+                    "functions": len(request["functions"]),
+                }
 
 
-async def _fetch_evidence_pages(session: ClientSession, packet: dict[str, Any]) -> int:
+async def _fetch_evidence_pages(
+    session: ClientSession, packet: dict[str, Any]
+) -> list[dict[str, Any]]:
     manifest = packet.get("evidence_manifest") or {}
     page_count = int(manifest.get("page_count") or 0)
+    pages = []
     for page in range(1, page_count + 1):
         result = await session.call_tool(
             "ANAXIGRAPH_SEMANTIC_EVIDENCE",
@@ -175,15 +209,24 @@ async def _fetch_evidence_pages(session: ClientSession, packet: dict[str, Any]) 
         )
         if result.structuredContent["status"] != "evidence":
             raise RuntimeError(f"semantic evidence page {page} was unavailable")
-    return page_count
+        pages.append(result.structuredContent)
+    return pages
 
 
-def _dossier(scope: str) -> dict[str, Any]:
+def _annotation(request: dict[str, Any]) -> dict[str, Any]:
     return {
-        "summary": f"First-user understanding for {scope}",
-        "responsibilities": [f"Own {scope}"],
-        "public_contracts": [],
-        "evidence": [scope],
+        "overview": "Returns a greeting for the supplied name.",
+        "detail": "The fixture exposes one greeting function with no external side effects.",
+        "functions": [
+            {
+                "qualified_name": item["qualified_name"],
+                "overview": "Returns a greeting for the supplied name.",
+            }
+            for item in request["functions"]
+        ],
+        "contracts": [],
+        "capabilities": [],
+        "evidence": [request["path"]],
         "confidence": 0.9,
     }
 
@@ -226,7 +269,7 @@ def main(argv: list[str] | None = None) -> int:
     budgets = report["budgets"]
     return int(
         report["median_dashboard_seconds"] >= budgets["dashboard_seconds"]
-        or report["median_first_dossier_seconds"] >= budgets["first_dossier_seconds"]
+        or report["median_first_annotation_seconds"] >= budgets["first_annotation_seconds"]
     )
 
 

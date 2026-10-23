@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "measured_at": "2026-10-23T16:10:53.935Z",
+  "fixture": "Isolated synthetic dashboard repository, real v4 handlers, no routes mocked",
+  "no_model_calls": true,
+  "checks": {
+    "initial_unresolved_selector": true,
+    "global_unresolved_evidence_inventory": true,
+    "unresolved_target_detail_and_incoming_caller": true,
+    "caller_known_zero_separate_from_unresolved_counts": true,
+    "raw_call_site_indexes_not_exposed": true,
+    "subject_return_preserves_unresolved_selector": true,
+    "phone_contained": true
+  },
+  "unresolved_inventory": {
+    "total_nodes": 1,
+    "returned_nodes": 1,
+    "virtual_entity_kinds": [
+      "unresolved"
+    ]
+  },
+  "caller_metrics": {
+    "lines_of_code": 2,
+    "complexity": 1,
+    "function_count": null,
+    "interface_count": null,
+    "contract_count": null,
+    "fan_in": 2,
+    "fan_out": 1,
+    "line_coverage": null,
+    "change_count": null,
+    "first_changed_at": null,
+    "last_commit_at": null,
+    "resolved_fan_out": 0,
+    "unresolved_target_count": 1
+  },
+  "caller_uncertainty": {
+    "unresolved_call_count": 1,
+    "unresolved_target_count": 1
+  },
+  "page_errors": [],
+  "api_failures": []
+}

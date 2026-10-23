@@ -3,6 +3,7 @@
 import pytest
 from fresh_eyes_support import baseline_review
 
+from anaxigraph.architecture_plan_evidence import current_graph_evidence
 from anaxigraph.semantic_evidence_selection import (
     bounded_evidence,
     evidence_bytes,
@@ -12,7 +13,7 @@ from anaxigraph.semantic_evidence_selection import (
     safe_review_evidence,
     select_modules,
 )
-from anaxigraph.semantic_fresh_eyes_evidence import current_charter, current_system_evidence
+from anaxigraph.semantic_fresh_eyes_evidence import current_charter
 
 
 def test_documentation_cannot_crowd_out_changed_production_contracts():
@@ -125,30 +126,20 @@ def test_oversized_essential_context_is_rejected_instead_of_misrepresented():
         bounded_evidence({"public_contracts": ["critical " * 1_000]}, limit=1_000)
 
 
-def test_reviewed_taxonomy_preserves_responsibility_memberships(repository, database, monkeypatch):
+def test_source_aware_planning_uses_canonical_responsibility_graph(repository, database):
     review = baseline_review(repository, database)
     snapshot_id = database.latest_snapshot(review.repository_id)["id"]
     with database.connect() as connection:
-        current, manifest = current_system_evidence(
+        current, manifest = current_graph_evidence(
             connection, review.repository_id, snapshot_id, current_charter(connection, snapshot_id)
         )
-    taxonomy = current["responsibility_map"]
-    assert taxonomy["areas"] and "taxonomy" not in taxonomy
-    memberships = responsibility_memberships(taxonomy)
-    assert memberships
-    for document in current["module_dossiers"]:
-        assert document["responsibility_owner"] == memberships[document["scope"]]
-    assert manifest["coverage"]["responsibilities_total"] == len(set(memberships.values()))
-    assert manifest["coverage"]["unmapped_modules"] == 0
-    monkeypatch.setattr(
-        "anaxigraph.semantic_fresh_eyes_evidence._current_taxonomy", lambda *_: None
-    )
-    with database.connect() as connection:
-        _, missing = current_system_evidence(
-            connection, review.repository_id, snapshot_id, current_charter(connection, snapshot_id)
-        )
-    assert missing["coverage"]["responsibilities_total"] == 0
-    assert missing["coverage"]["unmapped_modules"] == missing["coverage"]["current_modules"]
+    graph = current["semantic_graph"]
+    assert graph["nodes"] and graph["edges"]
+    assert graph["returned_nodes"] == len(graph["nodes"])
+    assert graph["returned_edges"] == len(graph["edges"])
+    assert manifest["graph_node_ids"] == [node["id"] for node in graph["nodes"]]
+    assert "module_dossiers" not in current
+    assert any(node["kind"] == "area" for node in graph["nodes"])
 
 
 def test_compaction_preserves_paths_owners_and_every_responsibility():

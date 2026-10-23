@@ -57,7 +57,7 @@ def test_changed_source_keeps_saved_work_visible_and_reuses_an_unfinished_propos
             database, row, config, WorkflowRequest(workflow="mapping", step=step), settings
         ).run()
 
-    for step in ("intrinsic", "context", "taxonomy_proposal"):
+    for step in ("annotation", "taxonomy_proposal"):
         assert run(step)["status"] == "complete"
     assert run("taxonomy_review")["status"] == "waiting"
     before = database.latest_snapshot(row["id"])["id"]
@@ -102,7 +102,7 @@ def test_changed_source_keeps_saved_work_visible_and_reuses_an_unfinished_propos
     engine.plan(row["id"], repository, config)
     assert coverage()["history"]["taxonomy"] == history["taxonomy"]
     assert coverage()["history"]["modules"]["intrinsic"]["refresh"] == 1
-    for step in ("intrinsic", "context", "taxonomy_proposal"):
+    for step in ("annotation", "taxonomy_proposal"):
         assert run(step)["status"] == "complete"
     assert calls["taxonomy_proposal"] == 1
     current_id = database.latest_snapshot(row["id"])["id"]

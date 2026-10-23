@@ -10,10 +10,13 @@ import pytest
 import yaml
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
+from semantic_support import _agent_dossier
 
+from anaxigraph.knowledge_detail import entity_detail
 from anaxigraph.mcp_runtime import _INSTRUCTIONS
 from anaxigraph.mcp_server import create_anaxi_mcp_server
 from anaxigraph.scanner import RepositoryScanner
+from anaxigraph.semantic_agent_protocol import rehydrate_agent_request
 from scripts.build_agent_plugin import build_agent_plugin
 from scripts.check_agent_package import validate_agent_package
 from scripts.verify_release_artifacts import project_version
@@ -97,7 +100,7 @@ async def test_skill_semantic_release_resume_evidence_and_submit_contract(reposi
         core.read_text(encoding="utf-8") + f"\nLARGE_EVIDENCE = {'x' * 8_000!r}\n",
         encoding="utf-8",
     )
-    RepositoryScanner(database).scan(repository)
+    stats = RepositoryScanner(database).scan(repository)
     server = create_anaxi_mcp_server(
         database=database,
         repository=repository,
@@ -125,6 +128,16 @@ async def test_skill_semantic_release_resume_evidence_and_submit_contract(reposi
                         schema.structuredContent["schema_version"] == "repository-understanding-v7"
                     )
                     first = await _claim(session)
+                    assert first["job"]["kind"] == "annotation"
+                    selected_schema = await session.call_tool(
+                        "ANAXIGRAPH_SEMANTIC_SCHEMA",
+                        arguments=first["response_contract"]["schema_arguments"],
+                    )
+                    assert selected_schema.isError is False
+                    assert selected_schema.structuredContent["artifact"] == "graph_annotation"
+                    assert set(
+                        selected_schema.structuredContent["graph_annotation_schema"]["required"]
+                    ) == set(first["response_contract"]["required_fields"])
                     manifest = first["evidence_manifest"]
                     assert manifest["page_count"] >= 1
                     pages = [
@@ -155,10 +168,23 @@ async def test_skill_semantic_release_resume_evidence_and_submit_contract(reposi
                         arguments={
                             "job_id": resumed["job"]["id"],
                             "lease_token": resumed["lease"]["token"],
-                            "dossier": _dossier(resumed["job"]["scope_key"]),
+                            "dossier": _agent_dossier(
+                                rehydrate_agent_request(
+                                    resumed["analysis_request"],
+                                    [page.structuredContent for page in pages],
+                                )
+                            ),
                         },
                     )
+                    assert submitted.isError is False
                     assert submitted.structuredContent["status"] == "completed"
+                    module = entity_detail(database, stats.repository_id, "module:pkg/core.py")
+                    assert len(module["functions"]) == 1
+                    detail = entity_detail(
+                        database, stats.repository_id, module["functions"][0]["id"]
+                    )
+                    assert detail["node"]["readiness"] == "annotated"
+                    assert detail["node"]["overview"]
                     status = await session.call_tool("ANAXIGRAPH_SEMANTIC_STATUS", arguments={})
                     assert status.structuredContent["jobs"]["completed"] >= 1
 
@@ -171,13 +197,3 @@ async def _claim(session: ClientSession) -> dict:
     assert result.isError is False
     assert result.structuredContent["status"] == "work"
     return result.structuredContent
-
-
-def _dossier(scope: str) -> dict:
-    return {
-        "summary": f"Agent understanding for {scope}",
-        "responsibilities": [f"Own {scope}"],
-        "public_contracts": [],
-        "evidence": [scope],
-        "confidence": 0.9,
-    }

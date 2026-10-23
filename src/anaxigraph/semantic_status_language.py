@@ -44,7 +44,7 @@ def semantic_work_plan(
     scopes = status.get("scope_counts") or {}
     modules = scopes.get("module") or {}
     eligible = _count(status.get("eligible_modules"))
-    rereads = _count(modules.get("pending_intrinsic"))
+    rereads = _count(modules.get("pending_annotation")) + _count(modules.get("pending_intrinsic"))
     taxonomy = (status.get("taxonomy") or {}).get("current") or {}
     return {
         "mode": "full" if eligible and rereads >= eligible else "incremental",

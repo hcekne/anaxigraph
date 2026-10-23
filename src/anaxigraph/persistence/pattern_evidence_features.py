@@ -37,6 +37,7 @@ def module_evidence(
     capability = read_capability(raw)
     features = [
         *_module_code_features(raw, capability, locator),
+        *_cache_features(raw, locator),
         *_module_repository_features(module, symbols, type_count, locator),
         *_fact_features(facts, locator),
         *_semantic_features(semantic, locator),
@@ -146,8 +147,10 @@ def symbol_evidence(
         capability = read_capability(raw[artifact_id])
         capability_fingerprints = (str(capability["fingerprint"]),) if capability else ()
         matching = [item for item in facts[artifact_id] if item["subject"] == qualified]
-        features = _symbol_features(rows, capability, target.key) + _fact_features(
-            matching, target.key
+        features = (
+            _symbol_features(rows, capability, target.key)
+            + _cache_features(raw[artifact_id], target.key)
+            + _fact_features(matching, target.key)
         )
         ordered = tuple(sorted(features, key=lambda item: item.name))
         fingerprint = digest(
@@ -254,6 +257,24 @@ def _symbol_contract_features(
     ]
 
 
+def _cache_features(raw, locator):
+    metadata = json.loads(raw["metadata_json"] or "{}")
+    if not metadata.get("evidence_cache_evicted"):
+        return []
+    reason = metadata.get(
+        "evidence_cache_unavailable", "Deterministic evidence requires source rehydration"
+    )
+    return [
+        PatternFeature(
+            "analyzer.evidence_cache",
+            reason,
+            0,
+            (EvidenceReference("analyzer-cache", locator, detail=reason),),
+            "unavailable",
+        )
+    ]
+
+
 def _fact_features(facts: list[dict[str, Any]], locator: str) -> list[PatternFeature]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for item in facts:
@@ -293,6 +314,8 @@ def _semantic_features(value: dict[str, Any] | None, locator: str) -> list[Patte
         "semantic-dossier", locator, detail=str(value.get("_document_id") or "")
     )
     keys = (
+        "overview",
+        "detail",
         "architecture_role",
         "collaborators",
         "domain_concepts",
@@ -306,6 +329,8 @@ def _semantic_features(value: dict[str, Any] | None, locator: str) -> list[Patte
         "side_effects",
         "testing_guidance",
     )
+    if "overview" in value and "contracts" in value and "capabilities" in value:
+        keys = (*keys, "contracts", "capabilities")
     return [
         PatternFeature("semantic.dossier", True, confidence, (source,)),
         *[PatternFeature(f"semantic.{key}", value.get(key), confidence, (source,)) for key in keys],

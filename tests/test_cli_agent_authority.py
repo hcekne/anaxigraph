@@ -113,6 +113,7 @@ def test_fresh_eyes_uses_the_matching_service(
         "restart": True,
         "generation": None,
         "compare_with": None,
+        "scope_id": "",
         "timeout": expected_timeout,
     }
 

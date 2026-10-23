@@ -46,8 +46,8 @@ def read_graph_node_rows(
             FROM coverage_measurements WHERE snapshot_id = ? GROUP BY artifact_id
         ) coverage ON coverage.artifact_id = fv.artifact_id
         LEFT JOIN (
-            SELECT path, COUNT(*) AS change_count FROM git_changes
-            WHERE repository_id = ? GROUP BY path
+            SELECT path, change_count FROM git_path_metrics
+            WHERE repository_id = ?
         ) history ON history.path = fv.path
         ORDER BY {order_by} LIMIT ? OFFSET ?
         """,

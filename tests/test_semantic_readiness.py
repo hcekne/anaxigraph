@@ -9,6 +9,7 @@ from anaxigraph.semantic_status import _coverage
 def test_semantic_readiness_waits_for_the_pattern_plan_and_its_jobs():
     base = {
         "counts": {"current": 2},
+        "pattern_catalogue": {},
         "repository_state": {"status": "current"},
         "taxonomy": {"status": "current"},
     }

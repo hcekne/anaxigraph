@@ -8,14 +8,13 @@ from semantic_support import _agent_dossier, _enable_agent_semantics
 
 from anaxigraph.cli import main
 from anaxigraph.config import load_config
+from anaxigraph.portable_io import read_record
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic_graph import _intent_fingerprint
 from anaxigraph.understanding import SemanticEngine
 
 
-def test_cli_compaction_preserves_original_and_reuses_shortened_description(
-    repository, database, capsys
-):
+def test_cli_compaction_preserves_and_reuses_original_description(repository, database, capsys):
     _enable_agent_semantics(repository)
     file = repository / ".anaxigraph.yml"
     policy = yaml.safe_load(file.read_text())
@@ -61,11 +60,14 @@ def test_cli_compaction_preserves_original_and_reuses_shortened_description(
     with database.connect() as connection:
         compact = json.loads(
             connection.execute(
-                "SELECT value_json FROM semantic_documents WHERE id=?", (row["id"],)
+                "SELECT value_json FROM semantic_document_values WHERE id=?", (row["id"],)
             ).fetchone()[0]
         )
-        assert len(compact["summary"]) <= 600
+        assert compact == legacy
         assert not connection.execute(
-            "SELECT 1 FROM semantic_jobs WHERE scope_key=? AND job_kind='intrinsic' AND status='pending'",
+            "SELECT 1 FROM semantic_jobs WHERE scope_key=? AND job_kind='annotation' AND status='pending'",
             (path,),
         ).fetchone()
+
+    _manifest, portable = read_record(repository)
+    assert any(row["value"]["value_json"] == legacy for row in portable["semantic_documents"])

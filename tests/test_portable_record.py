@@ -59,6 +59,8 @@ def test_full_ai_map_and_fresh_eyes_survive_clone(repository, database, tmp_path
     review.run_until_complete()
     before = review.engine.fresh_eyes_status(review.repository_id, review.config.semantic)
     assert before["ready"]
+    with database.connect() as connection:
+        original = _selected_values(connection, review.repository_id)
     save_record(database, review.repository_id)
     local_root = publish_and_clone(repository, tmp_path / "local")
     local = AnaxiIndex(tmp_path / "local.db")
@@ -70,6 +72,17 @@ def test_full_ai_map_and_fresh_eyes_survive_clone(repository, database, tmp_path
     after = engine.fresh_eyes_status(restored.repository_id, config.semantic)
     assert after["ready"], after
     assert after["recommendations"] == before["recommendations"]
+    assert after["counts"] == before["counts"]
+    assert after["scope_reviews"] == before["scope_reviews"]
+    with local.connect() as connection:
+        assert _selected_values(connection, restored.repository_id) == original
+        assert connection.execute("SELECT COUNT(*) FROM semantic_claims").fetchone()[0] == 0
+        assert (
+            connection.execute(
+                "SELECT COUNT(*) FROM graph_entities WHERE annotation_id IS NOT NULL"
+            ).fetchone()[0]
+            > 0
+        )
     plan = engine.plan(restored.repository_id, local_root, config)
     assert plan.enqueued == 0
 
@@ -162,3 +175,22 @@ def test_interrupted_model_work_reuses_success_and_never_imports_live_worker(
             (path,),
         ).fetchone()
     assert duplicate is None
+
+
+def _selected_values(connection, repository_id):
+    rows = connection.execute(
+        "SELECT scope_type,scope_key,input_hash,value_json,provider,model,created_at FROM semantic_document_values WHERE repository_id=? AND id IN (SELECT intrinsic_document_id FROM semantic_scope_states UNION SELECT context_document_id FROM semantic_scope_states)",
+        (repository_id,),
+    )
+    return sorted(
+        (
+            row["scope_type"],
+            "repository" if row["scope_type"] == "repository" else row["scope_key"],
+            row["input_hash"],
+            json.loads(row["value_json"]),
+            row["provider"],
+            row["model"],
+            row["created_at"],
+        )
+        for row in rows
+    )

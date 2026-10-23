@@ -12,6 +12,8 @@
     <link rel="mask-icon" href="/assets/mask-icon.svg" color="#ff4d8d" />
     <link rel="stylesheet" href="/assets/styles.css" />
     <link rel="stylesheet" href="/assets/journey-navigation.css" />
+    <link rel="stylesheet" href="/assets/semantic-graph.css" />
+    <link rel="stylesheet" href="/assets/patterns.css" />
   </head>
   <body>
     <header class="topbar">
@@ -35,14 +37,8 @@
             <option value="anaxigraph">AnaxiGraph original</option>
           </select>
         </label>
-        <label class="repository-picker">
-          Current repository
-          <select id="repository-select" aria-label="Selected repository"></select>
-        </label>
-        <label class="repository-picker">
-          Map
-          <select id="map-layer-select" aria-label="Architecture map layer"></select>
-        </label>
+        <label class="repository-picker">Current repository <select id="repository-select" aria-label="Selected repository"></select></label>
+        <label class="repository-picker">Map <select id="map-layer-select" aria-label="Architecture map layer"></select></label>
         <span id="snapshot-label" class="snapshot-label">No saved scan</span>
         <button id="refresh-button" class="button">Refresh scan</button>
       </div>
@@ -75,9 +71,9 @@
             observations. Planning one gives an agent a small goal-specific file list; only a later scan can verify it
             as resolved.</p>
         </article>
-        <div id="metric-grid" class="metric-grid"></div>
-        <div id="semantic-notice" class="notice evidence-notice" hidden></div>
         <article id="repository-intelligence" class="panel repository-intelligence" hidden></article>
+        <details class="repository-statistics"><summary>Repository metrics and coverage</summary><div id="metric-grid" class="metric-grid"></div></details>
+        <div id="semantic-notice" class="notice evidence-notice" hidden></div>
         <div id="graph-quality-notice" class="notice evidence-notice" hidden></div>
         <div id="coverage-notice" class="notice" hidden></div>
         <div class="two-column">
@@ -115,17 +111,13 @@
       <section id="view-modules" class="view">
         <article class="panel module-intro">
           <div>
-            <p class="eyebrow">Files saved in AnaxiIndex</p>
-            <h2>File inventory</h2>
-            <p class="panel-copy">One row per file in the selected scan. Filter and sort facts read from code, repository area, purpose, Git changes, test coverage, and what may deserve attention. Expand a row to see where each explanation came from and why a pattern may fit.</p>
-          </div>
-          <div class="module-legend" aria-label="Inventory information types">
-            <span><i class="fact-dot"></i>Fact</span>
-            <span><i class="interpretation-dot"></i>Interpretation</span>
-            <span><i class="recommendation-dot"></i>Review signal</span>
+            <p class="eyebrow">Modules in the selected graph revision</p>
+            <h2>Module inventory</h2>
+            <p class="panel-copy">Read the overview sentences first. Sort every matching module by code lines, functions or dependencies, then expand a row for its short explanation, interfaces, contracts and tests.</p>
           </div>
         </article>
         <article class="panel module-inventory">
+          <p id="module-subject-note" class="muted"></p>
           <div class="module-controls">
             <label class="module-search">
               Find file or purpose
@@ -155,11 +147,11 @@
                 <option value="250">250</option>
               </select>
             </label>
+            <details class="module-column-picker"><summary>Columns</summary><div id="module-column-options" aria-label="Module columns"></div><div class="module-detail-actions"><button type="button" class="secondary-button" data-module-columns="default">Core columns</button><button type="button" class="secondary-button" data-module-columns="all">All metrics</button></div></details>
           </div>
           <div class="module-table-heading">
             <p id="module-result-count" class="muted"></p>
-            <p class="module-score-help">Attention only decides which files appear first. It uses
-              code lines, total branches, direct code links, Git changes, and active findings. It is not a code-quality or pattern-fit grade.</p>
+            <p class="module-score-help">Connection counts identify places to investigate; they are not a code-quality grade. Unknown metrics remain unknown.</p>
           </div>
           <div class="module-table-wrap">
             <table class="module-table">
@@ -193,6 +185,11 @@
         <div class="graph-layout">
           <article class="panel graph-panel">
             <div class="graph-controls">
+              <label>Graph subject<select id="graph-subject-select"><option value="observed">Observed implementation</option></select></label>
+              <label>Explore<select id="graph-kind-select"><option value="">All entity types</option><option value="capability" selected>Capabilities</option><option value="module">Modules</option><option value="function">Functions</option><option value="interface">Interfaces</option><option value="contract">Contracts</option><option value="unresolved">Unresolved targets</option></select></label>
+              <label>Layout<select id="graph-layout-select"><option value="semantic">Behavior paths</option><option value="footprint">Area footprint</option></select></label>
+              <label>Connections<select id="graph-relation-select"><option value="">All types</option><option value="calls">Calls</option><option value="imports">Imports</option><option value="implements">Implements</option><option value="requires_contract">Requires contract</option><option value="tested_by">Tested by</option></select></label>
+              <label>Evidence<select id="graph-evidence-select"><option value="">All evidence</option><option value="extracted">Read from code</option><option value="inferred">Inferred</option><option value="unresolved">Unresolved</option></select></label>
               <label>
                 Overlay
                 <select id="overlay-select">
@@ -217,8 +214,8 @@
                 </select>
               </label>
               <label class="search-label">
-                Find file
-                <input id="graph-search" type="search" placeholder="workbench, workflow, auth…" />
+                Find in this graph revision
+                <input id="graph-search" type="search" placeholder="Purpose, module, function or contract…" />
               </label>
               <label class="checkbox-label">
                 <input id="external-toggle" type="checkbox" />
@@ -251,17 +248,19 @@
               <button id="graph-history-play-button" class="secondary-button" type="button">Replay history</button>
               <button id="fullscreen-graph-button" class="secondary-button" type="button">Fullscreen</button>
             </div>
+            <p id="graph-subject-note" class="graph-explainer">Observed source graph.</p>
             <div id="overlay-help" class="graph-explainer"></div>
             <div class="canvas-wrap">
-              <canvas id="graph-canvas" aria-label="Repository file-link graph"></canvas>
+              <canvas id="graph-canvas" tabindex="0" aria-label="Semantic graph. Use the entities and relationships list below for keyboard exploration."></canvas>
               <div id="graph-legend" class="graph-legend"></div>
               <div class="zoom-help">Wheel to zoom · drag to pan · select a node to inspect</div>
             </div>
+            <details id="graph-text-view" class="graph-text-view" open><summary>Entities and relationships · keyboard view</summary><div id="graph-entity-list"></div><div id="graph-relationship-list"></div></details>
           </article>
           <aside id="inspector" class="panel inspector">
-            <p class="eyebrow">File details</p>
-            <h2>Select a file</h2>
-            <p class="muted">Click a circle to inspect that file's purpose, names other code can use, direct code links, Git history, and findings.</p>
+            <p class="eyebrow">Shared entity inspector</p>
+            <h2>Select an entity</h2>
+            <p class="muted">Explore a capability, module, function, interface or contract to read saved understanding and follow its connections and tests.</p>
           </aside>
         </div>
       </section>
@@ -347,7 +346,7 @@
         </article>
       </section>
       <section id="view-history" class="view">
-        <article class="panel">
+        <details class="panel advanced-history"><summary>Optional detailed Git history and replay</summary>
           <div class="panel-heading">
             <div>
               <p class="eyebrow">Saved Git history</p>
@@ -365,7 +364,7 @@
           <div id="history-commits" class="history-commits"></div>
           <div id="history-job-detail" class="history-job-detail"></div>
           <div id="trend-grid" class="metric-grid compact"></div>
-        </article>
+        </details>
       </section>
       <section id="view-agents" class="view">
         <article class="panel agent-intro">
@@ -443,22 +442,23 @@
             <p class="eyebrow">Add another repository</p>
             <h2>Initialize it beside the code</h2>
             <p class="muted">Run one non-destructive command from the repository you want to
-              understand. It detects obvious areas and writes an editable policy plus a dedicated,
-              separate read-only Docker service. Existing files are kept unless you explicitly use
-              <code>--force</code>.</p>
+              understand. Use uv for a local runtime or the Docker option for a container. Existing
+              source is preserved; the tracked <code>anaxigraph/</code> record carries reusable knowledge between clones.</p>
             <ol class="settings-steps">
-              <li><strong>Create and start from the target repository</strong><pre id="settings-init-command">uvx anaxigraph init . --start</pre></li>
+              <li><strong>Start a local runtime from the target repository</strong><pre id="settings-init-command">uvx --from anaxigraph anaxigraph serve --repository . --scan-on-start</pre></li>
               <li><strong>Open its dashboard</strong><pre id="settings-open-example">http://127.0.0.1:8765</pre></li>
             </ol>
             <div class="settings-copy-actions">
-              <button class="secondary-button" type="button" data-copy-target="settings-init-command">Copy init command</button>
+              <button class="secondary-button" type="button" data-copy-target="settings-init-command">Copy local runtime command</button>
               <a class="text-button" href="https://github.com/hcekne/anaxigraph/blob/main/docs/docker.md" target="_blank" rel="noreferrer">Docker guide →</a>
             </div>
+            <details><summary>Run in Docker instead</summary><pre>uvx --from anaxigraph anaxigraph init . --start</pre></details>
             <p class="settings-advanced">The Docker guide also covers an experimental
               multi-repository registry for one trusted operator. Keep it on loopback or behind
               SSH, never on an untrusted or shared network.</p>
           </article>
         </div>
+        <article class="panel"><p class="eyebrow">Local knowledge and Git delivery</p><h2>Mapping, portable record and publication</h2><div id="settings-record-status"></div></article>
         <article class="panel integration-settings">
           <div>
             <p class="eyebrow">Coding-agent access</p>
@@ -479,12 +479,11 @@
         <article class="panel integration-settings">
           <div>
             <p class="eyebrow">AI-created code map</p>
-            <h2>Build and refresh plain-language code descriptions</h2>
+            <h2>Build and refresh the semantic graph</h2>
             <p id="settings-semantic-summary" class="muted"></p>
             <pre id="settings-semantic-command" class="settings-agent-command"></pre>
             <p class="settings-advanced">With <code>semantic.provider: agent</code>, the connected
-              coding agent reads one saved task at a time and writes a checked description to
-              AnaxiIndex using its own model and tokens. Other AI providers use a separate worker.
+              coding agent completes durable graph-annotation tasks using its own model and tokens. Other AI providers use a separate worker.
               Every path is opt-in, and the mounted repository remains read-only.</p>
           </div>
           <div class="settings-agent-actions">

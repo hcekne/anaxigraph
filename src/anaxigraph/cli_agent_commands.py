@@ -71,29 +71,29 @@ def configure_agent_commands(commands: Any) -> None:
 def _configure_fresh_eyes(commands: Any) -> None:
     fresh_eyes = commands.add_parser(
         "fresh-eyes",
-        help="Compare the current system with independent clean-sheet architecture proposals",
+        help="Explore implementation-blind designs at product, capability and subsystem levels",
     )
     add_repository_arguments(fresh_eyes)
     fresh_eyes.add_argument(
         "--goal",
         default=None,
-        help="Focus the repository-aware comparison and review; preserves implementation-blind proposals",
+        help="Optional behavioral requirements for blind functional alternatives",
     )
     fresh_eyes.add_argument(
-        "--start", action="store_true", help="Request and prepare the fixed review recipe"
+        "--start", action="store_true", help="Request or resume functional design exploration"
     )
     fresh_eyes.add_argument(
         "--proposals",
         type=int,
-        choices=(1, 2, 3),
-        default=2,
-        help="Number of independent clean-sheet proposals (two is recommended)",
+        choices=(3, 5),
+        default=3,
+        help="Retained alternatives per functional scope (three by default; five for wider exploration)",
     )
     fresh_eyes.add_argument(
         "--proposal-executors",
         default="",
         help=(
-            "Pin one executor family per proposal slot, for example codex,claude (use any for an "
+            "Pin one executor family per proposal slot, for example codex,claude,any (use any for an "
             "unpinned slot). Applies to a new review or a restart, never to one already planned."
         ),
     )
@@ -124,10 +124,13 @@ def _add_fresh_eyes_reading_arguments(fresh_eyes: Any) -> None:
         help="Read one recorded review generation instead of the current one",
     )
     fresh_eyes.add_argument(
+        "--scope", default="", help="Expand one functional scope's retained designs"
+    )
+    fresh_eyes.add_argument(
         "--compare-with",
         type=int,
         default=None,
-        help="Add a lexical alignment against a second recorded review generation",
+        help="Read a second recorded generation side by side without inventing an agreement verdict",
     )
     fresh_eyes.add_argument(
         "--timeout-seconds",
@@ -237,6 +240,7 @@ def _fresh_eyes(args: argparse.Namespace) -> dict[str, Any]:
         config.semantic,
         generation=args.generation,
         compare_with=args.compare_with,
+        scope_id=args.scope,
     )
 
 
@@ -253,6 +257,7 @@ def _service_fresh_eyes(service: Any, args: argparse.Namespace) -> dict[str, Any
             restart=args.restart,
             generation=args.generation,
             compare_with=args.compare_with,
+            scope_id=args.scope,
             timeout=args.timeout_seconds,
             **({"goal": args.goal} if args.goal is not None else {}),
         )

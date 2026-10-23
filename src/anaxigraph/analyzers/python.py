@@ -6,8 +6,10 @@ import ast
 import copy
 import hashlib
 from pathlib import PurePosixPath
+from typing import Any
 
 from anaxigraph.analyzer_capabilities import declare_capabilities
+from anaxigraph.analyzers.python_calls import CallContext
 from anaxigraph.analyzers.python_evidence import extract_python_evidence
 from anaxigraph.analyzers.python_module_semantics import (
     interfaces,
@@ -26,6 +28,7 @@ from anaxigraph.analyzers.python_syntax import (
     node_name,
     source_segment,
 )
+from anaxigraph.call_graph_contract import CALL_GRAPH_VERSION
 from anaxigraph.ir import module_identity, resolver_context, symbol_visibility
 from anaxigraph.languages import PYTHON_ANALYZER_LANGUAGES
 from anaxigraph.models import Dependency, FileAnalysis, Symbol
@@ -33,7 +36,7 @@ from anaxigraph.models import Dependency, FileAnalysis, Symbol
 
 class PythonAnalyzer:
     name = "builtin-python-ast"
-    version = "1"
+    version = "2"
     languages = PYTHON_ANALYZER_LANGUAGES
     capabilities = declare_capabilities(
         name,
@@ -71,7 +74,7 @@ class PythonAnalyzer:
         ),
         heuristic=("concurrency", "side_effects"),
         limitations=(
-            "Call relationships cover imported roots rather than complete local dispatch.",
+            "Calls resolve lexical definitions and imports; dynamic dispatch stays uncertain.",
             "Data-flow and runtime dispatch are not inferred from syntax alone.",
         ),
     )
@@ -88,7 +91,7 @@ class PythonAnalyzer:
         except (SyntaxError, ValueError) as exc:
             return _parse_failure(path, content, loc, len(comments), identity, exc, self)
 
-        visitor = _PythonVisitor(path, content)
+        visitor = _PythonVisitor(path, content, tree)
         visitor.visit(tree)
         structural_tree = DocstringStripper().visit(copy.deepcopy(tree))
         ast.fix_missing_locations(structural_tree)
@@ -115,7 +118,7 @@ class PythonAnalyzer:
             dependencies=visitor.dependencies,
             evidence_facts=extract_python_evidence(path, content, tree),
             analyzer=self.name,
-            metadata={"module_docstring": module_doc[:2_000]},
+            metadata=_analysis_metadata(module_doc, visitor),
             module_identity=identity,
             exports=public,
             parse_status="parsed",
@@ -123,6 +126,15 @@ class PythonAnalyzer:
             resolver_context=resolver_context(identity, import_aliases=visitor.import_aliases),
             analyzer_capabilities=self.capabilities,
         )
+
+
+def _analysis_metadata(module_doc, visitor):
+    return {
+        "module_docstring": module_doc[:2_000],
+        "call_sites": visitor.call_sites,
+        "symbol_aliases": visitor.symbol_aliases,
+        "call_contract": CALL_GRAPH_VERSION,
+    }
 
 
 def _parse_failure(path, content, loc, comment_lines, identity, exc, analyzer) -> FileAnalysis:
@@ -145,7 +157,7 @@ def _parse_failure(path, content, loc, comment_lines, identity, exc, analyzer) -
 
 
 class _PythonVisitor(ast.NodeVisitor):
-    def __init__(self, path: str, content: str) -> None:
+    def __init__(self, path: str, content: str, tree: ast.Module) -> None:
         self.path = path
         self.content = content
         self.source_lines = content.splitlines(keepends=True)
@@ -154,12 +166,17 @@ class _PythonVisitor(ast.NodeVisitor):
         self.symbols: list[Symbol] = []
         self.dependencies: list[Dependency] = []
         self.import_aliases: dict[str, str] = {}
+        self.symbol_aliases: dict[str, str] = {}
+        self.call_sites: list[dict[str, Any]] = []
         self.call_targets: set[tuple[str, int]] = set()
+        self.calls = CallContext(path, tree)
 
     def visit_Import(self, node: ast.Import) -> None:
         for item in node.names:
             alias = item.asname or item.name.split(".")[0]
             self.import_aliases[alias] = item.name
+            self.symbol_aliases[alias] = item.name
+            self.calls.bind_import(alias, item.name if item.asname else alias)
             self.dependencies.append(
                 Dependency(
                     target=item.name,
@@ -175,6 +192,10 @@ class _PythonVisitor(ast.NodeVisitor):
         names = tuple(item.name for item in node.names)
         for item in node.names:
             self.import_aliases[item.asname or item.name] = target
+            self.symbol_aliases[item.asname or item.name] = target + "." + item.name
+            canonical = self.calls.relative_import(node.module or "", node.level)
+            if canonical:
+                self.calls.bind_import(item.asname or item.name, canonical + "." + item.name)
         self.dependencies.append(
             Dependency(
                 target=target,
@@ -202,8 +223,16 @@ class _PythonVisitor(ast.NodeVisitor):
                         confidence=0.9,
                     )
                 )
+        for field, value in ast.iter_fields(node):
+            if field != "body":
+                for child in value if isinstance(value, list) else [value]:
+                    if isinstance(child, ast.AST):
+                        self.visit(child)
         self.scope.append(node.name)
-        self.generic_visit(node)
+        self.calls.enter(node, "class")
+        for child in node.body:
+            self.visit(child)
+        self.calls.leave()
         self.scope.pop()
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
@@ -217,13 +246,30 @@ class _PythonVisitor(ast.NodeVisitor):
         if self.scope and kind == "function":
             kind = "method"
         self._add_symbol(node, kind, function_signature(node), complexity(node))
+        for field, value in ast.iter_fields(node):
+            if field != "body":
+                for child in value if isinstance(value, list) else [value]:
+                    if isinstance(child, ast.AST):
+                        self.visit(child)
         self.scope.append(node.name)
-        self.generic_visit(node)
+        self.calls.enter(node, "function")
+        for child in node.body:
+            self.visit(child)
+        self.calls.leave()
         self.scope.pop()
 
+    def visit_Name(self, node: ast.Name) -> None:
+        if isinstance(node.ctx, ast.Store):
+            self.calls.store(node.id)
+
     def visit_Call(self, node: ast.Call) -> None:
+        name = node_name(node.func)
+        if name:
+            self.call_sites.append(self.calls.call(node))
         root = call_root(node.func)
-        target = self.import_aliases.get(root)
+        target = (
+            self.import_aliases.get(root) if self.calls.call(node)["binding"] == "import" else None
+        )
         if target and (target, node.lineno) not in self.call_targets:
             self.call_targets.add((target, node.lineno))
             self.dependencies.append(

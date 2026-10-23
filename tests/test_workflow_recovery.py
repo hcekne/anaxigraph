@@ -16,7 +16,7 @@ from test_workflows import prepare
 from anaxigraph.api_workflows import WorkflowRequest
 from anaxigraph.config import load_config
 from anaxigraph.persistence.workflow_read import workflow_coverage
-from anaxigraph.workflow_execution import WorkflowExecution
+from anaxigraph.workflow_execution import WorkflowExecution, validate_proposal_settings
 from anaxigraph.workflow_settings import WorkflowSettings
 
 
@@ -59,8 +59,8 @@ def test_two_sixteen_worker_pools_drain_all_files_and_isolate_executor_failure(
         database,
         row,
         config,
-        WorkflowRequest(workflow="mapping", step="intrinsic"),
-        {"intrinsic": [choice(workers=16), choice("claude", "claude-sonnet-5-5", 16)]},
+        WorkflowRequest(workflow="mapping", step="annotation"),
+        {"annotation": [choice(workers=16), choice("claude", "claude-sonnet-5-5", 16)]},
         on_pool_error=errors.append,
     )
     result = execution.run()
@@ -69,11 +69,11 @@ def test_two_sixteen_worker_pools_drain_all_files_and_isolate_executor_failure(
     assert result["pool_errors"] == errors
     with database.connect() as connection:
         rows = connection.execute(
-            "SELECT status, attempts FROM semantic_jobs WHERE job_kind='intrinsic'"
+            "SELECT status, attempts FROM semantic_jobs WHERE job_kind='annotation'"
         ).fetchall()
         coverage = workflow_coverage(connection, execution.snapshot_id)
         other = connection.execute(
-            "SELECT COUNT(*) FROM semantic_jobs WHERE job_kind!='intrinsic' AND attempts>0"
+            "SELECT COUNT(*) FROM semantic_jobs WHERE job_kind!='annotation' AND attempts>0"
         ).fetchone()[0]
     assert other == 0
     if len(unavailable) == 2:
@@ -117,9 +117,9 @@ async def test_file_errors_retry_automatically_without_stopping_other_files(
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         ) as client:
-            await save(client, "intrinsic", [choice(workers=1)])
+            await save(client, "annotation", [choice(workers=1)])
             value = await start(
-                client, step="intrinsic", expected="waiting" if permanent else "complete"
+                client, step="annotation", expected="waiting" if permanent else "complete"
             )
     maximum = load_config(repository).semantic.max_attempts
     assert calls[first_path[0]] == (maximum if permanent else 2)
@@ -137,8 +137,33 @@ def test_saved_family_alias_is_migrated_without_losing_worker_counts(database):
     path = settings.directory / "1.json"
     path.write_text(json.dumps({"intrinsic": [choice("claude", "claude-sonnet", 16)]}))
     value = settings.read(1, 32)
-    assert value["steps"]["intrinsic"] == [choice("claude", "claude-sonnet-5-5", 16)]
+    assert value["steps"]["annotation"] == [choice("claude", "claude-sonnet-5-5", 16)]
     assert "claude-sonnet" not in value["models"]["claude"]
+
+
+@pytest.mark.parametrize("count", [1, 2])
+@pytest.mark.parametrize("portable", [False, True])
+def test_legacy_proposal_choices_resume_with_three_retained_alternatives(database, count, portable):
+    settings = WorkflowSettings(database.path)
+    original = [choice(), choice("claude", "claude-opus")][:count]
+    saved = {"proposals": original}
+    if portable:
+        settings.restore_choices(1, saved)
+    else:
+        settings.directory.mkdir()
+        (settings.directory / "1.json").write_text(json.dumps(saved))
+    workers = settings.read(1, 4)["steps"]["proposals"]
+    assert len(workers) == 3
+    assert workers[0] == original[0]
+    if count == 2:
+        assert workers[1] == choice("claude", "claude-opus-5-5")
+    assert workers[2] == original[0]
+    stages = [
+        {"key": f"functional:product:proposal:{slot}", "required_executor": worker["provider"]}
+        for slot, worker in zip("abc", workers)
+    ]
+    validate_proposal_settings({"stages": stages}, workers)
+    assert saved == {"proposals": original}
 
 
 @pytest.mark.anyio
@@ -155,8 +180,8 @@ async def test_model_dropdown_is_enforced_by_the_settings_api(repository, databa
         ]:
             response = await client.put(
                 "/api/workflows/settings",
-                json={"step": "intrinsic", "workers": [choice(provider, model)]},
+                json={"step": "annotation", "workers": [choice(provider, model)]},
             )
             assert response.status_code == 422
-        saved = await save(client, "intrinsic", [choice("claude", "claude-sonnet")])
-        assert saved["settings"]["steps"]["intrinsic"][0]["model"] == "claude-sonnet-5-5"
+        saved = await save(client, "annotation", [choice("claude", "claude-sonnet")])
+        assert saved["settings"]["steps"]["annotation"][0]["model"] == "claude-sonnet-5-5"

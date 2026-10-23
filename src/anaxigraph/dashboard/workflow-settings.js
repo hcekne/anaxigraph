@@ -63,7 +63,7 @@ export function renderStepSettings(item, data, force = false) {
     return;
   }
   const rows = drafts.get(key) || data.settings.steps[item.id];
-  const rowLimit = item.mode === "sequence" ? Math.min(3, data.semantic.taxonomy?.required_review_passes ?? 2) : 3;
+  const rowLimit = item.mode === "proposals" ? 5 : item.mode === "sequence" ? Math.min(3, data.semantic.taxonomy?.required_review_passes ?? 2) : 3;
   element.innerHTML = `<p class="eyebrow">Configure this step</p><h3>${escapeHtml(item.title)}</h3>
     <p>${modeDescription(item.mode, data)}</p><form id="workflow-step-form">
     <div class="workflow-worker-rows">${rows.map((row, index) => workerRow(row, index, item, data)).join("")}</div>
@@ -77,7 +77,7 @@ export function renderStepSettings(item, data, force = false) {
 
 function modeDescription(mode, data) {
   if (mode === "sequence") return `${data.semantic.taxonomy?.required_review_passes ?? 2} ordered passes. Independent batches run in parallel within each pass and save immediately. Reconciliation combines their findings before the next model starts. Completed batches are reused on resume.`;
-  if (mode === "proposals") return `One independent proposal per model row. Up to ${Math.min(3, data.execution.max_parallel_jobs)} proposals can run together. A different slot count or provider assignment requires a new review generation.`;
+  if (mode === "proposals") return `One independent proposal per model row. Up to ${Math.min(5, data.execution.max_parallel_jobs)} proposals can run together. A different slot count or provider assignment requires a new review generation.`;
   if (mode === "single") return "One model produces this result after the preceding steps are ready.";
   return `Workers take the next file as soon as they finish. The combined limit is ${data.execution.max_parallel_jobs}. If a model becomes unavailable, the other selected models continue the remaining files.`;
 }
@@ -94,7 +94,7 @@ function workerRow(row, index, item, data) {
     <label>${parallel ? "Parallel workers" : "Workers per result"}<input name="workers" type="number" min="1" max="${parallel ? data.execution.max_parallel_jobs : 1}" value="${row.workers}" required ${parallel ? "" : "readonly"} /></label>
     <label>Reasoning effort<select name="reasoning_effort">${options(efforts(row.provider), row.reasoning_effort, { "": "Model default" })}</select></label></div>
     ${invalid ? `<p class="workflow-error">Saved model ${escapeHtml(row.model)} is unavailable. Choose a model before running.</p>` : ""}
-    ${index ? `<button type="button" class="secondary-button" data-settings-action="remove" data-index="${index}">Remove ${name.toLowerCase()}</button>` : ""}</fieldset>`;
+    ${index && (mode !== "proposals" || (drafts.get(editorKey) || data.settings.steps[item.id]).length > 3) ? `<button type="button" class="secondary-button" data-settings-action="remove" data-index="${index}">Remove ${name.toLowerCase()}</button>` : ""}</fieldset>`;
 }
 
 function efforts(provider) {
@@ -124,11 +124,12 @@ function editRows(action, index) {
   let rows = readWorkers();
   if (action === "suggested") rows = structuredClone(editorData.settings.suggested[editorStep.id]);
   if (action === "remove") rows.splice(Number(index), 1);
-  if (action === "add" && rows.length < 3) rows.push({ provider: "claude", model: "claude-opus-5-5", workers: 1, reasoning_effort: "medium" });
+  if (action === "add" && rows.length < (editorStep.mode === "proposals" ? 5 : 3)) rows.push({ provider: "claude", model: "claude-opus-5-5", workers: 1, reasoning_effort: "medium" });
   drafts.set(editorKey, rows);
   renderStepSettings(editorStep, editorData, true);
 }
 
+let dialogScroll = 0;
 let returnFocus = null;
 
 export function stepDialogShell() {
@@ -146,6 +147,7 @@ export function setupStepDialog() {
   const dialog = byId("workflow-step-dialog");
   byId("workflow-dialog-close").addEventListener("click", closeStepDialog);
   dialog.addEventListener("keydown", containDialogFocus);
+  dialog.addEventListener("cancel", event => { event.preventDefault(); closeStepDialog(); });
   dialog.addEventListener("click", event => {
     if (event.target === dialog) {
       const box = dialog.getBoundingClientRect();
@@ -165,6 +167,7 @@ export function setupStepDialog() {
   });
   dialog.addEventListener("close", () => {
     if (returnFocus) document.querySelector(returnFocus)?.focus({ preventScroll: true });
+    window.scrollTo({ top: dialogScroll, behavior: "instant" });
   });
 }
 
@@ -192,6 +195,7 @@ export function openStepDialog(step, configure = false) {
   returnFocus = `[data-${configure ? "configure-step" : "step"}="${step}"]`;
   selectPanel(configure ? "configure" : "details");
   byId("workflow-step-dialog").showModal();
+  dialogScroll = window.scrollY;
 }
 
 export function updateStepDialog(item, index, configurable) {
@@ -202,4 +206,5 @@ export function updateStepDialog(item, index, configurable) {
 
 export function closeStepDialog() {
   byId("workflow-step-dialog").close();
+  window.scrollTo({ top: dialogScroll, behavior: "instant" });
 }

@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from anaxigraph.persistence.index_backup import validate_index_backup
-from anaxigraph.storage import AnaxiIndex
+from anaxigraph.persistence.index_store import AnaxiIndexStore
 
 FACTS = """SELECT file_fact_id FROM semantic_documents WHERE file_fact_id IS NOT NULL
 UNION SELECT file_fact_id FROM semantic_scope_states WHERE file_fact_id IS NOT NULL
@@ -18,7 +18,7 @@ UNION SELECT file_fact_id FROM semantic_jobs WHERE file_fact_id IS NOT NULL AND 
 ARTIFACTS = f"""SELECT artifact_id FROM file_facts WHERE id IN ({FACTS})
 UNION SELECT artifact_id FROM semantic_documents WHERE artifact_id IS NOT NULL
 UNION SELECT artifact_id FROM semantic_scope_states WHERE artifact_id IS NOT NULL
-UNION SELECT artifact_id FROM semantic_taxonomy_memberships
+UNION SELECT artifact_id FROM semantic_taxonomy_membership_values
 UNION SELECT artifact_id FROM semantic_jobs WHERE artifact_id IS NOT NULL AND status='completed'"""
 SELECTIONS = {
     "repositories": "1",
@@ -26,6 +26,7 @@ SELECTIONS = {
     "artifacts": f"id IN ({ARTIFACTS})",
     "file_facts": f"id IN ({FACTS})",
     "architecture_rules": "1",
+    "semantic_payloads": "1",
     "semantic_documents": "1",
     "semantic_claims": "1",
     "semantic_jobs": "status='completed'",
@@ -51,7 +52,7 @@ def create_understanding_backup(
         with closing(database.connect()) as origin:
             origin.execute("BEGIN")
             _preflight(origin, limit)
-            archive = AnaxiIndex(temporary)
+            archive = AnaxiIndexStore(temporary)
             with closing(archive.connect()) as target:
                 target.execute("PRAGMA journal_mode=DELETE")
                 target.execute(
@@ -107,7 +108,9 @@ def _rows(connection: Any):
 def _preflight(connection: Any, limit: int) -> None:
     total = 600_000
     for _table, row in _rows(connection):
-        total += len(json.dumps(row, ensure_ascii=True).encode())
+        plain = {key: value for key, value in row.items() if not isinstance(value, bytes)}
+        total += len(json.dumps(plain, ensure_ascii=True).encode())
+        total += sum(len(value) for value in row.values() if isinstance(value, bytes))
         if total > limit:
             raise ValueError(
                 "Saved understanding exceeds the recovery budget; original index retained"

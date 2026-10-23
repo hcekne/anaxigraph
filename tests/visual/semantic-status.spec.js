@@ -24,8 +24,6 @@ function idleSemanticLanguage(agent = false) {
 }
 
 test("semantic progress and model-backed pattern advice use direct language", async ({ page }) => {
-  let semanticPath = "";
-  let semanticModule = null;
   const charter = {
     contract_version: "architecture-charter-v1",
     identity: "architecture-charter-v1:1:1:7",
@@ -93,47 +91,20 @@ test("semantic progress and model-backed pattern advice use direct language", as
       },
     });
   });
-  await page.route("**/api/modules*", async (route) => {
-    const response = await route.fetch();
-    const modules = await response.json();
-    const module = modules.find((item) => item.evaluation?.monitored_by_default !== false);
-    semanticPath = module.path;
-    module.semantic = {
-      ...(module.semantic || {}),
-      status: "current",
-      pattern_opportunities: [{
-        name: "Adapter pattern",
-        scope: "module",
-        score: 91,
-        confidence: 0.88,
-        rationale: "Fits the existing provider boundary",
-        evidence: ["Several provider implementations share one contract"],
-        counter_evidence: [],
-        migration_cost: "low",
-        preconditions: [],
-      }],
-    };
-    semanticModule = structuredClone(module);
-    await route.fulfill({ response, json: modules });
-  });
-  await page.route("**/api/search*", async (route) => {
-    const response = await route.fetch();
-    const result = await response.json();
-    result.results = result.results.map((item) => (
-      item.path === semanticPath ? { ...item, semantic: semanticModule.semantic } : item
-    ));
-    await route.fulfill({ response, json: result });
-  });
+  await page.route("**/api/patterns/catalogue?*", route => route.fulfill({ json: {
+    catalogue: { expected: 133, considered: 133, rated: 133, reviewed: 133, missing: 0, complete: true }, total: 1, returned: 1,
+    items: [{ pattern: { key: "adapter", name: "Adapter pattern", intent: "Keep provider-specific behavior behind a stable interface" }, state: "reviewed", summary: "Fits the existing provider boundary", scores: { suitability: 91 }, pros: ["Several provider implementations share one contract"], cons: ["Adds indirection"], placements: [] }],
+  } }));
 
   await openDashboard(page);
-  await expect(page.locator(".metric", { hasText: "Files with current AI descriptions" }).locator("strong"))
+  await expect(page.locator(".metric", { hasText: "Modules with current graph annotation" }).locator("strong"))
     .toHaveText("25.0%");
   const notice = page.locator("#semantic-notice");
   await expect(notice).toContainText("no worker is running right now");
   await expect(notice).toContainText("15 file descriptions are unfinished");
   await expect(notice).not.toContainText("module job(s)");
   await expect(notice).not.toContainText("synthesis scope");
-  await expect(notice.locator("[data-semantic-refresh]")).toBeVisible();
+  await expect(notice.locator("[data-open-flow=\"mapping\"]")).toBeVisible();
   await expect(page.locator("#repository-intelligence")).toBeVisible();
   await expect(page.locator("#repository-intelligence")).toContainText(
     "Keeps a continuously reviewed map",
@@ -162,10 +133,11 @@ test("semantic progress and model-backed pattern advice use direct language", as
     "repository owner: Continuity is part of the intended product behavior.",
   );
 
-  await page.getByRole("button", { name: "Files", exact: true }).click();
-  await page.locator("#module-search").fill(semanticPath);
-  await expect(page.locator(".pattern-cell", { hasText: "Adapter pattern" })).toContainText("AI");
-  await expect(page.locator(".pattern-cell", { hasText: "Adapter pattern" })).not.toContainText("91/100");
+  await page.getByRole("button", { name: "Improve", exact: true }).click();
+  await page.getByRole("button", { name: "Patterns", exact: true }).click();
+  await expect(page.locator('[data-catalogue-pattern="adapter"]')).toContainText("Reviewed");
+  await expect(page.locator('[data-catalogue-pattern="adapter"]')).toContainText("Several provider implementations share one contract");
+
 });
 
 test("an idle coding-agent task list says saved work will not finish by itself", async ({ page }) => {
@@ -201,8 +173,8 @@ test("an idle coding-agent task list says saved work will not finish by itself",
   const notice = page.locator("#semantic-notice");
   await expect(notice).toContainText("No worker is processing the queue right now");
   await expect(notice).toContainText("it will not finish until a worker starts");
-  await expect(notice.locator("[data-semantic-refresh]")).toHaveText("Prepare AI tasks");
-  await expect(notice.locator("[data-semantic-refresh]")).toBeEnabled();
+  await expect(notice.locator("[data-open-flow=\"mapping\"]")).toHaveText("Open Mapping workflow");
+  await expect(notice.locator("[data-open-flow=\"mapping\"]")).toBeEnabled();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(page.locator("#settings-semantic-command")).toContainText(
     "--executor codex --background",

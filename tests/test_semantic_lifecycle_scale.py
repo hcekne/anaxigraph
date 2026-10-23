@@ -22,7 +22,7 @@ from benchmarks.repository_factory import create_history_repository
 async def test_two_hundred_module_mcp_lifecycle_resumes_and_finishes(tmp_path, monkeypatch):
     repository = tmp_path / "large-semantic-repository"
     create_history_repository(repository, file_count=200, commits=1)
-    _enable_agent_semantics(repository)
+    _enable_agent_semantics(repository, detailed_reviews=True)
     source_before = _source_bytes(repository)
     database = AnaxiIndex(tmp_path / "large-semantic-index.db")
     stats = RepositoryScanner(database).scan(repository)

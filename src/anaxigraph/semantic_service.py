@@ -17,6 +17,7 @@ from anaxigraph import git as git
 from anaxigraph.config import SemanticConfig, semantic_config_from_mapping
 from anaxigraph.onboarding_clients import validate_mcp_url
 from anaxigraph.pattern_candidate_query import PatternCandidateQuery
+from anaxigraph.pattern_catalogue_query import PatternCatalogueQuery
 from anaxigraph.pattern_query import PatternEvaluationQuery
 from anaxigraph.service_checkout import matching_checkouts as _matching_rows
 from anaxigraph.service_checkout import register_worktree
@@ -250,7 +251,7 @@ def service_fresh_eyes_review(
     target: SemanticServiceTarget,
     *,
     start: bool = False,
-    proposal_count: int = 2,
+    proposal_count: int = 3,
     proposal_executors: Sequence[str] = (),
     retry_failed: bool = False,
     restart: bool = False,
@@ -259,6 +260,7 @@ def service_fresh_eyes_review(
     compare_with: int | None = None,
     timeout: float = FRESH_EYES_START_TIMEOUT_SECONDS,
     goal: str | None = None,
+    scope_id: str = "",
 ) -> dict[str, Any]:
     """Start, unpin, or read the fresh-eyes review; ``timeout`` bounds only a write request."""
     if start or restart or unpin:
@@ -281,6 +283,8 @@ def service_fresh_eyes_review(
         parameters["generation"] = generation
     if compare_with is not None:
         parameters["compare_with"] = compare_with
+    if scope_id:
+        parameters["scope_id"] = scope_id
     query = urllib.parse.urlencode(parameters)
     value = _request_json(
         f"{target.base_url}/api/fresh-eyes?{query}",
@@ -344,14 +348,16 @@ def _service_agent_request(
 
 def service_pattern_evaluations(
     target: SemanticServiceTarget,
-    request: PatternEvaluationQuery,
+    request: PatternEvaluationQuery | PatternCatalogueQuery,
     *,
     snapshot_id: int | None = None,
     timeout: float = 10,
 ) -> dict[str, Any]:
     return _service_pattern_projection(
         target,
-        "/api/patterns",
+        "/api/patterns/catalogue"
+        if isinstance(request, PatternCatalogueQuery)
+        else "/api/patterns",
         {
             **request.filters(),
             "limit": request.limit,

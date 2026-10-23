@@ -1,0 +1,109 @@
+{
+  "date": "2026-10-23",
+  "method": "Matched current code with only two previous hot paths restored in memory; same completed deterministic 200-module repository, 133 catalogue cards, no coverage; five warmed timing samples and a separate cProfile per operation.",
+  "paid_model_calls": 0,
+  "witness_packet": "Controlled eight-file packet reconstructed after terminal-job metadata compaction.",
+  "limitations": [
+    "Synthetic controlled workload, not a live repository or model-quality evaluation.",
+    "Same host with other agents active; latency is observed, not a service guarantee.",
+    "No measured whole-workflow speedup or architectural novelty claim."
+  ],
+  "variants": {
+    "previous_hot_paths": {
+      "request_sha256": "09a2bd97818c927d7d25f5c034b60937057dab01a4a3f5edba82e5f0bf38ae1e",
+      "request_bytes": 13997,
+      "status": {
+        "median_s": 0.0680163309443742,
+        "samples_s": [
+          0.07013874500989914,
+          0.0680163309443742,
+          0.06653274898417294,
+          0.0658047089818865,
+          0.18562195193953812
+        ],
+        "profile": "         62022 function calls (52897 primitive calls) in 0.099 seconds\n\n   Ordered by: cumulative time\n   List reduced from 155 to 16 due to restriction <16>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        1    0.000    0.000    0.099    0.099 /home/aihans/repos/anaxigraph/benchmarks/semantic_control_plane.py:140(<lambda>)\n        1    0.000    0.000    0.099    0.099 /home/aihans/repos/anaxigraph/src/anaxigraph/understanding.py:94(status)\n        1    0.000    0.000    0.099    0.099 /home/aihans/repos/anaxigraph/src/anaxigraph/semantic_reporting.py:110(status)\n        1    0.002    0.002    0.089    0.089 /home/aihans/repos/anaxigraph/src/anaxigraph/semantic_status_queries.py:39(read_semantic_status)\n        1    0.002    0.002    0.067    0.067 <previous-catalogue-read>:1(read_pattern_catalogue)\n        1    0.000    0.000    0.034    0.034 /home/aihans/repos/anaxigraph/src/anaxigraph/pattern_catalog_models.py:209(fingerprint)\n      133    0.000    0.000    0.029    0.000 /home/aihans/repos/anaxigraph/src/anaxigraph/pattern_catalog_models.py:176(as_dict)\n      133    0.000    0.000    0.029    0.000 /usr/lib/python3.12/dataclasses.py:1301(asdict)\n 9253/133    0.014    0.000    0.028    0.000 /usr/lib/python3.12/dataclasses.py:1325(_asdict_inner)\n       48    0.024    0.000    0.024    0.000 {method 'execute' of 'sqlite3.Connection' objects}\n      133    0.002    0.000    0.020    0.000 /home/aihans/repos/anaxigraph/src/anaxigraph/persistence/pattern_catalogue_read.py:72(_catalogue_item)\n     4527    0.002    0.000    0.013    0.000 /usr/lib/python3.12/dataclasses.py:1366(<genexpr>)\n      273    0.000    0.000    0.012    0.000 /usr/lib/python3.12/json/__init__.py:299(loads)\n      134    0.000    0.000    0.011    0.000 /usr/lib/python3.12/json/__init__.py:183(dumps)\n      273    0.001    0.000    0.011    0.000 /usr/lib/python3.12/json/decoder.py:332(decode)\n        2    0.000    0.000    0.011    0.005 /home/aihans/repos/anaxigraph/src/anaxigraph/semantic_status_queries.py:345(_semantic_actions)\n\n\n"
+      },
+      "idle_claim": {
+        "median_s": 0.80205391603522,
+        "samples_s": [
+          0.7084768379572779,
+          0.80205391603522,
+          1.1346130629535764,
+          0.9366761541459709,
+          0.5082281071227044
+        ],
+        "profile": "         343577 function calls (307082 primitive calls) in 0.661 seconds\n\n   Ordered by: cumulative time\n   List reduced from 396 to 16 due to restriction <16>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        1    0.000    0.000    0.661    0.661 /home/aihans/repos/anaxigraph/benchmarks/semantic_control_plane.py:141(<lambda>)\n        1    0.000    0.000    0.661    0.661 /home/aihans/repos/anaxigraph/src/anaxigraph/understanding.py:162(claim_agent_work)\n        1    0.002    0.002    0.661    0.661 /home/aihans/repos/anaxigraph/src/anaxigraph/semantic_agent.py:60(claim_agent_work)\n        1    0.001    0.001    0.456    0.456 /home/aihans/repos/anaxigraph/src/anaxigraph/semantic_scope_plan.py:63(plan)\n        3    0.000    0.000    0.286    0.095 /home/aihans/repos/anaxigraph/src/anaxigraph/semantic_reporting.py:110(status)\n        3    0.004    0.001    0.236    0.079 /home/aihans/repos/anaxigraph/src/anaxigraph/semantic_status_queries.py:39(read_semantic_status)\n        3    0.005    0.002    0.186    0.062 <previous-catalogue-read>:1(read_pattern_catalogue)\n        4    0.000    0.000    0.131    0.033 /home/aihans/repos/anaxigraph/src/anaxigraph/pattern_catalog_models.py:209(fingerprint)\n        1    0.000    0.000    0.113    0.113 /home/aihans/repos/anaxigraph/src/anaxigraph/persistence/semantic_evidence.py:32(semantic_inventory)\n      532    0.000    0.000    0.108    0.000 /home/aihans/repos/anaxigraph/src/anaxigraph/pattern_catalog_models.py:176(as_dict)\n      532    0.000    0.000    0.108    0.000 /usr/lib/python3.12/dataclasses.py:1301(asdict)\n37012/532    0.059    0.000    0.107    0.000 /usr/lib/python3.12/dataclasses.py:1325(_asdict_inner)\n     2285    0.102    0.000    0.102    0.000 {method 'execute' of 'sqlite3.Connection' objects}\n        8    0.000    0.000    0.099    0.012 {built-in method builtins.next}\n        2    0.000    0.000    0.094    0.047 /home/aihans/repos/anaxigraph/src/anaxigraph/persistence/lock_holds.py:39(measured_plan_transaction)\n        3    0.000    0.000    0.094    0.031 /usr/lib/python3.12/contextlib.py:141(__exit__)\n\n\n"
+      },
+      "witness_request": {
+        "median_s": 0.09252699092030525,
+        "samples_s": [
+          0.08934161602519453,
+          0.07957979408092797,
+          0.09252699092030525,
+          0.16899327584542334,
+          0.12664814991876483
+        ],
+        "profile": "         71620 function calls (71542 primitive calls) in 0.166 seconds\n\n   Ordered by: cumulative time\n   List reduced from 181 to 16 due to restriction <16>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        1    0.000    0.000    0.166    0.166 /home/aihans/repos/anaxigraph/benchmarks/semantic_control_plane.py:136(request)\n        1    0.000    0.000    0.166    0.166 /home/aihans/repos/anaxigraph/src/anaxigraph/semantic_requests.py:37(job_request)\n        1    0.001    0.001    0.166    0.166 /home/aihans/repos/anaxigraph/src/anaxigraph/semantic_pattern_requests.py:32(pattern_request)\n        1    0.001    0.001    0.157    0.157 /home/aihans/repos/anaxigraph/src/anaxigraph/semantic_pattern_requests.py:198(_source_evidence)\n        1    0.001    0.001    0.155    0.155 <previous-parent-source-evidence>:1(_parent_source_evidence)\n        1    0.000    0.000    0.147    0.147 /home/aihans/repos/anaxigraph/src/anaxigraph/persistence/semantic_evidence.py:32(semantic_inventory)\n        1    0.000    0.000    0.098    0.098 /home/aihans/repos/anaxigraph/src/anaxigraph/persistence/temporal_reads.py:28(snapshot_files)\n        1    0.006    0.006    0.095    0.095 /home/aihans/repos/anaxigraph/src/anaxigraph/persistence/temporal_reads.py:69(_files_for_placements)\n      200    0.002    0.000    0.087    0.000 /home/aihans/repos/anaxigraph/src/anaxigraph/persistence/temporal_reads.py:113(_expanded_metadata_json)\n      200    0.002    0.000    0.057    0.000 /home/aihans/repos/anaxigraph/src/anaxigraph/ir_serialization.py:159(expand_stored_metadata)\n     1597    0.003    0.000    0.040    0.000 /usr/lib/python3.12/json/__init__.py:299(loads)\n     1597    0.004    0.000    0.035    0.000 /usr/lib/python3.12/json/decoder.py:332(decode)\n      986    0.003    0.000    0.030    0.000 /usr/lib/python3.12/json/__init__.py:183(dumps)\n      200    0.003    0.000    0.029    0.000 /home/aihans/repos/anaxigraph/src/anaxigraph/ir_codec.py:16(decode_metadata)\n      986    0.002    0.000    0.027    0.000 /usr/lib/python3.12/json/encoder.py:183(encode)\n     1597    0.026    0.000    0.026    0.000 /usr/lib/python3.12/json/decoder.py:343(raw_decode)\n\n\n"
+      },
+      "fixture_model": {
+        "median_s": 1.885509118437767e-05,
+        "samples_s": [
+          3.9363978430628777e-05,
+          2.3384112864732742e-05,
+          1.840386539697647e-05,
+          1.885509118437767e-05,
+          1.7513055354356766e-05
+        ],
+        "profile": "         18 function calls in 0.000 seconds\n\n   Ordered by: cumulative time\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        1    0.000    0.000    0.000    0.000 /home/aihans/repos/anaxigraph/benchmarks/semantic_control_plane.py:145(<lambda>)\n        1    0.000    0.000    0.000    0.000 /home/aihans/repos/anaxigraph/tests/semantic_support.py:60(analyze)\n        1    0.000    0.000    0.000    0.000 /home/aihans/repos/anaxigraph/tests/semantic_support.py:295(_agent_dossier)\n        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}\n        1    0.000    0.000    0.000    0.000 /home/aihans/repos/anaxigraph/tests/semantic_support.py:481(_agent_pattern_response)\n        1    0.000    0.000    0.000    0.000 /home/aihans/repos/anaxigraph/tests/semantic_support.py:507(_pattern_evaluation)\n        1    0.000    0.000    0.000    0.000 <string>:2(__init__)\n        8    0.000    0.000    0.000    0.000 {method 'get' of 'dict' objects}\n        2    0.000    0.000    0.000    0.000 {method 'startswith' of 'str' objects}\n        1    0.000    0.000    0.000    0.000 {method 'items' of 'dict' objects}\n\n\n"
+      }
+    },
+    "current": {
+      "request_sha256": "09a2bd97818c927d7d25f5c034b60937057dab01a4a3f5edba82e5f0bf38ae1e",
+      "request_bytes": 13997,
+      "status": {
+        "median_s": 0.05102907004766166,
+        "samples_s": [
+          0.07736120908521116,
+          0.05652900203131139,
+          0.04283957602456212,
+          0.05102907004766166,
+          0.03953628009185195
+        ],
+        "profile": "         15992 function calls (15987 primitive calls) in 0.050 seconds\n\n   Ordered by: cumulative time\n   List reduced from 146 to 16 due to restriction <16>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        1    0.000    0.000    0.050    0.050 /home/aihans/repos/anaxigraph/benchmarks/semantic_control_plane.py:140(<lambda>)\n        1    0.000    0.000    0.050    0.050 /home/aihans/repos/anaxigraph/src/anaxigraph/understanding.py:94(status)\n        1    0.000    0.000    0.050    0.050 /home/aihans/repos/anaxigraph/src/anaxigraph/semantic_reporting.py:110(status)\n        1    0.002    0.002    0.042    0.042 /home/aihans/repos/anaxigraph/src/anaxigraph/semantic_status_queries.py:39(read_semantic_status)\n        1    0.001    0.001    0.026    0.026 /home/aihans/repos/anaxigraph/src/anaxigraph/persistence/pattern_catalogue_read.py:26(read_pattern_catalogue)\n      133    0.001    0.000    0.019    0.000 /home/aihans/repos/anaxigraph/src/anaxigraph/persistence/pattern_catalogue_read.py:72(_catalogue_item)\n       48    0.017    0.000    0.017    0.000 {method 'execute' of 'sqlite3.Connection' objects}\n      133    0.000    0.000    0.009    0.000 /home/aihans/repos/anaxigraph/src/anaxigraph/pattern_catalogue_contract.py:83(resolved_evaluation)\n      273    0.000    0.000    0.008    0.000 /usr/lib/python3.12/json/__init__.py:299(loads)\n      133    0.000    0.000    0.008    0.000 /home/aihans/repos/anaxigraph/src/anaxigraph/pattern_catalogue_contract.py:92(assessment_fingerprint)\n      273    0.001    0.000    0.008    0.000 /usr/lib/python3.12/json/decoder.py:332(decode)\n        2    0.000    0.000    0.007    0.004 /home/aihans/repos/anaxigraph/src/anaxigraph/semantic_status_queries.py:345(_semantic_actions)\n      133    0.000    0.000    0.007    0.000 /usr/lib/python3.12/json/__init__.py:183(dumps)\n      133    0.002    0.000    0.007    0.000 /usr/lib/python3.12/json/encoder.py:183(encode)\n      273    0.006    0.000    0.006    0.000 /usr/lib/python3.12/json/decoder.py:343(raw_decode)\n      266    0.000    0.000    0.006    0.000 /home/aihans/repos/anaxigraph/src/anaxigraph/persistence/pattern_catalogue_read.py:173(_object)\n\n\n"
+      },
+      "idle_claim": {
+        "median_s": 0.4570959529373795,
+        "samples_s": [
+          0.43587170797400177,
+          0.47221099003218114,
+          0.4628300052136183,
+          0.4570959529373795,
+          0.44078929303213954
+        ],
+        "profile": "         205487 function calls (196352 primitive calls) in 0.601 seconds\n\n   Ordered by: cumulative time\n   List reduced from 396 to 16 due to restriction <16>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        1    0.000    0.000    0.601    0.601 /home/aihans/repos/anaxigraph/benchmarks/semantic_control_plane.py:141(<lambda>)\n        1    0.000    0.000    0.601    0.601 /home/aihans/repos/anaxigraph/src/anaxigraph/understanding.py:162(claim_agent_work)\n        1    0.001    0.001    0.600    0.600 /home/aihans/repos/anaxigraph/src/anaxigraph/semantic_agent.py:60(claim_agent_work)\n        1    0.001    0.001    0.451    0.451 /home/aihans/repos/anaxigraph/src/anaxigraph/semantic_scope_plan.py:63(plan)\n        3    0.000    0.000    0.202    0.067 /home/aihans/repos/anaxigraph/src/anaxigraph/semantic_reporting.py:110(status)\n        3    0.006    0.002    0.173    0.058 /home/aihans/repos/anaxigraph/src/anaxigraph/semantic_status_queries.py:39(read_semantic_status)\n        1    0.000    0.000    0.143    0.143 /home/aihans/repos/anaxigraph/src/anaxigraph/persistence/semantic_evidence.py:32(semantic_inventory)\n     2285    0.128    0.000    0.128    0.000 {method 'execute' of 'sqlite3.Connection' objects}\n        3    0.005    0.002    0.112    0.037 /home/aihans/repos/anaxigraph/src/anaxigraph/persistence/pattern_catalogue_read.py:26(read_pattern_catalogue)\n        1    0.001    0.001    0.110    0.110 /home/aihans/repos/anaxigraph/src/anaxigraph/semantic_scope_plan.py:126(_plan_downstream)\n        1    0.000    0.000    0.096    0.096 /home/aihans/repos/anaxigraph/src/anaxigraph/persistence/temporal_reads.py:28(snapshot_files)\n        1    0.006    0.006    0.094    0.094 /home/aihans/repos/anaxigraph/src/anaxigraph/persistence/temporal_reads.py:69(_files_for_placements)\n     3821    0.007    0.000    0.090    0.000 /usr/lib/python3.12/json/__init__.py:299(loads)\n      200    0.002    0.000    0.085    0.000 /home/aihans/repos/anaxigraph/src/anaxigraph/persistence/temporal_reads.py:113(_expanded_metadata_json)\n        1    0.001    0.001    0.083    0.083 /home/aihans/repos/anaxigraph/src/anaxigraph/semantic_scope_plan.py:164(_plan_aggregates_and_patterns)\n        1    0.001    0.001    0.079    0.079 /home/aihans/repos/anaxigraph/src/anaxigraph/knowledge_annotation_plan.py:22(plan_annotations)\n\n\n"
+      },
+      "witness_request": {
+        "median_s": 0.03854866116307676,
+        "samples_s": [
+          0.06339927203953266,
+          0.035911406856030226,
+          0.02983500179834664,
+          0.03854866116307676,
+          0.0393929798156023
+        ],
+        "profile": "         4934 function calls (4856 primitive calls) in 0.033 seconds\n\n   Ordered by: cumulative time\n   List reduced from 169 to 16 due to restriction <16>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        1    0.000    0.000    0.033    0.033 /home/aihans/repos/anaxigraph/benchmarks/semantic_control_plane.py:136(request)\n        1    0.000    0.000    0.033    0.033 /home/aihans/repos/anaxigraph/src/anaxigraph/semantic_requests.py:37(job_request)\n        1    0.000    0.000    0.033    0.033 /home/aihans/repos/anaxigraph/src/anaxigraph/semantic_pattern_requests.py:32(pattern_request)\n        1    0.000    0.000    0.025    0.025 /home/aihans/repos/anaxigraph/src/anaxigraph/semantic_pattern_requests.py:198(_source_evidence)\n        1    0.000    0.000    0.025    0.025 /home/aihans/repos/anaxigraph/src/anaxigraph/semantic_pattern_requests.py:233(_parent_source_evidence)\n        1    0.000    0.000    0.022    0.022 /home/aihans/repos/anaxigraph/src/anaxigraph/semantic_pattern_requests.py:280(_witness_facts)\n        8    0.000    0.000    0.016    0.002 /home/aihans/repos/anaxigraph/src/anaxigraph/persistence/semantic_evidence.py:44(module_facts)\n        8    0.001    0.000    0.016    0.002 /home/aihans/repos/anaxigraph/src/anaxigraph/persistence/temporal_reads.py:28(snapshot_files)\n        9    0.000    0.000    0.013    0.001 /home/aihans/repos/anaxigraph/src/anaxigraph/persistence/temporal_reconstruction.py:30(reconstruct_files)\n        9    0.000    0.000    0.013    0.001 /home/aihans/repos/anaxigraph/src/anaxigraph/persistence/temporal_reconstruction.py:38(reconstruct_files_with_diagnostics)\n        9    0.000    0.000    0.013    0.001 /home/aihans/repos/anaxigraph/src/anaxigraph/persistence/temporal_reconstruction.py:45(_replay)\n        9    0.006    0.001    0.012    0.001 /home/aihans/repos/anaxigraph/src/anaxigraph/persistence/temporal_reconstruction.py:251(_apply_file_changes)\n       25    0.006    0.000    0.006    0.000 {method 'fetchall' of 'sqlite3.Cursor' objects}\n       60    0.006    0.000    0.006    0.000 {method 'execute' of 'sqlite3.Connection' objects}\n        1    0.000    0.000    0.005    0.005 /home/aihans/repos/anaxigraph/src/anaxigraph/persistence/pattern_manifest.py:65(manifest_card)\n        1    0.000    0.000    0.005    0.005 /home/aihans/repos/anaxigraph/src/anaxigraph/persistence/pattern_manifest.py:52(read_pattern_manifest)\n\n\n"
+      },
+      "fixture_model": {
+        "median_s": 1.1360971257090569e-05,
+        "samples_s": [
+          1.7462996765971184e-05,
+          1.2703938409686089e-05,
+          1.0419869795441628e-05,
+          1.1360971257090569e-05,
+          1.002894714474678e-05
+        ],
+        "profile": "         18 function calls in 0.000 seconds\n\n   Ordered by: cumulative time\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        1    0.000    0.000    0.000    0.000 /home/aihans/repos/anaxigraph/benchmarks/semantic_control_plane.py:145(<lambda>)\n        1    0.000    0.000    0.000    0.000 /home/aihans/repos/anaxigraph/tests/semantic_support.py:60(analyze)\n        1    0.000    0.000    0.000    0.000 /home/aihans/repos/anaxigraph/tests/semantic_support.py:295(_agent_dossier)\n        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}\n        1    0.000    0.000    0.000    0.000 /home/aihans/repos/anaxigraph/tests/semantic_support.py:481(_agent_pattern_response)\n        1    0.000    0.000    0.000    0.000 /home/aihans/repos/anaxigraph/tests/semantic_support.py:507(_pattern_evaluation)\n        1    0.000    0.000    0.000    0.000 <string>:2(__init__)\n        8    0.000    0.000    0.000    0.000 {method 'get' of 'dict' objects}\n        2    0.000    0.000    0.000    0.000 {method 'startswith' of 'str' objects}\n        1    0.000    0.000    0.000    0.000 {method 'items' of 'dict' objects}\n\n\n"
+      }
+    }
+  }
+}

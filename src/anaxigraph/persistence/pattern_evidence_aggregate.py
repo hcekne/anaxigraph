@@ -101,6 +101,7 @@ def _architecture_features(target, witnesses, relationships):
 def _witness(item: TargetEvidence) -> dict[str, Any]:
     return {
         "path": item.target.path,
+        "overview": _value(item, "semantic.overview", _value(item, "documentation.summary", "")),
         "input_fingerprint": item.input_fingerprint,
         "semantic_confidence": (
             item.feature("semantic.dossier").confidence if item.feature("semantic.dossier") else 0
@@ -115,12 +116,19 @@ def _witness(item: TargetEvidence) -> dict[str, Any]:
             if feature.name == "semantic.dossier"
             for ref in feature.evidence
         ],
+        **{
+            key: feature.value
+            for key in ("contracts", "capabilities")
+            if (feature := item.feature(f"semantic.{key}")) is not None
+        },
     }
 
 
 def _parent_semantics(witnesses: list[TargetEvidence]) -> list[PatternFeature]:
     result = []
     for name in (
+        "overview",
+        "detail",
         "responsibilities",
         "public_contracts",
         "architecture_role",

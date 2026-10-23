@@ -7,6 +7,7 @@ import sqlite3
 from typing import Any
 
 from anaxigraph.guidance import FILE_MEASUREMENT_MEANINGS
+from anaxigraph.persistence.git_metrics import git_metrics_context
 from anaxigraph.persistence.graph_read import decode_relationship
 from anaxigraph.persistence.row_decoding import decode_json_columns
 from anaxigraph.persistence.snapshot_projection import install_snapshot_projection
@@ -32,6 +33,7 @@ def read_file_details(
         "relationships": [decode_relationship(dict(row)) for row in rows["relationships"]],
         "dependants": [decode_relationship(dict(row)) for row in rows["dependants"]],
         "history": [dict(row) for row in rows["history"]],
+        "history_summary": _history_summary(connection, repository_id, path),
         "semantic_claims": [decode_json_columns(dict(row)) for row in claims],
         "semantic_state": dict(semantic_state) if semantic_state else None,
         "semantic_dossiers": semantic_documents,
@@ -50,6 +52,13 @@ def read_file_details(
         },
         "reconstruction": projection.as_dict(),
     }
+
+
+def _history_summary(connection, repository_id, path):
+    row = connection.execute(
+        "SELECT * FROM git_path_metrics WHERE repository_id=? AND path=?", (repository_id, path)
+    ).fetchone()
+    return {**git_metrics_context(connection, repository_id), **(dict(row) if row else {})}
 
 
 def _semantic_language(
@@ -137,7 +146,7 @@ def _claims(
     file_fact_id: int,
 ) -> list[sqlite3.Row]:
     return connection.execute(
-        "SELECT * FROM semantic_claims WHERE file_fact_id = ?",
+        "SELECT * FROM semantic_claim_values WHERE file_fact_id = ?",
         (file_fact_id,),
     ).fetchall()
 
@@ -164,7 +173,7 @@ def _semantic_details(
         if not document_id:
             continue
         document = connection.execute(
-            "SELECT * FROM semantic_documents WHERE id = ?", (document_id,)
+            "SELECT * FROM semantic_document_values WHERE id = ?", (document_id,)
         ).fetchone()
         if document is not None:
             documents[kind] = decode_json_columns(dict(document))

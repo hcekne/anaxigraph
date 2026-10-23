@@ -120,23 +120,10 @@ def _modules(
 
 
 def _taxonomy_dossier(value: dict[str, Any]) -> dict[str, Any]:
-    compact = compact_dossier(value, detailed="detailed_summary" in value)
-    return {
-        key: compact.get(key)
-        for key in (
-            "summary",
-            "responsibilities",
-            "public_contracts",
-            "architecture_role",
-            "domain_concepts",
-            "collaborators",
-            "overlaps",
-            "extension_points",
-            "placement_guidance",
-            "confidence",
-        )
-        if key in compact
-    }
+    compact = compact_dossier(value)
+    if value.get("architecture_role"):
+        compact["architecture_role"] = value["architecture_role"]
+    return compact
 
 
 def _relationships(
@@ -168,7 +155,7 @@ def _previous_taxonomy(
     if not taxonomy_id:
         return None
     taxonomy = connection.execute(
-        "SELECT * FROM semantic_taxonomies WHERE id = ?", (int(taxonomy_id),)
+        "SELECT * FROM semantic_taxonomy_values WHERE id = ?", (int(taxonomy_id),)
     ).fetchone()
     if taxonomy is None:
         return None
@@ -177,7 +164,7 @@ def _previous_taxonomy(
         for row in connection.execute(
             """
             SELECT node_key, name, level, parent_key, description, responsibility, confidence
-            FROM semantic_taxonomy_nodes WHERE taxonomy_id = ?
+            FROM semantic_taxonomy_node_values WHERE taxonomy_id = ?
             ORDER BY display_order, node_key
             """,
             (int(taxonomy_id),),
@@ -188,7 +175,7 @@ def _previous_taxonomy(
         for row in connection.execute(
             """
             SELECT a.canonical_path AS path, stm.node_key, stm.confidence
-            FROM semantic_taxonomy_memberships stm
+            FROM semantic_taxonomy_membership_values stm
             JOIN artifacts a ON a.id = stm.artifact_id
             WHERE stm.taxonomy_id = ? ORDER BY a.canonical_path
             """,

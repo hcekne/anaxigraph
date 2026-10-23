@@ -10,6 +10,7 @@ import anaxigraph.cli_services as cli_services
 from anaxigraph.cli_common import add_repository_arguments
 from anaxigraph.local_runtime import local_database_path
 from anaxigraph.pattern_candidate_query import PatternCandidateQuery
+from anaxigraph.pattern_catalogue_query import PatternCatalogueQuery
 from anaxigraph.pattern_intelligence import PatternIntelligenceService
 from anaxigraph.pattern_query import PatternEvaluationQuery
 from anaxigraph.semantic_service import (
@@ -22,7 +23,7 @@ from anaxigraph.semantic_service import (
 def configure_pattern_commands(commands: Any) -> None:
     parser = commands.add_parser(
         "patterns",
-        help="Show completed pattern results or explain why code was selected or skipped",
+        help="Show catalogue coverage, saved pattern results or local placement evidence",
     )
     add_repository_arguments(parser)
     _add_pattern_filters(parser)
@@ -62,9 +63,25 @@ def _add_pattern_filters(parser: Any) -> None:
 
 def _add_pattern_modes(parser: Any) -> None:
     parser.add_argument(
+        "--catalogue",
+        action="store_true",
+        help="Show every catalogue card, coverage, ratings and missing work",
+    )
+    parser.add_argument("--family", default="", help="Catalogue family filter")
+    parser.add_argument(
+        "--state",
+        default="",
+        help="Catalogue state: missing, considered, rated, reviewed, unresolved",
+    )
+    parser.add_argument(
+        "--include-manifest",
+        action="store_true",
+        help="Include exact expected/missing catalogue IDs",
+    )
+    parser.add_argument(
         "--candidates",
         action="store_true",
-        help="Explain why code was selected or skipped before an AI pattern check",
+        help="Inspect local placement signals; these do not limit catalogue consideration",
     )
     parser.add_argument(
         "--selection",
@@ -96,7 +113,7 @@ def _patterns(args: argparse.Namespace) -> dict[str, Any]:
 
 def _service_response(
     service: Any,
-    request: PatternEvaluationQuery | PatternCandidateQuery,
+    request: PatternEvaluationQuery | PatternCandidateQuery | PatternCatalogueQuery,
     snapshot_id: int | None,
 ) -> dict[str, Any]:
     result = (
@@ -110,7 +127,7 @@ def _service_response(
 def _local_response(
     repository: Path,
     database_option: Path | None,
-    request: PatternEvaluationQuery | PatternCandidateQuery,
+    request: PatternEvaluationQuery | PatternCandidateQuery | PatternCatalogueQuery,
     snapshot_id: int | None,
 ) -> dict[str, Any]:
     database_path = local_database_path(repository, explicit=database_option)
@@ -119,18 +136,31 @@ def _local_response(
     if row is None:
         raise ValueError(f"Repository has not been scanned in {database_path}")
     service = PatternIntelligenceService(database)
-    result = (
-        service.candidates(int(row["id"]), snapshot_id, request=request)
-        if isinstance(request, PatternCandidateQuery)
-        else service.query(int(row["id"]), snapshot_id, request=request)
-    )
+    read = service.query
+    if isinstance(request, PatternCandidateQuery):
+        read = service.candidates
+    elif isinstance(request, PatternCatalogueQuery):
+        read = service.catalogue
+    result = read(int(row["id"]), snapshot_id, request=request)
     return {
         **result,
         "index": {"authority": "local", "database": str(database_path)},
     }
 
 
-def _query(args: Any) -> PatternEvaluationQuery | PatternCandidateQuery:
+def _query(args: Any) -> PatternEvaluationQuery | PatternCandidateQuery | PatternCatalogueQuery:
+    if getattr(args, "catalogue", False):
+        if args.candidates:
+            raise ValueError("Choose catalogue coverage or local placement diagnostics")
+        return PatternCatalogueQuery(
+            pattern=args.pattern,
+            family=args.family,
+            state=args.state,
+            sort_by=args.sort_by,
+            limit=args.limit,
+            offset=args.offset,
+            include_manifest=args.include_manifest,
+        )
     if args.candidates:
         return PatternCandidateQuery(
             pattern=args.pattern,

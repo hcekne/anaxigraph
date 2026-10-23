@@ -54,10 +54,9 @@ def test_status_can_select_a_superseded_generation(repository, database):
         item["document_id"] for item in first["stages"]
     ]
     assert all(item["provenance"]["executor_model"] == "m1" for item in selected["stages"])
-    assert len(selected["input_manifests"]) == 5
-    assert all(selected["fingerprints"].values())
-    assert selected["previous_review"] is None
-    assert any("cannot be restarted or retried" in item for item in selected["caveats"])
+    assert selected["counts"]["retained_alternatives"] == 9
+    assert selected["functional_brief"]["revision"] == first["functional_brief"]["revision"]
+    assert any("no new work is queued" in item for item in selected["caveats"])
     assert "start" not in selected["next_action"].lower()
     current = engine.fresh_eyes_status(stats.repository_id, config.semantic, generation=2)
     assert current["review_generation"] == 2
@@ -122,26 +121,19 @@ def test_compare_payload_reports_alignment_between_two_generations(repository, d
 
     assert compared["review_generation"] == 1
     alignment = compared["alignment"]
-    assert alignment["method"] == "lexical"
-    assert alignment["contract_version"] == "fresh-eyes-alignment-v1"
+    assert alignment["method"] == "recorded_side_by_side"
+    assert alignment["contract_version"] == "fresh-eyes-generation-records-v2"
     assert alignment["left"]["review_generation"] == 1
     assert alignment["right"]["review_generation"] == 2
     assert alignment["left"]["state"] == "superseded"
     assert alignment["right"]["state"] == "current"
-    assert [item["left"]["title"] for item in alignment["aligned"]] == [
-        "Consolidate duplicate orchestration"
-    ]
-    conflicts = [item["kind"] for item in alignment["conflicting"]]
-    assert conflicts == ["rejected_vs_recommended"]
-    assert alignment["conflicting"][0]["right"]["title"] == "Add a general workflow engine"
-    assert alignment["unmatched_left"] == []
-    assert [item["title"] for item in alignment["unmatched_right"]] == [
-        "Bound the working tree drift window"
-    ]
-    assert any("lexical" in caveat for caveat in alignment["caveats"])
-    assert alignment["facts"]["left"]["recommendations"] == 1
-    assert alignment["facts"]["right"]["recommendations"] == 3
-    assert len(alignment["fingerprint"]) == 64
+    assert alignment["subject"] == "retained_functional_alternatives"
+    for side in ("left", "right"):
+        scopes = alignment["records"][side]["scope_reviews"]
+        assert len({item["id"] for scope in scopes for item in scope["alternatives"]}) == 9
+        assert alignment[side]["alternative_count"] == 9
+        assert len(alignment[side]["document_ids"]) == 14
+    assert not {"aligned", "conflicting", "score", "fingerprint"} & alignment.keys()
     plain = engine.fresh_eyes_status(stats.repository_id, config.semantic, generation=1)
     assert "alignment" not in plain
     assert {key: compared[key] for key in plain} == plain
@@ -159,7 +151,7 @@ def test_comparing_a_generation_with_itself_is_labelled_as_such(repository, data
     compared = engine.fresh_eyes_status(stats.repository_id, config.semantic, compare_with=1)
 
     assert compared["alignment"]["left"] == compared["alignment"]["right"]
-    assert compared["alignment"]["caveats"][-1].startswith("Both sides name the same")
-    assert len(compared["alignment"]["aligned"]) == 1
+    assert compared["alignment"]["same_generation"] is True
+    assert compared["alignment"]["records"]["left"] == compared["alignment"]["records"]["right"]
     with pytest.raises(ValueError, match="generation 9 was never recorded"):
         engine.fresh_eyes_status(stats.repository_id, config.semantic, compare_with=9)

@@ -103,7 +103,7 @@ def _insert_correction(
     scope_key = f"{value['section']}:{value['key']}"
     previous = connection.execute(
         """
-        SELECT id FROM semantic_documents
+        SELECT id FROM semantic_document_values
         WHERE repository_id = ? AND scope_type = 'charter_correction' AND scope_key = ?
         ORDER BY id DESC LIMIT 1
         """,
@@ -147,7 +147,7 @@ def read_charter_corrections(connection: Any, repository_id: int) -> list[dict[s
     rows = connection.execute(
         """
         SELECT id, snapshot_id, scope_key, value_json, created_at
-        FROM semantic_documents
+        FROM semantic_document_values
         WHERE repository_id = ? AND scope_type = 'charter_correction'
           AND document_kind = 'charter_correction'
         ORDER BY id DESC

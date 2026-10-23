@@ -1,488 +1,123 @@
-"""AnaxiIndex: SQLite persistence for temporal repository intelligence."""
+"""Public index facade combining durable storage and source-aware analysis reads."""
 
 from __future__ import annotations
 
-import contextlib
-import json
-import sqlite3
-import time
-from collections.abc import Iterator
-from datetime import UTC, datetime
-from pathlib import Path
+from contextlib import closing
 from typing import Any
 
-from filelock import FileLock
+from anaxigraph.knowledge_sync import clear_knowledge_cache, sync_knowledge
+from anaxigraph.pattern_evidence_source import empty_pattern_evidence, read_pattern_evidence
+from anaxigraph.persistence import index_store
 
-import anaxigraph.persistence.index_facade as persistence
-from anaxigraph.models import GitMetadata
-from anaxigraph.storage_policy import StoragePolicy, admit_index_write
-
-SCHEMA_VERSION = persistence.SCHEMA_VERSION
-_WRITE_LOCK_WAIT_SECONDS = 120
-
-
-def utc_now() -> str:
-    return datetime.now(UTC).isoformat()
-
-
-def _begin_write(connection: sqlite3.Connection) -> None:
-    """Retry busy admission only; never replay a transaction or a model call."""
-    deadline = time.monotonic() + _WRITE_LOCK_WAIT_SECONDS
-    timeout = int(connection.execute("PRAGMA busy_timeout").fetchone()[0])
-    try:
-        while True:
-            remaining = max(0, int((deadline - time.monotonic()) * 1000))
-            connection.execute(f"PRAGMA busy_timeout = {min(timeout, remaining)}")
-            try:
-                connection.execute("BEGIN IMMEDIATE")
-                return
-            except sqlite3.OperationalError as error:
-                busy = getattr(error, "sqlite_errorcode", 0) & 0xFF == sqlite3.SQLITE_BUSY
-                if not busy or time.monotonic() >= deadline:
-                    raise
-                time.sleep(0.05)
-    finally:
-        connection.execute(f"PRAGMA busy_timeout = {timeout}")
+SCHEMA_VERSION = index_store.SCHEMA_VERSION
+GitMetadata = index_store.GitMetadata
+StoragePolicy = index_store.StoragePolicy
+admit_index_write = index_store.admit_index_write
+persistence = index_store.persistence
+time = index_store.time
+utc_now = index_store.utc_now
+_WRITE_LOCK_WAIT_SECONDS = index_store._WRITE_LOCK_WAIT_SECONDS
 
 
-class AnaxiIndex:
-    """Persistent repository knowledge store used by AnaxiGraph and AnaxiMCP."""
+def _begin_write(connection) -> None:
+    index_store._begin_write(connection, wait_seconds=_WRITE_LOCK_WAIT_SECONDS)
 
-    def __init__(self, path: str | Path) -> None:
-        self.path = Path(path).expanduser().resolve()
-        self.storage_policy = StoragePolicy()
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.initialize()
 
-    def connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.path, timeout=30)
-        connection.row_factory = sqlite3.Row
-        page_size = connection.execute("PRAGMA page_size").fetchone()[0]
-        connection.execute(
-            f"PRAGMA max_page_count = {self.storage_policy.index_bytes // page_size}"
-        )
-        connection.execute("PRAGMA journal_size_limit = 4000000")
-        connection.execute("PRAGMA foreign_keys = ON")
-        connection.execute("PRAGMA journal_mode = WAL")
-        connection.execute("PRAGMA busy_timeout = 30000")
-        return connection
+class AnaxiIndex(index_store.AnaxiIndexStore):
+    """Persistent repository knowledge and reusable source-aware evidence."""
 
     def initialize(self) -> None:
-        persistence.initialize_index(
-            self.path,
-            self.connect,
-            schema=persistence.SCHEMA,
-            target_version=persistence.SCHEMA_VERSION,
+        try:
+            super().initialize()
+            self._resume_import_graph()
+        except persistence.CompactionHeadroomError:
+            self._recover_compaction_headroom()
+
+    def finish_cache_maintenance(self) -> None:
+        try:
+            super().finish_cache_maintenance()
+            self._resume_import_graph()
+        except persistence.CompactionHeadroomError:
+            self._recover_compaction_headroom()
+
+    def _resume_import_graph(self) -> None:
+        with closing(self.connect()) as connection:
+            pending = connection.execute(
+                "SELECT value FROM schema_meta WHERE key='graph-import-pending'"
+            ).fetchone()
+        if pending is not None:
+            self._build_import_graph(int(pending[0]))
+            super().finish_cache_maintenance()
+
+    def _recover_compaction_headroom(self) -> None:
+        with closing(self.connect()) as connection:
+            snapshot = connection.execute(
+                "SELECT CAST(value AS INTEGER) FROM schema_meta WHERE key='graph-import-pending' "
+                "UNION ALL SELECT snapshot_id FROM graph_revisions LIMIT 1"
+            ).fetchone()
+        if snapshot is None:
+            raise persistence.CompactionHeadroomError(
+                "Canonical index cannot be compacted safely within 200 MB"
+            )
+        # Retry once after evicting only the rebuildable graph, preserving paid rows.
+        self._defer_import_graph(int(snapshot[0]))
+        super().finish_cache_maintenance()
+        self._rebuild_compact_graph(int(snapshot[0]))
+
+    def _rebuild_compact_graph(self, snapshot_id: int) -> None:
+        def build(connection):
+            sync_knowledge(connection, snapshot_id, force=True)
+            persistence.refresh_current_search_projections(connection)
+            connection.execute(
+                "DELETE FROM schema_meta WHERE key IN ('graph-import-pending','index-compaction-pending')"
+            )
+
+        def admit(connection, staged):
+            admit_index_write(connection, staged, self.storage_policy)
+
+        persistence.rebuild_compact_cache(
+            self.path, schema_version=SCHEMA_VERSION, build=build, admit=admit
         )
 
-    @contextlib.contextmanager
-    def transaction(self, *, maintenance: bool = False) -> Iterator[sqlite3.Connection]:
-        connection = self.connect()
-        try:
-            _begin_write(connection)
-            if not maintenance:
-                admit_index_write(connection, self.path, self.storage_policy)
-            yield connection
-            connection.commit()
-        except Exception as error:
-            connection.rollback()
-            if (
-                isinstance(error, sqlite3.OperationalError)
-                and getattr(error, "sqlite_errorcode", None) == sqlite3.SQLITE_FULL
-            ):
-                raise ValueError(
-                    "AnaxiGraph local index budget reached. Run 'anaxigraph record compact' on this server, exclude generated/runtime files or retain fewer checkpoints; the write was rolled back."
-                ) from error
-            raise
-        finally:
-            connection.close()
+    def rebuild_graph_cache(self, snapshot_id: int) -> None:
+        if self.path.stat().st_size * 2 <= self.storage_policy.index_bytes:
+            with self.transaction() as connection:
+                sync_knowledge(connection, snapshot_id)
+            return
+        self._defer_import_graph(snapshot_id)
+        self.finish_cache_maintenance()
 
-    @contextlib.contextmanager
-    def scan_lock(self) -> Iterator[None]:
-        """Serialize repository scans that share this index across processes."""
-
-        lock = FileLock(f"{self.path}.scan.lock")
-        with lock:
-            yield
-
-    def ensure_repository(
-        self,
-        *,
-        path: Path,
-        name: str,
-        git: GitMetadata,
-    ) -> int:
-        resolved = str(path.resolve())
-        now = utc_now()
-        with self.transaction() as connection:
+    def _defer_import_graph(self, snapshot_id: int) -> None:
+        with self.transaction(maintenance=True) as connection:
+            clear_knowledge_cache(connection)
             connection.execute(
-                """
-                INSERT INTO repositories(name, path, remote_url, default_branch, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT(path) DO UPDATE SET
-                    name = excluded.name,
-                    remote_url = excluded.remote_url,
-                    default_branch = excluded.default_branch,
-                    updated_at = excluded.updated_at
-                """,
-                (name, resolved, git.remote_url, git.default_branch, now, now),
+                "INSERT OR REPLACE INTO schema_meta VALUES ('graph-import-pending',?)",
+                (str(snapshot_id),),
             )
-            row = connection.execute(
-                "SELECT id FROM repositories WHERE path = ?", (resolved,)
-            ).fetchone()
-            assert row is not None
-            return int(row["id"])
-
-    def repository(self, selector: int | str | Path | None = None) -> dict[str, Any] | None:
-        with self.connect() as connection:
-            if selector is None:
-                row = connection.execute(
-                    "SELECT * FROM repositories ORDER BY updated_at DESC LIMIT 1"
-                ).fetchone()
-            elif isinstance(selector, int) or str(selector).isdigit():
-                row = connection.execute(
-                    "SELECT * FROM repositories WHERE id = ?", (int(selector),)
-                ).fetchone()
-            else:
-                value = (
-                    str(Path(selector).expanduser().resolve())
-                    if isinstance(selector, Path)
-                    else str(selector)
-                )
-                row = connection.execute(
-                    "SELECT * FROM repositories WHERE path = ? OR name = ? ORDER BY updated_at DESC LIMIT 1",
-                    (value, value),
-                ).fetchone()
-            return dict(row) if row else None
-
-    def repositories(self) -> list[dict[str, Any]]:
-        with self.connect() as connection:
-            rows = connection.execute(
-                """
-                SELECT r.*,
-                       COALESCE(
-                           r.current_snapshot_id,
-                           (SELECT id FROM snapshots s WHERE s.repository_id = r.id ORDER BY id DESC LIMIT 1)
-                       )
-                           AS latest_snapshot_id
-                FROM repositories r ORDER BY updated_at DESC
-                """
-            ).fetchall()
-            return [dict(row) for row in rows]
-
-    def latest_snapshot(self, repository_id: int) -> dict[str, Any] | None:
-        with self.connect() as connection:
-            row = connection.execute(
-                """
-                SELECT s.* FROM repositories r
-                LEFT JOIN snapshots s ON s.id = r.current_snapshot_id
-                WHERE r.id = ? AND s.id IS NOT NULL
-                """,
-                (repository_id,),
-            ).fetchone()
-            if row is None:
-                row = connection.execute(
-                    "SELECT * FROM snapshots WHERE repository_id = ? ORDER BY id DESC LIMIT 1",
-                    (repository_id,),
-                ).fetchone()
-            return dict(row) if row else None
-
-    def snapshot_by_fingerprint(
-        self, repository_id: int, content_fingerprint: str
-    ) -> dict[str, Any] | None:
-        with self.connect() as connection:
-            row = connection.execute(
-                """
-                SELECT * FROM snapshots
-                WHERE repository_id = ? AND content_fingerprint = ? LIMIT 1
-                """,
-                (repository_id, content_fingerprint),
-            ).fetchone()
-            return dict(row) if row else None
-
-    def commit_snapshot(
-        self,
-        repository_id: int,
-        commit_sha: str,
-        analysis_signature: str,
-    ) -> dict[str, Any] | None:
-        """Find a compatible commit frame without rereading the full Git tree."""
-
-        with self.connect() as connection:
-            rows = connection.execute(
-                """
-                SELECT * FROM snapshots
-                WHERE repository_id = ? AND commit_sha = ?
-                  AND (snapshot_kind = 'commit' OR dirty = 0)
-                ORDER BY CASE snapshot_kind WHEN 'commit' THEN 0 ELSE 1 END, id DESC
-                """,
-                (repository_id, commit_sha),
-            ).fetchall()
-        for row in rows:
-            metadata = json.loads(row["metadata_json"] or "{}")
-            if metadata.get("analysis_signature") == analysis_signature:
-                return dict(row)
-        return None
-
-    def set_current_snapshot(self, repository_id: int, snapshot_id: int) -> None:
-        with self.transaction() as connection:
             connection.execute(
-                "UPDATE repositories SET current_snapshot_id = ?, updated_at = ? WHERE id = ?",
-                (snapshot_id, utc_now(), repository_id),
+                "INSERT OR REPLACE INTO schema_meta VALUES ('index-compaction-pending','true')"
             )
 
-    def snapshots(self, repository_id: int, *, limit: int = 100) -> list[dict[str, Any]]:
-        with self.connect() as connection:
-            return persistence.read_snapshots(connection, repository_id, limit=limit)
-
-    def timeline_snapshots(self, repository_id: int, *, limit: int = 250) -> list[dict[str, Any]]:
-        """Return Git commit frames plus the current working tree, without scan-run duplicates."""
-
-        with self.connect() as connection:
-            return persistence.read_timeline(connection, repository_id, limit=limit)
-
-    def start_run(self, repository_id: int, run_type: str) -> int:
-        with self.transaction() as connection:
+    def _build_import_graph(self, snapshot_id: int) -> None:
+        with self.transaction(maintenance=True) as connection:
+            with index_store.maintenance_headroom(connection, self.path):
+                sync_knowledge(connection, snapshot_id, force=True)
+            connection.execute("DELETE FROM schema_meta WHERE key='graph-import-pending'")
             connection.execute(
-                "UPDATE analysis_runs SET status = 'interrupted', completed_at = ?, error = ? "
-                "WHERE repository_id = ? AND status = 'running'",
-                (utc_now(), "Previous scan process ended before completion", repository_id),
-            )
-            cursor = connection.execute(
-                "INSERT INTO analysis_runs(repository_id, run_type, status, started_at) "
-                "VALUES (?, ?, 'running', ?)",
-                (repository_id, run_type, utc_now()),
-            )
-            if run_type == "watch":
-                connection.execute(
-                    "DELETE FROM analysis_runs WHERE repository_id = ? AND run_type = 'watch' "
-                    "AND status = 'unchanged'",
-                    (repository_id,),
-                )
-            return int(cursor.lastrowid)
-
-    def finish_run(
-        self,
-        run_id: int,
-        *,
-        snapshot_id: int | None,
-        status: str,
-        discovered: int = 0,
-        analyzed: int = 0,
-        reused: int = 0,
-        error_count: int = 0,
-        metadata: dict[str, Any] | None = None,
-        error: str | None = None,
-    ) -> None:
-        with self.transaction() as connection:
-            connection.execute(
-                """
-                UPDATE analysis_runs SET snapshot_id = ?, status = ?, completed_at = ?,
-                    discovered_count = ?, analyzed_count = ?, reused_count = ?, error_count = ?,
-                    metadata_json = ?, error = ?
-                WHERE id = ?
-                """,
-                (
-                    snapshot_id,
-                    status,
-                    utc_now(),
-                    discovered,
-                    analyzed,
-                    reused,
-                    error_count,
-                    json.dumps(metadata or {}, sort_keys=True),
-                    error,
-                    run_id,
-                ),
+                "INSERT OR REPLACE INTO schema_meta VALUES ('index-compaction-pending','true')"
             )
 
-    def overview(self, repository_id: int, snapshot_id: int | None = None) -> dict[str, Any]:
-        snapshot = self.resolve_snapshot(repository_id, snapshot_id)
-        if snapshot is None:
-            return {"repository_id": repository_id, "snapshot": None}
-        with self.connect() as connection:
-            return persistence.read_overview(connection, repository_id, snapshot)
+    def _begin_write(self, connection) -> None:
+        _begin_write(connection)
 
-    def semantic_taxonomy(
-        self, repository_id: int, snapshot_id: int | None = None
-    ) -> dict[str, Any] | None:
-        snapshot = self.resolve_snapshot(repository_id, snapshot_id)
-        if snapshot is None:
-            return None
-        with self.connect() as connection:
-            persistence.install_snapshot_projection(
-                connection, int(snapshot["id"]), include_symbols=False
-            )
-            return persistence.taxonomy_map_payload(connection, int(snapshot["id"]))
-
-    def modules(
-        self,
-        repository_id: int,
-        snapshot_id: int | None = None,
-        *,
-        limit: int | None = None,
-        offset: int = 0,
-    ) -> list[dict[str, Any]]:
-        """Return the file-level intelligence ledger for inventory views and agents."""
-        snapshot = self.resolve_snapshot(repository_id, snapshot_id)
-        if snapshot is None:
-            return []
-        with self.connect() as connection:
-            return persistence.read_modules(
-                connection,
-                repository_id,
-                int(snapshot["id"]),
-                limit=limit,
-                offset=offset,
-            )
+    def _now(self) -> str:
+        return utc_now()
 
     def pattern_evidence(
-        self,
-        repository_id: int,
-        snapshot_id: int | None = None,
+        self, repository_id: int, snapshot_id: int | None = None
     ) -> dict[str, Any]:
-        """Return reusable multi-level facts for sparse pattern evaluation."""
-
         snapshot = self.resolve_snapshot(repository_id, snapshot_id)
         if snapshot is None:
-            return persistence.empty_pattern_evidence(repository_id)
-        with self.connect() as connection:
-            return persistence.read_pattern_evidence(
-                connection,
-                repository_id,
-                int(snapshot["id"]),
-            ).as_dict()
-
-    def resolve_snapshot(self, repository_id: int, snapshot_id: int | None) -> sqlite3.Row | None:
-        with self.connect() as connection:
-            return persistence.resolve_snapshot(connection, repository_id, snapshot_id)
-
-    def graph(
-        self,
-        repository_id: int,
-        snapshot_id: int | None = None,
-        *,
-        include_external: bool = False,
-        query: Any | None = None,
-    ) -> dict[str, Any]:
-        return persistence.index_graph_page(
-            self,
-            repository_id,
-            snapshot_id,
-            include_external=include_external,
-            query=query,
-        )
-
-    def graph_neighborhood(
-        self,
-        repository_id: int,
-        snapshot_id: int | None = None,
-        *,
-        query: Any,
-    ) -> dict[str, Any]:
-        return persistence.index_graph_neighborhood(self, repository_id, snapshot_id, query=query)
-
-    def graph_delta(
-        self,
-        repository_id: int,
-        baseline_snapshot_id: int,
-        target_snapshot_id: int | None = None,
-        *,
-        node_limit: int,
-        edge_limit: int,
-    ) -> dict[str, Any]:
-        return persistence.index_graph_delta(
-            self,
-            repository_id,
-            baseline_snapshot_id,
-            target_snapshot_id,
-            node_limit=node_limit,
-            edge_limit=edge_limit,
-        )
-
-    def file_details(
-        self, repository_id: int, path: str, snapshot_id: int | None = None
-    ) -> dict[str, Any] | None:
-        snapshot = self.resolve_snapshot(repository_id, snapshot_id)
-        if snapshot is None:
-            return None
-        with self.connect() as connection:
-            return persistence.read_file_details(
-                connection,
-                repository_id,
-                path,
-                int(snapshot["id"]),
-            )
-
-    def search(self, repository_id: int, query: str, *, limit: int = 30) -> list[dict[str, Any]]:
-        snapshot = self.resolve_snapshot(repository_id, None)
-        if snapshot is None:
-            return []
-        with self.connect() as connection:
-            return persistence.search_modules(
-                connection,
-                repository_id,
-                int(snapshot["id"]),
-                query,
-                limit=limit,
-            )
-
-    def findings(
-        self,
-        repository_id: int,
-        *,
-        statuses: tuple[str, ...] = (),
-        limit: int = 500,
-    ) -> list[dict[str, Any]]:
-        snapshot = self.resolve_snapshot(repository_id, None)
-        snapshot_id = int(snapshot["id"]) if snapshot is not None else None
-        with self.connect() as connection:
-            return persistence.read_findings(
-                connection,
-                repository_id,
-                snapshot_id,
-                statuses=statuses,
-                limit=limit,
-            )
-
-    def finding_page(
-        self,
-        repository_id: int,
-        *,
-        query: persistence.FindingPageQuery,
-        policy: Any,
-    ) -> dict[str, Any]:
-        """Return a bounded attention or diagnostic page with exact ledger totals."""
-
-        snapshot = self.resolve_snapshot(repository_id, None)
-        snapshot_id = int(snapshot["id"]) if snapshot is not None else None
-        with self.connect() as connection:
-            return persistence.read_finding_page(
-                connection,
-                repository_id,
-                snapshot_id,
-                query=query,
-                policy=policy,
-            )
-
-    def finding(self, repository_id: int, finding_id: int) -> dict[str, Any] | None:
-        snapshot = self.resolve_snapshot(repository_id, None)
-        snapshot_id = int(snapshot["id"]) if snapshot is not None else None
-        with self.connect() as connection:
-            return persistence.read_finding(connection, repository_id, finding_id, snapshot_id)
-
-    def update_finding_status(self, repository_id: int, finding_id: int, status: str) -> bool:
-        if status not in persistence.FINDING_STATUSES:
-            raise ValueError(f"Unsupported finding status: {status}")
-        with self.transaction() as connection:
-            cursor = connection.execute(
-                """
-                UPDATE findings SET status = ?, resolved_at = CASE
-                    WHEN ? = 'resolved' THEN ?
-                    WHEN status = 'resolved' THEN NULL
-                    ELSE resolved_at END
-                WHERE id = ? AND repository_id = ?
-                """,
-                (status, status, utc_now(), finding_id, repository_id),
-            )
-            return cursor.rowcount > 0
+            return empty_pattern_evidence(repository_id)
+        with closing(self.connect()) as connection:
+            return read_pattern_evidence(connection, repository_id, int(snapshot["id"])).as_dict()

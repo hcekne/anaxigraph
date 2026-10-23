@@ -25,7 +25,7 @@ def resume_taxonomy_proposal(
     stability: TaxonomyStability,
 ) -> TaxonomyCarry | None:
     rows = connection.execute(
-        """SELECT t.*, ss.interface_hash AS stability_hash FROM semantic_taxonomies t
+        """SELECT t.*, ss.interface_hash AS stability_hash FROM semantic_taxonomy_values t
            LEFT JOIN semantic_scope_states ss ON ss.snapshot_id = t.snapshot_id
              AND ss.scope_type = 'taxonomy' AND ss.scope_key = CAST(t.repository_id AS TEXT)
            WHERE t.repository_id = ? AND t.snapshot_id < ? AND t.prompt_version = ?
@@ -66,7 +66,7 @@ def _updated_candidate(
     connection: Any, source: dict[str, Any], previous: Any, current: Any
 ) -> dict[str, Any]:
     latest = connection.execute(
-        "SELECT document_id FROM semantic_taxonomy_reviews WHERE taxonomy_id = ? ORDER BY pass_index DESC LIMIT 1",
+        "SELECT document_id FROM semantic_taxonomy_review_values WHERE taxonomy_id = ? ORDER BY pass_index DESC LIMIT 1",
         (source["id"],),
     ).fetchone()
     changes = {

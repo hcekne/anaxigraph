@@ -6,7 +6,6 @@ import subprocess
 
 import pytest
 from fresh_eyes_support import (
-    CLAUDE_EXECUTOR,
     CODEX_EXECUTOR,
     TWO_EXECUTORS,
     TwoExecutorReview,
@@ -16,7 +15,6 @@ from semantic_support import _agent_dossier, _enable_agent_semantics
 from anaxigraph.config import load_config
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic_fresh_eyes_contract import fresh_eyes_plan_options
-from anaxigraph.understandability import AGENT_REVIEW_POLICY
 from anaxigraph.understanding import SemanticEngine
 
 
@@ -84,45 +82,45 @@ def test_two_host_executors_share_one_fresh_eyes_review(repository, database):
 
     stages = review.run_until_complete()
 
-    assert stages == [
-        (CODEX_EXECUTOR, "fresh_proposal"),
-        (CLAUDE_EXECUTOR, "fresh_proposal"),
-        (CODEX_EXECUTOR, "fresh_adjudication"),
-        (CLAUDE_EXECUTOR, "fresh_comparison"),
-        (CODEX_EXECUTOR, "fresh_review"),
-    ]
+    kinds = [kind for _, kind in stages]
+    assert kinds[0] == "fresh_adjudication"
+    assert kinds.count("fresh_proposal") == 9
+    assert kinds.count("fresh_comparison") == 3
+    assert kinds[-1] == "fresh_review"
+    assert {executor for executor, _ in stages} == set(TWO_EXECUTORS)
     result = review.engine.fresh_eyes_status(review.repository_id, review.config.semantic)
     assert result["state"] == "current"
-    assert [item["provenance"]["executor_id"] for item in result["proposals"]] == [
-        CODEX_EXECUTOR,
-        CLAUDE_EXECUTOR,
-    ]
+    assert {
+        item["provenance"]["executor_id"]
+        for scope in result["scope_reviews"]
+        for item in scope["alternatives"]
+    } == set(TWO_EXECUTORS)
     assert [claim["status"] for claim in review.claims[-2:]] == ["complete", "complete"]
-    assert result["diversity"]["cross_provider"] is True
-    assert result["diversity"]["executor_families"] == ["claude", "codex"]
-    assert "The proposals do not represent cross-provider agreement." not in result["caveats"]
-    adjudication = next(item for item in review.claims if item["kind"] == "fresh_adjudication")
-    assert adjudication["request"]["diversity"] == result["diversity"]
+    assert result["isolation"]["status"] == "unverified"
     for claim in review.claims:
         if str(claim.get("kind", "")).startswith("fresh_"):
-            assert claim["request"]["contract"].count(AGENT_REVIEW_POLICY) == 1
+            assert claim["request"]["information_boundary"]["mode"] == "implementation_blind"
+            assert "current_system" not in claim["request"]
 
 
 def test_second_executor_is_told_busy_while_a_peer_holds_a_fresh_eyes_stage(repository, database):
     review = _two_executor_review(repository, database)
+    hierarchy = review.claim(CODEX_EXECUTOR)
+    review.submit(hierarchy)
     held = review.hold_one_each("fresh_proposal")
+    third = review.claim(CODEX_EXECUTOR)
 
     blocked = review.claim(CODEX_EXECUTOR)
 
     assert blocked["status"] == "busy"
     assert blocked["semantic"]["semantically_ready"] is True
-    assert blocked["semantic"]["jobs"]["running"] == 2
+    assert blocked["semantic"]["jobs"]["running"] == 3
     review.submit_all(held)
-    assert [kind for _, kind in review.run_until_complete()] == [
-        "fresh_adjudication",
-        "fresh_comparison",
-        "fresh_review",
-    ]
+    review.submit(third)
+    remaining = [kind for _, kind in review.run_until_complete()]
+    assert remaining.count("fresh_proposal") == 6
+    assert remaining.count("fresh_comparison") == 3
+    assert remaining[-1] == "fresh_review"
 
 
 def test_fixed_fresh_eyes_recipe_is_resumable_blind_and_agent_funded(repository, database):
@@ -152,17 +150,16 @@ def test_fixed_fresh_eyes_recipe_is_resumable_blind_and_agent_funded(repository,
         agent_id="proposal-a",
         agent_model="fixture-model",
     )
-    assert first["job"]["kind"] == "fresh_proposal"
+    assert first["job"]["kind"] == "fresh_adjudication"
     proposal_packet = first["analysis_request"]
     assert set(proposal_packet) >= {
-        "capability_brief",
-        "external_constraints",
+        "capability_projection",
         "information_boundary",
     }
     assert "current_system" not in proposal_packet
     assert "responsibility_map" not in proposal_packet
     assert "recent_history" not in proposal_packet
-    assert "pkg/core.py" not in str(proposal_packet["capability_brief"])
+    assert "pkg/core.py" not in str(proposal_packet["capability_projection"])
     engine.submit_agent_work(
         stats.repository_id,
         repository,
@@ -182,35 +179,21 @@ def test_fixed_fresh_eyes_recipe_is_resumable_blind_and_agent_funded(repository,
         prefix="review",
         requests=review_requests,
     )
-    assert review_kinds == [
-        "fresh_proposal",
-        "fresh_adjudication",
-        "fresh_comparison",
-        "fresh_review",
-    ]
+    assert review_kinds.count("fresh_proposal") == 9
+    assert review_kinds.count("fresh_comparison") == 3
+    assert review_kinds[-1] == "fresh_review"
     comparison_request = next(
         item for item in review_requests if item["analysis_kind"] == "fresh_comparison"
     )
-    assert comparison_request["current_system"]["dependency_evidence"]
-    history_kinds = {
-        item["evidence_kind"] for item in comparison_request["current_system"]["recent_history"]
-    }
-    assert history_kinds == {"recent_commit", "high_churn_module"}
+    assert "current_system" not in comparison_request
+    assert len(comparison_request["alternatives"]) == 3
+    assert all("current_system" not in item for item in review_requests)
     result = restarted.fresh_eyes_status(stats.repository_id, config.semantic)
     assert result["state"] == "current"
     assert result["ready"] is True
-    assert len(result["proposals"]) == 2
-    assert result["diversity"]["cross_provider"] is False
-    assert result["recommendations"][0]["action"] == "consolidate"
-    assert result["strategy"]["contract_version"] == "fresh-eyes-review-v1"
-    assert set(result["fingerprints"]) == {"capability", "reference", "comparison"}
-    assert all(result["fingerprints"].values())
-    assert len(result["input_manifests"]) == 5
-    proposal_manifests = [
-        item for item in result["input_manifests"] if item["job_kind"] == "fresh_proposal"
-    ]
-    assert len(proposal_manifests) == 2
-    assert all("repository_paths" in item["manifest"]["withheld"] for item in proposal_manifests)
+    assert result["counts"]["retained_alternatives"] == 9
+    assert result["recommendations"] == []
+    assert result["strategy"]["contract_version"] == "functional-review-v2"
     assert restarted.status(stats.repository_id, config.semantic)["semantically_ready"] is True
 
 
@@ -255,13 +238,10 @@ def test_completed_review_can_be_rerun_with_new_model_without_rereading_modules(
         agent_effort="high",
     )
 
-    assert kinds == [
-        "fresh_proposal",
-        "fresh_proposal",
-        "fresh_adjudication",
-        "fresh_comparison",
-        "fresh_review",
-    ]
+    assert kinds[0] == "fresh_adjudication"
+    assert kinds.count("fresh_proposal") == 9
+    assert kinds.count("fresh_comparison") == 3
+    assert kinds[-1] == "fresh_review"
     second = engine.fresh_eyes_status(stats.repository_id, config.semantic)
     assert second["review_generation"] == 2
     assert first_ids.isdisjoint({stage["document_id"] for stage in second["stages"]})
@@ -316,7 +296,7 @@ def test_implementation_changes_reuse_reference_but_capability_changes_invalidat
     second = RepositoryScanner(database).scan(repository)
     _finish_work(engine, second.repository_id, repository, config, prefix="implementation")
     reused = engine.start_fresh_eyes_review(second.repository_id, repository, config)
-    assert reused["plan_stage"] == "fresh_eyes_comparison"
+    assert reused["plan_stage"] == "fresh_eyes_complete"
     with database.connect() as connection:
         kinds = [
             row[0]
@@ -325,15 +305,14 @@ def test_implementation_changes_reuse_reference_but_capability_changes_invalidat
                 (second.snapshot_id,),
             ).fetchall()
         ]
-    assert kinds == ["fresh_comparison"]
+    assert kinds == []
     second_status = engine.fresh_eyes_status(second.repository_id, config.semantic)
     assert [item["document_id"] for item in second_status["stages"][:2]] == first_proposal_ids
     _finish_work(engine, second.repository_id, repository, config, prefix="second-review")
-    reused_manifests = engine.fresh_eyes_status(second.repository_id, config.semantic)[
-        "input_manifests"
-    ]
-    assert len(reused_manifests) == 5
-    assert sum(item["job_kind"] == "fresh_proposal" for item in reused_manifests) == 2
+    assert (
+        engine.fresh_eyes_status(second.repository_id, config.semantic)["counts"]
+        == first_review["counts"]
+    )
 
     util.write_text(
         util.read_text(encoding="utf-8").replace("value * 3", "value * 4"), encoding="utf-8"
@@ -358,8 +337,8 @@ def test_implementation_changes_reuse_reference_but_capability_changes_invalidat
             (json.dumps(charter, sort_keys=True), int(row["id"])),
         )
     invalidated = engine.start_fresh_eyes_review(third.repository_id, repository, config)
-    assert invalidated["plan_stage"] == "fresh_eyes_proposals"
-    assert invalidated["review"]["invalidation_reason"].startswith("Capability fingerprint changed")
+    assert invalidated["plan_stage"] == "fresh_eyes_functional_brief"
+    assert invalidated["review"]["functional_brief"] is None
     with database.connect() as connection:
         proposal_jobs = connection.execute(
             """
@@ -368,7 +347,7 @@ def test_implementation_changes_reuse_reference_but_capability_changes_invalidat
             """,
             (third.snapshot_id,),
         ).fetchone()[0]
-    assert proposal_jobs == 2
+    assert proposal_jobs == 0
 
 
 def _generations(engine, repository_id, config):
@@ -394,20 +373,20 @@ def test_generation_index_lists_every_rerun_with_provenance(repository, database
     assert [item["executor_models"] for item in bundles] == [["m1"], ["m2"], ["m3"]]
     assert [item["state"] for item in bundles] == ["superseded", "superseded", "current"]
     assert [item["ready"] for item in bundles] == [False, False, True]
-    assert [len(item["stages"]) for item in bundles] == [5, 5, 5]
+    assert [len(item["stages"]) for item in bundles] == [14, 14, 14]
     documents = [set(item["document_ids"]) for item in bundles]
-    assert all(len(item) == 5 for item in documents)
-    assert len(set().union(*documents)) == 15
+    assert all(len(item) == 14 for item in documents)
+    assert len(set().union(*documents)) == 42
     for bundle in bundles:
-        assert bundle["recommendation_count"] == (1 if bundle["generation"] == 1 else 3)
-        assert bundle["rejected_idea_count"] == 1
+        assert bundle["recommendation_count"] == 0
+        assert bundle["rejected_idea_count"] == 0
         assert bundle["review_document_id"] in bundle["document_ids"]
-        assert bundle["telemetry"]["stage_count"] == 5
+        assert bundle["telemetry"]["stage_count"] == 14
         assert all(item["duration_ms"] >= 0 for item in bundle["telemetry"]["stages"])
         assert all(item["attempts_observed"] >= 1 for item in bundle["telemetry"]["stages"])
     review = engine.fresh_eyes_status(stats.repository_id, config.semantic)
-    assert review["previous_review"]["generation"] == 2
-    assert review["previous_review"]["document_id"] == bundles[1]["review_document_id"]
+    assert review["generations"][-2]["generation"] == 2
+    assert review["generations"][-2]["review_document_id"] == bundles[1]["review_document_id"]
 
 
 def test_generation_index_attributes_legacy_jobs_without_manifest_generation(repository, database):
@@ -427,8 +406,8 @@ def test_generation_index_attributes_legacy_jobs_without_manifest_generation(rep
 
     assert [item["generation"] for item in bundles] == [1]
     assert bundles[0]["state"] == "current"
-    assert len(bundles[0]["document_ids"]) == 5
-    assert engine.fresh_eyes_status(stats.repository_id, config.semantic)["input_manifests"] == []
+    assert len(bundles[0]["document_ids"]) == 14
+    assert engine.fresh_eyes_status(stats.repository_id, config.semantic)["ready"] is True
 
 
 def test_generation_spanning_snapshots_groups_reused_proposals(repository, database):
@@ -453,14 +432,12 @@ def test_generation_spanning_snapshots_groups_reused_proposals(repository, datab
     assert [item["generation"] for item in bundles] == [1, 1]
     assert bundles[0]["snapshot_id"] != bundles[1]["snapshot_id"]
     assert [item["state"] for item in bundles] == ["superseded", "current"]
-    reused = [
-        item["document_id"] for item in bundles[1]["stages"] if item["key"].startswith("proposal:")
-    ]
+    reused = [item["document_id"] for item in bundles[1]["stages"] if ":proposal:" in item["key"]]
     assert reused == [
-        item["document_id"] for item in bundles[0]["stages"] if item["key"].startswith("proposal:")
+        item["document_id"] for item in bundles[0]["stages"] if ":proposal:" in item["key"]
     ]
     assert [item["job_status"] for item in bundles[1]["stages"][:2]] == ["reused", "reused"]
-    assert bundles[0]["review_document_id"] != bundles[1]["review_document_id"]
+    assert bundles[0]["review_document_id"] == bundles[1]["review_document_id"]
 
 
 def _snapshot_metadata(database, snapshot_id: int) -> dict:

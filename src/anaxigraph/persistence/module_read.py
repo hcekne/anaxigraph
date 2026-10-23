@@ -12,6 +12,8 @@ from anaxigraph.architecture_vocabulary import (
     architecture_layers,
     architecture_placement,
 )
+from anaxigraph.knowledge_values import annotation_compatibility
+from anaxigraph.persistence.git_metrics import git_metrics_context
 from anaxigraph.persistence.graph_read import group_parents
 from anaxigraph.persistence.semantic_taxonomy_read import taxonomy_assignments
 from anaxigraph.persistence.snapshot_projection import install_snapshot_projection
@@ -31,15 +33,7 @@ SELECT a.id AS artifact_id, a.artifact_type, a.canonical_path,
        COALESCE(history.change_count, 0) AS change_count,
        history.first_changed_at, history.last_changed_at AS last_commit_at,
        history.additions, history.deletions,
-       (SELECT gc.commit_sha FROM git_changes gc
-        WHERE gc.repository_id = ? AND gc.path = fv.path
-        ORDER BY gc.committed_at ASC LIMIT 1) AS first_change_commit,
-       (SELECT gc.commit_sha FROM git_changes gc
-        WHERE gc.repository_id = ? AND gc.path = fv.path
-        ORDER BY gc.committed_at DESC LIMIT 1) AS last_change_commit,
-       (SELECT gc.subject FROM git_changes gc
-        WHERE gc.repository_id = ? AND gc.path = fv.path
-        ORDER BY gc.committed_at DESC LIMIT 1) AS last_change_subject
+       history.first_change_commit, history.last_change_commit, history.last_change_subject
 FROM projected_file_versions fv
 JOIN artifacts a ON a.id = fv.artifact_id
 LEFT JOIN (
@@ -55,14 +49,7 @@ LEFT JOIN (
     FROM coverage_measurements WHERE snapshot_id = ? AND artifact_id IS NOT NULL
     GROUP BY artifact_id
 ) coverage ON coverage.artifact_id = a.id
-LEFT JOIN (
-    SELECT repository_id, path, COUNT(*) AS change_count,
-           MIN(committed_at) AS first_changed_at,
-           MAX(committed_at) AS last_changed_at,
-           SUM(COALESCE(additions, 0)) AS additions,
-           SUM(COALESCE(deletions, 0)) AS deletions
-    FROM git_changes WHERE repository_id = ? GROUP BY repository_id, path
-) history ON history.repository_id = a.repository_id AND history.path = fv.path
+LEFT JOIN git_path_metrics history ON history.repository_id = a.repository_id AND history.path = fv.path
 ORDER BY fv.path
 """
 
@@ -93,15 +80,20 @@ def read_modules(
     semantic_states = _semantic_states(connection, snapshot_id, selected)
     semantic_assignments = taxonomy_assignments(connection, snapshot_id, artifact_ids=selected)
     findings = _findings_by_path(connection, repository_id)
+    history = git_metrics_context(connection, repository_id)
     return [
-        _materialize_module(
-            dict(row),
-            parents,
-            claims,
-            semantic_states,
-            semantic_assignments,
-            findings,
-        )
+        {
+            **_materialize_module(
+                dict(row),
+                parents,
+                claims,
+                semantic_states,
+                semantic_assignments,
+                findings,
+            ),
+            "history_scope": history["scope"],
+            "history_window_commit_count": history.get("window_commit_count"),
+        }
         for row in rows
     ]
 
@@ -117,13 +109,7 @@ def _module_rows(
 ) -> list[sqlite3.Row]:
     if artifact_ids is not None and not artifact_ids:
         return []
-    parameters: tuple[Any, ...] = (
-        repository_id,
-        repository_id,
-        repository_id,
-        snapshot_id,
-        repository_id,
-    )
+    parameters: tuple[Any, ...] = (snapshot_id,)
     sql = _MODULE_ROWS_SQL
     if artifact_ids is not None:
         placeholders = ",".join("?" for _ in artifact_ids)
@@ -148,7 +134,7 @@ def _claims_by_artifact(
     placeholders = ",".join("?" for _ in artifact_ids)
     rows = connection.execute(
         f"""
-        SELECT sc.*, fv.artifact_id FROM semantic_claims sc
+        SELECT sc.*, fv.artifact_id FROM semantic_claim_values sc
         JOIN projected_file_versions fv ON fv.id = sc.file_fact_id
         WHERE fv.snapshot_id = ? AND sc.claim_type IN ('module_analysis', 'module_context')
           AND fv.artifact_id IN ({placeholders})
@@ -187,8 +173,8 @@ def _semantic_states(
                context.executor_id AS context_executor_id,
                context.executor_model AS context_executor_model
         FROM semantic_scope_states ss
-        LEFT JOIN semantic_documents intrinsic ON intrinsic.id = ss.intrinsic_document_id
-        LEFT JOIN semantic_documents context ON context.id = ss.context_document_id
+        LEFT JOIN semantic_document_values intrinsic ON intrinsic.id = ss.intrinsic_document_id
+        LEFT JOIN semantic_document_values context ON context.id = ss.context_document_id
         WHERE ss.snapshot_id = ? AND ss.scope_type = 'module'
           AND ss.artifact_id IN ({placeholders})
         """,
@@ -259,6 +245,9 @@ def _attach_semantic(item: dict[str, Any], state: dict[str, Any] | None) -> None
     item["semantic"] = semantic
     if semantic.get("summary"):
         item["summary"] = semantic["plain_language"]["what_this_file_does"]
+        if semantic.get("provider"):
+            item["summary_source"] = f"{semantic['provider']} AI description"
+            item["summary_confidence"] = semantic["confidence"]
 
 
 def _apply_semantic_summary(item: dict[str, Any], claim: dict[str, Any] | None) -> None:
@@ -282,7 +271,7 @@ def _semantic_payload(path: str, state: dict[str, Any] | None) -> dict[str, Any]
         result = {"status": "not_started", "reason": "AI mapping has not described this file yet."}
         result["plain_language"] = semantic_file_explanation(path, result)
         return result
-    value = json.loads(state.get("context_value_json") or "{}")
+    value = annotation_compatibility(json.loads(state.get("context_value_json") or "{}"))
     result = {
         "status": state["status"],
         "reason": state["reason"],

@@ -1,8 +1,9 @@
 # Get started with AnaxiGraph
 
-AnaxiGraph runs beside a repository, scans it without executing its code, and stores architecture
-facts in an external AnaxiIndex. The dashboard gives you the human view; AnaxiMCP gives your coding
-agent the same evidence.
+AnaxiGraph reads a repository without executing its code and builds a semantic graph of modules,
+functions, interfaces, contracts and capabilities. The dashboard and AnaxiMCP read the same saved
+graph. A local AnaxiIndex holds rebuildable indexes; the root `anaxigraph/` folder carries current
+understanding and selected reviews through Git between machines.
 
 ```text
 repository (read-only) ──→ facts read from code ──→ AnaxiIndex
@@ -37,15 +38,18 @@ update a `uvx` run with `uvx --refresh anaxigraph up . --open --semantic agent -
 Restart the service after updating. Install and authenticate the selected agent CLI before AI work.
 
 The command creates an idempotent `.anaxigraph.yml`, stores AnaxiIndex outside the target
-repository, scans the current checkout, starts the loopback dashboard and MCP server, and imports
-representative Git history in the background. Stop it with Ctrl-C; the index and completed history
-frames remain available for the next run.
+repository, scans the current checkout, and starts the loopback dashboard and MCP server. It loads
+a compatible portable record when present. Detailed Git-history mapping is opt-in; ordinary scans
+keep a bounded current map and comparison checkpoints. Stop it with Ctrl-C; completed work remains
+available for the next run.
 
 ### 2. Open the dashboard
 
 Visit <http://127.0.0.1:8765>. The current architecture is usable as soon as the first scan
-completes; history can continue building without blocking the Understand, Guide, Improve, Changes,
-or Settings journeys.
+completes. An explicitly requested history import can continue without blocking the other views.
+Understand retains the sortable module table, including lines of code and function counts; expand
+an entity to traverse callers, dependencies, interfaces, contracts and relevant tests. Read a module's
+one-sentence overview first, then its short paragraph and individual function sentences as needed.
 
 The first-run tour explains the main loop:
 
@@ -56,14 +60,15 @@ The first-run tour explains the main loop:
 
 ### Explore and run repository workflows
 
-**Workflows**, the opening page, shows three interactive diagrams for the selected repository:
+**Workflows**, the opening page, shows four interactive diagrams for the selected repository:
 
-- **Mapping:** scan → file descriptions → context → responsibility proposal → map reviews →
+- **Mapping:** scan → compact graph annotations → contracts → responsibility proposal → map reviews →
   group summaries → Charter → exploration.
-- **Pattern analysis:** saved map and code evidence → candidate selection → assessments →
+- **Pattern analysis:** saved graph and code evidence → whole-catalogue coverage → assessments →
   independent critiques → saved evaluations → exploration.
-- **Fresh eyes:** capability brief → independent proposals → reference design → comparison
-  with current code → ranked improvements → reference checks → exploration.
+- **Fresh eyes:** functional brief → product/capability/subsystem hierarchy → three alternatives
+  per scope → scoped trade-offs → review across levels → exploration. Every model pass remains
+  blind to source and the existing implementation.
 - **Architecture planning:** optional direction → Mapping and available reviews → architecture
   options → agent-selected target → current/target diagrams → migration milestones → agent work.
   Blank direction uses suggested defaults. A person can steer or select another option, but no
@@ -71,9 +76,10 @@ The first-run tour explains the main loop:
   their scan and actual verification evidence.
 
 Select any card to see its inputs, outputs, recorded models, usage and result links. File coverage
-counts current saved descriptions, including reuse. Model-job totals can include repeated work;
-pattern counts refer to candidate–target pairs. A completed selection with zero candidates is a
-valid outcome. Optional flows remain **Not run** until requested, and queued work is distinguished
+counts current saved annotations, including reuse. Model-job totals can include repeated work;
+Pattern coverage counts catalogue cards, with separate considered, rated, reviewed and unresolved
+totals. The shipped catalogue currently has 133 cards; every loaded card is considered rather than
+only a preselected shortlist. Optional flows remain **Not run** until requested, and queued work is distinguished
 from a live worker or an expired lease. Progress refreshes while this view is open.
 
 With the `agent` provider, every model card shows **Next run** choices separately from saved
@@ -83,11 +89,12 @@ this repository. Saving alone makes no model calls. **Save & run step** applies 
 runs that card; **Try 2 jobs** bounds a file or pattern sample to two jobs. A completed job is reused
 even if you later change models. Start a new fresh-eyes generation to obtain new review results.
 
-File descriptions and pattern assessments distribute distinct jobs across the selected model
+Graph annotations and pattern assessments distribute distinct jobs across the selected model
 pools. Their worker counts add together, up to the repository limit. Map reviews run successive
 passes in the displayed order, repeating the model list if more passes are required. Fresh eyes
-assigns one independent proposal to each row, with at most three proposals and concurrency capped
-by repository policy. A single synthesis result uses one worker. Cards also show live worker counts
+assigns its three rows to three retained alternatives at each functional scope, with concurrency
+capped by repository policy. The CLI also supports five alternatives. A single synthesis result
+uses one worker. Cards also show live worker counts
 by model when a lease is active. Suggested choices are starting points, not benchmark results.
 
 Mapping step 5 saves each independent review batch as it finishes. Batches within a pass run in
@@ -107,9 +114,10 @@ still work as described below. A [persistent uv host service](advanced-operation
 can use the host's CLI logins directly. It starts separate noninteractive sessions; it does not send
 commands into an existing chat. No task is reported as running merely because it was prepared.
 
-Complete Mapping before starting pattern analysis or fresh eyes. Pattern analysis runs its candidate and
-review stages against that saved map. It does not enable detailed review permanently or change
-the file-description contract. Fresh-eyes proposals run in separate sessions; the recorded
+Complete Mapping before starting pattern analysis or fresh eyes. Pattern analysis rates and
+independently reviews the loaded catalogue against that graph. It does not change the compact
+annotation contract. Fresh Eyes does not wait for Pattern review, and it never receives Pattern
+judgments. Its passes run in separate sessions; the recorded
 provenance shows whether different models or providers actually participated. You can start a
 new review generation explicitly, or resume an unfinished one. A changed proposal count or pinned
 provider assignment needs a new generation. **Run this step** completes missing prerequisites
@@ -167,11 +175,13 @@ can be relaunched with the same command and resumes saved completed work. Use di
 as a one-task-at-a-time fallback when no authenticated host worker exists;
 `agent_action_required` means the connected agent must keep working and is not completion.
 
-Each worker claims one task for a limited time, reads its evidence, and returns five fields:
-a short English summary, responsibilities, essential caller-visible behavior, evidence, and
-confidence. The 100–200-word target is flexible for complex code. Confirmed output truncation gets
-one retry with more room, with both calls counted. Rich code reviews are opt-in. The workflow
-continues through file descriptions, an inferred responsibility grouping of
+Each worker claims one task for a limited time and reads bounded evidence. Module annotation
+returns one overview sentence, a short detail paragraph (normally 40–80 words), one behavior sentence
+per supplied function, named caller contracts, capabilities, evidence and confidence. Contracts
+record obligations once and link the functions they govern; there are no paired intrinsic/context
+essays. Confirmed output truncation can receive one configured retry with more room, with both calls
+counted. Pattern and Fresh Eyes reviews are optional workflows. Mapping continues through an
+inferred responsibility grouping of
 files, separate AI checks and revisions, and the whole-repository Living Architecture Charter. The
 Charter explains purpose, observable capabilities, responsibilities, flows, contracts, invariants,
 extension points, patterns, coherence concerns, conflicts, and unknowns. Its Capability Brief
@@ -211,9 +221,10 @@ Use the same target with `--withdraw` to stop presenting that overlay. Add `--re
 evidence, marked as a declared non-issue with the rationale beside it. Only the newest declared
 context per section and key applies, so a refutation and a reworded statement never coexist on one
 claim. Corrections live only in the external AnaxiIndex and retain author, time, rationale, and the
-original inference. A fresh-eyes review reads the active declared context in its as-built comparison
-and mission filter only, and reports the declared keys it saw; saving or withdrawing one re-runs
-those two stages and reuses the implementation-blind proposals.
+original inference. Behavioral purpose/capability corrections can inform the sanitized functional
+brief. Source-specific declared context belongs to Architecture Planning and source-aware guidance;
+it is never passed into Fresh Eyes as implementation detail. Compatible blind alternatives remain
+reusable until their functional requirements change.
 
 ## Recommended: install the agent workflow
 
@@ -326,7 +337,7 @@ principles, not for every feature or ordinary refactor. It requires `semantic.pr
 a current or resumable AI-created repository understanding.
 
 ```bash
-anaxigraph fresh-eyes . --start --proposals 2
+anaxigraph fresh-eyes . --start --proposals 3
 anaxigraph understand . --executor codex --background
 anaxigraph semantic-status . --compact --json
 anaxigraph fresh-eyes .
@@ -334,8 +345,9 @@ anaxigraph fresh-eyes .
 
 Use `--executor claude` when that is the authenticated host agent. The background executor first
 finishes any missing baseline understanding and then advances the durable review stages. It can be
-stopped and resumed without discarding completed proposals. `--proposals 1` reduces cost;
-`--proposals 2` is the recommended default; `--proposals 3` adds another independent view.
+stopped and resumed without discarding completed alternatives. Three alternatives per reviewed
+functional scope are the default; `--proposals 5` explores five. Keep all options and read their
+trade-offs rather than reducing the result to one reference design.
 
 With a running service, `--start` and `--restart` wait up to 120 seconds for the service to accept
 the request, longer than the index's busy window; pass `--timeout-seconds` to wait longer. A start
@@ -349,7 +361,7 @@ family for each proposal slot when you start the review, then start one backgrou
 executor; a repository owns one background run slot per executor, so both survive the session:
 
 ```bash
-anaxigraph fresh-eyes . --start --proposals 2 --proposal-executors codex,claude
+anaxigraph fresh-eyes . --start --proposals 3 --proposal-executors codex,claude,any
 anaxigraph understand . --executor codex --background
 anaxigraph understand . --executor claude --background
 anaxigraph semantic-status . --compact --json
@@ -359,10 +371,10 @@ anaxigraph semantic-status . --compact --json
 `execution_run` as the most relevant single record. Both workers only claim at the same time when
 `semantic.max_parallel_jobs` is 2 or more; with a limit of 1 they take the pinned slots one after
 the other. Use `any` for a slot any executor may take, for example
-`--proposal-executors codex,any`.
+`--proposal-executors codex,any,any`.
 
-The dashboard's start form has no executor field, so a review started from **Improve → Fresh eyes**
-is unpinned; name the executors from the CLI, the REST body, or `ANAXIGRAPH_GUIDE`.
+The Fresh Eyes workflow's saved model rows control proposal executor assignments. The CLI, REST
+body and `ANAXIGRAPH_GUIDE` also accept explicit assignments.
 
 A pinned slot is handed only to the executor family that the plan names, derived from the worker's
 `cli:<family>:<pid>` identity; a connected agent that is not a host worker can name its family with
@@ -384,38 +396,44 @@ that different recorded executors support diversity but cannot prove external mo
 
 The fixed sequence is:
 
-1. reuse the Charter's implementation-blind Capability Brief;
-2. produce isolated clean-sheet proposals without current paths, frameworks, map, findings, or
-   history;
-3. adjudicate those proposals without seeing the current implementation;
-4. compare the reference design with the current Charter, map, dossiers, graph, patterns,
-   findings, and history; and
-5. filter the differences against mission, compatibility, operational simplicity, migration cost,
-   reversibility, and verification cost.
+1. project the Charter's purpose and observable capabilities into a sanitized functional brief;
+2. describe product, capability and functional-subsystem scopes without guessing existing modules;
+3. retain three alternatives for each scope, including proposed interfaces, control flow, data
+   ownership, failure boundaries, pros, cons and parent-option compatibility;
+4. compare every retained option for that scope and report convergence or unexplored directions
+   honestly; and
+5. review composition across levels while preserving the alternatives.
+
+Every model-backed phase is implementation-blind: no source, paths, current topology,
+frameworks, Pattern judgments, repository tools or inherited conversation. Native workers request
+fresh restricted contexts; external execution isolation remains labelled **unverified**. Different
+graph shapes or provider names alone do not prove novel or independent ideas.
 
 Read the shared result in **Improve → Fresh eyes**, from `anaxigraph fresh-eyes .`, or through
-`ANAXIGRAPH_GUIDE` with `intent="redesign"`. Set `start=true` and `proposal_count=2` in that MCP call
-to request the review. Only the final mission-filtered recommendations are advice; partial stages,
-proposal agreement, and absent clean-sheet components are never permission to rewrite or delete
-code. AnaxiGraph records the actual provider/model/executor identity and says explicitly when two
-proposals are independent sessions of one provider rather than cross-provider agreement.
+`ANAXIGRAPH_GUIDE` with `intent="redesign"`. Set `start=true` and `proposal_count=3` to request it.
+Expand a selected scope using `anaxigraph fresh-eyes . --scope <scope-id>`,
+`GET /api/fresh-eyes?scope_id=<scope-id>&details=true`, or
+`ANAXIGRAPH_GUIDE(intent="redesign", scope_id="<scope-id>", details=true)`.
+Default replies summarize other scopes. Use **Architecture Planning** afterward for the separate
+source-aware comparison, target choice and migration plan. Direction can be blank: the agent
+provides useful defaults and selects a target without requiring a user decision. Saved slots,
+proposal agreement and missing proposed components are never permission to delete code.
 
 Every review and Charter also names the checkout it was read from: the commit, the branch, whether
 that checkout was dirty, and a `working_tree_fingerprint` over the uncommitted content. A result
-produced from a dirty checkout leads with a caveat and shows a banner in the dashboard, because it
-cannot be reproduced from that commit alone: a second model handed the same commit does not read
-the same code, so two reviews cannot be shown to have compared one system. Commit the changes and
-rescan before comparing reviews, or restore a checkout whose `snapshot.working_tree_fingerprint`
-matches the recorded value.
+produced from a dirty checkout leads with a provenance caveat because its mapping cannot be
+reproduced from that commit alone. Fresh Eyes separately records the immutable functional-brief
+revision that its workers actually received. An implementation-only change can reuse compatible
+functional alternatives; different functional requirements need a new generation.
 
 To repeat all five stages with a deliberately selected model, use `fresh-eyes --restart`, or
 `ANAXIGRAPH_GUIDE(intent="redesign", start=true, restart=true)` from a connected agent, and then
 start the semantic executor with explicit `--model` and `--reasoning-effort` values. This creates a
-new auditable review generation without rereading unchanged module dossiers. Merely changing the
+new auditable review generation without rereading unchanged module annotations. Merely changing the
 runtime model does not make saved understanding stale.
 
 Every review reply lists the recorded generations under `generations`, each with its snapshot,
-state, executor models, recommendation and rejected-idea counts, and a per-stage telemetry block:
+state, executor models, retained alternative counts, and a per-stage telemetry block:
 `duration_ms` measured from the claim, `output_bytes` of the stored document, reported token counts
 with a plausibility check against the packet the planner estimated, and `attempts_observed`. Treat
 `attempts_observed` as a floor rather than a retry count: a released lease decrements the counter
@@ -459,10 +477,12 @@ change help now, how difficult would the change be, and how strong is the eviden
 0–100 values remain beside those explanations for tools and comparisons; they are not grades for
 the code.
 
-Candidate explanations use the same rule. They say why AnaxiGraph considered one pattern/target
-pair, why it was or was not selected for the limited set of AI checks, what evidence matched, what
-the code readers could not check, and what happens next. The internal selection order only limits agent work;
-it is not a pattern rating or advice to refactor.
+The catalogue contains 133 cards today and expands when patterns are added. Every loaded card
+receives contextual consideration, ratings, pros, cons and an independent review; a concrete defect
+is not required before an architectural opportunity can be explored. Candidate ranking can guide
+where to inspect or apply a card, but cannot silently remove cards from whole-catalogue coverage.
+Considered, rated, reviewed and unresolved counts are separate, and filtered pages retain global
+totals. An unresolved evidence gap is visible rather than being reported as no useful pattern.
 
 ## Check the setup
 

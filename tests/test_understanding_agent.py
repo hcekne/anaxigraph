@@ -25,7 +25,7 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
         "enabled": True,
         "provider": "agent",
         "prompt_version": "agent-test-v1",
-        "detailed_reviews": True,
+        "detailed_reviews": False,
         "max_source_chars": 4_000,
         "max_parallel_jobs": 1,
         "agent_lease_seconds": 120,
@@ -55,14 +55,8 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
             break
         assert packet["status"] == "work"
         assert packet["response_contract"]["schema_version"] == "repository-understanding-v7"
-        writing = packet["analysis_request"]["writing_requirements"]
-        assert packet["analysis_request"]["writing_contract_version"] == "plain-language-v3"
-        assert "smart twelve-year-old" in writing["audience"]
-        assert "what the number can and cannot mean" in writing["score_rule"]
-        assert "reread every sentence" in writing["final_review"]
-        terms = packet["analysis_request"]["input_term_meanings"]
-        assert "one repository file" in terms["module"]
-        assert "not a code-quality grade" in terms["complexity"]
+        request = packet["analysis_request"]
+        _assert_mapping_writing_contract(request)
         saw_charter_task = _charter_task(packet) or saw_charter_task
         _assert_evidence_pages_readable(engine, stats.repository_id, repository, config, packet)
         dossier = _agent_dossier(packet["analysis_request"])
@@ -84,8 +78,8 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
     assert saw_charter_task is True
     assert status["semantically_ready"] is True
     assert status["execution_mode"] == "coding_agent"
-    assert status["patterns"]["ready"] is True
-    assert status["patterns"]["selected"] == status["patterns"]["finalized"] > 0
+    assert status["patterns"]["enabled"] is False
+    assert status["patterns"]["selected"] == status["patterns"]["finalized"] == 0
     assert status["usage"] == {
         "input_tokens": 0,
         "output_tokens": 0,
@@ -97,13 +91,10 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
     assert telemetry["contract_version"] == "action-telemetry-v1"
     current_actions = telemetry["semantic"]["current_snapshot"]["actions"]
     assert {item["job_kind"] for item in current_actions} >= {
-        "intrinsic",
-        "context",
+        "annotation",
         "synthesis",
         "taxonomy_proposal",
         "taxonomy_review",
-        "pattern_assessment",
-        "pattern_review",
     }
     assert all(item["total_duration_ms"] >= 0 for item in current_actions)
     assert telemetry["semantic"]["current_snapshot"]["totals"]["jobs"] > 0
@@ -128,7 +119,7 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
             UPDATE semantic_jobs SET input_tokens = 120, output_tokens = 30,
                 cache_read_input_tokens = 90, cache_creation_input_tokens = 20,
                 usage_source = 'reported', actual_cost_usd = 0.012
-            WHERE id = (SELECT id FROM semantic_jobs WHERE job_kind = 'intrinsic'
+            WHERE id = (SELECT id FROM semantic_jobs WHERE job_kind = 'annotation'
                         AND status = 'completed' ORDER BY id LIMIT 1)
             """
         )
@@ -154,10 +145,10 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
             ),
         )
     metered = engine.status(stats.repository_id, config.semantic)
-    intrinsic = next(
+    annotation = next(
         item
         for item in metered["telemetry"]["semantic"]["current_snapshot"]["actions"]
-        if item["job_kind"] == "intrinsic"
+        if item["job_kind"] == "annotation"
     )
     tokens = {
         "input_tokens": 120,
@@ -167,14 +158,14 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
     }
     totals = metered["telemetry"]["semantic"]["current_snapshot"]["totals"]
     assert metered["usage"] == {**tokens, "cost_usd": 0.012}
-    assert {key: intrinsic[key] for key in tokens} == tokens
+    assert {key: annotation[key] for key in tokens} == tokens
     assert {key: totals[key] for key in tokens} == tokens
-    assert intrinsic["cost_usd"] == 0.012
-    assert intrinsic["models"] == ["test-model"]
-    assert intrinsic["efforts"] == []
-    assert (intrinsic["token_counts_reported"], intrinsic["token_counts_estimated"]) == (1, 0)
+    assert annotation["cost_usd"] == 0.012
+    assert annotation["models"] == ["test-model"]
+    assert annotation["efforts"] == []
+    assert (annotation["token_counts_reported"], annotation["token_counts_estimated"]) == (1, 0)
     assert (totals["token_counts_reported"], totals["token_counts_estimated"]) == (1, 0)
-    assert intrinsic["token_counts_missing"] == intrinsic["completed"] - 1
+    assert annotation["token_counts_missing"] == annotation["completed"] - 1
     watch = next(
         item
         for item in metered["telemetry"]["architecture"]["lifetime"]["actions"]
@@ -201,10 +192,7 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
     assert [tuple(row) for row in provenance] == [
         ("coding_agent", "agent", "codex-test", "test-model")
     ]
-    assert pattern_counts == {
-        "pattern_assessment": status["patterns"]["selected"],
-        "pattern_review": status["patterns"]["selected"],
-    }
+    assert pattern_counts == {}
     repeated = engine.submit_agent_work(
         stats.repository_id,
         repository,
@@ -216,13 +204,35 @@ def test_coding_agent_can_build_the_entire_semantic_baseline_with_its_own_tokens
     assert repeated["status"] == "already_completed"
 
 
+def _assert_mapping_writing_contract(request):
+    writing = request["writing_requirements"]
+    if request["analysis_kind"] == "annotation":
+        assert request["schema_version"] == "graph-annotation-v1"
+        assert "one short overview sentence" in writing
+        assert "each supplied function" in writing
+        assert "named contracts" in writing
+        assert "Do not write separate intrinsic/context essays" in writing
+    elif request["scope_type"] == "group":
+        assert "40–100 words total" in writing["writing"]
+        assert "public_contracts" in writing["writing"]
+        assert "Do not propose refactors, patterns" in writing["scope"]
+    else:
+        assert request["writing_contract_version"] == "plain-language-v3"
+        assert "smart twelve-year-old" in writing["audience"]
+        assert "what the number can and cannot mean" in writing["score_rule"]
+        assert "reread every sentence" in writing["final_review"]
+        terms = request["input_term_meanings"]
+        assert "one repository file" in terms["module"]
+        assert "not a code-quality grade" in terms["complexity"]
+
+
 def test_local_codex_executor_can_complete_an_agent_funded_queue(repository, database, monkeypatch):
     policy = yaml.safe_load((repository / ".anaxigraph.yml").read_text(encoding="utf-8"))
     policy["semantic"] = {
         "enabled": True,
         "provider": "agent",
         "prompt_version": "agent-cli-test-v1",
-        "detailed_reviews": True,
+        "detailed_reviews": False,
         "max_parallel_jobs": 1,
     }
     (repository / ".anaxigraph.yml").write_text(
@@ -278,13 +288,10 @@ def test_local_codex_executor_can_complete_an_agent_funded_queue(repository, dat
     assert completed["semantic"]["semantically_ready"] is True
     assert sleeps == [2]
     assert {
-        "intrinsic",
-        "context",
+        "annotation",
         "taxonomy_proposal",
         "taxonomy_review",
         "synthesis",
-        "pattern_assessment",
-        "pattern_review",
     } <= set(calls)
     with database.connect() as connection:
         provenance = connection.execute(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 
 import pytest
 from fresh_eyes_support import TwoExecutorReview, baseline_review
@@ -17,6 +18,7 @@ from anaxigraph.architecture_plan_contract import (
 )
 from anaxigraph.architecture_plan_read import architecture_plan_status, steer_plan
 from anaxigraph.config import load_config
+from anaxigraph.knowledge_mcp import KnowledgeMcpTools
 from anaxigraph.planning_mcp import planning_journey
 from anaxigraph.portable_record import save_record
 from anaxigraph.scanner import RepositoryScanner
@@ -219,5 +221,26 @@ def test_selected_plan_and_progress_travel_with_git_without_new_model_work(
         SemanticEngine(local)
         .plan(stats.repository_id, local_root, load_config(local_root))
         .enqueued
+        == 0
+    )
+
+
+def test_coding_agent_can_navigate_retained_proposed_graphs_without_source(repository, database):
+    review, _ = complete_plan(repository, database)
+    context = SimpleNamespace(
+        database=database, select=lambda _: (database.repository(review.repository_id), repository)
+    )
+    tools = KnowledgeMcpTools(context)
+    subjects = tools.graph(list_subjects=True)["subjects"]
+    target = next(item for item in subjects if item["graph_kind"] == "planning_target")
+    graph = tools.graph(graph_subject=target["id"], kind="")
+    assert graph["context"]["revision"] == target["revision"]
+    node = graph["nodes"][0]
+    selected = tools.entity(node["id"], graph_subject=target["id"])
+    assert selected["node"]["id"] == node["id"]
+    assert selected["node"]["path"] == "" and selected["node"]["metrics"] == {}
+    assert selected["node"]["provenance"]["observed_implementation"] is False
+    assert (
+        tools.graph(graph_subject=target["id"], kind="", evidence_state="extracted")["total_nodes"]
         == 0
     )

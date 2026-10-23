@@ -175,138 +175,49 @@ async function openDashboard(page) {
   await expect(page.locator(".group-family").first()).toBeVisible();
 }
 
-test("plain-language pattern results can be explored in both directions", async ({ page }) => {
+test("complete catalogue ratings, full explanations and compatibility diagnostics remain accessible", async ({ page }) => {
   const requests = [];
-  await page.route("**/api/patterns**", async (route) => {
-    const url = new URL(route.request().url());
-    requests.push({ path: url.pathname, params: url.searchParams });
-    const includeEvidence = url.searchParams.get("include_evidence") === "true";
-    if (url.pathname.endsWith("/candidates")) {
-      await route.fulfill({
-        json: {
-          contract_version: "pattern-candidate-query-v1",
-          repository_id: 1,
-          snapshot_id: 7,
-          plan_ready: true,
-          pattern: {
-            key: "strategy",
-            name: "Strategy",
-            family: "object_interface",
-            kind: "constructive",
-            scope_levels: ["module"],
-          },
-          filters: { selection: url.searchParams.get("selection") || "skipped" },
-          targets_considered: 5,
-          selected_count: 2,
-          skipped_count: 3,
-          counts_by_reason: { sparse_plan_bound: 3 },
-          total: 1,
-          returned: 1,
-          offset: 0,
-          next_offset: null,
-          omitted: 0,
-          items: [candidateItem(includeEvidence)],
-        },
-      });
-      return;
-    }
-    await route.fulfill({
-      json: {
-        contract_version: "pattern-query-v1",
-        repository_id: 1,
-        snapshot_id: 7,
-        filters: {
-          target: url.searchParams.get("target") || "",
-          pattern: url.searchParams.get("pattern") || "",
-          sort_by: url.searchParams.get("sort_by") || "opportunity",
-        },
-        total: 1,
-        returned: 1,
-        offset: 0,
-        next_offset: null,
-        omitted: 0,
-        items: [patternItem(includeEvidence)],
-      },
-    });
+  await page.route("**/api/patterns**", async route => {
+    const url = new URL(route.request().url()), params = url.searchParams;
+    requests.push({ path: url.pathname, params });
+    if (url.pathname.endsWith("/catalogue")) return route.fulfill({ json: {
+      catalogue: { expected: 133, considered: 133, rated: 132, reviewed: 131, unresolved: 2, missing: 1, complete: false, fingerprint: "all-patterns-v2" },
+      total: 1, returned: 1, next_offset: null, items: [{ ...patternItem(false), state: "reviewed", pros: ["Preserves a stable caller contract"], cons: ["Can obscure simple selection policy"], placements: [{ target_key: "module:src/anaxigraph/storage.py", reason: "Provider selection can change independently", evidence: ["Three implementations"] }] }],
+    } });
+    if (url.pathname.endsWith("/candidates")) return route.fulfill({ json: {
+      pattern: patternItem(false).pattern, total: 1, returned: 1, next_offset: null,
+      items: [candidateItem(params.get("include_evidence") === "true")],
+    } });
+    return route.fulfill({ json: { total: 1, returned: 1, next_offset: null, items: [patternItem(params.get("include_evidence") === "true")] } });
   });
-
   await openDashboard(page);
   await page.getByRole("button", { name: "Improve", exact: true }).click();
   await page.getByRole("button", { name: "Patterns", exact: true }).click();
-
-  await expect(page.locator("#view-patterns")).toBeVisible();
-  await expect(page.locator(".pattern-result-card")).toContainText("Strategy");
-  await expect(page.locator(".pattern-result-card")).toContainText("Second AI check");
+  await expect(page.locator("#pattern-catalogue-counts")).toContainText("Expected 133");
+  await expect(page.locator("#pattern-results")).toContainText("Preserves a stable caller contract");
+  await expect(page.locator("#pattern-results")).toContainText("Can obscure simple selection policy");
+  await page.locator("#pattern-key-filter").fill("strategy");
+  await page.locator("#pattern-family-filter").fill("object_interface");
+  await page.locator("#pattern-state-filter").selectOption("reviewed");
+  await page.locator("#pattern-sort-filter").selectOption("migration_cost");
+  await page.getByRole("button", { name: "Show catalogue assessments" }).click();
+  await expect.poll(() => requests.at(-1).params.get("family")).toBe("object_interface");
+  expect(requests.at(-1).params.get("sort_by")).toBe("migration_cost");
+  expect(requests.at(-1).params.get("state")).toBe("reviewed");
+  await page.getByRole("button", { name: "Read full saved assessment" }).click();
   await expect(page.locator(".pattern-conclusion")).toContainText("partly follows Strategy");
-  await expect(page.locator(".pattern-story-grid")).toContainText("What AnaxiGraph saw");
-  await expect(page.locator(".pattern-story-grid")).toContainText("What this pattern name means");
-  await expect(page.locator(".pattern-story-grid")).toContainText(
-    "putting several ways to solve the same problem",
-  );
   await expect(page.locator(".pattern-story-grid")).toContainText("Reasons not to change the code");
-  await expect(page.locator(".pattern-story-grid")).toContainText("How to check the result");
   await expect(page.locator(".pattern-score-story section")).toHaveCount(5);
   await expect(page.locator(".pattern-score-story")).toContainText("Evidence that the problem exists 82 out of 100");
-  await expect(page.locator(".pattern-result-card .pattern-score")).toHaveCount(0);
-  await expect(page.locator("#pattern-query-summary")).toContainText(
-    "current pattern results that completed a separate AI check",
-  );
-
-  await page.locator("#pattern-target-filter").fill("src/anaxigraph/storage.py");
-  await page.locator("#patterns-query-form").getByRole("button", {
-    name: "Show completed pattern results",
-  }).click();
-  await expect.poll(() => requests.at(-1).params.get("target")).toBe(
-    "src/anaxigraph/storage.py",
-  );
-
-  await page.getByRole("button", { name: "Find this pattern elsewhere" }).click();
-  await expect(page.locator("#pattern-key-filter")).toHaveValue("strategy");
-  await expect(page.locator("#pattern-target-filter")).toHaveValue("");
-  await expect.poll(() => requests.at(-1).params.get("pattern")).toBe("strategy");
-
-  await page.locator("#pattern-include-evidence").check();
-  await page.locator("#patterns-query-form").getByRole("button", {
-    name: "Show completed pattern results",
-  }).click();
-  await expect(page.locator(".pattern-details")).toContainText("Detailed evidence and changes made by the second AI check");
-  await expect(page.locator(".pattern-details")).toContainText(
-    "Three providers implement the same execution contract",
-  );
-
+  await page.locator(".pattern-details summary").click();
+  await expect(page.locator(".pattern-details")).toContainText("Three providers implement the same execution contract");
+  expect(requests.at(-1).params.get("include_evidence")).toBe("true");
   await page.getByRole("button", { name: "Explain skipped candidates" }).click();
-  await expect(page.locator("#pattern-mode-filter")).toHaveValue("candidates");
-  await expect(page.locator("#pattern-presence-filter")).toBeDisabled();
-  await expect.poll(() => requests.at(-1).path).toBe("/api/patterns/candidates");
-  await expect.poll(() => requests.at(-1).params.get("selection")).toBe("skipped");
   await expect(page.locator(".candidate-result-card")).toContainText("Available AI tasks were filled");
-  await expect(page.locator(".candidate-result-card .pattern-conclusion")).toContainText(
-    "higher-ranked work filled the available AI tasks",
-  );
-  await expect(page.locator(".candidate-result-card")).toContainText(
-    "Why AnaxiGraph considered this pair",
-  );
-  await expect(page.locator(".candidate-result-card")).toContainText(
-    "What AnaxiGraph could not check",
-  );
-  await expect(page.locator(".candidate-result-card .pattern-candidate-rank")).toContainText(
-    "not a code grade, pattern fit rating, or recommendation",
-  );
-  await expect(page.locator(".candidate-result-card .pattern-details")).toContainText(
-    "Does selection policy vary independently from execution",
-  );
-  await expect(page.locator(".candidate-result-card .pattern-details")).toContainText(
-    "How AnaxiGraph checked this evidence",
-  );
-  await expect(page.locator(".candidate-result-card .pattern-details")).toContainText(
-    "Support for this observation is strong (88 out of 100)",
-  );
-  await expect(page.locator(".candidate-result-card .pattern-details")).not.toContainText("/100");
-
+  await expect(page.locator(".candidate-result-card .pattern-candidate-rank")).toContainText("not a code grade, pattern fit rating, or recommendation");
+  await page.locator(".candidate-result-card .pattern-details summary").click();
+  await expect(page.locator(".candidate-result-card .pattern-details")).toContainText("Support for this observation is strong (88 out of 100)");
   await page.getByRole("button", { name: "Look for a completed pattern result" }).click();
-  await expect(page.locator("#pattern-mode-filter")).toHaveValue("evaluations");
-  await expect.poll(() => requests.at(-1).path).toBe("/api/patterns");
-  await expect.poll(() => requests.at(-1).params.get("target")).toBe(
-    "module:src/anaxigraph/provider.py",
-  );
+  await expect.poll(() => requests.at(-1).path).toBe("/api/patterns/catalogue");
+  await expect(page.locator("#pattern-key-filter")).toHaveValue("strategy");
 });

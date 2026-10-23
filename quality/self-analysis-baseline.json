@@ -1,14 +1,188 @@
 {
   "schema_version": 1,
-  "contract": {"analysis_version":5,"analyzers":{"builtin-javascript-tree-sitter":{"capability_fingerprint":"e48c3fa6c7586a8479ebea39d6e9544c2d49402c7349e1de05a6d12e55998774","capability_schema":"analyzer-capabilities-v1","version":"1"},"builtin-python-ast":{"capability_fingerprint":"8f2182f7668bbe1736d9ff1edf5056983117376dd1c8a70e0b4014d191984f34","capability_schema":"analyzer-capabilities-v1","version":"1"},"builtin-text":{"capability_fingerprint":"b41c57204179f6253ca74a9bf06e71738057dd014c0da704c4484e837c88308a","capability_schema":"analyzer-capabilities-v1","version":"2"},"builtin-typescript-tree-sitter":{"capability_fingerprint":"518732aba8a63e84bc6e756af4fa6c87502ff80d054bd02724a423ded237e19a","capability_schema":"analyzer-capabilities-v1","version":"1"}},"detector_version":"architecture-findings-v1","gate_version":"deterministic-self-analysis-v1","ir_schema_version":"anaxigraph-ir-v2","pattern_evidence_version":"pattern-evidence-v1","pattern_target_schema_version":"pattern-target-v1","priority_version":"risk-churn-blast-v1","rules_sha256":"bbcd55fc827395a1b9b9ed42e26f654c8801a122545dfe0c661c63e3b51b8c3e"},
-  "governance": {"minimum_severity":"warning","sources":["deterministic"]},
+  "contract": {
+    "analysis_version": 6,
+    "analyzers": {
+      "builtin-javascript-tree-sitter": {
+        "capability_fingerprint": "199b49a263219b11a382f15278634e84034149e760f0f81b0ac2caa11b31b94d",
+        "capability_schema": "analyzer-capabilities-v1",
+        "version": "2"
+      },
+      "builtin-python-ast": {
+        "capability_fingerprint": "ab6dff7fb477fb97e4aec18245ee172b7f16af32facca7f60a5782c1b69b8694",
+        "capability_schema": "analyzer-capabilities-v1",
+        "version": "2"
+      },
+      "builtin-text": {
+        "capability_fingerprint": "b41c57204179f6253ca74a9bf06e71738057dd014c0da704c4484e837c88308a",
+        "capability_schema": "analyzer-capabilities-v1",
+        "version": "2"
+      },
+      "builtin-typescript-tree-sitter": {
+        "capability_fingerprint": "e204f134a3e493a24eb2fde9beaa676f786e67a06e59dbf4599455cbe77bb598",
+        "capability_schema": "analyzer-capabilities-v1",
+        "version": "2"
+      }
+    },
+    "detector_version": "architecture-findings-v3",
+    "gate_version": "deterministic-self-analysis-v1",
+    "ir_schema_version": "anaxigraph-ir-v2",
+    "pattern_evidence_version": "pattern-evidence-v1",
+    "pattern_target_schema_version": "pattern-target-v1",
+    "priority_version": "risk-churn-blast-v1",
+    "rules_sha256": "bbcd55fc827395a1b9b9ed42e26f654c8801a122545dfe0c661c63e3b51b8c3e"
+  },
+  "governance": {
+    "minimum_severity": "warning",
+    "sources": [
+      "deterministic"
+    ]
+  },
   "policy": "Information-level and semantic findings are reported but do not block. Every accepted deterministic finding is pinned by stable key, affected target, severity, and exact evidence.",
   "accepted_findings": [
-    {"affected_artifacts":["scripts/check_architecture.py"],"evidence":["estimated_cyclomatic_complexity=16"],"finding_type":"symbol_complexity","rationale":"Existing decision complexity signal; its exact evidence is a no-growth ratchet.","removal_phase":"continuous maintainability","severity":"warning","stable_key":"symbol-complexity:0286b8a8916493b23066"},
-    {"affected_artifacts":["src/anaxigraph/dashboard/history-view.js"],"evidence":["estimated_cyclomatic_complexity=19"],"finding_type":"symbol_complexity","rationale":"Existing decision complexity signal; its exact evidence is a no-growth ratchet.","removal_phase":"Phase 7","severity":"warning","stable_key":"symbol-complexity:1b056f76dbd4787f1d0f"},
-    {"affected_artifacts":["src/anaxigraph/dashboard/graph-view.js"],"evidence":["estimated_cyclomatic_complexity=17"],"finding_type":"symbol_complexity","rationale":"Phase 11 parser depth made existing JavaScript decision complexity visible; its exact evidence is now a no-growth ratchet.","removal_phase":"continuous maintainability","severity":"warning","stable_key":"symbol-complexity:4d898085386df6a946bf"},
-    {"affected_artifacts":["src/anaxigraph/dashboard/overview-view.js"],"evidence":["estimated_cyclomatic_complexity=16"],"finding_type":"symbol_complexity","rationale":"Phase 11 parser depth made existing JavaScript decision complexity visible; its exact evidence is now a no-growth ratchet.","removal_phase":"continuous maintainability","severity":"warning","stable_key":"symbol-complexity:868bc56f0bb9bc022817"},
-    {"affected_artifacts":["src/anaxigraph/registry.py"],"evidence":["estimated_cyclomatic_complexity=23"],"finding_type":"symbol_complexity","rationale":"Existing decision complexity signal; its exact evidence is a no-growth ratchet.","removal_phase":"Phase 4A","severity":"warning","stable_key":"symbol-complexity:90b46e3ea0edecff657a"},
-    {"affected_artifacts":["src/anaxigraph/dashboard/graph-model.js"],"evidence":["estimated_cyclomatic_complexity=18"],"finding_type":"symbol_complexity","rationale":"Phase 11 parser depth made existing JavaScript decision complexity visible; its exact evidence is now a no-growth ratchet.","removal_phase":"continuous maintainability","severity":"warning","stable_key":"symbol-complexity:f9bbc37b9e9fdaeb0e06"}
+    {
+      "affected_artifacts": [
+        "tests/test_semantic_mapping.py"
+      ],
+      "confidence": 1.0,
+      "evidence": [
+        "outgoing_dependencies=16"
+      ],
+      "finding_type": "high_fan_out",
+      "priority_score": 58,
+      "priority_version": "risk-churn-blast-v1",
+      "severity": "warning",
+      "source": "deterministic",
+      "stable_key": "fan-out:25f051ae818af525090c",
+      "summary": "tests/test_semantic_mapping.py directly uses 16 other files; this project reviews files above 15 direct file links",
+      "rationale": "Semantic graph integration acceptance intentionally exercises the real parser, durable queue, portable records and public API together. This exact test-only dependency count is pinned; production coupling limits are unchanged.",
+      "removal_phase": "continuous maintainability"
+    },
+    {
+      "affected_artifacts": [
+        "tests/test_pattern_catalogue_review.py"
+      ],
+      "confidence": 1.0,
+      "evidence": [
+        "outgoing_dependencies=22"
+      ],
+      "finding_type": "high_fan_out",
+      "priority_score": 54,
+      "priority_version": "risk-churn-blast-v1",
+      "severity": "warning",
+      "source": "deterministic",
+      "stable_key": "fan-out:5383242154bab5ae45e5",
+      "summary": "tests/test_pattern_catalogue_review.py directly uses 22 other files; this project reviews files above 15 direct file links",
+      "rationale": "Semantic graph integration acceptance intentionally exercises the real parser, durable queue, portable records and public API together. This exact test-only dependency count is pinned; production coupling limits are unchanged.",
+      "removal_phase": "continuous maintainability"
+    },
+    {
+      "affected_artifacts": [
+        "tests/test_portable_semantic_graph.py"
+      ],
+      "confidence": 1.0,
+      "evidence": [
+        "outgoing_dependencies=20"
+      ],
+      "finding_type": "high_fan_out",
+      "priority_score": 54,
+      "priority_version": "risk-churn-blast-v1",
+      "severity": "warning",
+      "source": "deterministic",
+      "stable_key": "fan-out:ced09b16887622b035bb",
+      "summary": "tests/test_portable_semantic_graph.py directly uses 20 other files; this project reviews files above 15 direct file links",
+      "rationale": "Semantic graph integration acceptance intentionally exercises the real parser, durable queue, portable records and public API together. This exact test-only dependency count is pinned; production coupling limits are unchanged.",
+      "removal_phase": "continuous maintainability"
+    },
+    {
+      "affected_artifacts": [
+        "scripts/check_architecture.py"
+      ],
+      "evidence": [
+        "estimated_cyclomatic_complexity=16"
+      ],
+      "finding_type": "symbol_complexity",
+      "rationale": "Existing decision complexity signal; its exact evidence is a no-growth ratchet.",
+      "removal_phase": "continuous maintainability",
+      "severity": "warning",
+      "stable_key": "symbol-complexity:0286b8a8916493b23066",
+      "confidence": 1.0,
+      "priority_score": 51,
+      "priority_version": "risk-churn-blast-v1",
+      "source": "deterministic",
+      "summary": "_layer_issues has a branch score of 16; this project reviews functions above 15"
+    },
+    {
+      "affected_artifacts": [
+        "src/anaxigraph/dashboard/history-view.js"
+      ],
+      "evidence": [
+        "estimated_cyclomatic_complexity=19"
+      ],
+      "finding_type": "symbol_complexity",
+      "rationale": "Existing decision complexity signal; its exact evidence is a no-growth ratchet.",
+      "removal_phase": "Phase 7",
+      "severity": "warning",
+      "stable_key": "symbol-complexity:1b056f76dbd4787f1d0f",
+      "confidence": 1.0,
+      "priority_score": 45,
+      "priority_version": "risk-churn-blast-v1",
+      "source": "deterministic",
+      "summary": "jobDetails has a branch score of 19; this project reviews functions above 15"
+    },
+    {
+      "affected_artifacts": [
+        "src/anaxigraph/dashboard/overview-view.js"
+      ],
+      "evidence": [
+        "estimated_cyclomatic_complexity=16"
+      ],
+      "finding_type": "symbol_complexity",
+      "rationale": "Phase 11 parser depth made existing JavaScript decision complexity visible; its exact evidence is now a no-growth ratchet.",
+      "removal_phase": "continuous maintainability",
+      "severity": "warning",
+      "stable_key": "symbol-complexity:868bc56f0bb9bc022817",
+      "confidence": 1.0,
+      "priority_score": 64,
+      "priority_version": "risk-churn-blast-v1",
+      "source": "deterministic",
+      "summary": "renderOverview has a branch score of 16; this project reviews functions above 15"
+    },
+    {
+      "affected_artifacts": [
+        "src/anaxigraph/registry.py"
+      ],
+      "evidence": [
+        "estimated_cyclomatic_complexity=23"
+      ],
+      "finding_type": "symbol_complexity",
+      "rationale": "Existing decision complexity signal; its exact evidence is a no-growth ratchet.",
+      "removal_phase": "Phase 4A",
+      "severity": "warning",
+      "stable_key": "symbol-complexity:90b46e3ea0edecff657a",
+      "confidence": 1.0,
+      "priority_score": 58,
+      "priority_version": "risk-churn-blast-v1",
+      "source": "deterministic",
+      "summary": "load_repository_registry has a branch score of 23; this project reviews functions above 15"
+    },
+    {
+      "affected_artifacts": [
+        "src/anaxigraph/dashboard/graph-model.js"
+      ],
+      "evidence": [
+        "estimated_cyclomatic_complexity=16"
+      ],
+      "finding_type": "symbol_complexity",
+      "rationale": "Phase 11 parser depth made existing JavaScript decision complexity visible; its exact evidence is now a no-growth ratchet.",
+      "removal_phase": "continuous maintainability",
+      "severity": "warning",
+      "stable_key": "symbol-complexity:f9bbc37b9e9fdaeb0e06",
+      "confidence": 1.0,
+      "priority_score": 49,
+      "priority_version": "risk-churn-blast-v1",
+      "source": "deterministic",
+      "summary": "nodeColor has a branch score of 16; this project reviews functions above 15"
+    }
   ]
 }

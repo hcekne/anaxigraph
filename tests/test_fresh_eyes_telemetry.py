@@ -94,13 +94,9 @@ def test_stage_runs_report_duration_tokens_bytes_and_executor(repository, databa
 
     sizes = _document_sizes(database)
     stages = review["stages"]
-    assert [item["key"] for item in stages] == [
-        "proposal:a",
-        "proposal:b",
-        "adjudication",
-        "comparison",
-        "review",
-    ]
+    assert stages[0]["key"] == "functional:brief"
+    assert stages[-1]["key"] == "functional:review"
+    assert sum(":proposal:" in item["key"] for item in stages) == 9
     for stage in stages:
         telemetry = stage["telemetry"]
         assert telemetry["duration_ms"] >= 0
@@ -111,10 +107,10 @@ def test_stage_runs_report_duration_tokens_bytes_and_executor(repository, databa
         assert telemetry["token_counts_reported"] is True
         assert telemetry["input_tokens_plausible"] is True
     totals = review["telemetry"]
-    assert totals["stage_count"] == 5
+    assert totals["stage_count"] == 14
     assert totals["output_bytes"] == sum(item["telemetry"]["output_bytes"] for item in stages)
-    assert totals["input_tokens"] == 5 * 40_000
-    assert totals["attempts_observed"] == 5
+    assert totals["input_tokens"] == 14 * 40_000
+    assert totals["attempts_observed"] == 14
     assert totals["wall_clock_ms"] >= max(item["telemetry"]["duration_ms"] for item in stages)
     assert ATTEMPTS_CAVEAT in totals["caveats"]
 
@@ -131,8 +127,8 @@ def test_implausible_token_counts_are_flagged_not_summed(repository, database):
     assert all(item["telemetry"]["input_tokens"] == 2 for item in review["stages"])
     assert all(item["telemetry"]["input_tokens_plausible"] is False for item in review["stages"])
     assert totals["input_tokens"] == 0
-    assert totals["output_tokens"] == 5 * 40_178
-    assert totals["stages_with_implausible_input_tokens"] == 5
+    assert totals["output_tokens"] == 14 * 40_178
+    assert totals["stages_with_implausible_input_tokens"] == 14
     assert any("input tokens against an estimated" in item for item in totals["caveats"])
 
 
@@ -159,7 +155,7 @@ def test_a_failed_and_retried_stage_reports_its_attempts_and_error(repository, d
     review.run_until_complete()
     engine.start_fresh_eyes_review(stats.repository_id, repository, config)
     packet = review.claim(review.executors[0])
-    assert packet["job"]["kind"] == "fresh_proposal"
+    assert packet["job"]["kind"] == "fresh_adjudication"
     engine.fail_agent_work(
         stats.repository_id,
         config,
@@ -226,14 +222,10 @@ def test_the_generation_index_tolerates_unreliable_stored_rows(repository, datab
     review = engine.fresh_eyes_status(repository_id, config.semantic)
 
     bundle = review["generations"][-1]
-    assert [item["key"] for item in bundle["stages"]] == [
-        "proposal:a",
-        "proposal:b",
-        "adjudication",
-        "comparison",
-        "review",
-    ]
+    assert bundle["stages"][0]["key"] == "functional:brief"
+    assert bundle["stages"][-1]["key"] == "functional:review"
+    assert len(bundle["stages"]) == 14
     assert all(item["duration_ms"] == 0 for item in bundle["telemetry"]["stages"])
     assert bundle["telemetry"]["wall_clock_ms"] == 0
     assert all(item["input_tokens_plausible"] for item in bundle["telemetry"]["stages"])
-    assert bundle["telemetry"]["input_tokens"] == 5 * 7
+    assert bundle["telemetry"]["input_tokens"] == 14 * 7

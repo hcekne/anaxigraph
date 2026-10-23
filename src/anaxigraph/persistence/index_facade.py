@@ -13,7 +13,24 @@ from anaxigraph.persistence.graph_index import (  # noqa: F401
     index_graph_neighborhood,
     index_graph_page,
 )
-from anaxigraph.persistence.index_initialization import initialize_index  # noqa: F401
+from anaxigraph.persistence.index_compaction import (
+    CompactionHeadroomError as CompactionHeadroomError,
+)
+from anaxigraph.persistence.index_compaction import (
+    rebuild_compact_cache as rebuild_compact_cache,
+)
+from anaxigraph.persistence.index_initialization import (
+    configured_storage_policy as configured_storage_policy,
+)
+from anaxigraph.persistence.index_initialization import (
+    connect_index as connect_index,
+)
+from anaxigraph.persistence.index_initialization import (
+    finish_index_storage as finish_index_storage,
+)
+from anaxigraph.persistence.index_initialization import (
+    initialize_index as initialize_index,
+)
 from anaxigraph.persistence.module_read import read_modules  # noqa: F401
 from anaxigraph.persistence.overview_read import read_overview  # noqa: F401
 from anaxigraph.persistence.pattern_evidence_read import (  # noqa: F401
@@ -23,6 +40,7 @@ from anaxigraph.persistence.pattern_evidence_read import (  # noqa: F401
 from anaxigraph.persistence.schema import SCHEMA, SCHEMA_VERSION  # noqa: F401
 from anaxigraph.persistence.search_read import (  # noqa: F401
     ensure_search_schema,
+    refresh_current_search_projections,
     refresh_search_projection,
     search_modules,
 )

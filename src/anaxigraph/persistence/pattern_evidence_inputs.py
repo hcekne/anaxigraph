@@ -8,6 +8,7 @@ from collections import defaultdict
 from typing import Any, Iterable
 
 from anaxigraph.analyzer_capabilities import capabilities_from_dict
+from anaxigraph.knowledge_values import annotation_compatibility
 
 _LEVEL_CONFIDENCE = {
     "unavailable": 0.0,
@@ -64,7 +65,7 @@ def semantic_documents(
     sql = """
         SELECT ss.scope_key, sd.id AS document_id, sd.value_json, sd.confidence
         FROM semantic_scope_states ss
-        LEFT JOIN semantic_documents sd
+        LEFT JOIN semantic_document_values sd
           ON sd.id = COALESCE(ss.context_document_id, ss.intrinsic_document_id)
         WHERE ss.snapshot_id = ? AND ss.scope_type = 'module'
           AND ss.status IN ('current', 'intrinsic_current') AND sd.id IS NOT NULL
@@ -76,7 +77,7 @@ def semantic_documents(
     rows = connection.execute(sql, parameters).fetchall()
     result = {}
     for row in rows:
-        value = json.loads(row["value_json"] or "{}")
+        value = annotation_compatibility(json.loads(row["value_json"] or "{}"))
         value["_confidence"] = float(row["confidence"] or 0)
         value["_document_id"] = int(row["document_id"])
         result[str(row["scope_key"])] = value

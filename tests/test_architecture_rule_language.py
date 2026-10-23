@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections import Counter
 
@@ -205,3 +206,28 @@ def test_unknown_rule_and_empty_boundary_pattern_fail_closed(rule_evidence):
 
     assert findings == []
     assert _matches_file_or_group(files[0], "") is False
+
+
+def test_reference_links_do_not_become_executable_cycles_or_coupling(tmp_path, database):
+    from anaxigraph.scanner import RepositoryScanner
+
+    root = tmp_path / "mixed-repository"
+    root.mkdir()
+    (root / "one.md").write_text("[two](two.md) [three](three.md)")
+    (root / "two.md").write_text("[one](one.md)")
+    (root / "three.md").write_text("A useful reference.")
+    (root / "a.py").write_text("import b\n")
+    (root / "b.py").write_text("import a\n")
+    stats = RepositoryScanner(database).scan(root)
+    with database.connect() as connection:
+        rows = connection.execute(
+            "SELECT finding_type, affected_artifacts_json FROM findings WHERE last_snapshot_id=?",
+            (stats.snapshot_id,),
+        ).fetchall()
+    cycles = [
+        json.loads(row["affected_artifacts_json"])
+        for row in rows
+        if row["finding_type"] == "dependency_cycle"
+    ]
+    assert ["a.py", "b.py"] in cycles
+    assert all(not any(path.endswith(".md") for path in paths) for paths in cycles)

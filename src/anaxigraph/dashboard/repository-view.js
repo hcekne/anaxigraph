@@ -1,8 +1,10 @@
 import {
+  api,
   byId,
   escapeAttr,
   escapeHtml,
   format,
+  request,
   state,
 } from "/assets/dashboard-core.js";
 
@@ -40,7 +42,7 @@ export function renderOnboarding() {
   const historyFrames = Number(state.historyInfo?.analyzed_commits || 0);
   const historyCopy = historyFrames > 1
     ? `${format.format(historyFrames)} Git graph frames are ready to replay.`
-    : "The Git biography imports in the background after the current scan.";
+    : "Current understanding is kept locally; optional historical maps can be requested in Changes.";
   const steps = [
     {
       complete: indexed,
@@ -53,7 +55,7 @@ export function renderOnboarding() {
     {
       complete: progress.explored,
       title: "See the system",
-      copy: "Explore AI-created code areas and direct links between files, or replay the Git history.",
+      copy: "Explore capabilities, modules, functions, interfaces and contracts. Expand only the behavior you need.",
       action: '<button class="secondary-button" type="button" data-onboarding-view="graph">Open architecture graph</button>',
     },
     {
@@ -112,8 +114,21 @@ export function renderSettings() {
   byId("settings-semantic-command").textContent = semanticSettingsCommand(semantic);
 }
 
+export async function loadRecordDelivery() {
+  const token = state.repositoryLoadToken;
+  const panel = byId("settings-record-status");
+  panel.textContent = "Reading local mapping and portable record status…";
+  try {
+    const value = await request(api("/api/record/status"));
+    if (token !== state.repositoryLoadToken) return;
+    const label = stateValue => stateValue == null ? "Unknown" : stateValue ? "Yes" : "No";
+    const fields = [["Mapped locally", value.mapped_locally], ["Record saved/exported", value.record_exported], ["Git committed", value.committed], ["Git pushed", value.pushed]];
+    panel.innerHTML = `<dl class="entity-metrics">${fields.map(([name, status]) => `<div><dt>${name}</dt><dd>${label(status)}</dd></div>`).join("")}</dl><p>Saving the portable record does not commit or push it. Your normal Git workflow publishes it.</p>${value.storage ? `<details><summary>Storage and retention measurements</summary><pre>${escapeHtml(JSON.stringify(value.storage, null, 2))}</pre></details>` : ""}`;
+  } catch (error) { if (token === state.repositoryLoadToken) panel.textContent = `Record status unavailable: ${error.message}`; }
+}
+
 function semanticSettingsSummary(semantic) {
-  return semanticSettingsLanguageSummary(semantic, semantic.plain_language);
+  return semanticSettingsLanguageSummary(semantic, semantic.plain_language || {});
 }
 
 function semanticSettingsLanguageSummary(semantic, language) {
@@ -125,7 +140,7 @@ function semanticSettingsLanguageSummary(semantic, language) {
     ...(language.what_to_do || []),
     ...(language.how_to_read_progress || []),
   ].filter(Boolean).join(" ");
-  return explanation + semanticPolicyLimit(semantic);
+  return (explanation || "The structural graph is available independently of AI annotation. Use Mapping to enrich changed entities.") + semanticPolicyLimit(semantic);
 }
 
 function semanticPolicyLimit(semantic) {
@@ -141,9 +156,9 @@ function semanticPolicyLimit(semantic) {
 function semanticSettingsCommand(semantic) {
   const agentFunded = semantic.provider === "agent";
   if (agentFunded) {
-    return "anaxigraph understand /path/to/repository --executor codex --background; then run anaxigraph semantic-status /path/to/repository";
+    return "uvx --from anaxigraph anaxigraph understand /path/to/repository --executor codex --background\nuvx --from anaxigraph anaxigraph semantic-status /path/to/repository";
   }
-  return "anaxigraph understand /path/to/repository";
+  return "uvx --from anaxigraph anaxigraph understand /path/to/repository";
 }
 
 export function displaySnapshot(snapshot, historical = false) {

@@ -6,8 +6,10 @@ import json
 import sqlite3
 from collections import Counter
 from typing import Any
+from urllib.parse import quote, unquote
 
 from anaxigraph.pattern_catalog import bundled_pattern_catalog
+from anaxigraph.pattern_catalogue_contract import resolved_evaluation
 from anaxigraph.pattern_evaluation_contract import (
     PATTERN_EXPLANATION_LIST_FIELDS,
     score_values,
@@ -21,6 +23,7 @@ SELECT ss.scope_key, ss.artifact_id, a.canonical_path,
        sd.value_json, sd.provider, sd.model, sd.executor_id, sd.executor_model,
        sd.prompt_version, sd.schema_version, sd.confidence, sd.input_tokens,
        sd.output_tokens, sd.estimated_cost_usd, sd.actual_cost_usd, sd.created_at,
+       assessment.value_json AS canonical_assessment_json,
        (
            SELECT sj.metadata_json FROM semantic_jobs sj
            WHERE sj.repository_id = ss.repository_id
@@ -30,7 +33,8 @@ SELECT ss.scope_key, ss.artifact_id, a.canonical_path,
            ORDER BY sj.id DESC LIMIT 1
        ) AS assessment_metadata_json
 FROM semantic_scope_states ss
-JOIN semantic_documents sd ON sd.id = ss.context_document_id
+JOIN semantic_document_values sd ON sd.id = ss.context_document_id
+LEFT JOIN semantic_document_values assessment ON assessment.id = ss.intrinsic_document_id
 LEFT JOIN artifacts a ON a.id = ss.artifact_id
 WHERE ss.repository_id = ? AND ss.snapshot_id = ?
   AND ss.scope_type = 'pattern' AND ss.status = 'current'
@@ -80,10 +84,8 @@ def _evaluation_rows(
     """Avoid decoding every saved pattern result for one requested module."""
 
     path = _module_target_path(target)
-    filter_sql = " AND a.canonical_path = ?" if path else ""
-    parameters: tuple[Any, ...] = (
-        (repository_id, snapshot_id, path) if path else (repository_id, snapshot_id)
-    )
+    filter_sql, filters = _placement_filter(path)
+    parameters = (repository_id, snapshot_id, *filters)
     return connection.execute(
         f"{_CURRENT_EVALUATIONS_SQL}{filter_sql} ORDER BY ss.scope_key",
         parameters,
@@ -92,8 +94,37 @@ def _evaluation_rows(
 
 def _module_target_path(target: str) -> str:
     if target.startswith("module:"):
-        return target.removeprefix("module:")
+        return unquote(target.removeprefix("module:"))
     return target if target and ":" not in target and "/" in target else ""
+
+
+def _placement_filter(path):
+    if not path:
+        return "", ()
+    encoded = quote(path, safe="/._-")
+    prefixes = [f"{kind}:{encoded}#" for kind in ("function", "symbol", "type", "interface")]
+    expression = "json_extract(p.value, '$.target_key')"
+    selectors = _identity_selectors(expression, prefixes)
+    affected_selectors = _identity_selectors("p.value", prefixes)
+    parameters = (f"module:{encoded}", *(part for prefix in prefixes for part in (prefix, prefix)))
+    return (
+        " AND (a.canonical_path = ? OR EXISTS (SELECT 1 FROM json_each(COALESCE("
+        "json_extract(sd.value_json, '$.evaluation.placements'), "
+        "json_extract(assessment.value_json, '$.placements'), '[]')) p WHERE "
+        + selectors
+        + ") OR EXISTS (SELECT 1 FROM json_each(COALESCE("
+        "json_extract(sd.value_json, '$.evaluation.affected_targets'), "
+        "json_extract(assessment.value_json, '$.affected_targets'), '[]')) p WHERE "
+        + affected_selectors
+        + "))",
+        (path, *parameters, *parameters),
+    )
+
+
+def _identity_selectors(expression, prefixes):
+    selectors = [f"{expression} = ?"]
+    selectors.extend(f"substr({expression}, 1, length(?)) = ?" for _ in prefixes)
+    return " OR ".join(selectors)
 
 
 def empty_pattern_evaluations(repository_id: int, query: PatternEvaluationQuery) -> dict[str, Any]:
@@ -115,8 +146,8 @@ def _evaluation_item(
     row: dict[str, Any], cards: dict[str, Any], include_evidence: bool
 ) -> dict[str, Any] | None:
     review = _object(row.get("value_json"))
-    evaluation = review.get("evaluation")
-    if not isinstance(evaluation, dict):
+    evaluation = resolved_evaluation(review, _object(row.get("canonical_assessment_json")))
+    if not evaluation:
         return None
     pattern_key = str(evaluation.get("pattern_key") or "")
     card = cards.get(pattern_key)
@@ -136,6 +167,10 @@ def _evaluation_item(
         "summary": _plain_text(evaluation.get("summary")),
         "rationale": _plain_text(evaluation.get("rationale")),
         "scores": score_values(evaluation),
+        "pros": _plain_strings(evaluation.get("pros")),
+        "cons": _plain_strings(evaluation.get("cons")),
+        "placements": _plain_bounded_objects(evaluation.get("placements")),
+        "affected_targets": _strings(evaluation.get("affected_targets")),
         "evidence_count": len(evaluation.get("evidence") or []),
         "counter_evidence_count": len(evaluation.get("counter_evidence") or []),
         "review": _review_summary(review),
@@ -230,6 +265,9 @@ def _details(evaluation: dict[str, Any], review: dict[str, Any]) -> dict[str, An
         "score_rationales": score_rationales,
         **{key: _plain_strings(evaluation.get(key)) for key in PATTERN_EXPLANATION_LIST_FIELDS},
         "affected_targets": _strings(evaluation.get("affected_targets")),
+        "pros": _plain_strings(evaluation.get("pros")),
+        "cons": _plain_strings(evaluation.get("cons")),
+        "placements": _plain_bounded_objects(evaluation.get("placements")),
         "local_precedents": _strings(evaluation.get("local_precedents")),
         "review_issues": _plain_bounded_objects(review.get("issues")),
         "competing_interpretations": _plain_bounded_objects(
@@ -241,19 +279,32 @@ def _details(evaluation: dict[str, Any], review: dict[str, Any]) -> dict[str, An
 
 def _matches(item: dict[str, Any], query: PatternEvaluationQuery) -> bool:
     target = item["target"]
-    target_match = not query.target or query.target in {
-        target["key"],
-        target["path"],
-        target["qualified_name"],
-    }
     return bool(
-        target_match
+        _matches_target(item, query.target)
         and (not query.pattern or item["pattern"]["key"] == query.pattern)
         and (not query.level or target["level"] == query.level)
         and (not query.recommendation or item["recommendation"] == query.recommendation)
         and (not query.presence or item["presence"] == query.presence)
         and item["scores"][query.sort_by] >= query.minimum_score
     )
+
+
+def _matches_target(item: dict[str, Any], requested: str) -> bool:
+    target = item["target"]
+    if not requested or requested in {target["key"], target["path"], target["qualified_name"]}:
+        return True
+    keys = [str(p.get("target_key") or "") for p in item.get("placements") or []]
+    keys.extend(item.get("affected_targets") or [])
+    return any(_placement_matches(key, requested) for key in keys)
+
+
+def _placement_matches(key, requested):
+    if key == requested:
+        return True
+    identity = unquote(key.partition(":")[2])
+    path, _, qualified = identity.partition("#")
+    requested_path = _module_target_path(requested)
+    return requested in {path, qualified} or bool(requested_path and requested_path == path)
 
 
 def _sort_key(item: dict[str, Any], score: str) -> tuple[int, str, str]:

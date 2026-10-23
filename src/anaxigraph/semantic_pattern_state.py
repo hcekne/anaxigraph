@@ -81,7 +81,7 @@ def _has_expired_result(
     rows = connection.execute(
         """
         SELECT sd.created_at FROM semantic_scope_states ss
-        JOIN semantic_documents sd
+        JOIN semantic_document_values sd
           ON sd.id = COALESCE(ss.context_document_id, ss.intrinsic_document_id)
         WHERE ss.snapshot_id = ? AND ss.scope_type = 'pattern' AND ss.status = 'current'
         """,

@@ -5,6 +5,13 @@ from __future__ import annotations
 import copy
 from typing import Any
 
+from anaxigraph.pattern_catalogue_contract import (
+    CATALOGUE_REVIEW_VERSION,
+    CATALOGUE_SCORE_VERSION,
+    catalogue_schema,
+    is_catalogue_request,
+    validate_catalogue_value,
+)
 from anaxigraph.semantic_contract import SemanticResult, _validate_schema
 
 PATTERN_SCORE_CONTRACT_VERSION = "pattern-scores-v2"
@@ -167,9 +174,12 @@ PATTERN_REVIEW_SCHEMA: dict[str, Any] = {
 def pattern_response_schema(request: dict[str, Any]) -> dict[str, Any] | None:
     kind = str(request.get("analysis_kind") or "")
     schema = _base_pattern_schema(kind)
-    return (
-        _bound_pattern_schema(schema, request, review=kind == "pattern_review") if schema else None
-    )
+    if schema is None:
+        return None
+    result = _bound_pattern_schema(schema, request, review=kind == "pattern_review")
+    if is_catalogue_request(request):
+        result = catalogue_schema(result, review=kind == "pattern_review")
+    return result
 
 
 def pattern_recommendations(kind: str) -> tuple[str, ...]:
@@ -234,13 +244,28 @@ def validated_pattern_response(
     name = pattern_response_name(request)
     if schema is None or name is None:
         raise ValueError(f"unsupported pattern analysis kind: {kind}")
-    _validate_schema(value, schema, name)
+    catalogue = is_catalogue_request(request)
+    review = kind == "pattern_review"
+    if catalogue:
+        evaluation = validate_catalogue_value(
+            value,
+            request,
+            catalogue_schema(schema, review=review),
+            review=review,
+            validate=_validate_schema,
+        )
+    else:
+        _validate_schema(value, schema, name)
+        evaluation = value["evaluation"] if review else value
     expected_fingerprint = str(request.get("candidate", {}).get("input_fingerprint") or "")
-    _validate_identity(value, request, expected_fingerprint, review=kind == "pattern_review")
-    evaluation = value["evaluation"] if kind == "pattern_review" else value
-    _validate_evaluation(evaluation, str((request.get("pattern") or {}).get("kind") or ""))
-    if kind == "pattern_review":
-        _validate_review(value)
+    identity_value = {**value, "evaluation": evaluation} if review else value
+    _validate_identity(identity_value, request, expected_fingerprint, review=review)
+    _validate_evaluation(
+        evaluation, str((request.get("pattern") or {}).get("kind") or ""), catalogue=catalogue
+    )
+    if review:
+        _validate_review(value, catalogue=catalogue)
+    value = _compact_approval(value, request, evaluation) if catalogue and review else value
     confidence = int(evaluation["scores"]["confidence"]["value"]) / 100
     evidence = tuple(str(item)[:2_000] for item in value.get("evidence", ())[:100])
     return SemanticResult(
@@ -250,6 +275,12 @@ def validated_pattern_response(
         input_tokens=max(0, input_tokens),
         output_tokens=max(0, output_tokens),
     )
+
+
+def _compact_approval(value, request, evaluation):
+    if value["verdict"] == "approve" and evaluation == request["assessment"]:
+        return {**value, "evaluation": None}
+    return value
 
 
 def score_values(evaluation: dict[str, Any]) -> dict[str, int]:
@@ -277,8 +308,9 @@ def _validate_identity(
         raise ValueError("pattern review candidate_fingerprint does not match its candidate")
 
 
-def _validate_evaluation(value: dict[str, Any], pattern_kind: str) -> None:
-    if value["score_contract_version"] != PATTERN_SCORE_CONTRACT_VERSION:
+def _validate_evaluation(value: dict[str, Any], pattern_kind: str, *, catalogue=False) -> None:
+    version = CATALOGUE_SCORE_VERSION if catalogue else PATTERN_SCORE_CONTRACT_VERSION
+    if value["score_contract_version"] != version:
         raise ValueError("unsupported pattern score contract version")
     scores = score_values(value)
     if value["recommendation"] not in pattern_recommendations(pattern_kind):
@@ -289,6 +321,9 @@ def _validate_evaluation(value: dict[str, Any], pattern_kind: str) -> None:
         if value["recommendation"] == "remediate" and value["presence"] == "absent":
             raise ValueError("cannot remediate an absent failure mode; use avoid or no_action")
         return
+    if catalogue:
+        _require_opportunity_placement(value)
+        return
     if scores["suitability"] >= 70 and scores["conformance"] >= 80:
         if scores["opportunity"] > 40:
             raise ValueError("high conformance and suitability cannot create high opportunity")
@@ -298,8 +333,14 @@ def _validate_evaluation(value: dict[str, Any], pattern_kind: str) -> None:
         raise ValueError("an introduce recommendation cannot claim high existing conformance")
 
 
-def _validate_review(value: dict[str, Any]) -> None:
-    if value["review_contract_version"] != PATTERN_REVIEW_CONTRACT_VERSION:
+def _require_opportunity_placement(value):
+    if value["recommendation"] in {"introduce", "replace"} and not value["placements"]:
+        raise ValueError("introduce or replace requires a concrete opportunity placement")
+
+
+def _validate_review(value: dict[str, Any], *, catalogue=False) -> None:
+    version = CATALOGUE_REVIEW_VERSION if catalogue else PATTERN_REVIEW_CONTRACT_VERSION
+    if value["review_contract_version"] != version:
         raise ValueError("unsupported pattern review contract version")
     if value["verdict"] == "revise" and not value["issues"]:
         raise ValueError("a revised pattern evaluation requires at least one critique issue")

@@ -43,27 +43,28 @@ async def save(client, step, workers):
 
 def test_settings_survive_reopening_and_are_repository_specific(database):
     store = WorkflowSettings(database.path)
-    request = StepSettingsRequest(step="intrinsic", workers=[choice(workers=2)])
+    request = StepSettingsRequest(step="annotation", workers=[choice(workers=2)])
     store.save(1, request, 4)
     reopened = WorkflowSettings(database.path)
-    assert reopened.read(1, 4)["steps"]["intrinsic"][0]["workers"] == 2
-    assert reopened.read(2, 4)["steps"]["intrinsic"][0]["workers"] == 4
-    assert reopened.read(1, 4)["customized"] == ["intrinsic"]
+    assert reopened.read(1, 4)["steps"]["annotation"][0]["workers"] == 2
+    assert reopened.read(2, 4)["steps"]["annotation"][0]["workers"] == 4
+    assert reopened.read(1, 4)["customized"] == ["annotation"]
     assert len(reopened.read(2, 4, review_passes=1)["suggested"]["taxonomy_review"]) == 1
 
 
 def test_existing_proposal_count_and_pins_must_match_resume_settings():
     fresh = {
         "stages": [
-            {"key": "proposal:a", "required_executor": "codex"},
-            {"key": "proposal:b", "required_executor": "claude"},
+            {"key": "functional:product:proposal:a", "required_executor": "codex"},
+            {"key": "functional:product:proposal:b", "required_executor": "claude"},
+            {"key": "functional:product:proposal:c", "required_executor": "codex"},
         ]
     }
-    validate_proposal_settings(fresh, [choice(), choice("claude", "claude-opus-5-5")])
+    validate_proposal_settings(fresh, [choice(), choice("claude", "claude-opus-5-5"), choice()])
     with pytest.raises(ValueError, match="proposal count"):
         validate_proposal_settings(fresh, [choice()])
     with pytest.raises(ValueError, match="another provider"):
-        validate_proposal_settings(fresh, [choice(), choice()])
+        validate_proposal_settings(fresh, [choice(), choice(), choice()])
 
 
 @pytest.mark.anyio
@@ -93,21 +94,21 @@ async def test_two_models_run_distinct_jobs_in_parallel_and_stop_at_the_sample_l
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         ) as client:
-            await save(client, "intrinsic", [choice(), choice("claude", "claude-opus-5-5")])
-            result = await start(client, step="intrinsic", max_jobs=2, expected="waiting")
+            await save(client, "annotation", [choice(), choice("claude", "claude-opus-5-5")])
+            result = await start(client, step="annotation", max_jobs=2, expected="waiting")
             assert result["semantic"]["worker"]["processed"] == 2
             assert sorted(calls) == [
-                ("claude", "claude-opus-5-5", "intrinsic"),
-                ("codex", "gpt-6-luna", "intrinsic"),
+                ("claude", "claude-opus-5-5", "annotation"),
+                ("codex", "gpt-6-luna", "annotation"),
             ]
-            assert result["coverage"]["scopes"]["module"]["current"] == 0
+            assert result["coverage"]["scopes"]["module"]["current"] == 2
             with database.connect() as connection:
                 rows = connection.execute(
                     "SELECT job_kind, executor_model FROM semantic_jobs WHERE status='completed'"
                 ).fetchall()
             assert sorted(tuple(row) for row in rows) == [
-                ("intrinsic", "claude-opus-5-5"),
-                ("intrinsic", "gpt-6-luna"),
+                ("annotation", "claude-opus-5-5"),
+                ("annotation", "gpt-6-luna"),
             ]
 
 
@@ -139,13 +140,16 @@ async def test_card_routing_runs_all_flows_and_keeps_ordered_reviews_and_proposa
             assert patterned["coverage"]["scopes"]["pattern"]["current"] > 0
             proposals = await start(client, "fresh-eyes", "proposals")
             saved = [
-                stage for stage in proposals["fresh_eyes"]["stages"] if stage["state"] == "current"
+                stage
+                for stage in proposals["fresh_eyes"]["stages"]
+                if ":proposal:" in stage["key"] and stage["state"] == "current"
             ]
-            assert [stage["key"] for stage in saved] == ["proposal:a", "proposal:b"]
-            assert [stage["provenance"]["executor_model"] for stage in saved] == [
-                "gpt-6.1-sol",
-                "claude-opus-5-5",
-            ]
+            assert len(saved) == 9
+            expected_models = {"a": "gpt-6.1-sol", "b": "claude-opus-5-5", "c": "gpt-6.1-sol"}
+            assert all(
+                stage["provenance"]["executor_model"] == expected_models[stage["key"][-1]]
+                for stage in saved
+            )
             reviewed = await start(client, "fresh-eyes")
             assert reviewed["fresh_eyes"]["ready"]
             assert reviewed["fresh_eyes"]["diversity"]["cross_provider"]
@@ -197,8 +201,10 @@ async def test_settings_validation_and_step_membership(repository, database, mon
         transport=httpx.ASGITransport(app=app), base_url="http://test"
     ) as client:
         for step, workers in [
-            ("intrinsic", [choice(workers=2), choice()]),
+            ("annotation", [choice(workers=2), choice()]),
             ("charter", [choice(), choice()]),
+            ("proposals", [choice()]),
+            ("proposals", [choice(), choice()]),
             ("proposals", [choice(workers=2)]),
             ("scan", [choice()]),
         ]:
@@ -214,7 +220,7 @@ async def test_settings_validation_and_step_membership(repository, database, mon
         monkeypatch.setattr("anaxigraph.api_workflows.shutil.which", lambda _: None)
         response = await client.post(
             "/api/workflows/run",
-            json={"workflow": "mapping", "step": "intrinsic", "use_step_settings": True},
+            json={"workflow": "mapping", "step": "annotation", "use_step_settings": True},
         )
         assert response.status_code == 400
 
@@ -237,11 +243,11 @@ async def test_failed_step_keeps_errors_and_never_runs_another_stage(
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         ) as client:
-            result = await start(client, step="intrinsic", max_jobs=2, expected="waiting")
+            result = await start(client, step="annotation", max_jobs=2, expected="waiting")
             assert result["semantic"]["worker"]["processed"] == 2
             assert "unavailable to this account" in result["coverage"]["failures"][0]["error"]
             assert result["coverage"]["scopes"]["module"]["intrinsic"] == 0
             with database.connect() as connection:
                 assert not connection.execute(
-                    "SELECT id FROM semantic_jobs WHERE job_kind != 'intrinsic' AND executor_id IS NOT NULL"
+                    "SELECT id FROM semantic_jobs WHERE job_kind != 'annotation' AND executor_id IS NOT NULL"
                 ).fetchall()

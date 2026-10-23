@@ -1,38 +1,22 @@
 import { expect, test } from "@playwright/test";
 
-test("file inventory loads remaining pages without holding up the current views", async ({ page }) => {
-  let release;
-  const pending = new Promise(resolve => { release = resolve; });
-  await page.route("**/api/overview?*", async route => {
-    const response = await route.fetch();
-    const value = await response.json();
-    value.files = 251;
-    await route.fulfill({ json: value });
+test("file inventory pages on demand and reports the global matching count", async ({ page }) => {
+  const requested = [];
+  await page.route("**/api/graph/entities?*", async route => {
+    const query = new URL(route.request().url()).searchParams, offset = Number(query.get("offset") || 0);
+    requested.push(offset);
+    return route.fulfill({ json: { context: { repository_id: 1, snapshot_id: 1, revision: "inventory-fixture" },
+      nodes: Array.from({ length: offset ? 1 : 100 }, (_, index) => ({ id: `module:pkg/file_${offset + index}.py`, kind: "module", label: `file_${offset + index}`, path: `pkg/file_${offset + index}.py`, overview: "One saved sentence.", metrics: { lines_of_code: 5 } })),
+      edges: [], total_nodes: 251, returned_nodes: offset ? 1 : 100, next_offset: offset ? null : 100,
+    } });
   });
-  await page.route("**/api/modules?*", async route => {
-    const response = await route.fetch();
-    const items = await response.json();
-    const offset = Number(new URL(route.request().url()).searchParams.get("offset") || 0);
-    if (offset) await pending;
-    const generated = Array.from({ length: offset ? 1 : 250 }, (_, index) => ({
-      ...items[0], artifact_id: offset + index + 1, path: `pkg/file_${offset + index}.py`,
-      evaluation: { monitored_by_default: true },
-    }));
-    await route.fulfill({ json: generated });
-  });
-  try {
-    await page.goto("/");
-    await expect(page.locator("main")).toHaveAttribute("aria-busy", "false");
-    await page.getByRole("button", { name: "Understand", exact: true }).click();
-    await page.getByRole("button", { name: "Files", exact: true }).click();
-    await expect(page.locator("#module-result-count")).toContainText("250 of 251 indexed files loaded");
-    release();
-    await expect(page.locator("#module-result-count")).toContainText("251 source or test files");
-    await expect(page.locator("#module-result-count")).not.toContainText("more loading");
-  } finally {
-    release();
-    await page.unrouteAll({ behavior: "wait" });
-  }
+  await page.goto("/#modules");
+  await expect(page.locator("#module-result-count")).toContainText("100 shown · 251 matching modules");
+  expect(requested).toEqual([0]);
+  await page.locator("#module-next").click();
+  await expect(page.locator("#module-result-count")).toContainText("1 shown · 251 matching modules");
+  expect(requested).toEqual([0, 100]);
+  await expect(page.locator(".module-row")).toHaveCount(1);
 });
 
 test("agent directions preserve taste, checkout and the pre-edit baseline", async ({ page, context }) => {

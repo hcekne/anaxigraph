@@ -50,7 +50,7 @@ export function buildFlows(data, files = 0, startingStep = null) {
   flows.forEach(flow => flow.steps.forEach(item => {
     item.plan = data.settings?.steps[item.id];
     item.mode = data.settings?.modes[item.id];
-    item.customized = data.settings?.customized.includes(item.id);
+    item.customized = data.settings?.customized?.includes(item.id);
     item.poolErrors = workflowRuns(data).flatMap(run => run.pool_errors || []).filter(error => error.step === item.id);
     if (item.poolErrors.length && item.status !== "complete") item.status = "failed";
     applyActivity(item, data, flow.id, startingStep);
@@ -94,23 +94,22 @@ function mappingFlow(data, files) {
     note: "Checks after every map proposal and revision preserve file coverage and apply grouping rules. Arrows show evidence dependencies; independent file jobs can run together.",
     steps: [
       scanStep(data, files),
-      step("intrinsic", "Describe each file", "Explain purpose, responsibilities and contracts.", {
-        done: modules.intrinsic, total, unit: "files", reused: modules.intrinsic_reused,
-        jobs: jobFacts(data, "intrinsic"), enabled: semantic.enabled, view: "modules",
-        detail: "Each description starts with the file's own source. Reused descriptions count toward coverage without another model call.",
+      step("annotation", "Annotate the entities", "Save a sentence, a short paragraph and function summaries.", {
+        done: data.coverage?.graph?.annotation_current ?? modules.current, total: data.coverage?.graph?.annotation_total ?? total,
+        unit: "modules", reused: modules.reused, jobs: jobFacts(data, "annotation"), enabled: semantic.enabled, view: "modules",
+        detail: "One compact saved annotation enriches the graph. Compatible results are reused; descriptions and contracts are not copied into a second essay.",
       }),
-      step("context", "Add context", "Connect each file to its code neighbours.", {
-        done: modules.current, total, unit: "files", reused: modules.reused,
-        jobs: jobFacts(data, "context"), enabled: semantic.enabled, view: "modules",
-        detail: "The worker receives the intrinsic description, dependency links and nearby descriptions. This stage explains how the file fits into the repository.",
+      step("contracts", "Link interfaces and contracts", "Connect behavior, obligations, consumers and tests.", {
+        owner: "AnaxiGraph code", done: data.coverage?.graph?.contracts_ready ? 1 : 0, total: 1, unit: "graph",
+        enabled: semantic.enabled, view: "graph", detail: "First-class function, interface and contract nodes keep callers linked to required behavior. Structural readiness and missing semantic obligations remain separate.",
       }),
       ...taxonomySteps(data, taxonomy),
-      step("groups", "Summarize groups", "Combine member descriptions into shared responsibilities.", {
+      step("groups", "Describe capabilities", "Explain shared purposes and responsibility boundaries.", {
         done: groups.current, total: groups.total ?? null, unit: "groups", reused: groups.reused,
         jobs: jobFacts(data, "synthesis", "group"), enabled: semantic.enabled, view: "overview",
         detail: "Areas and subsystems receive summaries grounded in their members. Group totals become known once the map is planned.",
       }),
-      step("charter", "Write the Charter", "Explain repository purpose, capabilities and architecture.", {
+      step("charter", "Prepare the functional brief", "State purpose, capabilities and required behavior.", {
         done: charter?.status === "current" ? 1 : 0, total: 1, unit: "Charter",
         jobs: jobFacts(data, "synthesis", "repository"), enabled: semantic.enabled, view: "overview",
         detail: "The repository summary combines the groups into a Living Architecture Charter, with uncertainties and evidence retained.",
@@ -160,88 +159,93 @@ function unplannedState(data, workflow) {
 }
 
 function patternFlow(data) {
-  const semantic = data.semantic || {};
-  const patterns = semantic.patterns || {};
-  const scope = data.coverage?.scopes?.pattern || {};
-  const planned = !!patterns.planned;
-  const total = planned ? patterns.selected : null;
-  const done = scope.current || 0;
-  const assessed = Math.max(done, scope.intrinsic || 0);
-  const enabled = patterns.enabled || planned;
-  const ready = planned && done === total;
-  return { id: "patterns", name: "Pattern analysis", title: "Find patterns that fit the code",
+  const { semantic, catalogue, planned, total, done, assessed, enabled, ready } = patternProgress(data);
+  return { id: "patterns", name: "Pattern analysis", title: "Consider the complete pattern catalogue",
     state: planned ? null : unplannedState(data, "patterns"),
-    description: "A focused assessment of candidate patterns, followed by an independent critique.",
-    note: "Missing Mapping prerequisites run first, then patterns are assessed against the saved map. Counts here are candidate–target pairs, not unique files. No source code is changed.",
+    completionLabel: catalogue.unresolved ? `Reviewed · ${catalogue.unresolved} unresolved` : null,
+    unresolved: catalogue.unresolved || 0,
+    description: "Every catalogue pattern receives contextual ratings, benefits, costs and an independent critique.",
+    note: "Missing Mapping prerequisites run first. Each versioned catalogue entry is considered for the whole repository; relevant local placements retain evidence and trade-offs. No source code is changed.",
     steps: [
       step("pattern_evidence", "Gather code evidence", "Use the map, source facts and pattern catalogue.", {
         owner: "AnaxiGraph code", done: semantic.architecture_charter?.status === "current" ? 1 : 0,
         total: 1, unit: "map", view: "overview", detail: "Mapping is a prerequisite. Pattern analysis adds its own detailed assessments while preserving current file descriptions.",
       }),
-      step("pattern_plan", "Select candidates", "Match supported signals to bounded code targets.", {
+      step("pattern_plan", "Record catalogue coverage", "Include every entry in the versioned pattern catalogue.", {
         owner: "AnaxiGraph code", done: planned ? 1 : 0, total: 1, unit: "plan", enabled,
-        detail: planned ? `${total} candidate–target pairs selected. An empty selection is a completed analysis, not missing work.` : "Deterministic selection avoids asking a model about every pattern for every file.", view: "patterns",
+        detail: planned ? `${total} catalogue patterns planned. Missing, unresolved and poor-fit outcomes remain distinct.` : "Every catalogue pattern is considered; deterministic signals guide attention without excluding potential opportunities.", view: "patterns",
       }),
       step("pattern_assessment", "Assess the fit", "Weigh evidence, counter-evidence and alternatives.", {
-        done: assessed, total, unit: "pairs", zeroComplete: planned, enabled,
+        done: assessed, total, unit: "patterns", zeroComplete: planned, enabled,
         jobs: jobFacts(data, "pattern_assessment"), view: "patterns",
-        detail: "Each assessment explains whether a pattern helps this target, which behaviour must survive and what remains uncertain.",
+        detail: "Each assessment rates the pattern for this repository and records contextual pros, cons, alternatives and useful placements. A useful pattern need not solve an existing defect.",
       }),
       step("pattern_review", "Review the assessment", "Challenge the proposed fit in a separate model call.", {
-        done, total, unit: "pairs", zeroComplete: planned, enabled,
+        done, total, unit: "patterns", zeroComplete: planned, enabled,
         jobs: jobFacts(data, "pattern_review"), view: "patterns",
-        detail: "The reviewer receives the assessment and its evidence. A separate call does not necessarily mean a different model or provider.",
+        detail: "The reviewer challenges ratings, omissions and trade-offs against the evidence. Unresolved assessments remain visible. A separate call does not necessarily mean a different model or provider.",
       }),
       step("pattern_save", "Save evaluations", "Keep conclusions and reasons, including poor fits.", {
         owner: "AnaxiGraph code", done, total, unit: "evaluations", zeroComplete: planned, enabled,
         detail: "Finalized evaluations retain rationale, alternatives and verification needs. Model confidence is self-reported.", view: "patterns",
       }),
-      step("pattern_explore", "Explore the findings", "Compare candidates and inspect the relevant code.", {
+      step("pattern_explore", "Explore the findings", "Compare all patterns, ratings, pros, cons and useful placements.", {
         owner: "You + AnaxiGraph", done: ready ? 1 : 0, total: 1, unit: "review", enabled, view: "patterns",
         detail: "Open Patterns to filter the results and compare approaches. A recommendation never applies a refactor automatically.",
       }),
     ] };
 }
 
-function freshFlow(data) {
-  const fresh = data.fresh_eyes || {};
-  const stages = fresh.stages || [];
-  const proposals = stages.filter(item => item.key.startsWith("proposal:"));
-  const count = data.settings?.steps.proposals?.length || 2;
-  const candidates = proposals.length ? proposals : Array.from({ length: count }, (_, index) => ({ key: `proposal:${String.fromCharCode(97 + index)}` }));
-  const ready = fresh.ready;
-  return { id: "fresh-eyes", name: "Fresh eyes", title: "Reconsider the architecture with fresh eyes",
-    description: "Independent designs become a reference, then meet the realities of your repository.",
-    note: "Independent designs see only the capability brief. The comparison then uses Mapping and available Pattern evaluations; architecture planning builds on these conclusions. Provider diversity is shown only when recorded.",
-    steps: [
-      step("brief", "Frame the capabilities", "Start from the Charter's purpose and constraints.", {
-        owner: "AnaxiGraph code", done: fresh.capability_brief ? 1 : 0, total: 1, unit: "brief",
-        detail: "The capability brief defines what the software needs to do without giving the proposal writers its existing implementation.", view: "overview",
-      }),
-      freshStep(data, "proposals", "Independent proposals", "Separate sessions propose an architecture from the same brief.", candidates, {
-        unit: "proposals", parallel: true, detail: "Each proposal is produced independently. More proposals add work; model or provider diversity depends on the executors that actually run them.",
-      }),
-      freshStep(data, "adjudication", "Build a reference design", "Compare proposals and preserve useful disagreements.", stages.filter(item => item.key === "adjudication")),
-      freshStep(data, "comparison", "Compare with reality", "Now inspect Mapping and available Pattern evaluations.", stages.filter(item => item.key === "comparison"), comparisonEvidence(fresh.pattern_inputs)),
-      freshStep(data, "mission_filter", "Rank useful changes", "Filter suggestions against the mission and review goal.", stages.filter(item => item.key === "review")),
-      step("grounding", "Check the references", "Resolve cited paths and symbols against saved code.", {
-        owner: "AnaxiGraph code", done: ready ? 1 : 0, total: 1, unit: "check",
-        detail: "Resolved references show that cited code exists. They do not prove a recommendation correct or behaviour verified.", view: "fresh-eyes",
-      }),
-      step("suggestions", "Explore the suggestions", "Read evidence, trade-offs and the smallest proposed change.", {
-        owner: "You + AnaxiGraph", done: ready ? fresh.recommendation_count ?? fresh.recommendations?.length ?? 0 : 0,
-        total: ready ? fresh.recommendation_count ?? fresh.recommendations?.length ?? 0 : null, unit: "suggestions", zeroComplete: ready,
-        detail: fresh.next_action || "Suggestions are saved for review; this workflow does not change source files.", view: "fresh-eyes",
-      }),
-    ] };
+function patternProgress(data) {
+  const semantic = data.semantic || {};
+  const patterns = semantic.patterns || {};
+  const scope = data.coverage?.scopes?.pattern || {};
+  const catalogue = patterns.catalogue || {};
+  const planned = !!patterns.planned;
+  return { semantic, catalogue, planned, ...patternCounters(patterns, scope, catalogue, planned) };
 }
 
-function comparisonEvidence(inputs) {
-  const boundary = "Mapping and saved Pattern reviews enter here, after independent design.";
-  const detail = !inputs ? `${boundary} Saved provenance identifies the evidence used.`
-    : inputs.state === "not_compared" ? `${boundary} No comparison has run yet.`
-      : `Saved comparison used ${inputs.used} Pattern evaluations. ${inputs.available_now || 0} are current now; ${inputs.changed_since_comparison || 0} used evaluations changed afterward. See step evidence for the recorded references.`;
-  return { patternInputs: inputs, detail };
+function patternCounters(patterns, scope, catalogue, planned) {
+  const total = planned ? catalogue.expected ?? patterns.selected : null;
+  const done = catalogue.reviewed ?? scope.current ?? 0;
+  return { total, done, assessed: catalogue.rated ?? Math.max(done, scope.intrinsic || 0),
+    enabled: patterns.enabled || planned, ready: catalogue.complete ?? (planned && done === total) };
+}
+
+function freshFlow(data) {
+  const fresh = data.fresh_eyes || {}, counts = fresh.counts || {};
+  const stages = fresh.stages || [];
+  const proposals = stages.filter(item => item.key?.includes("proposal"));
+  const comparisons = stages.filter(item => item.key?.includes("comparison"));
+  const reviews = stages.filter(item => item.key?.includes("review"));
+  const ready = fresh.ready === true;
+  return { id: "fresh-eyes", name: "Fresh eyes", title: "Design from purpose with fresh eyes",
+    description: "Three retained alternatives per functional scope, without seeing the current implementation.",
+    note: "Only the functional brief enters this workflow. Actual-code comparison belongs in Architecture Planning. Independent scopes and alternatives can run together and resume from saved results.",
+    steps: [
+      step("brief", "Read the functional hierarchy", "Use purpose, capabilities, inputs, outputs and constraints.", {
+        owner: "AnaxiGraph code", done: fresh.functional_brief || data.semantic?.architecture_charter?.status === "current" ? 1 : 0, total: 1, unit: "brief", view: "fresh-eyes",
+        detail: "Source paths, current implementation topology and Pattern judgments are excluded. Each scope identifies its immutable brief revision.",
+      }),
+      freshStep(data, "adjudication", "Prepare the functional hierarchy", "Extract product, capability and subsystem scopes without implementation topology.", stages.filter(item => item.key === "functional:brief")),
+      freshStep(data, "proposals", "Explore three alternatives", "Keep materially different designs at every reviewed scope.", proposals, {
+        done: counts.retained_alternatives ?? proposals.filter(item => item.state === "current").length,
+        total: counts.expected_alternatives || proposals.length || null, unit: "alternatives", parallel: true,
+      }),
+      freshStep(data, "comparison", "Compare functional trade-offs", "Rate alternatives against required behavior, never current code.", comparisons),
+      freshStep(data, "mission_filter", "Review functionality", "Preserve assumptions, disagreements and composition conflicts.", reviews),
+      step("isolation", "Record the blind boundary", "Keep executor isolation and provenance explicit.", {
+        owner: "AnaxiGraph code", done: fresh.isolation?.status ? 1 : 0,
+        total: 1, unit: "isolation record", view: "fresh-eyes",
+        status: ready ? "complete" : undefined,
+        detail: `Worker isolation: ${fresh.isolation?.status || "not recorded"}. An unverified context is never presented as verified blindness.`,
+      }),
+      step("suggestions", "Explore the alternatives", "Inspect each scope and all retained design graphs.", {
+        owner: "You + AnaxiGraph", done: counts.completed_scopes || 0, total: counts.total_scopes ?? null,
+        unit: "scopes", zeroComplete: ready, view: "fresh-eyes",
+        detail: "Selecting a target in Planning does not erase the other Fresh Eyes alternatives.",
+      }),
+    ] };
 }
 
 function freshStep(data, id, title, description, stages, options = {}) {

@@ -1,7 +1,8 @@
 # A lightweight semantic graph for AnaxiGraph
 
-**Status:** Semantic graph destination confirmed by the maintainer. Design and acceptance criteria;
-runtime implementation is not claimed by this document.
+**Status:** The semantic graph migration is implemented for the 0.9.0 candidate. The design and
+pre-migration measurements below remain the decision record; the dated implementation audit records
+what has actually been exercised, including the final same-dataset storage measurements.
 
 **Design requirement:** [Full feedback and clarifications](../feedback/2026-10-23-architecture-and-storage.md).
 
@@ -44,7 +45,7 @@ model makes purpose, behavior, contracts, responsibility, catalogue assessments 
 architectures explicit in the same logical graph. This is a specification for AnaxiGraph, not a
 claim that Graphify cannot support overlapping capabilities. No Graphify benchmark was run here.
 
-## Today's architecture
+## Pre-migration architecture
 
 AnaxiGraph already extracts source facts, symbols and module dependencies. The graph is primarily
 a read projection over snapshot/file facts, with separate semantic documents and lookup/search
@@ -76,7 +77,7 @@ published 0.8.5 source uses schema 11. Its parser metadata is already compressed
 be compared with this actual current service, rather than crediting the redesign for compression
 that is already present.
 
-## Proposed semantic graph
+## Selected semantic graph design
 
 ```mermaid
 flowchart TD
@@ -559,6 +560,112 @@ follows from graph shape alone.
    Finish by removing the old duplicate pipelines; a compatibility adapter or phased
    rollout is delivery machinery, not a second permanent architecture.
 
-No production code, live index or published release is changed by this design work. The maintainer
-has confirmed the destination and clarified the product outcomes. This update specifies their
-acceptance criteria; it does not claim that runtime migration or measured benefits are complete.
+The original design work changed no live index or published release. Implementation followed the
+maintainer's approval; the audit below separates code delivery, measured acceptance and external
+publication/deployment.
+
+
+## Implementation and acceptance audit
+
+**23 October 2026 — 0.9.0 candidate.** The descriptions above of the previous pipeline and offline
+format experiments are historical baselines, not claims about the new runtime.
+
+| Selected requirement | Implemented behavior and acceptance |
+| --- | --- |
+| Graph as the primary reading model | Canonical typed entities/relationships and annotation references serve REST, MCP, table and graph inspection. Controlled fixtures traverse modules, functions, interfaces, obligations and relevant tests without source reads. See `tests/test_knowledge_graph.py`, `tests/test_function_call_resolution.py` and the shared frontend audit. |
+| Concise authoring | New module jobs write one `graph-annotation-v1` result with overview/detail, every supplied function sentence, named contracts and capabilities. Generic group synthesis remains compact even when Pattern review is enabled. The two-description producers and full group-dossier writer were retired. Large annotations preserve complete function coverage and aggregate all chunk/final usage. |
+| Fast lookup without copied essays | Graph rows refer to one canonical annotation; copied semantic claims are retired, full-text search uses contentless storage, and parser/cache records are rebuildable. Existing FILE/SEARCH compatibility reads remain concise with explicit detail requests. |
+| Complete Pattern consideration | The manifest records every loaded ID/fingerprint (133 bundled cards). Assessments, reviews and contextual placements have separate considered/rated/reviewed/unresolved counts. Paging cannot manufacture completion; missing reviews and unresolved evidence remain visible. `tests/test_pattern_catalogue_review.py` covers complete coverage and interruption/reuse. |
+| Functional Fresh Eyes | Product/capability/subsystem scopes retain three alternatives by default (five optional), with parent compatibility, blind comparisons and a final functional review. Supplied contexts exclude implementation details and managed workers run without tools; external execution is labelled unverified. Oversized packets fail rather than expose tool pages. Convergence and unknown novelty are explicit. Canary/isolation/resume and archived-generation tests cover the protocol, not real model originality. |
+| Source-aware Planning | Planning consumes bounded observed graph witnesses, catalogue results and retained functional alternatives. Blank direction, agent-selected defaults, target choices, diagrams and milestones remain available. Observed/proposed/functional subjects retain separate identities and metrics. |
+| Original paid work survives | Backed-up migration and portable v4 retain original values/provenance. Legacy obligations are read lazily with unknown function bindings, rather than creating thousands of invented contract nodes. Orphaned v1 review reruns remain accessible with explicitly inferred generation identity. |
+| Current records between clones | Readable current JSONL plus compressed legacy partitions replace historical SQL exchange. Source fingerprints validate reuse at another clone path; exclusions, failed-publication cleanup, bounded unchanged saves and independent local indexes are exercised by portable/migration tests. |
+| Bounded Git observations | Normal scans retain one aggregate per path for the recent observed window. Migration preserves exact cached counts/dates/SHA/subject until HEAD changes; explicit history choices retain detailed commit rows. Empty Git reads preserve known observations. `tests/test_git_metrics.py` covers parity, scope, repeat scans and opt-ins. |
+| Visible unused-code uncertainty | Source scopes are checked independently. Missing age/capability evidence, unresolved runtime links and poor scoped resolution produce diagnostic findings and overview counts rather than silently suppressing all checks. Static candidates remain hypotheses requiring runtime verification. `tests/test_scoped_dead_code.py` covers independent scopes and missing evidence. |
+| Frontend preserved and rebuilt | Six journeys, themes, sortable LOC inventory, manual workflow cards and ordered/parallel review execution remain. Shared inspection, graph subjects, evidence filters, optional columns, bounded neighborhoods, keyboard relationships, phone layout and stale-response protection are covered by the frontend acceptance. |
+
+Production sources include `knowledge_annotation*`, `knowledge_query`, `knowledge_detail`,
+`knowledge_subjects`, `pattern_catalogue_*`, `semantic_fresh_eyes_functional*` and portable v4 readers.
+Rich contracts carry state, ordering and caller obligations; the implementation does not infer an
+`owns_state` relationship merely from a side-effect sentence or invent domain concepts to fill the
+illustrative relationship vocabulary. Extracted, inferred, unresolved, functional and proposed
+states are queryable and visibly distinct.
+
+**Recorded acceptance:** the full browser suite passed **114 cases**, including evidence filtering,
+optional columns, convergence, manual workflows and all saved graph subjects. The subsequent
+helper-only Fresh Eyes rendering refactor passed a focused 14-case browser rerun; final graph/subject
+changes passed another 13 cases. Backend focused regressions cover
+current/legacy annotations, all-catalogue coverage, functional isolation, resume, portable reuse
+and source-qualified traversal. These local results are not publication or production evidence.
+The [browser scale record](../../benchmarks/results/semantic-graph-browser-2026-10-23.json),
+[saved-subject walkthrough](../../benchmarks/results/semantic-graph-subjects-2026-10-23.json) and
+[first-user runtime record](../../benchmarks/results/first-user-annotation-2026-10-23.json) identify
+their fixture and measurement limits. The walkthrough uses real saved-subject handlers; the
+5,000-module browser experiment mocks backend data.
+
+**Matched maintenance comparison:** the [recorded 62-file fixture](../../benchmarks/results/semantic-maintenance-2026-10-23.json)
+compares 0.8.5 source at `16c672b8` with a fingerprinted candidate worktree in separate processes/indexes,
+using the same source fingerprints across five states and manually supplied semantic facts. It runs
+real Python MCP projections, not HTTP transport or model decisions. Both versions found the supplied
+owner/obligation and relevant frontend checks. The new function traversal excluded an unrelated
+`health` consumer that the older file-level path included. Fixture tests passed for manually authored
+changes behind a stable provider contract, failed for a deliberate contract break, then passed after
+the companion migration. Neither tool selected or implemented those changes. A pure utility and an
+overloaded hub each have 24 consumers; this fixture
+does not claim that degree alone yields the right architectural judgment.
+
+The baseline state's default file overview shrank from **14,112 to 2,247 bytes**. Its tiny final index
+instead grew from **823,296 to 2,015,232 bytes** as the richer graph added relationships. Thus the
+migration is not universally smaller on every fixture; the large retained-data comparison below
+measures removal of real duplicated storage. Latency samples ran under concurrent test activity and
+do not establish a statistical speedup. The fixture is authored acceptance evidence, not a held-out
+or live-model quality trial.
+
+**Storage comparison:** [recorded on the complete retained dataset](../../benchmarks/results/semantic-graph-storage-2026-10-23.json), with 2,598 source files and
+5,872 original semantic documents. These closed-index captures have zero WAL/SHM bytes; legacy
+archives inside the database are included once, and the portable copy is counted separately.
+
+| Captured state | Database bytes | Portable bytes | Combined bytes |
+| --- | ---: | ---: | ---: |
+| Previous complete dataset | 121,761,792 | 4,945,380 | 126,707,172 |
+| Supported schema-12 migration, retained parser facts | 88,866,816 | 4,934,857 | 93,801,673 |
+| Fresh clone, current parser and unmodified default storage policy | 93,765,632 | 4,934,857 | 98,700,489 |
+| Edited default-policy map, planned and saved baseline restored | 94,175,232 | 4,934,857 | 99,110,089 |
+| Existing index, current parser and original user-configured policy | 98,713,600 | 4,934,857 | 103,648,457 |
+
+The fresh clone fits the 100,000,000-byte steady retained target in this capture. It parses all 2,598
+files, imports 5,872 saved documents and restores 2,598 current module states with no model calls.
+Source parse and import took **256.434 seconds** under concurrent CI/development load; this is a cold
+structural extraction/import measurement, not model-analysis latency. After a source edit, planning
+and saved-baseline restoration, the same default-policy map used **99,110,089 bytes**, retained
+2,597 current module annotations and queued the changed module. Planning took **8.179 seconds**
+without executing that new model job. An unchanged scan showed zero database growth, and
+historical/current graph regeneration preserved saved results.
+
+The existing-index upgrade used its original user-configured **190,000,000-byte index /
+200,000,000-byte total / 5,000,000-byte record** policy. Its **103,648,457-byte** retained footprint
+passes that existing policy; it does not fit the 100 MB default. No default or existing limit was
+raised to make this acceptance pass. Both upgrade paths preserved all **5,872 original document
+full-row hashes** with zero model calls, successful integrity checks and no foreign-key violations.
+The final schema migration took **24.591 seconds** for startup and **8.957 seconds** to rebuild the
+graph from saved facts under concurrent development load.
+
+The supported schema migration's sampled concurrent peak was **199,411,884 bytes**, including the
+existing portable record, WAL/SHM, journals, named staging and detected SQLite temporary files.
+Its separate recovery backup is **121,761,792 bytes**; including that co-located backup raises the
+sampled footprint to **321,173,676 bytes**. The **200 MB transient physical ceiling** therefore does
+not mean this recovery copy consumes no additional disk. The default **100 MB steady retained pool**
+is shared by the index and portable copy; its 95 MB index and 25 MB portable ceilings compete for
+that pool rather than reserve separate allocations.
+
+The earlier offline 67–71 MB container experiments and 98,929,865-byte prototype are not the final
+default-policy result. Policy limits are distinct from measured bytes, and the configured legacy
+upgrade must not be presented as a sub-100 MB default run. The scoped managed-log inventory found
+zero files/bytes in the known current host-worker slots and index directory; external or unmanaged
+logs remain outside that inventory.
+
+**Evaluation boundary:** no new live model run establishes useful architectural novelty, fewer bugs,
+production robustness or a reduction of the reported seven-hour analysis. Controlled maintenance
+and healthy-control evaluation belongs alongside coverage, not behind a successful workflow badge.
+The original feedback and research agenda are retained. Publication, artifact and production evidence
+are tracked in the 0.9.0 release ledger rather than inferred from these implementation tests.

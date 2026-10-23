@@ -1,183 +1,145 @@
 ---
 name: anaxigraph
-description: Use AnaxiGraph as shared architecture intelligence for people and coding agents. Ground software changes in its repository map, dependency evidence, findings, and semantic dossiers when explaining a system, bootstrapping semantic understanding, planning a feature or refactor, checking impact or dead-code evidence, deciding where new code belongs, or verifying a completed change.
+description: Use AnaxiGraph's saved semantic graph to understand a repository, locate behavior and caller contracts, plan changes, inspect impact and tests, build or resume mapping, evaluate the pattern catalogue, or run an implementation-blind Fresh Eyes architecture review.
 ---
 
 # AnaxiGraph architecture workflow
 
-Use AnaxiMCP as evidence and coordination. Keep source edits in the normal coding workflow. Never
-treat a graph edge, missing edge, finding, or model dossier as permission to refactor by itself.
+Use AnaxiMCP for repository understanding and coordination. Keep source edits in the normal coding
+workflow. A graph edge, missing edge, finding, or AI interpretation alone does not justify a refactor.
 
-## Establish the repository
+## Select the exact checkout
 
-1. Confirm that the `ANAXIGRAPH_REPOSITORIES` tool is available. If it is absent, stop and tell the
-   user to start `uvx anaxigraph up . --semantic agent` or its Docker equivalent, then connect the
-   client to `http://127.0.0.1:8765/mcp`. Do not invent index results.
-2. Call `ANAXIGRAPH_REPOSITORIES`. Match the current working tree by exact path or canonical Git
-   remote identity; a Docker mount such as `/repo` will not have the host path. If an `understand`
-   result supplied `index.repository_id`, use that exact selector. Use the selected repository ID in
-   every later call when more than one repository is listed.
-3. If no path matches, or multiple candidates remain and the user did not select one, ask which
-   indexed repository to use. Never silently analyze a similarly named repository.
-4. For mapping or progress, use the compact default `ANAXIGRAPH_SEMANTIC_STATUS`. For an architecture
-   question, call `ANAXIGRAPH_OVERVIEW` and use its Charter and responsibility map. State
-   analyzer/resolution caveats when they materially affect the answer.
+Call `ANAXIGRAPH_REPOSITORIES` and match the working tree by exact path. A container path such as
+`/repo` can differ from the host path; then match canonical Git remote plus checkout commit and dirty
+fingerprint. A shared remote alone cannot distinguish worktrees. Prefer `index.repository_id` from an
+existing `understand` receipt. If multiple candidates remain, ask which indexed repository to use.
+Use `repository="<id>"` in subsequent MCP calls; `repository_id` is the REST parameter.
 
-With no narrower request, summarize the repository's areas, dominant languages, active attention,
-relationship completeness, history state, and semantic coverage. Keep deterministic facts and
-model-derived interpretations visibly separate.
+If AnaxiMCP is absent, use the authorized installation to start
+`uvx --from anaxigraph anaxigraph up . --semantic agent` or the existing container service and connect
+to `http://127.0.0.1:8765/mcp`. Do not invent map results. Check the indexed checkout, commit, dirty
+fingerprint, structural freshness and annotation freshness separately.
 
-## Route the request
+## Read progressively
 
-- For a long-term architecture plan, call `ANAXIGRAPH_GUIDE(intent="plan")`. Direction is optional.
-  `start=true` prepares a planning job for the existing background worker. Let the agent compare
-  preserving the design with incremental evolution and select a justified target without waiting
-  for user approval. Read the target and next milestone before ordinary implementation work.
-  Use `target_option` to choose another saved option. After tests, report `milestone`,
-  `milestone_status="verified"` and actual `verification_evidence`; keep proposal, observed code
-  and reported verification distinct. A target survives code changes even when its evidence is stale.
+- Start with `ANAXIGRAPH_OVERVIEW` for purpose, capabilities, responsibility areas and readiness.
+- Use `ANAXIGRAPH_GRAPH` to search behavior or page modules, functions, interfaces and contracts.
+  Read the one-sentence overviews first. Pass the returned entity ID to `ANAXIGRAPH_ENTITY` for
+  its saved paragraph, function summaries, full obligations, typed connections, tests and provenance.
+  Expand a graph entity to traverse callers or dependencies. Preserve its repository and revision.
+- `ANAXIGRAPH_SEARCH` and `ANAXIGRAPH_FILE` give compact compatibility views by default.
+  Request `details=true` when you need complete saved facts. Neither a structural-only record nor
+  an unresolved relationship is a verified behavioral claim.
+- `ANAXIGRAPH_GUIDE` with `build`, `refactor` or `improve` combines placement and relevant evidence;
+  use `ANAXIGRAPH_IMPACT` before changing shared behavior. Follow the linked contracts and tests.
+- Use `ANAXIGRAPH_FINDINGS` for the `attention` view and `ANAXIGRAPH_FINDING_CONTEXT` for a selected
+  finding. `planned` records chosen work. Read `finding_history` to distinguish new, persistent,
+  resolved and returned signals; retained history can sample commits.
+- The dashboard Changes journey exposes saved comparisons and optional Git history replay. Start
+  or cancel history imports when requested. A missing finding does not establish a successful fix.
 
-- For “map,” “understand,” “bootstrap,” or “resume semantics,” run the semantic baseline workflow.
-- For a new feature or refactor, call `ANAXIGRAPH_SEARCH`, then `ANAXIGRAPH_GUIDE` with the matching
-  `build` or `refactor` intent; call
-  `ANAXIGRAPH_FILE` for the primary modules and `ANAXIGRAPH_IMPACT` before changing a shared target.
-- For an explicit “fresh eyes,” “clean-sheet architecture,” or independent architecture challenge,
-  run the fresh-eyes review workflow. Do not spend those tokens for an ordinary scoped change.
-- For a module question, use `ANAXIGRAPH_SEARCH` and `ANAXIGRAPH_FILE`. Compare responsibilities,
-  collaborators, overlaps, extension points, pattern evidence, and counter-evidence.
-- For architecture attention, call `ANAXIGRAPH_FINDINGS` with the bounded `attention` view. Use
-  `ANAXIGRAPH_FINDING_CONTEXT` only for the chosen finding. A `planned` finding records that it was
-  selected for work; other active findings are observations, not an implementation request. Read
-  its `finding_history` to distinguish a new, persistent, resolved, or returned condition, while
-  preserving the stated limit that retained maps may sample rather than cover every commit.
-- For history questions, use the Overview history summary and the dashboard Changes journey. Start
-  or cancel an import only when the user requests that index operation.
-- After an implementation, call `ANAXIGRAPH_SCAN` when available. Repeat guidance or impact when
-  responsibilities or dependencies may have moved, and use History and findings for change
-  evidence. “No longer reported” is not proof that a finding was fixed, and a changed metric is not
-  proof that the architecture improved.
+For a coding handoff, include the checkout/revision, primary owners, caller obligations, affected
+code, relevant tests, uncertainty and the smallest justified change. Let the user's goals and taste
+steer the plan. Do not anchor every design discussion to one favorite pattern.
 
-## Work continuously during development
+## Keep development responsive
 
-Keep one persistent AnaxiGraph service and structural watcher for the coding session. Build a full
-semantic baseline only when no current baseline exists. For each coherent task:
+Reuse the coding host's persistent AnaxiGraph service, local rebuildable index and structural watcher.
+Register each clone/worktree as a separate checkout; share portable understanding between hosts. Call Guide once before a coherent task, use focused tests while
+editing, then call `ANAXIGRAPH_SCAN` at the verification checkpoint. Repeat only the queries needed
+to check changed responsibilities or contracts. Avoid model-backed mapping after every save.
 
-1. Call `ANAXIGRAPH_GUIDE` once before editing and `ANAXIGRAPH_IMPACT` for shared targets.
-2. During edits, let the watcher update deterministic source facts and run focused tests normally.
-   Do not start model-backed semantic work after every save.
-3. At the verification checkpoint, call `ANAXIGRAPH_SCAN`, then repeat only the queries needed to
-   confirm changed responsibilities, dependencies, findings, or history.
-4. After the coherent task or commit, start one background `understand` run if changed semantic
-   descriptions matter. It must reuse unchanged scopes. Wait for `semantically_ready` only when the
-   next decision requires a fully current semantic map.
+After a coherent task or commit, run one incremental Mapping workflow if updated annotations matter.
+Unchanged compatible analyses must be reused. Wait for `semantically_ready: true` when the next
+decision needs a complete current map; structural navigation remains available independently.
 
-Read detailed semantic `telemetry` with `ANAXIGRAPH_SEMANTIC_STATUS(details=true)` only when cost or
-performance diagnostics are needed. Compare server duration and reply size for
-deterministic reads; compare time, tokens, model, effort, failures, and cost by semantic action.
-Remember that summed AI job time can exceed wall time when jobs run in parallel, and that each
-action separates token counts reported by the executor, estimated by AnaxiGraph, and never
-reported at all; unknown usage is never a free call. Cached prompt tokens are part of the reported
-input total rather than an addition to it.
+## Build or resume Mapping
 
-## Build or resume semantic understanding
+Do not edit repository source while performing Mapping. New mapping writes one compact annotation
+per module: an overview sentence, a short detail paragraph, one sentence per supplied function,
+named caller contracts linked to those functions, and useful capabilities. It does not write two
+intrinsic/context essays or duplicate Pattern/Planning recommendations. Group summaries stay concise.
 
-This workflow writes interpretations to AnaxiIndex. Explicit dashboard/headless workflows also
-save the reserved `anaxigraph/` record when writable. Do not edit repository source while
-performing it. After a Git pull, let the service load compatible shared results before launching
-new model work. The generated record is reusable analysis; active queues, leases and credentials
-stay local. `anaxigraph refresh . --workflows mapping,patterns,fresh-eyes,architecture --json`
-supports scheduled runs and saves partial results; the caller owns Git commits and pushes.
+Prefer the durable authenticated host executor for a full baseline:
 
-For a full baseline or resume request, prefer the durable host executor whenever the authenticated
-Codex or Claude CLI is available. Do not manually consume a repository-sized queue inside the
-lifetime of this chat session:
-
-1. Select the authorized executor and an economical worker model explicitly, independently of the
-   model hosting this chat. Respect exact user choices and installed model names. Pass model and
-   optional reasoning effort as runtime arguments; do not send this conversation to the workers.
+1. Select the authorized executor and worker model independently of this chat's model. Respect exact
+   user choices and installed model names; pass model and optional effort as runtime arguments.
 2. Launch once: `anaxigraph understand <repository> --executor <executor> --model <model>
-   --parallel-jobs <slots> --background --json`. A runner supports 30+ concurrent model jobs, up to
-   the repository's shared `semantic.max_parallel_jobs`. Multiple executors may share that capacity.
-3. Verify the returned index authority and preserve `execution_run.run_id`, executor, model, and
-   log path. Treat `already_running` as successful reuse of that run, not a reason to launch a
-   competing executor. The runner owns leases, retries, scheduling, and progress.
-4. Return the run handle and let the caller's session end. Check progress on user request or after
-   `poll_after_seconds` (normally 300), using `ANAXIGRAPH_SEMANTIC_STATUS` or
-   `anaxigraph semantic-status <repository> --compact --json`. Avoid repeated LLM turns to monitor
-   unchanged state. Only `semantically_ready: true` means the complete map is ready.
+   --parallel-jobs <slots> --background --json`. The runner supports 30+ concurrent model jobs within
+   the repository's shared `semantic.max_parallel_jobs`; multiple executors share that capacity.
+3. Preserve the returned index authority, `execution_run.run_id`, model, executor and log path.
+   `already_running` reuses that run. Do not create supervisor scripts or competing restart loops.
+4. Use compact `ANAXIGRAPH_SEMANTIC_STATUS` or `anaxigraph semantic-status <repository> --compact
+   --json` on request or after `poll_after_seconds` (normally 300). Honor an explicit request to
+   wait for completion; otherwise return the durable handle. Resume using the same command/index.
 
-For a selected repository, the MCP status argument is `repository` (a path or ID string), for
-example `ANAXIGRAPH_SEMANTIC_STATUS(repository="7")`; `repository_id` is the REST argument.
+The runner owns leases, retries, bounded batches and saved progress. A preparation HTTP 409 is not
+permission to relaunch. If no authenticated executor exists, report that missing dependency.
+`details=true` on semantic status exposes timing, tokens, executor/model, failures and provenance.
+Unknown token usage is not zero cost; summed parallel job time can exceed elapsed wall time.
 
-Do not create supervisor scripts, restart loops, or process-name checks. The `understand` command
-returns while `anaxigraph.semantic_background` continues. Use its durable run record, heartbeat,
-and queue status. Let the runner wait through preparation contention; do not relaunch on HTTP 409.
-Resume an interrupted run with the same command and index; completed jobs are reused. Inspect
-bounded error details only when a terminal error requires action. Read full logs only to diagnose it.
+For an explicitly selected manual task, fetch only the schema named by
+`response_contract.schema_arguments`. Annotation packets advertise `artifact="graph_annotation"`.
+Fetch every listed evidence page, preserve all functions, and submit the exact advertised contract;
+the submission argument retains the compatibility name `dossier`. Release an unfinished lease before
+handing it off. Never substitute a five-field group summary for an eight-field module annotation.
 
-Keep routine output to five fields and concise English. Treat 100–200 words as a flexible target;
-preserve extra essential behavior for complex code. Fetch a manual task's schema using its
-`response_contract.schema_arguments`, once per artifact, instead of loading every review schema.
+## Evaluate Patterns
 
-If no authenticated local executor is available, report that semantic completion needs Codex,
-Claude, or another configured executor; do not manually administer a repository-sized lease queue
-through the normal MCP tool menu. When reporting progress, use the latest receipt or compact status;
-do not make another call solely to end the turn. Report supplied coverage and pending/running/failed
-work. Use `details=true` only when responsibility-map or Charter details are needed. Never say that
-the baseline is complete until `semantically_ready: true`.
+Use the Pattern workflow for systematic architectural opportunities. It considers every card in the
+versioned catalogue across the repository, rates suitability separately from existing presence, and
+records contextual pros, cons, implementation placements, costs, confidence and contrary evidence.
+Read global considered/rated/reviewed/unresolved counts separately from a displayed page. Missing or
+insufficient evidence is unresolved, not a zero score or a clean architectural endorsement. A useful
+pattern can be an opportunity without an existing bug; compare concrete benefits with its added
+complexity. Preserve poor-fit ratings as well as recommendations so coverage is auditable.
 
-## Run the fixed fresh-eyes review
+## Run implementation-blind Fresh Eyes
 
-This workflow is optional, explicit, and read-only. It challenges legacy anchoring without turning
-AnaxiGraph into a general multi-agent workflow engine.
+Fresh Eyes redesigns required functionality without seeing raw source, current file/module names,
+actual topology, Pattern verdicts or implementation-specific steering. Every hierarchy, proposal,
+comparison and final review pass is tool-free and receives only allowed functional evidence.
+Source-specific constraints belong in Planning. Never add source/evidence tools to overcome a context
+limit; reduce functional scope or increase the configured inline context budget instead.
 
-1. Call `ANAXIGRAPH_GUIDE` with `fresh_eyes=true`. If the returned state is `not_started` or `stale`
-   and the user requested the review, call it again with `start=true` and `proposal_count=2` unless
-   the user chose one or three proposals. If the state is `failed`, keep the existing proposal
-   count and call with `start=true, retry_failed=true`. If the state is `current` and the user
-   deliberately wants a new architectural judgment, for example from a different model, call
-   with `start=true, restart=true`. This is the same operation as
-   `anaxigraph fresh-eyes <repository> --restart`: it reruns every stage as a new review
-   generation and keeps the earlier documents for audit. Follow `agent_journey.next_action` in
-   each reply.
-2. Start or resume the durable host executor with
-   `anaxigraph understand <repository> --executor <executor> --background --json`, adding
-   `--model <model>` and, for Codex, `--reasoning-effort <effort>` when the user selected them
-   for a rerun. It completes any missing semantic baseline, then consumes the fixed review jobs
-   using the host agent's tokens.
-3. Check `ANAXIGRAPH_GUIDE(fresh_eyes=true)` or `anaxigraph fresh-eyes <repository> --json` on request
-   or after at least five minutes; let the background worker own continuous progress. A review
-   is complete only when `ready` is true and `state` is `current`; partial proposal or comparison
-   stages are evidence, not recommendations.
-4. Report provider/model/executor diversity honestly. Different sessions of one provider are not
-   cross-provider agreement, and AnaxiGraph can prove only the packet it supplied—not that an
-   external model had no unrelated prior context.
-5. Present the final ranked recommendations, current strengths, counter-evidence, rejected ideas,
-   migration risks, and verification. Report the grounding status with each recommendation:
-   `grounding.status` is `confirmed`, `needs_test`, `already_satisfied`, or `stale`, and
-   `grounding_summary` counts them. It is a deterministic check that the cited paths, symbols,
-   findings, commits, and routes still resolve in the reviewed snapshot—never proof that the
-   recommendation is correct—so treat `needs_test` as unverified, not as wrong. Use normal
-   Guide/Impact before implementing any selected slice. Never edit source merely because the
-   reference design differs from the current system.
-6. To compare reruns, read `generations` in the reply: each recorded generation names its snapshot,
-   state, executor models, and per-stage duration, output bytes, token counts, and
-   `attempts_observed` (a floor, not a retry count). Read an earlier one in full with
-   `ANAXIGRAPH_GUIDE(intent="redesign", generation=<n>)` or
-   `anaxigraph fresh-eyes <repository> --generation <n> --json`. It returns `state: superseded`
-   with `ready: false`; report it as history and never present it as the current advice.
+1. Read `ANAXIGRAPH_GUIDE(fresh_eyes=true)` or `intent="redesign"`. If explicitly requested and not
+   started/stale, call with `start=true`, retaining three alternatives per scope by default; five
+   is optional. Retry failed batches without discarding successful results. `restart=true` creates
+   a new generation and preserves the originals.
+2. Run the durable host executor. The workflow prepares a functional product/capability/subsystem
+   hierarchy, generates independent alternatives from parents to children, compares all retained
+   alternatives blindly, and performs a final functional review. It does not collapse to one design.
+3. For full non-product designs, request `ANAXIGRAPH_GUIDE(intent="redesign",
+   scope_id="<returned-scope-id>", details=true)`. Read each scope's alternatives, pros/cons,
+   assumptions, disagreements, parent compatibility and
+   isolation provenance. Different models or sessions do not prove independent agreement; an
+   unattested external worker remains unverified. Completion requires `ready=true, state="current"`.
+4. Compare saved generations by their complete original records. This is a side-by-side historical
+   view, not a newly inferred agreement score. Legacy v1 documents are read-only archives.
 
-## Prepare a coding handoff
+## Plan an architecture target
 
-Return a compact plan containing:
+Call `ANAXIGRAPH_GUIDE(intent="plan")`; direction can be blank. `start=true` prepares work for the
+background executor. Planning brings observed graph evidence, Pattern assessments and retained
+Fresh Eyes alternatives together. Compare preserving sound boundaries with evolutionary and other
+justified options; let the agent select a default when the user does not steer.
 
-1. the selected repository and indexed snapshot;
-2. primary files and why each belongs in scope;
-3. dependants, contracts, protected boundaries, and likely tests;
-4. relevant findings and semantic claims, labeled by provenance and confidence;
-5. the smallest viable change plus credible alternatives;
-6. focused verification commands and the AnaxiGraph refresh/query needed to inspect the result.
+Read the current and proposed diagrams, contracts, migration risks and next milestone. Use
+`target_option` to select a saved option. After actual tests, report `milestone`,
+`milestone_status="verified"` and `verification_evidence`. A saved target can outlive its source
+snapshot; keep stale evidence, proposed design, observed code and reported verification distinct.
+Use `ANAXIGRAPH_GUIDE(reassess=true)` to compare compatible before/after maps after implementation.
 
-Prefer evidence-backed uncertainty over confident extrapolation. Do not recommend deleting a symbol
-or module solely because static analysis found no caller; dynamic loading, reflection, framework
-wiring, external consumers, and unsupported languages must be ruled out separately.
+## Share portable understanding
+
+Explicit dashboard/headless workflows save the current portable record in `anaxigraph/` when
+writable. After Git pull, import compatible fingerprinted analyses before buying new model work.
+Queues, leases, credentials and rebuildable indexes stay local; Git carries concise current
+understanding, selected analyses and provenance. `anaxigraph refresh . --workflows
+mapping,patterns,fresh-eyes,architecture --json` supports scheduled runs and saves partial results.
+Report mapped locally, record exported, Git committed and pushed separately. The caller owns Git
+publication. Do not export the complete historical SQL cache or excluded runtime data.
+
+Do not recommend deleting code solely because a static graph has no callers. Check dynamic loading,
+framework wiring, external consumers and analyzer limitations before turning that signal into work.

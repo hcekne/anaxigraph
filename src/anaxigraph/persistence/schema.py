@@ -1,6 +1,6 @@
 """Versioned AnaxiIndex compatibility schema installed before explicit migrations."""
 
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 13
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_meta (
@@ -341,8 +341,6 @@ CREATE INDEX IF NOT EXISTS idx_semantic_jobs_queue
     ON semantic_jobs(repository_id, status, available_at, priority DESC, id);
 CREATE INDEX IF NOT EXISTS idx_semantic_jobs_scope
     ON semantic_jobs(snapshot_id, scope_type, scope_key, job_kind, input_hash);
-CREATE INDEX IF NOT EXISTS idx_semantic_states_snapshot
-    ON semantic_scope_states(snapshot_id, scope_type, status);
 CREATE INDEX IF NOT EXISTS idx_semantic_taxonomies_snapshot
     ON semantic_taxonomies(snapshot_id, status, id DESC);
 CREATE INDEX IF NOT EXISTS idx_semantic_taxonomy_memberships_node

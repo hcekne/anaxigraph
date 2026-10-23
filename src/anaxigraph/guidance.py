@@ -16,7 +16,7 @@ FILE_MEASUREMENT_MEANINGS = {
         "The share of this file's lines run by the imported test report. Missing means no matching "
         "test report, not zero coverage."
     ),
-    "change_count": "How many indexed Git commits changed this file.",
+    "change_count": "How many commits changed this file in the reported observed Git window; this is not necessarily its lifetime total.",
     "attention_score": (
         "A sorting score that combines size, branches, direct file links, Git changes, and active "
         "findings. It only decides which files appear first; it is not a grade for the code."

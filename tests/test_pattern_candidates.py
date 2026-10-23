@@ -132,133 +132,102 @@ def _six_level_evidence():
     )
 
 
-def test_sparse_plan_produces_stable_candidates_at_all_six_levels():
+def test_complete_plan_has_stable_all_catalogue_identity_despite_legacy_limits():
     projection = _projection(*_six_level_evidence())
-    policy = PatternCandidatePolicy(per_target_limit=5)
-
-    first = build_pattern_candidate_plan(bundled_pattern_catalog(), projection, policy=policy)
-    second = build_pattern_candidate_plan(bundled_pattern_catalog(), projection, policy=policy)
+    catalog = bundled_pattern_catalog()
+    policy = PatternCandidatePolicy(per_target_limit=1, total_limit=1, minimum_priority=100)
+    first = build_pattern_candidate_plan(catalog, projection, policy=policy)
+    second = build_pattern_candidate_plan(catalog, projection, policy=policy)
     value = first.as_dict()
-
     assert first.fingerprint == second.fingerprint
-    assert value["selection_version"] == "pattern-candidate-selection-v2"
-    assert [item.input_fingerprint for item in first.candidates] == [
-        item.input_fingerprint for item in second.candidates
-    ]
-    assert all(0 < count <= 5 for count in value["counts_by_level"].values())
-    assert value["selected"] == sum(value["counts_by_level"].values())
-    assert value["selected"] <= value["targets_considered"] * policy.per_target_limit
-    assert value["selected"] < value["eligible_pairs"]
-    assert value["skipped_by_reason"]["per_target_limit"] > 0
+    assert value["selection_version"] == "whole-catalogue-v1"
+    assert value["selected"] == len(catalog.cards)
+    assert set(value["expected_pattern_ids"]) == {item.pattern_key for item in first.candidates}
+    assert value["counts_by_level"]["repository"] == len(catalog.cards)
+    assert not value["omitted_candidates"] and not value["skipped_by_reason"]
 
 
-def test_long_function_candidate_keeps_direct_evidence_and_separate_counter_evidence():
+def test_local_long_function_diagnostic_preserves_direct_and_counter_evidence():
     function = _six_level_evidence()[0]
-    plan = build_pattern_candidate_plan(
+    result = explain_pattern_candidate(
         bundled_pattern_catalog(),
         _projection(function),
-        policy=PatternCandidatePolicy(per_target_limit=20),
+        target_key=function.target.key,
+        pattern_key="long-function",
     )
-    candidate = next(item for item in plan.candidates if item.pattern_key == "long-function")
-
-    assert candidate.selection_reasons == ("problem_signal", "supporting_evidence")
-    assert {item.feature for item in candidate.matched_signals} == {
+    candidate = result["candidate"]
+    assert candidate["selection_reasons"] == ["problem_signal", "supporting_evidence"]
+    assert {item["feature"] for item in candidate["matched_signals"]} == {
         "code.complexity",
         "code.logical_lines",
     }
-    assert candidate.counter_signals == ()
-    assert candidate.priority > 50
-    assert candidate.as_dict()["pattern_key"] == "long-function"
+    assert candidate["counter_signals"] == [] and candidate["priority"] > 50
 
 
-def test_semantic_unknowns_select_bounded_architecture_questions():
-    repository = _six_level_evidence()[-1]
+def test_semantic_unknowns_stay_visible_without_filtering_catalogue_cards():
+    catalog = bundled_pattern_catalog()
     plan = build_pattern_candidate_plan(
-        bundled_pattern_catalog(),
-        _projection(repository),
+        catalog,
+        _projection(_six_level_evidence()[-1]),
         policy=PatternCandidatePolicy(per_target_limit=4),
     )
-
-    assert len(plan.candidates) == 4
+    assert len(plan.candidates) == len(catalog.cards)
     assert {item.target.level for item in plan.candidates} == {"repository"}
-    assert any("semantic_question" in item.selection_reasons for item in plan.candidates)
-    assert all(item.semantic_questions for item in plan.candidates)
-    assert plan.omitted_candidates > 0
+    assert any(item.missing_evidence for item in plan.candidates)
+    assert not plan.omitted_candidates
 
 
-def test_global_bound_reserves_candidate_work_for_every_available_level():
+def test_global_limit_does_not_discard_card_consideration():
+    catalog = bundled_pattern_catalog()
     plan = build_pattern_candidate_plan(
-        bundled_pattern_catalog(),
+        catalog,
         _projection(*_six_level_evidence()),
         policy=PatternCandidatePolicy(
-            per_target_limit=5,
-            total_limit=6,
-            minimum_priority=0,
-            per_level_reserve=1,
+            per_target_limit=5, total_limit=6, minimum_priority=0, per_level_reserve=1
         ),
     )
-
-    assert len(plan.candidates) == 6
-    assert {item.target.level for item in plan.candidates} == {
-        "symbol",
-        "type",
-        "module",
-        "subsystem",
-        "area",
-        "repository",
-    }
-    assert dict(plan.skipped_by_reason)["total_limit"] > 0
+    assert len(plan.candidates) == len(catalog.cards)
+    assert len({item.pattern_key for item in plan.candidates}) == len(catalog.cards)
+    assert not plan.skipped_by_reason
 
 
-def test_global_bound_reserves_distinct_patterns_before_repeating_generic_ones():
+def test_multiple_targets_do_not_create_a_pattern_by_target_work_matrix():
+    catalog = bundled_pattern_catalog()
     first = _six_level_evidence()[2]
     second = _evidence(
         module_target("src/other.py", subsystem_key="subsystem:runtime"),
         *first.features,
         fingerprint="d" * 64,
     )
-
     plan = build_pattern_candidate_plan(
-        bundled_pattern_catalog(),
+        catalog,
         _projection(first, second),
         policy=PatternCandidatePolicy(
-            per_target_limit=4,
-            total_limit=8,
-            per_level_reserve=0,
-            per_pattern_reserve=1,
+            per_target_limit=4, total_limit=8, per_level_reserve=0, per_pattern_reserve=1
         ),
     )
-
-    assert len(plan.candidates) == 8
-    assert len({item.pattern_key for item in plan.candidates}) == 8
-    assert all(
-        sum(item.target.key == target.target.key for item in plan.candidates) == 4
-        for target in (first, second)
-    )
+    assert len(plan.candidates) == len(catalog.cards)
+    assert len({item.pattern_key for item in plan.candidates}) == len(catalog.cards)
+    assert {item.target.key for item in plan.candidates} == {"repository:root"}
 
 
-def test_semantic_responsibility_breaks_generic_signal_ties_for_provider_work():
+def test_semantic_responsibility_prioritizes_a_lead_without_excluding_other_patterns():
     module = _evidence(
         module_target("src/providers.py", subsystem_key="subsystem:runtime"),
         _feature("syntax.constructors", {"count": 5, "values": ["__init__"]}),
         _feature("types.count", 5),
         _feature("semantic.responsibilities", ["Choose interchangeable provider implementations"]),
     )
-
-    plan = build_pattern_candidate_plan(
-        bundled_pattern_catalog(),
-        _projection(module),
-        policy=PatternCandidatePolicy(
-            per_target_limit=4,
-            total_limit=4,
-            per_level_reserve=0,
-            per_pattern_reserve=2,
-        ),
+    catalog = bundled_pattern_catalog()
+    projection = _projection(module)
+    lead = explain_pattern_candidate(
+        catalog, projection, target_key=module.target.key, pattern_key="provider-abstraction"
     )
-
-    provider = next(item for item in plan.candidates if item.pattern_key == "provider-abstraction")
-    assert provider.priority == 49
-    assert "identity-map" not in {item.pattern_key for item in plan.candidates}
+    assert lead["candidate"]["priority"] == 49
+    plan = build_pattern_candidate_plan(catalog, projection)
+    assert {"provider-abstraction", "identity-map"} <= {
+        item.pattern_key for item in plan.candidates
+    }
 
 
 def test_skipped_pair_explains_missing_evidence_without_persisting_dense_records():
@@ -367,35 +336,17 @@ def test_capability_coverage_reports_partial_parent_support():
     assert "2/4" in coverage.gap
 
 
-def test_only_changed_target_changes_candidate_input_fingerprints():
-    items = _six_level_evidence()
-    before = build_pattern_candidate_plan(bundled_pattern_catalog(), _projection(*items))
-    changed = _evidence(
-        items[0].target,
-        *items[0].features,
-        fingerprint=hashlib.sha256(b"changed target").hexdigest(),
-    )
-    after = build_pattern_candidate_plan(
-        bundled_pattern_catalog(),
-        _projection(changed, *items[1:]),
-    )
-    before_by_pair = {
-        (item.target.key, item.pattern_key): item.input_fingerprint for item in before.candidates
-    }
-    after_by_pair = {
-        (item.target.key, item.pattern_key): item.input_fingerprint for item in after.candidates
-    }
+def test_catalogue_scope_fingerprint_changes_when_its_whole_evidence_changes():
+    from dataclasses import replace
 
-    unchanged_pairs = set(before_by_pair) & set(after_by_pair)
+    catalog = bundled_pattern_catalog()
+    projection = _projection(*_six_level_evidence())
+    before = build_pattern_candidate_plan(catalog, projection)
+    changed = replace(projection, fingerprint=hashlib.sha256(b"changed architecture").hexdigest())
+    after = build_pattern_candidate_plan(catalog, changed)
+    before_by_key = {item.pattern_key: item.input_fingerprint for item in before.candidates}
     assert all(
-        before_by_pair[pair] != after_by_pair[pair]
-        for pair in unchanged_pairs
-        if pair[0] == changed.target.key
-    )
-    assert all(
-        before_by_pair[pair] == after_by_pair[pair]
-        for pair in unchanged_pairs
-        if pair[0] != changed.target.key
+        before_by_key[item.pattern_key] != item.input_fingerprint for item in after.candidates
     )
 
 

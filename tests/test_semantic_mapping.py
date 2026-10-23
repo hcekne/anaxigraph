@@ -10,9 +10,10 @@ from semantic_support import _agent_dossier, _fake_provider, _semantic_config
 from anaxigraph import semantic_freshness, semantic_runner
 from anaxigraph.agent import architecture_guidance
 from anaxigraph.config import SemanticConfig, load_config, semantic_config_from_mapping
+from anaxigraph.knowledge_annotation_contract import ANNOTATION_SCHEMA
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.semantic import ClaudeSemanticProvider, _prompt
-from anaxigraph.semantic_contract import DOSSIER_SCHEMA, SemanticAnalysisError
+from anaxigraph.semantic_contract import SemanticAnalysisError
 from anaxigraph.semantic_request_analysis import analyze_semantic_request
 from anaxigraph.semantic_request_support import (
     MAPPING_REQUIREMENTS,
@@ -33,7 +34,8 @@ def mapping_request(**changes):
     return {
         "path": "pkg/core.py",
         "source": "def total(quantity, price): return quantity * price\n",
-        "analysis_kind": "intrinsic",
+        "analysis_kind": "synthesis",
+        "scope_type": "group",
         "schema_version": "repository-understanding-v7",
         "detailed_reviews": False,
         "max_output_tokens": 4_000,
@@ -53,16 +55,16 @@ class MappingProvider:
         return validated_agent_semantic_response(_agent_dossier(request), request)
 
 
-def test_default_contract_is_small_and_detailed_reviews_are_explicit():
+def test_group_summaries_stay_compact_when_optional_pattern_review_is_enabled():
     request = mapping_request()
     assert semantic_config_from_mapping({"enabled": True}).detailed_reviews is False
     assert response_schema(request) == MAPPING_SCHEMA
     assert len(MAPPING_SCHEMA["required"]) == 5
-    assert len(json.dumps(MAPPING_SCHEMA)) < len(json.dumps(DOSSIER_SCHEMA)) / 4
-    assert response_schema({**request, "detailed_reviews": True}) == DOSSIER_SCHEMA
+    assert len(json.dumps(MAPPING_SCHEMA)) < 1_500
+    assert response_schema({**request, "detailed_reviews": True}) == MAPPING_SCHEMA
     assert SemanticConfig().max_output_tokens is None
     assert SemanticConfig().max_output_tokens_on_retry is None
-    assert response_contract_name({**request, "detailed_reviews": True}) == "review_dossier"
+    assert response_contract_name({**request, "detailed_reviews": True}) == "dossier"
     assert set(compact_dossier(_agent_dossier({**request, "detailed_reviews": True}))) == set(
         MAPPING_SCHEMA["required"]
     )
@@ -124,19 +126,64 @@ def test_claude_receives_the_lower_per_request_output_limit(monkeypatch, configu
     assert set(result.value) == set(MAPPING_SCHEMA["required"])
 
 
-def test_large_file_chunks_and_reduction_keep_the_lean_contract():
-    provider = MappingProvider()
-    request = mapping_request(source="VALUE = 1\n" * 1_000, contract="Describe this file")
+def test_large_annotations_keep_function_coverage_and_account_for_all_model_calls():
+    class CountingProvider(MappingProvider):
+        def analyze(self, request):
+            return replace(
+                super().analyze(request),
+                input_tokens=3,
+                output_tokens=2,
+                cache_read_input_tokens=1,
+                cache_creation_input_tokens=4,
+            )
+
+    provider = CountingProvider()
+    pieces = [
+        f"def function_{index}():\n"
+        + "    # A supplied implementation detail.\n" * 15
+        + "    return 1\n"
+        for index in range(50)
+    ]
+    functions = [
+        {
+            "qualified_name": f"function_{index}",
+            "start_line": index * 17 + 1,
+            "end_line": (index + 1) * 17,
+            "signature": f"function_{index}()",
+        }
+        for index in range(50)
+    ]
+    request = mapping_request(
+        analysis_kind="annotation",
+        source="".join(pieces),
+        functions=functions,
+        contract="Annotate compactly",
+    )
     result = analyze_semantic_request(provider, request, SemanticConfig(max_source_chars=4_000))
-    assert len(provider.requests) > 1
-    assert provider.requests[-1]["analysis_kind"] == "intrinsic_synthesis"
-    assert all(request["detailed_reviews"] is False for request in provider.requests)
-    assert all(request["max_output_tokens"] == 4_000 for request in provider.requests)
-    assert set(result.value) == set(MAPPING_SCHEMA["required"])
+    partials, final = provider.requests[:-1], provider.requests[-1]
+    assert len(partials) > 1 and all(item["analysis_kind"] == "annotation" for item in partials)
+    assert all(
+        len(item["source"]) <= 4_000 and item["chunk"]["total"] == len(partials)
+        for item in partials
+    )
+    assert all(len(item["functions"]) < len(functions) for item in partials)
+    assert final["analysis_kind"] == "annotation" and "source" not in final
+    assert len(final["annotation_chunks"]) == len(partials)
+    assert final["functions"] == functions
+    assert {item["qualified_name"] for item in result.value["functions"]} == {
+        item["qualified_name"] for item in functions
+    }
+    assert set(result.value) == set(ANNOTATION_SCHEMA["required"])
+    assert (
+        result.input_tokens,
+        result.output_tokens,
+        result.cache_read_input_tokens,
+        result.cache_creation_input_tokens,
+    ) == tuple(len(provider.requests) * value for value in (3, 2, 1, 4))
 
 
 @pytest.mark.parametrize("detailed", [False, True])
-def test_group_reduction_preserves_the_requested_level_of_detail(detailed):
+def test_group_reduction_stays_compact_regardless_of_legacy_review_flag(detailed):
     provider = MappingProvider()
     request = mapping_request(
         analysis_kind="synthesis",
@@ -151,9 +198,8 @@ def test_group_reduction_preserves_the_requested_level_of_detail(detailed):
     )
     assert any(item["analysis_kind"] == "synthesis_reduction" for item in provider.requests)
     for child in provider.requests[-1]["child_dossiers"]:
-        assert ("architecture_role" in child["value"]) is detailed
-        if not detailed:
-            assert set(child["value"]) == set(MAPPING_SCHEMA["required"])
+        assert set(child["value"]) == set(MAPPING_SCHEMA["required"])
+    assert all(item["detailed_reviews"] is False for item in provider.requests)
 
 
 def test_lean_map_finishes_and_still_supports_guidance(repository, database, tmp_path, monkeypatch):
@@ -179,10 +225,18 @@ def test_lean_map_finishes_and_still_supports_guidance(repository, database, tmp
             assert AGENT_REVIEW_POLICY not in json.dumps(request)
         elif request["analysis_kind"] == "taxonomy_proposal":
             assert all(
-                "architecture_role" not in module["dossier"] for module in request["modules"]
+                "understandability" not in module["dossier"]
+                and "consolidation_opportunities" not in module["dossier"]
+                for module in request["modules"]
             )
     saved = engine.dossier(scan.repository_id, "pkg/core.py")
-    assert set(saved["context"]["value"]) == set(MAPPING_SCHEMA["required"])
+    assert set(ANNOTATION_SCHEMA["required"]) <= set(saved["context"]["value"])
+    with database.connect() as connection:
+        row = connection.execute(
+            "SELECT intrinsic_document_id,context_document_id FROM semantic_scope_states WHERE snapshot_id=? AND scope_type='module' AND scope_key='pkg/core.py'",
+            (scan.snapshot_id,),
+        ).fetchone()
+        assert row["intrinsic_document_id"] == row["context_document_id"]
     guide = architecture_guidance(
         database, repository_id=scan.repository_id, goal="Change Calculator", config=config
     )
@@ -207,20 +261,22 @@ def test_review_mode_refreshes_evidence_and_can_return_to_lean_mapping(
     assert engine.bootstrap(scan.repository_id, repository, lean)["semantic"]["semantically_ready"]
     review = replace(lean, semantic=replace(lean.semantic, detailed_reviews=True))
     provider.requests.clear()
-    detailed = engine.bootstrap(scan.repository_id, repository, review)
+    detailed = engine.bootstrap(scan.repository_id, repository, review, until_complete=True)
     assert detailed["semantic"]["semantically_ready"]
     assert any(item["analysis_kind"] == "pattern_review" for item in provider.requests)
     for request in provider.requests:
         if request["analysis_kind"] in {
-            "intrinsic",
-            "context",
             "pattern_assessment",
             "pattern_review",
         }:
-            assert json.dumps(request).count(AGENT_REVIEW_POLICY) == 1
+            assert json.dumps(request).count(AGENT_REVIEW_POLICY) == 0
+            assert "A bug is not required" in request["contract"]
+            assert request["candidate"]["pattern_key"]
     assert (
-        "understandability" in engine.dossier(scan.repository_id, "pkg/core.py")["context"]["value"]
+        "understandability"
+        not in engine.dossier(scan.repository_id, "pkg/core.py")["context"]["value"]
     )
+    assert not any(item["analysis_kind"] == "annotation" for item in provider.requests)
     with database.transaction() as connection:
         row = connection.execute(
             "SELECT id FROM semantic_jobs WHERE repository_id = ? AND job_kind = 'pattern_review' LIMIT 1",

@@ -12,6 +12,7 @@ import {
   readThemeColors,
   state,
 } from "/assets/dashboard-core.js";
+import { layoutSemanticGraph } from "/assets/semantic-graph-layout.js";
 
 export function buildGroupIndex(groups) {
   state.groupParents.clear();
@@ -67,7 +68,8 @@ export function renderGraphAreaOptions() {
   const counts = currentArchitectureCounts().roots;
   (state.graph.nodes || []).forEach((node) => {
     const root = rootGroup(node);
-    if (!counts.has(root)) counts.set(root, 1);
+    if (!state.groupRoots.length) counts.set(root, (counts.get(root) || 0) + 1);
+    else if (!counts.has(root)) counts.set(root, 1);
   });
   const order = new Map(state.groupRoots.map((group, index) => [group.name, index]));
   const roots = [...counts].sort(([left], [right]) => (
@@ -207,6 +209,10 @@ function orderedRoots(roots, historicalFrame) {
 export function layoutGraph(resetView = true) {
   const nodes = visibleGraphNodes();
   const canvas = byId("graph-canvas");
+  if (byId("graph-layout-select")?.value !== "footprint") {
+    layoutSemanticGraph(nodes, canvas, resetView);
+    return;
+  }
   const width = canvas.clientWidth;
   const height = canvas.clientHeight;
   if (!width || !height) return;
@@ -348,6 +354,7 @@ function heat(value, maximum, cool = null, hot = null) {
 }
 
 export function nodeColor(node) {
+  if (state.entityGraphKind !== "observed") return groupColor(node.kind);
   const overlay = byId("overlay-select").value;
   const theme = state.themeColors || readThemeColors();
   if (overlay === "architecture") return architectureColor(effectiveGroup(node));
@@ -356,15 +363,19 @@ export function nodeColor(node) {
   if (overlay === "coverage") return node.line_coverage == null ? theme.missing : heat(1 - Number(node.line_coverage), 1, theme.cool, theme.hot);
   if (overlay === "change") return heat(Number(node.change_count || 0), 30, theme.low, theme.warm);
   if (overlay === "drift") return node.declared_group && node.inferred_group && node.declared_group !== node.inferred_group ? theme.hot : theme.drift;
-  if (overlay === "dead-code") {
-    const module = state.modules.find((item) => item.path === node.path);
-    const dead = module?.active_findings?.some((finding) => finding.finding_type === "possible_dead_code");
-    return dead ? theme.warm : theme.idle;
-  }
-  if (overlay === "agent") {
-    if (state.protectedPaths.has(node.path)) return theme.warm;
-    if (state.highlightedPaths.has(node.path)) return theme.cool;
-    return theme.safe;
-  }
+  if (overlay === "dead-code") return deadCodeColor(node, theme);
+  if (overlay === "agent") return agentColor(node, theme);
   return theme.cool;
+}
+
+function deadCodeColor(node, theme) {
+  const module = state.modules.find((item) => item.path === node.path);
+  const dead = module?.active_findings?.some((finding) => finding.finding_type === "possible_dead_code");
+  return dead ? theme.warm : theme.idle;
+}
+
+function agentColor(node, theme) {
+  if (state.protectedPaths.has(node.path)) return theme.warm;
+  if (state.highlightedPaths.has(node.path)) return theme.cool;
+  return theme.safe;
 }

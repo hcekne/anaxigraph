@@ -15,7 +15,8 @@ from anaxigraph.semantic_freshness import (
 
 def review_input_hash(connection: Any, prompt: str, evidence: dict[str, Any]) -> str:
     candidate = connection.execute(
-        "SELECT value_json FROM semantic_documents WHERE id=?", (evidence["candidate_document_id"],)
+        "SELECT value_json FROM semantic_document_values WHERE id=?",
+        (evidence["candidate_document_id"],),
     ).fetchone()
     stable = {key: value for key, value in evidence.items() if key != "candidate_document_id"}
     stable["candidate_fingerprint"] = semantic_digest(json.loads(candidate[0]))
@@ -39,7 +40,7 @@ def prepare_review_identity(
     documents = [
         dict(row)
         for row in connection.execute(
-            "SELECT * FROM semantic_documents WHERE repository_id=? AND snapshot_id=? AND document_kind='taxonomy_review'",
+            "SELECT * FROM semantic_document_values WHERE repository_id=? AND snapshot_id=? AND document_kind='taxonomy_review'",
             (repository_id, snapshot_id),
         )
     ]
@@ -107,7 +108,7 @@ def _rewrite_batches(
             continue
         paths = [
             connection.execute(
-                "SELECT scope_key FROM semantic_documents WHERE id=?", (identifier,)
+                "SELECT scope_key FROM semantic_document_values WHERE id=?", (identifier,)
             ).fetchone()[0]
             for identifier in metadata["document_ids"]
         ]

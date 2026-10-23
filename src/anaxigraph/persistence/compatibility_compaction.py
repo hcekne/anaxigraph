@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from anaxigraph.persistence.index_parity import EDGE_FIELDS
+from anaxigraph.persistence.semantic_payloads import install_semantic_payload_views
 from anaxigraph.persistence.temporal_reads import snapshot_relationship_edges
 from anaxigraph.semantic_job_state import (
     FRESH_EYES_METADATA_RETENTION,
@@ -140,14 +141,21 @@ def retire_compatibility_references(connection: sqlite3.Connection) -> None:
     """Retire legacy constraints, not just their values, within the schema transaction."""
     if coverage_uses_compatibility_reference(connection):
         connection.execute("ALTER TABLE coverage_measurements DROP COLUMN relationship_id")
-    for table in semantic_compatibility_tables(connection):
+    tables = semantic_compatibility_tables(connection)
+    for table in tables:
         missing = connection.execute(
             f"SELECT 1 FROM {table} WHERE artifact_id IS NOT NULL AND file_fact_id IS NULL LIMIT 1"
         ).fetchone()
         if missing:
             raise RuntimeError(f"Cannot retire {table} references without canonical file facts")
+    if not tables:
+        return
+    connection.execute("DROP VIEW IF EXISTS semantic_document_values")
+    connection.execute("DROP VIEW IF EXISTS semantic_claim_values")
+    for table in tables:
         connection.execute(f"ALTER TABLE {table} DROP COLUMN artifact_version_id")
         connection.execute(f"ALTER TABLE {table} ADD COLUMN artifact_version_id INTEGER")
+    install_semantic_payload_views(connection)
 
 
 def compact_compatibility_rows(

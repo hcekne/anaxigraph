@@ -259,13 +259,13 @@ def test_agent_submit_loses_to_a_reclaim_inside_the_validation_window(
 def test_submit_after_source_change_marks_the_job_superseded(repository, database):
     config, repository_id, engine = _agent_queue(repository, database)
     packet = engine.claim_agent_work(repository_id, repository, config, agent_id="agent-a")
-    assert (packet["status"], packet["job"]["kind"]) == ("work", "intrinsic")
+    assert (packet["status"], packet["job"]["kind"]) == ("work", "annotation")
     target = repository / packet["job"]["scope_key"]
     target.write_text(
         target.read_text(encoding="utf-8") + "\n# edited after planning\n", encoding="utf-8"
     )
 
-    with pytest.raises(ValueError, match="changed after this semantic job was planned"):
+    with pytest.raises(ValueError, match="Source changed since annotation planning"):
         engine.submit_agent_work(
             repository_id,
             repository,

@@ -3,9 +3,17 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import pytest
+
 import anaxigraph.trend_service as trends
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.trend_service import scoped_change_coupling
+
+
+@pytest.fixture(autouse=True)
+def _explicit_history(repository):
+    policy = repository / ".anaxigraph.yml"
+    policy.write_text(policy.read_text() + "\nstorage:\n  detailed_history: true\n")
 
 
 def _commit_changes(repository: Path, paths: list[str], marker: str) -> None:

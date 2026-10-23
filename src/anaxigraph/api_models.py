@@ -15,8 +15,8 @@ class GuidanceRequest(BaseModel):
 
 class FreshEyesRequest(BaseModel):
     goal: str | None = Field(default=None, max_length=4_000)
-    proposal_count: int = Field(default=2, ge=1, le=3)
-    proposal_executors: list[str] = Field(default_factory=list, max_length=3)
+    proposal_count: int = Field(default=3, ge=1, le=5)
+    proposal_executors: list[str] = Field(default_factory=list, max_length=5)
     retry_failed: bool = False
     restart: bool = False
     unpin: bool = False

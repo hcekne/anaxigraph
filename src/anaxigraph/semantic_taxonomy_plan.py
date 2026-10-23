@@ -226,7 +226,7 @@ def _review_queue(
 
 def _review_candidate(connection: sqlite3.Connection, taxonomy: sqlite3.Row) -> tuple[int, int]:
     latest = connection.execute(
-        """SELECT document_id, pass_index FROM semantic_taxonomy_reviews
+        """SELECT document_id, pass_index FROM semantic_taxonomy_review_values
            WHERE taxonomy_id = ? ORDER BY pass_index DESC LIMIT 1""",
         (int(taxonomy["id"]),),
     ).fetchone()
@@ -286,7 +286,7 @@ def _current_or_carried_taxonomy(
 ) -> tuple[sqlite3.Row | None, TaxonomyCarry | None]:
     taxonomy = connection.execute(
         """
-        SELECT * FROM semantic_taxonomies
+        SELECT * FROM semantic_taxonomy_values
         WHERE snapshot_id = ? AND input_hash = ? ORDER BY id DESC LIMIT 1
         """,
         (snapshot_id, inputs.input_hash),
@@ -401,7 +401,7 @@ def _taxonomy_metadata(
 ) -> dict[str, Any]:
     previous = connection.execute(
         """
-        SELECT id FROM semantic_taxonomies
+        SELECT id FROM semantic_taxonomy_values
         WHERE repository_id = ? AND snapshot_id != ? AND status = 'current'
         ORDER BY snapshot_id DESC, id DESC LIMIT 1
         """,

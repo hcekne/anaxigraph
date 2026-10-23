@@ -9,11 +9,15 @@ const diagrams = {
   "fresh-eyes": { number: "03", columns: 4, handoff: "Apply mission + constraints" },
 };
 
+function flowCompletionLabel(flow) {
+  return workflowState(flow) === "complete" && flow.completionLabel ? flow.completionLabel : statusLabels[workflowState(flow)];
+}
+
 export function workflowTabs(flows, selected) {
   return flows.map(flow => `<button type="button" role="tab" id="workflow-tab-${flow.id}"
     aria-selected="${flow.id === selected}" tabindex="${flow.id === selected ? 0 : -1}" aria-controls="workflow-panel" data-flow="${flow.id}">
     <span class="workflow-tab-number">${diagrams[flow.id].number}</span><span class="workflow-tab-copy">
-    <strong>${escapeHtml(flow.name)}</strong><small>${statusLabels[workflowState(flow)]} · ${flow.steps.filter(item => item.status === "complete").length} / ${flow.steps.length} steps</small>
+    <strong>${escapeHtml(flow.name)}</strong><small>${flowCompletionLabel(flow)} · ${flow.steps.filter(item => item.status === "complete").length} / ${flow.steps.length} steps</small>
     </span><span class="workflow-tab-arrow" aria-hidden="true">→</span></button>`).join("");
 }
 
@@ -21,7 +25,7 @@ export function workflowDiagram(flow, selectedStep) {
   const diagram = diagrams[flow.id];
   return `<div class="workflow-heading"><div>
     <h2><span>${diagram.number}</span> ${escapeHtml(flow.title)}</h2>${flow.update ? `<aside class="workflow-source-update" aria-label="Source changes"><strong>Source changed · your work is saved</strong><button type="button" data-progress-step="${flow.update.next}" aria-haspopup="dialog">See what changed →</button></aside>` : `<p>${escapeHtml(flow.description)}</p>`}</div>
-    <div class="workflow-heading-actions"><span class="workflow-status ${workflowState(flow)}">${statusLabels[workflowState(flow)]}</span>
+    <div class="workflow-heading-actions"><span class="workflow-status ${workflowState(flow)}">${flowCompletionLabel(flow)}</span>
     <button id="workflow-focus" type="button" class="secondary-button">Focus map</button></div></div>
     <div class="workflow-canvas" data-columns="${diagram.columns}" data-handoff="${diagram.handoff}"><svg class="workflow-edges" aria-hidden="true"></svg>
     <ol class="workflow-nodes">${flow.steps.map((item, index) => nodeMarkup(item, index, selectedStep)).join("")}</ol></div>
@@ -141,7 +145,7 @@ function savedProgressDetail(item) {
   let detail = "";
   if (item.reusePending) detail += `<p class="workflow-saved-progress">${number(item.saved)} file results remain saved from scan ${number(item.reusePending)}. The new scan has not checked their reuse yet. Updating the workflow first checks which results are still current.</p>`;
   if (counts && (counts.refresh || counts.new)) {
-    detail += `<section class="workflow-saved-progress"><h4>What needs updating</h4><p>${number(counts.current)} current · ${number(counts.refresh)} saved results need refresh · ${number(counts.new)} have no saved result.</p><p>${item.id === "context" ? "Context can change when a file’s neighbours, interfaces or dependency links change, even if the file itself is untouched." : "Only missing descriptions and those whose source or analysis requirements changed need to run."}</p><ul>${(item.affected || []).map(row => `<li><code>${escapeHtml(row.path)}</code><span>${row[item.id] === "new" ? "First run" : "Refresh saved result"}</span></li>`).join("")}</ul>${counts.refresh + counts.new > (item.affected || []).length ? "<p>Showing the first affected files; the totals include all files.</p>" : ""}</section>`;
+    detail += `<section class="workflow-saved-progress"><h4>What needs updating</h4><p>${number(counts.current)} current · ${number(counts.refresh)} saved results need refresh · ${number(counts.new)} have no saved result.</p><p>${item.id === "annotation" ? "A saved annotation is refreshed when its source or required graph evidence changes; contracts and dependency context remain linked to the same graph." : "Only missing descriptions and those whose source or analysis requirements changed need to run."}</p><ul>${(item.affected || []).map(row => `<li><code>${escapeHtml(row.path)}</code><span>${row[item.id] === "new" ? "First run" : "Refresh saved result"}</span></li>`).join("")}</ul>${counts.refresh + counts.new > (item.affected || []).length ? "<p>Showing the first affected files; the totals include all files.</p>" : ""}</section>`;
   }
   return detail + savedTaxonomyDetail(item);
 }
@@ -233,5 +237,5 @@ export function overviewWorkflowLinks(flows) {
     <p>Explore progress, inspect each handoff, and start optional reviews.</p></div>
     <div class="workflow-shortcuts">${flows.map(flow => `<button type="button" data-open-flow="${flow.id}">
     <strong>${escapeHtml(flow.name)} <span aria-hidden="true">→</span></strong>
-    <span>${statusLabels[workflowState(flow)]} · ${flow.steps.filter(item => item.status === "complete").length} / ${flow.steps.length} steps</span></button>`).join("")}</div>`;
+    <span>${flowCompletionLabel(flow)} · ${flow.steps.filter(item => item.status === "complete").length} / ${flow.steps.length} steps</span></button>`).join("")}</div>`;
 }

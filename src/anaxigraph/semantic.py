@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import tempfile
 from dataclasses import replace
@@ -19,6 +18,13 @@ from anaxigraph.semantic_contract import (
     SemanticProvider,
     SemanticResult,
 )
+from anaxigraph.semantic_fresh_eyes_isolation import (
+    blind_directory,
+    blind_request,
+    claude_blind_flags,
+    codex_blind_flags,
+    worker_environment,
+)
 from anaxigraph.semantic_stage_model import stage_tier
 from anaxigraph.semantic_taxonomy_contract import (
     response_schema,
@@ -26,6 +32,8 @@ from anaxigraph.semantic_taxonomy_contract import (
 )
 from anaxigraph.semantic_timeouts import timeout_message
 from anaxigraph.semantic_usage import ProviderUsage, claude_usage, codex_usage
+from anaxigraph.semantic_wire_schema import _codex_schema as _codex_schema
+from anaxigraph.semantic_wire_schema import _without_optional_nulls as _without_optional_nulls
 
 _NO_USAGE = ProviderUsage()
 # Leave headroom below Codex's 1,048,576-character turn/start input limit.
@@ -78,14 +86,17 @@ class CommandSemanticProvider:
 
     def analyze(self, request: dict[str, Any]) -> SemanticResult:
         try:
-            completed = subprocess.run(
-                list(self.config.command),
-                input=json.dumps(request),
-                text=True,
-                capture_output=True,
-                timeout=self.config.timeout_seconds,
-                check=False,
-            )
+            with blind_directory(request) as directory:
+                completed = subprocess.run(
+                    list(self.config.command),
+                    input=json.dumps(request),
+                    text=True,
+                    capture_output=True,
+                    cwd=directory,
+                    env=worker_environment(request),
+                    timeout=self.config.timeout_seconds,
+                    check=False,
+                )
         except subprocess.TimeoutExpired as exc:
             raise SemanticAnalysisError(
                 timeout_message("Semantic command", exc.timeout, request, self.config.model)
@@ -116,11 +127,12 @@ class CodexSemanticProvider:
                 message_path = Path(directory) / "semantic-result.json"
                 schema_path.write_text(json.dumps(_codex_schema(schema)), encoding="utf-8")
                 completed = subprocess.run(
-                    _codex_command(self.config, schema_path, message_path),
+                    _codex_command(self.config, schema_path, message_path, request),
                     input=_codex_prompt(request, Path(directory)),
                     text=True,
                     capture_output=True,
                     cwd=directory,
+                    env=worker_environment(request),
                     timeout=self.config.timeout_seconds,
                     check=False,
                 )
@@ -147,42 +159,16 @@ class CodexSemanticProvider:
         )
 
 
-def _codex_schema(value: Any) -> Any:
-    """Adapt optional fields for strict output without mutating stored contracts."""
-    if isinstance(value, list):
-        return [_codex_schema(child) for child in value]
-    if not isinstance(value, dict):
-        return value
-    schema = {key: _codex_schema(child) for key, child in value.items()}
-    if value.get("type") == "object":
-        schema["required"] = list(schema.get("properties", {}))
-        schema["properties"] = {
-            key: child if key in value.get("required", []) else {"anyOf": [child, {"type": "null"}]}
-            for key, child in schema.get("properties", {}).items()
-        }
-    return schema
-
-
-def _without_optional_nulls(value: Any, schema: dict[str, Any]) -> Any:
-    """Translate wire-level optional nulls back to omission before validation."""
-    if isinstance(value, list):
-        return [_without_optional_nulls(child, schema.get("items", {})) for child in value]
-    if not isinstance(value, dict):
-        return value
-    properties = schema.get("properties", {})
-    return {
-        key: _without_optional_nulls(child, properties.get(key, {}))
-        for key, child in value.items()
-        if not (child is None and key in properties and key not in schema.get("required", []))
-    }
-
-
 def _codex_prompt(request: dict[str, Any], directory: Path) -> str:
     """Keep oversized requests lossless without sending one oversized CLI input."""
 
     prompt = _prompt(request)
     if len(prompt) <= _CODEX_INLINE_PROMPT_CHARS:
         return prompt
+    if blind_request(request):
+        raise SemanticAnalysisError(
+            "Functional review exceeds the tool-free input budget; split its scopes"
+        )
     payload = json.dumps(request)
     page_count = (len(payload) + _CODEX_EVIDENCE_PAGE_CHARS - 1) // _CODEX_EVIDENCE_PAGE_CHARS
     for index in range(page_count):
@@ -205,7 +191,9 @@ def _codex_prompt(request: dict[str, Any], directory: Path) -> str:
     )
 
 
-def _codex_command(config: SemanticConfig, schema_path: Path, message_path: Path) -> list[str]:
+def _codex_command(
+    config: SemanticConfig, schema_path: Path, message_path: Path, request: Any = None
+) -> list[str]:
     command = [
         "codex",
         "exec",
@@ -227,6 +215,7 @@ def _codex_command(config: SemanticConfig, schema_path: Path, message_path: Path
         command.extend(("--model", config.model))
     if config.reasoning_effort:
         command.extend(("--config", f'model_reasoning_effort="{config.reasoning_effort}"'))
+    command.extend(codex_blind_flags(request or {}))
     command.append("-")
     return command
 
@@ -265,15 +254,17 @@ class ClaudeSemanticProvider:
 
     def analyze(self, request: dict[str, Any]) -> SemanticResult:
         try:
-            completed = subprocess.run(
-                _claude_command(self.config, request),
-                input=_prompt(request),
-                env=_claude_environment(self.config, request),
-                text=True,
-                capture_output=True,
-                timeout=self.config.timeout_seconds,
-                check=False,
-            )
+            with blind_directory(request) as directory:
+                completed = subprocess.run(
+                    _claude_command(self.config, request),
+                    input=_prompt(request),
+                    env=_claude_environment(self.config, request),
+                    cwd=directory,
+                    text=True,
+                    capture_output=True,
+                    timeout=self.config.timeout_seconds,
+                    check=False,
+                )
         except subprocess.TimeoutExpired as exc:
             raise _claude_failure(
                 timeout_message("Claude", exc.timeout, request, self.config.model),
@@ -292,7 +283,7 @@ class ClaudeSemanticProvider:
 
 
 def _claude_environment(config: SemanticConfig, request: dict[str, Any]) -> dict[str, str]:
-    environment = dict(os.environ)
+    environment = worker_environment(request)
     ceiling = config.max_output_tokens
     if request.get("output_recovery") and config.max_output_tokens_on_retry is not None:
         ceiling = max(ceiling or 0, config.max_output_tokens_on_retry)
@@ -323,6 +314,7 @@ def _claude_command(config: SemanticConfig, request: dict[str, Any]) -> list[str
         command.extend(("--model", config.model))
     if config.reasoning_effort:
         command.extend(("--effort", config.reasoning_effort))
+    command.extend(claude_blind_flags(request, _system_instruction()))
     return command
 
 

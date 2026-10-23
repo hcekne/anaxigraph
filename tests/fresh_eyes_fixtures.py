@@ -4,6 +4,10 @@ from __future__ import annotations
 
 
 def agent_fresh_eyes(request: dict, kind: str) -> dict:
+    if request.get("protocol_version") == "fresh-eyes-recipe-v2":
+        from fresh_eyes_functional_fixtures import functional_result
+
+        return functional_result(request)
     design = _reference_design()
     if kind == "fresh_proposal":
         return _proposal(design)

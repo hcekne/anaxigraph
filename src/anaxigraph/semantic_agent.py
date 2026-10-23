@@ -137,7 +137,11 @@ class SemanticAgentService:
         except SupersededSemanticJob as exc:
             self._persistence.mark_superseded(int(job["id"]), str(exc))
             return None
-        bounded_request, manifest, _ = self._contracts.packetize(request, semantic)
+        try:
+            bounded_request, manifest, _ = self._contracts.packetize(request, semantic)
+        except ValueError as exc:
+            self._persistence.fail_job(job, exc)
+            raise
         status = self._reporting.status(repository_id, semantic)
         return self._contracts.work_response(
             job, token, bounded_request, request, manifest, semantic, status
@@ -211,8 +215,8 @@ class SemanticAgentService:
             return self._already_completed(repository_id, semantic, job_id)
         self._leases.validate_current_agent_job(job, repository_id, semantic)
         try:
-            # Rebuild the request immediately before commit. Intrinsic jobs recheck the current
-            # bytes; contextual jobs recheck that their required documents still exist.
+            # Rebuild the request immediately before commit to recheck source fingerprints
+            # and required saved evidence.
             request = self._evidence.job_request(
                 job,
                 Path(repository).expanduser().resolve(),

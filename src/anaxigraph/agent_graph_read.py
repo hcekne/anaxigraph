@@ -11,6 +11,7 @@ from anaxigraph.architecture_vocabulary import (
     RESPONSIBILITY_MAP,
     architecture_placement,
 )
+from anaxigraph.knowledge_values import annotation_compatibility
 from anaxigraph.persistence.group_read import read_group_hierarchy
 from anaxigraph.persistence.row_decoding import _decode_json_value
 from anaxigraph.persistence.semantic_taxonomy_read import taxonomy_assignments
@@ -55,7 +56,7 @@ def _attach_semantic_files(
         SELECT ss.artifact_id, ss.status, ss.reason, sd.value_json, sd.provider,
                sd.model, sd.confidence, sd.document_kind
         FROM semantic_scope_states ss
-        LEFT JOIN semantic_documents sd
+        LEFT JOIN semantic_document_values sd
           ON sd.id = COALESCE(ss.context_document_id, ss.intrinsic_document_id)
         WHERE ss.snapshot_id = ? AND ss.scope_type = 'module'
         """,
@@ -64,7 +65,7 @@ def _attach_semantic_files(
         artifact_id = int(row["artifact_id"])
         if artifact_id not in files:
             continue
-        value = _decode_json_value(row["value_json"] or "{}") or {}
+        value = annotation_compatibility(_decode_json_value(row["value_json"] or "{}") or {})
         item = files[artifact_id]
         item["deterministic_summary"] = item["summary"]
         semantic = _semantic_file(row, value, str(item["path"]))
@@ -80,8 +81,12 @@ def _dependency_maps(
     incoming: dict[int, set[int]] = defaultdict(set)
     for row in connection.execute(
         """
-        SELECT source_artifact_id, target_artifact_id FROM projected_relationships
-        WHERE snapshot_id = ? AND target_artifact_id IS NOT NULL
+        SELECT DISTINCT s.artifact_id AS source_artifact_id,t.artifact_id AS target_artifact_id
+        FROM graph_connections e
+        JOIN graph_entities s ON s.snapshot_id=e.snapshot_id AND s.entity_id=e.source_id
+        JOIN graph_entities t ON t.snapshot_id=e.snapshot_id AND t.entity_id=e.target_id
+        WHERE e.snapshot_id = ? AND s.artifact_id IS NOT NULL AND t.artifact_id IS NOT NULL
+        AND s.artifact_id != t.artifact_id AND e.relationship_type IN ('imports','calls','extends','references')
         """,
         (snapshot_id,),
     ):
@@ -146,9 +151,11 @@ def _symbols(
     rows = connection.execute(
         f"""
         SELECT fv.artifact_id, fv.path, s.symbol_type, s.name, s.qualified_name, s.signature,
-               s.start_line, s.end_line, s.summary, s.visibility
+               s.start_line, s.end_line, COALESCE(json_extract(d.value_json,g.annotation_selector||'.overview'),s.summary) AS summary, s.visibility
         FROM projected_symbols s
         JOIN projected_file_versions fv ON fv.id = s.artifact_version_id
+        LEFT JOIN graph_entities g ON g.snapshot_id=fv.snapshot_id AND g.symbol_id=s.id AND g.kind='function'
+        LEFT JOIN semantic_document_values d ON d.id=g.annotation_id
         WHERE fv.snapshot_id = ? AND fv.artifact_id IN ({placeholders})
         ORDER BY fv.path, s.start_line LIMIT 1000
         """,

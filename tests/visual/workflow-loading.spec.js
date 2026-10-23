@@ -48,15 +48,15 @@ test("manual refresh shows a popup while background polling keeps the map intera
   try {
     await page.locator("#workflow-refresh").click();
     await expect(page.locator("#workflow-loading")).toBeVisible();
-    await expect(page.locator('[data-run-step="context"]')).toBeDisabled();
+    await expect(page.locator('[data-run-step="groups"]')).toBeDisabled();
     release();
     await expect(page.locator("#workflow-loading")).toBeHidden();
-    await expect(page.locator('[data-run-step="context"]')).toBeEnabled();
+    await expect(page.locator('[data-run-step="groups"]')).toBeEnabled();
     waiting = false;
     held = new Promise(resolve => { release = resolve; });
     await expect.poll(() => waiting).toBe(true);
     await expect(page.locator("#workflow-loading")).toBeHidden();
-    await page.locator('[data-configure-step="context"]').click();
+    await page.locator('[data-configure-step="groups"]').click();
     await expect(page.getByRole("dialog")).toBeVisible();
     await expect(page.getByRole("dialog").locator('[name="model"]')).toBeEnabled();
   } finally { release(); await page.unrouteAll({ behavior: "wait" }); }

@@ -181,6 +181,8 @@ def _patterns_ready(
         return False
     if not semantic.detailed_reviews:
         return True
+    if rows.pattern_catalogue:
+        return bool(rows.pattern_catalogue.get("complete"))
     counts = rows.scope_counts.get("pattern", {})
     plan_counts = rows.scope_counts.get("pattern_plan", {})
     return (
@@ -478,15 +480,13 @@ def _pattern_payload(
     planned = bool(plan_counts.get("current"))
     enabled = bool(semantic and semantic.enabled and semantic.detailed_reviews)
     return {
-        # Readiness is reported only for work that was eligible. _patterns_ready answers a
-        # different question for baseline_complete: whether this stage blocks the baseline,
-        # and a disabled stage does not. Reporting that as "ready" claimed a review that
-        # never ran.
+        # A disabled stage does not claim a review that never ran.
         "enabled": enabled,
         "planned": planned,
         "ready": enabled and _patterns_ready(rows, semantic),
         "selected": selected,
         "finalized": counts.get("current", 0),
+        "catalogue": rows.pattern_catalogue,
         "pending": pending,
         "failed": failed,
         "counts": counts,

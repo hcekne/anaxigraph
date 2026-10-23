@@ -40,6 +40,18 @@ def _plan_token(database, repository_id: int) -> str:
         return str(connection.execute(_PLAN_SQL, (snapshot_id,)).fetchone()["interface_hash"])
 
 
+def _half_pinned_review(repository, database):
+    review = prepared_review(
+        repository,
+        database,
+        proposal_count=3,
+        proposal_executors=("codex", "claude", "codex"),
+    )
+    for _ in range(3):
+        review.submit(review.claim(CODEX_EXECUTOR))
+    return review
+
+
 def test_the_waiting_message_names_the_reserved_work_and_the_command_to_run():
     message = waiting_for_executor_message(
         "/repos/anaxigraph",
@@ -51,68 +63,57 @@ def test_the_waiting_message_names_the_reserved_work_and_the_command_to_run():
 
 
 def test_a_worker_is_told_to_wait_for_the_pinned_peer_instead_of_complete(repository, database):
-    review = prepared_review(
-        repository, database, proposal_count=2, proposal_executors=("codex", "claude")
-    )
-    codex = review.claim(CODEX_EXECUTOR)
-    assert codex["job"]["scope_key"] == "proposal:a"
-    review.submit(codex)
+    review = _half_pinned_review(repository, database)
 
     blocked = review.claim(CODEX_EXECUTOR)
 
     assert blocked["status"] == WAITING_FOR_EXECUTOR
-    assert blocked["waiting_for"] == [{"scope_key": "proposal:b", "required_executor": "claude"}]
+    assert blocked["waiting_for"] == [
+        {"scope_key": "functional:product:proposal:b", "required_executor": "claude"}
+    ]
     assert "--executor claude --until-complete" in blocked["message"]
     assert blocked["status"] not in remote_worker._TERMINAL_STATES
     assert blocked["semantic"]["semantically_ready"] is True
     claude = review.claim(CLAUDE_EXECUTOR)
-    assert claude["job"]["scope_key"] == "proposal:b"
+    assert claude["job"]["scope_key"] == "functional:product:proposal:b"
     review.submit(claude)
-    assert [kind for _, kind in review.run_until_complete()] == [
-        "fresh_adjudication",
-        "fresh_comparison",
-        "fresh_review",
-    ]
+    remaining = [kind for _, kind in review.run_until_complete()]
+    assert remaining.count("fresh_proposal") == 6
+    assert remaining[-1] == "fresh_review"
 
 
 def test_the_review_next_action_names_the_executor_that_has_not_started(repository, database):
-    review = prepared_review(
-        repository, database, proposal_count=2, proposal_executors=("codex", "claude")
-    )
-    review.submit(review.claim(CODEX_EXECUTOR))
+    review = _half_pinned_review(repository, database)
 
     status = review.engine.fresh_eyes_status(review.repository_id, review.config.semantic)
 
     assert status["state"] == "in_progress"
     assert "--executor claude" in status["next_action"]
-    assert "independent proposal b" in status["next_action"]
+    assert "functional alternative b for product" in status["next_action"]
 
 
 def test_unpinning_lets_any_executor_finish_a_half_pinned_review(repository, database):
-    review = prepared_review(
-        repository, database, proposal_count=2, proposal_executors=("codex", "claude")
-    )
-    review.submit(review.claim(CODEX_EXECUTOR))
-    assert _plan_token(database, review.repository_id) == "2:1:codex,claude"
+    review = _half_pinned_review(repository, database)
+    assert _plan_token(database, review.repository_id) == "functional-v2|3:1:codex,claude,codex"
 
     released = review.engine.unpin_fresh_eyes_executors(
         review.repository_id, review.config.semantic
     )
 
     assert released["status"] == "unpinned"
-    assert released["unpinned"] == [{"scope_key": "proposal:b", "required_executor": "claude"}]
-    assert _plan_token(database, review.repository_id) == "2:1"
-    assert fresh_eyes_plan_executors({"interface_hash": "2:1"}) == ()
+    assert released["unpinned"] == [
+        {"scope_key": "functional:product:proposal:b", "required_executor": "claude"}
+    ]
+    assert _plan_token(database, review.repository_id) == "functional-v2|3:1"
+    assert fresh_eyes_plan_executors({"interface_hash": "functional-v2|3:1"}) == ()
     assert [item["required_executor"] for item in released["review"]["stages"][:2]] == [None, None]
     assert "--executor" not in released["review"]["next_action"]
     codex = review.claim(CODEX_EXECUTOR)
-    assert codex["job"]["scope_key"] == "proposal:b"
+    assert codex["job"]["scope_key"] == "functional:product:proposal:b"
     review.submit(codex)
-    assert [kind for _, kind in review.run_until_complete()] == [
-        "fresh_adjudication",
-        "fresh_comparison",
-        "fresh_review",
-    ]
+    remaining = [kind for _, kind in review.run_until_complete()]
+    assert remaining.count("fresh_proposal") == 6
+    assert remaining[-1] == "fresh_review"
 
 
 def test_unpinning_an_unpinned_review_changes_nothing(repository, database):
@@ -124,7 +125,7 @@ def test_unpinning_an_unpinned_review_changes_nothing(repository, database):
 
     assert released["status"] == "not_pinned"
     assert released["unpinned"] == []
-    assert _plan_token(database, review.repository_id) == "2:1"
+    assert _plan_token(database, review.repository_id) == "functional-v2|3:1"
 
 
 @pytest.mark.anyio

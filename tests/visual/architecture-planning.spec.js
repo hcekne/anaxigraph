@@ -48,6 +48,7 @@ test("letting the agent choose clears a previously saved direction", async ({ pa
 test("saved options and current versus target diagrams remain readable on laptop and phone", async ({ page }, testInfo) => {
   const value = configuredProgress(), saved = plan();
   value.architecture_plan = saved;
+  value.coverage.graph = { annotation_current: 12, annotation_total: 12, contracts_ready: true };
   value.semantic.architecture_charter = { status: "current" };
   await page.route("**/api/architecture-plan?*", route => {
     expect(new URL(route.request().url()).searchParams.get("details")).toBe("true");
@@ -81,6 +82,7 @@ test("saved options and current versus target diagrams remain readable on laptop
 test("a completed mapping ignores another workflow's old failure", async ({ page }) => {
   const value = configuredProgress();
   value.coverage.scopes = { module: { total: 12, excluded: 0, intrinsic: 12, current: 12 }, group: { total: 1, current: 1 } };
+  value.coverage.graph = { annotation_current: 12, annotation_total: 12, contracts_ready: true };
   value.semantic.architecture_charter = { status: "current" };
   value.semantic.taxonomy = { enabled: true, ready: true, required_review_passes: 2, current: { stored_reviews: 2 } };
   value.semantic.jobs = {};

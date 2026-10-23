@@ -8,7 +8,9 @@ import {
   state,
   toast,
 } from "/assets/dashboard-core.js";
-import { drawGraph } from "/assets/graph-view.js";
+import { drawGraph, inspectNode } from "/assets/graph-view.js";
+import { useObservedSubject } from "/assets/graph-subjects.js";
+import { entityPage, normalizeGraph } from "/assets/entity-client.js";
 import { graphRequestParams, renderGraphRegionBrowser } from "/assets/graph-regions.js";
 import { buildGroupIndex, layoutGraph, renderGraphAreaOptions } from "/assets/graph-model.js";
 import { activeHistoryStates, historyStartMessage, historyView } from "/assets/history-view.js";
@@ -95,20 +97,31 @@ export function showHistoryIndex(index) {
 }
 
 export async function graphAtSnapshot(snapshotId, preserveCamera = true) {
+  useObservedSubject();
   const selectedPath = state.selectedNode?.path;
   const token = ++state.graphRequestToken;
-  const graph = await request(api("/api/graph", graphRequestParams(snapshotId)));
+  const value = await entityPage(graphRequestParams(snapshotId));
+  const graph = normalizeGraph(value);
   if (token !== state.graphRequestToken) return;
   state.graph = graph;
+  state.entitySnapshotId = snapshotId;
+  state.entitySelectionToken += 1;
+  state.entityTrail = [];
+  state.graphFocusId = null;
+  byId("inspector").textContent = "Select an entity from this saved graph revision.";
+  state.graphLoaded = true;
+  state.moduleEnvelope = null;
+  state.moduleDetails.clear();
   state.selectedNode = selectedPath
     ? state.graph.nodes.find((node) => node.path === selectedPath) || null : null;
-  buildGroupIndex(selectedHierarchy());
+  buildGroupIndex(Number(snapshotId) === Number(state.overview?.snapshot?.id) ? selectedHierarchy() : []);
   renderGraphAreaOptions();
   renderGraphRegionBrowser();
   const currentId = Number(state.overview?.snapshot?.id);
   displaySnapshot(state.graph.snapshot, Number(snapshotId) !== currentId);
   layoutGraph(!preserveCamera);
   drawGraph();
+  if (state.selectedNode) await inspectNode(state.selectedNode);
 }
 
 export async function toggleHistoryPlayback() {

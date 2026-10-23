@@ -11,17 +11,54 @@ from test_migration_safety import _materialize_schema_six_frames
 from anaxigraph.config import load_config
 from anaxigraph.persistence import inspect_index, transactional_schema_change
 from anaxigraph.persistence.index_initialization import schema_statements
+from anaxigraph.persistence.schema import SCHEMA, SCHEMA_VERSION
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.storage import AnaxiIndex
 from anaxigraph.understanding import SemanticEngine
 
 TABLES = ("semantic_documents", "semantic_jobs", "semantic_scope_states")
+STATE_LAYOUT = ("semantic_scope_states", "semantic_state_bindings", "semantic_state_records")
+
+
+def _materialize_released_states(connection):
+    """An actual old release stored state rows in a table, without modern bindings/views."""
+    rows = connection.execute(
+        "SELECT type FROM sqlite_master WHERE name='semantic_scope_states'"
+    ).fetchone()
+    if rows[0] != "view":
+        return
+    connection.execute("CREATE TEMP TABLE released_states AS SELECT * FROM semantic_scope_states")
+    connection.execute("DROP VIEW semantic_scope_states")
+    connection.execute("DROP TABLE semantic_state_bindings")
+    connection.execute("DROP TABLE semantic_state_records")
+    statement = next(
+        sql
+        for sql in schema_statements(SCHEMA)
+        if sql.startswith("CREATE TABLE IF NOT EXISTS semantic_scope_states")
+    )
+    connection.execute(statement)
+    connection.execute("INSERT INTO semantic_scope_states SELECT * FROM released_states")
+    connection.execute("DROP TABLE released_states")
+
+
+def _unchanged_semantic_indexes(connection):
+    return [
+        tuple(row)
+        for row in connection.execute(
+            "SELECT name,sql FROM sqlite_master WHERE type='index' AND tbl_name LIKE 'semantic_%' "
+            "AND tbl_name NOT IN (?,?,?) ORDER BY name",
+            STATE_LAYOUT,
+        )
+    ]
 
 
 def _legacy_schema(database: AnaxiIndex, version: int) -> None:
     """Reproduce released inline FKs, including the already-compacted 0.5.0 defect."""
     with closing(database.connect()) as connection, connection:
         connection.execute("PRAGMA foreign_keys=OFF")
+        _materialize_released_states(connection)
+        connection.execute("DROP VIEW IF EXISTS semantic_document_values")
+        connection.execute("DROP VIEW IF EXISTS semantic_claim_values")
         fixture = Path(__file__).parent / "fixtures/schema-v6-compatibility.sql"
         for statement in schema_statements(fixture.read_text()):
             connection.execute(statement)
@@ -73,12 +110,7 @@ def test_legacy_upgrade_preserves_records_and_semantic_writes(repository, databa
     _legacy_schema(database, version)
     with closing(database.connect()) as connection:
         documents = [dict(row) for row in connection.execute("SELECT * FROM semantic_documents")]
-        indexes = [
-            tuple(row)
-            for row in connection.execute(
-                "SELECT name,sql FROM sqlite_master WHERE type='index' AND tbl_name LIKE 'semantic_%' ORDER BY name"
-            )
-        ]
+        indexes = _unchanged_semantic_indexes(connection)
         assert any(
             row["table"] == "file_versions"
             for row in connection.execute("PRAGMA foreign_key_list(semantic_documents)")
@@ -96,12 +128,23 @@ def test_legacy_upgrade_preserves_records_and_semantic_writes(repository, databa
     assert report["status"] == "healthy"
     assert report["missing_foreign_key_parents"] == []
     with closing(upgraded.connect()) as connection:
-        assert indexes == [
-            tuple(row)
+        assert indexes == _unchanged_semantic_indexes(connection)
+        state_indexes = {
+            row[0]
             for row in connection.execute(
-                "SELECT name,sql FROM sqlite_master WHERE type='index' AND tbl_name LIKE 'semantic_%' ORDER BY name"
+                "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name IN (?,?)",
+                STATE_LAYOUT[1:],
             )
-        ]
+        }
+        assert {
+            "semantic_state_record_key",
+            "semantic_state_binding_fact",
+            "semantic_state_binding_value",
+        } <= state_indexes
+        assert any(
+            row["table"] == "file_facts" and row["from"] == "file_fact_id"
+            for row in connection.execute("PRAGMA foreign_key_list(semantic_state_bindings)")
+        )
         for old in documents:
             new = dict(
                 connection.execute(
@@ -117,6 +160,8 @@ def test_legacy_upgrade_preserves_records_and_semantic_writes(repository, databa
             )
         with pytest.raises(sqlite3.IntegrityError):
             connection.execute("UPDATE semantic_documents SET file_fact_id=999999")
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute("UPDATE semantic_scope_states SET file_fact_id=999999")
     AnaxiIndex(database.path)  # The repair is idempotent.
 
 
@@ -149,6 +194,24 @@ def test_schema_transaction_rejects_missing_parent_and_restores_foreign_keys(dat
         )
 
 
+def test_doctor_checks_normalized_state_base_foreign_keys_even_when_values_are_null(database):
+    with closing(database.connect()) as connection, connection:
+        connection.execute("PRAGMA foreign_keys=OFF")
+        connection.execute(
+            "ALTER TABLE semantic_state_bindings ADD COLUMN historical_parent "
+            "INTEGER REFERENCES absent_state_parent(id)"
+        )
+    report = inspect_index(database.path, database.connect)
+    assert report["foreign_key_violations"] == 0
+    assert report["status"] == "blocked"
+    assert "missing_foreign_key_parents" in report["blockers"]
+    assert {
+        "table": "semantic_state_bindings",
+        "column": "historical_parent",
+        "parent": "absent_state_parent",
+    } in report["missing_foreign_key_parents"]
+
+
 def test_same_version_repair_rolls_back_when_canonical_identity_is_missing(repository, database):
     _enable_agent_semantics(repository)
     config = load_config(repository)
@@ -158,6 +221,9 @@ def test_same_version_repair_rolls_back_when_canonical_identity_is_missing(repos
     with closing(database.connect()) as connection, connection:
         connection.execute("PRAGMA foreign_keys=OFF")
         connection.execute("UPDATE semantic_scope_states SET file_fact_id=NULL")
+        connection.execute(
+            "UPDATE schema_meta SET value=? WHERE key='schema_version'", (str(SCHEMA_VERSION),)
+        )
     with pytest.raises(RuntimeError, match="without canonical file facts"):
         AnaxiIndex(database.path)
     with closing(database.connect()) as connection:

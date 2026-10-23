@@ -9,7 +9,9 @@ from typing import Any
 
 from anaxigraph.architecture_charter_contract import ARCHITECTURE_CHARTER_VERSION
 from anaxigraph.architecture_charter_corrections import read_charter_corrections
+from anaxigraph.pattern_catalogue_query import PatternCatalogueQuery
 from anaxigraph.persistence.lock_holds import read_lock_holds
+from anaxigraph.persistence.pattern_catalogue_read import read_pattern_catalogue
 from anaxigraph.semantic_timeouts import worker_lease_seconds
 
 
@@ -31,6 +33,7 @@ class SemanticStatusRows:
     architecture_actions: list[dict[str, Any]]
     lock_holds: dict[str, Any]
     freshness: dict[str, Any] = field(default_factory=dict)
+    pattern_catalogue: dict[str, Any] = field(default_factory=dict)
 
 
 def read_semantic_status(
@@ -61,6 +64,11 @@ def read_semantic_status(
         architecture_actions=_architecture_actions(connection, repository_id),
         lock_holds=read_lock_holds(connection, snapshot_id),
         freshness=_freshness(connection, repository_id, snapshot_id),
+        pattern_catalogue=read_pattern_catalogue(
+            connection, repository_id, snapshot_id, PatternCatalogueQuery(limit=1)
+        )["catalogue"]
+        if scope_counts.get("pattern_plan")
+        else {},
     )
 
 
@@ -199,7 +207,7 @@ def _repository_state(
                sd.executor_id, sd.executor_model, sd.executor_effort, sd.prompt_version,
                sd.created_at
         FROM semantic_scope_states ss
-        JOIN semantic_documents sd ON sd.id = ss.context_document_id
+        JOIN semantic_document_values sd ON sd.id = ss.context_document_id
         WHERE ss.repository_id = ? AND ss.snapshot_id <= ? AND ss.scope_type = 'repository'
           AND json_extract(sd.value_json, '$.contract_version') = ?
         ORDER BY ss.snapshot_id DESC LIMIT 1
@@ -230,8 +238,8 @@ def _freshness(
                COALESCE(SUM(c.snapshot_id != ss.snapshot_id AND ss.status = 'current'), 0)
                    AS context_reused
         FROM semantic_scope_states ss
-        LEFT JOIN semantic_documents i ON i.id = ss.intrinsic_document_id
-        LEFT JOIN semantic_documents c ON c.id = ss.context_document_id
+        LEFT JOIN semantic_document_values i ON i.id = ss.intrinsic_document_id
+        LEFT JOIN semantic_document_values c ON c.id = ss.context_document_id
         WHERE ss.repository_id = ? AND ss.snapshot_id = ? AND ss.scope_type = 'module'
         """,
         (repository_id, snapshot_id),
@@ -264,9 +272,9 @@ def _taxonomy(connection: sqlite3.Connection, snapshot_id: int) -> dict[str, Any
     row = connection.execute(
         """
         SELECT st.*, ss.reason AS refresh_reason,
-               (SELECT COUNT(*) FROM semantic_taxonomy_reviews str
+               (SELECT COUNT(*) FROM semantic_taxonomy_review_values str
                 WHERE str.taxonomy_id = st.id) AS stored_reviews
-        FROM semantic_taxonomies st
+        FROM semantic_taxonomy_values st
         LEFT JOIN semantic_scope_states ss
           ON ss.snapshot_id = st.snapshot_id AND ss.scope_type = 'taxonomy'
          AND ss.scope_key = CAST(st.repository_id AS TEXT)

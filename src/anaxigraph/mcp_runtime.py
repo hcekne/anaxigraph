@@ -48,7 +48,18 @@ class ResponsiveFastMCP(FastMCP):
     """
 
     def add_tool(self, fn: Any, *args: Any, **kwargs: Any) -> None:
-        compact = kwargs.get("name") in {"ANAXIGRAPH_GUIDE", "ANAXIGRAPH_IMPACT"}
+        compact = kwargs.get("name") in {
+            "ANAXIGRAPH_GUIDE",
+            "ANAXIGRAPH_IMPACT",
+            "ANAXIGRAPH_FILE",
+            "ANAXIGRAPH_SEARCH",
+            "ANAXIGRAPH_GRAPH",
+            "ANAXIGRAPH_ENTITY",
+            "ANAXIGRAPH_OVERVIEW",
+            "ANAXIGRAPH_REPOSITORIES",
+            "ANAXIGRAPH_FINDINGS",
+            "ANAXIGRAPH_FINDING_CONTEXT",
+        }
         handler = fn if inspect.iscoroutinefunction(fn) else _threaded(fn, compact=compact)
         super().add_tool(handler, *args, **kwargs)
 

@@ -186,8 +186,10 @@ body:has(.workflow-dialog[open]) { overflow: hidden; }
   .workflow-node-bottom small { font-size: 10px; }
   .workflow-card-actions { padding: 5px 7px; gap: 5px; }
   .workflow-card-actions button { padding: 5px 3px; }
-  .workflow-heading { margin-bottom: 16px; }
-  .workflow-explore-hint { margin-top: 10px; }
+  .workflow-heading { margin-bottom: 10px; gap: 8px; }
+  .workflow-heading h2 { font-size: 21px; }
+  .workflow-diagram.panel { padding: 12px; }
+  .workflow-explore-hint { margin: 6px 0 0; font-size: 11px; }
 }
 @media (max-width: 1199px) {
   .workflow-workspace { grid-template-columns: 180px minmax(0, 1fr); }

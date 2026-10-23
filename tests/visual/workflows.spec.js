@@ -5,7 +5,7 @@ test("the opening page shows the diagram and direct flow links survive a reload"
   await page.route("**/api/workflows?*", route => route.fulfill({ json: progress() }));
   await page.goto("/?repository=1");
   await expect(page.locator("#view-workflows")).toBeVisible();
-  await expect(page.locator('[data-step="intrinsic"]')).toContainText("4 / 12 files");
+  await expect(page.locator('[data-step="annotation"]')).toContainText("4 / 12 modules");
   await expect(page.locator("#primary-navigation [data-view=workflows]")).toHaveClass(/active/);
   await page.locator("#workflow-tab-patterns").click();
   await expect(page).toHaveURL(/repository=1#workflows\/patterns$/);
@@ -19,12 +19,12 @@ test("the opening page shows the diagram and direct flow links survive a reload"
 
 test("the map separates current coverage from repeated jobs and keeps optional flows not run", async ({ page }) => {
   await open(page);
-  const intrinsic = page.locator('[data-step="intrinsic"]');
-  await expect(intrinsic).toContainText("4 / 12 files");
-  await expect(intrinsic).toContainText("2 reused");
-  await expect(intrinsic).not.toContainText("gpt-6-luna");
+  const annotation = page.locator('[data-step="annotation"]');
+  await expect(annotation).toContainText("4 / 12 modules");
+  await expect(annotation).toContainText("1 reused");
+  await expect(annotation).not.toContainText("gpt-6-luna");
   await expect(page.locator("#workflow-message")).toContainText("steps remain");
-  await intrinsic.click();
+  await annotation.click();
   await expect(page.locator("#workflow-detail")).toContainText("15");
   await expect(page.locator("#workflow-detail")).toContainText("unknown token usage");
   await expect(page.locator("#workflow-tab-patterns small")).toContainText("Not run");
@@ -32,7 +32,7 @@ test("the map separates current coverage from repeated jobs and keeps optional f
   await page.keyboard.press("Escape");
   await page.locator("#workflow-routing summary").click();
   await expect(page.locator("#workflow-routing")).toContainText("gpt-6.1-sol");
-  await intrinsic.click();
+  await annotation.click();
   await page.getByRole("button", { name: "Explore modules →" }).click();
   await expect(page.locator("#view-modules")).toHaveClass(/active/);
 });
@@ -59,17 +59,17 @@ test("starting a pattern run uses explicit controls and zero candidates can fini
   value.semantic.architecture_charter = { status: "current" };
   value.semantic.patterns = { enabled: false, planned: true, selected: 0, finalized: 0 };
   await page.locator("#workflow-refresh").click();
-  await expect(page.locator('[data-step="pattern_assessment"]')).toContainText("0 / 0 pairs");
+  await expect(page.locator('[data-step="pattern_assessment"]')).toContainText("0 / 0 patterns");
   await expect(page.locator("#workflow-tab-patterns small")).toContainText("Complete");
   await expect(page.locator("#workflow-model")).toHaveValue("chosen-model");
   await expect(page.locator("#workflow-effort")).toHaveValue("high");
 });
 
-test("fresh eyes shows independent proposals, recorded models and the ranked review", async ({ page }, testInfo) => {
+test("fresh eyes shows retained alternatives, recorded models and blind functional review", async ({ page }, testInfo) => {
   const value = progress();
   value.fresh_eyes = {
-    state: "current", ready: true, capability_brief: { mission: "A useful system" },
-    stages: ["proposal:a", "proposal:b", "adjudication", "comparison", "review"].map((key, i) => ({
+    state: "current", ready: true, functional_brief: { purpose: "A useful system" }, counts: { retained_alternatives: 3, expected_alternatives: 3, completed_scopes: 1, total_scopes: 1 }, isolation: { status: "unverified" },
+    stages: ["functional:brief", "functional:product:proposal:a", "functional:product:proposal:b", "functional:product:proposal:c", "functional:product:comparison", "functional:review"].map((key, i) => ({
       key, label: key, state: "current", reason: "Saved result",
       provenance: { executor_model: i === 1 ? "claude-opus-5-5" : "gpt-6.1-sol" },
     })),
@@ -79,17 +79,17 @@ test("fresh eyes shows independent proposals, recorded models and the ranked rev
   await page.locator("#workflow-tab-fresh-eyes").click();
   await expect(page.locator(".workflow-node")).toHaveCount(7);
   const proposals = page.locator('[data-step="proposals"]');
-  await expect(proposals).toContainText("2 / 2 proposals");
-  await expect(proposals.locator(".workflow-proposal-lanes > span")).toHaveCount(2);
+  await expect(proposals).toContainText("3 / 3 alternatives");
+  await expect(proposals.locator(".workflow-proposal-lanes > span")).toHaveCount(3);
   await proposals.click();
   await expect(page.locator("#workflow-detail")).toContainText("gpt-6.1-sol");
   await expect(page.locator("#workflow-detail")).toContainText("claude-opus-5-5");
   await expect(page.locator('[data-step="mission_filter"]')).toContainText("Complete");
   await page.keyboard.press("Escape");
-  await page.locator('[data-step="grounding"]').click();
-  await expect(page.locator("#workflow-detail")).toContainText("do not prove a recommendation correct");
+  await page.locator('[data-step="isolation"]').click();
+  await expect(page.locator("#workflow-detail")).toContainText("unverified context is never presented as verified blindness");
   await page.keyboard.press("Escape");
-  await expect(page.locator(".workflow-edges > path")).toHaveCount(8);
+  await expect(page.locator(".workflow-edges > path")).toHaveCount(10);
   await page.locator("#workflow-diagram").screenshot({ path: testInfo.outputPath("fresh-eyes-branches.png") });
 });
 
@@ -125,8 +125,8 @@ test("desktop and phone diagrams fit, keep arrows and support both themes", asyn
 test("a delayed response from another repository cannot repaint the selected flow", async ({ page }) => {
   const first = progress(1), second = progress(2);
   first.semantic.worker = { status: "running", workflow: "mapping" };
-  first.coverage.workers = [{ job_kind: "intrinsic", scope_type: "module", executor_model: "gpt-6-luna", running: 2 }];
-  second.coverage.scopes.module.intrinsic = 9;
+  first.coverage.workers = [{ job_kind: "annotation", scope_type: "module", executor_model: "gpt-6-luna", running: 2 }];
+  second.coverage.scopes.module.current = 9;
   let hold = false, release, waiting = false;
   await page.route("**/api/**", async route => {
     const url = new URL(route.request().url());
@@ -145,21 +145,21 @@ test("a delayed response from another repository cannot repaint the selected flo
   });
   await page.goto("/");
   await page.getByRole("button", { name: "Workflows", exact: true }).click();
-  await expect(page.locator('[data-step="intrinsic"]')).toContainText("4 / 12");
-  await expect(page.locator('[data-step="intrinsic"] .workflow-spinner')).toBeVisible();
+  await expect(page.locator('[data-step="annotation"]')).toContainText("4 / 12");
+  await expect(page.locator('[data-step="annotation"] .workflow-spinner')).toBeVisible();
   hold = true;
   await page.locator("#workflow-refresh").click();
   await expect.poll(() => waiting).toBeTruthy();
   await page.locator("#repository-select").selectOption("2");
-  await expect(page.locator('[data-step="intrinsic"]')).toContainText("9 / 12");
+  await expect(page.locator('[data-step="annotation"]')).toContainText("9 / 12");
   const delivered = page.waitForResponse(response => response.url().includes("workflows?repository_id=1"));
   release();
   await delivered;
-  await expect(page.locator('[data-step="intrinsic"]')).toContainText("9 / 12");
+  await expect(page.locator('[data-step="annotation"]')).toContainText("9 / 12");
   await expect(page.locator(".workflow-spinner")).toHaveCount(0);
   first.coverage.workers = [];
   await page.locator("#repository-select").selectOption("1");
-  await expect(page.locator('[data-step="intrinsic"]')).toContainText("Preparing jobs…");
+  await expect(page.locator('[data-step="annotation"]')).toContainText("Preparing jobs…");
   await expect(page.locator("main")).toHaveAttribute("aria-busy", "false");
   await page.unrouteAll({ behavior: "wait" });
 });
@@ -176,15 +176,15 @@ test("card settings survive polling and reload; a sample saves choices before ru
   await page.route("**/api/workflows/run", async route => {
     posted = route.request().postDataJSON();
     value.semantic.worker = { status: "running", workflow: "mapping" };
-    value.coverage.workers = [{ job_kind: "intrinsic", scope_type: "module", executor_model: "gpt-6.1-sol", running: 2 }];
+    value.coverage.workers = [{ job_kind: "annotation", scope_type: "module", executor_model: "gpt-6.1-sol", running: 2 }];
     await route.fulfill({ json: { status: "started", repository_id: 1 } });
   });
   await open(page, value);
-  await page.locator('[data-step="intrinsic"]').click();
+  await page.locator('[data-step="annotation"]').click();
   await expect(page.locator("#workflow-detail")).toContainText("Next run · suggested");
   await expect(page.locator("#workflow-detail")).toContainText("4 parallel workers");
   await page.keyboard.press("Escape");
-  await page.locator('[data-configure-step="intrinsic"]').click();
+  await page.locator('[data-configure-step="annotation"]').click();
   const model = page.locator('#workflow-step-form [name="model"]');
   await model.selectOption("gpt-6.1-sol");
   await page.locator('#workflow-step-form [name="workers"]').fill("2");
@@ -193,13 +193,13 @@ test("card settings survive polling and reload; a sample saves choices before ru
   await expect(model).toHaveValue("gpt-6.1-sol");
   await expect(model).toBeFocused();
   await page.getByRole("button", { name: "Try 2 jobs", exact: true }).click();
-  await expect.poll(() => posted?.step).toBe("intrinsic");
+  await expect.poll(() => posted?.step).toBe("annotation");
   expect(saved.workers[0]).toMatchObject({ provider: "codex", model: "gpt-6.1-sol", workers: 2 });
   expect(posted).toMatchObject({ workflow: "mapping", use_step_settings: true, max_jobs: 2 });
-  await expect(page.locator('[data-step="intrinsic"]')).toContainText("2 / 2 workers active");
-  await expect(page.locator('[data-run-step="context"]')).toBeEnabled();
+  await expect(page.locator('[data-step="annotation"]')).toContainText("2 / 2 workers active");
+  await expect(page.locator('[data-run-step="groups"]')).toBeEnabled();
   await page.reload();
-  await page.locator('[data-step="intrinsic"]').click();
+  await page.locator('[data-step="annotation"]').click();
   await expect(page.locator("#workflow-detail")).toContainText("GPT-6.1 Sol");
   await expect(page.locator("#workflow-detail")).toContainText("your settings");
   await expect(page.locator("#workflow-detail")).toContainText("Recorded models: gpt-6-luna");
@@ -209,12 +209,12 @@ test("suggested rows can be restored and provider workers stay readable on phone
   const value = configuredProgress();
   value.semantic.architecture_charter = { status: "current" };
   await open(page, value);
-  await page.locator('[data-configure-step="context"]').click();
+  await page.locator('[data-configure-step="groups"]').click();
   await page.getByRole("button", { name: "Add model", exact: true }).click();
   await expect(page.locator(".workflow-worker-row")).toHaveCount(2);
   await page.getByRole("button", { name: "Use suggested", exact: true }).click();
   await expect(page.locator(".workflow-worker-row")).toHaveCount(1);
-  await expect(page.locator('#workflow-step-form [name="model"]')).toHaveValue("gpt-6-luna");
+  await expect(page.locator('#workflow-step-form [name="model"]')).toHaveValue("gpt-6.1-sol");
   await page.keyboard.press("Escape");
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1100 });
@@ -226,13 +226,13 @@ test("suggested rows can be restored and provider workers stay readable on phone
     }
   }
   await page.locator('[data-configure-step="proposals"]').click();
-  await expect(page.locator(".workflow-worker-row")).toHaveCount(2);
+  await expect(page.locator(".workflow-worker-row")).toHaveCount(3);
   await expect(page.locator('#workflow-step-form [name="provider"]').nth(1)).toHaveValue("claude");
 });
 
 test("model dropdown contains only supported choices for its provider", async ({ page }) => {
   await open(page, configuredProgress());
-  await page.locator('[data-configure-step="intrinsic"]').click();
+  await page.locator('[data-configure-step="annotation"]').click();
   const provider = page.locator('#workflow-step-form [name="provider"]');
   const model = page.locator('#workflow-step-form select[name="model"]');
   await expect(page.locator('#workflow-step-form input[name="model"]')).toHaveCount(0);
@@ -250,9 +250,9 @@ test("model dropdown contains only supported choices for its provider", async ({
 
 test("unknown saved models require an explicit valid selection", async ({ page }) => {
   const value = configuredProgress();
-  value.settings.steps.intrinsic[0].model = "invented-model";
+  value.settings.steps.annotation[0].model = "invented-model";
   await open(page, value);
-  await page.locator('[data-configure-step="intrinsic"]').click();
+  await page.locator('[data-configure-step="annotation"]').click();
   await expect(page.locator('#workflow-step-form select[name="model"]')).toHaveValue("");
   await expect(page.locator("#workflow-step-form .workflow-error")).toContainText("invented-model is unavailable");
   expect(await page.locator("#workflow-step-form").evaluate(form => form.checkValidity())).toBe(false);
@@ -260,14 +260,14 @@ test("unknown saved models require an explicit valid selection", async ({ page }
 
 test("retry errors appear on the card while a surviving pool keeps running", async ({ page }) => {
   const value = configuredProgress();
-  value.coverage.failures = [{ job_kind: "intrinsic", scope_type: "module", scope_key: "pkg/example.py", status: "retry", error: "Selected model rejected by provider" }];
+  value.coverage.failures = [{ job_kind: "annotation", scope_type: "module", scope_key: "pkg/example.py", status: "retry", error: "Selected model rejected by provider" }];
   await open(page, value);
-  const card = page.locator('[data-step="intrinsic"]');
+  const card = page.locator('[data-step="annotation"]');
   await expect(card).toContainText("Needs attention");
   await expect(card).toContainText("Retry pending");
   await expect(card.locator(".workflow-card-error")).toHaveAttribute("title", "Selected model rejected by provider");
-  value.semantic.worker = { status: "running", workflow: "mapping", step: "intrinsic", pool_errors: [{ step: "intrinsic", provider: "claude", model: "claude-sonnet-5-5", error: "Selected model rejected by provider" }] };
-  value.coverage.workers = [{ job_kind: "intrinsic", scope_type: "module", executor_model: "gpt-6-luna", running: 2 }];
+  value.semantic.worker = { status: "running", workflow: "mapping", step: "annotation", pool_errors: [{ step: "annotation", provider: "claude", model: "claude-sonnet-5-5", error: "Selected model rejected by provider" }] };
+  value.coverage.workers = [{ job_kind: "annotation", scope_type: "module", executor_model: "gpt-6-luna", running: 2 }];
   await page.locator("#workflow-refresh").click();
   await expect(card.locator(".workflow-spinner")).toBeVisible();
   await expect(card).toContainText("2 / 4 workers active");
@@ -279,14 +279,14 @@ test("retry errors appear on the card while a surviving pool keeps running", asy
 test("the whole active card pulses with live counts, includes its actions and respects reduced motion", async ({ page }, testInfo) => {
   const value = configuredProgress();
   value.execution.max_parallel_jobs = 12;
-  const workers = [{ ...value.settings.steps.intrinsic[0], workers: 12 }];
-  value.semantic.worker = { status: "running", workflow: "mapping", active_step: "intrinsic", settings: { intrinsic: workers } };
-  value.settings.steps.intrinsic[0].workers = 8; // A subsequent choice must not change the live capacity.
-  value.coverage.workers = [{ job_kind: "intrinsic", scope_type: "module", executor_model: "gpt-6-luna", running: 12 }];
+  const workers = [{ ...value.settings.steps.annotation[0], workers: 12 }];
+  value.semantic.worker = { status: "running", workflow: "mapping", active_step: "annotation", settings: { annotation: workers } };
+  value.settings.steps.annotation[0].workers = 8; // A subsequent choice must not change the live capacity.
+  value.coverage.workers = [{ job_kind: "annotation", scope_type: "module", executor_model: "gpt-6-luna", running: 12 }];
   value.coverage.live_jobs[0].running = 12;
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await open(page, value);
-  const node = page.locator('[data-step="intrinsic"]'), card = node.locator("..");
+  const node = page.locator('[data-step="annotation"]'), card = node.locator("..");
   await expect(node).toContainText("12 / 12 workers active");
   await node.click();
   await page.keyboard.press("Escape");
@@ -325,13 +325,13 @@ test(`Run step stays active through acceptance, planning and reload (${reportsSt
     waiting = true;
     await new Promise(resolve => { release = resolve; });
     value.semantic.worker = { status: "running", workflow: "mapping",
-      ...(reportsStep ? { step: "intrinsic", settings: value.settings.steps } : {}) };
+      ...(reportsStep ? { step: "annotation", settings: value.settings.steps } : {}) };
     await route.fulfill({ json: { status: "started", repository_id: 1 } });
   });
   await open(page, value);
-  const node = page.locator('[data-step="intrinsic"]');
+  const node = page.locator('[data-step="annotation"]');
   await expect(node.locator(".workflow-spinner")).toHaveCount(0); // Queued tasks alone are not running.
-  await page.locator('[data-run-step="intrinsic"]').click();
+  await page.locator('[data-run-step="annotation"]').click();
   try {
     await expect.poll(() => waiting).toBeTruthy();
     await expect(node).toContainText("Starting step…");
@@ -345,8 +345,8 @@ test(`Run step stays active through acceptance, planning and reload (${reportsSt
   await page.reload();
   await expect(node).toContainText("Preparing jobs…");
   await expect(node.locator(".workflow-spinner")).toBeVisible();
-  value.semantic.worker = { status: "complete", workflow: "mapping", step: "intrinsic" };
-  value.coverage.scopes.module.intrinsic = 12;
+  value.semantic.worker = { status: "complete", workflow: "mapping", step: "annotation" };
+  value.coverage.scopes.module.current = 12;
   value.semantic.jobs = {};
   await page.locator("#workflow-refresh").click();
   await expect(node).toContainText("Complete");
@@ -358,19 +358,19 @@ test(`Run step stays active through acceptance, planning and reload (${reportsSt
 test("observed workers keep their card active between jobs and server step changes take precedence", async ({ page }) => {
   const value = configuredProgress();
   value.semantic.worker = { status: "running", workflow: "mapping" };
-  value.coverage.workers = [{ job_kind: "intrinsic", scope_type: "module", executor_model: "gpt-6-luna", running: 2 }];
+  value.coverage.workers = [{ job_kind: "annotation", scope_type: "module", executor_model: "gpt-6-luna", running: 2 }];
   await open(page, value);
-  const intrinsic = page.locator('[data-step="intrinsic"]'), context = page.locator('[data-step="context"]');
-  await expect(intrinsic).toContainText("2 / 4 workers active");
+  const annotation = page.locator('[data-step="annotation"]'), context = page.locator('[data-step="groups"]');
+  await expect(annotation).toContainText("2 / 4 workers active");
   value.coverage.workers = [];
   await page.locator("#workflow-refresh").click();
-  await expect(intrinsic).toContainText("Preparing jobs…");
+  await expect(annotation).toContainText("Preparing jobs…");
   await page.reload();
-  await expect(intrinsic.locator(".workflow-spinner")).toBeVisible();
-  value.semantic.worker.active_step = "context";
+  await expect(annotation.locator(".workflow-spinner")).toBeVisible();
+  value.semantic.worker.active_step = "groups";
   await page.locator("#workflow-refresh").click();
   await expect(context).toContainText("Preparing jobs…");
-  await expect(intrinsic.locator(".workflow-spinner")).toHaveCount(0);
+  await expect(annotation.locator(".workflow-spinner")).toHaveCount(0);
   delete value.semantic.worker.active_step;
   value.snapshot_id += 1;
   await page.locator("#workflow-refresh").click();
@@ -386,19 +386,19 @@ test("rejected and already-running requests do not leave the clicked card spinni
   await page.route("**/api/workflows/run", async route => {
     requests += 1;
     if (requests === 1) return route.fulfill({ status: 503, json: { detail: "Worker unavailable" } });
-    value.semantic.worker = { status: "running", workflow: "mapping", active_step: "context" };
+    value.semantic.worker = { status: "running", workflow: "mapping", active_step: "groups" };
     await route.fulfill({ json: { status: "already_running", repository_id: 1 } });
   });
   await open(page, value);
-  const run = page.locator('[data-run-step="intrinsic"]');
+  const run = page.locator('[data-run-step="annotation"]');
   await run.click();
   await expect.poll(() => requests).toBe(1);
   await expect(run).toBeEnabled();
   await expect(page.locator(".workflow-spinner")).toHaveCount(0);
   await run.click();
-  await expect(page.locator('[data-step="context"] .workflow-spinner')).toBeVisible();
-  await expect(page.locator('[data-step="intrinsic"] .workflow-spinner')).toHaveCount(0);
+  await expect(page.locator('[data-step="groups"] .workflow-spinner')).toBeVisible();
+  await expect(page.locator('[data-step="annotation"] .workflow-spinner')).toHaveCount(0);
   await page.reload();
-  await expect(page.locator('[data-step="context"] .workflow-spinner')).toBeVisible();
-  await expect(page.locator('[data-step="intrinsic"] .workflow-spinner')).toHaveCount(0);
+  await expect(page.locator('[data-step="groups"] .workflow-spinner')).toBeVisible();
+  await expect(page.locator('[data-step="annotation"] .workflow-spinner')).toHaveCount(0);
 });

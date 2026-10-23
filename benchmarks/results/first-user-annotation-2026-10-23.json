@@ -1,0 +1,39 @@
+{
+  "budgets": {
+    "dashboard_seconds": 300,
+    "first_annotation_seconds": 600
+  },
+  "measurement_kind": "synthetic_first_user_runtime_no_model",
+  "median_dashboard_seconds": 2.951,
+  "median_first_annotation_seconds": 3.253,
+  "runs": [
+    {
+      "artifact": "graph_annotation",
+      "command": [
+        "up",
+        "/tmp/anaxigraph-first-user-g9ne2siv/repository-1",
+        "--db",
+        "/tmp/anaxigraph-first-user-g9ne2siv/state-1/anaxi-index.db",
+        "--port",
+        "36367",
+        "--history-snapshots",
+        "0",
+        "--semantic",
+        "agent",
+        "--connect",
+        "codex",
+        "--connect-scope",
+        "project"
+      ],
+      "dashboard_seconds": 2.951,
+      "evidence_pages": 0,
+      "first_annotation_seconds": 3.253,
+      "function_count": 1,
+      "index_created": true,
+      "project_connection_created": true,
+      "run": 1,
+      "submission_status": "completed"
+    }
+  ],
+  "status": "complete"
+}

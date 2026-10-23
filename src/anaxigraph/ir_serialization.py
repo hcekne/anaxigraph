@@ -8,6 +8,7 @@ from typing import Any
 
 from anaxigraph.analyzer_capabilities import capabilities_from_dict
 from anaxigraph.analyzer_facts import AnalyzerFact
+from anaxigraph.ir_codec import decode_metadata
 from anaxigraph.ir_identity import module_identity_fields
 from anaxigraph.models import (
     LEGACY_IR_SCHEMA_VERSION,
@@ -82,7 +83,7 @@ def analysis_metadata(
 
 
 def analysis_from_stored(value: dict[str, Any]) -> FileAnalysis:
-    metadata = json.loads(value["metadata_json"] or "{}")
+    metadata = decode_metadata(value["metadata_json"])
     dependencies = [
         Dependency(**{**item, "names": tuple(item.get("names") or ())})
         for item in metadata.pop("dependencies", [])
@@ -130,6 +131,7 @@ def compact_stored_metadata(
 ) -> dict[str, Any]:
     """Remove derivable IR fields while preserving an expandable JSON contract."""
 
+    metadata = decode_metadata(metadata)
     result = dict(metadata)
     result["dependencies"] = [
         _compact_dependency(item) for item in metadata.get("dependencies", [])
@@ -163,6 +165,7 @@ def expand_stored_metadata(
 ) -> dict[str, Any]:
     """Restore the stable analyzer-IR shape exposed by canonical snapshot reads."""
 
+    metadata = decode_metadata(metadata)
     result = dict(metadata)
     result["dependencies"] = [_expand_dependency(item) for item in metadata.get("dependencies", [])]
     ir = dict(metadata.get("ir") or {})

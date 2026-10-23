@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 
 from anaxigraph.history import import_git_history
+from anaxigraph.ir_codec import decode_metadata
 from anaxigraph.ir_serialization import expand_stored_metadata
 from anaxigraph.persistence import (
     inspect_index,
@@ -111,7 +112,7 @@ def test_compact_fact_metadata_expands_at_the_snapshot_boundary(repository, data
             if item["path"] == "pkg/util.py"
         )
 
-    stored_ir = json.loads(stored["metadata_json"])["ir"]
+    stored_ir = decode_metadata(stored["metadata_json"])["ir"]
     projected_ir = json.loads(projected["metadata_json"])["ir"]
     assert "module_identity" not in stored_ir
     assert "symbols" not in stored_ir

@@ -9,7 +9,7 @@ from fresh_eyes_support import baseline_review
 from anaxigraph.pattern_candidate_selection import candidate_decision
 from anaxigraph.pattern_candidates import PatternCandidatePolicy
 from anaxigraph.pattern_catalog import bundled_pattern_catalog
-from anaxigraph.persistence.pattern_evidence_read import read_pattern_evidence
+from anaxigraph.pattern_evidence_source import read_pattern_evidence
 from anaxigraph.semantic_graph import SupersededSemanticJob
 from anaxigraph.semantic_pattern_requests import _parent_source_evidence
 
@@ -23,9 +23,11 @@ def test_parent_contracts_support_work_queue_without_catalog_or_budget_growth(re
         for row in rows:
             value = json.loads(row["value_json"])
             value.update(
-                responsibilities=["Own a durable queue of independently processed tasks."],
-                public_contracts=[
-                    "Only the current lease may finish a task; retries preserve idempotent effects."
+                capabilities=[{"purpose": "Own a durable queue of independently processed tasks."}],
+                contracts=[
+                    {
+                        "statement": "Only the current lease may finish a task; retries preserve idempotent effects."
+                    }
                 ],
             )
             connection.execute(

@@ -3,6 +3,20 @@
 from __future__ import annotations
 
 
+def executable_relationships(relationships, files):
+    """Documentation links and measurement artifacts are not executable coupling."""
+    executable = {
+        artifact
+        for artifact, file in files.items()
+        if file.get("artifact_type", "source") in {"source", "test"}
+    }
+    return [
+        edge
+        for edge in relationships
+        if edge["source_artifact_id"] in executable and edge["target_artifact_id"] in executable
+    ]
+
+
 def _strongly_connected(graph: dict[int, set[int]]) -> list[set[int]]:
     index = 0
     stack: list[int] = []

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from anaxigraph.ir_codec import decode_metadata
 from anaxigraph.persistence.portable_current import (
     SEMANTIC_TABLES,
     current_rows,
@@ -25,7 +26,7 @@ def export_rows(
     source = current_rows(connection, repository_id, config)
     repository = source["repositories"][0]
     root = repository["path"]
-    preflight_rows(source, config.storage.record_bytes)
+    preflight_rows(source, min(config.storage.budget_bytes, 100_000_000))
     rows = {table: [decoded_row(row, root) for row in items] for table, items in source.items()}
     _normalize_volatile(rows)
     references = {table: table_references(connection, table) for table in rows}
@@ -34,7 +35,7 @@ def export_rows(
         "SELECT value FROM schema_meta WHERE key = ?", (f"portable-identities:{repository_id}",)
     ).fetchone()
     identities = PortableReferences(
-        rows, references, primary, json.loads(cached[0]) if cached else {}
+        rows, references, primary, decode_metadata(cached[0]) if cached else {}
     )
     tables = {
         table: [identities.encode(table, row) for row in items]

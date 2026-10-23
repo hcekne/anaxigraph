@@ -127,12 +127,14 @@ class PatternCandidatePlan:
     skipped_by_reason: tuple[tuple[str, int], ...]
     omitted_candidates: int = 0
     contract_version: str = PATTERN_CANDIDATE_CONTRACT_VERSION
+    selection_version: str = PATTERN_CANDIDATE_SELECTION_VERSION
+    expected_pattern_ids: tuple[str, ...] = ()
 
     @property
     def fingerprint(self) -> str:
         value = {
             "contract_version": self.contract_version,
-            "selection_version": PATTERN_CANDIDATE_SELECTION_VERSION,
+            "selection_version": self.selection_version,
             "repository_id": self.repository_id,
             "snapshot_id": self.snapshot_id,
             "evidence_fingerprint": self.evidence_fingerprint,
@@ -140,6 +142,7 @@ class PatternCandidatePlan:
             "candidates": [item.input_fingerprint for item in self.candidates],
             "skipped_by_reason": self.skipped_by_reason,
             "omitted_candidates": self.omitted_candidates,
+            "expected_pattern_ids": self.expected_pattern_ids,
         }
         encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
         return hashlib.sha256(encoded).hexdigest()
@@ -147,7 +150,7 @@ class PatternCandidatePlan:
     def as_dict(self) -> dict[str, Any]:
         return {
             "contract_version": self.contract_version,
-            "selection_version": PATTERN_CANDIDATE_SELECTION_VERSION,
+            "selection_version": self.selection_version,
             "repository_id": self.repository_id,
             "snapshot_id": self.snapshot_id,
             "evidence_fingerprint": self.evidence_fingerprint,
@@ -157,6 +160,7 @@ class PatternCandidatePlan:
             "eligible_pairs": self.eligible_pairs,
             "selected": len(self.candidates),
             "omitted_candidates": self.omitted_candidates,
+            "expected_pattern_ids": list(self.expected_pattern_ids),
             "skipped_by_reason": dict(self.skipped_by_reason),
             "counts_by_level": {
                 level: sum(item.target.level == level for item in self.candidates)

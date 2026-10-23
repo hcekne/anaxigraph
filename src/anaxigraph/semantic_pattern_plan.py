@@ -6,9 +6,14 @@ import json
 import sqlite3
 from typing import Any
 
-from anaxigraph.pattern_candidates import build_pattern_candidate_plan
 from anaxigraph.pattern_catalog import bundled_pattern_catalog
-from anaxigraph.persistence.pattern_evidence_read import read_pattern_evidence
+from anaxigraph.pattern_catalogue_plan import (
+    build_catalogue_assessment_plan,
+    catalogue_root,
+    placement_evidence,
+)
+from anaxigraph.pattern_evidence_source import read_pattern_evidence
+from anaxigraph.persistence.pattern_manifest import save_pattern_manifest
 from anaxigraph.semantic_config_port import SemanticConfig
 from anaxigraph.semantic_freshness import is_expired
 from anaxigraph.semantic_pattern_identity import (
@@ -64,7 +69,8 @@ class SemanticPatternPlanner:
             return 0, patterns_complete(connection, snapshot_id, cached)
 
         projection = read_pattern_evidence(connection, repository_id, snapshot_id)
-        plan = build_pattern_candidate_plan(catalog, projection)
+        plan = build_catalogue_assessment_plan(catalog, projection)
+        _save_candidate_plan(connection, repository_id, snapshot_id, plan_hash, plan, catalog)
         selected = {pattern_scope_key(item.as_dict()) for item in plan.candidates}
         remove_obsolete_candidates(connection, snapshot_id, selected)
         enqueued = self._plan_selected(
@@ -77,7 +83,6 @@ class SemanticPatternPlanner:
             projection=projection,
             plan=plan,
         )
-        _save_candidate_plan(connection, repository_id, snapshot_id, plan_hash, plan)
         return enqueued, patterns_complete(connection, snapshot_id, len(plan.candidates))
 
     def _plan_selected(
@@ -93,6 +98,7 @@ class SemanticPatternPlanner:
         plan: Any,
     ) -> int:
         evidence_by_target = {item.target.key: item for item in projection.items}
+        evidence_by_target.setdefault("repository:root", catalogue_root(projection))
         return sum(
             self._plan_candidate(
                 connection,
@@ -102,7 +108,13 @@ class SemanticPatternPlanner:
                 retry_failed=retry_failed,
                 candidate=item.as_dict(),
                 pattern=catalog.card(item.pattern_key).as_dict(),
-                target_evidence=evidence_by_target[item.target.key].as_dict(),
+                target_evidence={
+                    **evidence_by_target[item.target.key].as_dict(),
+                    "placement_hints": placement_evidence(
+                        catalog.card(item.pattern_key), projection
+                    ),
+                    "available_targets": len(projection.items),
+                },
                 plan_fingerprint=plan.fingerprint,
             )
             for item in plan.candidates
@@ -158,8 +170,14 @@ class SemanticPatternPlanner:
 
 
 def _save_candidate_plan(
-    connection: sqlite3.Connection, repository_id: int, snapshot_id: int, plan_hash: str, plan: Any
+    connection: sqlite3.Connection,
+    repository_id: int,
+    snapshot_id: int,
+    plan_hash: str,
+    plan: Any,
+    catalog: Any,
 ) -> None:
+    manifest_id = save_pattern_manifest(connection, repository_id, snapshot_id, plan, catalog)
     _upsert_state(
         connection,
         repository_id=repository_id,
@@ -167,10 +185,11 @@ def _save_candidate_plan(
         scope_type="pattern_plan",
         scope_key=PATTERN_PLAN_SCOPE,
         status="current",
-        reason=f"Sparse candidate plan selected {len(plan.candidates)} pattern pairs",
+        reason=f"Every catalogue card requires assessment: {len(plan.expected_pattern_ids)} cards",
         context_input_hash=plan_hash,
         context_fingerprint=plan.fingerprint,
         interface_hash=str(len(plan.candidates)),
+        context_document_id=manifest_id,
     )
 
 
@@ -215,7 +234,7 @@ def _ensure_assessment(
         scope_key,
         metadata["candidate"],
         status=scope_status,
-        reason=error or "Sparse candidate awaits agent assessment",
+        reason=error or "Catalogue card awaits contextual assessment",
         assessment_hash=input_hash,
     )
     return int(created)
@@ -369,9 +388,11 @@ def _candidate_metadata(
     target_evidence: dict[str, Any],
     plan_fingerprint: str,
 ) -> dict[str, Any]:
-    return {
+    value = {
         "candidate": candidate,
-        "pattern": pattern,
         "target_evidence": target_evidence,
         "plan_fingerprint": plan_fingerprint,
     }
+    if "catalogue_coverage" not in candidate.get("selection_reasons", []):
+        value["pattern"] = pattern
+    return value

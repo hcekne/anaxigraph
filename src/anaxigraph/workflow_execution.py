@@ -22,6 +22,7 @@ from anaxigraph.workflow_progress import completed_steps as completed_steps
 from anaxigraph.workflow_settings import FLOW_STEPS, STEP_MODES, WorkerChoice, required_steps
 
 JOB_STEPS = {
+    "annotation": "annotation",
     "architecture_plan": "architecture_plan",
     "intrinsic": "intrinsic",
     "context": "context",
@@ -43,14 +44,20 @@ def job_step(job: dict[str, Any]) -> str:
 
 
 def validate_proposal_settings(fresh: Any, workers: Any) -> None:
-    stages = [stage for stage in fresh.get("stages", []) if stage["key"].startswith("proposal:")]
+    stages = [
+        stage
+        for stage in fresh.get("stages", [])
+        if ":proposal:" in stage["key"] or stage["key"].startswith("proposal:")
+    ]
     if not stages:
         return
-    if len(stages) != len(workers):
+    slots = sorted({stage["key"].rsplit(":", 1)[1] for stage in stages})
+    if len(slots) != len(workers):
         raise ValueError(
             "The saved review has a different proposal count. Start a new review generation to change it."
         )
-    for stage, worker in zip(stages, workers):
+    for stage in stages:
+        worker = workers[slots.index(stage["key"].rsplit(":", 1)[1])]
         pin = stage.get("required_executor")
         if pin and pin not in {"any", worker["provider"]}:
             raise ValueError(
@@ -75,6 +82,9 @@ class WorkflowExecution:
         self.database, self.row, self.request = database, row, request
         self.engine = SemanticEngine(database)
         self.base_config = config
+        self.mapping_config = replace(
+            config, semantic=replace(config.semantic, detailed_reviews=False)
+        )
         self.config = (
             config
             if request.workflow in {"mapping", "architecture"}
@@ -131,6 +141,7 @@ class WorkflowExecution:
             return self._result(False, self._waiting_message())
         if not self._jobs() and not self._wait_for_workers(selected_only=True):
             if self.active_step == self.request.step and self.request.step in {
+                "annotation",
                 "intrinsic",
                 "context",
                 "groups",
@@ -160,7 +171,7 @@ class WorkflowExecution:
             self.engine.plan(
                 self.repository_id,
                 self.row["path"],
-                self.base_config,
+                self.mapping_config,
                 retry_failed=retry,
                 preserve_patterns=True,
             )
@@ -240,7 +251,7 @@ class WorkflowExecution:
         )
         if expired:
             self.engine.plan(
-                self.repository_id, self.row["path"], self.base_config, preserve_patterns=True
+                self.repository_id, self.row["path"], self.mapping_config, preserve_patterns=True
             )
             return True
         self.joined_workers = True
@@ -382,7 +393,7 @@ class WorkflowExecution:
             return self._result(False, "The source scan changed. Resume on the new scan.")
         status = (
             {}
-            if self.request.step in {"intrinsic", "context"}
+            if self.request.step in {"annotation", "intrinsic", "context"}
             else self.engine.status(self.repository_id, self.config.semantic)
         )
         with self.database.connect() as connection:

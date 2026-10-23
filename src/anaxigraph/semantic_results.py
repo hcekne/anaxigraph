@@ -10,6 +10,7 @@ from typing import Any
 
 from anaxigraph.clock import utc_now
 from anaxigraph.config import SemanticConfig
+from anaxigraph.knowledge_grouping import refresh_grouping
 from anaxigraph.persistence.search_read import refresh_search_projection
 from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION, SemanticResult
 from anaxigraph.semantic_graph import _cost, _intent_fingerprint
@@ -87,6 +88,7 @@ class SemanticPersistenceService:
                     now=completion.now,
                 )
                 if job["metadata"].get("review_phase") != "batch":
+                    refresh_grouping(connection, int(job["snapshot_id"]))
                     refresh_search_projection(
                         connection,
                         int(job["repository_id"]),
@@ -115,14 +117,14 @@ class SemanticPersistenceService:
         provider: str,
         completion: _Completion,
     ) -> None:
-        intrinsic = job["job_kind"] == "intrinsic"
-        state = "intrinsic_current" if intrinsic else "current"
-        column = "intrinsic_document_id" if intrinsic else "context_document_id"
-        reason = (
-            "Intrinsic dossier generated from current source"
-            if intrinsic
-            else "Contextual understanding matches current evidence"
-        )
+        if job["job_kind"] == "annotation":
+            from anaxigraph.knowledge_annotation import complete_annotation
+
+            complete_annotation(connection, job, document_id, result.value, completion.now)
+            return
+        state = "current"
+        column = "context_document_id"
+        reason = "Graph synthesis matches current evidence"
         connection.execute(
             f"""
             UPDATE semantic_scope_states SET status = ?, {column} = ?,
@@ -137,54 +139,6 @@ class SemanticPersistenceService:
                 job["snapshot_id"],
                 job["scope_type"],
                 job["scope_key"],
-            ),
-        )
-        if job["scope_type"] == "module":
-            claim_type = "module_analysis" if intrinsic else "module_context"
-            self._write_inventory_claim(
-                connection, job, result, claim_type, provider, completion.source
-            )
-            refresh_search_projection(
-                connection,
-                int(job["repository_id"]),
-                int(job["snapshot_id"]),
-                artifact_ids=(int(job["artifact_id"]),),
-            )
-
-    def _write_inventory_claim(
-        self,
-        connection: sqlite3.Connection,
-        job: dict[str, Any],
-        result: SemanticResult,
-        claim_type: str,
-        provider: str,
-        source: str,
-    ) -> None:
-        if not job.get("file_fact_id"):
-            return
-        connection.execute(
-            "DELETE FROM semantic_claims WHERE file_fact_id = ? AND claim_type = ?",
-            (job["file_fact_id"], claim_type),
-        )
-        connection.execute(
-            """
-            INSERT INTO semantic_claims(
-                artifact_version_id, file_fact_id, claim_type, value_json, source, provider, model,
-                prompt_version, created_at, confidence, supporting_evidence_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                None,
-                job["file_fact_id"],
-                claim_type,
-                json.dumps(result.value, sort_keys=True),
-                source,
-                provider,
-                job["model"],
-                job["prompt_version"],
-                utc_now(),
-                result.confidence,
-                json.dumps(result.evidence),
             ),
         )
 

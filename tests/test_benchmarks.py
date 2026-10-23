@@ -203,10 +203,12 @@ def test_dashboard_fixture_covers_stable_browser_contracts(tmp_path):
     assert feedback["evaluation"]["monitored_by_default"] is False
 
 
-def test_first_user_path_reaches_dashboard_and_submits_a_dossier():
+def test_first_user_path_reaches_dashboard_and_submits_canonical_function_annotations():
     report = measure_first_user_path(Path(__file__).resolve().parents[1], runs=1)
 
     assert report["median_dashboard_seconds"] < report["budgets"]["dashboard_seconds"]
-    assert report["median_first_dossier_seconds"] < report["budgets"]["first_dossier_seconds"]
+    assert report["median_first_annotation_seconds"] < report["budgets"]["first_annotation_seconds"]
     assert report["runs"][0]["submission_status"] == "completed"
+    assert report["runs"][0]["artifact"] == "graph_annotation"
+    assert report["runs"][0]["function_count"] == 1
     assert report["runs"][0]["project_connection_created"] is True

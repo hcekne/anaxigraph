@@ -7,7 +7,6 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
-from fresh_eyes_fixtures import agent_fresh_eyes
 
 from anaxigraph.config import SemanticConfig
 from anaxigraph.semantic import (
@@ -28,45 +27,8 @@ FIXTURES = Path(__file__).parent / "fixtures"
 def _dossier() -> dict[str, Any]:
     return {
         "summary": "Owns repository enrollment.",
-        "detailed_summary": "Builds and refreshes the durable understanding baseline.",
         "responsibilities": ["Plan semantic work"],
-        "inputs": ["Deterministic graph facts"],
-        "outputs": ["Versioned dossiers"],
-        "side_effects": ["Writes AnaxiIndex records"],
-        "public_contracts": ["Dossier schema v4"],
-        "invariants": ["Never overwrite parser facts"],
-        "architecture_role": "Repository intelligence service",
-        "domain_concepts": ["semantic bootstrap"],
-        "collaborators": ["scanner"],
-        "overlaps": [],
-        "extension_points": ["provider adapter"],
-        "similar_modules": [],
-        "pattern_opportunities": [
-            {
-                "name": "Provider adapter",
-                "scope": "module",
-                "score": 91,
-                "confidence": 0.88,
-                "rationale": "Multiple model runtimes share one structured contract.",
-                "evidence": ["The provider protocol already separates orchestration."],
-                "counter_evidence": [],
-                "migration_cost": "low",
-                "preconditions": ["Keep provider-specific transport outside the engine."],
-            }
-        ],
-        "consolidation_assessment": {
-            "recommendation": "keep",
-            "score": 89,
-            "rationale": "Keep provider adapters separate from orchestration.",
-            "candidates": [],
-            "evidence": ["Each adapter owns a distinct transport."],
-            "counter_evidence": [],
-        },
-        "dead_code_candidates": [],
-        "placement_guidance": "Add model runtimes behind the provider protocol.",
-        "testing_guidance": ["Use a JSON-over-stdin fake provider"],
-        "change_summary": "No previous dossier was supplied.",
-        "risks": ["Model output is an interpretation"],
+        "public_contracts": ["Never overwrite extracted source facts"],
         "evidence": ["src/anaxigraph/understanding.py:1"],
         "confidence": 0.91,
     }
@@ -109,7 +71,7 @@ def test_codex_provider_is_ephemeral_read_only_and_schema_constrained(monkeypatc
             model="gpt-test",
             reasoning_effort="medium",
         )
-    ).analyze({"analysis_kind": "intrinsic", "source": "print('data')"})
+    ).analyze({"analysis_kind": "synthesis", "scope_type": "group", "source": "print('data')"})
 
     assert captured["command"][:2] == ["codex", "exec"]
     assert "--ephemeral" in captured["command"]
@@ -128,7 +90,7 @@ def test_codex_provider_is_ephemeral_read_only_and_schema_constrained(monkeypatc
 
 @pytest.mark.parametrize("offset", [-1, 0, 1])
 def test_codex_prompt_checks_the_complete_input_at_the_inline_boundary(tmp_path, offset):
-    request = {"analysis_kind": "context", "source": ""}
+    request = {"analysis_kind": "synthesis", "scope_type": "group", "source": ""}
     request["source"] = "x" * (_CODEX_INLINE_PROMPT_CHARS - len(_prompt(request)) + offset)
 
     prompt = _codex_prompt(request, tmp_path)
@@ -142,19 +104,18 @@ def test_codex_prompt_checks_the_complete_input_at_the_inline_boundary(tmp_path,
         assert json.loads("".join(page.read_text(encoding="utf-8") for page in pages)) == request
 
 
-@pytest.mark.parametrize(
-    "kind", ["fresh_proposal", "fresh_adjudication", "fresh_comparison", "fresh_review"]
-)
-def test_oversized_codex_request_keeps_every_page_and_the_original_contract(monkeypatch, kind):
+def test_oversized_source_aware_request_keeps_every_page_and_the_original_contract(monkeypatch):
     request = {
-        "analysis_kind": kind,
+        "analysis_kind": "synthesis",
+        "scope_type": "group",
+        "detailed_reviews": True,
         "input_manifest": {"snapshot_id": 1129, "review_generation": 3},
         "proposals": [{"proposal": "proposal:a"}, {"proposal": "proposal:b"}],
         "evidence": 'head: å 雪 \\ "\n' + "evidence " * 150_000 + "tail: retained",
     }
     original = json.loads(json.dumps(request))
     captured = {}
-    expected = agent_fresh_eyes(request, kind)
+    expected = _dossier()
 
     def run(command, **kwargs):
         directory = Path(kwargs["cwd"])
@@ -177,7 +138,7 @@ def test_oversized_codex_request_keeps_every_page_and_the_original_contract(monk
         assert command[command.index("--model") + 1] == "gpt-test"
         assert 'model_reasoning_effort="max"' in command
         schema = json.loads(Path(command[command.index("--output-schema") + 1]).read_text())
-        assert schema["properties"]["contract_version"]["enum"] == [expected["contract_version"]]
+        assert schema["properties"]["summary"]["type"] == "string"
         Path(command[command.index("--output-last-message") + 1]).write_text(json.dumps(expected))
         return SimpleNamespace(
             returncode=0,
@@ -203,6 +164,18 @@ def test_oversized_codex_request_keeps_every_page_and_the_original_contract(monk
     assert not captured["directory"].exists()
 
 
+@pytest.mark.parametrize("stage", ["hierarchy", "proposal", "comparison", "review"])
+def test_oversized_blind_review_is_rejected_without_creating_tool_readable_pages(tmp_path, stage):
+    request = {
+        "protocol_version": "fresh-eyes-recipe-v2",
+        "functional_stage": stage,
+        "evidence": "functional evidence " * 150_000,
+    }
+    with pytest.raises(SemanticAnalysisError, match="tool-free input budget"):
+        _codex_prompt(request, tmp_path)
+    assert list(tmp_path.iterdir()) == []
+
+
 @pytest.mark.parametrize("failure", ["exit", "timeout"])
 def test_oversized_codex_request_cleans_up_evidence_after_failure(monkeypatch, failure):
     captured = {}
@@ -218,7 +191,7 @@ def test_oversized_codex_request_cleans_up_evidence_after_failure(monkeypatch, f
     monkeypatch.setattr("anaxigraph.semantic.subprocess.run", run)
     with pytest.raises(SemanticAnalysisError):
         CodexSemanticProvider(SemanticConfig(provider="codex")).analyze(
-            {"analysis_kind": "context", "source": "x" * 1_270_329}
+            {"analysis_kind": "synthesis", "scope_type": "group", "source": "x" * 1_270_329}
         )
     assert not captured["directory"].exists()
 
@@ -244,7 +217,7 @@ def test_claude_provider_is_non_persistent_tool_free_and_schema_constrained(monk
     monkeypatch.setattr("anaxigraph.semantic.subprocess.run", run)
     result = ClaudeSemanticProvider(
         SemanticConfig(enabled=True, provider="claude", model="claude-test")
-    ).analyze({"analysis_kind": "context", "source": "untrusted"})
+    ).analyze({"analysis_kind": "synthesis", "scope_type": "group", "source": "untrusted"})
 
     assert captured["command"][0] == "claude"
     assert "--no-session-persistence" in captured["command"]
@@ -269,7 +242,7 @@ def test_claude_provider_forwards_reasoning_effort_unvalidated(monkeypatch):
     monkeypatch.setattr("anaxigraph.semantic.subprocess.run", run)
     ClaudeSemanticProvider(
         SemanticConfig(enabled=True, provider="claude", reasoning_effort="future-effort")
-    ).analyze({"analysis_kind": "context", "source": "untrusted"})
+    ).analyze({"analysis_kind": "synthesis", "scope_type": "group", "source": "untrusted"})
 
     assert captured["command"][captured["command"].index("--effort") + 1] == "future-effort"
 
@@ -280,7 +253,7 @@ def _claude_result(monkeypatch, envelope: dict[str, Any]) -> Any:
 
     monkeypatch.setattr("anaxigraph.semantic.subprocess.run", run)
     return ClaudeSemanticProvider(SemanticConfig(enabled=True, provider="claude")).analyze(
-        {"analysis_kind": "context", "source": "untrusted"}
+        {"analysis_kind": "synthesis", "scope_type": "group", "source": "untrusted"}
     )
 
 

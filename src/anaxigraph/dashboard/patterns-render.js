@@ -31,7 +31,7 @@ export function renderEvaluationCard(item) {
       <span>${escapeHtml(language.independent_review || review.summary || "A separate AI pass completed its check.")}</span></div></div>
     ${item.details ? evaluationDetails(item.details) : ""}
     <div class="pattern-result-footer"><span>Created by ${escapeHtml(item.provenance?.provider || "an unknown AI provider")} using ${escapeHtml(item.provenance?.model || "the worker's runtime model")}${item.provenance?.created_at ? ` · saved ${escapeHtml(item.provenance.created_at)}` : ""}</span>
-      <div><button class="text-button" data-pattern-target="${escapeAttr(target.key)}">Compare patterns for this code</button>
+      <div><button class="text-button" data-entity-guide="${escapeAttr(target.key)}">Explore this code</button>
       <button class="text-button" data-pattern-key="${escapeAttr(pattern.key)}">Find this pattern elsewhere</button>
       <button class="text-button" data-candidate-key="${escapeAttr(pattern.key)}">Explain skipped candidates</button></div></div>
   </article>`;

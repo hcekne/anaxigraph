@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from anaxigraph.config import RuleConfig
 
-DETECTOR_VERSION = "architecture-findings-v1"
+DETECTOR_VERSION = "architecture-findings-v3"
 
 
 @dataclass(frozen=True, slots=True)

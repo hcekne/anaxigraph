@@ -1,84 +1,87 @@
-import { api, byId, escapeAttr, escapeHtml, format, humanize, request, state, toast } from "/assets/dashboard-core.js";
-import { drawGraph } from "/assets/graph-view.js";
+import { byId, escapeAttr, escapeHtml, format, humanize, state, toast } from "/assets/dashboard-core.js";
+import { entityContextKey, entityPage, normalizeGraph } from "/assets/entity-client.js";
+import { structuralNotice } from "/assets/entity-inspector.js";
+import { drawGraph, renderLegend, renderOverlayHelp } from "/assets/graph-view.js";
 import { groupLabel, layoutGraph, renderGraphAreaOptions } from "/assets/graph-model.js";
 
-const NODE_LIMIT = 1000;
-const EDGE_LIMIT = 2000;
+const NODE_LIMIT = 50;
 
 export function setupGraphRegionEvents() {
-  graphRegionBrowser().addEventListener("click", async (event) => {
+  graphRegionBrowser().addEventListener("click", event => {
     const region = event.target.closest("[data-graph-region]");
     const next = event.target.closest("[data-graph-next]");
-    if (!region && !next) return;
-    try {
-      await loadGraphRegion(
-        region ? region.dataset.graphRegion : state.graphRegion,
-        next ? state.graph.next_cursor : "",
-      );
-    } catch (error) {
-      toast(error.message, true);
-    }
+    if (region || next) void loadGraphRegion(region ? region.dataset.graphRegion : state.graphRegion,
+      next ? state.graph.next_cursor : 0).catch(error => toast(error.message, true));
   });
 }
 
-export async function loadGraphRegion(region = "", cursor = "") {
-  const snapshotId = state.graph.snapshot?.id || state.overview?.snapshot?.id;
+export async function loadGraphRegion(region = "", cursor = 0) {
+  if (!state.overview) return;
   const token = ++state.graphRequestToken;
-  const graph = await request(api("/api/graph", graphRequestParams(snapshotId, region, cursor)));
-  if (token !== state.graphRequestToken) return;
-  state.graph = graph;
-  state.graphRegion = region;
-  state.selectedNode = null;
-  state.hiddenGroups.clear();
-  renderGraphRegionBrowser();
-  renderGraphAreaOptions();
-  layoutGraph(true);
+  const context = entityContextKey();
+  state.graphLoading = true;
+  state.graph = { nodes: [], edges: [] };
   drawGraph();
-  byId("inspector").innerHTML = '<p class="eyebrow">File details</p><h2>Select a file</h2><p class="muted">Click a circle to inspect that file.</p>';
+  byId("graph-canvas").setAttribute("aria-busy", "true");
+  byId("graph-canvas").dataset.renderState = "loading";
+  try {
+    let value = await entityPage(graphRequestParams(null, region, cursor));
+    if (state.entityGraphKind === "observed" && !value.nodes?.length && byId("graph-kind-select").value === "capability" && !byId("graph-search").value.trim()) {
+      value = await entityPage({ ...graphRequestParams(null, region, cursor), kind: "module" });
+      if (token === state.graphRequestToken) byId("graph-kind-select").value = "module";
+    }
+    if (token !== state.graphRequestToken || context !== entityContextKey()) return;
+    state.graph = normalizeGraph(value);
+    state.graphRegion = region;
+    state.graphFocusId = null;
+    state.hiddenGroups.clear();
+    renderGraphRegionBrowser();
+    renderGraphAreaOptions();
+    layoutGraph(true);
+    renderLegend(); renderOverlayHelp();
+  } finally {
+    if (token === state.graphRequestToken) {
+      state.graphLoading = false;
+      byId("graph-canvas").setAttribute("aria-busy", "false");
+      drawGraph();
+    }
+  }
 }
 
-export function graphRequestParams(snapshotId, region = state.graphRegion, cursor = "") {
+export function graphRequestParams(snapshotId, region = state.graphRegion, cursor = 0) {
   return {
-    snapshot_id: snapshotId,
-    map_layer: state.mapLayer,
+    ...(snapshotId ? { snapshot_id: snapshotId } : {}),
+    kind: byId("graph-kind-select")?.value ?? "capability",
+    q: byId("graph-search")?.value.trim(),
+    scope: region,
+    relationship_type: byId("graph-relation-select")?.value,
+    evidence_state: byId("graph-evidence-select")?.value,
     include_external: byId("external-toggle")?.checked || false,
-    node_limit: NODE_LIMIT,
-    edge_limit: EDGE_LIMIT,
-    area: region,
-    cursor,
+    limit: NODE_LIMIT, offset: Number(cursor || 0), edge_limit: 300,
   };
 }
 
 export function renderGraphRegionBrowser() {
   const browser = graphRegionBrowser();
-  const regions = state.overview?.group_hierarchies?.[state.mapLayer] || [];
+  const regions = state.entityGraphKind === "observed" ? state.overview?.group_hierarchies?.[state.mapLayer] || [] : [];
   const counts = state.graph?.counts || {};
-  if (!regions.length) {
-    browser.hidden = true;
-    return;
-  }
   browser.hidden = false;
-  const current = state.graphRegion || "all files";
-  const shownNodes = Number(counts.page_internal_nodes || 0);
-  const matchingNodes = Number(counts.matching_nodes || 0);
-  const shownEdges = Number(counts.page_edges || 0);
-  const matchingEdges = Number(counts.matching_edges || 0);
-  browser.innerHTML = `
-    <div class="graph-region-summary">
-      <div><span>Browse the whole repository or focus one area</span><strong>${escapeHtml(state.graphRegion ? groupLabel(current) : humanize(current))}</strong></div>
-      <p>Showing ${format.format(shownNodes)} of ${format.format(matchingNodes)} files and ${format.format(shownEdges)} of ${format.format(matchingEdges)} direct code links in this area</p>
-      ${state.graph?.next_cursor ? '<button class="secondary-button" type="button" data-graph-next>Show the next page</button>' : ""}
-    </div>
-    <div class="graph-region-list">
-      <button class="graph-region ${state.graphRegion ? "" : "active"}" type="button" data-graph-region=""><span>All files</span><em>up to ${format.format(NODE_LIMIT)} at once</em></button>
-      ${regions.map((region) => regionButton(region)).join("")}
-    </div>`;
+  browser.innerHTML = `<div class="graph-region-summary"><div><span>Selected revision · ${escapeHtml(humanize(state.graph.context?.graph_kind || "observed"))} graph</span><strong>${escapeHtml(state.graphFocusId ? `Neighborhood · ${state.selectedNode?.label || state.selectedNode?.name || state.graphFocusId}` : state.graphRegion ? groupLabel(state.graphRegion) : "All scopes")}</strong></div>
+    <p>${graphCount(counts.page_internal_nodes, counts.matching_nodes, counts.known_nodes, "entities")} · ${graphCount(counts.page_edges, counts.matching_edges, counts.known_edges, "connections")}. Expand an entity to inspect its neighborhood.</p>
+    ${structuralNotice(state.graph.context)}
+    ${state.graph.next_cursor != null ? '<button class="secondary-button" type="button" data-graph-next>Next graph page</button>' : ""}</div>
+    <div class="graph-region-list"><button class="graph-region ${state.graphRegion ? "" : "active"}" type="button" data-graph-region=""><span>All scopes</span><em>up to ${NODE_LIMIT} entities at once</em></button>${regions.map(regionButton).join("")}</div>`;
+}
+
+function graphCount(shown, total, known, label) {
+  return total == null
+    ? `${format.format(shown || 0)} ${label} shown · total unknown (${format.format(known || 0)} known)`
+    : `${format.format(shown || 0)} of ${format.format(total)} ${label}`;
 }
 
 function regionButton(region) {
   const name = String(region.name || "ungrouped");
-  const active = name === state.graphRegion ? "active" : "";
-  return `<button class="graph-region ${active}" type="button" data-graph-region="${escapeAttr(name)}"><span>${escapeHtml(groupLabel(name))}</span><em>${format.format(region.files || 0)} files</em></button>`;
+  return `<button class="graph-region ${name === state.graphRegion ? "active" : ""}" type="button" data-graph-region="${escapeAttr(name)}"><span>${escapeHtml(groupLabel(name))}</span><em>${format.format(region.files || 0)} modules</em></button>`;
 }
 
 function graphRegionBrowser() {
@@ -87,7 +90,6 @@ function graphRegionBrowser() {
   const browser = document.createElement("div");
   browser.id = "graph-region-browser";
   browser.className = "graph-region-browser";
-  browser.hidden = true;
   byId("overlay-help").before(browser);
   return browser;
 }

@@ -49,3 +49,31 @@ def test_candidate_query_uses_the_matching_authoritative_service(repository, cap
         "selection": "all",
         "snapshot_id": 7,
     }
+
+
+def test_catalogue_cli_preserves_coverage_and_manifest_filters(repository, capsys, monkeypatch):
+    target = SemanticServiceTarget("http://127.0.0.1:9999", 17, "Sample", "/repo")
+    captured = {}
+    monkeypatch.setattr(
+        "anaxigraph.cli_pattern_commands.discover_semantic_service", lambda *a, **k: target
+    )
+
+    def query(service, request, *, snapshot_id=None):
+        captured.update(request.filters())
+        return {"catalogue": {"expected": 133, "reviewed": 0}, "items": []}
+
+    monkeypatch.setattr("anaxigraph.cli_pattern_commands.service_pattern_evaluations", query)
+    main(
+        [
+            "patterns",
+            str(repository),
+            "--catalogue",
+            "--state",
+            "missing",
+            "--include-manifest",
+            "--json",
+        ]
+    )
+    result = json.loads(capsys.readouterr().out)
+    assert result["catalogue"]["expected"] == 133
+    assert captured["include_manifest"] and captured["state"] == "missing"

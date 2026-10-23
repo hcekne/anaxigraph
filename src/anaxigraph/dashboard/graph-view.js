@@ -1,26 +1,13 @@
 import {
-  api,
-  architectureFor,
   byId,
   escapeAttr,
   escapeHtml,
   format,
   humanize,
   readThemeColors,
-  request,
   state,
 } from "/assets/dashboard-core.js";
 import {
-  conciseMappingMarkup,
-  consolidationMarkup,
-  deadCodeList,
-  detailList,
-  formatDate,
-  patternOpportunityList,
-  understandabilityMarkup,
-} from "/assets/dashboard-format.js";
-import {
-  effectiveGroup,
   groupColor,
   groupLabel,
   layoutGraph,
@@ -29,62 +16,85 @@ import {
   nodeRadius,
   visibleGraphNodes,
 } from "/assets/graph-model.js";
-import { semanticProviderLabel } from "/assets/overview-view.js";
+import { entityContextKey, entityDetail } from "/assets/entity-client.js";
+import { entityButton, entityInspector } from "/assets/entity-inspector.js";
+
+let textRevision = "";
 
 export function drawGraph() {
   const canvas = byId("graph-canvas");
-  if (!canvas) return;
+  if (!canvas?.clientWidth || !canvas.clientHeight) return;
+  const nodes = visibleGraphNodes();
+  if (nodes.some(node => !state.positions.has(String(node.id)))) layoutGraph(false);
   const ratio = window.devicePixelRatio || 1;
-  const width = canvas.clientWidth;
-  const height = canvas.clientHeight;
-  if (!width || !height) return;
-  const visibleNodes = visibleGraphNodes();
-  if (visibleNodes.some((node) => !state.positions.has(String(node.id)))) {
-    layoutGraph(false);
-  }
-  if (canvas.width !== Math.floor(width * ratio) || canvas.height !== Math.floor(height * ratio)) {
-    canvas.width = Math.floor(width * ratio);
-    canvas.height = Math.floor(height * ratio);
-  }
+  canvas.width = Math.floor(canvas.clientWidth * ratio);
+  canvas.height = Math.floor(canvas.clientHeight * ratio);
   const context = canvas.getContext("2d");
   if (!context) return;
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
-  context.clearRect(0, 0, width, height);
+  context.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
   const { x, y, scale } = state.transform;
+  const theme = state.themeColors || readThemeColors();
   context.save();
   context.translate(x, y);
   context.scale(scale, scale);
-  const visibleIds = new Set(visibleNodes.map((node) => String(node.id)));
-  const metricMaximum = Math.max(...visibleNodes.map(nodeMetric), 1);
-  const theme = state.themeColors || readThemeColors();
-  context.lineCap = "round";
   drawRegions(context, scale);
-  const edgeLimit = scale < 0.8 ? 1600 : 5000;
-  state.graph.edges.slice(0, edgeLimit).forEach((edge) => {
-    const source = state.positions.get(String(edge.source));
-    const target = state.positions.get(String(edge.target));
-    if (!source || !target || !visibleIds.has(String(edge.target))) return;
-    context.strokeStyle = theme.edge;
-    context.lineWidth = Math.min(2.4, 0.35 + Math.log2(Number(edge.weight || 1) + 1) * 0.35) / scale;
-    context.beginPath();
-    context.moveTo(source.x, source.y);
-    context.lineTo(target.x, target.y);
-    context.stroke();
-  });
-  const search = byId("graph-search").value.trim().toLowerCase();
-  visibleNodes.forEach((node) => drawNode(
-    context, node, metricMaximum, search, scale, theme,
-  ));
+  drawEdges(context, nodes, scale, theme);
+  const maximum = Math.max(...nodes.map(nodeMetric), 1);
+  nodes.forEach(node => drawNode(context, node, maximum, "", scale, theme));
   context.globalAlpha = 1;
   context.restore();
-  const positioned = visibleNodes.filter((node) => state.positions.has(String(node.id))).length;
-  canvas.dataset.renderState = positioned ? "ready" : "empty";
-  if (!positioned) {
+  canvas.dataset.renderState = state.graphLoading ? "loading" : nodes.length ? "ready" : "empty";
+  if (!nodes.length) {
     context.fillStyle = theme.label;
     context.textAlign = "center";
-    context.fillText("No modules match this graph view.", width / 2, height / 2);
+    context.fillText("No entities match this graph scope.", canvas.clientWidth / 2, canvas.clientHeight / 2);
   }
+  const revision = `${state.repositoryId}:${state.graphRequestToken}:${nodes.length}`;
+  if (revision !== textRevision) { textRevision = revision; renderGraphText(nodes); }
 }
+
+function drawEdges(context, nodes, scale, theme) {
+  const ids = new Set(nodes.map(node => String(node.id)));
+  const relation = byId("graph-relation-select")?.value;
+  (state.graph.edges || []).forEach(edge => {
+    if (relation && edge.relationship_type !== relation) return;
+    const source = state.positions.get(String(edge.source));
+    const target = state.positions.get(String(edge.target));
+    if (!source || !target || !ids.has(String(edge.source)) || !ids.has(String(edge.target))) return;
+    context.strokeStyle = theme.edge;
+    context.fillStyle = theme.edge;
+    context.lineWidth = 1.1 / scale;
+    context.setLineDash(edge.resolution === "unresolved" || edge.provenance?.kind === "inferred" ? [5 / scale, 4 / scale] : []);
+    context.beginPath(); context.moveTo(source.x, source.y); context.lineTo(target.x, target.y); context.stroke();
+    const angle = Math.atan2(target.y - source.y, target.x - source.x);
+    const x = target.x - Math.cos(angle) * 15, y = target.y - Math.sin(angle) * 15;
+    context.beginPath(); context.moveTo(x, y);
+    context.lineTo(x - Math.cos(angle - 0.5) * 8 / scale, y - Math.sin(angle - 0.5) * 8 / scale);
+    context.lineTo(x - Math.cos(angle + 0.5) * 8 / scale, y - Math.sin(angle + 0.5) * 8 / scale);
+    context.closePath(); context.fill();
+  });
+  context.setLineDash([]);
+}
+
+function renderGraphText(nodes) {
+  const list = byId("graph-entity-list"), relationships = byId("graph-relationship-list");
+  if (!list || !relationships) return;
+  list.innerHTML = nodes.map(node => entityButton(node, `${humanize(node.kind)} · ${node.label || node.name}`)).join("");
+  const lookup = new Map(nodes.map(node => [String(node.id), node]));
+  relationships.innerHTML = (state.graph.edges || []).slice(0, 200).map(edge => graphRelationshipMarkup(edge, lookup)).join("") || '<p class="muted">No connections in this bounded scope. Unresolved or unloaded connections may exist.</p>';
+}
+
+function graphRelationshipMarkup(edge, lookup) {
+  const from = relationshipLabel(lookup.get(String(edge.source)), edge.source);
+  const to = relationshipLabel(lookup.get(String(edge.target)), edge.target);
+  return `<details class="graph-edge-row"><summary>${escapeHtml(from)} → ${escapeHtml(humanize(edge.relationship_type || "related"))} → ${escapeHtml(to)}</summary>
+    <p>${entityButton(edge.source, from)} → ${entityButton(edge.target, to)}</p>
+    <p>${escapeHtml(edge.resolution || "Resolution not recorded")} · confidence ${edge.confidence == null ? "unknown" : escapeHtml(edge.confidence)}</p>
+    <pre>${escapeHtml(JSON.stringify(edge.evidence || edge.provenance || {}, null, 2))}</pre></details>`;
+}
+
+function relationshipLabel(node, fallback) { return node?.label || node?.name || fallback; }
 
 function drawRegions(context, scale) {
   if (!byId("architecture-regions-toggle").checked) return;
@@ -132,29 +142,36 @@ function drawRegions(context, scale) {
 function drawNode(context, node, maximum, search, scale, theme) {
   const position = state.positions.get(String(node.id));
   if (!position) return;
-  const radius = nodeRadius(node, maximum);
-  const matches = !search || `${node.path} ${node.summary}`.toLowerCase().includes(search);
-  context.globalAlpha = matches ? 1 : 0.12;
+  const radius = Math.max(7, nodeRadius(node, maximum));
+  context.globalAlpha = 1;
   context.fillStyle = nodeColor(node);
-  context.beginPath();
-  context.arc(position.x, position.y, radius, 0, Math.PI * 2);
+  drawEntityShape(context, node.kind, position, radius);
   context.fill();
   context.strokeStyle = theme.nodeStroke;
   context.lineWidth = 1.25 / scale;
   context.stroke();
-  if (state.selectedNode && String(state.selectedNode.id) === String(node.id)) {
-    context.beginPath();
-    context.arc(position.x, position.y, radius + 2.5 / scale, 0, Math.PI * 2);
+  if (String(state.selectedNode?.id) === String(node.id)) {
     context.strokeStyle = theme.selected;
-    context.lineWidth = 2 / scale;
+    context.lineWidth = 3 / scale;
     context.stroke();
   }
-  if (scale > 1.25 && radius > 4.5 && matches) {
+  if (state.graph.nodes.length <= 70 || String(state.selectedNode?.id) === String(node.id) || scale > 1.5) {
     context.fillStyle = theme.label;
-    context.font = `${10 / scale}px ui-monospace, monospace`;
-    context.fillText(node.path.split("/").pop(), position.x + radius + 3 / scale,
-      position.y + 3 / scale);
+    context.font = `${11 / scale}px ui-sans-serif, system-ui, sans-serif`;
+    const name = node.label || node.name || node.path?.split("/").pop() || node.id;
+    context.fillText(name, position.x + radius + 4 / scale, position.y + 4 / scale, 160 / scale);
   }
+}
+
+function drawEntityShape(context, kind, position, radius) {
+  const { x, y } = position;
+  context.beginPath();
+  if (["capability", "module", "area"].includes(kind)) {
+    roundedRectangle(context, x - radius, y - radius * 0.7, radius * 2, radius * 1.4, 4);
+  } else if (["interface", "contract"].includes(kind)) {
+    context.moveTo(x, y - radius); context.lineTo(x + radius, y);
+    context.lineTo(x, y + radius); context.lineTo(x - radius, y); context.closePath();
+  } else context.arc(x, y, radius, 0, Math.PI * 2);
 }
 
 function roundedRectangle(context, x, y, width, height, radius) {
@@ -172,7 +189,9 @@ export function renderLegend() {
   const overlay = byId("overlay-select").value;
   const theme = state.themeColors || readThemeColors();
   let items;
-  if (overlay === "architecture") {
+  if (state.entityGraphKind !== "observed") {
+    items = [...new Set(state.graph.nodes.map(node => node.kind))].map(kind => [humanize(kind), groupColor(kind)]);
+  } else if (overlay === "architecture") {
     items = state.groupRoots.filter((group) => !state.hiddenGroups.has(group.name)).slice(0, 12)
       .map((group) => [groupLabel(group.name), groupColor(group.name)]);
   } else if (overlay === "agent") {
@@ -195,181 +214,32 @@ export function renderOverlayHelp() {
   const overlay = byId("overlay-select").value;
   let message = state.glossary?.overlays?.[overlay]
     || "Choose a color view to inspect the repository.";
-  if (overlay === "agent" && !state.highlightedPaths.size) {
+  if (overlay === "architecture" && byId("graph-layout-select").value !== "footprint") {
+    message = "Color shows responsibility areas; directed connections determine the behavior-path layout. Read connection types and evidence in the keyboard view. Choose area footprint to compare composition.";
+  }
+  if (state.entityGraphKind !== "observed") message = "Read the saved functional design and its proposed connections. Open entity details for responsibilities, contracts and recorded assumptions.";
+  if (overlay === "agent" && !state.highlightedPaths.size && state.entityGraphKind === "observed") {
     message += " Describe a coding task or open a finding selected for work to color the relevant files.";
   }
   byId("overlay-help").textContent = message;
 }
 
 export async function inspectNode(node) {
-  const repositoryLoadToken = state.repositoryLoadToken;
+  const selection = ++state.entitySelectionToken;
+  const context = entityContextKey();
   state.selectedNode = node;
   drawGraph();
   const panel = byId("inspector");
-  const displayName = String(node.path).split("/").pop();
-  panel.innerHTML = `<p class="eyebrow">File details</p><h2>${escapeHtml(displayName)}</h2><code class="inspector-path">${escapeHtml(node.path)}</code><p class="muted">Loading details…</p>`;
-  if (String(node.id).startsWith("external:")) {
-    panel.innerHTML = `<p class="eyebrow">External library or package</p><h2>${escapeHtml(displayName)}</h2><code class="inspector-path">${escapeHtml(node.path)}</code><p class="muted">Code in this repository uses this name, but its source is outside the repository and was not read.</p>`;
-    return;
-  }
+  panel.innerHTML = `<p class="eyebrow">${escapeHtml(node.kind || "Entity")}</p><h2>${escapeHtml(node.label || node.name || node.path)}</h2><p role="status">Reading saved understanding…</p>`;
   try {
-    const detail = await request(api("/api/file", {
-      path: node.path,
-      snapshot_id: state.graph.snapshot?.id,
-    }));
-    if (repositoryLoadToken !== state.repositoryLoadToken) return;
-    panel.innerHTML = inspectorMarkup(node, detail, displayName);
+    const value = await entityDetail(node.id);
+    if (selection !== state.entitySelectionToken || context !== entityContextKey()) return;
+    panel.innerHTML = entityInspector(value);
   } catch (error) {
-    if (repositoryLoadToken === state.repositoryLoadToken) {
+    if (selection === state.entitySelectionToken && context === entityContextKey()) {
       panel.innerHTML += `<p class="muted">${escapeHtml(error.message)}</p>`;
     }
   }
-}
-
-function inspectorMarkup(node, detail, displayName) {
-  const file = detail.file;
-  const inventory = state.modules.find((item) => item.path === file.path) ?? {};
-  const semanticData = semanticInspectorData(detail, inventory, file);
-  const placement = inspectorPlacement(inventory, file);
-  const evaluation = inventory.evaluation ?? {};
-  const responsibilities = tagMarkup(file.responsibilities);
-  const patterns = tagMarkup(evaluation.pattern_candidates);
-  const interfaces = tagMarkup(file.public_interfaces, 18);
-  const relationships = relationshipButtons(detail.relationships);
-  const dependants = dependantButtons(detail.dependants);
-  const history = historyMarkup(detail.history);
-  const area = placement.area_label || groupLabel(placement.area);
-  const subsystem = placement.subsystem_label || groupLabel(placement.subsystem);
-  return `<p class="eyebrow">${escapeHtml(area)} · ${escapeHtml(subsystem)}</p><h2>${escapeHtml(displayName)}</h2><code class="inspector-path">${escapeHtml(file.path)}</code><h3>Purpose</h3><p class="muted">${escapeHtml(semanticData.purpose)}</p><p class="inspector-provenance">${escapeHtml(semanticData.purposeSource)}</p>${factList(file, node, inventory, detail, coverageLabel(node))}${semanticSection(semanticData.document, semanticData.value, detail)}<h3>Jobs detected in this file</h3><div class="tag-list">${markupOr(responsibilities, "No specific job was detected")}</div><h3>Pattern ideas from code checks</h3><div class="tag-list">${markupOr(patterns, "No pattern idea has direct code evidence yet")}</div><h3>Names other files can use</h3><div class="tag-list">${markupOr(interfaces, "None detected")}</div><h3>Uses</h3><div class="relation-list">${markupOr(relationships, "No direct use of another indexed file was found")}</div><h3>Used by</h3><div class="relation-list">${markupOr(dependants, "No indexed file directly uses this file")}</div><h3>Recent changes</h3><div class="relation-list">${markupOr(history, "No Git history loaded")}</div>`;
-}
-
-function semanticInspectorData(detail, inventory, file) {
-  const intrinsicDocument = detail.semantic_dossiers?.intrinsic;
-  const contextDocument = detail.semantic_dossiers?.context;
-  const intrinsic = intrinsicDocument?.value ?? {};
-  const contextual = contextDocument?.value ?? {};
-  const document = contextDocument ?? intrinsicDocument;
-  const value = contextual.summary ? contextual : intrinsic;
-  const purpose = firstText(
-    detail.semantic_plain_language?.what_this_file_does,
-    value.summary,
-    inventory.summary,
-    file.summary,
-  );
-  return {
-    document,
-    value,
-    purpose,
-    purposeSource: semanticPurposeSource(document, Boolean(contextDocument)),
-  };
-}
-
-function semanticPurposeSource(document, usesRepositoryContext) {
-  if (!document) return "Generated directly from the file without AI.";
-  const evidence = usesRepositoryContext ? "using repository context" : "of this file";
-  return `${semanticProviderLabel(document)} AI description ${evidence}. Check the listed evidence before changing code.`;
-}
-
-function inspectorPlacement(inventory, file) {
-  const placement = architectureFor(inventory) ?? architectureFor(file) ?? {};
-  const fallback = effectiveGroup(file);
-  return {
-    area: firstText(placement.area, state.groupParents.get(fallback), fallback),
-    subsystem: firstText(placement.subsystem, fallback),
-  };
-}
-
-function coverageLabel(node) {
-  return node.line_coverage == null
-    ? "Not imported"
-    : `${(Number(node.line_coverage) * 100).toFixed(1)}%`;
-}
-
-function tagMarkup(values, limit = 100) {
-  const selected = Array.isArray(values) ? values.slice(0, limit) : [];
-  return selected.map((item) => `<span class="tag">${escapeHtml(item)}</span>`).join("");
-}
-
-function relationshipButtons(values) {
-  return values.slice(0, 14).map((item) => (
-    `<button data-path="${escapeAttr(item.target_path ?? "")}">${escapeHtml(humanize(item.relationship_type))} → ${escapeHtml(item.target_path ?? item.target_external)}</button>`
-  )).join("");
-}
-
-function dependantButtons(values) {
-  return values.slice(0, 14).map((item) => (
-    `<button data-path="${escapeAttr(item.source_path ?? "")}">${escapeHtml(item.source_path ?? "")}</button>`
-  )).join("");
-}
-
-function historyMarkup(values) {
-  return values.slice(0, 6).map((item) => (
-    `<span class="muted">${escapeHtml(item.commit_sha.slice(0, 8))} · ${escapeHtml(item.subject)}</span>`
-  )).join("");
-}
-
-function markupOr(value, fallback) {
-  return value || `<span class="muted">${escapeHtml(fallback)}</span>`;
-}
-
-function factList(file, node, inventory, detail, coverage) {
-  const facts = [
-    ["Language", file.language], ["Runtime", file.runtime || "—"],
-    ["Code lines", format.format(file.lines_of_code)], ["File-wide branch score", file.complexity],
-    ["Direct links from other files", format.format(node.fan_in || 0)],
-    ["Direct links to other files", format.format(node.fan_out || 0)], ["Line coverage", coverage],
-    ["Indexed changes", format.format(node.change_count || 0)],
-    ["First indexed", formatDate(inventory.first_changed_at)],
-    ["Last worked", formatDate(inventory.last_commit_at)],
-    ["Exact file fingerprint", String(file.raw_hash || "").slice(0, 10)],
-    ["Code-structure fingerprint", String(file.structural_hash || "").slice(0, 10)],
-    ["Code reading result", humanize(file.analysis_status)],
-    ["Why this version was read", humanize(file.metadata?.invalidation_reason || "not recorded")],
-    ["AI map state", detail.semantic_plain_language?.conclusion || "The AI map has not described this file yet."],
-  ];
-  return `<dl>${facts.map(([label, value]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`).join("")}</dl><p class="muted">The file-wide branch score starts at 1 and rises for decisions across all functions; it is not a code-quality grade. Fingerprints identify exact and structural versions of the file; they are not scores.</p>`;
-}
-
-function semanticSection(semantic, value, detail) {
-  const language = detail.semantic_plain_language ?? {};
-  if (!semantic) {
-    const conclusion = firstText(
-      language.conclusion,
-      "The AI map has not described this file yet.",
-    );
-    return `<h3>AI map</h3><p class="muted">${escapeHtml(conclusion)}</p>`;
-  }
-  const conclusion = firstText(language.conclusion, "The AI map has described this file.");
-  const concise = conciseMappingMarkup(value);
-  if (concise) return `<h3>AI map</h3><p class="muted">${escapeHtml(conclusion)}</p>${concise}`;
-  const role = firstText(
-    language.role_in_repository,
-    value.architecture_role,
-    "The AI map did not record this file's role",
-  );
-  const changed = firstText(language.what_changed_in_description, value.change_summary);
-  const placement = firstText(language.where_related_work_belongs, value.placement_guidance);
-  const jobs = firstList(language.jobs, value.responsibilities);
-  const extensionPoints = firstList(language.places_for_adding_behavior, value.extension_points);
-  const risks = firstList(language.risks_and_uncertainty, value.risks);
-  const related = [...(value.similar_modules ?? []), ...(value.overlaps ?? [])];
-  return `<h3>AI map</h3><p class="muted">${escapeHtml(conclusion)}</p><h3>Role in this repository</h3><p class="muted">${escapeHtml(role)}</p>${optionalMutedSection("What changed in this AI description", changed)}<h3>Jobs this file is responsible for</h3>${detailList(jobs, "The AI map did not record specific jobs for this file")}<h3>Files with related or overlapping work</h3>${optionalMutedParagraph(language.related_file_evidence)}${detailList(related, "The AI map did not identify related or overlapping files")}<h3>Patterns that may fit</h3>${patternOpportunityList(value.pattern_opportunities)}${consolidationMarkup(value.consolidation_assessment)}${understandabilityMarkup(value.understandability, detail.semantic_state?.status)}${optionalMutedSection("Where related work belongs", placement)}<h3>Code that may no longer be used</h3>${deadCodeList(value.dead_code_candidates)}<h3>Places designed for adding behavior</h3>${detailList(extensionPoints, "The AI map did not identify a specific place for adding behavior")}<h3>Risks and uncertainty</h3>${detailList(risks, "The AI map did not record a specific risk")}`;
-}
-
-function firstText(...values) {
-  return values.find((value) => typeof value === "string" && value.length) ?? "";
-}
-
-function firstList(primary, fallback) {
-  return Array.isArray(primary) ? primary : fallback ?? [];
-}
-
-function optionalMutedSection(title, value) {
-  return value ? `<h3>${escapeHtml(title)}</h3><p class="muted">${escapeHtml(value)}</p>` : "";
-}
-
-function optionalMutedParagraph(value) {
-  return value ? `<p class="muted">${escapeHtml(value)}</p>` : "";
 }
 
 export function setupCanvasEvents() {

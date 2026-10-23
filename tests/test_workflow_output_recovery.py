@@ -50,7 +50,7 @@ def test_resume_review_after_removing_old_limit_keeps_completed_pass_and_descrip
             settings,
         ).run()
 
-    for step in ("intrinsic", "context", "taxonomy_proposal"):
+    for step in ("annotation", "taxonomy_proposal"):
         assert run(step, limited)["status"] == "complete"
     assert run("taxonomy_review", limited)["status"] == "waiting"
     if failure == "timeout":

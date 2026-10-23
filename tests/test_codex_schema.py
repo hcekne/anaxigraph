@@ -6,6 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from legacy_fresh_eyes_schema import FRESH_EYES_REVIEW_SCHEMA
 from semantic_support import _agent_charter
 
 from anaxigraph.architecture_charter_contract import ARCHITECTURE_CHARTER_SCHEMA
@@ -39,8 +40,17 @@ def _assert_strict(schema):
         {"analysis_kind": "pattern_assessment"},
         {"analysis_kind": "pattern_review"},
         *(
-            {"analysis_kind": kind}
-            for kind in ["fresh_proposal", "fresh_adjudication", "fresh_comparison", "fresh_review"]
+            {
+                "analysis_kind": kind,
+                "protocol_version": "fresh-eyes-recipe-v2",
+                "functional_stage": stage,
+            }
+            for kind, stage in [
+                ("fresh_proposal", "proposal"),
+                ("fresh_adjudication", "hierarchy"),
+                ("fresh_comparison", "comparison"),
+                ("fresh_review", "review"),
+            ]
         ),
     ],
 )
@@ -113,7 +123,7 @@ def test_null_normalization_never_hides_required_null_or_unknown_fields():
 
 
 def test_nested_optional_object_can_be_absent_without_invented_defaults():
-    schema = response_schema({"analysis_kind": "fresh_review"})
+    schema = FRESH_EYES_REVIEW_SCHEMA
     field = schema["properties"]["recommendations"]["items"]
     value = {"transformation": {"target": "app.py", "result": None}}
     assert _without_optional_nulls(value, field) == {"transformation": {"target": "app.py"}}

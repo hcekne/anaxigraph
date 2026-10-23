@@ -16,11 +16,9 @@ from anaxigraph.pattern_evaluation_contract import (
     validated_pattern_response,
 )
 from anaxigraph.semantic_contract import (
-    DOSSIER_SCHEMA,
     SemanticResult,
     _validate_schema,
     validated_mapping,
-    validated_result,
 )
 from anaxigraph.semantic_fresh_eyes_contract import (
     fresh_eyes_contract_name,
@@ -156,6 +154,10 @@ TAXONOMY_REVIEW_SCHEMA: dict[str, Any] = {
 
 
 def response_schema(request: dict[str, Any]) -> dict[str, Any]:
+    if request.get("analysis_kind") == "annotation":
+        from anaxigraph.knowledge_annotation_contract import ANNOTATION_SCHEMA
+
+        return ANNOTATION_SCHEMA
     if request.get("analysis_kind") == "architecture_plan":
         return PLAN_SCHEMA
     review_schema = fresh_eyes_schema(request)
@@ -171,10 +173,12 @@ def response_schema(request: dict[str, Any]) -> dict[str, Any]:
         return TAXONOMY_REVIEW_SCHEMA
     if kind.startswith("taxonomy_"):
         return TAXONOMY_SCHEMA
-    return DOSSIER_SCHEMA if request.get("detailed_reviews") else MAPPING_SCHEMA
+    return MAPPING_SCHEMA
 
 
 def response_contract_name(request: dict[str, Any]) -> str:
+    if request.get("analysis_kind") == "annotation":
+        return "graph_annotation"
     if request.get("analysis_kind") == "architecture_plan":
         return "architecture_plan"
     review_name = fresh_eyes_contract_name(request)
@@ -190,7 +194,7 @@ def response_contract_name(request: dict[str, Any]) -> str:
         return "taxonomy_review"
     if kind.startswith("taxonomy_"):
         return "taxonomy"
-    return "review_dossier" if request.get("detailed_reviews") else "dossier"
+    return "dossier"
 
 
 def validated_semantic_response(
@@ -201,15 +205,19 @@ def validated_semantic_response(
     output_tokens: int = 0,
 ) -> SemanticResult:
     kind = str(request.get("analysis_kind") or "")
+    if kind == "annotation":
+        from anaxigraph.knowledge_annotation_contract import validated_annotation
+
+        return validated_annotation(
+            value, input_tokens=input_tokens, output_tokens=output_tokens, request=request
+        )
     if kind == "architecture_plan":
         return _validated_plan(value, input_tokens, output_tokens)
     specialized = _specialized_response(value, request, input_tokens, output_tokens)
     if specialized is not None:
         return specialized
     if not kind.startswith("taxonomy_"):
-        if request.get("detailed_reviews") is False:
-            return validated_mapping(value, input_tokens=input_tokens, output_tokens=output_tokens)
-        return validated_result(value, input_tokens=input_tokens, output_tokens=output_tokens)
+        return validated_mapping(value, input_tokens=input_tokens, output_tokens=output_tokens)
     review = kind.startswith("taxonomy_review")
     schema = TAXONOMY_REVIEW_SCHEMA if review else TAXONOMY_SCHEMA
     label = "taxonomy review" if review else "taxonomy"

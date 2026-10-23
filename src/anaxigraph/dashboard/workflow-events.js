@@ -29,6 +29,7 @@ import {
   stopHistoryPlayback,
   toggleHistoryPlayback,
 } from "/assets/history-controller.js";
+import { loadModulePage } from "/assets/module-loading.js";
 import { renderModuleFilters, renderModules } from "/assets/module-view.js";
 import { switchView } from "/assets/navigation.js";
 import { renderOverview, scheduleSemanticPoll, selectedHierarchy } from "/assets/overview-view.js";
@@ -87,6 +88,10 @@ function setupNavigationEvents() {
       // Layer selection still works without persistent browser storage.
     }
     state.hiddenGroups.clear();
+    state.graphLoaded = false;
+    state.moduleEnvelope = null;
+    state.modulePage = 1;
+    for (const id of ["module-area-filter", "module-subsystem-filter"]) byId(id).value = "";
     byId("map-layer-description").textContent = mapLayerDescription(
       state.mapLayer, state.overview?.map?.source,
     );
@@ -95,8 +100,9 @@ function setupNavigationEvents() {
     renderModuleFilters();
     renderModules();
     try {
-      await loadGraphRegion("");
-      renderLegend();
+      if (byId("view-graph").classList.contains("active")) {
+        state.graphLoaded = true; await loadGraphRegion(""); renderLegend();
+      } else if (byId("view-modules").classList.contains("active")) await loadModulePage();
     } catch (error) {
       toast(error.message, true);
     }

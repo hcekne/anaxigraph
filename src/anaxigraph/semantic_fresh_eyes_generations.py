@@ -1,32 +1,14 @@
-"""Reconstruct every recorded fresh-eyes review generation (bundle) for one repository.
-
-Generations survive only indirectly, so they are derived from two sources. A completed ``fresh_*``
-job keeps its compacted ``input_manifest``, which names ``review_generation`` directly; a legacy job
-whose retained metadata is empty falls back to its snapshot's plan token ``<proposals>:<generation>``
-and so to generation 1. Surviving ``semantic_scope_states`` rows cover what jobs cannot: an
-implementation-only rescan reuses an earlier snapshot's proposal and adjudication documents without
-creating a job, so that snapshot's stages are recovered from its state rows and attributed through
-the reused input hash.
-
-Bundles are keyed by ``(generation, snapshot_id)`` because one generation can therefore own stages on
-several snapshots, and stay summary-only: identities, counts, provenance, stage telemetry, never
-document bodies. The document readers shared with the review status payload live here so that
-``semantic_fresh_eyes_review`` depends on this module and never the other way round.
-"""
+"""Index saved review stages and immutable generations without rebuilding v1 judgments."""
 
 from __future__ import annotations
 
 import json
-from typing import Any
 
-from anaxigraph.semantic_fresh_eyes_contract import (
-    FRESH_EYES_PROTOCOL_VERSION,
-    FRESH_EYES_REVIEW_VERSION,
-    fresh_eyes_manifest_goal,
-    fresh_eyes_plan_options,
-)
+from anaxigraph.semantic_fresh_eyes_contract import FRESH_EYES_SCOPE, fresh_eyes_plan_options
 from anaxigraph.semantic_fresh_eyes_diversity import proposal_diversity
-from anaxigraph.semantic_fresh_eyes_plan import FRESH_EYES_PLAN_KEY, FRESH_EYES_SCOPE
+from anaxigraph.semantic_fresh_eyes_records import document_record as document_record
+from anaxigraph.semantic_fresh_eyes_records import document_value as document_value
+from anaxigraph.semantic_fresh_eyes_records import provenance as provenance
 from anaxigraph.semantic_fresh_eyes_telemetry import stage_telemetry, telemetry_totals
 
 FRESH_EYES_STAGES = (
@@ -37,460 +19,259 @@ FRESH_EYES_STAGES = (
     ("comparison", "As-built comparison"),
     ("review", "Mission filter and ranked strategy"),
 )
-SUPERSEDED_CAVEAT = (
-    "This is a recorded earlier generation kept for audit; it cannot be restarted or retried."
-)
-HISTORICAL_NEXT_ACTION = (
-    "Read this recorded generation only as history; request the review without a generation to "
-    "see the current one."
-)
-_STAGE_LABELS = dict(FRESH_EYES_STAGES)
-_STAGE_ORDER = {key: index for index, (key, _label) in enumerate(FRESH_EYES_STAGES)}
-_PRIVATE_STAGE_KEYS = frozenset({"value", "input_hash"})
-_FINGERPRINT_KEYS = {
-    "capability": "capability_fingerprint",
-    "reference": "reference_fingerprint",
-    "comparison": "comparison_fingerprint",
-}
-
-_JOB_STAGE_SQL = """
-SELECT j.id AS job_id, j.snapshot_id, j.scope_key, j.job_kind, j.input_hash, j.status,
-       j.metadata_json, d.id AS document_id
-FROM semantic_jobs j
-LEFT JOIN semantic_documents d ON d.repository_id = j.repository_id
-    AND d.scope_type = j.scope_type AND d.scope_key = j.scope_key
-    AND d.document_kind = j.job_kind AND d.input_hash = j.input_hash
-WHERE j.repository_id = ? AND j.scope_type = ?
-ORDER BY j.id
-"""
-_STATE_STAGE_SQL = """
-SELECT snapshot_id, scope_key, context_input_hash, context_document_id
-FROM semantic_scope_states
-WHERE repository_id = ? AND scope_type = ? AND scope_key != ?
-"""
-_PLAN_SQL = """
-SELECT snapshot_id, interface_hash, status FROM semantic_scope_states
-WHERE repository_id = ? AND scope_type = ? AND scope_key = ?
-"""
-_BUNDLE_DOCUMENT_SQL = """
-SELECT id, scope_key, document_kind, input_hash, provider, model, executor_id, executor_model,
-       created_at, confidence,
-       json_array_length(value_json, '$.recommendations') AS recommendation_count,
-       json_array_length(value_json, '$.rejected_ideas') AS rejected_idea_count
-FROM semantic_documents WHERE id = ?
-"""
-_MANIFEST_SQL = """
-SELECT scope_key, job_kind, status, input_hash, metadata_json FROM semantic_jobs
-WHERE repository_id = ? AND scope_type = ? AND scope_key = ? AND input_hash = ?
-ORDER BY id DESC LIMIT 1
-"""
+_LABELS = dict(FRESH_EYES_STAGES)
 
 
-def list_generations(
-    connection: Any, repository_id: int, snapshot_id: int | None = None
-) -> list[dict[str, Any]]:
-    """List every recorded review bundle for a repository, oldest generation first."""
-
-    plans = _plan_rows(connection, repository_id)
-    grouped: dict[tuple[int, int], dict[str, dict[str, Any]]] = {}
-    for entry in _stage_entries(connection, repository_id, plans):
-        bundle = grouped.setdefault((entry["generation"], entry["snapshot_id"]), {})
-        bundle[entry["scope_key"]] = entry
-    active = _active_bundle_key(plans, snapshot_id)
+def list_generations(connection, repository_id, snapshot_id=None):
+    plans, documents, jobs = _indexes(connection, repository_id)
+    identities = {(row["scope_key"], row["input_hash"]): row["id"] for row in documents.values()}
+    entries, by_hash = {}, {}
+    for row in jobs:
+        generation = _generation(row, plans)
+        by_hash[(row["scope_key"], row["input_hash"])] = generation
+        _add(
+            entries,
+            row,
+            generation,
+            identities.get((row["scope_key"], row["input_hash"])),
+            row["status"],
+            row["id"],
+        )
+    for row in connection.execute(
+        "SELECT * FROM semantic_scope_states WHERE repository_id=? AND scope_type=? AND scope_key!='plan'",
+        (repository_id, FRESH_EYES_SCOPE),
+    ):
+        source = {**dict(row), "input_hash": row["context_input_hash"]}
+        generation = by_hash.get(
+            (row["scope_key"], row["context_input_hash"]), _generation(source, plans)
+        )
+        _add(entries, source, generation, row["context_document_id"], "reused")
+    for document in documents.values():
+        generation = by_hash.get(
+            (document["scope_key"], document["input_hash"]), _generation(document, plans)
+        )
+        _add(entries, document, generation, document["id"], "recorded")
+    grouped = {}
+    for (generation, snapshot, _key), entry in entries.items():
+        grouped.setdefault((generation, snapshot), []).append(entry)
+    active = (
+        (fresh_eyes_plan_options(plans[snapshot_id])[1], snapshot_id)
+        if snapshot_id in plans
+        else None
+    )
+    recorded = _recorded_generations(documents, plans, by_hash)
     return [
-        _bundle(connection, repository_id, key, stages, active=key == active)
-        for key, stages in sorted(grouped.items())
+        _bundle(
+            connection, repository_id, key, entries, documents, key == active, recorded.get(key, {})
+        )
+        for key, entries in sorted(grouped.items())
     ]
 
 
-def previous_generation(generations: list[dict[str, Any]]) -> dict[str, Any] | None:
-    """Point at the newest completed generation that is not the current one."""
+def _generation(row, plans):
+    row = dict(row)
+    manifest = json.loads(row.get("metadata_json") or "{}").get("input_manifest") or {}
+    explicit = manifest.get("review_generation")
+    if isinstance(explicit, int) and not isinstance(explicit, bool) and explicit >= 1:
+        return explicit
+    plan = plans.get(row["snapshot_id"]) or {}
+    if str(plan.get("interface_hash") or "").startswith("functional-v2|") and not row[
+        "scope_key"
+    ].startswith("functional:"):
+        return 1
+    return fresh_eyes_plan_options(plan)[1] if plan else 1
 
-    for bundle in reversed(generations):
-        if bundle["state"] == "current" or not bundle["review_document_id"]:
-            continue
-        return {
-            "generation": bundle["generation"],
-            "snapshot_id": bundle["snapshot_id"],
-            "document_id": bundle["review_document_id"],
-            "created_at": bundle["last_recorded_at"],
-        }
-    return None
+
+def _add(entries, row, generation, document_id, status, job_id=None):
+    key = row["scope_key"]
+    if key not in _LABELS and not key.startswith("functional:"):
+        return
+    identity = (generation, row["snapshot_id"], key)
+    existing = entries.get(identity)
+    if existing and (existing["document_id"] or not document_id):
+        return
+    entries[identity] = {
+        "key": key,
+        "label": _label(key),
+        "input_hash": row["input_hash"],
+        "document_id": document_id,
+        "job_id": job_id,
+        "job_status": status,
+    }
 
 
-def select_generation(generations: list[dict[str, Any]], generation: int) -> dict[str, Any]:
-    """Return the newest bundle for one generation, or say which generations exist."""
+def _label(key):
+    if key in _LABELS:
+        return _LABELS[key]
+    return {
+        "functional:brief": "Prepare functional hierarchy",
+        "functional:review": "Review functional alternatives",
+    }.get(
+        key,
+        "Compare retained alternatives"
+        if key.endswith(":comparison")
+        else "Functional alternative",
+    )
 
+
+def _bundle(connection, repository_id, key, entries, documents, active, recorded):
+    entries.sort(key=lambda item: (item["key"] == "functional:review", item["key"]))
+    identifiers = dict.fromkeys(
+        [item["document_id"] for item in entries] + recorded.get("document_ids", [])
+    )
+    saved = [documents[identifier] for identifier in identifiers if identifier in documents]
+    review = next(
+        (
+            documents[item["document_id"]]
+            for item in entries
+            if item["key"] in {"review", "functional:review"} and item["document_id"] in documents
+        ),
+        None,
+    )
+    telemetry = list(
+        stage_telemetry(
+            connection,
+            repository_id,
+            [(item["key"], item["input_hash"], item["document_id"]) for item in entries],
+        ).values()
+    )
+    return {
+        "generation": key[0],
+        "snapshot_id": key[1],
+        "state": _bundle_state(entries, active, review),
+        "ready": bool(active and review),
+        "stages": entries,
+        "generation_inferred": recorded.get("generation_inferred", False),
+        **_bundle_facts(saved, review),
+        "telemetry": {"stages": telemetry, **telemetry_totals(telemetry)},
+    }
+
+
+def select_generation(generations, generation):
     matches = [item for item in generations if item["generation"] == int(generation)]
     if not matches:
         available = ", ".join(str(item["generation"]) for item in generations) or "none"
         raise ValueError(
-            f"Fresh-eyes generation {generation} was never recorded for this repository; "
-            f"available generations: {available}"
+            f"Fresh-eyes generation {generation} was never recorded for this repository; available generations: {available}"
         )
     return matches[-1]
 
 
-def _plan_rows(connection: Any, repository_id: int) -> dict[int, dict[str, Any]]:
-    rows = connection.execute(
-        _PLAN_SQL, (repository_id, FRESH_EYES_SCOPE, FRESH_EYES_PLAN_KEY)
-    ).fetchall()
-    return {
-        int(row["snapshot_id"]): {
-            "generation": fresh_eyes_plan_options(dict(row))[1],
-            "status": str(row["status"]),
-        }
-        for row in rows
-    }
-
-
-def _active_bundle_key(
-    plans: dict[int, dict[str, Any]], snapshot_id: int | None
-) -> tuple[int, int] | None:
-    plan = plans.get(int(snapshot_id)) if snapshot_id else None
-    return (plan["generation"], int(snapshot_id)) if plan and snapshot_id else None
-
-
-def _stage_entries(
-    connection: Any, repository_id: int, plans: dict[int, dict[str, Any]]
-) -> list[dict[str, Any]]:
-    entries: dict[tuple[int, int, str], dict[str, Any]] = {}
-    by_hash: dict[tuple[str, str], int] = {}
-    for row in connection.execute(_JOB_STAGE_SQL, (repository_id, FRESH_EYES_SCOPE)).fetchall():
-        scope_key = str(row["scope_key"])
-        if scope_key not in _STAGE_ORDER:
-            continue
-        generation = _job_generation(row, plans)
-        snapshot_id = int(row["snapshot_id"])
-        by_hash[(scope_key, str(row["input_hash"]))] = generation
-        entries[(generation, snapshot_id, scope_key)] = {
-            "generation": generation,
-            "snapshot_id": snapshot_id,
-            "scope_key": scope_key,
-            "input_hash": str(row["input_hash"]),
-            "document_id": row["document_id"],
-            "job_id": int(row["job_id"]),
-            "job_status": str(row["status"]),
-        }
-    _add_reused_stages(connection, repository_id, plans, by_hash, entries)
-    return list(entries.values())
-
-
-def _add_reused_stages(
-    connection: Any,
-    repository_id: int,
-    plans: dict[int, dict[str, Any]],
-    by_hash: dict[tuple[str, str], int],
-    entries: dict[tuple[int, int, str], dict[str, Any]],
-) -> None:
-    """Recover stages whose documents were reused by a later snapshot without a new job."""
-
-    rows = connection.execute(
-        _STATE_STAGE_SQL, (repository_id, FRESH_EYES_SCOPE, FRESH_EYES_PLAN_KEY)
-    ).fetchall()
-    for row in rows:
-        scope_key = str(row["scope_key"])
-        input_hash = str(row["context_input_hash"] or "")
-        if scope_key not in _STAGE_ORDER or not row["context_document_id"]:
-            continue
-        snapshot_id = int(row["snapshot_id"])
-        generation = by_hash.get(
-            (scope_key, input_hash), (plans.get(snapshot_id) or {}).get("generation", 1)
-        )
-        entries.setdefault(
-            (generation, snapshot_id, scope_key),
-            {
-                "generation": generation,
-                "snapshot_id": snapshot_id,
-                "scope_key": scope_key,
-                "input_hash": input_hash,
-                "document_id": int(row["context_document_id"]),
-                "job_id": None,
-                "job_status": "reused",
-            },
-        )
-
-
-def _job_generation(row: Any, plans: dict[int, dict[str, Any]]) -> int:
-    metadata = json.loads(row["metadata_json"] or "{}")
-    recorded = (metadata.get("input_manifest") or {}).get("review_generation")
-    if isinstance(recorded, int) and not isinstance(recorded, bool) and recorded >= 1:
-        return recorded
-    return int((plans.get(int(row["snapshot_id"])) or {}).get("generation", 1))
-
-
-def _bundle(
-    connection: Any,
-    repository_id: int,
-    key: tuple[int, int],
-    stages: dict[str, dict[str, Any]],
-    *,
-    active: bool,
-) -> dict[str, Any]:
-    generation, snapshot_id = key
-    ordered = sorted(stages.values(), key=lambda item: _STAGE_ORDER[item["scope_key"]])
-    documents = {
-        item["scope_key"]: _bundle_document(connection, item["document_id"]) for item in ordered
-    }
-    records = stage_telemetry(
-        connection,
-        repository_id,
-        [(item["scope_key"], item["input_hash"], item["document_id"]) for item in ordered],
-    )
-    rows = [records[item["scope_key"]] for item in ordered if item["scope_key"] in records]
-    review = documents.get("review")
-    return {
-        "generation": generation,
-        "snapshot_id": snapshot_id,
-        "state": _bundle_state(ordered, review, active=active),
-        "ready": bool(active and review),
-        "stages": [_stage_summary(item, documents.get(item["scope_key"])) for item in ordered],
-        **_bundle_totals(ordered, documents, review),
-        "telemetry": {"stages": rows, **telemetry_totals(rows)},
-    }
-
-
-def _bundle_totals(
-    ordered: list[dict[str, Any]],
-    documents: dict[str, dict[str, Any] | None],
-    review: dict[str, Any] | None,
-) -> dict[str, Any]:
-    present = [item for item in documents.values() if item]
-    proposals = [
-        documents[item["scope_key"]]
-        for item in ordered
-        if item["scope_key"].startswith("proposal:") and documents.get(item["scope_key"])
-    ]
-    recorded = sorted(str(item["created_at"]) for item in present)
-    return {
-        "document_ids": [int(item["id"]) for item in present],
-        "review_document_id": int(review["id"]) if review else None,
-        "executor_models": sorted(
-            {str(item["executor_model"]) for item in present if item["executor_model"]}
-        ),
-        "diversity": proposal_diversity([dict(item) for item in proposals]),
-        "recommendation_count": int((review or {}).get("recommendation_count") or 0),
-        "rejected_idea_count": int((review or {}).get("rejected_idea_count") or 0),
-        "first_recorded_at": recorded[0] if recorded else None,
-        "last_recorded_at": recorded[-1] if recorded else None,
-    }
-
-
-def _stage_summary(entry: dict[str, Any], document: dict[str, Any] | None) -> dict[str, Any]:
-    return {
-        "key": entry["scope_key"],
-        "label": _STAGE_LABELS[entry["scope_key"]],
-        "input_hash": entry["input_hash"],
-        "document_id": int(document["id"]) if document else None,
-        "job_id": entry["job_id"],
-        "job_status": entry["job_status"],
-    }
-
-
-def _bundle_state(
-    ordered: list[dict[str, Any]], review: dict[str, Any] | None, *, active: bool
-) -> str:
-    if review is not None:
-        return "current" if active else "superseded"
-    if any(str(item["job_status"]) == "failed" for item in ordered):
-        return "failed"
-    return "incomplete"
-
-
-def _bundle_document(connection: Any, document_id: Any) -> dict[str, Any] | None:
-    if not document_id:
-        return None
-    row = connection.execute(_BUNDLE_DOCUMENT_SQL, (document_id,)).fetchone()
-    return dict(row) if row else None
-
-
-def document_record(connection: Any, document_id: Any) -> dict[str, Any] | None:
-    """Read one semantic document with its parsed value."""
-
-    if not document_id:
-        return None
-    row = connection.execute(
-        "SELECT * FROM semantic_documents WHERE id = ?", (document_id,)
-    ).fetchone()
-    if row is None:
-        return None
-    result = dict(row)
-    result["value"] = json.loads(result.pop("value_json") or "{}")
-    return result
-
-
-def document_value(connection: Any, document_id: Any) -> dict[str, Any] | None:
-    document = document_record(connection, document_id)
-    return document["value"] if document else None
-
-
-def provenance(document: dict[str, Any] | None) -> dict[str, Any] | None:
-    """Report which provider, model, and executor produced one stage document."""
-
-    if not document:
-        return None
-    return {
-        "provider": document.get("provider"),
-        "model": document.get("model"),
-        "executor_id": document.get("executor_id"),
-        "executor_model": document.get("executor_model"),
-        "executor_effort": document.get("executor_effort"),
-        "created_at": document.get("created_at"),
-    }
-
-
-def input_manifests(
-    connection: Any, repository_id: int, stages: list[tuple[str, Any]]
-) -> list[dict[str, Any]]:
-    """Read the retained input manifest of each ``(scope_key, input_hash)`` stage identity."""
-
+def input_manifests(connection, repository_id, stages):
     result = []
-    for scope_key, input_hash in stages:
-        if not input_hash:
-            continue
+    for key, fingerprint in stages:
         row = connection.execute(
-            _MANIFEST_SQL, (repository_id, FRESH_EYES_SCOPE, scope_key, input_hash)
+            "SELECT scope_key,job_kind,status,input_hash,metadata_json FROM semantic_jobs WHERE repository_id=? AND scope_type=? AND scope_key=? AND input_hash=? ORDER BY id DESC LIMIT 1",
+            (repository_id, FRESH_EYES_SCOPE, key, fingerprint),
         ).fetchone()
-        if row and (record := _manifest_record(row)) is not None:
-            result.append(record)
+        metadata = json.loads(row["metadata_json"] or "{}") if row else {}
+        if metadata.get("input_manifest"):
+            result.append(
+                {
+                    "scope": key,
+                    "job_kind": row["job_kind"],
+                    "status": row["status"],
+                    "input_hash": fingerprint,
+                    "manifest": metadata["input_manifest"],
+                    "information_boundary": metadata.get("information_boundary"),
+                }
+            )
     return result
-
-
-def _manifest_record(row: Any) -> dict[str, Any] | None:
-    metadata = json.loads(row["metadata_json"] or "{}")
-    manifest = metadata.get("input_manifest")
-    if not manifest:
-        return None
-    return {
-        "scope": row["scope_key"],
-        "job_kind": row["job_kind"],
-        "status": row["status"],
-        "input_hash": row["input_hash"],
-        "manifest": manifest,
-        "information_boundary": metadata.get("information_boundary"),
-    }
-
-
-def payload_telemetry(stages: list[dict[str, Any]]) -> dict[str, Any]:
-    """Collect the stage telemetry already attached to a status payload's stages."""
-
-    rows = [item["telemetry"] for item in stages if item.get("telemetry")]
-    return {"stages": rows, **telemetry_totals(rows)}
-
-
-def capability_brief(status: dict[str, Any]) -> dict[str, Any] | None:
-    charter = (status.get("architecture_charter") or {}).get("value") or {}
-    return charter.get("capability_brief")
-
-
-def stage_diversity(stages: list[dict[str, Any]]) -> dict[str, Any]:
-    return proposal_diversity([item.get("provenance") or {} for item in stages])
-
-
-def review_caveats(proposals: list[dict[str, Any]], current: bool) -> list[str]:
-    caveats = [
-        "AnaxiGraph proves the supplied clean-sheet packet, not the absence of unrelated model context.",
-        "Agreement between proposals is evidence of agreement, not proof of correctness.",
-    ]
-    if proposals and not stage_diversity(proposals)["cross_provider"]:
-        caveats.append("The proposals do not represent cross-provider agreement.")
-    if not current:
-        caveats.append("The review is incomplete; do not treat partial stages as a refactor plan.")
-    return caveats
 
 
 def generation_payload(
-    connection: Any,
-    repository_id: int,
-    bundle: dict[str, Any],
-    generations: list[dict[str, Any]],
-    semantic_status: dict[str, Any],
-) -> dict[str, Any]:
-    """Build the read-only status payload of one recorded, non-current generation."""
+    connection, repository_id, bundle, generations, semantic_status, *, scope_id="", details=True
+):
+    if any(item["key"].startswith("functional:") for item in bundle["stages"]):
+        from anaxigraph.semantic_fresh_eyes_functional_read import functional_generation
 
-    stages = _historical_stages(connection, bundle)
-    by_key = {item["key"]: item for item in stages}
-    proposals = [
-        item for key, item in by_key.items() if key.startswith("proposal:") and item["value"]
-    ]
-    review = (by_key.get("review") or {}).get("value")
-    manifests = input_manifests(
-        connection, repository_id, [(item["key"], item["input_hash"]) for item in stages]
-    )
-    return {
-        "contract_version": FRESH_EYES_REVIEW_VERSION,
-        "protocol_version": FRESH_EYES_PROTOCOL_VERSION,
-        "repository_id": repository_id,
-        "snapshot_id": bundle["snapshot_id"],
-        "review_generation": bundle["generation"],
-        "identity": _generation_identity(repository_id, bundle),
-        "state": bundle["state"],
-        "ready": False,
-        "capability_brief": capability_brief(semantic_status),
-        "fingerprints": _historical_fingerprints(manifests),
-        "invalidation_reason": None,
-        "stages": [
-            {key: value for key, value in item.items() if key not in _PRIVATE_STAGE_KEYS}
-            for item in stages
-        ],
-        "proposals": proposals,
-        "adjudication": (by_key.get("adjudication") or {}).get("value"),
-        "comparison": (by_key.get("comparison") or {}).get("value"),
-        "strategy": review,
-        "recommendations": list((review or {}).get("recommendations") or []),
-        "diversity": stage_diversity(proposals),
-        "input_manifests": manifests,
-        "review_goal": fresh_eyes_manifest_goal(manifests),
-        "previous_review": previous_generation(_older(generations, bundle)),
-        "generations": generations,
-        "telemetry": bundle["telemetry"],
-        "caveats": review_caveats(proposals, review is not None) + [SUPERSEDED_CAVEAT],
-        "next_action": HISTORICAL_NEXT_ACTION,
-    }
-
-
-def _generation_identity(repository_id: int, bundle: dict[str, Any]) -> str:
-    return (
-        f"{FRESH_EYES_REVIEW_VERSION}:{repository_id}:{bundle['snapshot_id']}"
-        f":generation-{bundle['generation']}"
-    )
-
-
-def _historical_stages(connection: Any, bundle: dict[str, Any]) -> list[dict[str, Any]]:
-    records = {item["key"]: item for item in bundle["telemetry"]["stages"]}
-    stages = []
-    for entry in bundle["stages"]:
-        document = document_record(connection, entry["document_id"])
-        stages.append(
-            {
-                "key": entry["key"],
-                "label": entry["label"],
-                "state": "current" if document else "missing",
-                "reason": (
-                    f"Recorded fresh-eyes stage from generation {bundle['generation']}"
-                    if document
-                    else "No stored document for this stage of the recorded generation"
-                ),
-                "document_id": entry["document_id"],
-                "provenance": provenance(document),
-                "telemetry": records.get(entry["key"]),
-                "input_hash": entry["input_hash"],
-                "value": document.get("value") if document else None,
-            }
+        return functional_generation(
+            connection, repository_id, bundle, generations, scope_id=scope_id, details=details
         )
-    return stages
+    from anaxigraph.semantic_fresh_eyes_payload import archive_payload
+
+    documents = [
+        record
+        for identifier in bundle.get(
+            "document_ids", [entry["document_id"] for entry in bundle["stages"]]
+        )
+        if (record := document_record(connection, identifier))
+    ]
+    manifests = input_manifests(
+        connection,
+        repository_id,
+        [(entry["key"], entry["input_hash"]) for entry in bundle["stages"]],
+    )
+    return archive_payload(
+        repository_id, bundle, generations, documents, manifests, details=details
+    )
 
 
-def _historical_fingerprints(manifests: list[dict[str, Any]]) -> dict[str, Any]:
-    """Recover the plan-row fingerprints of a past generation from its retained manifests."""
+def _indexes(connection, repository_id):
+    plans = {
+        row["snapshot_id"]: dict(row)
+        for row in connection.execute(
+            "SELECT snapshot_id,interface_hash,status FROM semantic_scope_states WHERE repository_id=? AND scope_type=? AND scope_key='plan'",
+            (repository_id, FRESH_EYES_SCOPE),
+        )
+    }
+    documents = {
+        row["id"]: dict(row)
+        for row in connection.execute(
+            "SELECT id,snapshot_id,scope_key,input_hash,provider,model,executor_id,executor_model,created_at,confidence,"
+            "json_array_length(value_json,'$.recommendations') AS recommendation_count,"
+            "json_array_length(value_json,'$.rejected_ideas') AS rejected_idea_count FROM semantic_document_values "
+            "WHERE repository_id=? AND scope_type=? AND document_kind!='fresh_grounding'",
+            (repository_id, FRESH_EYES_SCOPE),
+        )
+    }
+    jobs = list(
+        connection.execute(
+            "SELECT * FROM semantic_jobs WHERE repository_id=? AND scope_type=? ORDER BY id",
+            (repository_id, FRESH_EYES_SCOPE),
+        )
+    )
+    return plans, documents, jobs
 
-    values = [item["manifest"] for item in manifests]
+
+def _bundle_state(entries, active, review):
+    if review:
+        return "current" if active else "superseded"
+    return "failed" if any(item["job_status"] == "failed" for item in entries) else "incomplete"
+
+
+def _bundle_facts(saved, review):
+    dates = sorted(item["created_at"] for item in saved)
     return {
-        name: next((item[key] for item in values if item.get(key)), None)
-        for name, key in _FINGERPRINT_KEYS.items()
+        "document_ids": [item["id"] for item in saved],
+        "review_document_id": review["id"] if review else None,
+        "executor_models": sorted(
+            {item["executor_model"] for item in saved if item["executor_model"]}
+        ),
+        "diversity": proposal_diversity(
+            [item for item in saved if "proposal:" in item["scope_key"]]
+        ),
+        "recommendation_count": int((review or {}).get("recommendation_count") or 0),
+        "rejected_idea_count": int((review or {}).get("rejected_idea_count") or 0),
+        "first_recorded_at": dates[0] if dates else None,
+        "last_recorded_at": dates[-1] if dates else None,
     }
 
 
-def _older(generations: list[dict[str, Any]], bundle: dict[str, Any]) -> list[dict[str, Any]]:
-    marker = (bundle["generation"], bundle["snapshot_id"])
-    return [item for item in generations if (item["generation"], item["snapshot_id"]) < marker]
+def _recorded_generations(documents, plans, by_hash):
+    recorded = {}
+    for row in documents.values():
+        identity = (row["scope_key"], row["input_hash"])
+        generation = by_hash.get(identity, _generation(row, plans))
+        bundle = recorded.setdefault(
+            (generation, row["snapshot_id"]), {"document_ids": [], "generation_inferred": False}
+        )
+        bundle["document_ids"].append(row["id"])
+        token = str((plans.get(row["snapshot_id"]) or {}).get("interface_hash") or "")
+        if (
+            token.startswith("functional-v2|")
+            and not row["scope_key"].startswith("functional:")
+            and identity not in by_hash
+        ):
+            bundle["generation_inferred"] = True
+    return recorded

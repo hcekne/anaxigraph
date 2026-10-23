@@ -11,18 +11,14 @@ from typing import Any
 from anaxigraph.architecture_charter_contract import ARCHITECTURE_CHARTER_SCHEMA
 from anaxigraph.architecture_plan_contract import PLAN_SCHEMA
 from anaxigraph.config import AnaxiGraphConfig, SemanticConfig
+from anaxigraph.knowledge_annotation_contract import ANNOTATION_SCHEMA
 from anaxigraph.pattern_evaluation_contract import (
     PATTERN_EVALUATION_SCHEMA,
     PATTERN_REVIEW_SCHEMA,
 )
 from anaxigraph.semantic_agent_paging import packetize_agent_request as packetize_agent_request
 from anaxigraph.semantic_contract import DOSSIER_SCHEMA, SEMANTIC_SCHEMA_VERSION
-from anaxigraph.semantic_fresh_eyes_contract import (
-    FRESH_EYES_ADJUDICATION_SCHEMA,
-    FRESH_EYES_COMPARISON_SCHEMA,
-    FRESH_EYES_PROPOSAL_SCHEMA,
-    FRESH_EYES_REVIEW_SCHEMA,
-)
+from anaxigraph.semantic_fresh_eyes_v2_contract import SCHEMAS as FUNCTIONAL_SCHEMAS
 from anaxigraph.semantic_request_support import (
     INPUT_TERM_MEANINGS,
     MAPPING_REQUIREMENTS,
@@ -40,6 +36,7 @@ def semantic_agent_schema(artifact: str = "all") -> dict[str, Any]:
     result = {
         "schema_version": SEMANTIC_SCHEMA_VERSION,
         "dossier_schema": MAPPING_SCHEMA,
+        "annotation_schema": ANNOTATION_SCHEMA,
         "architecture_plan_schema": PLAN_SCHEMA,
         "review_dossier_schema": DOSSIER_SCHEMA,
         "architecture_charter_schema": ARCHITECTURE_CHARTER_SCHEMA,
@@ -47,10 +44,11 @@ def semantic_agent_schema(artifact: str = "all") -> dict[str, Any]:
         "taxonomy_review_schema": TAXONOMY_REVIEW_SCHEMA,
         "pattern_evaluation_schema": PATTERN_EVALUATION_SCHEMA,
         "pattern_review_schema": PATTERN_REVIEW_SCHEMA,
-        "fresh_eyes_proposal_schema": FRESH_EYES_PROPOSAL_SCHEMA,
-        "fresh_eyes_adjudication_schema": FRESH_EYES_ADJUDICATION_SCHEMA,
-        "fresh_eyes_comparison_schema": FRESH_EYES_COMPARISON_SCHEMA,
-        "fresh_eyes_review_schema": FRESH_EYES_REVIEW_SCHEMA,
+        "fresh_eyes_proposal_schema": FUNCTIONAL_SCHEMAS["proposal"],
+        "fresh_eyes_adjudication_schema": FUNCTIONAL_SCHEMAS["hierarchy"],
+        "fresh_eyes_comparison_schema": FUNCTIONAL_SCHEMAS["comparison"],
+        "fresh_eyes_review_schema": FUNCTIONAL_SCHEMAS["review"],
+        **{f"functional_{key}_schema": value for key, value in FUNCTIONAL_SCHEMAS.items()},
         "writing_contract_version": PLAIN_LANGUAGE_CONTRACT_VERSION,
         "writing_requirements": PLAIN_LANGUAGE_REQUIREMENTS,
         "input_term_meanings": INPUT_TERM_MEANINGS,
@@ -59,22 +57,24 @@ def semantic_agent_schema(artifact: str = "all") -> dict[str, Any]:
             "machine may call it a dossier, architecture charter, taxonomy, taxonomy review, "
             "pattern evaluation, pattern review, or fresh-eyes architecture stage; these mean a "
             "file description, whole-system explanation, code-area map, pattern result, review, "
-            "or fixed clean-sheet comparison. Use only supplied source, facts read from code, and prior AI "
-            "descriptions. A review must return the full corrected result "
-            "without asking a person to approve it. Score how well a pattern fits separately from "
+            "or functional architecture alternative. Use only the work packet's allowed evidence. "
+            "Every Fresh Eyes pass is implementation-blind: use a fresh context without source, "
+            "repository tools or current topology; report unsupported isolation as unverified. "
+            "Return exactly the response contract without asking a person to approve it. "
+            "Score how well a pattern fits separately from "
             "how much of it already exists and whether changing code would help. A missing direct "
             "code link does not prove code is unused. Do not change repository files while mapping."
         ),
     }
     if artifact == "all":
         return result
-    key = f"{artifact}_schema"
+    key = "annotation_schema" if artifact == "graph_annotation" else f"{artifact}_schema"
     if key not in result:
         raise ValueError(f"Unknown semantic artifact: {artifact}")
     return {
         "schema_version": SEMANTIC_SCHEMA_VERSION,
         "artifact": artifact,
-        key: result[key],
+        f"{artifact}_schema": result[key],
         "writing_requirements": MAPPING_REQUIREMENTS
         if artifact == "dossier"
         else PLAIN_LANGUAGE_REQUIREMENTS,

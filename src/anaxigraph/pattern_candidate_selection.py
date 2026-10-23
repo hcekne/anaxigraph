@@ -52,10 +52,14 @@ _AFFINITY_FEATURES = frozenset(
         "documentation.summary",
         "interfaces.public",
         "responsibilities.deterministic",
+        "semantic.overview",
+        "semantic.detail",
         "semantic.architecture_role",
         "semantic.extension_points",
         "semantic.public_contracts",
         "semantic.responsibilities",
+        "semantic.contracts",
+        "semantic.capabilities",
     }
 )
 

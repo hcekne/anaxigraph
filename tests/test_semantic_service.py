@@ -210,9 +210,9 @@ def test_agent_evidence_pages_reassemble_source_without_changing_bytes():
     request = {
         "contract": "Return one dossier.",
         "schema_version": "test",
-        "analysis_kind": "intrinsic",
+        "analysis_kind": "annotation",
         "path": "large.py",
-        "deterministic_facts": {"symbols": []},
+        "functions": [],
         "source": source,
     }
     bounded, manifest, pages = packetize_agent_request(

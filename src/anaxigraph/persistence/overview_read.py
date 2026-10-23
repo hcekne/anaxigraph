@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from typing import Any, Mapping
 
@@ -22,15 +23,7 @@ def read_overview(
     relationship_count = int(
         connection.execute("SELECT COUNT(*) FROM projected_relationships").fetchone()[0]
     )
-    findings = connection.execute(
-        """
-        SELECT f.severity, COUNT(*) AS count FROM findings f
-        JOIN finding_occurrences occurrence ON occurrence.finding_id = f.id
-        WHERE f.repository_id = ? AND occurrence.snapshot_id = ?
-          AND f.status NOT IN ('resolved', 'dismissed') GROUP BY f.severity
-        """,
-        (repository_id, snapshot_id),
-    ).fetchall()
+    findings = _findings(connection, repository_id, snapshot_id)
     coverage = _coverage(connection, snapshot_id)
     hierarchies = {
         layer: read_group_hierarchy(connection, repository_id, snapshot_id, layer=layer)
@@ -44,6 +37,9 @@ def read_overview(
         "graph_quality": projected_graph_quality(connection),
         "symbols": projection.symbol_count,
         "findings": {row["severity"]: row["count"] for row in findings},
+        "dead_code_assessment": json.loads(snapshot["metadata_json"] or "{}").get(
+            "dead_code_assessment", {"state": "not_recorded"}
+        ),
         "count_scope": {
             "snapshot_id": snapshot_id,
             "files": "all indexed files, including reference artifacts",
@@ -118,3 +114,15 @@ def _coverage(connection: sqlite3.Connection, snapshot_id: int) -> dict[str, Any
         **dict(row or {}),
         "relationship_coverage": relationship["value"] if relationship else None,
     }
+
+
+def _findings(connection, repository_id, snapshot_id):
+    return connection.execute(
+        """
+        SELECT f.severity, COUNT(*) AS count FROM findings f
+        JOIN finding_occurrences occurrence ON occurrence.finding_id = f.id
+        WHERE f.repository_id = ? AND occurrence.snapshot_id = ?
+          AND f.status NOT IN ('resolved', 'dismissed') GROUP BY f.severity
+        """,
+        (repository_id, snapshot_id),
+    ).fetchall()

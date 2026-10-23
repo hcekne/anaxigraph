@@ -77,7 +77,7 @@ def test_pattern_query_accepts_every_supported_dimension_and_direction():
 def test_current_projection_supports_target_and_pattern_directions(repository, database, tmp_path):
     log = tmp_path / "pattern-query-semantic.log"
     provider = _fake_provider(tmp_path)
-    _semantic_config(repository, provider, log)
+    _semantic_config(repository, provider, log, detailed_reviews=True)
     config = load_config(repository)
     stats = RepositoryScanner(database).scan(repository)
     status = SemanticEngine(database).bootstrap(stats.repository_id, repository, config)["semantic"]

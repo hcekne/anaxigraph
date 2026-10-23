@@ -7,6 +7,7 @@ from typing import Any
 
 from anaxigraph.finding_mcp import register_finding_tools
 from anaxigraph.history_mcp import register_history_tools
+from anaxigraph.knowledge_mcp import register_knowledge_tools
 from anaxigraph.mcp_core import CoreMcpTools, McpToolContext
 from anaxigraph.mcp_runtime import build_responsive_mcp
 from anaxigraph.registry import RepositoryTarget
@@ -32,6 +33,7 @@ def create_anaxi_mcp_server(
 
     if profile in {"normal", "analyst", "all"}:
         CoreMcpTools(server, context, allow_scan=allow_scan_tool).register()
+        register_knowledge_tools(server, context)
     if profile in {"analyst", "all"}:
         register_history_tools(
             server,

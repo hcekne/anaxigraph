@@ -45,6 +45,7 @@ class _ScopePayloadData:
     payload_limit_bytes: int
     started_at: float
     architecture_target: dict[str, Any] | None = None
+    entity_context: dict[str, Any] | None = None
 
 
 def _scope_payload(data: _ScopePayloadData) -> dict[str, Any]:
@@ -62,6 +63,8 @@ def _scope_payload(data: _ScopePayloadData) -> dict[str, Any]:
     }
     if data.architecture_target:
         payload["architecture_target"] = data.architecture_target
+    if data.entity_context:
+        payload["entity_context"] = data.entity_context
     _with_response_telemetry(payload, data.started_at, action="guidance")
     return _bound_scope_payload(payload, data.payload_limit_bytes)
 

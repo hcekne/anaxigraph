@@ -28,7 +28,7 @@ export function setupWorkflowsView() {
   const entry = document.createElement("article");
   entry.id = "workflow-entry";
   entry.className = "panel workflow-entry";
-  byId("view-overview").prepend(entry);
+  byId("repository-intelligence").after(entry);
   document.addEventListener("click", handleClick);
   byId("workflow-run-form").addEventListener("submit", startWorkflow);
   byId("workflow-restart").addEventListener("change", render);
@@ -87,7 +87,7 @@ function runFields() {
     <label>Worker model<input id="workflow-model" maxlength="200" placeholder="Model ID" autocomplete="off" /></label>
     <label>Reasoning effort<input id="workflow-effort" maxlength="40" placeholder="Executor default" /></label>
     <label>Parallel jobs<input id="workflow-parallel" type="number" min="1" max="64" value="2" /></label></div>
-    <div id="workflow-fresh-options" hidden><label id="workflow-proposal-count">Independent proposals<select id="workflow-proposals"><option value="1">1 proposal</option><option value="2" selected>2 proposals</option><option value="3">3 proposals</option></select></label>
+    <div id="workflow-fresh-options" hidden><label id="workflow-proposal-count">Independent proposals<select id="workflow-proposals"><option value="3" selected>3 retained alternatives</option><option value="5">5 broader sketches</option></select></label>
     <label>Review goal (optional)<input id="workflow-goal" maxlength="4000" placeholder="What should the review help improve?" /></label>
     <label class="workflow-check"><input id="workflow-restart" type="checkbox" /> Start a new review generation</label></div>
     <details id="workflow-routing"><summary>Model choices by stage</summary><div></div></details>`;
@@ -167,6 +167,7 @@ async function acceptProgress(value, resetControls) {
   const changed = repositoryResultsChanged(data, value);
   data = value;
   showLoadingState("ready");
+  if (byId("view-workflows").classList.contains("active")) document.querySelector("main").setAttribute("aria-busy", "false");
   if (changed) { render(); await state.reloadRepository?.(); return; }
   if (resetControls || controlsRepository !== value.repository_id) configureControls();
   render();
@@ -235,7 +236,7 @@ function configureControls() {
     byId("workflow-parallel").value = Math.min(2, execution.max_parallel_jobs);
     byId("workflow-goal").value = "";
     byId("workflow-restart").checked = false;
-    byId("workflow-proposals").value = "2";
+    byId("workflow-proposals").value = "3";
   }
   controlsRepository = state.repositoryId;
   const tiers = data.semantic.semantic_policy?.stage_models || {};

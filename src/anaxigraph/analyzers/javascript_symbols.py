@@ -290,10 +290,18 @@ def _owner_names(parsed: ParsedSource, node: Node) -> tuple[str, ...]:
     current = node.parent
     while current is not None and current.type != "program":
         if (
-            current.type in _CLASS_NODES | _FUNCTION_NODES | _METHOD_NODES | set(_TYPE_NODES)
+            current.type
+            in _CLASS_NODES
+            | _FUNCTION_NODES
+            | _METHOD_NODES
+            | set(_TYPE_NODES)
+            | {"arrow_function"}
             and not current.has_error
         ):
             name = parsed.text(current.child_by_field_name("name"))
+            if not name and current.parent and current.parent.type == "variable_declarator":
+                binding = current.parent.child_by_field_name("name")
+                name = parsed.text(binding) if binding and binding.type == "identifier" else ""
             if name:
                 values.append(name)
         current = current.parent

@@ -6,6 +6,126 @@ import copy
 import json
 from typing import Any
 
+from anaxigraph.call_graph_contract import CALLABLE_SYMBOL_KINDS
+from anaxigraph.knowledge_nodes import sentence
+
+_IDENTITIES = {
+    "path",
+    "checkout_path",
+    "repository_path",
+    "entity_id",
+    "qualified_name",
+    "graph_subject",
+    "id",
+    "source",
+    "target",
+}
+
+
+def compact_file_response(value):
+    documents = value.get("semantic_dossiers") or {}
+    selected = documents.get("context") or documents.get("intrinsic") or {}
+    annotation = selected.get("value") or {}
+    file = value.get("file") or {}
+    functions = {
+        item["qualified_name"]: item["overview"] for item in annotation.get("functions", [])
+    }
+    overview = sentence(
+        annotation.get("overview") or annotation.get("summary") or file.get("summary", "")
+    )
+    brief = {
+        "file": _file_identity(file, overview),
+        "detail": annotation.get("detail", ""),
+        "symbols": [
+            _brief_symbol(item, file.get("path", ""), functions)
+            for item in value.get("symbols", [])
+        ],
+        "relationships": [
+            {key: row.get(key) for key in ("target_path", "relationship_type", "resolution_status")}
+            for row in value.get("relationships", [])
+        ],
+        "dependants": [
+            {key: row.get(key) for key in ("source_path", "relationship_type", "resolution_status")}
+            for row in value.get("dependants", [])
+        ],
+        "semantic_state": value.get("semantic_state"),
+        "provenance": _provenance(selected),
+        "retained_legacy_claims": len(value.get("semantic_claims", [])),
+        "contract_count": len(annotation.get("contracts", annotation.get("public_contracts", []))),
+        "map_status": value.get("map_status"),
+        "details_available": {
+            "tool": "ANAXIGRAPH_FILE",
+            "arguments": {"path": file.get("path"), "details": True},
+        },
+    }
+    return small_agent_response(brief)
+
+
+def _file_identity(file, overview):
+    fields = ("path", "artifact_type", "language", "lines_of_code", "complexity", "raw_hash")
+    return {
+        **{key: file.get(key) for key in fields},
+        "summary": overview,
+        "entity_id": "module:" + str(file.get("path", "")),
+    }
+
+
+def _provenance(document):
+    return {
+        key: document.get(key)
+        for key in (
+            "id",
+            "provider",
+            "model",
+            "executor_id",
+            "executor_model",
+            "created_at",
+            "confidence",
+        )
+    }
+
+
+def _brief_symbol(item, path, functions):
+    kind = "function" if item.get("symbol_type") in CALLABLE_SYMBOL_KINDS else "type"
+    return {
+        "name": item["name"],
+        "qualified_name": item["qualified_name"],
+        "entity_id": f"{kind}:{path}#{item['qualified_name']}",
+        "summary": sentence(functions.get(item["qualified_name"]) or item.get("summary", "")),
+    }
+
+
+def compact_search_response(value):
+    result = {
+        **value,
+        "results": [
+            {
+                "path": item["path"],
+                "entity_id": "module:" + item["path"],
+                "summary": sentence(
+                    (item.get("semantic") or {}).get("summary") or item.get("summary", "")
+                ),
+                **{
+                    key: item[key]
+                    for key in (
+                        "artifact_type",
+                        "language",
+                        "score",
+                        "lines_of_code",
+                        "architecture_area",
+                    )
+                    if key in item
+                },
+            }
+            for item in value.get("results", [])
+        ],
+        "graph_search": {
+            "tool": "ANAXIGRAPH_GRAPH",
+            "arguments": {"query": value["query"], "kind": ""},
+        },
+    }
+    return small_agent_response(result)
+
 
 def small_agent_response(value: dict[str, Any], *, limit: int = 8_000) -> dict[str, Any]:
     result = copy.deepcopy(value)
@@ -51,11 +171,7 @@ def _compact(value: Any, path: str, omitted: dict[str, Any]) -> None:
                 _compact(item, f"{path}[{index}]", omitted)
     elif isinstance(value, dict):
         for key, item in value.items():
-            if (
-                isinstance(item, str)
-                and len(item) > 400
-                and key not in {"path", "checkout_path", "repository_path"}
-            ):
+            if isinstance(item, str) and len(item) > 400 and key not in _IDENTITIES:
                 value[key] = item[:399] + "…"
             else:
                 _compact(item, f"{path}.{key}".lstrip("."), omitted)
@@ -84,11 +200,7 @@ def _shorten(value: dict[str, Any]) -> bool:
     def visit(item: Any) -> None:
         if isinstance(item, dict):
             for key, child in item.items():
-                if (
-                    isinstance(child, str)
-                    and len(child) > 100
-                    and key not in {"path", "checkout_path", "repository_path"}
-                ):
+                if isinstance(child, str) and len(child) > 100 and key not in _IDENTITIES:
                     candidates.append((len(child), item, key))
                 elif key != "response_budget":
                     visit(child)
@@ -158,6 +270,15 @@ def _project_review(value: dict[str, Any]) -> None:
     if isinstance(value.get("review"), dict):
         _project(value["review"])
     if "review_generation" in value:
+        _project_functional_scopes(value)
+        value["stages"] = [
+            {key: stage.get(key) for key in ("key", "state", "document_id", "required_executor")}
+            for stage in value.get("stages", [])
+        ]
+        if isinstance(value.get("telemetry"), dict):
+            value["telemetry"] = {
+                key: item for key, item in value["telemetry"].items() if key != "stages"
+            }
         value["proposals"] = [
             {key: item.get(key) for key in ("key", "document_id", "provenance")}
             for item in value.get("proposals", [])
@@ -169,6 +290,29 @@ def _project_review(value: dict[str, Any]) -> None:
                     for field in ("contract_version", "summary", "conclusion")
                     if field in value[key]
                 }
+
+
+def _project_functional_scopes(value: dict[str, Any]) -> None:
+    brief = value.get("functional_brief")
+    if isinstance(brief, dict):
+        value["functional_brief"] = {
+            key: brief[key] for key in ("contract_version", "purpose", "revision") if key in brief
+        }
+    if "scope_reviews" not in value:
+        return
+    value["scope_reviews"] = [
+        {
+            "scope_id": scope["scope_id"],
+            "state": scope["state"],
+            "alternative_count": scope["alternative_count"],
+            "alternatives": [
+                {"id": item["id"], "summary": item["design"]["summary"]}
+                for item in scope["alternatives"]
+            ],
+            "details_available": True,
+        }
+        for scope in value["scope_reviews"]
+    ]
 
 
 def _minimal(value: dict[str, Any], limit: int) -> None:

@@ -10,7 +10,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from anaxigraph import __version__
 from anaxigraph.analyzers import AnalyzerRegistry
 from anaxigraph.analyzers.base import LanguageAnalyzer
 from anaxigraph.architecture_vocabulary import VOCABULARY_VERSION
@@ -181,7 +180,7 @@ def _analyzer_contract(analyzer: LanguageAnalyzer) -> str:
 
 
 def _version_prefix(analysis_version: int) -> bytes:
-    return f"anaxigraph:{__version__}:analysis:{analysis_version}\0".encode()
+    return f"anaxigraph:analysis:{analysis_version}\0".encode()
 
 
 def _config_json(config: Any) -> str:

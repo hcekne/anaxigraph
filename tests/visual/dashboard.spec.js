@@ -131,6 +131,7 @@ test("durable history progress is actionable without blocking current views", as
   await expect(page.locator("#history-help")).toContainText("remain available");
   await expect(page.locator("#history-job-detail")).toContainText("Estimated remaining");
   await expect(page.locator("#history-job-detail")).toContainText("2.0 MiB");
+  await page.locator("details.advanced-history > summary").click();
   await expect(page.locator("#history-cancel-button")).toBeVisible();
   await expect(page.locator("#history-import-button")).toBeDisabled();
 
@@ -215,16 +216,17 @@ test("finding review and accepted-risk actions persist through the ledger", asyn
   await page.getByRole("button", { name: "Improve", exact: true }).click();
   await page.locator("#finding-view-filter").selectOption("diagnostics");
   const first = page.locator("#findings-table .finding-card", { has: page.getByRole("button", { name: "Mark reviewed" }) }).first();
-  const summary = (await first.locator("h3").textContent()).trim();
+  const id = await first.getByRole("button", { name: "Mark reviewed" }).getAttribute("data-finding");
+  const selected = () => page.locator("#findings-table .finding-card").filter({ has: page.locator(`[data-finding="${id}"]`) });
 
   await first.getByRole("button", { name: "Mark reviewed" }).click();
-  const reviewed = page.locator("#findings-table .finding-card", { hasText: summary });
+  const reviewed = selected();
   await expect(reviewed.locator(".finding-meta")).toContainText("Reviewed");
   await reviewed.getByRole("button", { name: "Accept risk" }).click();
-  const accepted = page.locator("#findings-table .finding-card", { hasText: summary });
+  const accepted = selected();
   await expect(accepted.locator(".finding-meta")).toContainText("Accepted risk");
   await accepted.getByRole("button", { name: "Reopen" }).click();
-  await expect(page.locator("#findings-table .finding-card", { hasText: summary }).locator(".finding-meta"))
+  await expect(selected().locator(".finding-meta"))
     .toContainText("Reviewed");
 });
 
@@ -232,6 +234,8 @@ test("graph area labels fit and deselecting an area rebuilds the viewport", asyn
   await openDashboard(page);
   await page.getByRole("button", { name: "Graph", exact: true }).click();
   const canvas = page.locator("#graph-canvas");
+  await expect(canvas).toHaveAttribute("data-render-state", "ready");
+  await page.locator("#graph-layout-select").selectOption("footprint");
   await expect(canvas).toHaveAttribute("data-label-overflow", "0");
   const initialRegions = Number(await canvas.getAttribute("data-region-count"));
   const initialNodes = Number(await canvas.getAttribute("data-visible-node-count"));
@@ -323,122 +327,74 @@ test("a slow previous repository can never overwrite a newer selection", async (
   await expect(fileMetric).toHaveText("222");
 });
 
-test("architecture overview opens one graph region at a time", async ({ page }) => {
+test("architecture overview opens bounded canonical graph scopes", async ({ page }) => {
+  const requests = [];
+  page.on("request", request => {
+    const url = new URL(request.url());
+    if (url.pathname === "/api/graph/entities") requests.push(url.searchParams);
+  });
   await openDashboard(page);
   await page.getByRole("button", { name: "Graph", exact: true }).click();
   const browser = page.locator("#graph-region-browser");
-  await expect(browser).toBeVisible();
-  await expect(browser).toContainText("Browse the whole repository or focus one area");
-  await expect(browser.locator('[data-graph-region=""]')).toHaveClass(/active/);
-  const summary = await browser.locator(".graph-region-summary p").textContent();
-  const counts = summary.match(/Showing ([\d,]+) of ([\d,]+) files/);
-  expect(counts).not.toBeNull();
-  expect(counts[1]).toBe(counts[2]);
-  const canvas = page.locator("#graph-canvas");
-  await expect(canvas).toHaveAttribute("data-render-state", "ready");
-  await expect.poll(() => canvas.getAttribute("data-region-count")).not.toBe("0");
-  const subregions = await page.evaluate(async () => (
-    await import("/assets/dashboard-core.js")
-  ).state.subgroupRegions.map((region) => region.group));
-  expect(subregions.length).toBeGreaterThan(2);
-  expect(subregions).toContain("frontend-features");
+  await expect(browser).toContainText("entities");
+  await expect(browser).toContainText("connections");
+  expect(Number(requests.at(-1).get("limit"))).toBeLessThanOrEqual(50);
+  await page.locator("#graph-kind-select").selectOption("module");
   const testing = browser.locator('[data-graph-region="testing"]');
-  await expect(testing).toContainText("files");
+  await expect(testing).toBeVisible();
   await testing.click();
   await expect(browser.locator(".graph-region-summary strong")).toHaveText("Testing");
-  await expect(testing).toHaveClass(/active/);
-  await expect(page.locator("#graph-canvas")).toHaveAttribute("data-region-count", "1");
+  await expect.poll(() => requests.at(-1).get("scope")).toBe("testing");
   await browser.locator('[data-graph-region=""]').click();
-  await expect(browser.locator(".graph-region-summary strong")).toHaveText("All Files");
-
-  const pathRequest = page.waitForRequest((request) => {
-    const url = new URL(request.url());
-    return url.pathname === "/api/graph" && url.searchParams.get("map_layer") === "path";
-  });
-  await page.locator("#map-layer-select").selectOption("path");
-  await pathRequest;
-  await expect(browser.locator('[data-graph-region="application"]')).toBeVisible();
-  const graphLayer = await page.evaluate(async () => (
-    await import("/assets/dashboard-core.js")
-  ).state.graph.architecture_frame.map_layer);
-  expect(graphLayer).toBe("path");
+  await expect(browser.locator(".graph-region-summary strong")).toHaveText("All scopes");
+  await expect.poll(() => requests.at(-1).get("scope") || "").toBe("");
 });
 
-test("historical files replay inside today's stable architecture frame", async ({ page }) => {
+test("historical graph requests stay pinned and never reuse current annotations", async ({ page }) => {
+  const requests = [];
+  await page.route("**/api/graph/entities?*", async route => {
+    const params = new URL(route.request().url()).searchParams;
+    requests.push(Object.fromEntries(params));
+    if (params.get("snapshot_id") !== "999999") return route.continue();
+    await route.fulfill({ json: { context: { repository_id: 1, snapshot_id: 999999, revision: "historical", snapshot: { id: 999999, commit_sha: "historical" } }, nodes: [{ id: "module:old.py", kind: "module", label: "Old module", path: "old.py", overview: "Historical annotation unavailable.", readiness: "structural" }], edges: [], total_nodes: 1, returned_nodes: 1, total_edges: 0, returned_edges: 0, next_offset: null } });
+  });
+  await page.route("**/api/graph/neighborhood?*", route => {
+    const params = new URL(route.request().url()).searchParams;
+    expect(params.get("snapshot_id")).toBe("999999");
+    return route.fulfill({ json: { context: { snapshot_id: 999999 }, nodes: [{ id: "module:old.py", kind: "module", label: "Old module", path: "old.py", overview: "Historical annotation unavailable." }], edges: [], total_nodes: 1, returned_nodes: 1 } });
+  });
+  await page.route("**/api/graph/entity?*", route => {
+    const params = new URL(route.request().url()).searchParams;
+    expect(params.get("snapshot_id")).toBe("999999");
+    return route.fulfill({ json: { context: { snapshot_id: 999999 }, node: { id: "module:old.py", kind: "module", label: "Old module", readiness: "structural", overview: "Historical annotation unavailable." }, connections: {} } });
+  });
   await openDashboard(page);
   await page.getByRole("button", { name: "Graph", exact: true }).click();
-  const canvas = page.locator("#graph-canvas");
-  await expect(canvas).toHaveAttribute("data-render-state", "ready");
-  await expect.poll(() => canvas.getAttribute("data-region-count")).not.toBe("0");
-  const currentLayout = await page.evaluate(async () => (
-    await import("/assets/dashboard-core.js")
-  ).state.groupRegions.map((region) => [
-    region.root, ...[region.x, region.y, region.width, region.height].map(Math.round),
-  ]));
-  const currentSubregions = await page.evaluate(async () => (
-    await import("/assets/dashboard-core.js")
-  ).state.subgroupRegions.map((region) => [
-    region.group, ...[region.x, region.y, region.width, region.height].map(Math.round),
-  ]));
-  const graph = await page.evaluate(async () => (await fetch("/api/graph?node_limit=1000&edge_limit=2000")).json());
-  const retained = new Set(graph.nodes.filter((_node, index) => index % 2 === 0).map((node) => node.id));
-  const historical = {
-    ...graph,
-    snapshot: { ...graph.snapshot, id: 999999, commit_sha: "historical" },
-    nodes: graph.nodes.filter((node) => retained.has(node.id)),
-    edges: graph.edges.filter((edge) => retained.has(edge.source) && retained.has(edge.target)),
-    architecture_frame: {
-      mode: "present_day", reference_snapshot_id: graph.snapshot.id,
-      historical_snapshot_id: 999999, reclassified: true,
-    },
-  };
-  await page.route("**/api/graph?*", async (route) => {
-    const url = new URL(route.request().url());
-    if (url.searchParams.get("snapshot_id") === "999999") {
-      await route.fulfill({ json: historical });
-    } else await route.continue();
-  });
-
-  await page.evaluate(async () => {
-    const history = await import("/assets/history-controller.js");
-    await history.graphAtSnapshot(999999, true);
-  });
-
-  expect(await page.evaluate(async () => (
-    await import("/assets/dashboard-core.js")
-  ).state.groupRegions.map((region) => [
-    region.root, ...[region.x, region.y, region.width, region.height].map(Math.round),
-  ]))).toEqual(currentLayout);
-  expect(await page.evaluate(async () => (
-    await import("/assets/dashboard-core.js")
-  ).state.subgroupRegions.map((region) => [
-    region.group, ...[region.x, region.y, region.width, region.height].map(Math.round),
-  ]))).toEqual(currentSubregions);
-  expect(await page.evaluate(async () => (
-    await import("/assets/dashboard-core.js")
-  ).state.graph.architecture_frame.reclassified)).toBe(true);
-  await expect(canvas).toHaveAttribute("data-render-state", "ready");
+  await expect(page.locator("#graph-canvas")).toHaveAttribute("data-render-state", "ready");
+  await page.evaluate(async () => (await import("/assets/history-controller.js")).graphAtSnapshot(999999, true));
+  await expect.poll(() => requests.at(-1).snapshot_id).toBe("999999");
+  await page.locator('#graph-entity-list [data-entity-id="module:old.py"]').click();
+  await expect(page.locator("#inspector")).toContainText("Historical annotation unavailable");
+  await expect(page.locator("#inspector")).toContainText("semantic annotation not yet saved");
+  await page.getByRole("button", { name: "Files", exact: true }).click();
+  await expect(page.locator(".module-row")).toHaveCount(1);
+  expect(requests.at(-1).snapshot_id).toBe("999999");
 });
 
-test("reference artifacts are excluded by default and pattern review is visible", async ({ page }) => {
+test("reference artifacts stay excluded until explicitly requested", async ({ page }) => {
   await openDashboard(page);
   await page.getByRole("button", { name: "Files", exact: true }).click();
-  await expect(page.getByRole("columnheader", { name: "Pattern idea" })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Purpose" })).toBeVisible();
   await page.locator("#module-search").fill("feedback-log.md");
-  await expect(page.locator("#module-table-body")).toContainText("No files match");
-
+  await expect(page.locator("#module-table-body")).toContainText("No modules match");
   await page.locator("#module-include-reference").check();
-  await expect(page.locator("#module-table-body")).toContainText("feedback-log.md", { timeout: 10_000 });
   const feedback = page.locator(".module-row", { hasText: "feedback-log.md" });
+  await expect(feedback).toBeVisible();
   await expect(feedback.locator(".attention-pill.reference")).toHaveText("Reference");
-  await expect(feedback.locator(".pattern-cell")).toHaveText("Not evaluated");
   await feedback.click();
-  await expect(page.locator(".module-detail-row")).toContainText("Reference file");
-  await expect(page.locator(".module-detail-row")).not.toContainText("attention triage");
-  await page.locator('[data-module-graph="docs/feedback-log.md"]').click();
-  await expect(page.locator("#inspector")).toContainText("Why this version was read");
-  await expect(page.locator("#inspector")).toContainText("Fingerprints identify");
-  await expect(page.locator("#inspector")).not.toContainText("Frame reason");
+  await expect(page.locator(".module-detail-row")).toContainText("Reference artifact");
+  await page.locator(".module-detail-row").getByRole("button", { name: "Focus in graph" }).click();
+  await expect(page.locator("#inspector")).toContainText("Reference artifact");
 });
 
 test("settings explains every connected repository and MCP handoff", async ({ page }) => {
@@ -448,7 +404,7 @@ test("settings explains every connected repository and MCP handoff", async ({ pa
   await expect(page.locator(".settings-repository.current")).toHaveCount(1);
   await expect(page.locator('.settings-repository.current dt:has-text("Git history maps to keep") + dd')).toHaveText("0");
   await expect(page.locator("#settings-mcp-url")).toHaveText(`${new URL(page.url()).origin}/mcp`);
-  await expect(page.locator("#settings-init-command")).toContainText("anaxigraph init .");
+  await expect(page.locator("#settings-init-command")).toContainText("uvx --from anaxigraph anaxigraph serve --repository . --scan-on-start");
   await expect(page.locator("#settings-codex-command")).toHaveText(
     `codex mcp add anaxigraph --url ${new URL(page.url()).origin}/mcp`,
   );
@@ -459,7 +415,7 @@ test("settings explains every connected repository and MCP handoff", async ({ pa
     "AI mapping is turned off for this repository",
   );
   await expect(page.locator("#view-settings")).toContainText(
-    "the connected coding agent reads one saved task at a time",
+    "coding agent completes durable graph-annotation tasks",
   );
 });
 

@@ -14,6 +14,8 @@ from anaxigraph.agent_payload import (
     _sorted_ids,
 )
 from anaxigraph.graph_contract import _response_payload_bytes, _with_response_telemetry
+from anaxigraph.knowledge_agent import focus_context, resolve_entity_focus, scoped_dependencies
+from anaxigraph.knowledge_sync import ensure_knowledge
 from anaxigraph.persistence.snapshot_projection import resolve_projected_target
 
 
@@ -25,6 +27,7 @@ class _ImpactGraph:
     outgoing: dict[int, set[int]]
     incoming: dict[int, set[int]]
     target_id: int
+    entity_context: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,12 +111,23 @@ def _impact_graph(database: Any, repository_id: int, target: str) -> _ImpactGrap
     _repository, snapshot_id, map_status = agent_graph._repository_map_state(
         database, repository_id
     )
+    ensure_knowledge(database, repository_id, snapshot_id)
     with database.connect() as connection:
         files, outgoing, incoming = agent_graph._projected_graph_maps(connection, snapshot_id)
-        target_id = resolve_projected_target(connection, snapshot_id, files, target)
+        selected = resolve_entity_focus(connection, snapshot_id, target)
+        target_id = resolve_projected_target(
+            connection, snapshot_id, files, selected["path"] if selected else target
+        )
+        context = focus_context(connection, snapshot_id, selected)
+        if selected and selected["kind"] in {"function", "interface", "contract"} and target_id:
+            direct, dependencies = scoped_dependencies(connection, snapshot_id, selected)
+            incoming[target_id], outgoing[target_id] = (
+                direct - {target_id},
+                dependencies - {target_id},
+            )
     if target_id is None:
         raise ValueError(f"Target not found: {target}")
-    return _ImpactGraph(snapshot_id, map_status, files, outgoing, incoming, target_id)
+    return _ImpactGraph(snapshot_id, map_status, files, outgoing, incoming, target_id, context)
 
 
 def _impact_evidence(graph: _ImpactGraph, target: str, config: Any) -> _ImpactEvidence:
@@ -178,6 +192,7 @@ def _impact_response(
         "risk_reasons": risk_reasons,
         "plain_language": _impact_language(graph, evidence, risk, risk_reasons),
         "metrics": _impact_metrics(evidence, second_only, degree),
+        **({"entity_context": graph.entity_context} if graph.entity_context else {}),
     }
 
 

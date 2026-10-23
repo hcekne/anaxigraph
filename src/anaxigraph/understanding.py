@@ -115,9 +115,16 @@ class SemanticEngine:
         *,
         generation: int | None = None,
         compare_with: int | None = None,
+        scope_id: str = "",
+        details: bool = True,
     ) -> dict[str, Any]:
         return self._services.fresh_eyes.status(
-            repository_id, semantic, generation=generation, compare_with=compare_with
+            repository_id,
+            semantic,
+            generation=generation,
+            compare_with=compare_with,
+            scope_id=scope_id,
+            details=details,
         )
 
     def start_fresh_eyes_review(
@@ -126,7 +133,7 @@ class SemanticEngine:
         repository: str | Path,
         config: AnaxiGraphConfig,
         *,
-        proposal_count: int = 2,
+        proposal_count: int = 3,
         proposal_executors: Sequence[str] = (),
         retry_failed: bool = False,
         restart: bool = False,

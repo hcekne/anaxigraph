@@ -153,7 +153,7 @@ def test_typescript_syntax_facts_feed_the_shared_pattern_evidence(repository, da
     assert features["syntax.annotations"]["value"]["count"] >= 1
 
 
-def test_projection_uses_only_current_dossiers_and_reviewed_taxonomy(
+def test_projection_uses_current_annotation_semantics_and_reviewed_taxonomy(
     repository, database, tmp_path
 ):
     provider = _fake_provider(tmp_path)
@@ -171,4 +171,9 @@ def test_projection_uses_only_current_dossiers_and_reviewed_taxonomy(
     assert projection["counts_by_level"]["subsystem"] == 1
     assert core["target"]["parent_key"] == "subsystem:sample-runtime"
     assert features["semantic.dossier"]["availability"] == "available"
-    assert features["semantic.responsibilities"]["value"] == ["Own pkg/core.py"]
+    assert features["semantic.responsibilities"]["value"] == []
+    assert features["semantic.overview"]["value"] == "Own pkg/core.py."
+    assert (
+        features["semantic.detail"]["value"]
+        == "Provides the behavior described by the supplied pkg/core.py source."
+    )

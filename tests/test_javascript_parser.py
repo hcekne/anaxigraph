@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
+import anaxigraph.knowledge_annotation_plan as annotation_plan
 from anaxigraph.analyzers.javascript import JavaScriptAnalyzer, TypeScriptAnalyzer
 from anaxigraph.analyzers.javascript_parser import parse_source
 from anaxigraph.analyzers.javascript_workspace import extract_workspace_config
@@ -11,7 +13,6 @@ from anaxigraph.config import SemanticConfig
 from anaxigraph.history_discovery import plan_invalidations
 from anaxigraph.ir import analysis_metadata
 from anaxigraph.scanner import RepositoryScanner
-from anaxigraph.semantic_module_intrinsic import _module_inputs
 from anaxigraph.semantic_requests import SemanticEvidenceService
 from anaxigraph.storage import AnaxiIndex
 
@@ -247,13 +248,15 @@ def test_workspace_configuration_change_invalidates_carried_javascript_relations
     assert "src/main.ts" in plan.relationship_sources
 
 
-def test_semantic_cache_identity_includes_the_analyzer_contract():
+def test_semantic_cache_identity_includes_the_analyzer_contract(monkeypatch):
     module = {
         "artifact_id": 1,
         "file_fact_id": 2,
         "language": "typescript",
         "analyzer": "builtin-typescript-tree-sitter",
         "structural_hash": "same-source-shape",
+        "raw_hash": "same-source-bytes",
+        "lines_of_code": 10,
         "public_interfaces": ["Service"],
         "symbols": [],
         "analysis_contract": {
@@ -271,10 +274,36 @@ def test_semantic_cache_identity_includes_the_analyzer_contract():
         },
     }
 
-    first = _module_inputs("service.ts", module, {}, SemanticConfig())
-    second = _module_inputs("service.ts", changed, {}, SemanticConfig())
+    fingerprints = []
+    monkeypatch.setattr(annotation_plan, "sync_knowledge", lambda *a: None)
+    monkeypatch.setattr(annotation_plan, "_matching_document", lambda *a: None)
+    monkeypatch.setattr(annotation_plan, "_latest_document", lambda *a: None)
+    monkeypatch.setattr(annotation_plan, "compatible_legacy", lambda *a: None)
+    monkeypatch.setattr(annotation_plan, "_active_job", lambda *a, **k: None)
+    monkeypatch.setattr(annotation_plan, "_upsert_state", lambda *a, **k: None)
 
-    assert first.input_hash != second.input_hash
+    def record_job(*args, **kwargs):
+        fingerprints.append(kwargs["input_hash"])
+        return "pending", True, None
+
+    monkeypatch.setattr(annotation_plan, "_ensure_job", record_job)
+    for value, semantic in (
+        (module, SemanticConfig()),
+        (changed, SemanticConfig()),
+        (module, SemanticConfig()),
+        (module, replace(SemanticConfig(), prompt_version="v2")),
+    ):
+        annotation_plan.plan_annotations(
+            None,
+            repository_id=1,
+            snapshot_id=1,
+            inventory={"service.ts": value},
+            relationships={},
+            semantic=semantic,
+        )
+    assert fingerprints[0] != fingerprints[1]
+    assert fingerprints[0] == fingerprints[2]
+    assert fingerprints[0] != fingerprints[3]
 
 
 def test_scanner_resolves_tsconfig_workspace_ambiguous_and_dynamic_evidence(
@@ -348,8 +377,9 @@ def test_scanner_resolves_tsconfig_workspace_ambiguous_and_dynamic_evidence(
     assert quality["dynamic"] == 1
     assert quality["status"] == "partial"
 
-    request = SemanticEvidenceService(database)._intrinsic_request(
+    request = SemanticEvidenceService(database).job_request(
         {
+            "job_kind": "annotation",
             "scope_key": "src/main.ts",
             "snapshot_id": stats.snapshot_id,
             "artifact_id": detail["file"]["artifact_id"],
@@ -359,13 +389,13 @@ def test_scanner_resolves_tsconfig_workspace_ambiguous_and_dynamic_evidence(
         root,
         SemanticConfig(),
     )
-    contract = request["deterministic_facts"]["analysis_contract"]
+    contract = request["analysis_contract"]
     assert contract["analyzer"] == "builtin-typescript-tree-sitter"
     assert contract["parse_status"] == "parsed"
-    assert contract["capabilities"]["fingerprint"] == TypeScriptAnalyzer.capabilities.fingerprint
+    assert contract["capability_fingerprint"] == TypeScriptAnalyzer.capabilities.fingerprint
     assert any(
         row["resolution_provenance"] == ["tsconfig_paths:tsconfig.json:@/*"]
-        for row in request["deterministic_facts"]["relationships"]
+        for row in request["relationships"]
     )
     inherited = database.file_details(stats.repository_id, "apps/web/feature.ts")
     assert inherited is not None

@@ -6,6 +6,7 @@ import hashlib
 import json
 from typing import Any, Protocol
 
+from anaxigraph.semantic_fresh_eyes_functional import FUNCTIONAL_PROTOCOL
 from anaxigraph.semantic_graph import _source_chunks
 
 
@@ -18,6 +19,12 @@ def packetize_agent_request(
 ) -> tuple[dict[str, Any], dict[str, Any] | None, list[dict[str, Any]]]:
     if _serialized_size(request) <= semantic.max_source_chars:
         return request, None, []
+    if request.get("protocol_version") == FUNCTIONAL_PROTOCOL:
+        raise ValueError(
+            "Fresh Eyes functional packet exceeds semantic.max_source_chars; reduce the "
+            "functional scope or increase the configured context budget. Tool-free Fresh Eyes "
+            "requires all functional evidence inline and cannot use evidence pages."
+        )
     bounded = dict(request)
     kind = str(request.get("analysis_kind") or "")
     pages: list[dict[str, Any]] = []
@@ -50,43 +57,41 @@ def _page_oversized_request(
     evidence_kinds: list[str],
     max_chars: int,
 ) -> None:
-    if kind == "intrinsic" and isinstance(request.get("source"), str):
-        _page_source(bounded, request, pages, evidence_kinds, max_chars)
-    if kind == "context" and isinstance(request.get("neighbor_dossiers"), list):
-        _page_list_field(
-            bounded,
-            request,
-            "neighbor_dossiers",
-            pages,
-            evidence_kinds,
-            max_chars,
-        )
-    if kind == "synthesis" and isinstance(request.get("child_dossiers"), list):
-        _page_list_field(
-            bounded,
-            request,
-            "child_dossiers",
-            pages,
-            evidence_kinds,
-            max_chars,
-        )
-    if kind.startswith("taxonomy_"):
+    if kind == "annotation":
+        if isinstance(request.get("source"), str):
+            _page_source(bounded, request, pages, evidence_kinds, max_chars)
+        for field in ("functions", "relationships"):
+            if _serialized_size(bounded) <= max_chars:
+                break
+            _page_list_field(bounded, request, field, pages, evidence_kinds, max_chars)
+    elif kind == "synthesis":
+        _page_list_field(bounded, request, "child_dossiers", pages, evidence_kinds, max_chars)
+    elif kind.startswith("taxonomy_"):
         _page_taxonomy_request(bounded, request, pages, evidence_kinds, max_chars)
-    if kind.startswith("pattern_"):
+    elif kind.startswith("pattern_"):
         _page_pattern_request(bounded, request, pages, evidence_kinds, max_chars)
-    if kind.startswith("fresh_"):
-        _page_fresh_eyes_request(bounded, request, pages, evidence_kinds, max_chars)
-    if _serialized_size(bounded) > max_chars and kind == "context":
-        _page_list_field(
-            bounded,
-            request,
-            "relationships",
-            pages,
-            evidence_kinds,
-            max_chars,
+    elif kind == "architecture_plan":
+        _page_planning_request(bounded, request, pages, evidence_kinds, max_chars)
+
+
+def _page_planning_request(bounded, request, pages, kinds, max_chars):
+    _page_list_field(bounded, request, "fresh_eyes", pages, kinds, max_chars)
+    current = request.get("current_system") or {}
+    bounded["current_system"] = dict(current)
+    _page_nested_list_field(
+        bounded, current, "current_system", "pattern_reviews", pages, kinds, max_chars
+    )
+    graph = current.get("semantic_graph") or {}
+    bounded["current_system"]["semantic_graph"] = dict(graph)
+    for field in ("nodes", "edges"):
+        items = graph.get(field) or []
+        pages.extend(
+            {"current_system": {"semantic_graph": {field: batch}}}
+            for batch in _list_batches(items, max_chars)
         )
-    if _serialized_size(bounded) > max_chars and kind == "intrinsic":
-        _page_intrinsic_facts(bounded, request, pages, evidence_kinds, max_chars)
+        bounded["current_system"]["semantic_graph"][field] = []
+        if items:
+            kinds.append("current_system.semantic_graph." + field)
 
 
 def _page_source(
@@ -97,7 +102,9 @@ def _page_source(
     max_chars: int,
 ) -> None:
     source = str(request["source"])
-    symbols = request.get("deterministic_facts", {}).get("symbols") or []
+    symbols = (
+        request.get("functions") or request.get("deterministic_facts", {}).get("symbols") or []
+    )
     chunks = _source_chunks(source, symbols, max_chars)
     pages.extend(
         {
@@ -175,62 +182,6 @@ def _page_pattern_request(
             pages,
             kinds,
             max_chars,
-        )
-
-
-def _page_fresh_eyes_request(
-    bounded: dict[str, Any],
-    request: dict[str, Any],
-    pages: list[dict[str, Any]],
-    kinds: list[str],
-    max_chars: int,
-) -> None:
-    if isinstance(request.get("proposals"), list):
-        _page_list_field(bounded, request, "proposals", pages, kinds, max_chars)
-    current = request.get("current_system")
-    if isinstance(current, dict):
-        bounded["current_system"] = dict(current)
-        for field in (
-            "module_dossiers",
-            "area_summaries",
-            "pattern_reviews",
-            "dependency_evidence",
-            "active_findings",
-            "recent_history",
-            "declared_context",
-        ):
-            if _serialized_size(bounded) <= max_chars:
-                break
-            _page_nested_list_field(
-                bounded, current, "current_system", field, pages, kinds, max_chars
-            )
-    comparison = request.get("comparison")
-    if _serialized_size(bounded) > max_chars and isinstance(comparison, dict):
-        bounded["comparison"] = dict(comparison)
-        for field in ("mappings", "candidate_changes", "current_strengths"):
-            if _serialized_size(bounded) <= max_chars:
-                break
-            _page_nested_list_field(
-                bounded, comparison, "comparison", field, pages, kinds, max_chars
-            )
-    if _serialized_size(bounded) > max_chars:
-        _page_list_field(bounded, request, "declared_context", pages, kinds, max_chars)
-
-
-def _page_intrinsic_facts(
-    bounded: dict[str, Any],
-    request: dict[str, Any],
-    pages: list[dict[str, Any]],
-    kinds: list[str],
-    max_chars: int,
-) -> None:
-    facts = dict(request.get("deterministic_facts") or {})
-    bounded["deterministic_facts"] = dict(facts)
-    for field in ("symbols", "relationships", "recent_changes"):
-        if _serialized_size(bounded) <= max_chars:
-            break
-        _page_nested_list_field(
-            bounded, facts, "deterministic_facts", field, pages, kinds, max_chars
         )
 
 

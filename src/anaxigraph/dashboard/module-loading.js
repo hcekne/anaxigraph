@@ -1,23 +1,27 @@
-import { api, request, state, toast } from "/assets/dashboard-core.js";
+import { byId, state, toast } from "/assets/dashboard-core.js";
+import { entityContextKey, entityPage, moduleQuery, normalizeEntity } from "/assets/entity-client.js";
 import { renderModuleFilters, renderModules } from "/assets/module-view.js";
 
-export async function loadRemainingModules(token) {
-  const total = Number(state.overview?.files || 0);
-  const snapshot = state.overview?.snapshot?.id;
+export async function loadModulePage() {
+  if (!state.repositoryId || !state.overview) return;
+  const token = ++state.moduleSearchToken;
+  const context = entityContextKey();
+  state.moduleLoading = true;
+  state.moduleError = null;
+  renderModules();
   try {
-    for (let offset = state.modules.length; offset < total; offset += 2000) {
-      if (token !== state.repositoryLoadToken) return;
-      const offsets = [offset, offset + 1000].filter(value => value < total);
-      const pages = await Promise.all(offsets.map(value => request(api("/api/modules", {
-        offset: value, limit: 1000, snapshot_id: snapshot, compact: true,
-      }))));
-      if (token !== state.repositoryLoadToken) return;
-      state.modules.push(...pages.flat());
-      renderModuleFilters();
-      renderModules();
-      if (pages.every(page => !page.length)) break;
-    }
+    const value = await entityPage(moduleQuery());
+    if (token !== state.moduleSearchToken || context !== entityContextKey()) return;
+    state.moduleEnvelope = value;
+    state.modules = (value.nodes || []).map(normalizeEntity);
+    state.expandedModuleId = null;
+    renderModuleFilters();
   } catch (error) {
-    if (token === state.repositoryLoadToken) toast(`Some files are still loading: ${error.message}`, true);
+    if (token === state.moduleSearchToken) {
+      state.moduleError = `Module page unavailable: ${error.message}`;
+      toast(error.message, true);
+    }
+  } finally {
+    if (token === state.moduleSearchToken) { state.moduleLoading = false; renderModules(); }
   }
 }

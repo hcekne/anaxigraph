@@ -17,6 +17,7 @@ from test_workflows import prepare
 
 from anaxigraph.api_workflows import WorkflowRequest
 from anaxigraph.config import load_config
+from anaxigraph.persistence.semantic_payloads import register_semantic_payloads
 from anaxigraph.storage import _begin_write
 from anaxigraph.workflow_execution import WorkflowExecution
 
@@ -39,6 +40,7 @@ def impatient_connections(database, monkeypatch):
     def connect():
         connection = sqlite3.connect(database.path, timeout=0.01, factory=Connection)
         connection.row_factory = sqlite3.Row
+        register_semantic_payloads(connection)
         connection.execute("PRAGMA foreign_keys = ON")
         return connection
 
@@ -161,7 +163,7 @@ def test_admission_restores_timeout_and_does_not_retry_non_busy_errors(
         connection.close()
 
 
-def test_sixteen_context_workers_drain_all_jobs_after_contended_saves(
+def test_sixteen_annotation_workers_drain_all_jobs_after_contended_saves(
     repository, database, monkeypatch
 ):
     for index in range(88):
@@ -170,14 +172,13 @@ def test_sixteen_context_workers_drain_all_jobs_after_contended_saves(
     config = load_config(repository)
     config = replace(config, semantic=replace(config.semantic, max_parallel_jobs=16))
     row = database.repository(repository)
-    settings = {step: [choice(workers=16)] for step in ("intrinsic", "context")}
+    settings = {"annotation": [choice(workers=16)]}
 
     def run(step):
         return WorkflowExecution(
             database, row, config, WorkflowRequest(workflow="mapping", step=step), settings
         ).run()
 
-    assert run("intrinsic")["processed"] == 96
     ready, release = threading.Event(), threading.Event()
     barrier = threading.Barrier(16, action=ready.set)
     calls, lock = [], threading.Lock()
@@ -195,7 +196,7 @@ def test_sixteen_context_workers_drain_all_jobs_after_contended_saves(
     monkeypatch.setattr("anaxigraph.semantic_runner.create_semantic_provider", lambda _: Provider())
     busy, _ = impatient_connections(database, monkeypatch)
     with ThreadPoolExecutor(max_workers=1) as pool:
-        pending = pool.submit(run, "context")
+        pending = pool.submit(run, "annotation")
         try:
             assert ready.wait(20)
             with database.transaction():
@@ -209,10 +210,10 @@ def test_sixteen_context_workers_drain_all_jobs_after_contended_saves(
     assert len(calls) == len(set(calls)) == 96
     with database.connect() as connection:
         rows = connection.execute(
-            "SELECT status, attempts FROM semantic_jobs WHERE job_kind = 'context'"
+            "SELECT status, attempts FROM semantic_jobs WHERE job_kind = 'annotation'"
         ).fetchall()
         documents = connection.execute(
-            "SELECT COUNT(*) FROM semantic_documents WHERE document_kind = 'context'"
+            "SELECT COUNT(*) FROM semantic_documents WHERE document_kind = 'annotation'"
         ).fetchone()[0]
     assert Counter(tuple(row) for row in rows) == {("completed", 1): 96}
     assert documents == 96

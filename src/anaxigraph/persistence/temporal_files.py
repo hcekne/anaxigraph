@@ -7,6 +7,7 @@ import sqlite3
 from dataclasses import asdict
 from typing import Any
 
+from anaxigraph.ir_codec import decode_metadata, project_evidence_cache, storage_metadata
 from anaxigraph.ir_serialization import compact_stored_metadata
 from anaxigraph.persistence.temporal_hashing import digest
 
@@ -133,7 +134,9 @@ def compact_file_placement_metadata(connection: sqlite3.Connection) -> int:
     return updated
 
 
-def compact_file_fact_metadata(connection: sqlite3.Connection) -> int:
+def compact_file_fact_metadata(
+    connection: sqlite3.Connection, *, after_id: int = 0, limit: int = -1
+) -> int:
     """Compact derivable analyzer IR already stored in immutable file facts."""
 
     updates = []
@@ -141,15 +144,16 @@ def compact_file_fact_metadata(connection: sqlite3.Connection) -> int:
         """SELECT ff.id, ff.language, ff.metadata_json, ff.public_interfaces_json,
                   a.canonical_path
            FROM file_facts ff JOIN artifacts a ON a.id = ff.artifact_id
-           ORDER BY ff.id"""
+           WHERE ff.id > ? ORDER BY ff.id LIMIT ?""",
+        (after_id, limit),
     ).fetchall():
         metadata = compact_stored_metadata(
-            json.loads(row["metadata_json"] or "{}"),
+            decode_metadata(row["metadata_json"]),
             path=str(row["canonical_path"]),
             language=str(row["language"]),
             public_interfaces=json.loads(row["public_interfaces_json"] or "[]"),
         )
-        encoded = json.dumps(metadata, sort_keys=True, separators=(",", ":"))
+        encoded = storage_metadata(project_evidence_cache(metadata))
         if encoded != row["metadata_json"]:
             updates.append((encoded, int(row["id"])))
     connection.executemany("UPDATE file_facts SET metadata_json = ? WHERE id = ?", updates)
@@ -163,7 +167,7 @@ def _upsert_file_fact(
     *,
     cache: dict[str, int] | None = None,
 ) -> int:
-    metadata = json.loads(row["metadata_json"] or "{}")
+    metadata = decode_metadata(row["metadata_json"])
     fact_key = digest(
         [
             row["artifact_id"],
@@ -231,7 +235,7 @@ def _fact_values(
         row["public_interfaces_json"],
         row["analyzer"],
         row["parse_error"],
-        json.dumps(fact_metadata, sort_keys=True, separators=(",", ":")),
+        storage_metadata(project_evidence_cache(fact_metadata)),
         row["first_seen_at"],
     )
 
@@ -321,7 +325,7 @@ def backfill_fact_symbol_details(connection: sqlite3.Connection) -> int:
 
 
 def _symbol_details(metadata_json: Any) -> dict[tuple[str, int], dict[str, Any]]:
-    metadata = json.loads(metadata_json or "{}")
+    metadata = decode_metadata(metadata_json or "{}")
     return {
         (item["qualified_name"], int(item["start_line"])): item
         for item in (metadata.get("ir") or {}).get("symbols") or []
@@ -340,7 +344,7 @@ def _file_state(row: dict[str, Any]) -> tuple[Any, ...]:
 
 
 def _placement_metadata(metadata_json: Any) -> str:
-    metadata = json.loads(metadata_json or "{}")
+    metadata = decode_metadata(metadata_json or "{}")
     transient = {
         key: metadata[key]
         for key in ("invalidation_reason", "history_change_kind", "source_read")

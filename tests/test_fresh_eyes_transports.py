@@ -137,25 +137,28 @@ async def test_dashboard_cli_contract_and_mcp_share_one_fresh_eyes_result(
         "identity",
         "state",
         "snapshot",
-        "fingerprints",
-        "declared_context",
+        "functional_brief",
+        "counts",
         "recommendations",
         "caveats",
-        "grounding_summary",
+        "scope_reviews",
     ):
         assert mcp[field] == rest[field]
     assert rest["state"] == "current"
     assert rest["snapshot"]["dirty"] is True
     assert "dirty checkout" in rest["caveats"][0]
-    assert rest["recommendations"][0]["action"] == "consolidate"
-    assert rest["recommendations"][0]["grounding"]["status"] == "needs_test"
-    assert rest["grounding_summary"]["counts"] == {
-        "references_resolved": 0,
-        "name_already_present": 0,
-        "already_satisfied": 0,
-        "needs_test": 1,
-        "stale": 0,
-    }
+    assert rest["recommendations"] == []
+    assert rest["counts"]["retained_alternatives"] == 9
+    expanded = await _mcp_guide(
+        database, repository, {"intent": "redesign", "scope_id": "retrieval"}
+    )
+    assert expanded.isError is False
+    selected = next(
+        scope
+        for scope in expanded.structuredContent["scope_reviews"]
+        if scope["scope_id"] == "retrieval"
+    )
+    assert selected["alternatives"][0]["design"]["components"]
 
 
 @pytest.mark.anyio
@@ -237,8 +240,8 @@ async def test_mcp_restart_and_cli_restart_produce_the_same_review_generation(
 @pytest.mark.parametrize(
     ("state", "arguments"),
     [
-        ("not_started", {"intent": "redesign", "start": True, "proposal_count": 2}),
-        ("stale", {"intent": "redesign", "start": True, "proposal_count": 2}),
+        ("not_started", {"intent": "redesign", "start": True, "proposal_count": 3}),
+        ("stale", {"intent": "redesign", "start": True, "proposal_count": 3}),
         ("failed", {"intent": "redesign", "start": True, "retry_failed": True}),
         ("waiting_for_understanding", {"intent": "redesign"}),
         ("in_progress", {"intent": "redesign"}),
@@ -284,14 +287,16 @@ async def test_rest_and_mcp_pin_the_same_executor_to_each_proposal_slot(reposito
     )
 
     assert started["status"] == "started"
+    worker = TwoExecutorReview(engine, stats.repository_id, repository, config)
+    worker.submit(worker.claim(CODEX_EXECUTOR))
+    engine.plan(stats.repository_id, repository, config)
     expected = [
-        ("proposal:a", "codex"),
-        ("proposal:b", "claude"),
-        ("adjudication", None),
-        ("comparison", None),
-        ("review", None),
+        ("functional:brief", None),
+        ("functional:product:proposal:a", "codex"),
+        ("functional:product:proposal:b", "claude"),
+        ("functional:product:proposal:c", None),
     ]
-    assert _pins(started["review"]) == expected
+    assert _pins(started["review"]) == [("functional:brief", None)]
     rest = await _rest_fresh_eyes(database, repository)
     response = await _mcp_guide(database, repository, {"fresh_eyes": True})
     assert response.isError is False
@@ -310,10 +315,7 @@ async def test_rest_and_mcp_pin_the_same_executor_to_each_proposal_slot(reposito
     )
     assert pinned_again.isError is False
     assert pinned_again.structuredContent["status"] == "restarted"
-    assert _pins(pinned_again.structuredContent["review"])[:2] == [
-        ("proposal:a", "claude"),
-        ("proposal:b", "codex"),
-    ]
+    assert _pins(pinned_again.structuredContent["review"]) == [("functional:brief", None)]
 
 
 @pytest.mark.anyio
@@ -322,12 +324,16 @@ async def test_rest_cli_and_mcp_release_the_same_executor_pins(repository, datab
         repository, database, proposal_count=2, proposal_executors=("codex", "claude")
     )
     review.submit(review.claim(CODEX_EXECUTOR))
+    review.engine.plan(review.repository_id, review.repository, review.config)
+    review.submit(review.claim(CODEX_EXECUTOR))
 
     body = await _rest_start(database, repository, {"unpin": True})
 
     assert body["status"] == "unpinned"
-    assert body["unpinned"] == [{"scope_key": "proposal:b", "required_executor": "claude"}]
-    assert _pins(body["review"])[:2] == [("proposal:a", None), ("proposal:b", None)]
+    assert body["unpinned"] == [
+        {"scope_key": "functional:product:proposal:b", "required_executor": "claude"}
+    ]
+    assert all(pin is None for _key, pin in _pins(body["review"]))
     rest = await _rest_fresh_eyes(database, repository)
     assert _pins(rest) == _pins(body["review"])
     response = await _mcp_guide(database, repository, {"intent": "redesign", "unpin": True})
@@ -368,7 +374,7 @@ async def test_rest_cli_and_mcp_agree_on_a_selected_generation(repository, datab
     cli = _cli_fresh_eyes(repository, database, capsys, "--generation", "2")
 
     assert _review_facts(rest) == _review_facts(mcp) == _review_facts(cli)
-    for field in ("identity", "state", "ready", "recommendations", "caveats", "input_manifests"):
+    for field in ("identity", "state", "ready", "recommendations", "caveats", "functional_brief"):
         assert rest[field] == mcp[field] == cli[field]
     assert rest["review_generation"] == 2
     assert rest["state"] == "superseded"
@@ -408,13 +414,13 @@ async def test_rest_cli_and_mcp_agree_on_a_compared_generation(repository, datab
     cli = _cli_fresh_eyes(repository, database, capsys, "--generation", "1", "--compare-with", "2")
 
     assert rest["alignment"] == mcp["alignment"] == cli["alignment"]
-    assert rest["alignment"]["method"] == "lexical"
+    assert rest["alignment"]["method"] == "recorded_side_by_side"
     assert rest["alignment"]["left"]["review_generation"] == 1
     assert rest["alignment"]["right"]["review_generation"] == 2
-    assert len(rest["alignment"]["aligned"]) == 1
-    assert [item["kind"] for item in rest["alignment"]["conflicting"]] == [
-        "rejected_vs_recommended"
-    ]
+    for side in ("left", "right"):
+        scopes = rest["alignment"]["records"][side]["scope_reviews"]
+        assert len({item["id"] for scope in scopes for item in scope["alternatives"]}) == 9
+    assert "conflicting" not in rest["alignment"]
     status, body = await _rest_status(database, repository, "?compare_with=9")
     assert status == 400
     assert "available generations" in body["detail"]

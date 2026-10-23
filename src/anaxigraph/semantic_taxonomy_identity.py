@@ -80,7 +80,7 @@ def _previous_nodes(
 ) -> tuple[int | None, dict[str, dict[str, Any]], dict[str, set[str]]]:
     row = connection.execute(
         """
-        SELECT id FROM semantic_taxonomies
+        SELECT id FROM semantic_taxonomy_values
         WHERE repository_id = ? AND snapshot_id != ? AND status = 'current'
         ORDER BY snapshot_id DESC, id DESC LIMIT 1
         """,
@@ -94,7 +94,7 @@ def _previous_nodes(
         for item in connection.execute(
             """
             SELECT node_key, name, level, parent_key, responsibility
-            FROM semantic_taxonomy_nodes WHERE taxonomy_id = ?
+            FROM semantic_taxonomy_node_values WHERE taxonomy_id = ?
             """,
             (taxonomy_id,),
         ).fetchall()
@@ -102,7 +102,7 @@ def _previous_nodes(
     members: dict[str, set[str]] = defaultdict(set)
     for item in connection.execute(
         """
-        SELECT stm.node_key, a.canonical_path FROM semantic_taxonomy_memberships stm
+        SELECT stm.node_key, a.canonical_path FROM semantic_taxonomy_membership_values stm
         JOIN artifacts a ON a.id = stm.artifact_id WHERE stm.taxonomy_id = ?
         """,
         (taxonomy_id,),

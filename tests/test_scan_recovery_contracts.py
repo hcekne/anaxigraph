@@ -12,11 +12,14 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
+import pytest
+from legacy_fresh_eyes_schema import FRESH_EYES_REVIEW_SCHEMA
+
 from anaxigraph.architecture_charter_contract import (
     ARCHITECTURE_CHARTER_SCHEMA,
     compact_architecture_charter,
 )
-from anaxigraph.semantic import _codex_schema
+from anaxigraph.semantic import SemanticAnalysisError, _codex_schema
 from anaxigraph.semantic_records import _reset_failed_job
 from anaxigraph.semantic_taxonomy_contract import response_schema
 
@@ -46,9 +49,28 @@ def test_the_stored_charter_contract_alone_would_be_rejected_by_strict_output():
 
 
 def test_every_optional_field_added_for_storage_is_still_sendable():
-    for kind in ("synthesis", "synthesis_chunk", "context", "fresh_review"):
+    for kind in ("synthesis", "synthesis_chunk", "annotation"):
         payload = {"analysis_kind": kind, "scope_type": "repository", "detailed_reviews": True}
         assert _strict_violations(_codex_schema(response_schema(payload))) == []
+    for kind, stage in (
+        ("fresh_adjudication", "hierarchy"),
+        ("fresh_proposal", "proposal"),
+        ("fresh_comparison", "comparison"),
+        ("fresh_review", "review"),
+    ):
+        payload = {
+            "analysis_kind": kind,
+            "protocol_version": "fresh-eyes-recipe-v2",
+            "functional_stage": stage,
+        }
+        assert _strict_violations(_codex_schema(response_schema(payload))) == []
+
+
+def test_historical_optional_fields_remain_nullable_without_reenabling_the_old_writer():
+    assert _strict_violations(FRESH_EYES_REVIEW_SCHEMA)
+    assert _strict_violations(_codex_schema(FRESH_EYES_REVIEW_SCHEMA)) == []
+    with pytest.raises(SemanticAnalysisError, match="saved legacy results are read-only"):
+        response_schema({"analysis_kind": "fresh_review"})
 
 
 def _charter(**extra: Any) -> dict[str, Any]:

@@ -9,34 +9,28 @@ from typing import Any
 
 from anaxigraph.semantic_fresh_eyes_consensus import compare_generations
 from anaxigraph.semantic_fresh_eyes_contract import (
-    fresh_eyes_plan_executors,
     fresh_eyes_plan_goal,
     fresh_eyes_plan_options,
-    fresh_eyes_required_executor,
 )
-from anaxigraph.semantic_fresh_eyes_executors import unpin_review_executors
+from anaxigraph.semantic_fresh_eyes_executors import (
+    unpin_review_executors,
+    waiting_executor_action,
+)
 from anaxigraph.semantic_fresh_eyes_generations import (
-    FRESH_EYES_STAGES,
-    document_record,
-    document_value,
     generation_payload,
-    input_manifests,
     list_generations,
-    provenance,
     select_generation,
 )
 from anaxigraph.semantic_fresh_eyes_grounding import with_grounding
 from anaxigraph.semantic_fresh_eyes_payload import (
     missing_review,
     not_started_payload,
-    review_payload,
 )
 from anaxigraph.semantic_fresh_eyes_plan import (
     FRESH_EYES_PLAN_KEY,
     FRESH_EYES_SCOPE,
     FreshEyesPlanner,
 )
-from anaxigraph.semantic_fresh_eyes_telemetry import stage_telemetry
 from anaxigraph.semantic_index_port import SemanticIndex
 from anaxigraph.semantic_ports import (
     AnaxiGraphConfig,
@@ -70,15 +64,15 @@ class FreshEyesReviewService:
         repository: str | Path,
         config: AnaxiGraphConfig,
         *,
-        proposal_count: int = 2,
+        proposal_count: int = 3,
         proposal_executors: Sequence[str] = (),
         retry_failed: bool = False,
         restart: bool = False,
         plan: bool = True,
         goal: str | None = None,
     ) -> dict[str, Any]:
-        """Start or resume with saved controls. Executor pins apply to new generations;
-        changing the goal refreshes only repository-aware stages.
+        """Start or resume functional review. Executor pins apply to new generations;
+        changing requirements refreshes affected functional scopes.
         """
 
         semantic = _review_semantic(config)
@@ -157,6 +151,8 @@ class FreshEyesReviewService:
         *,
         generation: int | None = None,
         compare_with: int | None = None,
+        scope_id: str = "",
+        details: bool = True,
     ) -> dict[str, Any]:
         """Read the current review, one recorded generation, or two generations side by side."""
 
@@ -179,6 +175,8 @@ class FreshEyesReviewService:
                 semantic_status,
                 generations,
                 snapshot,
+                scope_id=scope_id,
+                details=details,
             )
             payload = read(generation)
             if compare_with is None:
@@ -195,6 +193,9 @@ def _generation_view(
     generations: list[dict[str, Any]],
     snapshot: Mapping[str, Any],
     generation: int | None,
+    *,
+    scope_id: str = "",
+    details: bool = True,
 ) -> dict[str, Any]:
     """Build the payload of the requested recorded generation, or of the current review.
 
@@ -209,6 +210,8 @@ def _generation_view(
             select_generation(generations, generation),
             generations,
             semantic_status,
+            scope_id=scope_id,
+            details=details,
         )
         return with_grounding(connection, recorded, review_id=_review_document(recorded))
     if plan is None:
@@ -217,7 +220,16 @@ def _generation_view(
             snapshot,
         )
     return _with_snapshot_provenance(
-        _current_review(connection, repository_id, snapshot_id, plan, semantic_status, generations),
+        _current_review(
+            connection,
+            repository_id,
+            snapshot_id,
+            plan,
+            semantic_status,
+            generations,
+            scope_id=scope_id,
+            details=details,
+        ),
         snapshot,
     )
 
@@ -264,34 +276,56 @@ def _current_review(
     plan: dict[str, Any],
     semantic_status: dict[str, Any],
     generations: list[dict[str, Any]],
+    *,
+    scope_id: str = "",
+    details: bool = True,
 ) -> dict[str, Any]:
-    proposal_count, _generation = fresh_eyes_plan_options(plan)
-    stage_rows = _stage_rows(connection, snapshot_id)
-    executors = fresh_eyes_plan_executors(plan)
-    stages = _stage_payloads(connection, repository_id, stage_rows, proposal_count, executors)
-    manifests = input_manifests(
+    result = _functional_view(
+        connection, repository_id, snapshot_id, plan, generations, scope_id, details
+    )
+    if result is not None:
+        return result
+    if not any(item["generation"] == fresh_eyes_plan_options(plan)[1] for item in generations):
+        return not_started_payload(repository_id, snapshot_id, semantic_status, generations)
+    return with_grounding(
         connection,
-        repository_id,
-        [
-            (key, (stage_rows.get(key) or {}).get("context_input_hash"))
-            for key, _ in FRESH_EYES_STAGES
-        ],
+        generation_payload(
+            connection,
+            repository_id,
+            select_generation(generations, fresh_eyes_plan_options(plan)[1]),
+            generations,
+            semantic_status,
+            details=details,
+        ),
+        review_id=plan.get("context_document_id"),
     )
-    review_id = plan.get("context_document_id")
-    review = document_value(connection, review_id)
-    payload = review_payload(
-        repository_id, snapshot_id, plan, stages, review, manifests, semantic_status, generations
-    )
-    return with_grounding(connection, payload, review_id=review_id)
 
 
-def _stage_rows(connection: Any, snapshot_id: int) -> dict[str, dict[str, Any]]:
-    rows = connection.execute(
-        "SELECT * FROM semantic_scope_states WHERE snapshot_id = ? AND scope_type = ? "
-        "AND scope_key != ?",
-        (snapshot_id, FRESH_EYES_SCOPE, FRESH_EYES_PLAN_KEY),
-    ).fetchall()
-    return {str(row["scope_key"]): dict(row) for row in rows}
+def _functional_view(connection, repository_id, snapshot_id, plan, generations, scope_id, details):
+    from anaxigraph.semantic_fresh_eyes_functional_read import (
+        apply_bundle_status,
+        requested_functional_status,
+    )
+
+    result = requested_functional_status(
+        connection, repository_id, snapshot_id, plan, scope_id=scope_id, details=details
+    )
+    if result is not None:
+        result["generations"] = generations
+        result["review_goal"] = fresh_eyes_plan_goal(plan)
+        current = next(
+            (
+                item
+                for item in generations
+                if item["snapshot_id"] == snapshot_id
+                and item["generation"] == result["review_generation"]
+            ),
+            None,
+        )
+        apply_bundle_status(result, current)
+        result["next_action"] = waiting_executor_action(result["stages"]) or result["next_action"]
+        return result
+    return None
 
 
 def _requested_goal(connection, repository_id, snapshot_id, goal):
@@ -304,7 +338,11 @@ def _requested_goal(connection, repository_id, snapshot_id, goal):
         "AND snapshot_id <= ? AND scope_type = ? AND scope_key = ? ORDER BY snapshot_id DESC LIMIT 1",
         (repository_id, snapshot_id, FRESH_EYES_SCOPE, FRESH_EYES_PLAN_KEY),
     ).fetchone()
-    return fresh_eyes_plan_goal(dict(prior)) if prior else ""
+    return (
+        fresh_eyes_plan_goal(dict(prior))
+        if prior and str(prior["interface_hash"] or "").startswith("functional-v2|")
+        else ""
+    )
 
 
 def _requested_generation(
@@ -313,7 +351,12 @@ def _requested_generation(
     plan = connection.execute(
         _PLAN_ROW_SQL, (snapshot_id, FRESH_EYES_SCOPE, FRESH_EYES_PLAN_KEY)
     ).fetchone()
-    if plan is not None and restart and str(plan["status"]) != "current":
+    if (
+        plan is not None
+        and restart
+        and str(plan["status"]) != "current"
+        and str(plan["interface_hash"] or "").startswith("functional-v2|")
+    ):
         raise ValueError("Finish or retry the current fresh-eyes review before requesting a rerun")
     prior = (
         plan
@@ -334,48 +377,5 @@ def _requested_generation(
             "DELETE FROM semantic_scope_states WHERE snapshot_id = ? AND scope_type = ?",
             (snapshot_id, FRESH_EYES_SCOPE),
         )
-    return generation + 1 if restart else generation
-
-
-def _stage_payloads(
-    connection: Any,
-    repository_id: int,
-    rows: dict[str, dict[str, Any]],
-    proposal_count: int,
-    executors: Sequence[str] = (),
-) -> list[dict[str, Any]]:
-    planned = [
-        (key, label)
-        for key, label in FRESH_EYES_STAGES
-        if not key.startswith("proposal:") or ord(key[-1]) - ord("a") < proposal_count
-    ]
-    telemetry = stage_telemetry(
-        connection,
-        repository_id,
-        [
-            (
-                key,
-                (rows.get(key) or {}).get("context_input_hash"),
-                (rows.get(key) or {}).get("context_document_id"),
-            )
-            for key, _label in planned
-        ],
-    )
-    result = []
-    for key, label in planned:
-        row = rows.get(key) or {}
-        document = document_record(connection, row.get("context_document_id"))
-        result.append(
-            {
-                "key": key,
-                "label": label,
-                "required_executor": fresh_eyes_required_executor(executors, key),
-                "state": row.get("status") or "waiting",
-                "reason": row.get("reason") or "Waiting for the preceding stage",
-                "document_id": document.get("id") if document else None,
-                "provenance": provenance(document),
-                "telemetry": telemetry.get(key),
-                "value": document.get("value") if document else None,
-            }
-        )
-    return result
+    legacy = not str(prior["interface_hash"] or "").startswith("functional-v2|")
+    return generation + 1 if restart or legacy else generation

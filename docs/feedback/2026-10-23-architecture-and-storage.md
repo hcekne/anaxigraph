@@ -93,6 +93,33 @@ misses known problems is a product failure to investigate, even when storage fit
   suitable patterns from a general request for a review. Track every catalogue ID and distinguish
   assessed poor fit, unresolved evidence and work that was never assessed.
 
+## Research agenda: turning recalled knowledge into useful design
+
+The question is whether a model can recognize when a familiar principle helps in an unfamiliar
+system, apply it correctly, and distinguish the improvement from additional machinery. Completing
+a catalogue or generating three diagrams is not evidence that it can do this.
+
+1. Build held-out maintenance cases from several catalogue families: state ownership, transactions,
+   communication, composition, boundaries, resilience and deployment. Include working systems with
+   useful opportunities, healthy high-degree utilities, misleading signals and insufficient evidence.
+   Keep the intended pattern names and desired answers out of the task instructions.
+2. Compare general review, explicit whole-catalogue review, adversarial alternatives and independent
+   critique on identical functionality, revisions, budgets and model versions. Separately vary graph
+   context, prose context and progressive retrieval; measure which missing facts change decisions.
+3. Evaluate Fresh Eyes only against implementation-free briefs. Check whether three alternatives
+   differ in responsibility allocation, control flow, state ownership or failure boundaries. Retain
+   convergence and rejected ideas as results; do not award novelty for renaming components.
+4. Verify recommendations through reversible changes and behavior tests. Count correctly located
+   owners, missed obligations, useful opportunities, unnecessary edits, preserved behavior, human
+   effort, tokens and elapsed time. Blind reviewers should compare outcomes against healthy controls.
+5. Record failure causes: missing knowledge, failed recognition, wrong application, inadequate
+   evidence, anchoring, poor tool use or an incorrect evaluation target. Use that distinction to
+   investigate training examples, retrieval, task decomposition and agent harness changes separately.
+
+The rewrite supplies protocols and reproducible structural fixtures. General improvements in
+architectural judgment, production robustness and model novelty still require these experiments;
+no paid-model study or floThink outcome is claimed by the implementation checks.
+
 ## Run figures supplied with the feedback
 
 These are figures reported by another coding agent, not new measurements of floThink in this audit:

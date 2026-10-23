@@ -30,6 +30,8 @@ from anaxigraph.agent_payload import (
 from anaxigraph.architecture_charter import architecture_charter
 from anaxigraph.architecture_plan_read import planning_guidance
 from anaxigraph.config import AnaxiGraphConfig
+from anaxigraph.knowledge_agent import focus_context, resolve_entity_focus
+from anaxigraph.knowledge_sync import ensure_knowledge
 from anaxigraph.storage import AnaxiIndex
 from anaxigraph.understanding import SemanticEngine
 
@@ -47,6 +49,7 @@ def architecture_guidance(
     started = time.perf_counter()
     config = config if details else _compact_config(config)
     repository, snapshot_id, map_status = _repository_map_state(database, repository_id)
+    ensure_knowledge(database, repository_id, snapshot_id)
     with database.connect() as connection:
         evidence = _guidance_evidence(connection, repository_id, snapshot_id, goal, focus, config)
     decision = _scope_decision(
@@ -122,6 +125,7 @@ def _guidance_response(
             payload_limit_bytes=config.agent.payload_limit_bytes,
             started_at=started,
             architecture_target=evidence.get("architecture_target"),
+            entity_context=evidence.get("entity_context"),
         )
     )
 
@@ -135,6 +139,7 @@ def _guidance_evidence(
     config: AnaxiGraphConfig,
 ) -> dict[str, Any]:
     files, outgoing, incoming, hierarchy = _scope_graph(connection, repository_id, snapshot_id)
+    selected = resolve_entity_focus(connection, snapshot_id, focus)
     primary_ids, related_ids, related_scores = _guidance_selection(
         connection, snapshot_id, files, outgoing, incoming, goal, focus, config
     )
@@ -170,6 +175,7 @@ def _guidance_evidence(
         ),
         "symbols": symbols,
         "interfaces": interfaces,
+        "entity_context": focus_context(connection, snapshot_id, selected),
     }
 
 
@@ -183,10 +189,18 @@ def _guidance_selection(
     focus: str,
     config: AnaxiGraphConfig,
 ) -> tuple[list[int], set[int], dict[int, float]]:
-    ranked = _rank_files(connection, snapshot_id, files, _guidance_query(goal, focus))
+    selected = resolve_entity_focus(connection, snapshot_id, focus)
+    ranked = _rank_files(
+        connection,
+        snapshot_id,
+        files,
+        _guidance_query(goal, selected["path"] if selected else focus),
+    )
     primary_ids = _select_primary(
         ranked, files, limit=min(8, config.agent.context_limit), goal=goal
     )
+    if selected:
+        primary_ids = [item for item, file in files.items() if file["path"] == selected["path"]]
     related_ids, related_scores = _expand_relevant(
         primary_ids,
         outgoing,

@@ -11,11 +11,9 @@ from typing import Any
 
 import pytest
 from jsonschema import Draft202012Validator
+from legacy_fresh_eyes_schema import FRESH_EYES_REVIEW_SCHEMA
 
-from anaxigraph.semantic_fresh_eyes_contract import (
-    FRESH_EYES_REVIEW_SCHEMA,
-    attributed_verification,
-)
+from anaxigraph.semantic_fresh_eyes_contract import attributed_verification
 from anaxigraph.semantic_freshness import semantic_input_hash
 
 _ITEM = FRESH_EYES_REVIEW_SCHEMA["properties"]["recommendations"]["items"]

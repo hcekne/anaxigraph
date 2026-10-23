@@ -9,6 +9,10 @@ from dataclasses import dataclass
 from typing import Any
 
 from anaxigraph.clock import utc_now
+from anaxigraph.persistence.semantic_payloads import (
+    archive_taxonomy_payloads,
+    stored_semantic_value,
+)
 from anaxigraph.semantic_freshness import (
     TAXONOMY_PROPOSAL_CONTRACT,
     TAXONOMY_STABILITY_CONTRACT,
@@ -115,6 +119,7 @@ def _copy_taxonomy(
     status: str = "current",
     copy_reviews: bool = True,
 ) -> sqlite3.Row:
+    archive_taxonomy_payloads(connection, int(previous["id"]))
     now = utc_now()
     cursor = connection.execute(
         """
@@ -141,9 +146,9 @@ def _copy_taxonomy(
             previous["candidate_document_id"],
             previous["final_document_id"],
             previous["review_passes"],
-            previous["validation_json"],
-            previous["facets_json"],
-            previous["change_json"],
+            stored_semantic_value(connection, previous["validation_json"]),
+            stored_semantic_value(connection, previous["facets_json"]),
+            stored_semantic_value(connection, previous["change_json"]),
             now,
             now,
         ),
@@ -151,7 +156,7 @@ def _copy_taxonomy(
     taxonomy_id = int(cursor.lastrowid)
     _copy_children(connection, taxonomy_id, int(previous["id"]), copy_reviews)
     return connection.execute(
-        "SELECT * FROM semantic_taxonomies WHERE id = ?", (taxonomy_id,)
+        "SELECT * FROM semantic_taxonomy_values WHERE id = ?", (taxonomy_id,)
     ).fetchone()
 
 
@@ -219,7 +224,7 @@ def _incremental_taxonomy(
     rows = connection.execute(
         """
         SELECT st.*, ss.interface_hash AS stability_hash
-        FROM semantic_taxonomies st
+        FROM semantic_taxonomy_values st
         LEFT JOIN semantic_scope_states ss
           ON ss.snapshot_id = st.snapshot_id AND ss.scope_type = 'taxonomy'
          AND ss.scope_key = CAST(st.repository_id AS TEXT)
@@ -284,7 +289,7 @@ def _membership_paths(connection: sqlite3.Connection, taxonomy_id: int) -> set[s
         for row in connection.execute(
             """
             SELECT a.canonical_path
-            FROM semantic_taxonomy_memberships stm
+            FROM semantic_taxonomy_membership_values stm
             JOIN artifacts a ON a.id = stm.artifact_id
             WHERE stm.taxonomy_id = ?
             """,
@@ -313,7 +318,7 @@ def _intrinsic_intents(connection: sqlite3.Connection, snapshot_id: int) -> dict
         """
         SELECT ss.scope_key, sd.intent_fingerprint
         FROM semantic_scope_states ss
-        JOIN semantic_documents sd ON sd.id = ss.intrinsic_document_id
+        JOIN semantic_document_values sd ON sd.id = ss.intrinsic_document_id
         WHERE ss.snapshot_id = ? AND ss.scope_type = 'module'
           AND ss.status = 'current'
         """,
@@ -332,7 +337,7 @@ def _matching_taxonomy(
 ) -> sqlite3.Row | None:
     rows = connection.execute(
         """
-        SELECT * FROM semantic_taxonomies
+        SELECT * FROM semantic_taxonomy_values
         WHERE repository_id = ? AND status = 'current' AND prompt_version = ?
         ORDER BY snapshot_id DESC, id DESC
         """,

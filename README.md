@@ -18,7 +18,7 @@
 
 <p align="center">
   <a href="docs/onboarding.md">Get started</a> ·
-  <a href="docs/releases/0.8.5.md">What's new in 0.8.5</a> ·
+  <a href="docs/releases/0.9.0.md">0.9.0 upgrade notes</a> ·
   <a href="docs/agent-plugin.md">Agent plugin</a> ·
   <a href="docs/docker.md">Docker</a> ·
   <a href="docs/advanced-operations.md">Advanced</a> ·
@@ -30,10 +30,15 @@ AI makes it easy to add code faster than a team can understand the architecture 
 Hidden coupling, duplicated responsibilities, inconsistent abstractions, and one-off agent changes
 quietly become spaghetti code.
 
-AnaxiGraph is the shared architecture intelligence layer for humans and AI agents. It turns a
-repository and its Git history into a living model of what the software does, how its parts work
-together, why they exist, and how the design is changing. A person can explore that model in the
-dashboard; a coding agent can use the same evidence through AnaxiMCP before and after it edits code.
+AnaxiGraph builds a semantic graph of your repository: modules, functions, interfaces, contracts,
+capabilities and typed connections, with concise explanations attached to those entities. Read a
+module's overview sentence first, expand its short paragraph and function summaries, then follow
+callers, obligations and relevant tests. People explore the graph in the dashboard; coding agents
+query the same saved understanding through AnaxiMCP without reopening every source file.
+
+Source parsing makes the structural graph available immediately. Mapping adds one compact annotation
+per changed module, replacing the previous pair of file essays. Evidence, source revision and model
+provenance stay attached; source facts, inferred meaning and proposed designs remain distinguishable.
 
 | Promise | For a person | For a coding agent |
 |---|---|---|
@@ -86,9 +91,9 @@ reviewing the map: select a step, configure its models and workers, run it, and 
 
 | Workflow | What you get |
 |---|---|
-| **Mapping** | File descriptions, dependencies, a reviewed responsibility map and the Living Architecture Charter. Start here. |
-| **Pattern analysis** | Candidate patterns assessed against the saved map, independent critiques and evidence-backed evaluations. Run after Mapping. |
-| **Fresh eyes** | Independent design proposals from the capability brief, reconciliation and a comparison with the current implementation and available Pattern evaluations. Run after Mapping. |
+| **Mapping** | Typed code graph, compact module/function annotations, linked caller contracts, a reviewed responsibility map and the Living Architecture Charter. Start here. |
+| **Pattern analysis** | Every loaded catalogue card assessed and independently reviewed, with contextual ratings, pros, cons and useful placements. The bundled catalogue has 133 cards. |
+| **Fresh eyes** | A functionality-only hierarchy and three retained alternatives per reviewed product, capability and subsystem scope. Blind comparison reports real differences, convergence and unknowns. |
 | **Architecture planning** | Compare options, let the agent select a target, visualize current versus proposed boundaries and follow migration milestones. Your direction is optional. |
 
 Use **Configure → Try 2 jobs** for a small sample, **Run this step** for one stage, or **Run full mapping**, **Run full pattern analysis**, **Run full fresh eyes** or
@@ -103,7 +108,9 @@ batches and retries failed work. The worker queue refills available slots as job
 
 The header identifies the checkout, branch, indexed commit and current commit. Structural scans,
 AI mapping, Patterns and Fresh Eyes have separate freshness indicators. Current views load while
-history builds; file lists show loaded/total counts and fetch full descriptions when opened.
+history builds. File lists sort/filter globally before paging; choose core columns or optional metrics,
+then expand only the explanations you need. Graph evidence filters distinguish extracted, inferred
+and unresolved connections; proposed/functional subjects use their own evidence states.
 See the [workflow controls](docs/onboarding.md#explore-and-run-repository-workflows) for details,
 or install the [persistent uv service](docs/advanced-operations.md#persistent-host-dashboard-with-uv)
 to keep the host dashboard running between sessions.
@@ -128,9 +135,15 @@ Once Mapping is ready, give the agent an outcome, examples, design preferences a
 
 **Guide** can copy a prompt with your goal, exact checkout and comparison baseline. The agent uses
 the same map as the dashboard to inspect ownership, reuse existing code and check the change.
-Guidance and impact default to an 8 KB response budget; request `details=true` or CLI `--details`
+File, search, guidance and impact replies use compact defaults with an 8 KB budget; request `details=true` or CLI `--details`
 when more evidence is needed. Documentation and benchmark data remain identifiable as supporting
 artifacts rather than implementation starting points.
+
+Use `ANAXIGRAPH_GRAPH` to page overview sentences or expand an entity's typed neighborhood, and
+`ANAXIGRAPH_ENTITY` for its saved detail, function summaries and full obligations. Keep the returned
+entity ID and repository/revision context. In **Understand → Graph**, choose observed code, the
+functional brief, a Fresh Eyes alternative or a planning target independently from entity detail
+and responsibility/path grouping. Proposed designs do not acquire source paths or LOC metrics.
 
 You can also ask the agent to start or resume Mapping instead of using the dashboard:
 
@@ -159,8 +172,10 @@ still apply. Direct MCP work is a fallback when an authenticated host worker is 
 The worker verifies the exact checkout before using a matching service's index. Linked worktrees
 remain distinct; sharing a Git remote is insufficient. The completed map includes a reviewed
 responsibility hierarchy and Living Architecture Charter, with evidence, provenance and unknowns.
-Unchanged inputs reuse saved understanding. See [advanced operation](docs/advanced-operations.md)
-for executor choices, index authority, Charter corrections and cost details.
+Unchanged inputs reuse saved understanding. Upgraded legacy descriptions retain their original
+provenance; missing function explanations remain structural until you deliberately enrich them with
+Mapping. See [advanced operation](docs/advanced-operations.md) for executor choices, index authority,
+Charter corrections and cost details.
 
 The complete [onboarding guide](docs/onboarding.md) explains the normal coding loop and setup
 diagnostics.
@@ -222,10 +237,11 @@ to execute the prepared work. Static reassessment is available immediately; ask 
 possible-unused-code evidence.
 
 The reviewed responsibility map has its own incremental validation boundary. It is carried forward
-when the included file inventory and map policy still match and the fraction of unchanged intrinsic
+when the included file inventory and map policy still match and the fraction of unchanged
 module roles meets `semantic.taxonomy.stability_bias` (default `0.8`). New or removed files, changed
 map constraints, or broader responsibility drift trigger a fresh proposal and its configured agent
-reviews. A carried taxonomy does not suppress affected context, group, repository, or pattern work.
+reviews. A carried responsibility map does not suppress changed annotations, group summaries, the Charter
+or explicitly requested Pattern work.
 Planning responses expose this decision and the currently queued cascade under `work_plan`.
 
 Each guidance and impact reply includes server time, payload size, and model-token use. Semantic
@@ -239,85 +255,82 @@ and architecture evidence must agree. The [onboarding guide](docs/onboarding.md#
 explains the same loop; lower-level and operator workflows stay in the
 [advanced guide](docs/advanced-operations.md).
 
-## 👀 Challenge the design with fresh eyes
+## 👀 Challenge the design with Fresh Eyes
 
-For a major refactor, AnaxiGraph can deliberately step outside the current package layout instead
-of asking an agent already immersed in the repository to redesign what it just read. Start the
-fixed review explicitly:
-
-```bash
-anaxigraph fresh-eyes . --start --proposals 2
-anaxigraph understand . --executor codex --background
-anaxigraph fresh-eyes .
-```
-
-The clean-sheet agents receive only the behavior-only Capability Brief and external constraints—no
-current paths, frameworks, findings, history, or architecture map. A blind adjudicator preserves
-meaningful disagreement, then a repository-aware pass compares that reference design with what is
-actually built. A final mission filter keeps only small, justified recommendations and records
-reasons not to proceed. One proposal is the lower-cost mode, two is the recommended default, and
-three is optional.
-
-Two providers can answer one review. Pin an executor family to each proposal slot, then start one
-host worker per executor; each executor owns its own background run slot for the repository:
+Fresh Eyes asks how to deliver the required functionality without seeing the existing code or
+implementation layout. It first prepares a hierarchy of **product purpose → capabilities →
+functional subsystems**, then retains **three alternatives per reviewed scope**. Five alternatives
+are an optional broader exploration setting.
 
 ```bash
-anaxigraph fresh-eyes . --start --proposals 2 --proposal-executors codex,claude
-anaxigraph understand . --executor codex --background
-anaxigraph understand . --executor claude --background
+anaxigraph fresh-eyes . --start --proposals 3
+anaxigraph understand . --executor codex --model '<worker-model>' --background
+anaxigraph fresh-eyes . --scope '<returned-scope-id>'
 ```
 
-A pinned slot is only handed to the executor family it names, so a worker that finds only the other
-executor's slot reports `waiting_for_executor` with the exact command that starts it and keeps
-polling instead of calling the queue complete. Both workers claim at the same time only when
-`semantic.max_parallel_jobs` is 2 or more. The review reports `cross_provider: true` only when two
-different executor families actually produced the proposals; two sessions of one provider stay
-false with the recorded caveat. A pin applies to a new review or a `--restart` generation, and
-`anaxigraph fresh-eyes . --unpin` releases every assignment when the second executor is never
-started.
+Every hierarchy, proposal, comparison and final review pass uses a fresh, tool-free worker with a
+functional packet: purpose, required inputs/outputs, constraints and parent alternatives. It receives
+no raw source, current topology, file names or Pattern verdicts. Oversized blind packets fail with a
+scope/context-budget remedy; they are never spilled into tool-readable evidence pages.
 
-The connected Codex or Claude executor supplies the model context and tokens; AnaxiGraph supplies
-bounded evidence, validates each result, and resumes the saved stages after interruption. The
-Codex adapter delivers oversized requests through temporary evidence pages in the same isolated,
-read-only workspace, preserving the complete payload without exceeding the CLI's inline-input
-limit. The pages add no review stages and are removed on completion or a handled failure. The
-dashboard exposes the same review under **Improve → Fresh eyes**. A connected agent can read or
-start it through `ANAXIGRAPH_GUIDE(intent="redesign", start=true, proposal_count=2)`. The older
-`fresh_eyes=true` form remains accepted. Starting a
-review never edits source or automatically accepts a recommendation.
+Comparisons examine decomposition, control flow, state ownership, failure isolation and functional
+fit. Three saved slots do not prove three different architectures: results explicitly report
+convergence, limitations and unexplored directions. **Novelty remains unverified.** Alternatives,
+pros/cons, parent compatibility and original provenance remain available; comparison does not
+collapse them into one reference design.
 
-Changing executor, model, or reasoning effort does not silently invalidate a completed review.
-When you deliberately want a new architectural judgment, run `anaxigraph fresh-eyes . --restart`
-(a connected agent requests the same rerun with
-`ANAXIGRAPH_GUIDE(intent="redesign", start=true, restart=true)`) and then run
-`anaxigraph understand` with your explicit runtime model and reasoning-effort choices.
-The new generation reruns every Fresh-Eyes stage while preserving the earlier documents for audit;
-it does not force unchanged module dossiers to be regenerated.
+The dashboard shows this under **Improve → Fresh Eyes** and the shared **Workflows** workspace.
+Agents use `ANAXIGRAPH_GUIDE(intent="redesign", start=true, proposal_count=3)`; request `scope_id`
+and `details=true` for full designs below product level. **Architecture Planning** subsequently
+compares the alternatives with observed code and Pattern evidence, accepts optional direction,
+and lets the agent choose a default target and migration milestones.
 
-Every review lists the generations it has recorded, with the executor models, stage timings, output
-volume, token counts, and attempts of each. Read an earlier one in full with
-`anaxigraph fresh-eyes . --generation 2`, `GET /api/fresh-eyes?generation=2`,
-`ANAXIGRAPH_GUIDE(intent="redesign", generation=2)`, or the generation selector in
-**Improve → Fresh eyes**. A recorded generation is history: it reports `superseded` and cannot be
-started, retried, or restarted.
+You can pin proposal slots to executor families, for example
+`--proposal-executors codex,claude,codex`, and run a background worker for each family. Pins route
+jobs; they do not establish independence or agreement. Saved provenance reports actual executors
+and isolation. An external worker without enforceable isolation remains unverified.
+
+Use `--restart` for a deliberate new review generation; ordinary code changes reuse an unchanged
+functional brief. Read earlier generations with `--generation <n>`. Historical comparisons retain
+original records side by side, without generating a new agreement score. Earlier v1 reviews remain
+read-only archives, including their original conclusions and provenance.
 
 ## Carry the architecture with Git
 
-Workflow runs save reusable results in a tracked root `anaxigraph/` folder when writable. It carries
-concise current file understanding, the reviewed architecture, selected Pattern/Fresh Eyes results,
-model provenance, workflow choices and architecture plans. Git preserves previous records. Each
-server rebuilds dependency graphs, symbols and other code-derived indexes locally; historical SQL
-caches, runtime data and worker queues are never exported by the current record format.
+Explicit workflows save reusable current understanding in a tracked root **`anaxigraph/`** folder
+when writable. **Record v4** uses a versioned manifest, stable checksummed partitions and readable
+JSONL for new annotations, contracts, catalogue assessments, functional alternatives and plans.
+Original legacy results remain losslessly compressed with provenance. Existing record versions
+can be imported; new writes use v4. Markdown and Mermaid keep the selected plan readable in Git.
 
-The default budget is **100 MB of active analysis state**: at most **25 MB and 32 files** in the
-tracked record and **64 MB** for its local index. Configured budgets cannot exceed **200 MB**.
-Exports apply today's exclusions and check size/file limits before writing. Unchanged scans and
-exports reuse their existing state. Current plus two comparison checkpoints are retained locally;
-detailed historical mapping is opt-in. Markdown and Mermaid keep the chosen plan readable in Git.
+Each coding host maintains its own service and rebuildable local index. After Git pull, AnaxiGraph
+validates source fingerprints before reusing shared analyses; different clone paths are supported.
+Parser IR, dependency caches, credentials, live queues and leases stay local. Export applies current
+exclusions, including runtime data left by older scans. Git preserves earlier records; portable
+storage is not a dump of historical SQL rows.
 
-After pulling a repository, start AnaxiGraph normally. It validates and loads the shared record into
-its local query cache, reuses compatible results and checks local source changes. An artifact-only
-commit leaves the source map current. Each worktree keeps its own identity and local edits.
+The default policy shares **100,000,000 bytes of steady retained state**, with ceilings of **25,000,000 bytes /
+32 files for the portable record** and **95,000,000 bytes for the local index**. Those ceilings compete
+for the shared pool; they are not separate reserved allocations. The index, shared memory and
+portable copy share that retained budget. WAL, journals, SQLite temporary files and staged copies
+also count toward the **200,000,000-byte transient physical ceiling**. The legacy archive is included
+in the index count, not added twice. Recovery backups
+and known migration peak are reported separately. Budgets are limits, not a claim that every legacy
+repository already fits: saved work is preserved and an unmet budget is reported.
+
+The [measured 2,598-file repository](benchmarks/results/semantic-graph-storage-2026-10-23.json) used
+**98,700,489 bytes** for a fresh default-policy index plus portable record, with all 5,872 saved
+documents reused without model calls. Its edited map and saved baseline also fit the default pool.
+Upgrading the existing index used **103,648,457 bytes** under its original user-configured 200 MB
+policy; preserving that history does not imply every legacy index fits the 100 MB default.
+
+Current source plus two comparison checkpoints is the default retention policy; detailed history
+is opt-in. Normal scans keep per-path Git aggregates; counts and dates identify their observed
+window. Explicit history retains loaded commit rows. Exports check limits before publishing,
+retain the last valid record on failure and clean
+failed staging output. Unchanged saves write no new partitions. For a bloated existing index, run
+`anaxigraph record compact . --db /path/to/anaxi-index.db --json` on its owning server: the backed-up
+migration preserves original saved analyses while rebuilding disposable indexes.
 
 For Flowthink or another scheduler, run on a checkout with authenticated agent CLIs:
 
@@ -325,15 +338,11 @@ For Flowthink or another scheduler, run on a checkout with authenticated agent C
 uvx anaxigraph refresh . --workflows mapping,patterns,fresh-eyes,architecture --executor codex --model '<worker-model>' --json
 ```
 
-The command saves completed and partial results, returns a nonzero exit status for unfinished work
-or publication failure, and leaves Git commits/pushes to your scheduler. Configure Mapping nightly
-and the other workflows at their own cadence; unchanged model work is reused. Use
-`anaxigraph record save .` for an explicit save, or **Save shared architecture files** in Planning.
-Local mapping, record export and Git commit/push are separate results. For an existing bloated
-index, run `anaxigraph record compact . --db /path/to/anaxi-index.db --json` on its server. This
-backs up original saved understanding, preserves selected analyses, prunes disposable history, reclaims SQLite
-disk space and replaces the record with the compact format. Recovery backups are reported separately
-and remain until the operator retires them. See [repository records and scheduled runs](docs/advanced-operations.md#repository-records-and-scheduled-runs)
+The command saves partial progress and returns a nonzero status for unfinished work or export
+failure. Configure Mapping nightly and optional reviews at their own cadence. Commit/push the
+changed `anaxigraph/` files through the scheduler's normal Git process, then pull them on your coding
+host. **Mapped locally**, **record exported**, **Git committed** and **Git pushed** are separate
+states; exporting alone does not publish anything. See [repository records and scheduled runs](docs/advanced-operations.md#repository-records-and-scheduled-runs)
 for migration, limits and scheduling.
 
 ## 🐳 Durable Docker sidecar
@@ -352,6 +361,12 @@ default. Use `--connect claude` for Claude Code. Preview the full repository and
 
 See [Docker operation](docs/docker.md) for manual Compose review, updates, watchers, and the
 experimental multi-repository registry.
+
+To move an existing Docker installation to uv, first preserve a consistent backup of its named-volume
+index and workflow settings, stop the old service without deleting that volume, and restore/use the
+host-visible index before starting uv. This retains paid results and avoids two services competing
+for the same port. Follow the [Docker-to-uv migration](docs/advanced-operations.md#persistent-host-dashboard-with-uv)
+for the actual index paths and recovery commands.
 
 The image does not bundle Codex or Claude CLIs or their credentials. Dashboard model execution
 needs those CLIs inside the service's environment; an installation on the host is not available
@@ -384,22 +399,25 @@ plugin users may omit `--connect` from the start command. See the
 
 ## How it works
 
-```text
-source + Git ── facts, hashes, relationships, history ──→ versioned AnaxiIndex
-                                                               │
-                                  ┌────────────────────────────┴──────────────────────┐
-                                  ▼                                                   ▼
-                         human dashboard                                      AnaxiMCP for agents
-                    understand and investigate                         plan, inspect impact, verify
-                                  │                                                   │
-                                  └────────────────────┬──────────────────────────────┘
-                                                       ▼
-                                             better shared decisions
-
-changed or stale modules ── bounded evidence ──→ connected agent using its own tokens
-                                                       │
-                                                       └──→ checked descriptions in AnaxiIndex
+```mermaid
+flowchart LR
+    Source[Source checkout] --> Parse[Incremental parser]
+    Parse --> Graph[Typed semantic graph]
+    Annotation[One compact module annotation] --> Graph
+    Graph --> Explore[Dashboard and AnaxiMCP]
+    Graph --> Patterns[Entire pattern catalogue]
+    Graph --> Brief[Functionality-only brief]
+    Brief --> Fresh[Three retained alternatives per scope]
+    Graph --> Plan[Source-aware architecture planning]
+    Patterns --> Plan
+    Fresh --> Plan
+    Graph --> Record[Portable current understanding]
 ```
+
+Canonical annotation payloads are referenced by graph entities instead of copied into lookup
+rows. ID/adjacency indexes and contentless full-text search make those references fast to query.
+The local SQLite index stores code facts and bounded caches; the portable record carries the
+understanding worth sharing. A graph shape or completed review is not a measured quality score.
 
 Structural refresh and semantic execution are separate operations. A dashboard **Refresh scan**
 runs asynchronously with observable progress and safe cancellation; semantic prepare/resume uses
@@ -445,10 +463,10 @@ the same regions visibly fill and connect over time.
 - **Guide** answers where to build and how to refactor with the same recommendation for a person or
   coding agent.
 - **Improve** combines the ranked finding record and reviewed pattern intelligence.
-- **Changes** replays representative first-parent commits and supports reassessment after edits.
+- **Changes** compares the pinned baseline with current evidence; Git import/replay is optional advanced history.
 - **Settings** owns repositories, readiness, refresh, and progressively disclosed operations.
-- **Pattern intelligence** also exposes finalized evaluations through `anaxigraph patterns` and the
-  paged `/api/patterns` endpoint. Guidance includes relevant recommendations directly for coding
+- **Pattern intelligence** exposes complete coverage and paged ratings through `/api/patterns/catalogue`,
+  with full saved evidence through `anaxigraph patterns` and `/api/patterns`. Guidance includes relevant recommendations directly for coding
   agents. Each result leads with a conclusion, evidence, action, cautions, and
   verification; its nine exact ratings are grouped and explained instead of shown as a number wall.
   Candidate results likewise explain why a pair was selected or skipped, what evidence is missing,

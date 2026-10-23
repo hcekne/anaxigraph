@@ -7,8 +7,10 @@ from pathlib import Path
 from typing import Any
 
 from anaxigraph.architecture_plan import plan_requested
+from anaxigraph.knowledge_annotation_plan import plan_annotations
+from anaxigraph.knowledge_grouping import refresh_grouping
 from anaxigraph.persistence.lock_holds import measured_plan_transaction
-from anaxigraph.persistence.search_read import refresh_search_projection
+from anaxigraph.persistence.search_read import defer_search_projection, refresh_search_projection
 from anaxigraph.persistence.semantic_evidence import semantic_inventory
 from anaxigraph.semantic_freshness import (
     GROUP_SYNTHESIS_CONTRACT,
@@ -16,10 +18,8 @@ from anaxigraph.semantic_freshness import (
     is_expired,
     semantic_input_hash,
 )
-from anaxigraph.semantic_group_membership import synthesis_groups
+from anaxigraph.semantic_group_membership import group_synthesis_evidence, synthesis_groups
 from anaxigraph.semantic_leases import SemanticLeaseService
-from anaxigraph.semantic_module_context import plan_context_modules
-from anaxigraph.semantic_module_intrinsic import plan_intrinsic_modules
 from anaxigraph.semantic_plan_result import SemanticPlan as SemanticPlan
 from anaxigraph.semantic_ports import (
     AnaxiGraphConfig,
@@ -81,49 +81,18 @@ class SemanticPlanningService:
             status = self._reporting.status(repository_id, semantic)
             return SemanticPlan(repository_id, snapshot_id, 0, 0, "disabled", status)
 
-        with measured_plan_transaction(self._database.connect, snapshot_id) as connection:
-            self._leases.reconcile(
-                connection,
-                repository_id,
-                snapshot_id,
-                semantic,
-                preserve_patterns=preserve_patterns,
+        options = dict(force=force, retry_failed=retry_failed, preserve_patterns=preserve_patterns)
+        try:
+            enqueued, active_jobs, stage = self._plan_work(
+                repository_id, snapshot_id, config, **options
             )
-            inventory, relationships = semantic_inventory(connection, snapshot_id)
-            enqueued = plan_intrinsic_modules(
-                connection,
-                repository_id=repository_id,
-                snapshot_id=snapshot_id,
-                inventory=inventory,
-                relationships=relationships,
-                semantic=semantic,
-                force=force,
-                retry_failed=retry_failed,
+        except sqlite3.OperationalError as error:
+            if getattr(error, "sqlite_errorcode", None) != sqlite3.SQLITE_FULL:
+                raise
+            enqueued, active_jobs, stage = self._plan_work(
+                repository_id, snapshot_id, config, defer_search=True, **options
             )
-            intrinsic_active = _has_active_module_stage(connection, snapshot_id, "intrinsic")
-            enqueued += plan_context_modules(
-                connection,
-                repository_id=repository_id,
-                snapshot_id=snapshot_id,
-                inventory=inventory,
-                relationships=relationships,
-                semantic=semantic,
-                retry_failed=retry_failed,
-            )
-            stage = "intrinsic" if intrinsic_active else "context"
-            downstream_jobs, downstream_stage = self._plan_downstream(
-                connection,
-                repository_id=repository_id,
-                snapshot_id=snapshot_id,
-                inventory=inventory,
-                relationships=relationships,
-                config=config,
-                retry_failed=retry_failed,
-            )
-            enqueued += downstream_jobs
-            stage = downstream_stage or stage
-            refresh_search_projection(connection, repository_id, snapshot_id, force=bool(enqueued))
-            active_jobs = self._leases.unfinished_job_count(connection, repository_id, snapshot_id)
+            self._database.finish_cache_maintenance()
         return SemanticPlan(
             repository_id,
             snapshot_id,
@@ -132,6 +101,65 @@ class SemanticPlanningService:
             stage,
             self._reporting.status(repository_id, semantic),
         )
+
+    def _plan_work(
+        self,
+        repository_id,
+        snapshot_id,
+        config,
+        *,
+        force,
+        retry_failed,
+        preserve_patterns,
+        defer_search=False,
+    ):
+        with measured_plan_transaction(self._database.connect, snapshot_id) as connection:
+            if defer_search:
+                defer_search_projection(connection)
+            self._leases.reconcile(
+                connection,
+                repository_id,
+                snapshot_id,
+                config.semantic,
+                preserve_patterns=preserve_patterns,
+            )
+            enqueued, stage = self._plan_scopes(
+                connection,
+                repository_id,
+                snapshot_id,
+                config,
+                force=force,
+                retry_failed=retry_failed,
+            )
+            if not defer_search:
+                refresh_search_projection(
+                    connection, repository_id, snapshot_id, force=bool(enqueued)
+                )
+            active = self._leases.unfinished_job_count(connection, repository_id, snapshot_id)
+        return enqueued, active, stage
+
+    def _plan_scopes(self, connection, repository_id, snapshot_id, config, *, force, retry_failed):
+        inventory, relationships = semantic_inventory(connection, snapshot_id)
+        enqueued = plan_annotations(
+            connection,
+            repository_id=repository_id,
+            snapshot_id=snapshot_id,
+            inventory=inventory,
+            relationships=relationships,
+            semantic=config.semantic,
+            force=force,
+            retry_failed=retry_failed,
+        )
+        downstream, stage = self._plan_downstream(
+            connection,
+            repository_id=repository_id,
+            snapshot_id=snapshot_id,
+            inventory=inventory,
+            relationships=relationships,
+            config=config,
+            retry_failed=retry_failed,
+        )
+        return enqueued + downstream, stage or "annotation"
 
     def _plan_downstream(
         self,
@@ -144,7 +172,7 @@ class SemanticPlanningService:
         config: AnaxiGraphConfig,
         retry_failed: bool,
     ) -> tuple[int, str | None]:
-        if _has_active_module_stage(connection, snapshot_id, "context"):
+        if _has_active_module_stage(connection, snapshot_id, "annotation"):
             return 0, None
         semantic = config.semantic
         enqueued = 0
@@ -160,6 +188,7 @@ class SemanticPlanningService:
             if not taxonomy_current:
                 return taxonomy_jobs, "taxonomy"
             enqueued += taxonomy_jobs
+        refresh_grouping(connection, snapshot_id)
         aggregate_jobs, stage = self._plan_aggregates_and_patterns(
             connection,
             repository_id=repository_id,
@@ -222,8 +251,6 @@ class SemanticPlanningService:
             semantic=semantic,
             retry_failed=retry_failed,
         )
-        if not patterns_current:
-            return pattern_jobs, "patterns"
         review_jobs, review_stage = self._fresh_eyes.plan_active(
             connection,
             repository_id=repository_id,
@@ -239,7 +266,7 @@ class SemanticPlanningService:
             retry_failed=retry_failed,
         )
         return pattern_jobs + review_jobs + plan_jobs, review_stage or (
-            "architecture_plan" if plan_jobs else "complete"
+            "architecture_plan" if plan_jobs else "patterns" if not patterns_current else "complete"
         )
 
     def _plan_groups(
@@ -273,7 +300,7 @@ class SemanticPlanningService:
             taxonomy_fingerprint = {
                 key: value for key, value in metadata.items() if key != "taxonomy_id"
             }
-            evidence = _group_synthesis_evidence(group, taxonomy_fingerprint, documents, missing)
+            evidence = group_synthesis_evidence(group, taxonomy_fingerprint, documents, missing)
             input_hash = semantic_input_hash(
                 GROUP_SYNTHESIS_CONTRACT,
                 semantic.prompt_version,
@@ -456,23 +483,6 @@ class SemanticPlanningService:
             context_fingerprint=input_hash,
         )
         return int(created)
-
-
-def _group_synthesis_evidence(
-    group: str,
-    taxonomy: dict[str, Any],
-    documents: list[dict[str, Any]],
-    missing: list[str],
-) -> dict[str, Any]:
-    return {
-        "scope": group,
-        "taxonomy": taxonomy,
-        "documents": [
-            (item["scope_key"], item["intent_fingerprint"], item["input_hash"])
-            for item in documents
-        ],
-        "missing": missing,
-    }
 
 
 def _scope_is_current(connection: sqlite3.Connection, snapshot_id: int, scope_type: str) -> bool:

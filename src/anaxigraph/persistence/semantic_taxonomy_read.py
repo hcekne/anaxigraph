@@ -15,7 +15,7 @@ from anaxigraph.semantic_taxonomy_language import (
 def current_taxonomy(connection: sqlite3.Connection, snapshot_id: int) -> dict[str, Any] | None:
     row = connection.execute(
         """
-        SELECT * FROM semantic_taxonomies
+        SELECT * FROM semantic_taxonomy_values
         WHERE snapshot_id = ? AND status = 'current' ORDER BY id DESC LIMIT 1
         """,
         (snapshot_id,),
@@ -31,7 +31,7 @@ def current_taxonomy(connection: sqlite3.Connection, snapshot_id: int) -> dict[s
         for review in connection.execute(
             """
             SELECT pass_index, verdict, issues_json, validation_json, created_at
-            FROM semantic_taxonomy_reviews WHERE taxonomy_id = ? ORDER BY pass_index
+            FROM semantic_taxonomy_review_values WHERE taxonomy_id = ? ORDER BY pass_index
             """,
             (result["id"],),
         ).fetchall()
@@ -70,11 +70,11 @@ def taxonomy_assignments(
                subsystem.parent_key AS area_key, area.name AS area_name,
                stm.confidence, stm.rationale, stm.evidence_json,
                stm.alternatives_json, stm.locked
-        FROM semantic_taxonomy_memberships stm
-        JOIN semantic_taxonomy_nodes subsystem
+        FROM semantic_taxonomy_membership_values stm
+        JOIN semantic_taxonomy_node_values subsystem
           ON subsystem.taxonomy_id = stm.taxonomy_id
          AND subsystem.node_key = stm.node_key
-        LEFT JOIN semantic_taxonomy_nodes area
+        LEFT JOIN semantic_taxonomy_node_values area
           ON area.taxonomy_id = subsystem.taxonomy_id
          AND area.node_key = subsystem.parent_key
         WHERE stm.taxonomy_id = ? {restriction}
@@ -115,7 +115,7 @@ def read_semantic_hierarchy(
         """
         SELECT node_key, name, level, parent_key, description, responsibility,
                confidence, rationale, evidence_json, counter_evidence_json, display_order
-        FROM semantic_taxonomy_nodes WHERE taxonomy_id = ?
+        FROM semantic_taxonomy_node_values WHERE taxonomy_id = ?
         ORDER BY display_order, name
         """,
         (taxonomy["id"],),
@@ -129,7 +129,7 @@ def read_semantic_hierarchy(
             """
             SELECT stm.node_key, COUNT(*) AS files,
                    COALESCE(SUM(fv.lines_of_code), 0) AS lines_of_code
-            FROM semantic_taxonomy_memberships stm
+            FROM semantic_taxonomy_membership_values stm
             JOIN projected_file_versions fv ON fv.artifact_id = stm.artifact_id
             WHERE stm.taxonomy_id = ? GROUP BY stm.node_key
             """,

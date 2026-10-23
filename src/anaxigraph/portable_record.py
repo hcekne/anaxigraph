@@ -9,15 +9,24 @@ from typing import Any
 from filelock import FileLock
 
 from anaxigraph.config import load_config
+from anaxigraph.knowledge_sync import clear_knowledge_cache
 from anaxigraph.pattern_catalog import bundled_pattern_catalog
 from anaxigraph.persistence.portable_export import export_rows
-from anaxigraph.persistence.portable_import import merge_record
-from anaxigraph.portable_binding import bind_current_record, restore_inventory_claims
+from anaxigraph.persistence.portable_import import (
+    merge_record,
+    prepare_record_import,
+    write_identity_cache,
+)
+from anaxigraph.portable_binding import bind_current_record
 from anaxigraph.portable_io import publish_record, read_record
-from anaxigraph.portable_paths import RECORD_FORMAT, managed_record, record_directory, record_hash
+from anaxigraph.portable_paths import (
+    CURRENT_RECORD_FORMATS,
+    managed_record,
+    record_directory,
+    record_hash,
+)
 from anaxigraph.portable_rebind import rebind_pattern_cache
 from anaxigraph.portable_views import record_views
-from anaxigraph.semantic_fresh_eyes_grounding import write_review_grounding
 from anaxigraph.storage_status import storage_status
 from anaxigraph.workflow_settings import WorkflowSettings
 
@@ -37,6 +46,13 @@ def record_status(database: Any, repository_id: int) -> dict[str, Any]:
         and (record_directory(Path(repository["path"])) / "manifest.json").is_file(),
         "committed": None,
         "pushed": None,
+        "storage": storage_status(
+            database,
+            Path(repository["path"]),
+            _active_policy(database, repository_id, Path(repository["path"])).storage,
+        )
+        if repository
+        else None,
         **(json.loads(row[0]) if row else {}),
     }
 
@@ -63,24 +79,41 @@ def save_record(
         metadata["workflow_choices"] = WorkflowSettings(database.path).portable_choices(
             repository_id
         )
-        result = publish_record(root, tables, metadata, views, policy=policy)
-        receipt = {
-            "digest": record_hash(result["manifest"]),
-            "source": metadata["source"],
-            "snapshot_id": identities.get(metadata["source"]["snapshot"]),
-        }
-        with database.transaction(maintenance=maintenance) as connection:
-            for key, value in (
-                (f"portable-identities:{repository_id}", identities),
-                (f"portable-record:{repository_id}", receipt),
-            ):
-                connection.execute(
-                    "INSERT INTO schema_meta(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                    (key, json.dumps(value, sort_keys=True)),
-                )
+        result = _publish_prepared(
+            database, repository_id, root, tables, metadata, views, identities, policy
+        )
     result.pop("manifest", None)
     result["storage"] = storage_status(database, root, policy)
     return result
+
+
+def _publish_prepared(database, repository_id, root, tables, metadata, views, identities, policy):
+    # Admit the proposed replacement and its receipt before touching the last valid record.
+    # The writer lock prevents concurrent index growth during publication.
+    with database.transaction(maintenance=True) as connection:
+
+        def before_write(total, manifest):
+            receipt = {
+                "digest": record_hash(manifest),
+                "source": metadata["source"],
+                "snapshot_id": identities.get(metadata["source"]["snapshot"]),
+            }
+            write_identity_cache(connection, repository_id, identities)
+            connection.execute(
+                "INSERT INTO schema_meta(key,value) VALUES (?,?) "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                (f"portable-record:{repository_id}", json.dumps(receipt, sort_keys=True)),
+            )
+
+        return publish_record(
+            root,
+            tables,
+            metadata,
+            views,
+            policy=policy,
+            before_write=before_write,
+            pool=(connection, database.path),
+        )
 
 
 def _active_policy(database: Any, repository_id: int, root: Path) -> Any:
@@ -105,10 +138,15 @@ def load_record(
     key = f"portable-record:{repository_id}"
     with database.connect() as connection:
         prior = connection.execute("SELECT value FROM schema_meta WHERE key = ?", (key,)).fetchone()
+        pending = connection.execute(
+            "SELECT 1 FROM schema_meta WHERE key='index-compaction-pending'"
+        ).fetchone()
     if prior and json.loads(prior[0]).get("digest") == digest:
+        if pending:
+            database.finish_cache_maintenance()
         return {"status": "unchanged", **json.loads(prior[0])}
     manifest, tables = read_record(root)
-    if manifest.get("format") == RECORD_FORMAT and not after_scan:
+    if manifest.get("format") in CURRENT_RECORD_FORMATS and not after_scan:
         return {"status": "awaiting_local_scan"}
     if manifest.get("index_schema") != 11:
         raise ValueError("Unsupported portable index schema")
@@ -133,7 +171,7 @@ def _restore_understanding(
 ) -> dict[str, Any]:
     with database.transaction() as connection:
         bindings = None
-        if manifest.get("format") == RECORD_FORMAT:
+        if manifest.get("format") in CURRENT_RECORD_FORMATS:
             manifest = {
                 **manifest,
                 "files": [item["value"] for item in tables.pop("source_files", [])],
@@ -141,30 +179,33 @@ def _restore_understanding(
             bindings, tables = bind_current_record(
                 connection, repository_id, manifest, tables, config
             )
+        # Imported paid results take priority over a disposable structural projection.
+        # Reuse those pages before merging, and rebuild once all annotations are bound.
+        clear_knowledge_cache(connection)
+        prepare_record_import(connection)
         result = merge_record(
             connection, repository_id, str(root), manifest, tables, bindings=bindings
         )
-        if bindings is not None:
-            restore_inventory_claims(connection, repository_id)
         rebind_pattern_cache(connection, repository_id, manifest, config.semantic)
-        reviews = connection.execute(
-            "SELECT d.id,d.snapshot_id FROM semantic_documents d JOIN snapshots s ON s.id=d.snapshot_id WHERE d.repository_id = ? AND d.document_kind = 'fresh_review' AND s.snapshot_kind != 'portable_analysis'",
-            (repository_id,),
-        ).fetchall()
-        for review in reviews:
-            write_review_grounding(
-                connection,
-                repository_id=repository_id,
-                snapshot_id=review["snapshot_id"],
-                review_id=review["id"],
-            )
         connection.execute(
             "UPDATE repositories SET current_snapshot_id = ? WHERE id = ? AND current_snapshot_id IS NULL",
             (result["snapshot_id"], repository_id),
         )
-        receipt = {"digest": digest, "source": manifest["source"], **result}
-        connection.execute(
-            "INSERT INTO schema_meta(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-            (key, json.dumps(receipt, sort_keys=True)),
-        )
+        receipt = _import_receipt(connection, repository_id, manifest, result, digest, key)
+    database.finish_cache_maintenance()
+    return receipt
+
+
+def _import_receipt(connection, repository_id, manifest, result, digest, key):
+    snapshot = connection.execute(
+        "SELECT current_snapshot_id FROM repositories WHERE id=?", (repository_id,)
+    ).fetchone()[0]
+    connection.execute(
+        "INSERT OR REPLACE INTO schema_meta VALUES ('graph-import-pending',?)", (str(snapshot),)
+    )
+    receipt = {"digest": digest, "source": manifest["source"], **result}
+    connection.execute(
+        "INSERT INTO schema_meta(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+        (key, json.dumps(receipt, sort_keys=True)),
+    )
     return receipt

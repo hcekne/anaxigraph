@@ -7,7 +7,7 @@ from collections import Counter, defaultdict
 from typing import Any
 
 from anaxigraph.architecture_dead_code import dead_code_findings
-from anaxigraph.architecture_graph import _strongly_connected
+from anaxigraph.architecture_graph import _strongly_connected, executable_relationships
 from anaxigraph.architecture_models import DEFAULT_RULES, Finding
 from anaxigraph.architecture_persistence import (
     _persist_rules,
@@ -37,19 +37,13 @@ def evaluate_architecture(
     relationships = [row for row in relationship_evidence if row["target_artifact_id"] is not None]
     file_by_id = {int(row["artifact_id"]): row for row in files}
     graph, reverse_graph = defaultdict(set), defaultdict(set)
-    for row in relationships:
+    for row in executable_relationships(relationships, file_by_id):
         graph[int(row["source_artifact_id"])].add(int(row["target_artifact_id"]))
         reverse_graph[int(row["target_artifact_id"])].add(int(row["source_artifact_id"]))
     fan_out = Counter({source: len(targets) for source, targets in graph.items()})
     fan_in = Counter({target: len(sources) for target, sources in reverse_graph.items()})
     cycles = [component for component in _strongly_connected(graph) if len(component) > 1]
-    configured_by_id = {rule.rule_id: rule for rule in config.architecture.rules}
-    rules = tuple(configured_by_id.get(rule.rule_id, rule) for rule in DEFAULT_RULES)
-    rules += tuple(
-        rule
-        for rule in config.architecture.rules
-        if rule.rule_id not in {item.rule_id for item in DEFAULT_RULES}
-    )
+    rules = _configured_rules(config)
     _persist_rules(connection, repository_id, rules)
 
     findings: list[Finding] = []
@@ -85,5 +79,16 @@ def evaluate_architecture(
         cycles=cycles,
         findings=findings,
         manage_lifecycle=manage_finding_lifecycle,
+        dead_code_enabled=any(rule.enabled and rule.rule_type == "dead_code" for rule in rules),
     )
     return findings
+
+
+def _configured_rules(config):
+    configured_by_id = {rule.rule_id: rule for rule in config.architecture.rules}
+    rules = tuple(configured_by_id.get(rule.rule_id, rule) for rule in DEFAULT_RULES)
+    return rules + tuple(
+        rule
+        for rule in config.architecture.rules
+        if rule.rule_id not in {item.rule_id for item in DEFAULT_RULES}
+    )

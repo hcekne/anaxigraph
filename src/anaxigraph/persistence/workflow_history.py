@@ -28,12 +28,12 @@ def _module_history(connection: Any, snapshot_id: int) -> dict[str, Any]:
         SELECT ss.scope_key, ss.status,
           ss.intrinsic_document_id IS NOT NULL AND ss.status NOT IN
             ('pending_intrinsic', 'failed_intrinsic') AS intrinsic_current,
-          EXISTS(SELECT 1 FROM semantic_documents d WHERE d.repository_id = ss.repository_id
+          EXISTS(SELECT 1 FROM semantic_document_values d WHERE d.repository_id = ss.repository_id
             AND d.scope_type = 'module' AND d.scope_key = ss.scope_key
-            AND d.document_kind = 'intrinsic' AND d.snapshot_id <= ss.snapshot_id) AS intrinsic_saved,
-          EXISTS(SELECT 1 FROM semantic_documents d WHERE d.repository_id = ss.repository_id
+            AND d.document_kind IN ('intrinsic','annotation') AND d.snapshot_id <= ss.snapshot_id) AS intrinsic_saved,
+          EXISTS(SELECT 1 FROM semantic_document_values d WHERE d.repository_id = ss.repository_id
             AND d.scope_type = 'module' AND d.scope_key = ss.scope_key
-            AND d.document_kind = 'context' AND d.snapshot_id <= ss.snapshot_id) AS context_saved
+            AND d.document_kind IN ('context','annotation') AND d.snapshot_id <= ss.snapshot_id) AS context_saved
         FROM semantic_scope_states ss
         WHERE ss.snapshot_id = ? AND ss.scope_type = 'module' AND ss.status != 'excluded'
         ORDER BY ss.scope_key
@@ -87,9 +87,9 @@ def _taxonomy_history(connection: Any, repository_id: int, snapshot_id: int) -> 
         """
         SELECT t.id, t.snapshot_id, t.status, t.created_at, s.commit_sha,
           COALESCE(NULLIF(t.executor_model, ''), t.model) AS proposal_model,
-          (SELECT COUNT(*) FROM semantic_taxonomy_reviews r
+          (SELECT COUNT(*) FROM semantic_taxonomy_review_values r
             WHERE r.taxonomy_id = t.id) AS reviews
-        FROM semantic_taxonomies t JOIN snapshots s ON s.id = t.snapshot_id
+        FROM semantic_taxonomy_values t JOIN snapshots s ON s.id = t.snapshot_id
         WHERE t.repository_id = ? AND t.snapshot_id < ? AND t.candidate_document_id IS NOT NULL
         ORDER BY t.snapshot_id DESC, t.id DESC LIMIT 1
         """,

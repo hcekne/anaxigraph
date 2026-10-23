@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import json
 from contextlib import nullcontext
 from typing import Any
 
 from anaxigraph.architecture_plan_read import architecture_plan_status
 from anaxigraph.portable_paths import canonical_json
-from anaxigraph.portable_text import filter_excluded
 
 
 class _RecordSnapshot:
@@ -33,7 +31,7 @@ def record_views(connection: Any, repository_id: int, *, config: Any = None) -> 
     with database.connect() as connection:
         rows = connection.execute(
             "SELECT ss.scope_type,ss.scope_key,sd.value_json,sd.input_hash FROM semantic_scope_states ss "
-            "JOIN semantic_documents sd ON sd.id = ss.context_document_id WHERE ss.snapshot_id = ? "
+            "JOIN semantic_document_values sd ON sd.id = ss.context_document_id WHERE ss.snapshot_id = ? "
             "AND ss.scope_type IN ('repository','taxonomy','group') AND ss.status = 'current' ORDER BY ss.scope_type,ss.scope_key",
             (snapshot["id"],),
         ).fetchall()
@@ -48,9 +46,7 @@ def record_views(connection: Any, repository_id: int, *, config: Any = None) -> 
                         if row["scope_type"] != "repository"
                         else "repository",
                         "fingerprint": row["input_hash"],
-                        "value": filter_excluded(json.loads(row["value_json"]), config)
-                        if config
-                        else json.loads(row["value_json"]),
+                        "record": "../manifest.json",
                     }
                     for row in rows
                 ],
@@ -66,7 +62,8 @@ def record_views(connection: Any, repository_id: int, *, config: Any = None) -> 
 def _plan_views(plan: Any) -> dict[str, bytes]:
     target = plan["target"]
     value = {
-        "plan": plan["value"],
+        "record": "../manifest.json",
+        "summary": plan["summary"],
         "selected_option": plan["selected_option"],
         "selection_source": plan["selection_source"],
         "progress": plan["progress"],

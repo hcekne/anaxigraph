@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
-from anaxigraph.persistence.semantic_evidence import module_facts, relationships_for_artifact
 from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION
+from anaxigraph.semantic_graph import SupersededSemanticJob
 from anaxigraph.semantic_ports import SemanticConfig, SemanticIndex
 from anaxigraph.semantic_records import _document_by_id
 from anaxigraph.semantic_request_support import (
@@ -17,8 +16,6 @@ from anaxigraph.semantic_request_support import (
     PLAIN_LANGUAGE_REQUIREMENTS,
     compact_dossier,
 )
-from anaxigraph.semantic_target_source import read_mounted_source, require_unchanged_source
-from anaxigraph.understandability import AGENT_REVIEW_POLICY, UNDERSTANDABILITY_POLICY
 
 _REPOSITORY_CHARTER_CONTRACT = (
     "Create the Living Architecture Charter for this repository. Explain its purpose, actors, "
@@ -31,8 +28,6 @@ _REPOSITORY_CHARTER_CONTRACT = (
     "leaking current file, package, framework, storage, or internal-boundary names unless one is "
     "itself a public compatibility obligation. Do not propose or approve code changes."
 )
-_TARGET_MISSING = "The target module no longer exists in the mounted tree"
-_TARGET_CHANGED = "The module changed after this semantic job was planned"
 
 
 class SemanticEvidenceService:
@@ -45,12 +40,16 @@ class SemanticEvidenceService:
         root: Path,
         semantic: SemanticConfig,
     ) -> dict[str, Any]:
+        if job["job_kind"] == "annotation":
+            from anaxigraph.knowledge_annotation_request import annotation_request
+
+            return annotation_request(self._database, job, root)
         request: dict[str, Any]
-        if job["job_kind"] == "intrinsic":
-            request = self._intrinsic_request(job, root, semantic)
-        elif job["job_kind"] == "context":
-            request = self._context_request(job, semantic)
-        elif job["job_kind"] in {"taxonomy_proposal", "taxonomy_review"}:
+        if job["job_kind"] in {"intrinsic", "context"}:
+            raise SupersededSemanticJob(
+                "The two-description pipeline was replaced by graph annotation; resume Mapping"
+            )
+        if job["job_kind"] in {"taxonomy_proposal", "taxonomy_review"}:
             from anaxigraph.semantic_taxonomy_requests import taxonomy_request
 
             request = taxonomy_request(self._database, job, semantic)
@@ -68,140 +67,7 @@ class SemanticEvidenceService:
             request = fresh_eyes_request(self._database, job)
         else:
             request = self._synthesis_request(job, semantic)
-        lean = (
-            not semantic.detailed_reviews
-            and job["job_kind"] in {"intrinsic", "context", "synthesis"}
-            and job["scope_type"] != "repository"
-        )
-        request["detailed_reviews"] = semantic.detailed_reviews
-        if semantic.max_output_tokens is not None:
-            request["max_output_tokens"] = semantic.max_output_tokens
-        request["writing_contract_version"] = PLAIN_LANGUAGE_CONTRACT_VERSION
-        request["writing_requirements"] = (
-            MAPPING_REQUIREMENTS if lean else PLAIN_LANGUAGE_REQUIREMENTS
-        )
-        if lean:
-            request["contract"] = MAPPING_REQUIREMENTS["purpose"]
-        else:
-            request["input_term_meanings"] = INPUT_TERM_MEANINGS
-            request["understandability_policy"] = UNDERSTANDABILITY_POLICY
-        if semantic.detailed_reviews and job["job_kind"] in {"intrinsic", "context"}:
-            request["contract"] += " " + AGENT_REVIEW_POLICY
-        return request
-
-    def _intrinsic_request(
-        self, job: dict[str, Any], root: Path, semantic: SemanticConfig
-    ) -> dict[str, Any]:
-        path = str(job["scope_key"])
-        raw_content = read_mounted_source(root, path, missing=_TARGET_MISSING)
-        content = raw_content.decode("utf-8", errors="replace")
-        with self._database.connect() as connection:
-            version, symbols = module_facts(
-                connection,
-                int(job["snapshot_id"]),
-                int(job["artifact_id"]),
-            )
-            require_unchanged_source(raw_content, version, changed=_TARGET_CHANGED)
-            relations = relationships_for_artifact(
-                connection, int(job["snapshot_id"]), int(job["artifact_id"])
-            )
-            history = [
-                dict(row)
-                for row in connection.execute(
-                    """
-                    SELECT commit_sha, committed_at, subject, change_type, additions, deletions
-                    FROM git_changes WHERE repository_id = ? AND path = ?
-                    ORDER BY committed_at DESC LIMIT 8
-                    """,
-                    (job["repository_id"], path),
-                ).fetchall()
-            ]
-            previous = (
-                _document_by_id(connection, int(job["metadata"]["previous_document_id"]))
-                if job["metadata"].get("previous_document_id")
-                else None
-            )
-        return {
-            "contract": (
-                "Describe what this file does using only its supplied source, named code parts, "
-                "and direct links to other files. Explain behavior callers rely on and places "
-                "intentionally designed for adding behavior. Leave repository-wide pattern, "
-                "combine-or-separate, placement, and deletion judgments empty until the next pass. "
-                "Use change_summary only to describe a meaning change from previous_dossier."
-            ),
-            "schema_version": SEMANTIC_SCHEMA_VERSION,
-            "analysis_kind": "intrinsic",
-            "path": path,
-            "language": version["language"],
-            "deterministic_facts": _intrinsic_facts(version, symbols, relations, history),
-            "source": content,
-            "previous_dossier": _previous_value(previous, semantic),
-        }
-
-    def _context_request(self, job: dict[str, Any], semantic: SemanticConfig) -> dict[str, Any]:
-        with self._database.connect() as connection:
-            intrinsic = _document_by_id(connection, int(job["metadata"]["intrinsic_document_id"]))
-            relations = relationships_for_artifact(
-                connection, int(job["snapshot_id"]), int(job["artifact_id"])
-            )
-            neighbors = self._neighbor_dossiers(connection, job, semantic)
-            previous = (
-                _document_by_id(connection, int(job["metadata"]["previous_document_id"]))
-                if job["metadata"].get("previous_document_id")
-                else None
-            )
-        return {
-            "contract": (
-                "Explain this file's job in the repository, which files it works with, and where "
-                "work is duplicated. Identify similar files, patterns that fit this repository, "
-                "possible combinations or splits, and where nearby behavior should be added. "
-                "Score pattern fit from 0 to 100 using examples already in this repository, likely "
-                "benefit, direct code links, change cost, and evidence against the idea. Use scores "
-                "above 80 only when the repository itself gives strong support. A combine-or-split "
-                "score says how strongly the evidence supports that advice; it is not a code-quality "
-                "grade. Say code may be unused only when the supplied link evidence supports that "
-                "possibility, and state what may make the conclusion wrong. A missing source-code "
-                "link does not prove that running code never reaches it."
-            ),
-            "schema_version": SEMANTIC_SCHEMA_VERSION,
-            "analysis_kind": "context",
-            "path": job["scope_key"],
-            "intrinsic_dossier": compact_dossier(
-                intrinsic["value"], detailed=semantic.detailed_reviews
-            ),
-            "relationships": relations,
-            "neighbor_dossiers": neighbors,
-            "previous_dossier": _previous_value(previous, semantic),
-        }
-
-    def _neighbor_dossiers(
-        self, connection: Any, job: dict[str, Any], semantic: SemanticConfig
-    ) -> list[dict[str, Any]]:
-        result = []
-        paths = job["metadata"].get("neighbors", [])[: semantic.max_context_modules]
-        for path in paths:
-            state = connection.execute(
-                """
-                SELECT * FROM semantic_scope_states
-                WHERE snapshot_id = ? AND scope_type = 'module' AND scope_key = ?
-                """,
-                (job["snapshot_id"], path),
-            ).fetchone()
-            if state is None:
-                continue
-            document_id = state["context_document_id"] or state["intrinsic_document_id"]
-            if document_id:
-                document = _document_by_id(connection, int(document_id))
-                result.append(
-                    {
-                        "path": path,
-                        "confidence": document["confidence"],
-                        "dossier": compact_dossier(
-                            document["value"], detailed=semantic.detailed_reviews
-                        ),
-                    }
-                )
-        return result
+        return _writing_contract(request, job, semantic)
 
     def _synthesis_request(self, job: dict[str, Any], semantic: SemanticConfig) -> dict[str, Any]:
         with self._database.connect() as connection:
@@ -219,12 +85,9 @@ class SemanticEvidenceService:
             "contract": _REPOSITORY_CHARTER_CONTRACT
             if repository
             else (
-                "Combine the supplied descriptions into one clear explanation of this repository "
-                "area. Keep important differences between files, identify work they share, and "
-                "summarize supported pattern ideas, combine-or-separate advice, and where new work "
-                "belongs. Include evidence against each idea and do not state uncertainty as fact. "
-                "Pattern scores must reflect fit in this repository and the cost of changing it, "
-                "not how popular a pattern is in textbooks."
+                "Summarize this responsibility area concisely from its supplied member summaries. "
+                "Describe shared functionality and caller obligations with evidence. Preserve "
+                "uncertainty; Pattern analysis and Planning own design recommendations."
             ),
             "schema_version": SEMANTIC_SCHEMA_VERSION,
             "analysis_kind": "synthesis",
@@ -236,7 +99,7 @@ class SemanticEvidenceService:
                     "scope": item["scope_key"],
                     "kind": item["document_kind"],
                     "confidence": item["confidence"],
-                    "value": compact_dossier(item["value"], detailed=semantic.detailed_reviews),
+                    "value": compact_dossier(item["value"], detailed=False),
                 }
                 for item in documents
             ],
@@ -251,37 +114,18 @@ def _previous_value(
 ) -> dict[str, Any] | None:
     if document is None:
         return None
-    return (
-        document["value"]
-        if repository
-        else compact_dossier(document["value"], detailed=semantic.detailed_reviews)
-    )
+    return document["value"] if repository else compact_dossier(document["value"])
 
 
-def _intrinsic_facts(
-    version: dict[str, Any],
-    symbols: list[dict[str, Any]],
-    relations: list[dict[str, Any]],
-    history: list[dict[str, Any]],
-) -> dict[str, Any]:
-    metadata = json.loads(version.get("metadata_json") or "{}")
-    ir = metadata.get("ir") or {}
-    return {
-        "deterministic_summary": version["summary"],
-        "declared_group": version["declared_group"],
-        "inferred_group": version["inferred_group"],
-        "lines_of_code": version["lines_of_code"],
-        "complexity": version["complexity"],
-        "analysis_contract": {
-            "analyzer": version["analyzer"],
-            "analyzer_version": ir.get("analyzer_version"),
-            "parse_status": ir.get("parse_status"),
-            "capabilities": ir.get("analyzer_capabilities"),
-            "parse_diagnostics": metadata.get("parse_diagnostics", []),
-        },
-        "public_interfaces": json.loads(version["public_interfaces_json"] or "[]"),
-        "symbols": symbols[:250],
-        "evidence_facts": (ir.get("evidence_facts") or [])[:250],
-        "relationships": relations[:250],
-        "recent_changes": history,
-    }
+def _writing_contract(request, job, semantic):
+    lean = job["job_kind"] == "synthesis" and job["scope_type"] != "repository"
+    request["detailed_reviews"] = semantic.detailed_reviews and not lean
+    if semantic.max_output_tokens is not None:
+        request["max_output_tokens"] = semantic.max_output_tokens
+    request["writing_contract_version"] = PLAIN_LANGUAGE_CONTRACT_VERSION
+    request["writing_requirements"] = MAPPING_REQUIREMENTS if lean else PLAIN_LANGUAGE_REQUIREMENTS
+    if lean:
+        request["contract"] = MAPPING_REQUIREMENTS["purpose"]
+    elif not request.get("functional_stage"):
+        request["input_term_meanings"] = INPUT_TERM_MEANINGS
+    return request

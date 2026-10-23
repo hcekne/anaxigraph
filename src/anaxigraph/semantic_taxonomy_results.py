@@ -7,6 +7,7 @@ import sqlite3
 from typing import Any
 
 from anaxigraph.config import SemanticConfig
+from anaxigraph.persistence.semantic_payloads import archive_taxonomy_payloads
 from anaxigraph.semantic_contract import SemanticResult
 from anaxigraph.semantic_taxonomy_validation import normalize_taxonomy
 
@@ -57,14 +58,19 @@ def complete_taxonomy_job(
             semantic=semantic,
             now=now,
         )
-        return
-    _store_review(
-        connection,
-        job=job,
-        result=result,
-        document_id=document_id,
-        now=now,
-    )
+    else:
+        _store_review(
+            connection,
+            job=job,
+            result=result,
+            document_id=document_id,
+            now=now,
+        )
+    row = connection.execute(
+        "SELECT id FROM semantic_taxonomies WHERE snapshot_id=? AND input_hash=?",
+        (job["snapshot_id"], job["metadata"].get("taxonomy_input_hash", job["input_hash"])),
+    ).fetchone()
+    archive_taxonomy_payloads(connection, row[0])
 
 
 def _store_candidate(
@@ -194,10 +200,7 @@ def _finalize(
     now: str,
 ) -> None:
     taxonomy_id = int(taxonomy["id"])
-    connection.execute(
-        "DELETE FROM semantic_taxonomy_memberships WHERE taxonomy_id = ?", (taxonomy_id,)
-    )
-    connection.execute("DELETE FROM semantic_taxonomy_nodes WHERE taxonomy_id = ?", (taxonomy_id,))
+    _clear_taxonomy_children(connection, taxonomy_id)
     for node in normalized["nodes"]:
         connection.execute(
             """
@@ -275,6 +278,11 @@ def _finalize(
     )
 
 
+def _clear_taxonomy_children(connection, taxonomy_id):
+    for table in ("semantic_taxonomy_memberships", "semantic_taxonomy_nodes"):
+        connection.execute(f"DELETE FROM {table} WHERE taxonomy_id=?", (taxonomy_id,))
+
+
 def _normalize(
     connection: sqlite3.Connection,
     job: dict[str, Any],
@@ -294,7 +302,7 @@ def _normalize(
 def _taxonomy_row(connection: sqlite3.Connection, job: dict[str, Any]) -> sqlite3.Row:
     row = connection.execute(
         """
-        SELECT * FROM semantic_taxonomies
+        SELECT * FROM semantic_taxonomy_values
         WHERE snapshot_id = ? AND input_hash = ? ORDER BY id DESC LIMIT 1
         """,
         (job["snapshot_id"], job["metadata"]["taxonomy_input_hash"]),

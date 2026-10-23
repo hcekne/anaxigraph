@@ -45,11 +45,11 @@ def test_service_fresh_eyes_restart_posts_an_explicit_new_generation(monkeypatch
     )
 
     assert semantic_service.service_fresh_eyes_review(
-        _target(), restart=True, proposal_executors=("codex", "claude")
+        _target(), restart=True, proposal_executors=("codex", "claude", "any")
     ) == {"status": "restarted"}
     assert calls[0][1]["body"] == {
-        "proposal_count": 2,
-        "proposal_executors": ["codex", "claude"],
+        "proposal_count": 3,
+        "proposal_executors": ["codex", "claude", "any"],
         "retry_failed": False,
         "restart": True,
         "unpin": False,

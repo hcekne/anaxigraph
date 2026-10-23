@@ -11,6 +11,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from anaxigraph.persistence.index_lifetime import index_file_lock, locked_connection
+
 
 @dataclass(frozen=True, slots=True)
 class IndexBackup:
@@ -61,7 +63,7 @@ def create_index_backup(
     """Create a new, validated online backup without changing the live index."""
 
     source = Path(database_path).expanduser().resolve()
-    schema_version = _validate_database(source)
+    schema_version = _validate_database(source, managed=True)
     destination = (
         Path(destination_path).expanduser().resolve()
         if destination_path is not None
@@ -101,13 +103,15 @@ def restore_schema_backup(
     try:
         _sqlite_backup(source, temporary, immutable_source=True)
         _validate_database(temporary, expected_version=expected_version)
-        temporary.replace(destination)
-        _remove_sidecars(destination)
+        with index_file_lock(destination, exclusive=True):
+            temporary.replace(destination)
+            _remove_sidecars(destination)
+            _validate_database(destination, expected_version=expected_version)
+            result = _report(destination, expected_version, reused=False)
     finally:
         if temporary.exists():
             temporary.unlink()
-    _validate_database(destination, expected_version=expected_version)
-    return _report(destination, expected_version, reused=False)
+    return result
 
 
 def restore_index_backup(
@@ -141,8 +145,14 @@ def validate_index_backup(path: str | Path) -> IndexBackup:
 def _sqlite_backup(source: Path, destination: Path, *, immutable_source: bool = False) -> None:
     if not source.is_file():
         raise ValueError(f"AnaxiIndex does not exist: {source}")
+    uri = _read_uri(source, immutable_source)
+    origin = (
+        sqlite3.connect(uri, uri=True)
+        if immutable_source
+        else locked_connection(source, database=uri, uri=True)
+    )
     with (
-        closing(sqlite3.connect(_read_uri(source, immutable_source), uri=True)) as origin,
+        closing(origin),
         closing(sqlite3.connect(destination)) as target,
     ):
         origin.backup(target)
@@ -150,12 +160,21 @@ def _sqlite_backup(source: Path, destination: Path, *, immutable_source: bool = 
 
 
 def _validate_database(
-    path: Path, *, expected_version: int | None = None, immutable: bool = False
+    path: Path,
+    *,
+    expected_version: int | None = None,
+    immutable: bool = False,
+    managed: bool = False,
 ) -> int:
     if not path.is_file():
         raise ValueError(f"Schema backup does not exist: {path}")
     uri = _read_uri(path, immutable)
-    with closing(sqlite3.connect(uri, uri=True)) as connection:
+    connection = (
+        locked_connection(path, database=uri, uri=True)
+        if managed
+        else sqlite3.connect(uri, uri=True)
+    )
+    with closing(connection):
         integrity = connection.execute("PRAGMA integrity_check").fetchone()
         if integrity is None or integrity[0] != "ok":
             raise RuntimeError(f"Schema backup failed integrity check: {path}")

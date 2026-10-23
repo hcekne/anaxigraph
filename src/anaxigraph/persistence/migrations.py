@@ -5,20 +5,26 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Callable
 
+from anaxigraph.knowledge_schema import install_knowledge_schema
 from anaxigraph.persistence.compatibility_compaction import (
     backfill_relationship_coverage,
     compact_compatibility_rows,
     prepare_semantic_claims_for_compaction,
     retire_compatibility_references,
 )
+from anaxigraph.persistence.git_metrics import install_git_metrics_schema
 from anaxigraph.persistence.index_parity import missing_foreign_key_parents, parity_report
+from anaxigraph.persistence.search_storage import ensure_search_schema
 from anaxigraph.persistence.semantic_fact_references import (
     backfill_semantic_fact_references,
+)
+from anaxigraph.persistence.semantic_payloads import (
+    install_semantic_payload_views,
+    migrate_semantic_payloads,
 )
 from anaxigraph.persistence.temporal_facts import migrate_legacy_temporal_facts
 from anaxigraph.persistence.temporal_files import (
     backfill_fact_symbol_details,
-    compact_file_fact_metadata,
     compact_file_placement_metadata,
 )
 from anaxigraph.persistence.temporal_reconstruction import (
@@ -28,7 +34,7 @@ from anaxigraph.persistence.temporal_reconstruction import (
 from anaxigraph.persistence.temporal_relationships import compact_duplicate_relationship_sets
 from anaxigraph.persistence.temporal_schema import install_temporal_schema
 
-SUPPORTED_SCHEMA_VERSIONS = frozenset({2, 6, 7, 8, 9, 10, 11})
+SUPPORTED_SCHEMA_VERSIONS = frozenset({2, 6, 7, 8, 9, 10, 11, 12, 13})
 
 # Schema 11 records how a semantic result was paid for and how hard its executor was asked to
 # think. ``input_tokens`` keeps meaning the whole prompt; the two cache columns are a breakdown of
@@ -54,6 +60,8 @@ def migrate_schema(
     if current_version is not None and current_version < 11:
         _backfill_usage_source(connection)
     install_temporal_schema(connection)
+    install_git_metrics_schema(connection)
+    install_knowledge_schema(connection)
     _ensure_semantic_fact_schema(connection)
     _ensure_columns(
         connection,
@@ -72,7 +80,6 @@ def migrate_schema(
         migrate_legacy_temporal_facts(connection)
     backfill_fact_symbol_details(connection)
     compact_file_placement_metadata(connection)
-    compact_file_fact_metadata(connection)
     ensure_checkpoint_policy(connection)
     if current_version is not None:
         backfill_semantic_fact_references(connection)
@@ -82,10 +89,7 @@ def migrate_schema(
         )
         if migrated_materialized_frames:
             _legacy_migration_indexes(connection, create=False)
-    connection.execute(
-        "INSERT OR REPLACE INTO schema_meta(key, value) VALUES ('schema_version', ?)",
-        (str(target_version),),
-    )
+    _finish_current_schema(connection, target_version)
 
 
 def reconcile_additive_columns(connection: sqlite3.Connection) -> None:
@@ -104,7 +108,10 @@ def reconcile_additive_columns(connection: sqlite3.Connection) -> None:
     try:
         _ensure_legacy_columns(connection)
         install_temporal_schema(connection)
+        install_git_metrics_schema(connection)
+        install_knowledge_schema(connection)
         _ensure_semantic_fact_indexes(connection)
+        install_semantic_payload_views(connection)
     except BaseException:
         connection.rollback()
         raise
@@ -272,6 +279,14 @@ def _ensure_semantic_fact_indexes(connection: sqlite3.Connection) -> None:
         "CREATE INDEX IF NOT EXISTS idx_semantic_states_fact "
         "ON semantic_scope_states(file_fact_id)",
     ):
+        if (
+            "ON semantic_scope_states(" in statement
+            and connection.execute(
+                "SELECT type FROM sqlite_master WHERE name='semantic_scope_states'"
+            ).fetchone()[0]
+            == "view"
+        ):
+            continue
         connection.execute(statement)
 
 
@@ -298,6 +313,18 @@ def _requires_materialized_frame_migration(
 ) -> bool:
     return bool(
         current_version is not None
-        and current_version not in {7, 8, 9, 10, 11}
+        and current_version not in {7, 8, 9, 10, 11, 12, 13}
         and compatibility_frames
+    )
+
+
+def _finish_current_schema(connection, target_version):
+    ensure_search_schema(connection)
+    migrate_semantic_payloads(connection)
+    connection.execute(
+        "UPDATE semantic_jobs SET status='superseded',worker_id=NULL,lease_expires_at=NULL,lease_token_hash=NULL,error='Replaced by compact graph annotation; resume Mapping' WHERE job_kind IN ('intrinsic','context') AND status IN ('pending','retry','running')"
+    )
+    connection.execute(
+        "INSERT OR REPLACE INTO schema_meta(key, value) VALUES ('schema_version', ?)",
+        (str(target_version),),
     )

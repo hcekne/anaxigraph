@@ -20,7 +20,7 @@ def architecture_plan_status(
     with database.connect() as connection:
         row = connection.execute(
             "SELECT sd.*, ss.interface_hash AS controls, ss.status AS scope_status FROM semantic_scope_states ss "
-            "LEFT JOIN semantic_documents sd ON sd.id = ss.context_document_id "
+            "LEFT JOIN semantic_document_values sd ON sd.id = ss.context_document_id "
             "WHERE ss.repository_id = ? AND ss.scope_type = 'architecture_plan' AND ss.scope_key = 'plan' "
             "ORDER BY (sd.value_json IS NOT NULL) DESC,(ss.snapshot_id = ?) DESC,ss.snapshot_id DESC LIMIT 1",
             (repository_id, snapshot["id"]),

@@ -8,7 +8,9 @@ from pathlib import Path
 from typing import Any
 
 RECORD_DIRECTORY = "anaxigraph"
-RECORD_FORMAT = "anaxigraph-record-v2"
+RECORD_FORMAT = "anaxigraph-record-v4"
+CURRENT_RECORD_FORMATS = frozenset({"anaxigraph-record-v2", "anaxigraph-record-v3", RECORD_FORMAT})
+SUPPORTED_RECORD_FORMATS = frozenset({"anaxigraph-record-v1", *CURRENT_RECORD_FORMATS})
 LEGACY_RECORD_FORMAT = "anaxigraph-record-v1"
 
 

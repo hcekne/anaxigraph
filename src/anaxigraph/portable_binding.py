@@ -49,7 +49,7 @@ def bind_current_record(
 def _file_bindings(
     connection: Any, repository_id: int, manifest: Any, config: Any, snapshot: Any
 ) -> tuple[Any, Any, Any]:
-    files = {row["path"]: row for row in current_file_evidence(connection, snapshot["id"])}
+    files = {row["path"]: row for row in current_file_evidence(connection, snapshot["id"], config)}
     bindings = {manifest["repository"]["key"]: repository_id}
     compatible = set()
     for item in manifest.get("files", []):
@@ -57,10 +57,10 @@ def _file_bindings(
         if file is None or config.is_ignored(item["path"]):
             continue
         bindings[item["artifact"]] = file["artifact_id"]
-        if (
-            file["raw_hash"] == item["raw_hash"]
-            and file["analysis_signature"] == item["analysis_signature"]
-        ):
+        # Parser/app versions rebuild deterministic facts locally. Exact source
+        # identity remains compatible paid evidence; semantic planners separately
+        # validate their supported schema, prompt and analysis input contracts.
+        if file["raw_hash"] == item["raw_hash"]:
             bindings[item["fact"]] = file["file_fact_id"]
             compatible.add(item["path"])
     return files, bindings, compatible
@@ -156,32 +156,3 @@ def _analysis_baseline(connection: Any, repository_id: int, manifest: Any) -> in
         "SELECT id FROM snapshots WHERE repository_id=? AND content_fingerprint=?",
         (repository_id, source["fingerprint"]),
     ).fetchone()[0]
-
-
-def restore_inventory_claims(connection: Any, repository_id: int) -> None:
-    """A claim is a local read projection, not another portable copy of each dossier."""
-    rows = connection.execute(
-        "SELECT d.* FROM semantic_documents d WHERE repository_id=? AND scope_type='module' AND file_fact_id IS NOT NULL AND document_kind IN ('intrinsic','context') ORDER BY id",
-        (repository_id,),
-    ).fetchall()
-    for row in rows:
-        kind = "module_analysis" if row["document_kind"] == "intrinsic" else "module_context"
-        connection.execute(
-            "DELETE FROM semantic_claims WHERE file_fact_id=? AND claim_type=?",
-            (row["file_fact_id"], kind),
-        )
-        connection.execute(
-            "INSERT INTO semantic_claims(file_fact_id,claim_type,value_json,source,provider,model,prompt_version,created_at,confidence,supporting_evidence_json) VALUES (?,?,?,?,?,?,?,?,?,?)",
-            (
-                row["file_fact_id"],
-                kind,
-                row["value_json"],
-                row["source"],
-                row["provider"],
-                row["model"],
-                row["prompt_version"],
-                row["created_at"],
-                row["confidence"],
-                row["supporting_evidence_json"],
-            ),
-        )

@@ -117,3 +117,32 @@ def test_reopening_index_compacts_only_terminal_semantic_work_packets(repository
     assert stored["proposal:a"]["information_boundary"] == {"withheld": ["repository_paths"]}
     assert stored["failed-module"] == {"neighbors": ["pkg/util.py"]}
     assert stored["pending-module"] == {"neighbors": ["pkg/util.py"]}
+
+
+def test_owned_connection_context_closes_after_commit_and_rollback(database):
+    import sqlite3
+
+    import pytest
+
+    connection = database.connect()
+    with connection:
+        connection.execute("CREATE TABLE connection_probe(value TEXT)")
+        connection.execute("INSERT INTO connection_probe VALUES ('saved')")
+    with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+        connection.execute("SELECT 1")
+    failed = database.connect()
+    with pytest.raises(RuntimeError, match="rollback"), failed:
+        failed.execute("INSERT INTO connection_probe VALUES ('discarded')")
+        raise RuntimeError("rollback")
+    with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+        failed.execute("SELECT 1")
+    # Explicit transaction owners keep the handle until their own close.
+    explicit = database.connect()
+    explicit.execute("BEGIN")
+    explicit.execute("INSERT INTO connection_probe VALUES ('explicit')")
+    explicit.commit()
+    assert [row[0] for row in explicit.execute("SELECT value FROM connection_probe")] == [
+        "saved",
+        "explicit",
+    ]
+    explicit.close()

@@ -10,13 +10,15 @@ from anaxigraph.pattern_candidate_query import (
     query_pattern_candidates,
 )
 from anaxigraph.pattern_catalog import bundled_pattern_catalog
+from anaxigraph.pattern_catalogue_query import PatternCatalogueQuery
+from anaxigraph.pattern_evidence_source import read_pattern_evidence
 from anaxigraph.pattern_query import PatternEvaluationQuery
 from anaxigraph.persistence.pattern_candidate_read import pattern_selection_state
+from anaxigraph.persistence.pattern_catalogue_read import read_pattern_catalogue
 from anaxigraph.persistence.pattern_evaluation_read import (
     empty_pattern_evaluations,
     read_pattern_evaluations,
 )
-from anaxigraph.persistence.pattern_evidence_read import read_pattern_evidence
 
 
 class PatternIntelligenceService:
@@ -40,6 +42,16 @@ class PatternIntelligenceService:
                 repository_id,
                 int(snapshot["id"]),
                 query,
+            )
+
+    def catalogue(self, repository_id, snapshot_id=None, *, request=None) -> dict[str, Any]:
+        snapshot = self.database.resolve_snapshot(repository_id, snapshot_id)
+        with self.database.connect() as connection:
+            return read_pattern_catalogue(
+                connection,
+                repository_id,
+                int(snapshot["id"]) if snapshot else None,
+                request or PatternCatalogueQuery(),
             )
 
     def candidates(

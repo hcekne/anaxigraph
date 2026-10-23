@@ -17,7 +17,7 @@ def comparison_pattern_inputs(connection: Any, snapshot_id: int) -> dict[str, An
     patterns = json.loads(row["patterns"] or "[]")
     saved = connection.execute(
         "SELECT ss.scope_key,sd.input_hash FROM semantic_scope_states ss "
-        "JOIN semantic_documents sd ON sd.id = ss.context_document_id "
+        "JOIN semantic_document_values sd ON sd.id = ss.context_document_id "
         "WHERE ss.snapshot_id = ? AND ss.scope_type = 'pattern' AND ss.status = 'current'",
         (snapshot_id,),
     ).fetchall()

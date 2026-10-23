@@ -8,7 +8,7 @@ from typing import Any
 
 from anaxigraph.architecture_charter_contract import compact_architecture_charter
 from anaxigraph.config import SemanticConfig
-from anaxigraph.semantic import SEMANTIC_SCHEMA_VERSION, SemanticAnalysisError, SemanticResult
+from anaxigraph.semantic import SemanticAnalysisError, SemanticResult
 from anaxigraph.semantic_graph import _source_chunks
 from anaxigraph.semantic_parallel import parallel_map
 from anaxigraph.semantic_request_support import compact_dossier
@@ -31,11 +31,13 @@ def analyze_semantic_request(
     if request["analysis_kind"] == "taxonomy_review":
         return analyze_taxonomy_review(provider, request, semantic)
     if request["analysis_kind"] == "synthesis":
+        if request.get("scope_type") == "group":
+            request = {**request, "detailed_reviews": False}
         return _analyze_synthesis(provider, request, semantic)
     source = str(request.get("source") or "")
-    if request["analysis_kind"] != "intrinsic" or len(source) <= semantic.max_source_chars:
-        return provider.analyze(request)
-    return _analyze_intrinsic_chunks(provider, request, semantic, source)
+    if request["analysis_kind"] == "annotation" and len(source) > semantic.max_source_chars:
+        return _analyze_annotation_chunks(provider, request, semantic, source)
+    return provider.analyze(request)
 
 
 class _OutputRecovery:
@@ -82,44 +84,86 @@ def _combined_usage(result: Any, previous: SemanticAnalysisError) -> dict[str, A
     }
 
 
-def _analyze_intrinsic_chunks(
-    provider: Any,
-    request: dict[str, Any],
-    semantic: SemanticConfig,
-    source: str,
-) -> SemanticResult:
-    symbols = request.get("deterministic_facts", {}).get("symbols") or []
-    chunks = _source_chunks(source, symbols, semantic.max_source_chars)
-    requests = []
-    for index, (start, end, content) in enumerate(chunks, start=1):
-        partial = dict(request)
-        partial["analysis_kind"] = "intrinsic_chunk"
-        partial["chunk"] = {
-            "index": index,
-            "total": len(chunks),
-            "start_line": start,
-            "end_line": end,
-        }
-        partial["source"] = content
-        requests.append(partial)
-    results = parallel_map(provider.analyze, requests, semantic.max_parallel_jobs)
-    partials = [result.value for result in results]
-    input_tokens = sum(result.input_tokens for result in results)
-    output_tokens = sum(result.output_tokens for result in results)
+def _analyze_annotation_chunks(provider, request, semantic, source):
+    chunks = _source_chunks(source, request.get("functions", []), semantic.max_source_chars)
+    requests = [
+        _annotation_chunk(request, chunk, index, len(chunks))
+        for index, chunk in enumerate(chunks, 1)
+    ]
+    outcomes = parallel_map(
+        lambda item: _annotation_attempt(provider, item), requests, semantic.max_parallel_jobs
+    )
+    failures = [item for item in outcomes if isinstance(item, Exception)]
+    if failures:
+        _annotation_failure_usage(
+            failures[0], [item for item in outcomes if item is not failures[0]]
+        )
+        raise failures[0]
+    results = outcomes
     synthesis = {
         **{key: value for key, value in request.items() if key != "source"},
-        "schema_version": SEMANTIC_SCHEMA_VERSION,
-        "analysis_kind": "intrinsic_synthesis",
-        "chunk_dossiers": partials,
+        "annotation_chunks": [result.value for result in results],
+        "writing_requirements": "Combine the partial graph annotations into one concise module overview and paragraph. Describe every supplied qualified function exactly once. Preserve all caller obligations, failures, side effects and ordering from the partial contracts; consolidate only equivalent statements. Do not copy each chunk's repeated module description.",
     }
-    result = provider.analyze(synthesis)
-    return SemanticResult(
-        value=result.value,
-        confidence=result.confidence,
-        evidence=result.evidence,
-        input_tokens=input_tokens + result.input_tokens,
-        output_tokens=output_tokens + result.output_tokens,
+    try:
+        result = provider.analyze(synthesis)
+    except Exception as error:
+        _annotation_failure_usage(error, results)
+        raise
+    usage = {
+        field: getattr(result, field) + sum(getattr(part, field) for part in results)
+        for field in (
+            "input_tokens",
+            "output_tokens",
+            "cache_read_input_tokens",
+            "cache_creation_input_tokens",
+        )
+    }
+    return replace(
+        result,
+        **usage,
+        usage_reported=result.usage_reported and all(part.usage_reported for part in results),
     )
+
+
+def _annotation_attempt(provider, request):
+    try:
+        return provider.analyze(request)
+    except Exception as error:
+        return error
+
+
+def _annotation_failure_usage(error, outcomes):
+    for field in (
+        "input_tokens",
+        "output_tokens",
+        "cache_read_input_tokens",
+        "cache_creation_input_tokens",
+    ):
+        setattr(
+            error,
+            field,
+            getattr(error, field, 0) + sum(getattr(item, field, 0) for item in outcomes),
+        )
+    error.usage_reported = bool(getattr(error, "usage_reported", False)) and all(
+        getattr(item, "usage_reported", False) for item in outcomes
+    )
+
+
+def _annotation_chunk(request, chunk, index, total):
+    start, end, source = chunk
+    functions = [
+        item
+        for item in request.get("functions", [])
+        if item["start_line"] <= end and item["end_line"] >= start
+    ]
+    return {
+        **request,
+        "source": source,
+        "functions": functions,
+        "chunk": {"index": index, "total": total, "start_line": start, "end_line": end},
+        "writing_requirements": "Annotate only this source range. Describe each supplied qualified function once, retaining uncertainty about unseen code. Preserve caller obligations and exact source evidence for final combination.",
+    }
 
 
 def _analyze_synthesis(

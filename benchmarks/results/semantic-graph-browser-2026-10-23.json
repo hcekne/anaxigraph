@@ -1,0 +1,92 @@
+{
+  "fixture": "synthetic 5,000-module repository query, local HTTP; backend data mocked",
+  "timings": {
+    "cold_module_view_ms": 521.6578240394592,
+    "global_sort_ms": 72.99595499038696,
+    "global_search_with_debounce_ms": 318.72317004203796,
+    "graph_navigation_ms": 97.85318303108215,
+    "warm_module_navigation_ms": 100.80491590499878
+  },
+  "memory": {
+    "peak_sampled_js_heap_bytes": 4341520,
+    "samples": [
+      {
+        "stage": "cold modules",
+        "Nodes": 5699,
+        "LayoutCount": 11,
+        "JSHeapUsedSize": 3066536,
+        "JSHeapTotalSize": 5558272
+      },
+      {
+        "stage": "sorted modules",
+        "Nodes": 10408,
+        "LayoutCount": 14,
+        "JSHeapUsedSize": 3647312,
+        "JSHeapTotalSize": 5820416
+      },
+      {
+        "stage": "searched modules",
+        "Nodes": 13207,
+        "LayoutCount": 18,
+        "JSHeapUsedSize": 2969556,
+        "JSHeapTotalSize": 7393280
+      },
+      {
+        "stage": "bounded graph",
+        "Nodes": 14675,
+        "LayoutCount": 27,
+        "JSHeapUsedSize": 4341520,
+        "JSHeapTotalSize": 8441856
+      },
+      {
+        "stage": "warm modules",
+        "Nodes": 14689,
+        "LayoutCount": 83,
+        "JSHeapUsedSize": 3304420,
+        "JSHeapTotalSize": 8966144
+      }
+    ]
+  },
+  "transfers": [
+    {
+      "kind": "module",
+      "limit": 100,
+      "offset": 0,
+      "query": null,
+      "bytes": 48152,
+      "returned": 100,
+      "total": 5000
+    },
+    {
+      "kind": "module",
+      "limit": 100,
+      "offset": 0,
+      "query": null,
+      "bytes": 48152,
+      "returned": 100,
+      "total": 5000
+    },
+    {
+      "kind": "module",
+      "limit": 100,
+      "offset": 0,
+      "query": "specific behavior",
+      "bytes": 8225,
+      "returned": 17,
+      "total": 17
+    },
+    {
+      "kind": "capability",
+      "limit": 50,
+      "offset": 0,
+      "query": null,
+      "bytes": 24892,
+      "returned": 50,
+      "total": 5000
+    }
+  ],
+  "dom_nodes": 1817,
+  "page_errors": [],
+  "measurement_kind": "synthetic_browser_with_mocked_backend",
+  "production_latency_claim": false
+}

@@ -23,6 +23,8 @@ class DependencyFacts:
     exports: list[str] = field(default_factory=list)
     exported_nodes: set[tuple[int, int, str]] = field(default_factory=set)
     assigned_names: dict[tuple[int, int, str], str] = field(default_factory=dict)
+    symbol_aliases: dict[str, dict[str, str]] = field(default_factory=dict)
+    export_bindings: dict[str, dict[str, str]] = field(default_factory=dict)
 
 
 def extract_dependencies(parsed: ParsedSource) -> DependencyFacts:
@@ -67,8 +69,10 @@ def _record_export_declaration(
         if top_level and "export default" in text[:80]:
             facts.exports.append("default")
             facts.assigned_names[node_key(declaration)] = "default"
+            facts.export_bindings["default"] = {"name": names[0] if names else "default"}
         elif top_level:
             facts.exports.extend(names)
+            facts.export_bindings.update({name: {"name": name} for name in names})
 
 
 def _record_reexport(
@@ -89,6 +93,12 @@ def _record_reexport(
     )
     if clause is not None and top_level:
         facts.exports.extend(alias or name for _form, name, alias in groups)
+        facts.export_bindings.update(
+            {
+                alias or name: {"name": name, **({"module": target} if target else {})}
+                for _form, name, alias in groups
+            }
+        )
     if target is None:
         return
     if not groups:
@@ -112,9 +122,11 @@ def _import_statement(parsed: ParsedSource, node: Node, facts: DependencyFacts) 
         selected = [item for item in groups if item[0] == form]
         names = tuple(item[1] for item in selected)
         facts.dependencies.append(_dependency(parsed, node, target, "imports", form, names=names))
-        for _, _original, local in selected:
+        for _, original, local in selected:
             if local:
                 facts.aliases[local] = target
+                if form != "type_only":
+                    facts.symbol_aliases[local] = {"module": target, "name": original}
 
 
 def _call_reference(parsed: ParsedSource, node: Node, facts: DependencyFacts) -> None:
@@ -142,6 +154,10 @@ def _call_reference(parsed: ParsedSource, node: Node, facts: DependencyFacts) ->
             confidence=0.7 if form == "dynamic_expression" else 1.0,
         )
     )
+    _bind_call_import(node, facts, form, names, target)
+
+
+def _bind_call_import(node, facts, form, names, target) -> None:
     if form != "dynamic_expression":
         for alias in names:
             facts.aliases[alias] = target
@@ -157,6 +173,9 @@ def _commonjs_export(parsed: ParsedSource, node: Node, facts: DependencyFacts) -
     if right is not None:
         facts.exported_nodes.add(node_key(right))
         facts.assigned_names[node_key(right)] = name
+        facts.export_bindings[name] = {
+            "name": parsed.text(right) if right.type == "identifier" else name
+        }
 
 
 def _inheritance(parsed: ParsedSource, node: Node, facts: DependencyFacts) -> None:

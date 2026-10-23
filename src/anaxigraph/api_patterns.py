@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 
 from anaxigraph.pattern_candidate_query import PatternCandidateQuery
+from anaxigraph.pattern_catalogue_query import PatternCatalogueQuery
 from anaxigraph.pattern_intelligence import PatternIntelligenceService
 from anaxigraph.pattern_query import (
     PATTERN_QUERY_LIMIT,
@@ -21,6 +22,7 @@ class PatternRoutes:
         self.selected_repository = selected_repository
         self.router = APIRouter()
         self.router.add_api_route("/api/patterns", self.query, methods=["GET"])
+        self.router.add_api_route("/api/patterns/catalogue", self.catalogue, methods=["GET"])
         self.router.add_api_route("/api/patterns/candidates", self.candidates, methods=["GET"])
 
     def query(
@@ -53,6 +55,27 @@ class PatternRoutes:
                 include_evidence=include_evidence,
             )
             return self.service.query(int(row["id"]), snapshot_id, request=request)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    def catalogue(
+        self,
+        repository_id: int | None = None,
+        snapshot_id: int | None = Query(default=None, ge=1),
+        pattern: str = Query(default="", max_length=2_000),
+        family: str = Query(default="", max_length=2_000),
+        state: str = Query(default="", max_length=100),
+        sort_by: str = Query(default="pattern", max_length=100),
+        limit: int = Query(default=25, ge=1, le=100),
+        offset: int = Query(default=0, ge=0),
+        include_manifest: bool = False,
+    ) -> dict[str, Any]:
+        row = self.selected_repository(repository_id)
+        try:
+            query = PatternCatalogueQuery(
+                pattern, family, state, sort_by, limit, offset, include_manifest
+            )
+            return self.service.catalogue(int(row["id"]), snapshot_id, request=query)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 

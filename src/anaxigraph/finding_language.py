@@ -20,6 +20,7 @@ _CHECK_LABELS = {
     "architecture_drift": "File does not match its declared area",
     "weak_test_coverage": "Tests miss part of a file",
     "possible_dead_code": "File may no longer be used",
+    "dead_code_unassessed": "Unused-code check lacks required evidence",
 }
 
 _COMMON_CAVEATS = {

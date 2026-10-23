@@ -1,102 +1,61 @@
-import { api, byId, request, state, toast } from "/assets/dashboard-core.js";
-import { inspectNode } from "/assets/graph-view.js";
-import { renderModules } from "/assets/module-view.js";
-import { switchView } from "/assets/navigation.js";
+import { byId, state, toast } from "/assets/dashboard-core.js";
+import { entityContextKey, entityDetail } from "/assets/entity-client.js";
+import { loadModulePage } from "/assets/module-loading.js";
+import { renderModuleColumnChoices, renderModules, selectModuleColumns } from "/assets/module-view.js";
 
 let searchTimer = null;
 
 export function setupModuleEvents() {
-  byId("module-search").addEventListener("input", scheduleModuleSearch);
-  [
-    "module-area-filter", "module-subsystem-filter", "module-language-filter",
-    "module-include-reference", "module-page-size",
-  ].forEach((id) => byId(id).addEventListener("change", resetAndRender));
-  document.querySelectorAll("[data-module-sort]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const key = button.dataset.moduleSort;
-      state.moduleSort = state.moduleSort.key === key
-        ? { key, direction: state.moduleSort.direction === "asc" ? "desc" : "asc" }
-        : { key, direction: ["path", "architecture_area", "summary"].includes(key) ? "asc" : "desc" };
-      resetAndRender();
-    });
+  byId("module-search").addEventListener("input", () => {
+    window.clearTimeout(searchTimer);
+    searchTimer = window.setTimeout(refresh, 180);
   });
-  byId("module-previous").addEventListener("click", () => {
-    state.modulePage -= 1;
-    renderModules();
-  });
-  byId("module-next").addEventListener("click", () => {
-    state.modulePage += 1;
-    renderModules();
-  });
-  byId("module-table-body").addEventListener("click", handleModuleClick);
+  ["module-area-filter", "module-subsystem-filter", "module-language-filter", "module-include-reference", "module-page-size"]
+    .forEach(id => byId(id).addEventListener("change", refresh));
+  renderModuleColumnChoices();
+  byId("module-column-options").addEventListener("change", () => selectModuleColumns([...byId("module-column-options").querySelectorAll("input:checked")].map(input => input.value)));
+  byId("view-modules").addEventListener("click", event => { const action = event.target.closest("[data-module-columns]"); if (action) selectModuleColumns(action.dataset.moduleColumns); });
+  byId("view-modules").querySelector("thead").addEventListener("click", sortModules);
+  byId("module-previous").addEventListener("click", () => movePage(-1));
+  byId("module-next").addEventListener("click", () => movePage(1));
+  byId("module-table-body").addEventListener("click", expandModule);
 }
 
-function scheduleModuleSearch() {
-  window.clearTimeout(searchTimer);
+function refresh() {
   state.modulePage = 1;
-  const query = byId("module-search").value.trim();
-  if (query.length < 2) {
-    state.moduleSearchResults = null;
-    state.moduleSearchQuery = "";
-    state.moduleSearchToken += 1;
-    renderModules();
-    return;
-  }
-  const searchToken = ++state.moduleSearchToken;
-  const repositoryToken = state.repositoryLoadToken;
-  state.moduleSearchResults = [];
-  state.moduleSearchQuery = query;
-  renderModules();
-  searchTimer = window.setTimeout(async () => {
-    try {
-      const result = await request(api("/api/search", { q: query, limit: 250 }));
-      if (
-        searchToken !== state.moduleSearchToken
-        || repositoryToken !== state.repositoryLoadToken
-        || byId("module-search").value.trim() !== query
-      ) return;
-      state.moduleSearchResults = result.results || [];
-      renderModules();
-    } catch (error) {
-      if (searchToken === state.moduleSearchToken) toast(error.message, true);
-    }
-  }, 180);
+  void loadModulePage();
 }
 
-function resetAndRender() {
-  state.modulePage = 1;
-  renderModules();
+function sortModules(event) {
+  const key = event.target.closest("[data-module-sort]")?.dataset.moduleSort;
+  if (!key) return;
+  state.moduleSort = state.moduleSort.key === key
+    ? { key, direction: state.moduleSort.direction === "asc" ? "desc" : "asc" }
+    : { key, direction: ["path", "architecture_area", "summary"].includes(key) ? "asc" : "desc" };
+  refresh();
 }
 
-async function handleModuleClick(event) {
-  const graphButton = event.target.closest("[data-module-graph]");
-  if (graphButton) {
-    const node = state.graph.nodes.find((item) => item.path === graphButton.dataset.moduleGraph);
-    if (node) {
-      switchView("graph");
-      window.setTimeout(() => inspectNode(node), 0);
-    }
-    return;
-  }
+function movePage(direction) {
+  state.modulePage = Math.max(1, state.modulePage + direction);
+  void loadModulePage();
+}
+
+async function expandModule(event) {
+  if (event.target.closest("[data-entity-id], [data-entity-focus], [data-entity-guide]")) return;
   const row = event.target.closest(".module-row");
   if (!row) return;
-  const id = Number(row.dataset.moduleId);
-  state.expandedModuleId = Number(state.expandedModuleId) === id ? null : id;
+  const id = row.dataset.moduleId;
+  state.expandedModuleId = state.expandedModuleId === id ? null : id;
+  if (state.expandedModuleId) state.selectedNode = state.modules.find(item => String(item.id) === id);
   renderModules();
-  if (Number(state.expandedModuleId) !== id) return;
-  const item = [...(state.moduleSearchResults || []), ...state.modules]
-    .find((candidate) => Number(candidate.artifact_id) === id);
-  if (!item || state.moduleDetails.has(item.path)) return;
-  const repositoryLoadToken = state.repositoryLoadToken;
+  if (state.expandedModuleId !== id || state.moduleDetails.has(id)) return;
+  const context = entityContextKey();
   try {
-    const detail = await request(api("/api/file", {
-      path: item.path,
-      snapshot_id: state.overview?.snapshot?.id,
-    }));
-    if (repositoryLoadToken !== state.repositoryLoadToken) return;
-    state.moduleDetails.set(item.path, detail);
-    if (Number(state.expandedModuleId) === id) renderModules();
+    const detail = await entityDetail(id);
+    if (context !== entityContextKey()) return;
+    state.moduleDetails.set(id, detail);
+    if (state.expandedModuleId === id) renderModules();
   } catch (error) {
-    if (repositoryLoadToken === state.repositoryLoadToken) toast(error.message, true);
+    if (context === entityContextKey() && state.expandedModuleId === id) toast(error.message, true);
   }
 }

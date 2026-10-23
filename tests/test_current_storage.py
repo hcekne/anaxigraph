@@ -115,6 +115,7 @@ def test_repeated_unchanged_scans_and_exports_have_bounded_storage(repository, d
     first = scanner.scan(repository)
     save_record(database, first.repository_id)
     before = files(repository / "anaxigraph")
+    index_before = database.path.stat().st_size
     for _ in range(24):
         assert scanner.scan(repository).analyzed == 0
         assert save_record(database, first.repository_id)["changed_files"] == 0
@@ -125,7 +126,7 @@ def test_repeated_unchanged_scans_and_exports_have_bounded_storage(repository, d
             connection.execute("SELECT COUNT(*) FROM file_facts").fetchone()[0] == first.discovered
         )
     assert files(repository / "anaxigraph") == before
-    assert database.path.stat().st_size < 1_000_000
+    assert database.path.stat().st_size == index_before
 
 
 def test_bounded_comparison_checkpoints_are_still_reconstructable(repository, database):
@@ -200,7 +201,9 @@ def test_concise_output_preserves_the_083_input_cache_contract():
 
 
 def test_local_index_budget_rolls_back_a_write_instead_of_growing(database):
-    database.storage_policy = replace(StoragePolicy(), index_bytes=1_000_000)
+    original_bytes = database.path.stat().st_size
+    limit = original_bytes + 1_000_000
+    database.storage_policy = replace(StoragePolicy(), index_bytes=limit)
     with pytest.raises(ValueError, match="budget"):
         with database.transaction() as connection:
             connection.execute(
@@ -211,7 +214,7 @@ def test_local_index_budget_rolls_back_a_write_instead_of_growing(database):
             connection.execute("SELECT 1 FROM schema_meta WHERE key='oversized'").fetchone() is None
         )
         assert connection.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
-    assert database.path.stat().st_size <= 1_000_000
+    assert database.path.stat().st_size <= limit
 
 
 def test_changed_file_is_not_imported_as_current_understanding(repository, database, tmp_path):
@@ -260,7 +263,7 @@ def test_scanning_changes_preserves_and_exports_unchanged_partial_file_understan
         RepositoryScanner(database).scan(repository)
     with database.connect() as connection:
         assert connection.execute(
-            "SELECT 1 FROM semantic_documents WHERE scope_key=? AND document_kind='intrinsic'",
+            "SELECT 1 FROM semantic_documents WHERE scope_key=? AND document_kind='annotation'",
             (path,),
         ).fetchone()
     save_record(database, stats.repository_id)
@@ -270,6 +273,31 @@ def test_scanning_changes_preserves_and_exports_unchanged_partial_file_understan
     SemanticEngine(local).plan(resumed.repository_id, root, load_config(root))
     with local.connect() as connection:
         assert not connection.execute(
-            "SELECT 1 FROM semantic_jobs WHERE scope_key=? AND job_kind='intrinsic' AND status='pending'",
+            "SELECT 1 FROM semantic_jobs WHERE scope_key=? AND job_kind='annotation' AND status='pending'",
             (path,),
         ).fetchone()
+
+
+def test_backed_up_compaction_keeps_explicit_history_choice(repository, database):
+    scanner = RepositoryScanner(database)
+    first = scanner.scan(repository)
+    with database.transaction() as connection:
+        connection.execute(
+            "INSERT OR REPLACE INTO schema_meta(key,value) VALUES (?, 'true')",
+            (f"history-opt-in:{first.repository_id}",),
+        )
+    for number in range(3):
+        (repository / "pkg/util.py").write_text(f"VERSION = {number}\n")
+        scanner.scan(repository)
+    result = retain_current_index(
+        database, first.repository_id, load_config(repository).storage, migrate=True
+    )
+    assert result["removed_snapshots"] == 0
+    with database.connect() as connection:
+        assert (
+            connection.execute(
+                "SELECT value FROM schema_meta WHERE key=?",
+                (f"history-opt-in:{first.repository_id}",),
+            ).fetchone()[0]
+            == "true"
+        )

@@ -10,30 +10,32 @@ from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.understanding import SemanticEngine
 
 
-def test_current_sparse_plan_explains_selected_and_skipped_targets(repository, database, tmp_path):
+def test_catalogue_coverage_and_local_diagnostics_have_distinct_scopes(
+    repository, database, tmp_path
+):
     log = tmp_path / "candidate-query-semantic.log"
     provider = _fake_provider(tmp_path)
-    _semantic_config(repository, provider, log)
+    _semantic_config(repository, provider, log, detailed_reviews=True)
     config = load_config(repository)
     stats = RepositoryScanner(database).scan(repository)
-    SemanticEngine(database).bootstrap(stats.repository_id, repository, config)
+    SemanticEngine(database).bootstrap(stats.repository_id, repository, config, until_complete=True)
     service = PatternIntelligenceService(database)
     evaluations = service.query(stats.repository_id, request=PatternEvaluationQuery(limit=100))
-    module_evaluation = next(
-        item for item in evaluations["items"] if item["target"]["level"] == "module"
-    )
+    coverage = service.catalogue(stats.repository_id)["catalogue"]
+    assert coverage["complete"] and coverage["reviewed"] == coverage["expected"]
+    assert {item["target"]["level"] for item in evaluations["items"]} == {"repository"}
 
     candidates = service.candidates(
         stats.repository_id,
         request=PatternCandidateQuery(
-            pattern=module_evaluation["pattern"]["key"],
+            pattern="strategy",
             level="module",
             selection="all",
             limit=100,
         ),
     )
     assert candidates["plan_ready"] is True
-    assert candidates["selected_count"] > 0
+    assert candidates["selected_count"] == 0  # Placements are separate from catalogue assessment.
     assert candidates["total"] == candidates["targets_considered"]
 
     skipped = service.candidates(
@@ -57,8 +59,8 @@ def test_current_sparse_plan_explains_selected_and_skipped_targets(repository, d
     selected = service.candidates(
         stats.repository_id,
         request=PatternCandidateQuery(
-            pattern=module_evaluation["pattern"]["key"],
-            target=module_evaluation["target"]["key"],
+            pattern="modular-monolith",
+            target="repository:root",
             selection="selected",
             include_evidence=True,
         ),

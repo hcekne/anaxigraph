@@ -34,9 +34,10 @@ async def test_large_valid_result_saves_through_combined_dashboard_mcp(repositor
                     )
                     assert not work.isError
                     packet = work.structuredContent
+                    assert packet["job"]["kind"] == "annotation"
                     dossier = _agent_dossier(packet["analysis_request"])
-                    dossier["summary"] = "Valid result. " * (MAX_REQUEST_BODY_BYTES // 10)
-                    assert len(dossier["summary"].encode()) > MAX_REQUEST_BODY_BYTES
+                    dossier["detail"] = "Valid result. " * (MAX_REQUEST_BODY_BYTES // 10)
+                    assert len(dossier["detail"].encode()) > MAX_REQUEST_BODY_BYTES
                     result = await session.call_tool(
                         "ANAXIGRAPH_SEMANTIC_SUBMIT",
                         {
@@ -52,7 +53,14 @@ async def test_large_valid_result_saves_through_combined_dashboard_mcp(repositor
                     "SELECT status, attempts FROM semantic_jobs WHERE id = ?",
                     (packet["job"]["id"],),
                 ).fetchone()
+                detail = connection.execute(
+                    "SELECT json_extract(value_json,'$.detail') FROM semantic_document_values "
+                    "WHERE id=(SELECT context_document_id FROM semantic_scope_states "
+                    "WHERE scope_type='module' AND scope_key=?)",
+                    (packet["job"]["scope_key"],),
+                ).fetchone()[0]
             assert tuple(saved) == ("completed", 1)
+            assert detail == dossier["detail"]
             # Small control endpoints retain their own explicit request boundary.
             oversized = await client.post(
                 "/api/guidance", content=b"x" * (MAX_REQUEST_BODY_BYTES + 1)

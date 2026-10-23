@@ -111,8 +111,8 @@ async def test_fresh_eyes_start_is_gated_and_offloaded(repository, database, mon
     assert concurrent.status_code == 200
     assert started["response"].status_code == 200
     assert started["response"].json()["status"] == "started"
-    assert started["response"].json()["plan_stage"] == "fresh_eyes_proposals"
-    assert _proposal_jobs(database) == 2
+    assert started["response"].json()["plan_stage"] == "fresh_eyes_functional_brief"
+    assert _proposal_jobs(database) == 0
     assert settled["pressure"]["http_operations"]["active_count"] == 0
 
 
@@ -184,5 +184,5 @@ def test_deferred_fresh_eyes_request_is_planned_by_the_next_executor_claim(repos
     )
 
     assert packet["status"] == "work"
-    assert packet["job"]["kind"] == "fresh_proposal"
-    assert _proposal_jobs(database) == 2
+    assert packet["job"]["kind"] == "fresh_adjudication"
+    assert _proposal_jobs(database) == 0

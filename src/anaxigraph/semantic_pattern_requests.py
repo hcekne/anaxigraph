@@ -5,13 +5,21 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from anaxigraph.pattern_catalogue_contract import (
+    CATALOGUE_REVIEW_VERSION,
+    CATALOGUE_SCORE_VERSION,
+    assessment_fingerprint,
+    is_catalogue_request,
+)
 from anaxigraph.pattern_evaluation_contract import (
     PATTERN_REVIEW_CONTRACT_VERSION,
     PATTERN_SCORE_CONTRACT_VERSION,
     PATTERN_SCORE_DIMENSIONS,
     pattern_recommendations,
 )
-from anaxigraph.persistence.semantic_evidence import module_facts, semantic_inventory
+from anaxigraph.persistence.pattern_manifest import manifest_card
+from anaxigraph.persistence.semantic_evidence import module_facts
+from anaxigraph.persistence.temporal_reads import snapshot_file_paths
 from anaxigraph.semantic_config_port import SemanticConfig
 from anaxigraph.semantic_contract import SEMANTIC_SCHEMA_VERSION
 from anaxigraph.semantic_graph import SupersededSemanticJob
@@ -29,24 +37,38 @@ def pattern_request(
 ) -> dict[str, Any]:
     metadata = job["metadata"]
     kind = str(job["job_kind"])
+    catalogue = is_catalogue_request({"candidate": metadata["candidate"]})
+    with database.connect() as connection:
+        pattern = metadata.get("pattern") or manifest_card(
+            connection, int(job["repository_id"]), int(job["snapshot_id"]), metadata["candidate"]
+        )
     request = {
-        "contract": _contract(kind),
+        "contract": _contract(kind, catalogue=catalogue),
         "schema_version": SEMANTIC_SCHEMA_VERSION,
         "analysis_kind": kind,
         "candidate": metadata["candidate"],
-        "pattern": metadata["pattern"],
+        "pattern": pattern,
         "target_evidence": metadata["target_evidence"],
-        "score_contract_version": PATTERN_SCORE_CONTRACT_VERSION,
-        "review_contract_version": PATTERN_REVIEW_CONTRACT_VERSION,
-        "constraints": _constraints(str(metadata["pattern"].get("kind") or "")),
+        "score_contract_version": CATALOGUE_SCORE_VERSION
+        if catalogue
+        else PATTERN_SCORE_CONTRACT_VERSION,
+        "review_contract_version": CATALOGUE_REVIEW_VERSION
+        if catalogue
+        else PATTERN_REVIEW_CONTRACT_VERSION,
+        "constraints": _constraints(str(pattern.get("kind") or ""), catalogue=catalogue),
     }
     request.update(_source_evidence(database, job, root, semantic))
     if kind == "pattern_review":
-        request["assessment"] = _assessment(database, metadata)
+        assessment = _assessment(database, metadata)
+        request["assessment"] = assessment["value"]
+        request["assessment_fingerprint"] = assessment_fingerprint(request["assessment"])
+        request["assessment_input_hash"] = assessment["input_hash"]
     return request
 
 
-def _contract(kind: str) -> str:
+def _contract(kind: str, *, catalogue=False) -> str:
+    if catalogue:
+        return _catalogue_contract(kind)
     if kind == "pattern_assessment":
         return (
             "Evaluate this one possible pattern match against the supplied evidence from this "
@@ -67,7 +89,32 @@ def _contract(kind: str) -> str:
     raise ValueError(f"unsupported pattern job kind: {kind}")
 
 
-def _constraints(pattern_kind: str = "constructive") -> dict[str, Any]:
+def _catalogue_contract(kind: str) -> str:
+    common = (
+        "Consider this catalogue entry across the reviewed repository architecture, including "
+        "places where it is absent. A bug is not required for a useful opportunity. Give the "
+        "strongest concrete case for improving the design with this pattern and the strongest "
+        "case against it; compare keeping the current design, a simpler change and related "
+        "patterns. Rate every independent dimension and give contextual pros and cons. Identify "
+        "relevant graph targets, preserved contracts, change-isolation effects, migration costs "
+        "and verification. Supplied placement hints are leads, not a complete target inventory. "
+        "Do not confuse a familiar current design with an optimal one, missing evidence with "
+        "poor fit, or many connections with proof that a component must be split. "
+    )
+    if kind == "pattern_assessment":
+        return (
+            common
+            + "Return the complete contextual assessment. Do not edit source or request approval."
+        )
+    return common + (
+        "Independently critique the supplied assessment. Challenge overlooked opportunities, "
+        "weak evidence and unnecessary abstractions. For approve, return evaluation=null and "
+        "the supplied assessment_fingerprint and assessment_input_hash; the canonical assessment is retained once. For "
+        "revise or retain_competing, supply the complete corrected evaluation and explain issues."
+    )
+
+
+def _constraints(pattern_kind: str = "constructive", *, catalogue=False) -> dict[str, Any]:
     result = {
         "score_range": [0, 100],
         "recommendations": list(pattern_recommendations(pattern_kind)),
@@ -107,7 +154,27 @@ def _constraints(pattern_kind: str = "constructive") -> dict[str, Any]:
             "no_action when changing it is unjustified, or insufficient_evidence when uncertain. "
             "Never retain, introduce, replace with, or improve conformance to a failure mode."
         )
+    elif catalogue:
+        result["high_conformance_rule"] = (
+            "Assess conformance separately from opportunity. A pattern already used well in one "
+            "area can still be useful elsewhere; do not clamp its repository-wide opportunity. "
+            "An introduction or replacement needs a concrete, evidence-linked placement."
+        )
+    if catalogue:
+        result["evidence_rule"] = _catalogue_evidence_rule()
     return result
+
+
+def _catalogue_evidence_rule() -> str:
+    return (
+        "Assess this catalogue card explicitly even when no defect has been demonstrated. "
+        "Consider repeated responsibilities, future change needs, clearer interfaces and useful "
+        "separation. Compare the current approach, plausible applications of this pattern, "
+        "and competing approaches. Rate all dimensions and give contextual pros and cons; "
+        "poor fit and insufficient evidence are legitimate outcomes. Cite supplied witnesses "
+        "and counter-evidence. Completing catalogue consideration does not require recommending "
+        "every pattern, finding a bug, or inventing source facts."
+    )
 
 
 def _failure_mode_score_meanings() -> dict[str, str]:
@@ -125,7 +192,7 @@ def _assessment(database: SemanticIndex, metadata: dict[str, Any]) -> dict[str, 
     if not document_id:
         raise SupersededSemanticJob("Pattern review no longer has its assessment document")
     with database.connect() as connection:
-        return _document_by_id(connection, document_id)["value"]
+        return _document_by_id(connection, document_id)
 
 
 def _source_evidence(
@@ -164,29 +231,32 @@ def _source_evidence(
 
 
 def _parent_source_evidence(database, job, root, semantic):
-    features = job["metadata"]["target_evidence"].get("features") or []
+    target_evidence = job["metadata"]["target_evidence"]
+    features = target_evidence.get("features") or []
     witness = next(
         (item["value"] for item in features if item["name"] == "architecture.witnesses"), {}
     )
-    paths = [item["path"] for item in witness.get("items") or []]
+    hints = [item["target"] for item in target_evidence.get("placement_hints") or []]
+    hint_by_path = {item["path"]: item for item in hints if item.get("path")}
+    paths = list(
+        dict.fromkeys([*hint_by_path, *[item["path"] for item in witness.get("items") or []]])
+    )
     if not paths:
         return {
             "source_witnesses": [],
             "source_caveat": "No current child source witnesses were available.",
         }
-    with database.connect() as connection:
-        inventory, _relationships = semantic_inventory(connection, int(job["snapshot_id"]))
+    witnesses = _witness_facts(database, int(job["snapshot_id"]), paths[:8])
     result = []
     for path in paths[:8]:
         raw = read_mounted_source(
             root, path, missing="A parent-pattern source witness no longer exists"
         )
-        version = inventory.get(path)
+        version, symbols = witnesses.get(path, (None, []))
         require_unchanged_source(
             raw, version, changed="A parent-pattern source witness changed after planning"
         )
-        symbols = (version or {}).get("symbols") or []
-        target = {"level": "symbol", "label": symbols[0].get("name")} if symbols else {}
+        target = hint_by_path.get(path) or {}
         source, line_range, truncated = _bounded_source(
             raw.decode("utf-8", errors="replace"),
             target,
@@ -205,6 +275,19 @@ def _parent_source_evidence(database, job, root, semantic):
         "source_witnesses": result,
         "source_caveat": "Bounded child examples, not exhaustive parent or runtime evidence.",
     }
+
+
+def _witness_facts(database, snapshot, paths):
+    with database.connect() as connection:
+        identities = {
+            path: identifier
+            for identifier, path in snapshot_file_paths(connection, snapshot).items()
+        }
+        return {
+            path: module_facts(connection, snapshot, identities[path])
+            for path in paths
+            if path in identities
+        }
 
 
 def _bounded_source(
@@ -234,7 +317,15 @@ def _target_lines(
     if target.get("level") not in {"symbol", "type"}:
         return None
     label = str(target.get("label") or "")
-    symbol = next((item for item in symbols if item["name"] == label), None)
+    qualified = str(target.get("qualified_name") or "")
+    symbol = next(
+        (
+            item
+            for item in symbols
+            if (item.get("qualified_name") == qualified if qualified else item["name"] == label)
+        ),
+        None,
+    )
     if symbol is None:
         return None
     return max(1, int(symbol["start_line"]) - 20), min(total_lines, int(symbol["end_line"]) + 20)

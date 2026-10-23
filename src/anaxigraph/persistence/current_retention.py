@@ -3,19 +3,18 @@
 from __future__ import annotations
 
 import json
-from contextlib import closing
 from pathlib import Path
 from typing import Any
 
 from anaxigraph.config import load_config
 from anaxigraph.persistence.index_backup import validate_index_backup
+from anaxigraph.persistence.semantic_payloads import collect_semantic_payloads
 from anaxigraph.persistence.temporal_reconstruction import (
     _insert_checkpoint,
     reconstruct_files,
     reconstruct_relationships,
 )
 from anaxigraph.persistence.understanding_backup import create_understanding_backup
-from anaxigraph.portable_text import concise_module
 
 POLICY_KEY = "current-storage-v2"
 
@@ -27,7 +26,7 @@ def retain_current_index(
     if state is None:
         return {"status": "not_mapped"}
     repository, current, snapshots, count, opted_in = state
-    detailed = policy.detailed_history or (opted_in and not migrate)
+    detailed = policy.detailed_history or opted_in
     structural_count = sum(row["snapshot_kind"] != "portable_analysis" for row in snapshots)
     needed = structural_count > policy.comparison_checkpoints + 1 and not detailed
     if not (migrate or needed or count > 16):
@@ -47,9 +46,11 @@ def retain_current_index(
     )
     if removed or migrate:
         # Reclaim actual disk space; deleting SQL rows alone leaves a gigabyte-sized file.
-        with closing(database.connect()) as connection:
-            connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-            connection.execute("VACUUM")
+        with database.transaction(maintenance=True) as connection:
+            connection.execute(
+                "INSERT OR REPLACE INTO schema_meta VALUES ('index-compaction-pending','true')"
+            )
+        database.finish_cache_maintenance()
     size = database.path.stat().st_size
     return {
         "status": "compacted",
@@ -99,8 +100,6 @@ def _prune_cache(
     prune: bool,
 ) -> int:
     with database.transaction(maintenance=True) as connection:
-        if migrate and not load_config(Path(repository["path"])).semantic.detailed_reviews:
-            _compact_descriptions(connection, repository_id)
         removed = 0
         if not detailed and (prune or migrate):
             connection.execute(
@@ -157,29 +156,6 @@ def _migration_backup(database: Any, policy: Any) -> str:
     return str(path)
 
 
-def _compact_descriptions(connection: Any, repository_id: int) -> None:
-    for table, where in (
-        ("semantic_documents", "repository_id=? AND scope_type='module'"),
-        (
-            "semantic_claims",
-            "file_fact_id IN (SELECT id FROM file_facts WHERE artifact_id IN (SELECT id FROM artifacts WHERE repository_id=?))",
-        ),
-    ):
-        rows = connection.execute(
-            f"SELECT id,value_json FROM {table} WHERE {where}", (repository_id,)
-        ).fetchall()
-        for row in rows:
-            value = concise_module(json.loads(row["value_json"]))
-            connection.execute(
-                f"UPDATE {table} SET value_json=?,supporting_evidence_json=? WHERE id=?",
-                (
-                    json.dumps(value, sort_keys=True, separators=(",", ":")),
-                    json.dumps(value["evidence"]),
-                    row["id"],
-                ),
-            )
-
-
 def _saved_snapshots(connection: Any, repository_id: int) -> set[int]:
     # Keep selected latest interpretations; Git and the migration backup preserve earlier results.
     latest = connection.execute(
@@ -194,7 +170,11 @@ def _saved_snapshots(connection: Any, repository_id: int) -> set[int]:
         "SELECT DISTINCT snapshot_id FROM semantic_jobs WHERE repository_id=? AND status='running'",
         (repository_id,),
     ).fetchall()
-    return {row["snapshot_id"] for row in (*latest, *active, *reusable)}
+    selected_origins = connection.execute(
+        "SELECT DISTINCT d.snapshot_id FROM semantic_documents d JOIN semantic_scope_states s ON d.id IN (s.intrinsic_document_id,s.context_document_id) WHERE s.repository_id=? AND s.snapshot_id=(SELECT current_snapshot_id FROM repositories WHERE id=?)",
+        (repository_id, repository_id),
+    ).fetchall()
+    return {row["snapshot_id"] for row in (*latest, *active, *reusable, *selected_origins)}
 
 
 def _prune_snapshots(
@@ -215,11 +195,7 @@ def _prune_snapshots(
         connection.execute(
             "UPDATE snapshots SET base_snapshot_id=? WHERE id=?", (parent, identifier)
         )
-        # State can reuse an older document: retain its result and provenance, not its old frame.
-        connection.execute(
-            "UPDATE semantic_documents SET snapshot_id=? WHERE id IN (SELECT intrinsic_document_id FROM semantic_scope_states WHERE snapshot_id=? UNION SELECT context_document_id FROM semantic_scope_states WHERE snapshot_id=?)",
-            (identifier, identifier, identifier),
-        )
+
     parameters = (repository_id, *sorted(keep))
     clause = f"repository_id=? AND id NOT IN ({','.join('?' for _ in keep)})"
     oldest = min(keep)
@@ -311,3 +287,4 @@ def _collect_unused(connection: Any, repository_id: int) -> None:
         "DELETE FROM file_facts WHERE artifact_id IN (SELECT id FROM artifacts WHERE repository_id=?) AND id NOT IN (SELECT file_fact_id FROM snapshot_file_changes WHERE file_fact_id IS NOT NULL UNION SELECT file_fact_id FROM checkpoint_files UNION SELECT source_file_fact_id FROM relationship_sets UNION SELECT file_fact_id FROM semantic_documents WHERE file_fact_id IS NOT NULL UNION SELECT file_fact_id FROM semantic_jobs WHERE file_fact_id IS NOT NULL UNION SELECT file_fact_id FROM semantic_scope_states WHERE file_fact_id IS NOT NULL)",
         (repository_id,),
     )
+    collect_semantic_payloads(connection)

@@ -1,5 +1,7 @@
 # Graph purpose and architectural judgment
 
+**Pre-migration source references:** [commit 16c672b8](https://github.com/hcekne/anaxigraph/tree/16c672b832ac167264aa76364857ab7580c18e27); implementation evidence is dated separately below.
+
 **Date:** 23 October 2026
 
 **Status:** Analysis and proposed changes
@@ -122,21 +124,21 @@ failed in the cited floThink run; its actual requests, results and database need
 
 | Observed behavior | Why it matters | Evidence |
 | --- | --- | --- |
-| Fresh Eyes defaults to two proposals and clamps the supported count to three. | Three retained alternatives fits the clarified direction. Optional five-sketch exploration would need contract support; the main requirements are diversity, hierarchy and retaining options. | [Proposal controls](../src/anaxigraph/semantic_fresh_eyes_contract.py#L27) |
-| Proposal slots receive the same design instructions; different executors do not enforce different boundary or state choices. | Several proposals can converge on the same architecture with different wording. | [Proposal requests](../src/anaxigraph/semantic_fresh_eyes_requests.py#L25) |
-| Adjudication produces one reference design before the current-system comparison. That comparison receives the reference, not every original alternative. | Preserve several useful alternatives at each functional level; place subsequent as-built comparison outside Fresh Eyes. | [Comparison input](../src/anaxigraph/semantic_fresh_eyes_requests.py#L102), [adjudication contract](../src/anaxigraph/semantic_fresh_eyes_contract.py#L188) |
-| The existing repository-aware comparison uses up to 80 module descriptions, 30 group summaries, 30 pattern results, 120 dependency links and 40 findings; it does not include raw source. | Absence of raw source is intentional. Existing implementation topology or judgments in this packet belong to separate source-aware planning, not capability-only Fresh Eyes. | [Packet builder](../src/anaxigraph/semantic_fresh_eyes_evidence.py#L35), [module selector](../src/anaxigraph/semantic_evidence_selection.py#L121), [links](../src/anaxigraph/semantic_fresh_eyes_evidence.py#L460) |
-| The final mission review receives the comparison and brief. | Fresh Eyes mission alignment should compare proposed designs against purpose and functionality without importing the existing design. | [Final review input](../src/anaxigraph/semantic_fresh_eyes_requests.py#L112) |
-| Patterns starts from catalog pattern/target pairs. Its default policy allows four per target, 200 overall, minimum priority 25. Pairs without positive signals or sufficient priority are skipped before model assessment. | The catalogue is intended. The defect to investigate is incomplete opportunity coverage caused by filtering before every catalogue entry receives an assessment. | [Candidate policy](../src/anaxigraph/pattern_candidate_models.py#L18), [prefilter](../src/anaxigraph/pattern_candidate_selection.py#L101) |
-| For constructive patterns, suitability at least 70 and conformance at least 80 require retain/no_action, with opportunity at most 40. | Recognize an already-good implementation while also rating opportunities where the pattern is absent. A useful introduction need not repair a bug. | [Validation](../src/anaxigraph/pattern_evaluation_contract.py#L280) |
-| The pattern reviewer sees the first assessment. Parent evidence uses up to eight source witnesses and can miss important functions inside a witness file. | This is critique of a supplied hypothesis, rather than blind independent discovery. | [Assessment supplied to review](../src/anaxigraph/semantic_pattern_requests.py#L44), [witness selection](../src/anaxigraph/semantic_pattern_requests.py#L166) |
+| Fresh Eyes defaults to two proposals and clamps the supported count to three. | Three retained alternatives fits the clarified direction. Optional five-sketch exploration would need contract support; the main requirements are diversity, hierarchy and retaining options. | [Proposal controls](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/semantic_fresh_eyes_contract.py#L27) |
+| Proposal slots receive the same design instructions; different executors do not enforce different boundary or state choices. | Several proposals can converge on the same architecture with different wording. | [Proposal requests](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/semantic_fresh_eyes_requests.py#L25) |
+| Adjudication produces one reference design before the current-system comparison. That comparison receives the reference, not every original alternative. | Preserve several useful alternatives at each functional level; place subsequent as-built comparison outside Fresh Eyes. | [Comparison input](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/semantic_fresh_eyes_requests.py#L102), [adjudication contract](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/semantic_fresh_eyes_contract.py#L188) |
+| The existing repository-aware comparison uses up to 80 module descriptions, 30 group summaries, 30 pattern results, 120 dependency links and 40 findings; it does not include raw source. | Absence of raw source is intentional. Existing implementation topology or judgments in this packet belong to separate source-aware planning, not capability-only Fresh Eyes. | [Packet builder](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/semantic_fresh_eyes_evidence.py#L35), [module selector](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/semantic_evidence_selection.py#L121), [links](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/semantic_fresh_eyes_evidence.py#L460) |
+| The final mission review receives the comparison and brief. | Fresh Eyes mission alignment should compare proposed designs against purpose and functionality without importing the existing design. | [Final review input](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/semantic_fresh_eyes_requests.py#L112) |
+| Patterns starts from catalog pattern/target pairs. Its default policy allows four per target, 200 overall, minimum priority 25. Pairs without positive signals or sufficient priority are skipped before model assessment. | The catalogue is intended. The defect to investigate is incomplete opportunity coverage caused by filtering before every catalogue entry receives an assessment. | [Candidate policy](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/pattern_candidate_models.py#L18), [prefilter](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/pattern_candidate_selection.py#L101) |
+| For constructive patterns, suitability at least 70 and conformance at least 80 require retain/no_action, with opportunity at most 40. | Recognize an already-good implementation while also rating opportunities where the pattern is absent. A useful introduction need not repair a bug. | [Validation](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/pattern_evaluation_contract.py#L280) |
+| The pattern reviewer sees the first assessment. Parent evidence uses up to eight source witnesses and can miss important functions inside a witness file. | This is critique of a supplied hypothesis, rather than blind independent discovery. | [Assessment supplied to review](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/semantic_pattern_requests.py#L44), [witness selection](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/semantic_pattern_requests.py#L166) |
 | The model-quality fixture supplies the pattern and target. Five of ten cases expect retention, one remediation, two negative and two uncertain; none are positive introduction/replacement cases. Its known_positive_misses metric counts retention cases. | That benchmark does not demonstrate end-to-end discovery of overlooked improvements. | [Benchmark](../benchmarks/architecture_judgment.py#L26), [metrics](../benchmarks/architecture_judgment.py#L106), [cases](../benchmarks/fixtures/architecture-judgment.json) |
-| Graph projection is module/artifact based and excludes symbol nodes. Edge endpoints are artifacts, without first-class source/target function IDs. | Symbols are stored, but the requested function-to-function and interface-aware traversal is incomplete. | [Projection](../src/anaxigraph/persistence/graph_projection.py#L10), [node details](../src/anaxigraph/persistence/graph_node_detail.py#L33), [schema](../src/anaxigraph/persistence/temporal_schema.py#L20) |
-| Any dynamic relationship can suppress dead-code analysis repository-wide. Configurable defaults also require at least 95% resolution and a known candidate last-change date older than 90 days. | No findings can mean analysis was suppressed. Disabling historical mapping makes missing age evidence an important case to test. | [Global eligibility and defaults](../src/anaxigraph/architecture_dead_code.py#L40), [candidate age](../src/anaxigraph/architecture_dead_code.py#L105) |
+| Graph projection is module/artifact based and excludes symbol nodes. Edge endpoints are artifacts, without first-class source/target function IDs. | Symbols are stored, but the requested function-to-function and interface-aware traversal is incomplete. | [Projection](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/persistence/graph_projection.py#L10), [node details](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/persistence/graph_node_detail.py#L33), [schema](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/persistence/temporal_schema.py#L20) |
+| Any dynamic relationship can suppress dead-code analysis repository-wide. Configurable defaults also require at least 95% resolution and a known candidate last-change date older than 90 days. | No findings can mean analysis was suppressed. Disabling historical mapping makes missing age evidence an important case to test. | [Global eligibility and defaults](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/architecture_dead_code.py#L40), [candidate age](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/architecture_dead_code.py#L105) |
 
 The deterministic foundation already includes metrics, interfaces, symbols, typed dependencies,
-cycles and impact traversal with relevant tests. [Impact analysis](../src/anaxigraph/agent_impact.py#L119)
-and [boundary rules](../src/anaxigraph/architecture_rules.py#L268) should support the core product.
+cycles and impact traversal with relevant tests. [Impact analysis](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/agent_impact.py#L119)
+and [boundary rules](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/architecture_rules.py#L268) should support the core product.
 Their existence does not yet prove behavioral isolation or executable contract preservation.
 
 ### Existing protections to retain
@@ -147,9 +149,9 @@ Standalone `patterns` reads saved results; standalone Fresh Eyes also passes the
 configuration through. Do not diagnose the seven-hour run as an automatic detailed remap without
 its actual configuration and job history. A deliberate `detailed_reviews: false` to `true` change
 followed by generic bootstrap can invalidate file analyses because that mode participates in their
-input hashes. See [workflow guard](../src/anaxigraph/workflow_execution.py#L155),
-[regression test](../tests/test_workflows.py#L78), [Fresh Eyes planning](../src/anaxigraph/semantic_fresh_eyes_review.py#L117)
-and [file input identity](../src/anaxigraph/semantic_module_intrinsic.py#L79).
+input hashes. See [workflow guard](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/workflow_execution.py#L155),
+[regression test](../tests/test_workflows.py#L78), [Fresh Eyes planning](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/semantic_fresh_eyes_review.py#L117)
+and [file input identity](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/semantic_module_intrinsic.py#L79).
 
 ## Storage should follow the knowledge model
 
@@ -157,14 +159,14 @@ The reported 4.95 MB portable record and 122 MB cache describe different represe
 sizes need not match. Nevertheless, fitting under the 200 MB ceiling does not establish efficiency.
 Source defaults remain 64 MB for the index and 100 MB for active state; 122 MB exceeds those
 defaults. The run's effective budgets and the contents of its reported cache still need measurement.
-See [storage policy](../src/anaxigraph/storage_policy.py#L11).
+See [storage policy](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/storage_policy.py#L11).
 
 The current baseline still generates intrinsic and contextual file documents. Their JSON is also
 copied into `semantic_claims`, with supporting evidence separately stored, and selected text is
 indexed for search. IR serialization already removes some derivable metadata, so this is not a
-claim that every fact is completely uncompressed. See [result persistence](../src/anaxigraph/semantic_results.py#L142),
-[claim schema](../src/anaxigraph/persistence/schema.py#L142), [search projection](../src/anaxigraph/persistence/search_read.py#L240)
-and [IR compaction](../src/anaxigraph/ir_serialization.py#L124).
+claim that every fact is completely uncompressed. See [result persistence](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/semantic_results.py#L142),
+[claim schema](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/persistence/schema.py#L142), [search projection](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/persistence/search_read.py#L240)
+and [IR compaction](https://github.com/hcekne/anaxigraph/blob/16c672b832ac167264aa76364857ab7580c18e27/src/anaxigraph/ir_serialization.py#L124).
 
 Before choosing another storage limit, collect a read-only breakdown from the actual owning index:
 
@@ -373,22 +375,36 @@ of verified successes, failed applications and misleading near-misses after harn
 - [x] Record the shared-agent abstraction as one positive opportunity, not an exclusive search target.
 - [ ] Build positive opportunity cases across many catalogue families, including the supplied agent
   example without a pattern-name hint. Trace discovery, assessment, review and presentation.
-- [ ] Measure the actual owning cache by table/index, generation, copied JSON, FTS, free pages,
-  WAL, portable files, recovery copies and logs. Keep reported numbers separate from measurements.
-- [ ] Specify graph readiness, annotation coverage and analysis coverage as different product states.
-- [ ] Design module/function/interface traversal with evidence and localized uncertainty.
-- [ ] Specify one canonical concise annotation and the reuse/migration path for existing paid results.
-- [ ] Remove redundant JSON copies where measured benefit and query correctness justify it.
-- [ ] Expose unassessed/suppressed dead-code checks and replace global suppression with scoped evidence.
-- [ ] Evaluate every catalogue entry with contextual ratings, pros, cons, rationale and coverage;
+- [x] Measure the actual owning cache by table/index, retained analysis, copied JSON, FTS, free pages,
+  WAL, portable files and recovery copies; see the [original capture](../benchmarks/results/semantic-graph-design-2026-10-23.json)
+  and [migration/clone measurements](../benchmarks/results/semantic-graph-storage-2026-10-23.json). The capture has one source snapshot; reported figures remain distinct from measurements.
+- [x] Inventory known managed worker-log slots and the index directory: zero files / zero bytes
+  in the final scoped capture. External or unmanaged logs remain unmeasured; this is not a global
+  log-retention claim.
+- [x] Specify graph readiness, annotation coverage and analysis coverage as different product states.
+- [x] Design module/function/interface traversal with evidence and localized uncertainty.
+- [x] Specify one canonical concise annotation and the reuse/migration path for existing paid results.
+- [x] Remove redundant JSON copies where measured benefit and query correctness justify it.
+- [x] Expose unassessed/suppressed dead-code checks and replace global suppression with scoped evidence.
+- [x] Evaluate every catalogue entry with contextual ratings, pros, cons, rationale and coverage;
   use prioritization for deeper work without silently dropping initial assessments.
-- [ ] Produce purpose/capability briefs at product, area and subsystem levels with implementation
+- [x] Produce purpose/capability briefs at product, area and subsystem levels with implementation
   details removed, and enforce source-free Fresh Eyes workers and contexts.
-- [ ] Retain three strong Fresh Eyes alternatives per reviewed functional level, optionally exploring
+- [x] Retain three strong Fresh Eyes alternatives per reviewed functional level, optionally exploring
   five sketches, and keep source-aware comparison/migration outside Fresh Eyes.
 - [ ] Add known beneficial changes, healthy near-misses and held-out cases to discovery evaluation.
 - [ ] Run the bounded pilot and publish measured quality, latency, model usage and storage outcomes.
 - [ ] Use those results to choose production changes and acceptance criteria.
 
-This checklist records proposed work. This documentation change does not alter runtime prompts,
-review behavior or storage, and no new live model-quality result is claimed.
+**Implementation update — 23 October 2026, 0.9.0 candidate:** checked runtime entries are now
+implemented and exercised with deterministic fixtures; see the [backend acceptance audit](design/semantic-graph-redesign-2026-10-23.md#implementation-and-acceptance-audit)
+and [frontend acceptance](design/semantic-graph-frontend-2026-10-23.md#implementation-and-acceptance).
+The earlier audit, prompt proposals, primary-source research and full feedback remain intact.
+Unchecked research/discovery pilots have not been run merely because the new protocol completes.
+No new live model-quality, architectural novelty or production robustness result is claimed.
+
+Unused-code checks now assess declared ownership scopes or module directories independently.
+Dynamic links and weak resolution in one scope do not silently disable the other scopes. Missing
+change dates or runtime-registration capabilities produce explicit diagnostic findings; the overview
+reports candidate and unassessed counts. A scope boundary and zero static callers do not prove
+runtime isolation or justify deletion. `tests/test_scoped_dead_code.py` exercises these distinctions.

@@ -8,6 +8,7 @@ from pathlib import PurePosixPath
 from typing import Any
 
 from anaxigraph.analyzer_capabilities import declare_capabilities
+from anaxigraph.analyzers.javascript_calls import call_sites
 from anaxigraph.analyzers.javascript_dependencies import extract_dependencies
 from anaxigraph.analyzers.javascript_evidence import extract_javascript_evidence
 from anaxigraph.analyzers.javascript_parser import (
@@ -20,6 +21,7 @@ from anaxigraph.analyzers.javascript_parser import (
 )
 from anaxigraph.analyzers.javascript_semantics import module_semantics
 from anaxigraph.analyzers.javascript_symbols import extract_symbols
+from anaxigraph.call_graph_contract import CALL_GRAPH_VERSION
 from anaxigraph.ir import module_identity, resolver_context
 from anaxigraph.languages import (
     ECMASCRIPT_ANALYZER_LANGUAGES,
@@ -60,7 +62,7 @@ _PARSER_VERSIONS = {
 
 class JavaScriptAnalyzer:
     name = "builtin-javascript-tree-sitter"
-    version = "1"
+    version = "2"
     languages = ECMASCRIPT_ANALYZER_LANGUAGES
     capabilities = declare_capabilities(
         name,
@@ -82,7 +84,7 @@ class JavaScriptAnalyzer:
 
 class TypeScriptAnalyzer:
     name = "builtin-typescript-tree-sitter"
-    version = "1"
+    version = "2"
     languages = TYPESCRIPT_ANALYZER_LANGUAGES
     capabilities = declare_capabilities(
         name,
@@ -189,6 +191,10 @@ def _build_analysis(
             "module_documentation": leading_comment(parsed),
             "parse_diagnostics": list(parsed.diagnostics),
             "parser": _parser_metadata(language, typescript=typescript),
+            "call_contract": CALL_GRAPH_VERSION,
+            "call_sites": call_sites(parsed, symbols, dependencies),
+            "symbol_aliases": dependencies.symbol_aliases,
+            "export_bindings": dependencies.export_bindings,
         },
         module_identity=identity,
         exports=public,

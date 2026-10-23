@@ -145,7 +145,7 @@ def test_search_command_uses_the_shared_ranked_projection(repository: Path, tmp_
 
     assert result["query"] == "Calculator"
     assert result["results"][0]["path"] == "pkg/core.py"
-    assert result["results"][0]["search"]["contract_version"] == "module-search-fts-v1"
+    assert result["results"][0]["search"]["contract_version"] == "module-search-contentless-v2"
 
 
 def test_semantic_handlers_plan_report_and_resume(repository: Path, tmp_path: Path, capsys):

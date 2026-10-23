@@ -8,6 +8,11 @@ from anaxigraph.pattern_candidate_models import (
     PATTERN_CANDIDATE_CONTRACT_VERSION,
     PATTERN_CANDIDATE_SELECTION_VERSION,
 )
+from anaxigraph.pattern_catalogue_contract import (
+    CATALOGUE_REVIEW_VERSION,
+    CATALOGUE_SCORE_VERSION,
+    CATALOGUE_SELECTION_VERSION,
+)
 from anaxigraph.pattern_evaluation_contract import (
     PATTERN_REVIEW_CONTRACT_VERSION,
     PATTERN_SCORE_CONTRACT_VERSION,
@@ -45,6 +50,9 @@ def pattern_plan_input_hash(
             "catalog_fingerprint": catalog_fingerprint,
             "candidate_contract": PATTERN_CANDIDATE_CONTRACT_VERSION,
             "candidate_selection": PATTERN_CANDIDATE_SELECTION_VERSION,
+            "catalogue_consideration": CATALOGUE_SELECTION_VERSION,
+            "catalogue_score_contract": CATALOGUE_SCORE_VERSION,
+            "catalogue_review_contract": CATALOGUE_REVIEW_VERSION,
             "evidence_contract": PATTERN_EVIDENCE_VERSION,
             "score_contract": PATTERN_SCORE_CONTRACT_VERSION,
             "review_contract": PATTERN_REVIEW_CONTRACT_VERSION,
@@ -59,7 +67,7 @@ def pattern_assessment_input_hash(candidate: dict[str, Any], prompt_version: str
         prompt_version,
         {
             "candidate_fingerprint": candidate["input_fingerprint"],
-            "score_contract": PATTERN_SCORE_CONTRACT_VERSION,
+            "score_contract": _score_contract(candidate),
         },
     )
 
@@ -75,7 +83,19 @@ def pattern_review_input_hash(
         {
             "candidate_fingerprint": candidate["input_fingerprint"],
             "assessment_fingerprint": semantic_digest(assessment),
-            "score_contract": PATTERN_SCORE_CONTRACT_VERSION,
-            "review_contract": PATTERN_REVIEW_CONTRACT_VERSION,
+            "score_contract": _score_contract(candidate),
+            "review_contract": (
+                CATALOGUE_REVIEW_VERSION
+                if _catalogue(candidate)
+                else PATTERN_REVIEW_CONTRACT_VERSION
+            ),
         },
     )
+
+
+def _catalogue(candidate: dict[str, Any]) -> bool:
+    return "catalogue_coverage" in (candidate.get("selection_reasons") or [])
+
+
+def _score_contract(candidate: dict[str, Any]) -> str:
+    return CATALOGUE_SCORE_VERSION if _catalogue(candidate) else PATTERN_SCORE_CONTRACT_VERSION
