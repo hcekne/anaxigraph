@@ -20,6 +20,7 @@ import sys
 import tarfile
 import tempfile
 import time
+import tomllib
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -195,6 +196,12 @@ def _worker(source, root, database_path):
     sys.path.insert(0, str(source / "src"))
     started = time.perf_counter()
     import anaxigraph
+
+    # This source comparison shares dependencies, but each source tree keeps its own
+    # declared distribution version rather than inheriting the harness installation.
+    anaxigraph.__version__ = tomllib.loads((source / "pyproject.toml").read_text())["project"][
+        "version"
+    ]
     from anaxigraph.config import load_config
     from anaxigraph.mcp_core import CoreMcpTools
     from anaxigraph.scanner import RepositoryScanner
@@ -301,6 +308,7 @@ def _worker(source, root, database_path):
         connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
     return {
         "implementation_import": str(Path(anaxigraph.__file__).resolve()),
+        "implementation_package_version": anaxigraph.__version__,
         "implementation_source_fingerprint": _digest(
             {
                 str(path.relative_to(source)): hashlib.sha256(path.read_bytes()).hexdigest()
@@ -339,6 +347,7 @@ def main():
         shutil.copytree(
             REPOSITORY / "src", current / "src", ignore=shutil.ignore_patterns("__pycache__")
         )
+        shutil.copy2(REPOSITORY / "pyproject.toml", current / "pyproject.toml")
         versions = {}
         for label, source in (("baseline", baseline), ("current", current)):
             run = subprocess.run(

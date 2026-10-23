@@ -9,7 +9,7 @@
     "states": 5
   },
   "contract": "semantic-maintenance-v1",
-  "current_base_revision": "16c672b832ac167264aa76364857ab7580c18e27",
+  "current_base_revision": "e27114308b3b98ecdc334024477611ccef0722e2",
   "current_worktree_dirty": true,
   "fixture_author": "agent-authored controlled acceptance case; not held out",
   "healthy_and_hub_control": {
@@ -34,14 +34,15 @@
     "Healthy utility and overloaded hub deliberately have equal degree; architectural benefit or decomposition advice requires judgment not measured here.",
     "Timings are one local run under concurrent CI/test activity; no statistical speedup claim."
   ],
-  "measured_at": "2026-10-23T18:01:57.113846+00:00",
+  "measured_at": "2026-10-23T20:14:24.050197+00:00",
   "method": "Same source fingerprints; separate subprocess/index; actual Python MCP tool projections without HTTP transport; matched manually authored semantic facts.",
   "versions": {
     "baseline": {
       "final_local_index_bytes": 823296,
-      "implementation_import": "/tmp/anaxigraph-maintenance-1gqh5_fu/baseline/src/anaxigraph/__init__.py",
+      "implementation_import": "/tmp/anaxigraph-maintenance-v3e56lgs/baseline/src/anaxigraph/__init__.py",
+      "implementation_package_version": "0.8.5",
       "implementation_source_fingerprint": "27c30a4904a2fc99781f7b21b749e9d93e9e18017ca8c7eeef53420599caa08d",
-      "peak_process_rss_bytes": 87621632,
+      "peak_process_rss_bytes": 87445504,
       "stages": [
         {
           "behavior_owner": {
@@ -50,7 +51,7 @@
               "providers/alpha.py",
               "backend/orchestrator.py"
             ],
-            "median_ms": 26.883,
+            "median_ms": 16.327,
             "query": "uppercase execution",
             "repetitions": 3,
             "response_bytes": 9498
@@ -59,7 +60,7 @@
           "exercised_checks": {
             "actual_exit_code": 0,
             "expected_exit_code": 0,
-            "output": ".....                                                                    [100%]\n5 passed in 0.09s"
+            "output": ".....                                                                    [100%]\n5 passed in 0.01s"
           },
           "frontend_only": {
             "change_rule": "Check direct users and focused tests first. Indirect users are possible follow-on effects, not a list of files that must change.",
@@ -71,7 +72,7 @@
               "tests/test_view.py"
             ],
             "explicit_expansion": null,
-            "median_ms": 34.546,
+            "median_ms": 21.769,
             "missed": [],
             "observed_direct_consumers": [
               "tests/test_view.py"
@@ -125,11 +126,11 @@
               "clients/utility_9.py"
             ],
             "explicit_expansion": {
-              "median_ms": 36.695,
+              "median_ms": 22.512,
               "repetitions": 3,
               "response_bytes": 8556
             },
-            "median_ms": 36.727,
+            "median_ms": 24.579,
             "missed": [],
             "observed_direct_consumers": [
               "clients/utility_0.py",
@@ -202,11 +203,11 @@
               "clients/hub_9.py"
             ],
             "explicit_expansion": {
-              "median_ms": 31.156,
+              "median_ms": 20.464,
               "repetitions": 3,
               "response_bytes": 8263
             },
-            "median_ms": 34.481,
+            "median_ms": 19.688,
             "missed": [],
             "observed_direct_consumers": [
               "clients/hub_0.py",
@@ -255,7 +256,7 @@
               "tests/test_provider.py"
             ],
             "explicit_expansion": null,
-            "median_ms": 39.074,
+            "median_ms": 23.674,
             "missed": [],
             "observed_direct_consumers": [
               "backend/health.py",
@@ -278,20 +279,20 @@
           },
           "quick_saved_overview": {
             "contains_owner_summary": true,
-            "median_ms": 19.773,
+            "median_ms": 11.217,
             "repetitions": 3,
-            "response_bytes": 14112,
+            "response_bytes": 14111,
             "source_directory_unavailable": true
           },
           "saved_obligation": {
             "expected": "Output is a string.",
-            "median_ms": 18.37,
+            "median_ms": 11.423,
             "repetitions": 3,
             "response_bytes": 14112,
             "source_directory_unavailable": true,
             "visible": true
           },
-          "scan_ms": 1064.392,
+          "scan_ms": 1102.577,
           "source_files": 62,
           "source_fingerprint": "3f85ca92428526bf815c175eb7c51f0827f75032c99c84a5cc897f14328f7703",
           "state": "baseline"
@@ -303,7 +304,7 @@
               "providers/alpha.py",
               "backend/orchestrator.py"
             ],
-            "median_ms": 17.06,
+            "median_ms": 12.265,
             "query": "uppercase execution",
             "repetitions": 3,
             "response_bytes": 9498
@@ -327,517 +328,7 @@
               "tests/test_view.py"
             ],
             "explicit_expansion": null,
-            "median_ms": 35.882,
-            "missed": [],
-            "observed_direct_consumers": [
-              "tests/test_view.py"
-            ],
-            "outgoing_dependencies": [
-              "backend/api.py"
-            ],
-            "relevant_tests": [
-              "tests/test_view.py"
-            ],
-            "repetitions": 3,
-            "response_bytes": 3209,
-            "risk": "medium",
-            "target": "frontend/view.py",
-            "unrelated_scope_candidates": []
-          },
-          "healthy_utility": {
-            "change_rule": "Check direct users and focused tests first. Indirect users are possible follow-on effects, not a list of files that must change.",
-            "default_returned_consumers": [
-              "clients/utility_0.py",
-              "clients/utility_1.py",
-              "clients/utility_10.py",
-              "clients/utility_11.py",
-              "clients/utility_12.py"
-            ],
-            "degree": 24,
-            "expected_direct_consumers": [
-              "clients/utility_0.py",
-              "clients/utility_1.py",
-              "clients/utility_10.py",
-              "clients/utility_11.py",
-              "clients/utility_12.py",
-              "clients/utility_13.py",
-              "clients/utility_14.py",
-              "clients/utility_15.py",
-              "clients/utility_16.py",
-              "clients/utility_17.py",
-              "clients/utility_18.py",
-              "clients/utility_19.py",
-              "clients/utility_2.py",
-              "clients/utility_20.py",
-              "clients/utility_21.py",
-              "clients/utility_22.py",
-              "clients/utility_23.py",
-              "clients/utility_3.py",
-              "clients/utility_4.py",
-              "clients/utility_5.py",
-              "clients/utility_6.py",
-              "clients/utility_7.py",
-              "clients/utility_8.py",
-              "clients/utility_9.py"
-            ],
-            "explicit_expansion": {
-              "median_ms": 37.622,
-              "repetitions": 3,
-              "response_bytes": 8556
-            },
-            "median_ms": 34.284,
-            "missed": [],
-            "observed_direct_consumers": [
-              "clients/utility_0.py",
-              "clients/utility_1.py",
-              "clients/utility_10.py",
-              "clients/utility_11.py",
-              "clients/utility_12.py",
-              "clients/utility_13.py",
-              "clients/utility_14.py",
-              "clients/utility_15.py",
-              "clients/utility_16.py",
-              "clients/utility_17.py",
-              "clients/utility_18.py",
-              "clients/utility_19.py",
-              "clients/utility_2.py",
-              "clients/utility_20.py",
-              "clients/utility_21.py",
-              "clients/utility_22.py",
-              "clients/utility_23.py",
-              "clients/utility_3.py",
-              "clients/utility_4.py",
-              "clients/utility_5.py",
-              "clients/utility_6.py",
-              "clients/utility_7.py",
-              "clients/utility_8.py",
-              "clients/utility_9.py"
-            ],
-            "outgoing_dependencies": [],
-            "relevant_tests": [],
-            "repetitions": 3,
-            "response_bytes": 3964,
-            "risk": "high",
-            "target": "shared/text.py",
-            "unrelated_scope_candidates": []
-          },
-          "overloaded_hub": {
-            "change_rule": "Check direct users and focused tests first. Indirect users are possible follow-on effects, not a list of files that must change.",
-            "default_returned_consumers": [
-              "clients/hub_0.py",
-              "clients/hub_1.py",
-              "clients/hub_10.py",
-              "clients/hub_11.py",
-              "clients/hub_12.py"
-            ],
-            "degree": 24,
-            "expected_direct_consumers": [
-              "clients/hub_0.py",
-              "clients/hub_1.py",
-              "clients/hub_10.py",
-              "clients/hub_11.py",
-              "clients/hub_12.py",
-              "clients/hub_13.py",
-              "clients/hub_14.py",
-              "clients/hub_15.py",
-              "clients/hub_16.py",
-              "clients/hub_17.py",
-              "clients/hub_18.py",
-              "clients/hub_19.py",
-              "clients/hub_2.py",
-              "clients/hub_20.py",
-              "clients/hub_21.py",
-              "clients/hub_22.py",
-              "clients/hub_23.py",
-              "clients/hub_3.py",
-              "clients/hub_4.py",
-              "clients/hub_5.py",
-              "clients/hub_6.py",
-              "clients/hub_7.py",
-              "clients/hub_8.py",
-              "clients/hub_9.py"
-            ],
-            "explicit_expansion": {
-              "median_ms": 27.553,
-              "repetitions": 3,
-              "response_bytes": 8263
-            },
-            "median_ms": 29.394,
-            "missed": [],
-            "observed_direct_consumers": [
-              "clients/hub_0.py",
-              "clients/hub_1.py",
-              "clients/hub_10.py",
-              "clients/hub_11.py",
-              "clients/hub_12.py",
-              "clients/hub_13.py",
-              "clients/hub_14.py",
-              "clients/hub_15.py",
-              "clients/hub_16.py",
-              "clients/hub_17.py",
-              "clients/hub_18.py",
-              "clients/hub_19.py",
-              "clients/hub_2.py",
-              "clients/hub_20.py",
-              "clients/hub_21.py",
-              "clients/hub_22.py",
-              "clients/hub_23.py",
-              "clients/hub_3.py",
-              "clients/hub_4.py",
-              "clients/hub_5.py",
-              "clients/hub_6.py",
-              "clients/hub_7.py",
-              "clients/hub_8.py",
-              "clients/hub_9.py"
-            ],
-            "outgoing_dependencies": [],
-            "relevant_tests": [],
-            "repetitions": 3,
-            "response_bytes": 3837,
-            "risk": "high",
-            "target": "backend/hub.py",
-            "unrelated_scope_candidates": []
-          },
-          "provider_consumers": {
-            "change_rule": "Check direct users and focused tests first. Indirect users are possible follow-on effects, not a list of files that must change.",
-            "default_returned_consumers": [
-              "backend/health.py",
-              "backend/orchestrator.py",
-              "tests/test_provider.py"
-            ],
-            "degree": 3,
-            "expected_direct_consumers": [
-              "backend/orchestrator.py",
-              "tests/test_provider.py"
-            ],
-            "explicit_expansion": null,
-            "median_ms": 32.159,
-            "missed": [],
-            "observed_direct_consumers": [
-              "backend/health.py",
-              "backend/orchestrator.py",
-              "tests/test_provider.py"
-            ],
-            "outgoing_dependencies": [],
-            "relevant_tests": [
-              "tests/test_api.py",
-              "tests/test_provider.py",
-              "tests/test_view.py"
-            ],
-            "repetitions": 3,
-            "response_bytes": 3743,
-            "risk": "medium",
-            "target": "providers.alpha.execute",
-            "unrelated_scope_candidates": [
-              "backend/health.py"
-            ]
-          },
-          "quick_saved_overview": {
-            "contains_owner_summary": true,
-            "median_ms": 18.838,
-            "repetitions": 3,
-            "response_bytes": 14111,
-            "source_directory_unavailable": true
-          },
-          "saved_obligation": {
-            "expected": "Output is a string.",
-            "median_ms": 21.103,
-            "repetitions": 3,
-            "response_bytes": 14111,
-            "source_directory_unavailable": true,
-            "visible": true
-          },
-          "scan_ms": 1170.768,
-          "source_files": 62,
-          "source_fingerprint": "9f38352991d81e8629175664bef651e4a1a9d8cbf39bd15850d2199cd68fb88f",
-          "state": "frontend_only"
-        },
-        {
-          "behavior_owner": {
-            "expected": "providers/alpha.py",
-            "found": [
-              "providers/alpha.py",
-              "backend/orchestrator.py"
-            ],
-            "median_ms": 16.904,
-            "query": "uppercase execution",
-            "repetitions": 3,
-            "response_bytes": 9514
-          },
-          "changed_files_from_baseline": [
-            "providers/alpha.py"
-          ],
-          "exercised_checks": {
-            "actual_exit_code": 0,
-            "expected_exit_code": 0,
-            "output": ".....                                                                    [100%]\n5 passed in 0.03s"
-          },
-          "frontend_only": {
-            "change_rule": "Check direct users and focused tests first. Indirect users are possible follow-on effects, not a list of files that must change.",
-            "default_returned_consumers": [
-              "tests/test_view.py"
-            ],
-            "degree": 2,
-            "expected_direct_consumers": [
-              "tests/test_view.py"
-            ],
-            "explicit_expansion": null,
-            "median_ms": 40.816,
-            "missed": [],
-            "observed_direct_consumers": [
-              "tests/test_view.py"
-            ],
-            "outgoing_dependencies": [
-              "backend/api.py"
-            ],
-            "relevant_tests": [
-              "tests/test_view.py"
-            ],
-            "repetitions": 3,
-            "response_bytes": 3208,
-            "risk": "medium",
-            "target": "frontend/view.py",
-            "unrelated_scope_candidates": []
-          },
-          "healthy_utility": {
-            "change_rule": "Check direct users and focused tests first. Indirect users are possible follow-on effects, not a list of files that must change.",
-            "default_returned_consumers": [
-              "clients/utility_0.py",
-              "clients/utility_1.py",
-              "clients/utility_10.py",
-              "clients/utility_11.py",
-              "clients/utility_12.py"
-            ],
-            "degree": 24,
-            "expected_direct_consumers": [
-              "clients/utility_0.py",
-              "clients/utility_1.py",
-              "clients/utility_10.py",
-              "clients/utility_11.py",
-              "clients/utility_12.py",
-              "clients/utility_13.py",
-              "clients/utility_14.py",
-              "clients/utility_15.py",
-              "clients/utility_16.py",
-              "clients/utility_17.py",
-              "clients/utility_18.py",
-              "clients/utility_19.py",
-              "clients/utility_2.py",
-              "clients/utility_20.py",
-              "clients/utility_21.py",
-              "clients/utility_22.py",
-              "clients/utility_23.py",
-              "clients/utility_3.py",
-              "clients/utility_4.py",
-              "clients/utility_5.py",
-              "clients/utility_6.py",
-              "clients/utility_7.py",
-              "clients/utility_8.py",
-              "clients/utility_9.py"
-            ],
-            "explicit_expansion": {
-              "median_ms": 36.686,
-              "repetitions": 3,
-              "response_bytes": 8556
-            },
-            "median_ms": 35.687,
-            "missed": [],
-            "observed_direct_consumers": [
-              "clients/utility_0.py",
-              "clients/utility_1.py",
-              "clients/utility_10.py",
-              "clients/utility_11.py",
-              "clients/utility_12.py",
-              "clients/utility_13.py",
-              "clients/utility_14.py",
-              "clients/utility_15.py",
-              "clients/utility_16.py",
-              "clients/utility_17.py",
-              "clients/utility_18.py",
-              "clients/utility_19.py",
-              "clients/utility_2.py",
-              "clients/utility_20.py",
-              "clients/utility_21.py",
-              "clients/utility_22.py",
-              "clients/utility_23.py",
-              "clients/utility_3.py",
-              "clients/utility_4.py",
-              "clients/utility_5.py",
-              "clients/utility_6.py",
-              "clients/utility_7.py",
-              "clients/utility_8.py",
-              "clients/utility_9.py"
-            ],
-            "outgoing_dependencies": [],
-            "relevant_tests": [],
-            "repetitions": 3,
-            "response_bytes": 3964,
-            "risk": "high",
-            "target": "shared/text.py",
-            "unrelated_scope_candidates": []
-          },
-          "overloaded_hub": {
-            "change_rule": "Check direct users and focused tests first. Indirect users are possible follow-on effects, not a list of files that must change.",
-            "default_returned_consumers": [
-              "clients/hub_0.py",
-              "clients/hub_1.py",
-              "clients/hub_10.py",
-              "clients/hub_11.py",
-              "clients/hub_12.py"
-            ],
-            "degree": 24,
-            "expected_direct_consumers": [
-              "clients/hub_0.py",
-              "clients/hub_1.py",
-              "clients/hub_10.py",
-              "clients/hub_11.py",
-              "clients/hub_12.py",
-              "clients/hub_13.py",
-              "clients/hub_14.py",
-              "clients/hub_15.py",
-              "clients/hub_16.py",
-              "clients/hub_17.py",
-              "clients/hub_18.py",
-              "clients/hub_19.py",
-              "clients/hub_2.py",
-              "clients/hub_20.py",
-              "clients/hub_21.py",
-              "clients/hub_22.py",
-              "clients/hub_23.py",
-              "clients/hub_3.py",
-              "clients/hub_4.py",
-              "clients/hub_5.py",
-              "clients/hub_6.py",
-              "clients/hub_7.py",
-              "clients/hub_8.py",
-              "clients/hub_9.py"
-            ],
-            "explicit_expansion": {
-              "median_ms": 34.104,
-              "repetitions": 3,
-              "response_bytes": 8263
-            },
-            "median_ms": 32.845,
-            "missed": [],
-            "observed_direct_consumers": [
-              "clients/hub_0.py",
-              "clients/hub_1.py",
-              "clients/hub_10.py",
-              "clients/hub_11.py",
-              "clients/hub_12.py",
-              "clients/hub_13.py",
-              "clients/hub_14.py",
-              "clients/hub_15.py",
-              "clients/hub_16.py",
-              "clients/hub_17.py",
-              "clients/hub_18.py",
-              "clients/hub_19.py",
-              "clients/hub_2.py",
-              "clients/hub_20.py",
-              "clients/hub_21.py",
-              "clients/hub_22.py",
-              "clients/hub_23.py",
-              "clients/hub_3.py",
-              "clients/hub_4.py",
-              "clients/hub_5.py",
-              "clients/hub_6.py",
-              "clients/hub_7.py",
-              "clients/hub_8.py",
-              "clients/hub_9.py"
-            ],
-            "outgoing_dependencies": [],
-            "relevant_tests": [],
-            "repetitions": 3,
-            "response_bytes": 3837,
-            "risk": "high",
-            "target": "backend/hub.py",
-            "unrelated_scope_candidates": []
-          },
-          "provider_consumers": {
-            "change_rule": "Check direct users and focused tests first. Indirect users are possible follow-on effects, not a list of files that must change.",
-            "default_returned_consumers": [
-              "backend/health.py",
-              "backend/orchestrator.py",
-              "tests/test_provider.py"
-            ],
-            "degree": 3,
-            "expected_direct_consumers": [
-              "backend/orchestrator.py",
-              "tests/test_provider.py"
-            ],
-            "explicit_expansion": null,
-            "median_ms": 34.196,
-            "missed": [],
-            "observed_direct_consumers": [
-              "backend/health.py",
-              "backend/orchestrator.py",
-              "tests/test_provider.py"
-            ],
-            "outgoing_dependencies": [],
-            "relevant_tests": [
-              "tests/test_api.py",
-              "tests/test_provider.py",
-              "tests/test_view.py"
-            ],
-            "repetitions": 3,
-            "response_bytes": 3743,
-            "risk": "medium",
-            "target": "providers.alpha.execute",
-            "unrelated_scope_candidates": [
-              "backend/health.py"
-            ]
-          },
-          "quick_saved_overview": {
-            "contains_owner_summary": true,
-            "median_ms": 21.812,
-            "repetitions": 3,
-            "response_bytes": 14128,
-            "source_directory_unavailable": true
-          },
-          "saved_obligation": {
-            "expected": "Output is a string.",
-            "median_ms": 21.248,
-            "repetitions": 3,
-            "response_bytes": 14128,
-            "source_directory_unavailable": true,
-            "visible": true
-          },
-          "scan_ms": 133.524,
-          "source_files": 62,
-          "source_fingerprint": "f5cf47b264e77f215015a8a5110147f9010169b8dca4a388bb33810cde687a6c",
-          "state": "stable_provider"
-        },
-        {
-          "behavior_owner": {
-            "expected": "providers/alpha.py",
-            "found": [
-              "providers/alpha.py",
-              "backend/orchestrator.py"
-            ],
-            "median_ms": 14.512,
-            "query": "uppercase execution",
-            "repetitions": 3,
-            "response_bytes": 9514
-          },
-          "changed_files_from_baseline": [
-            "providers/alpha.py"
-          ],
-          "exercised_checks": {
-            "actual_exit_code": 1,
-            "expected_exit_code": 1,
-            "output": "FF..F                                                                    [100%]\n=================================== FAILURES ===================================\n___________________________________ test_api ___________________________________\n\n>   def test_api(): assert request_message(\" hi \") == \"HI\"\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   AssertionError: assert {'text': 'HI'} == 'HI'\nE    +  where {'text': 'HI'} = request_message(' hi ')\n\ntests/test_api.py:2: AssertionError\n__________________________________ test_reply __________________________________\n\n    def test_reply():\n>       assert execute(\" hi \") == \"HI\"\nE       AssertionError: assert {'text': 'HI'} == 'HI'\nE        +  where {'text': 'HI'} = execute(' hi ')\n\ntests/test_provider.py:3: AssertionError\n______________________________ test_presentation _______________________________\n\n>   def test_presentation(): assert render(\" hi \") == \"<p>HI</p>\"\n                                    ^^^^^^^^^^^^^^\n\ntests/test_view.py:2: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nprompt = ' hi '\n\n    def render(prompt):\n>       return \"<p>\" + request_message(prompt) + \"</p>\"\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       TypeError: can only concatenate str (not \"dict\") to str\n\nfrontend/view.py:4: TypeError\n=========================== short test summary info ============================\nFAILED tests/test_api.py::test_api - AssertionError: assert {'text': 'HI'} ==...\nFAILED tests/test_provider.py::test_reply - AssertionError: assert {'text': '...\nFAILED tests/test_view.py::test_presentation - TypeError: can only concatenat...\n3 failed, 2 passed in 0.07s"
-          },
-          "frontend_only": {
-            "change_rule": "Check direct users and focused tests first. Indirect users are possible follow-on effects, not a list of files that must change.",
-            "default_returned_consumers": [
-              "tests/test_view.py"
-            ],
-            "degree": 2,
-            "expected_direct_consumers": [
-              "tests/test_view.py"
-            ],
-            "explicit_expansion": null,
-            "median_ms": 34.609,
+            "median_ms": 24.739,
             "missed": [],
             "observed_direct_consumers": [
               "tests/test_view.py"
@@ -891,11 +382,11 @@
               "clients/utility_9.py"
             ],
             "explicit_expansion": {
-              "median_ms": 32.005,
+              "median_ms": 19.139,
               "repetitions": 3,
               "response_bytes": 8556
             },
-            "median_ms": 36.888,
+            "median_ms": 20.171,
             "missed": [],
             "observed_direct_consumers": [
               "clients/utility_0.py",
@@ -968,11 +459,266 @@
               "clients/hub_9.py"
             ],
             "explicit_expansion": {
-              "median_ms": 35.38,
+              "median_ms": 23.553,
               "repetitions": 3,
               "response_bytes": 8263
             },
-            "median_ms": 35.484,
+            "median_ms": 23.042,
+            "missed": [],
+            "observed_direct_consumers": [
+              "clients/hub_0.py",
+              "clients/hub_1.py",
+              "clients/hub_10.py",
+              "clients/hub_11.py",
+              "clients/hub_12.py",
+              "clients/hub_13.py",
+              "clients/hub_14.py",
+              "clients/hub_15.py",
+              "clients/hub_16.py",
+              "clients/hub_17.py",
+              "clients/hub_18.py",
+              "clients/hub_19.py",
+              "clients/hub_2.py",
+              "clients/hub_20.py",
+              "clients/hub_21.py",
+              "clients/hub_22.py",
+              "clients/hub_23.py",
+              "clients/hub_3.py",
+              "clients/hub_4.py",
+              "clients/hub_5.py",
+              "clients/hub_6.py",
+              "clients/hub_7.py",
+              "clients/hub_8.py",
+              "clients/hub_9.py"
+            ],
+            "outgoing_dependencies": [],
+            "relevant_tests": [],
+            "repetitions": 3,
+            "response_bytes": 3836,
+            "risk": "high",
+            "target": "backend/hub.py",
+            "unrelated_scope_candidates": []
+          },
+          "provider_consumers": {
+            "change_rule": "Check direct users and focused tests first. Indirect users are possible follow-on effects, not a list of files that must change.",
+            "default_returned_consumers": [
+              "backend/health.py",
+              "backend/orchestrator.py",
+              "tests/test_provider.py"
+            ],
+            "degree": 3,
+            "expected_direct_consumers": [
+              "backend/orchestrator.py",
+              "tests/test_provider.py"
+            ],
+            "explicit_expansion": null,
+            "median_ms": 20.234,
+            "missed": [],
+            "observed_direct_consumers": [
+              "backend/health.py",
+              "backend/orchestrator.py",
+              "tests/test_provider.py"
+            ],
+            "outgoing_dependencies": [],
+            "relevant_tests": [
+              "tests/test_api.py",
+              "tests/test_provider.py",
+              "tests/test_view.py"
+            ],
+            "repetitions": 3,
+            "response_bytes": 3743,
+            "risk": "medium",
+            "target": "providers.alpha.execute",
+            "unrelated_scope_candidates": [
+              "backend/health.py"
+            ]
+          },
+          "quick_saved_overview": {
+            "contains_owner_summary": true,
+            "median_ms": 13.053,
+            "repetitions": 3,
+            "response_bytes": 14112,
+            "source_directory_unavailable": true
+          },
+          "saved_obligation": {
+            "expected": "Output is a string.",
+            "median_ms": 12.053,
+            "repetitions": 3,
+            "response_bytes": 14112,
+            "source_directory_unavailable": true,
+            "visible": true
+          },
+          "scan_ms": 111.302,
+          "source_files": 62,
+          "source_fingerprint": "9f38352991d81e8629175664bef651e4a1a9d8cbf39bd15850d2199cd68fb88f",
+          "state": "frontend_only"
+        },
+        {
+          "behavior_owner": {
+            "expected": "providers/alpha.py",
+            "found": [
+              "providers/alpha.py",
+              "backend/orchestrator.py"
+            ],
+            "median_ms": 14.43,
+            "query": "uppercase execution",
+            "repetitions": 3,
+            "response_bytes": 9514
+          },
+          "changed_files_from_baseline": [
+            "providers/alpha.py"
+          ],
+          "exercised_checks": {
+            "actual_exit_code": 0,
+            "expected_exit_code": 0,
+            "output": ".....                                                                    [100%]\n5 passed in 0.01s"
+          },
+          "frontend_only": {
+            "change_rule": "Check direct users and focused tests first. Indirect users are possible follow-on effects, not a list of files that must change.",
+            "default_returned_consumers": [
+              "tests/test_view.py"
+            ],
+            "degree": 2,
+            "expected_direct_consumers": [
+              "tests/test_view.py"
+            ],
+            "explicit_expansion": null,
+            "median_ms": 21.893,
+            "missed": [],
+            "observed_direct_consumers": [
+              "tests/test_view.py"
+            ],
+            "outgoing_dependencies": [
+              "backend/api.py"
+            ],
+            "relevant_tests": [
+              "tests/test_view.py"
+            ],
+            "repetitions": 3,
+            "response_bytes": 3210,
+            "risk": "medium",
+            "target": "frontend/view.py",
+            "unrelated_scope_candidates": []
+          },
+          "healthy_utility": {
+            "change_rule": "Check direct users and focused tests first. Indirect users are possible follow-on effects, not a list of files that must change.",
+            "default_returned_consumers": [
+              "clients/utility_0.py",
+              "clients/utility_1.py",
+              "clients/utility_10.py",
+              "clients/utility_11.py",
+              "clients/utility_12.py"
+            ],
+            "degree": 24,
+            "expected_direct_consumers": [
+              "clients/utility_0.py",
+              "clients/utility_1.py",
+              "clients/utility_10.py",
+              "clients/utility_11.py",
+              "clients/utility_12.py",
+              "clients/utility_13.py",
+              "clients/utility_14.py",
+              "clients/utility_15.py",
+              "clients/utility_16.py",
+              "clients/utility_17.py",
+              "clients/utility_18.py",
+              "clients/utility_19.py",
+              "clients/utility_2.py",
+              "clients/utility_20.py",
+              "clients/utility_21.py",
+              "clients/utility_22.py",
+              "clients/utility_23.py",
+              "clients/utility_3.py",
+              "clients/utility_4.py",
+              "clients/utility_5.py",
+              "clients/utility_6.py",
+              "clients/utility_7.py",
+              "clients/utility_8.py",
+              "clients/utility_9.py"
+            ],
+            "explicit_expansion": {
+              "median_ms": 23.206,
+              "repetitions": 3,
+              "response_bytes": 8556
+            },
+            "median_ms": 20.84,
+            "missed": [],
+            "observed_direct_consumers": [
+              "clients/utility_0.py",
+              "clients/utility_1.py",
+              "clients/utility_10.py",
+              "clients/utility_11.py",
+              "clients/utility_12.py",
+              "clients/utility_13.py",
+              "clients/utility_14.py",
+              "clients/utility_15.py",
+              "clients/utility_16.py",
+              "clients/utility_17.py",
+              "clients/utility_18.py",
+              "clients/utility_19.py",
+              "clients/utility_2.py",
+              "clients/utility_20.py",
+              "clients/utility_21.py",
+              "clients/utility_22.py",
+              "clients/utility_23.py",
+              "clients/utility_3.py",
+              "clients/utility_4.py",
+              "clients/utility_5.py",
+              "clients/utility_6.py",
+              "clients/utility_7.py",
+              "clients/utility_8.py",
+              "clients/utility_9.py"
+            ],
+            "outgoing_dependencies": [],
+            "relevant_tests": [],
+            "repetitions": 3,
+            "response_bytes": 3962,
+            "risk": "high",
+            "target": "shared/text.py",
+            "unrelated_scope_candidates": []
+          },
+          "overloaded_hub": {
+            "change_rule": "Check direct users and focused tests first. Indirect users are possible follow-on effects, not a list of files that must change.",
+            "default_returned_consumers": [
+              "clients/hub_0.py",
+              "clients/hub_1.py",
+              "clients/hub_10.py",
+              "clients/hub_11.py",
+              "clients/hub_12.py"
+            ],
+            "degree": 24,
+            "expected_direct_consumers": [
+              "clients/hub_0.py",
+              "clients/hub_1.py",
+              "clients/hub_10.py",
+              "clients/hub_11.py",
+              "clients/hub_12.py",
+              "clients/hub_13.py",
+              "clients/hub_14.py",
+              "clients/hub_15.py",
+              "clients/hub_16.py",
+              "clients/hub_17.py",
+              "clients/hub_18.py",
+              "clients/hub_19.py",
+              "clients/hub_2.py",
+              "clients/hub_20.py",
+              "clients/hub_21.py",
+              "clients/hub_22.py",
+              "clients/hub_23.py",
+              "clients/hub_3.py",
+              "clients/hub_4.py",
+              "clients/hub_5.py",
+              "clients/hub_6.py",
+              "clients/hub_7.py",
+              "clients/hub_8.py",
+              "clients/hub_9.py"
+            ],
+            "explicit_expansion": {
+              "median_ms": 22.346,
+              "repetitions": 3,
+              "response_bytes": 8263
+            },
+            "median_ms": 23.502,
             "missed": [],
             "observed_direct_consumers": [
               "clients/hub_0.py",
@@ -1021,7 +767,7 @@
               "tests/test_provider.py"
             ],
             "explicit_expansion": null,
-            "median_ms": 22.909,
+            "median_ms": 21.566,
             "missed": [],
             "observed_direct_consumers": [
               "backend/health.py",
@@ -1044,20 +790,275 @@
           },
           "quick_saved_overview": {
             "contains_owner_summary": true,
-            "median_ms": 21.695,
+            "median_ms": 12.562,
+            "repetitions": 3,
+            "response_bytes": 14128,
+            "source_directory_unavailable": true
+          },
+          "saved_obligation": {
+            "expected": "Output is a string.",
+            "median_ms": 13.489,
+            "repetitions": 3,
+            "response_bytes": 14128,
+            "source_directory_unavailable": true,
+            "visible": true
+          },
+          "scan_ms": 135.754,
+          "source_files": 62,
+          "source_fingerprint": "f5cf47b264e77f215015a8a5110147f9010169b8dca4a388bb33810cde687a6c",
+          "state": "stable_provider"
+        },
+        {
+          "behavior_owner": {
+            "expected": "providers/alpha.py",
+            "found": [
+              "providers/alpha.py",
+              "backend/orchestrator.py"
+            ],
+            "median_ms": 14.464,
+            "query": "uppercase execution",
+            "repetitions": 3,
+            "response_bytes": 9514
+          },
+          "changed_files_from_baseline": [
+            "providers/alpha.py"
+          ],
+          "exercised_checks": {
+            "actual_exit_code": 1,
+            "expected_exit_code": 1,
+            "output": "FF..F                                                                    [100%]\n=================================== FAILURES ===================================\n___________________________________ test_api ___________________________________\n\n>   def test_api(): assert request_message(\" hi \") == \"HI\"\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   AssertionError: assert {'text': 'HI'} == 'HI'\nE    +  where {'text': 'HI'} = request_message(' hi ')\n\ntests/test_api.py:2: AssertionError\n__________________________________ test_reply __________________________________\n\n    def test_reply():\n>       assert execute(\" hi \") == \"HI\"\nE       AssertionError: assert {'text': 'HI'} == 'HI'\nE        +  where {'text': 'HI'} = execute(' hi ')\n\ntests/test_provider.py:3: AssertionError\n______________________________ test_presentation _______________________________\n\n>   def test_presentation(): assert render(\" hi \") == \"<p>HI</p>\"\n                                    ^^^^^^^^^^^^^^\n\ntests/test_view.py:2: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nprompt = ' hi '\n\n    def render(prompt):\n>       return \"<p>\" + request_message(prompt) + \"</p>\"\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       TypeError: can only concatenate str (not \"dict\") to str\n\nfrontend/view.py:4: TypeError\n=========================== short test summary info ============================\nFAILED tests/test_api.py::test_api - AssertionError: assert {'text': 'HI'} ==...\nFAILED tests/test_provider.py::test_reply - AssertionError: assert {'text': '...\nFAILED tests/test_view.py::test_presentation - TypeError: can only concatenat...\n3 failed, 2 passed in 0.04s"
+          },
+          "frontend_only": {
+            "change_rule": "Check direct users and focused tests first. Indirect users are possible follow-on effects, not a list of files that must change.",
+            "default_returned_consumers": [
+              "tests/test_view.py"
+            ],
+            "degree": 2,
+            "expected_direct_consumers": [
+              "tests/test_view.py"
+            ],
+            "explicit_expansion": null,
+            "median_ms": 23.854,
+            "missed": [],
+            "observed_direct_consumers": [
+              "tests/test_view.py"
+            ],
+            "outgoing_dependencies": [
+              "backend/api.py"
+            ],
+            "relevant_tests": [
+              "tests/test_view.py"
+            ],
+            "repetitions": 3,
+            "response_bytes": 3210,
+            "risk": "medium",
+            "target": "frontend/view.py",
+            "unrelated_scope_candidates": []
+          },
+          "healthy_utility": {
+            "change_rule": "Check direct users and focused tests first. Indirect users are possible follow-on effects, not a list of files that must change.",
+            "default_returned_consumers": [
+              "clients/utility_0.py",
+              "clients/utility_1.py",
+              "clients/utility_10.py",
+              "clients/utility_11.py",
+              "clients/utility_12.py"
+            ],
+            "degree": 24,
+            "expected_direct_consumers": [
+              "clients/utility_0.py",
+              "clients/utility_1.py",
+              "clients/utility_10.py",
+              "clients/utility_11.py",
+              "clients/utility_12.py",
+              "clients/utility_13.py",
+              "clients/utility_14.py",
+              "clients/utility_15.py",
+              "clients/utility_16.py",
+              "clients/utility_17.py",
+              "clients/utility_18.py",
+              "clients/utility_19.py",
+              "clients/utility_2.py",
+              "clients/utility_20.py",
+              "clients/utility_21.py",
+              "clients/utility_22.py",
+              "clients/utility_23.py",
+              "clients/utility_3.py",
+              "clients/utility_4.py",
+              "clients/utility_5.py",
+              "clients/utility_6.py",
+              "clients/utility_7.py",
+              "clients/utility_8.py",
+              "clients/utility_9.py"
+            ],
+            "explicit_expansion": {
+              "median_ms": 22.695,
+              "repetitions": 3,
+              "response_bytes": 8556
+            },
+            "median_ms": 22.465,
+            "missed": [],
+            "observed_direct_consumers": [
+              "clients/utility_0.py",
+              "clients/utility_1.py",
+              "clients/utility_10.py",
+              "clients/utility_11.py",
+              "clients/utility_12.py",
+              "clients/utility_13.py",
+              "clients/utility_14.py",
+              "clients/utility_15.py",
+              "clients/utility_16.py",
+              "clients/utility_17.py",
+              "clients/utility_18.py",
+              "clients/utility_19.py",
+              "clients/utility_2.py",
+              "clients/utility_20.py",
+              "clients/utility_21.py",
+              "clients/utility_22.py",
+              "clients/utility_23.py",
+              "clients/utility_3.py",
+              "clients/utility_4.py",
+              "clients/utility_5.py",
+              "clients/utility_6.py",
+              "clients/utility_7.py",
+              "clients/utility_8.py",
+              "clients/utility_9.py"
+            ],
+            "outgoing_dependencies": [],
+            "relevant_tests": [],
+            "repetitions": 3,
+            "response_bytes": 3964,
+            "risk": "high",
+            "target": "shared/text.py",
+            "unrelated_scope_candidates": []
+          },
+          "overloaded_hub": {
+            "change_rule": "Check direct users and focused tests first. Indirect users are possible follow-on effects, not a list of files that must change.",
+            "default_returned_consumers": [
+              "clients/hub_0.py",
+              "clients/hub_1.py",
+              "clients/hub_10.py",
+              "clients/hub_11.py",
+              "clients/hub_12.py"
+            ],
+            "degree": 24,
+            "expected_direct_consumers": [
+              "clients/hub_0.py",
+              "clients/hub_1.py",
+              "clients/hub_10.py",
+              "clients/hub_11.py",
+              "clients/hub_12.py",
+              "clients/hub_13.py",
+              "clients/hub_14.py",
+              "clients/hub_15.py",
+              "clients/hub_16.py",
+              "clients/hub_17.py",
+              "clients/hub_18.py",
+              "clients/hub_19.py",
+              "clients/hub_2.py",
+              "clients/hub_20.py",
+              "clients/hub_21.py",
+              "clients/hub_22.py",
+              "clients/hub_23.py",
+              "clients/hub_3.py",
+              "clients/hub_4.py",
+              "clients/hub_5.py",
+              "clients/hub_6.py",
+              "clients/hub_7.py",
+              "clients/hub_8.py",
+              "clients/hub_9.py"
+            ],
+            "explicit_expansion": {
+              "median_ms": 22.426,
+              "repetitions": 3,
+              "response_bytes": 8262
+            },
+            "median_ms": 21.753,
+            "missed": [],
+            "observed_direct_consumers": [
+              "clients/hub_0.py",
+              "clients/hub_1.py",
+              "clients/hub_10.py",
+              "clients/hub_11.py",
+              "clients/hub_12.py",
+              "clients/hub_13.py",
+              "clients/hub_14.py",
+              "clients/hub_15.py",
+              "clients/hub_16.py",
+              "clients/hub_17.py",
+              "clients/hub_18.py",
+              "clients/hub_19.py",
+              "clients/hub_2.py",
+              "clients/hub_20.py",
+              "clients/hub_21.py",
+              "clients/hub_22.py",
+              "clients/hub_23.py",
+              "clients/hub_3.py",
+              "clients/hub_4.py",
+              "clients/hub_5.py",
+              "clients/hub_6.py",
+              "clients/hub_7.py",
+              "clients/hub_8.py",
+              "clients/hub_9.py"
+            ],
+            "outgoing_dependencies": [],
+            "relevant_tests": [],
+            "repetitions": 3,
+            "response_bytes": 3837,
+            "risk": "high",
+            "target": "backend/hub.py",
+            "unrelated_scope_candidates": []
+          },
+          "provider_consumers": {
+            "change_rule": "Check direct users and focused tests first. Indirect users are possible follow-on effects, not a list of files that must change.",
+            "default_returned_consumers": [
+              "backend/health.py",
+              "backend/orchestrator.py",
+              "tests/test_provider.py"
+            ],
+            "degree": 3,
+            "expected_direct_consumers": [
+              "backend/orchestrator.py",
+              "tests/test_provider.py"
+            ],
+            "explicit_expansion": null,
+            "median_ms": 23.784,
+            "missed": [],
+            "observed_direct_consumers": [
+              "backend/health.py",
+              "backend/orchestrator.py",
+              "tests/test_provider.py"
+            ],
+            "outgoing_dependencies": [],
+            "relevant_tests": [
+              "tests/test_api.py",
+              "tests/test_provider.py",
+              "tests/test_view.py"
+            ],
+            "repetitions": 3,
+            "response_bytes": 3743,
+            "risk": "medium",
+            "target": "providers.alpha.execute",
+            "unrelated_scope_candidates": [
+              "backend/health.py"
+            ]
+          },
+          "quick_saved_overview": {
+            "contains_owner_summary": true,
+            "median_ms": 12.544,
             "repetitions": 3,
             "response_bytes": 14160,
             "source_directory_unavailable": true
           },
           "saved_obligation": {
             "expected": "Output is a mapping with a text field.",
-            "median_ms": 21.176,
+            "median_ms": 11.306,
             "repetitions": 3,
-            "response_bytes": 14158,
+            "response_bytes": 14160,
             "source_directory_unavailable": true,
             "visible": true
           },
-          "scan_ms": 545.057,
+          "scan_ms": 263.965,
           "source_files": 62,
           "source_fingerprint": "418e9519a4028a42eb53a62400361a545e5e15de79e2f86e0d711b21642ca048",
           "state": "contract_broken"
@@ -1069,7 +1070,7 @@
               "providers/alpha.py",
               "backend/orchestrator.py"
             ],
-            "median_ms": 21.09,
+            "median_ms": 12.646,
             "query": "uppercase execution",
             "repetitions": 3,
             "response_bytes": 9530
@@ -1082,7 +1083,7 @@
           "exercised_checks": {
             "actual_exit_code": 0,
             "expected_exit_code": 0,
-            "output": ".....                                                                    [100%]\n5 passed in 0.03s"
+            "output": ".....                                                                    [100%]\n5 passed in 0.01s"
           },
           "frontend_only": {
             "change_rule": "Check direct users and focused tests first. Indirect users are possible follow-on effects, not a list of files that must change.",
@@ -1094,7 +1095,7 @@
               "tests/test_view.py"
             ],
             "explicit_expansion": null,
-            "median_ms": 34.176,
+            "median_ms": 22.869,
             "missed": [],
             "observed_direct_consumers": [
               "tests/test_view.py"
@@ -1148,11 +1149,11 @@
               "clients/utility_9.py"
             ],
             "explicit_expansion": {
-              "median_ms": 39.596,
+              "median_ms": 22.576,
               "repetitions": 3,
               "response_bytes": 8556
             },
-            "median_ms": 33.062,
+            "median_ms": 19.266,
             "missed": [],
             "observed_direct_consumers": [
               "clients/utility_0.py",
@@ -1225,11 +1226,11 @@
               "clients/hub_9.py"
             ],
             "explicit_expansion": {
-              "median_ms": 35.152,
+              "median_ms": 21.848,
               "repetitions": 3,
               "response_bytes": 8263
             },
-            "median_ms": 39.338,
+            "median_ms": 21.885,
             "missed": [],
             "observed_direct_consumers": [
               "clients/hub_0.py",
@@ -1278,7 +1279,7 @@
               "tests/test_provider.py"
             ],
             "explicit_expansion": null,
-            "median_ms": 35.891,
+            "median_ms": 24.716,
             "missed": [],
             "observed_direct_consumers": [
               "backend/health.py",
@@ -1301,32 +1302,33 @@
           },
           "quick_saved_overview": {
             "contains_owner_summary": true,
-            "median_ms": 25.61,
+            "median_ms": 11.466,
             "repetitions": 3,
-            "response_bytes": 14159,
+            "response_bytes": 14160,
             "source_directory_unavailable": true
           },
           "saved_obligation": {
             "expected": "Output is a mapping with a text field.",
-            "median_ms": 23.778,
+            "median_ms": 11.09,
             "repetitions": 3,
             "response_bytes": 14160,
             "source_directory_unavailable": true,
             "visible": true
           },
-          "scan_ms": 279.407,
+          "scan_ms": 200.631,
           "source_files": 62,
           "source_fingerprint": "fc41d9a8aba7eb41cf555d26088983f8e50ac2324a31e187009b0856a8918b4b",
           "state": "contract_migrated"
         }
       ],
-      "startup_ms": 1821.746
+      "startup_ms": 2097.899
     },
     "current": {
-      "final_local_index_bytes": 2015232,
-      "implementation_import": "/tmp/anaxigraph-maintenance-1gqh5_fu/current/src/anaxigraph/__init__.py",
-      "implementation_source_fingerprint": "27f7953b03c8fa0d00353d090df31810901d64a889d5f411a152585f1aa26527",
-      "peak_process_rss_bytes": 78905344,
+      "final_local_index_bytes": 2048000,
+      "implementation_import": "/tmp/anaxigraph-maintenance-v3e56lgs/current/src/anaxigraph/__init__.py",
+      "implementation_package_version": "0.9.0",
+      "implementation_source_fingerprint": "e033ac9c2010900dde2ca6dfc2f84ee34c274e2a313f16a6cd4741a7c9d34325",
+      "peak_process_rss_bytes": 79978496,
       "stages": [
         {
           "behavior_owner": {
@@ -1335,7 +1337,7 @@
               "providers/alpha.py",
               "backend/orchestrator.py"
             ],
-            "median_ms": 25.56,
+            "median_ms": 16.112,
             "query": "uppercase execution",
             "repetitions": 3,
             "response_bytes": 922
@@ -1344,7 +1346,7 @@
           "exercised_checks": {
             "actual_exit_code": 0,
             "expected_exit_code": 0,
-            "output": ".....                                                                    [100%]\n5 passed in 0.06s"
+            "output": ".....                                                                    [100%]\n5 passed in 0.01s"
           },
           "frontend_only": {
             "change_rule": "Check direct users and focused tests first. Indirect users are possible follow-on effects, not a list of files that must change.",
@@ -1356,7 +1358,7 @@
               "tests/test_view.py"
             ],
             "explicit_expansion": null,
-            "median_ms": 31.478,
+            "median_ms": 23.336,
             "missed": [],
             "observed_direct_consumers": [
               "tests/test_view.py"
@@ -1410,11 +1412,11 @@
               "clients/utility_9.py"
             ],
             "explicit_expansion": {
-              "median_ms": 43.483,
+              "median_ms": 31.563,
               "repetitions": 3,
               "response_bytes": 8507
             },
-            "median_ms": 45.123,
+            "median_ms": 35.485,
             "missed": [],
             "observed_direct_consumers": [
               "clients/utility_0.py",
@@ -1487,11 +1489,11 @@
               "clients/hub_9.py"
             ],
             "explicit_expansion": {
-              "median_ms": 38.511,
+              "median_ms": 32.848,
               "repetitions": 3,
               "response_bytes": 8140
             },
-            "median_ms": 46.521,
+            "median_ms": 34.723,
             "missed": [],
             "observed_direct_consumers": [
               "clients/hub_0.py",
@@ -1539,7 +1541,7 @@
               "tests/test_provider.py"
             ],
             "explicit_expansion": null,
-            "median_ms": 33.132,
+            "median_ms": 25.829,
             "missed": [],
             "observed_direct_consumers": [
               "backend/orchestrator.py",
@@ -1559,20 +1561,20 @@
           },
           "quick_saved_overview": {
             "contains_owner_summary": true,
-            "median_ms": 20.846,
+            "median_ms": 23.071,
             "repetitions": 3,
             "response_bytes": 2247,
             "source_directory_unavailable": true
           },
           "saved_obligation": {
             "expected": "Output is a string.",
-            "median_ms": 6.923,
+            "median_ms": 7.97,
             "repetitions": 3,
             "response_bytes": 10024,
             "source_directory_unavailable": true,
             "visible": true
           },
-          "scan_ms": 2868.073,
+          "scan_ms": 227.478,
           "source_files": 62,
           "source_fingerprint": "3f85ca92428526bf815c175eb7c51f0827f75032c99c84a5cc897f14328f7703",
           "state": "baseline"
@@ -1584,7 +1586,7 @@
               "providers/alpha.py",
               "backend/orchestrator.py"
             ],
-            "median_ms": 27.11,
+            "median_ms": 18.022,
             "query": "uppercase execution",
             "repetitions": 3,
             "response_bytes": 922
@@ -1596,7 +1598,7 @@
           "exercised_checks": {
             "actual_exit_code": 0,
             "expected_exit_code": 0,
-            "output": ".....                                                                    [100%]\n5 passed in 0.02s"
+            "output": ".....                                                                    [100%]\n5 passed in 0.01s"
           },
           "frontend_only": {
             "change_rule": "Check direct users and focused tests first. Indirect users are possible follow-on effects, not a list of files that must change.",
@@ -1608,7 +1610,7 @@
               "tests/test_view.py"
             ],
             "explicit_expansion": null,
-            "median_ms": 46.743,
+            "median_ms": 26.234,
             "missed": [],
             "observed_direct_consumers": [
               "tests/test_view.py"
@@ -1662,11 +1664,11 @@
               "clients/utility_9.py"
             ],
             "explicit_expansion": {
-              "median_ms": 39.391,
+              "median_ms": 25.686,
               "repetitions": 3,
               "response_bytes": 8507
             },
-            "median_ms": 42.454,
+            "median_ms": 23.661,
             "missed": [],
             "observed_direct_consumers": [
               "clients/utility_0.py",
@@ -1739,11 +1741,11 @@
               "clients/hub_9.py"
             ],
             "explicit_expansion": {
-              "median_ms": 42.717,
+              "median_ms": 24.521,
               "repetitions": 3,
-              "response_bytes": 8140
+              "response_bytes": 8139
             },
-            "median_ms": 44.885,
+            "median_ms": 24.143,
             "missed": [],
             "observed_direct_consumers": [
               "clients/hub_0.py",
@@ -1791,7 +1793,7 @@
               "tests/test_provider.py"
             ],
             "explicit_expansion": null,
-            "median_ms": 47.77,
+            "median_ms": 25.671,
             "missed": [],
             "observed_direct_consumers": [
               "backend/orchestrator.py",
@@ -1811,20 +1813,20 @@
           },
           "quick_saved_overview": {
             "contains_owner_summary": true,
-            "median_ms": 24.429,
+            "median_ms": 14.187,
             "repetitions": 3,
             "response_bytes": 2247,
             "source_directory_unavailable": true
           },
           "saved_obligation": {
             "expected": "Output is a string.",
-            "median_ms": 8.497,
+            "median_ms": 5.77,
             "repetitions": 3,
             "response_bytes": 10021,
             "source_directory_unavailable": true,
             "visible": true
           },
-          "scan_ms": 1127.286,
+          "scan_ms": 187.292,
           "source_files": 62,
           "source_fingerprint": "9f38352991d81e8629175664bef651e4a1a9d8cbf39bd15850d2199cd68fb88f",
           "state": "frontend_only"
@@ -1836,7 +1838,7 @@
               "providers/alpha.py",
               "backend/orchestrator.py"
             ],
-            "median_ms": 24.67,
+            "median_ms": 19.206,
             "query": "uppercase execution",
             "repetitions": 3,
             "response_bytes": 922
@@ -1859,7 +1861,7 @@
               "tests/test_view.py"
             ],
             "explicit_expansion": null,
-            "median_ms": 39.271,
+            "median_ms": 28.074,
             "missed": [],
             "observed_direct_consumers": [
               "tests/test_view.py"
@@ -1913,11 +1915,11 @@
               "clients/utility_9.py"
             ],
             "explicit_expansion": {
-              "median_ms": 50.218,
+              "median_ms": 22.123,
               "repetitions": 3,
               "response_bytes": 8507
             },
-            "median_ms": 40.074,
+            "median_ms": 24.282,
             "missed": [],
             "observed_direct_consumers": [
               "clients/utility_0.py",
@@ -1990,11 +1992,11 @@
               "clients/hub_9.py"
             ],
             "explicit_expansion": {
-              "median_ms": 39.666,
+              "median_ms": 21.658,
               "repetitions": 3,
               "response_bytes": 8140
             },
-            "median_ms": 37.116,
+            "median_ms": 22.405,
             "missed": [],
             "observed_direct_consumers": [
               "clients/hub_0.py",
@@ -2042,7 +2044,7 @@
               "tests/test_provider.py"
             ],
             "explicit_expansion": null,
-            "median_ms": 44.29,
+            "median_ms": 38.418,
             "missed": [],
             "observed_direct_consumers": [
               "backend/orchestrator.py",
@@ -2062,20 +2064,20 @@
           },
           "quick_saved_overview": {
             "contains_owner_summary": true,
-            "median_ms": 27.035,
+            "median_ms": 17.283,
             "repetitions": 3,
             "response_bytes": 2247,
             "source_directory_unavailable": true
           },
           "saved_obligation": {
             "expected": "Output is a string.",
-            "median_ms": 7.602,
+            "median_ms": 8.05,
             "repetitions": 3,
             "response_bytes": 10432,
             "source_directory_unavailable": true,
             "visible": true
           },
-          "scan_ms": 382.92,
+          "scan_ms": 238.127,
           "source_files": 62,
           "source_fingerprint": "f5cf47b264e77f215015a8a5110147f9010169b8dca4a388bb33810cde687a6c",
           "state": "stable_provider"
@@ -2087,7 +2089,7 @@
               "providers/alpha.py",
               "backend/orchestrator.py"
             ],
-            "median_ms": 18.572,
+            "median_ms": 21.826,
             "query": "uppercase execution",
             "repetitions": 3,
             "response_bytes": 922
@@ -2098,7 +2100,7 @@
           "exercised_checks": {
             "actual_exit_code": 1,
             "expected_exit_code": 1,
-            "output": "FF..F                                                                    [100%]\n=================================== FAILURES ===================================\n___________________________________ test_api ___________________________________\n\n>   def test_api(): assert request_message(\" hi \") == \"HI\"\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   AssertionError: assert {'text': 'HI'} == 'HI'\nE    +  where {'text': 'HI'} = request_message(' hi ')\n\ntests/test_api.py:2: AssertionError\n__________________________________ test_reply __________________________________\n\n    def test_reply():\n>       assert execute(\" hi \") == \"HI\"\nE       AssertionError: assert {'text': 'HI'} == 'HI'\nE        +  where {'text': 'HI'} = execute(' hi ')\n\ntests/test_provider.py:3: AssertionError\n______________________________ test_presentation _______________________________\n\n>   def test_presentation(): assert render(\" hi \") == \"<p>HI</p>\"\n                                    ^^^^^^^^^^^^^^\n\ntests/test_view.py:2: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nprompt = ' hi '\n\n    def render(prompt):\n>       return \"<p>\" + request_message(prompt) + \"</p>\"\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       TypeError: can only concatenate str (not \"dict\") to str\n\nfrontend/view.py:4: TypeError\n=========================== short test summary info ============================\nFAILED tests/test_api.py::test_api - AssertionError: assert {'text': 'HI'} ==...\nFAILED tests/test_provider.py::test_reply - AssertionError: assert {'text': '...\nFAILED tests/test_view.py::test_presentation - TypeError: can only concatenat...\n3 failed, 2 passed in 0.06s"
+            "output": "FF..F                                                                    [100%]\n=================================== FAILURES ===================================\n___________________________________ test_api ___________________________________\n\n>   def test_api(): assert request_message(\" hi \") == \"HI\"\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   AssertionError: assert {'text': 'HI'} == 'HI'\nE    +  where {'text': 'HI'} = request_message(' hi ')\n\ntests/test_api.py:2: AssertionError\n__________________________________ test_reply __________________________________\n\n    def test_reply():\n>       assert execute(\" hi \") == \"HI\"\nE       AssertionError: assert {'text': 'HI'} == 'HI'\nE        +  where {'text': 'HI'} = execute(' hi ')\n\ntests/test_provider.py:3: AssertionError\n______________________________ test_presentation _______________________________\n\n>   def test_presentation(): assert render(\" hi \") == \"<p>HI</p>\"\n                                    ^^^^^^^^^^^^^^\n\ntests/test_view.py:2: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nprompt = ' hi '\n\n    def render(prompt):\n>       return \"<p>\" + request_message(prompt) + \"</p>\"\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       TypeError: can only concatenate str (not \"dict\") to str\n\nfrontend/view.py:4: TypeError\n=========================== short test summary info ============================\nFAILED tests/test_api.py::test_api - AssertionError: assert {'text': 'HI'} ==...\nFAILED tests/test_provider.py::test_reply - AssertionError: assert {'text': '...\nFAILED tests/test_view.py::test_presentation - TypeError: can only concatenat...\n3 failed, 2 passed in 0.04s"
           },
           "frontend_only": {
             "change_rule": "Check direct users and focused tests first. Indirect users are possible follow-on effects, not a list of files that must change.",
@@ -2110,7 +2112,7 @@
               "tests/test_view.py"
             ],
             "explicit_expansion": null,
-            "median_ms": 36.739,
+            "median_ms": 36.802,
             "missed": [],
             "observed_direct_consumers": [
               "tests/test_view.py"
@@ -2164,11 +2166,11 @@
               "clients/utility_9.py"
             ],
             "explicit_expansion": {
-              "median_ms": 40.619,
+              "median_ms": 27.442,
               "repetitions": 3,
               "response_bytes": 8507
             },
-            "median_ms": 34.8,
+            "median_ms": 27.068,
             "missed": [],
             "observed_direct_consumers": [
               "clients/utility_0.py",
@@ -2199,7 +2201,7 @@
             "outgoing_dependencies": [],
             "relevant_tests": [],
             "repetitions": 3,
-            "response_bytes": 3964,
+            "response_bytes": 3962,
             "risk": "high",
             "target": "shared/text.py",
             "unrelated_scope_candidates": []
@@ -2241,11 +2243,11 @@
               "clients/hub_9.py"
             ],
             "explicit_expansion": {
-              "median_ms": 33.176,
+              "median_ms": 43.038,
               "repetitions": 3,
-              "response_bytes": 8139
+              "response_bytes": 8140
             },
-            "median_ms": 36.596,
+            "median_ms": 29.257,
             "missed": [],
             "observed_direct_consumers": [
               "clients/hub_0.py",
@@ -2293,7 +2295,7 @@
               "tests/test_provider.py"
             ],
             "explicit_expansion": null,
-            "median_ms": 34.242,
+            "median_ms": 36.588,
             "missed": [],
             "observed_direct_consumers": [
               "backend/orchestrator.py",
@@ -2313,20 +2315,20 @@
           },
           "quick_saved_overview": {
             "contains_owner_summary": true,
-            "median_ms": 21.888,
+            "median_ms": 21.671,
             "repetitions": 3,
             "response_bytes": 2250,
             "source_directory_unavailable": true
           },
           "saved_obligation": {
             "expected": "Output is a mapping with a text field.",
-            "median_ms": 7.29,
+            "median_ms": 12.528,
             "repetitions": 3,
             "response_bytes": 10043,
             "source_directory_unavailable": true,
             "visible": true
           },
-          "scan_ms": 587.683,
+          "scan_ms": 833.524,
           "source_files": 62,
           "source_fingerprint": "418e9519a4028a42eb53a62400361a545e5e15de79e2f86e0d711b21642ca048",
           "state": "contract_broken"
@@ -2338,7 +2340,7 @@
               "providers/alpha.py",
               "backend/orchestrator.py"
             ],
-            "median_ms": 23.826,
+            "median_ms": 19.202,
             "query": "uppercase execution",
             "repetitions": 3,
             "response_bytes": 921
@@ -2351,7 +2353,7 @@
           "exercised_checks": {
             "actual_exit_code": 0,
             "expected_exit_code": 0,
-            "output": ".....                                                                    [100%]\n5 passed in 0.02s"
+            "output": ".....                                                                    [100%]\n5 passed in 0.01s"
           },
           "frontend_only": {
             "change_rule": "Check direct users and focused tests first. Indirect users are possible follow-on effects, not a list of files that must change.",
@@ -2363,7 +2365,7 @@
               "tests/test_view.py"
             ],
             "explicit_expansion": null,
-            "median_ms": 40.284,
+            "median_ms": 34.256,
             "missed": [],
             "observed_direct_consumers": [
               "tests/test_view.py"
@@ -2417,11 +2419,11 @@
               "clients/utility_9.py"
             ],
             "explicit_expansion": {
-              "median_ms": 37.597,
+              "median_ms": 40.574,
               "repetitions": 3,
-              "response_bytes": 8506
+              "response_bytes": 8507
             },
-            "median_ms": 41.108,
+            "median_ms": 31.544,
             "missed": [],
             "observed_direct_consumers": [
               "clients/utility_0.py",
@@ -2494,11 +2496,11 @@
               "clients/hub_9.py"
             ],
             "explicit_expansion": {
-              "median_ms": 44.456,
+              "median_ms": 33.786,
               "repetitions": 3,
               "response_bytes": 8140
             },
-            "median_ms": 47.486,
+            "median_ms": 34.431,
             "missed": [],
             "observed_direct_consumers": [
               "clients/hub_0.py",
@@ -2546,7 +2548,7 @@
               "tests/test_provider.py"
             ],
             "explicit_expansion": null,
-            "median_ms": 39.768,
+            "median_ms": 37.381,
             "missed": [],
             "observed_direct_consumers": [
               "backend/orchestrator.py",
@@ -2566,26 +2568,26 @@
           },
           "quick_saved_overview": {
             "contains_owner_summary": true,
-            "median_ms": 25.157,
+            "median_ms": 19.389,
             "repetitions": 3,
             "response_bytes": 2250,
             "source_directory_unavailable": true
           },
           "saved_obligation": {
             "expected": "Output is a mapping with a text field.",
-            "median_ms": 6.915,
+            "median_ms": 7.561,
             "repetitions": 3,
             "response_bytes": 10043,
             "source_directory_unavailable": true,
             "visible": true
           },
-          "scan_ms": 2556.869,
+          "scan_ms": 592.039,
           "source_files": 62,
           "source_fingerprint": "fc41d9a8aba7eb41cf555d26088983f8e50ac2324a31e187009b0856a8918b4b",
           "state": "contract_migrated"
         }
       ],
-      "startup_ms": 3193.483
+      "startup_ms": 1320.623
     }
   }
 }

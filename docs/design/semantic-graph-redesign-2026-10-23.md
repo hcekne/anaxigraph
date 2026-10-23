@@ -572,7 +572,7 @@ format experiments are historical baselines, not claims about the new runtime.
 
 | Selected requirement | Implemented behavior and acceptance |
 | --- | --- |
-| Graph as the primary reading model | Canonical typed entities/relationships and annotation references serve REST, MCP, table and graph inspection. Controlled fixtures traverse modules, functions, interfaces, obligations and relevant tests without source reads. See `tests/test_knowledge_graph.py`, `tests/test_function_call_resolution.py` and the shared frontend audit. |
+| Graph as the primary reading model | Canonical typed entities/relationships and annotation references serve REST, MCP, table and graph inspection. Controlled fixtures traverse modules, functions, interfaces, obligations and relevant tests without source reads. Concurrent graph/Guide/Impact reads retain one selected snapshot across cache switches. See `tests/test_knowledge_graph.py`, `tests/test_function_call_resolution.py`, `tests/test_graph_read_concurrency.py` and the shared frontend audit. |
 | Concise authoring | New module jobs write one `graph-annotation-v1` result with overview/detail, every supplied function sentence, named contracts and capabilities. Generic group synthesis remains compact even when Pattern review is enabled. The two-description producers and full group-dossier writer were retired. Large annotations preserve complete function coverage and aggregate all chunk/final usage. |
 | Fast lookup without copied essays | Graph rows refer to one canonical annotation; copied semantic claims are retired, full-text search uses contentless storage, and parser/cache records are rebuildable. Existing FILE/SEARCH compatibility reads remain concise with explicit detail requests. |
 | Complete Pattern consideration | The manifest records every loaded ID/fingerprint (133 bundled cards). Assessments, reviews and contextual placements have separate considered/rated/reviewed/unresolved counts. Paging cannot manufacture completion; missing reviews and unresolved evidence remain visible. `tests/test_pattern_catalogue_review.py` covers complete coverage and interruption/reuse. |
@@ -615,7 +615,7 @@ overloaded hub each have 24 consumers; this fixture
 does not claim that degree alone yields the right architectural judgment.
 
 The baseline state's default file overview shrank from **14,112 to 2,247 bytes**. Its tiny final index
-instead grew from **823,296 to 2,015,232 bytes** as the richer graph added relationships. Thus the
+instead grew from **823,296 to 2,048,000 bytes** as the richer graph added relationships. Thus the
 migration is not universally smaller on every fixture; the large retained-data comparison below
 measures removal of real duplicated storage. Latency samples ran under concurrent test activity and
 do not establish a statistical speedup. The fixture is authored acceptance evidence, not a held-out
