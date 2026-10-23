@@ -7,6 +7,14 @@
 **Execution rule:** one phase is active at a time; the next phase does not begin until the current
 phase's exit gate is met.
 
+## Graph purpose and review quality investigation — 23 October 2026
+
+The maintainer requests analysis of missed architectural opportunities, excessive descriptions and
+cache size, and a graph-centered product direction. Preserve the [full feedback](feedback/2026-10-23-architecture-and-storage.md)
+and use the [code audit, prompt drafts and research checklist](graph-and-architecture-review-2026-10-23.md)
+for follow-up. These are investigation and design proposals; their implementation is not claimed
+by the earlier completed workflow and storage checklists.
+
 ## Workflow experience and repository-carried architecture — 21 October 2026
 
 **Implementation and publication authorized.** This queue extends the completed usage-feedback
