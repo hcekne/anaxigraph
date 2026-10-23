@@ -5,6 +5,8 @@ runtime implementation is not claimed by this document.
 
 **Design requirement:** [Full feedback and clarifications](../feedback/2026-10-23-architecture-and-storage.md).
 
+**Frontend evaluation:** [Current surfaces, graph exploration and revised delivery order](semantic-graph-frontend-2026-10-23.md).
+
 AnaxiGraph will make a semantic graph its authoritative knowledge model: code entities, their relationships,
 what they do, the contracts they preserve, and evidence for that understanding. Reviews and plans
 attach to that graph. The design should remove duplicated representations and repeated per-file
@@ -261,6 +263,13 @@ repeated updates; keep rebuildable parser IR and transient state out of the trac
 claim local retention fixes Git-history bloat or rewrite repository history as part of migration.
 
 ### What the user and coding agent see
+
+The [frontend evaluation](semantic-graph-frontend-2026-10-23.md) is a required part of this design.
+Preserve the sortable module table and manual workflow workspace. Keep the existing task journeys,
+combine table/graph entity inspection, rebuild graph exploration around typed relationships and
+focused expansion, and align review results and Changes with the new knowledge/retention model.
+Define those frontend contracts before finalizing graph queries and schema; the frontend is not
+a cosmetic follow-up once the backend migration is finished.
 
 The map opens at product/capability level and expands into modules, interfaces, functions and tests.
 Selecting a node shows its sentence, metrics, contract, incoming/outgoing typed links and evidence;
@@ -535,7 +544,9 @@ follows from graph shape alone.
 ## Migration sequence and completion criteria
 
 1. Specify the target graph schema, progressive description fields, input boundaries and retention
-   policy around the confirmed product objectives.
+   policy around the confirmed product objectives and audited frontend journeys. Define shared
+   entity selection, global table sorting/pagination, focused graph reads and result-state contracts
+   first; deliver an early graph → module table → shared inspector → focused exploration slice.
 2. Validate lossless conversion of existing paid results and required facts, with all copies and
    indexes included in footprint comparisons. Keep recovery explicit and bounded.
 3. Compare matched agent tasks on the same revisions and budgets: locate behavior, trace impact,
@@ -544,7 +555,8 @@ follows from graph shape alone.
    changed-write volume, Git pack growth over nightly updates, model usage and storage. Keep
    healthy controls and disagreement.
 5. Move all producers/readers onto the semantic graph while preserving tool contracts and queue
-   reliability. Finish by removing the old duplicate pipelines; a compatibility adapter or phased
+   reliability, sortable inventory, manual workflows, baseline identity and accessible exploration.
+   Finish by removing the old duplicate pipelines; a compatibility adapter or phased
    rollout is delivery machinery, not a second permanent architecture.
 
 No production code, live index or published release is changed by this design work. The maintainer

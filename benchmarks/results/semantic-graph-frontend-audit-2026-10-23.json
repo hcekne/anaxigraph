@@ -1,0 +1,229 @@
+{
+  "blockedMutations": [],
+  "captured_at": "2026-10-23T11:17:18.824544+00:00",
+  "columns": [
+    "File",
+    "Repository area",
+    "Purpose",
+    "Pattern idea",
+    "Code lines",
+    "File branches",
+    "Code links",
+    "Coverage",
+    "Changes",
+    "First indexed",
+    "Last worked",
+    "Attention"
+  ],
+  "fixture": "current local source with deterministic dashboard repository; workflow progress mocked with existing configuredProgress helper; no model calls",
+  "initialRequests": [
+    {
+      "method": "GET",
+      "path": "/api/repositories"
+    },
+    {
+      "method": "GET",
+      "path": "/api/glossary"
+    },
+    {
+      "method": "GET",
+      "path": "/api/workflows"
+    },
+    {
+      "method": "GET",
+      "path": "/api/overview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/modules"
+    },
+    {
+      "method": "GET",
+      "path": "/api/graph"
+    },
+    {
+      "method": "GET",
+      "path": "/api/semantic"
+    },
+    {
+      "method": "GET",
+      "path": "/api/workflows"
+    },
+    {
+      "method": "GET",
+      "path": "/api/snapshots"
+    },
+    {
+      "method": "GET",
+      "path": "/api/trends"
+    },
+    {
+      "method": "GET",
+      "path": "/api/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/reassessment"
+    }
+  ],
+  "inspection_scope": "Desktop navigation through all ten views; actual fixture LOC-sort click; desktop and phone screenshots. Workflow controls were not run.",
+  "isolation": "separate deterministic repository/database and loopback server; production service untouched",
+  "limitations": [
+    "Small deterministic fixture, not a scale/performance benchmark.",
+    "Workflow status supplied by configuredProgress test helper.",
+    "No paid analysis, novel architecture recommendations, or proposed semantic API exercised.",
+    "Existing browser contract sources inspected; complete automated browser suite not run."
+  ],
+  "modulesNote": "24 source or test files · 3 reference files hidden",
+  "pageErrors": [],
+  "primary_navigation": [
+    "Workflows",
+    "Understand",
+    "Guide",
+    "Improve",
+    "Changes",
+    "Settings"
+  ],
+  "requestCount": 17,
+  "retained_screenshot_count": 12,
+  "sortChangedFirstRow": true,
+  "source_commit": "7a01a81d23ecc2cf8885db14c7191ae9437f7682",
+  "source_modules_read": [
+    "navigation.js",
+    "app.js",
+    "dashboard-core.js",
+    "index.html",
+    "module-view.js",
+    "module-events.js",
+    "module-loading.js",
+    "graph-model.js",
+    "graph-view.js",
+    "graph-events.js",
+    "graph-regions.js",
+    "workflows-view.js",
+    "workflow-model.js",
+    "workflow-render.js",
+    "architecture-workflow.js",
+    "architecture-planning-view.js",
+    "architecture-plan-diagram.js",
+    "overview-view.js",
+    "repository-view.js",
+    "patterns-view.js",
+    "patterns-render.js",
+    "fresh-eyes-view.js",
+    "reassessment-view.js",
+    "history-view.js",
+    "findings-view.js"
+  ],
+  "status": "current frontend audit; proposed semantic frontend not implemented",
+  "views": [
+    {
+      "name": "overview",
+      "pageWidth": 1440,
+      "title": [
+        "See how the map comes together",
+        "Understand the system. Guide the agent. Keep the architecture coherent.",
+        "What this repository does",
+        "Languages",
+        "Architecture map",
+        "Current code findings"
+      ]
+    },
+    {
+      "name": "modules",
+      "pageWidth": 1440,
+      "title": [
+        "File inventory"
+      ]
+    },
+    {
+      "name": "graph",
+      "pageWidth": 1440,
+      "title": [
+        "Select a file"
+      ]
+    },
+    {
+      "name": "workflows",
+      "pageWidth": 1440,
+      "title": [
+        "See how the pieces fit together.",
+        "01 Build the repository map",
+        "1. Scan the source"
+      ]
+    },
+    {
+      "name": "agents",
+      "pageWidth": 1440,
+      "title": [
+        "Ask where to build or how to improve the design",
+        "What do you want to build or improve?",
+        "What could this change affect?"
+      ]
+    },
+    {
+      "name": "architecture",
+      "pageWidth": 1440,
+      "title": [
+        "How the review workflow works",
+        "Architecture findings"
+      ]
+    },
+    {
+      "name": "patterns",
+      "pageWidth": 1440,
+      "title": [
+        "Which coding patterns fit?"
+      ]
+    },
+    {
+      "name": "fresh-eyes",
+      "pageWidth": 1440,
+      "title": [
+        "Compare today’s system with a clean-sheet design",
+        "Fresh-eyes review not started",
+        "No final advice yet",
+        "Evidence, disagreement, and limits"
+      ]
+    },
+    {
+      "name": "history",
+      "pageWidth": 1440,
+      "title": [
+        "What changed—and should the architecture change with it?",
+        "How the code map changed over time"
+      ]
+    },
+    {
+      "name": "settings",
+      "pageWidth": 1440,
+      "title": [
+        "One shared model for people and coding agents",
+        "Connected repositories",
+        "Initialize it beside the code",
+        "Use the same intelligence while coding",
+        "Build and refresh plain-language code descriptions"
+      ]
+    }
+  ],
+  "module_sort_validation": {
+    "rows": 24,
+    "default_descending": true,
+    "ascending": true,
+    "descending": true,
+    "scope": "all 24 eligible fixture modules; not a server pagination/scale check"
+  },
+  "phone_document_containment": [
+    {
+      "view": "modules",
+      "documentWidth": 390,
+      "viewport": 390
+    },
+    {
+      "view": "workflows",
+      "documentWidth": 390,
+      "viewport": 390
+    }
+  ],
+  "fresh_eyes_walkthrough_state": "not started; populated results assessed through source and existing contract inspection only"
+}

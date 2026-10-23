@@ -6,6 +6,8 @@
 
 **Design response:** [Current versus proposed semantic graph, exact storage measurements and agent trade-offs](../design/semantic-graph-redesign-2026-10-23.md)
 
+**Frontend evaluation:** [Purpose of each surface and changes to the migration plan](../design/semantic-graph-frontend-2026-10-23.md)
+
 AnaxiGraph should primarily provide a compact, navigable understanding of code, interfaces and
 change propagation. The maintainer questions whether the current volume of descriptions and
 completed review stages produces useful architectural judgment. A seven-hour completed run that
@@ -61,6 +63,10 @@ misses known problems is a product failure to investigate, even when storage fit
 - Patterns and source-aware planning use the actual graph. Fresh Eyes keeps its earlier blindness
   requirement and receives only the functional projection; planning connects its proposed designs
   back to the actual graph.
+- Evaluate the entire frontend before finalizing the redesign. Preserve the sortable module table,
+  including LOC and other useful metrics, and build on manual Mapping/Patterns/Fresh Eyes/Planning
+  workflows. Assess each other surface by its user purpose and revise graph presentation, displayed
+  information, navigation and the implementation plan where necessary.
 
 ## Clarified requirements from the maintainer
 
@@ -162,3 +168,7 @@ confirms the semantic graph destination and its required product outcomes.
 ## Full clarification confirming the graph destination
 
 > For your proposal here and I mean we want to, we don't want to just do an incremental migration towards semantic graph. That's our new, that's where we want to go, right? That's, that's where we want to take the tool. And so that's where we want to migrate. And yeah, I think function interface traversal and late contracts could improve substantially what the agents actually get out of it, right? And, and also yeah, we want to, for each module, like how we describe them. It's like one sentence and then a short paragraph. Very concise, very to the point. And so that when, when, when an agent is running through this, it will first just read the sentences, you know, about each or whatever and get that short kind of understanding quickly. And then it can, if it needs to go deeper, it'll, it can do that. It can go deeper into that without actually reading the modules, right?  and then Of course, and then when we actually do the fresh eyes and when we do the pattern matching, the, the graph is supposed to be a inspiration for finding the better like versions, right? Like the AI, I want the AI to be able to say, hey, look at this graph note here. It's got like 100 incoming whatever connections or something. Like maybe it would be better just to break this up or, you know, reduce the complexity here so that it's easier to work with or whatever, right? You know, from a, from a conceptual standpoint, from, from an understanding standpoint, from a human standpoint, it makes a lot of sense to have separate things doing separate things, right? Like so for instance, if I have a front end, I want to be able to adjust things in the front end without, you know, breaking things otherwhere in the software. That's typically what I'm after, right? So I'm, I want my, the design of my software to be modular and have clear interfaces, not to be overly complex. And I want an AnaxiGraph to help me do this. So as I build this software and use an AnaxiGraph as a helping tool, that is what I want to achieve. And so you need to make sure that when we now re-engineer the code that those objectives are met.
+
+## Full request to evaluate frontend impact
+
+> So I also want you to analyze how this is going to impact the front end. I mean, maybe the way we illustrate the graph on the front end is different than what it is now. How we display, how we show this is different. Maybe the information displayed could also be different. I don't know. I still think it's quite useful to be able to have a table where we illustrate all the modules. We can sort them by lines of code and all these other features, which is quite interesting to be able to do. So I still kind of like that. But we need to evaluate now the purpose of everything on the front end. Do we need everything like that? I mean, I obviously love all the workflows and stuff where I can actually go through and manually control the mapping and the fresh eyes and the pattern and all that stuff and all the other stuff, right? And I want to build on that. So I love that. But are there other parts of the front end that need to change? Evaluate that before you totally misplan. Evaluate how the plan needs to be changed with that in mind.

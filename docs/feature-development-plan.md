@@ -22,12 +22,23 @@ change-isolation acceptance cases. Those requirements and the storage experiment
 implemented replacement or a released product. Prior completed checklists do not cover this rewrite.
 
 - [x] Record the selected graph destination, full feedback, current comparison and product criteria.
+- [x] Evaluate every frontend surface against its user purpose and the semantic graph destination;
+  retain the sortable module inventory and workflows. See the
+  [frontend design and revised delivery order](design/semantic-graph-frontend-2026-10-23.md).
+- [ ] Define shared entity/revision/selection and view-query contracts before finalizing schema;
+  specify the early module table → inspector → focused graph journey with global sorting/paging.
 - [ ] Implement canonical module/function/interface/contract graph identities and relationships.
 - [ ] Serve the same concise overview/detail fields through agents, CLI, dashboard and portable records.
+- [ ] Rebuild typed, directed graph exploration with lazy hierarchy/behavior expansion and accessible
+  relationship navigation; preserve useful area/LOC views and metric comparisons.
+- [ ] Rebase manual workflow cards and saved-result views onto new graph outputs/readiness; share
+  execution controls and show complete Pattern coverage plus retained Fresh Eyes alternatives.
 - [ ] Apply graph evidence to all-catalogue assessments and source-aware planning; keep Fresh Eyes
   on its implementation-free functional graph with retained alternatives.
 - [ ] Prove behavior tracing, stable-contract changes, frontend change isolation and justified hub
   decomposition, including healthy controls that should remain intact.
+- [ ] Refocus Changes on pinned-baseline verification, make detailed Git history optional, and
+  update runtime-aware uv/container onboarding and separate mapping/export/Git publication states.
 - [ ] Complete backed-up migration, current-state retention and storage/performance validation;
   retire the old parallel document pipeline and verify the resulting public product separately.
 
