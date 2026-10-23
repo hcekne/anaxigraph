@@ -279,6 +279,7 @@ def test_semantic_cache_identity_includes_the_analyzer_contract(monkeypatch):
     monkeypatch.setattr(annotation_plan, "_matching_document", lambda *a: None)
     monkeypatch.setattr(annotation_plan, "_latest_document", lambda *a: None)
     monkeypatch.setattr(annotation_plan, "compatible_legacy", lambda *a: None)
+    monkeypatch.setattr(annotation_plan, "bound_legacy", lambda *a: None)
     monkeypatch.setattr(annotation_plan, "_active_job", lambda *a, **k: None)
     monkeypatch.setattr(annotation_plan, "_upsert_state", lambda *a, **k: None)
 

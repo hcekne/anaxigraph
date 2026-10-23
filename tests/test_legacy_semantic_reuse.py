@@ -179,6 +179,7 @@ def test_upgrade_reuses_old_map_and_supersedes_redundant_pending_jobs(
         broken.setattr(
             "anaxigraph.knowledge_annotation_plan.compatible_legacy", lambda *a, **k: None
         )
+        broken.setattr("anaxigraph.knowledge_annotation_plan.bound_legacy", lambda *a, **k: None)
         queued = engine.plan(baseline.repository_id, repository, config)
         assert queued.enqueued == 8
         assert queued.active_jobs == 8
