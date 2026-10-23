@@ -12,7 +12,7 @@ from anaxigraph import __version__
 from anaxigraph.clock import utc_now
 from anaxigraph.config import load_config
 from anaxigraph.history_discovery import available_changes
-from anaxigraph.knowledge_sync import clear_knowledge_cache, refresh_metrics
+from anaxigraph.knowledge_sync import clear_knowledge_cache, refresh_metrics, sync_knowledge
 from anaxigraph.persistence.current_retention import retain_current_index
 from anaxigraph.persistence.search_read import refresh_search_projection
 from anaxigraph.persistence.semantic_state_carry import carry_compatible_states
@@ -108,7 +108,7 @@ def commit_snapshot(
         )
         graph_frame = (connection, repository_id, snapshot_id, previous_snapshot_id)
         relationships = _current_relationships(*graph_frame, prepared, artifacts, config)
-        findings, coverage_count = _finish_snapshot(
+        findings, coverage_count, deferred = _finish_snapshot(
             connection,
             repository_id,
             snapshot_id,
@@ -119,7 +119,8 @@ def commit_snapshot(
             git_changes,
             progress,
         )
-    database.finish_cache_maintenance()
+    if deferred:
+        database.finish_cache_maintenance()
     return SnapshotCommit(snapshot_id, deleted, relationships, len(findings), coverage_count)
 
 
@@ -242,7 +243,7 @@ def _finish_snapshot(
     artifacts: dict[str, int],
     git_changes: list[Any],
     progress: PersistProgress,
-) -> tuple[list[Any], int]:
+) -> tuple[list[Any], int, bool]:
     progress(4)
     upsert_groups(connection, repository_id=repository_id, config=config)
     progress(5)
@@ -278,8 +279,20 @@ def _finish_snapshot(
             (snapshot_id, utc_now(), repository_id),
         )
         refresh_search_projection(connection, repository_id, snapshot_id)
+    deferred = _finish_knowledge(connection, snapshot_id, config.storage)
+    return findings, coverage_count, deferred
+
+
+def _finish_knowledge(connection, snapshot_id, policy):
+    allocated = (
+        connection.execute("PRAGMA page_count").fetchone()[0]
+        * connection.execute("PRAGMA page_size").fetchone()[0]
+    )
+    if allocated * 2 <= policy.index_bytes:
+        sync_knowledge(connection, snapshot_id)
+        return False
     _defer_knowledge(connection, snapshot_id)
-    return findings, coverage_count
+    return True
 
 
 def _defer_knowledge(connection, snapshot_id):
