@@ -65,6 +65,17 @@ def test_changed_source_keeps_saved_work_visible_and_reuses_an_unfinished_propos
         visible = workflow_coverage(connection, before)["failures"][0]["error"]
         assert visible.startswith(message)
         assert len(visible) < 1000
+        original_documents = [
+            tuple(value)
+            for value in connection.execute("SELECT * FROM semantic_document_values ORDER BY id")
+        ]
+        original_modules = {
+            value["scope_key"]: (value["intrinsic_document_id"], value["context_document_id"])
+            for value in connection.execute(
+                "SELECT * FROM semantic_scope_states WHERE snapshot_id=? AND scope_type='module'",
+                (before,),
+            )
+        }
     source = repository / "pkg" / "util.py"
     source.write_text(source.read_text() + "\nLOCAL_CHANGE = 1\n")
     (repository / "pkg" / "new.py").write_text("def extra():\n    return 1\n")
@@ -74,8 +85,22 @@ def test_changed_source_keeps_saved_work_visible_and_reuses_an_unfinished_propos
         pending = workflow_coverage(connection, database.latest_snapshot(row["id"])["id"])[
             "history"
         ]
-        assert pending["modules"]["reuse_pending"]
-        assert pending["modules"]["saved"] == {"intrinsic": 8, "context": 8}
+        carried = {
+            value["scope_key"]: (value["intrinsic_document_id"], value["context_document_id"])
+            for value in connection.execute(
+                "SELECT * FROM semantic_scope_states WHERE snapshot_id=? "
+                "AND scope_type='module' AND status='current'",
+                (database.latest_snapshot(row["id"])["id"],),
+            )
+        }
+        assert carried and carried.items() <= original_modules.items()
+        assert "pkg/util.py" not in carried and "pkg/new.py" not in carried
+        assert pending["modules"]["intrinsic"]["current"] == len(carried)
+        assert pending["modules"]["context"]["current"] == len(carried)
+        assert [
+            tuple(value)
+            for value in connection.execute("SELECT * FROM semantic_document_values ORDER BY id")
+        ] == original_documents
     engine = SemanticEngine(database)
     engine.plan(row["id"], repository, config)
 
