@@ -169,6 +169,12 @@ app renders the graph; each repository need not contain another full HTML/JSON d
 record/import/commit delivery states remain separate. Jobs store revision-qualified references and
 completion state rather than repeated catalogue cards and large request bodies.
 
+Prefer deterministic JSON/JSONL partitions for the current semantic record so Git changes remain
+inspectable; compress the cold legacy archive and optional transport bundles. The all-record gzip
+and XZ experiments below test representation costs, not this final partition policy. Compressed
+partitions can reduce transfer size while weakening readable diffs and Git delta efficiency.
+Stable partitions and unchanged-save reuse matter more than minimizing one archive in isolation.
+
 ### What lives where
 
 | Location | Contents and retention |
@@ -190,6 +196,11 @@ ceiling must not exceed **200,000,000 bytes**. Evict rebuildable cache first; pr
 work and report an unmet budget instead of silently truncating it. A verified migration backup is
 reported separately, including its temporary peak footprint; it is never described as free storage.
 These are proposed budgets, not measurements of a future implementation.
+
+The active-record budget does not bound `.git` history. Nightly commits can accumulate substantial
+history even when the current folder is small. Measure changed bytes and Git pack growth across
+repeated updates; keep rebuildable parser IR and transient state out of the tracked record. Do not
+claim local retention fixes Git-history bloat or rewrite repository history as part of migration.
 
 ### What the user and coding agent see
 
@@ -447,7 +458,8 @@ semantic graph can be better; an aggressively abbreviated diagram can be worse f
 3. Compare matched agent tasks on the same revisions and budgets: locate behavior, trace impact,
    identify tests, preserve a contract, recognize useful catalogue opportunities and reject bad advice.
 4. Measure correctness, missed obligations, unnecessary changes, query/startup latency, memory,
-   changed-write volume, model usage and storage. Keep healthy controls and disagreement.
+   changed-write volume, Git pack growth over nightly updates, model usage and storage. Keep
+   healthy controls and disagreement.
 5. Replace producers/readers incrementally while preserving tool contracts and queue reliability;
    remove the old duplicate pipelines rather than leave two permanent architectures.
 
