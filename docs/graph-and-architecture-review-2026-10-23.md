@@ -8,6 +8,11 @@
 
 **Maintainer direction:** [Complete feedback and original wording](feedback/2026-10-23-architecture-and-storage.md)
 
+**Subsequent design review:** [Semantic graph, measured storage and current/proposed trade-offs](design/semantic-graph-redesign-2026-10-23.md).
+The proposal supplies the read-only live-storage measurements requested below. Implementation is
+paused by the maintainer; this earlier code audit and prompt research remain analysis, not a claim
+that the new workflows are implemented.
+
 AnaxiGraph should provide a compact, navigable graph of code and contracts that helps developers
 understand behavior, predict the consequences of changes and discover worthwhile improvements.
 Patterns uses that understanding to evaluate the entire pattern catalogue. Fresh Eyes receives

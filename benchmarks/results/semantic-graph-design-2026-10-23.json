@@ -1,0 +1,1398 @@
+{
+  "captured_at": "2026-10-23T09:55:18.777167+00:00",
+  "catalogue_coverage": {
+    "catalogue_identity_evidence": {
+      "access": "sqlite3 mode=ro query_only read transaction; catalogue loader reads JSON only",
+      "catalogue_id_set_sha256": "bebee366c3e205203a5cc26b4421267d6fbae06d333454f70fcac2997ac514ff",
+      "id_set_hash_method": "sha256(json.dumps(sorted(ids), ensure_ascii=True, separators=(comma,colon)).encode(utf8))",
+      "installed_catalog_count": 133,
+      "installed_catalog_fingerprint": "a8917b89d12f458248cf83dfefc0d1fd57e216eea928bb8e9f87844398f997c2",
+      "missing_count": 36,
+      "missing_id_set_sha256": "b9da7fea6f35a3ae5867e9e63179c7b697f5fb6df87803234e845dddd9d8eb0b",
+      "missing_ids": [
+        "actor-model",
+        "acyclic-dependencies",
+        "adapter",
+        "assertion-roulette",
+        "backpressure",
+        "big-ball-of-mud",
+        "builder",
+        "bulkhead",
+        "cache-aside",
+        "circular-dependency",
+        "clean-architecture",
+        "command",
+        "flaky-test",
+        "function-composition",
+        "god-object",
+        "immutable-data",
+        "implicit-workflow",
+        "iterator",
+        "leader-election",
+        "memoization",
+        "null-object",
+        "orchestrator",
+        "parameter-clump",
+        "parameter-object",
+        "pessimistic-lock",
+        "pipeline",
+        "premature-distribution",
+        "prototype",
+        "proxy",
+        "pure-function",
+        "race-condition",
+        "rate-limiter",
+        "single-flight",
+        "temporal-coupling",
+        "test-data-builder",
+        "test-pyramid"
+      ],
+      "reviewed_id_set_sha256": "1a55700f8c19c01cb15b0d3d452d5325fc68721d72805112c20edfb4a10d92cc",
+      "reviewed_unique_count": 97,
+      "source_catalog_count": 133,
+      "source_catalog_fingerprint": "a8917b89d12f458248cf83dfefc0d1fd57e216eea928bb8e9f87844398f997c2",
+      "stored_run_candidate_catalog_fingerprints": [
+        "a8917b89d12f458248cf83dfefc0d1fd57e216eea928bb8e9f87844398f997c2"
+      ],
+      "stored_run_count_caveat": "133 is the current source/installed count. The stored candidate manifests contain a matching full-catalogue fingerprint, not an explicit catalogue count or full ID list.",
+      "stored_run_matches_current_catalogue": true
+    },
+    "completed_assessment_review_pairs": 200,
+    "current_installed_cards": 133,
+    "distinct_reviewed_card_ids": 97,
+    "families": 8,
+    "interpretation": "Observed coverage and distribution; not ground-truth recommendation quality. Pairs are not unique cards.",
+    "missing_card_ids_count": 36,
+    "recommendation_counts": {
+      "avoid": 11,
+      "improve_conformance": 2,
+      "insufficient_evidence": 18,
+      "introduce": 0,
+      "no_action": 140,
+      "replace": 0,
+      "retain": 29
+    }
+  },
+  "current": {
+    "all_logical_document_values_bytes": 20420655,
+    "claims_comparison": {
+      "rows": 5196,
+      "same_fact_kind_and_json_as_document_bytes": 9345805,
+      "same_fact_kind_and_json_as_document_rows": 5196,
+      "value_bytes": 9345805
+    },
+    "database_bytes": 121761792,
+    "database_plus_portable_bytes": 126707172,
+    "decoded_parser_ir_bytes": 50998472,
+    "free_pages_bytes": 1204224,
+    "job_status": [
+      {
+        "job_kind": "fresh_adjudication",
+        "rows": 1,
+        "status": "completed"
+      },
+      {
+        "job_kind": "fresh_comparison",
+        "rows": 1,
+        "status": "completed"
+      },
+      {
+        "job_kind": "fresh_proposal",
+        "rows": 2,
+        "status": "completed"
+      },
+      {
+        "job_kind": "fresh_review",
+        "rows": 1,
+        "status": "completed"
+      },
+      {
+        "job_kind": "pattern_assessment",
+        "rows": 200,
+        "status": "completed"
+      },
+      {
+        "job_kind": "pattern_review",
+        "rows": 200,
+        "status": "completed"
+      },
+      {
+        "job_kind": "synthesis",
+        "rows": 29,
+        "status": "completed"
+      },
+      {
+        "job_kind": "taxonomy_proposal",
+        "rows": 1,
+        "status": "completed"
+      },
+      {
+        "job_kind": "taxonomy_review",
+        "rows": 240,
+        "status": "completed"
+      }
+    ],
+    "logical_document_values": [
+      {
+        "document_kind": "context",
+        "rows": 2598,
+        "supporting_evidence_bytes": 1351446,
+        "value_bytes": 4385083
+      },
+      {
+        "document_kind": "fresh_adjudication",
+        "rows": 1,
+        "supporting_evidence_bytes": 1138,
+        "value_bytes": 23019
+      },
+      {
+        "document_kind": "fresh_comparison",
+        "rows": 1,
+        "supporting_evidence_bytes": 765,
+        "value_bytes": 28151
+      },
+      {
+        "document_kind": "fresh_grounding",
+        "rows": 1,
+        "supporting_evidence_bytes": 2,
+        "value_bytes": 2815
+      },
+      {
+        "document_kind": "fresh_proposal",
+        "rows": 2,
+        "supporting_evidence_bytes": 2339,
+        "value_bytes": 29227
+      },
+      {
+        "document_kind": "fresh_review",
+        "rows": 1,
+        "supporting_evidence_bytes": 420,
+        "value_bytes": 8934
+      },
+      {
+        "document_kind": "intrinsic",
+        "rows": 2598,
+        "supporting_evidence_bytes": 1560802,
+        "value_bytes": 4960722
+      },
+      {
+        "document_kind": "pattern_assessment",
+        "rows": 200,
+        "supporting_evidence_bytes": 78501,
+        "value_bytes": 1141711
+      },
+      {
+        "document_kind": "pattern_review",
+        "rows": 200,
+        "supporting_evidence_bytes": 58089,
+        "value_bytes": 1775371
+      },
+      {
+        "document_kind": "synthesis",
+        "rows": 29,
+        "supporting_evidence_bytes": 9091,
+        "value_bytes": 60029
+      },
+      {
+        "document_kind": "taxonomy_proposal",
+        "rows": 1,
+        "supporting_evidence_bytes": 437,
+        "value_bytes": 1724559
+      },
+      {
+        "document_kind": "taxonomy_review",
+        "rows": 240,
+        "supporting_evidence_bytes": 57464,
+        "value_bytes": 6281034
+      }
+    ],
+    "physical_objects": [
+      {
+        "bytes": 31502336,
+        "name": "semantic_documents",
+        "object_type": "table",
+        "owner_table": "semantic_documents",
+        "pages": 7691,
+        "payload_bytes": 25658957,
+        "unused_bytes": 5715234
+      },
+      {
+        "bytes": 17944576,
+        "name": "semantic_claims",
+        "object_type": "table",
+        "owner_table": "semantic_claims",
+        "pages": 4381,
+        "payload_bytes": 12849742,
+        "unused_bytes": 4995302
+      },
+      {
+        "bytes": 14766080,
+        "name": "file_facts",
+        "object_type": "table",
+        "owner_table": "file_facts",
+        "pages": 3605,
+        "payload_bytes": 12933088,
+        "unused_bytes": 1777143
+      },
+      {
+        "bytes": 13447168,
+        "name": "module_search_content",
+        "object_type": "table",
+        "owner_table": "module_search_content",
+        "pages": 3283,
+        "payload_bytes": 11614111,
+        "unused_bytes": 1777986
+      },
+      {
+        "bytes": 9203712,
+        "name": "relationship_edges",
+        "object_type": "table",
+        "owner_table": "relationship_edges",
+        "pages": 2247,
+        "payload_bytes": 8482692,
+        "unused_bytes": 516345
+      },
+      {
+        "bytes": 5578752,
+        "name": "module_search_data",
+        "object_type": "table",
+        "owner_table": "module_search_data",
+        "pages": 1362,
+        "payload_bytes": 5473289,
+        "unused_bytes": 64676
+      },
+      {
+        "bytes": 4833280,
+        "name": "fact_symbols",
+        "object_type": "table",
+        "owner_table": "fact_symbols",
+        "pages": 1180,
+        "payload_bytes": 4508560,
+        "unused_bytes": 177120
+      },
+      {
+        "bytes": 4407296,
+        "name": "findings",
+        "object_type": "table",
+        "owner_table": "findings",
+        "pages": 1076,
+        "payload_bytes": 3901564,
+        "unused_bytes": 456913
+      },
+      {
+        "bytes": 3108864,
+        "name": "git_changes",
+        "object_type": "table",
+        "owner_table": "git_changes",
+        "pages": 759,
+        "payload_bytes": 2920774,
+        "unused_bytes": 81359
+      },
+      {
+        "bytes": 2023424,
+        "name": "sqlite_autoindex_fact_symbols_1",
+        "object_type": "index",
+        "owner_table": "fact_symbols",
+        "pages": 494,
+        "payload_bytes": 1917766,
+        "unused_bytes": 34151
+      },
+      {
+        "bytes": 1855488,
+        "name": "semantic_scope_states",
+        "object_type": "table",
+        "owner_table": "semantic_scope_states",
+        "pages": 453,
+        "payload_bytes": 1369356,
+        "unused_bytes": 462034
+      },
+      {
+        "bytes": 1421312,
+        "name": "sqlite_autoindex_git_changes_1",
+        "object_type": "index",
+        "owner_table": "git_changes",
+        "pages": 347,
+        "payload_bytes": 1346949,
+        "unused_bytes": 22809
+      },
+      {
+        "bytes": 1134592,
+        "name": "semantic_jobs",
+        "object_type": "table",
+        "owner_table": "semantic_jobs",
+        "pages": 277,
+        "payload_bytes": 938710,
+        "unused_bytes": 187972
+      },
+      {
+        "bytes": 1056768,
+        "name": "semantic_taxonomy_memberships",
+        "object_type": "table",
+        "owner_table": "semantic_taxonomy_memberships",
+        "pages": 258,
+        "payload_bytes": 979478,
+        "unused_bytes": 57725
+      },
+      {
+        "bytes": 1044480,
+        "name": "schema_meta",
+        "object_type": "table",
+        "owner_table": "schema_meta",
+        "pages": 255,
+        "payload_bytes": 1041385,
+        "unused_bytes": 2040
+      },
+      {
+        "bytes": 761856,
+        "name": "idx_git_changes_repository_path",
+        "object_type": "index",
+        "owner_table": "git_changes",
+        "pages": 186,
+        "payload_bytes": 699559,
+        "unused_bytes": 12699
+      },
+      {
+        "bytes": 696320,
+        "name": "relationship_sets",
+        "object_type": "table",
+        "owner_table": "relationship_sets",
+        "pages": 170,
+        "payload_bytes": 669628,
+        "unused_bytes": 10986
+      },
+      {
+        "bytes": 684032,
+        "name": "snapshot_file_changes",
+        "object_type": "table",
+        "owner_table": "snapshot_file_changes",
+        "pages": 167,
+        "payload_bytes": 641628,
+        "unused_bytes": 24290
+      },
+      {
+        "bytes": 655360,
+        "name": "idx_semantic_documents_scope",
+        "object_type": "index",
+        "owner_table": "semantic_documents",
+        "pages": 160,
+        "payload_bytes": 618888,
+        "unused_bytes": 16334
+      },
+      {
+        "bytes": 655360,
+        "name": "finding_occurrences",
+        "object_type": "table",
+        "owner_table": "finding_occurrences",
+        "pages": 160,
+        "payload_bytes": 610213,
+        "unused_bytes": 14222
+      },
+      {
+        "bytes": 446464,
+        "name": "semantic_taxonomy_reviews",
+        "object_type": "table",
+        "owner_table": "semantic_taxonomy_reviews",
+        "pages": 109,
+        "payload_bytes": 440086,
+        "unused_bytes": 5899
+      },
+      {
+        "bytes": 368640,
+        "name": "artifacts",
+        "object_type": "table",
+        "owner_table": "artifacts",
+        "pages": 90,
+        "payload_bytes": 342240,
+        "unused_bytes": 10562
+      },
+      {
+        "bytes": 266240,
+        "name": "idx_relationship_edges_set",
+        "object_type": "index",
+        "owner_table": "relationship_edges",
+        "pages": 65,
+        "payload_bytes": 181902,
+        "unused_bytes": 4554
+      },
+      {
+        "bytes": 241664,
+        "name": "sqlite_autoindex_findings_1",
+        "object_type": "index",
+        "owner_table": "findings",
+        "pages": 59,
+        "payload_bytes": 221441,
+        "unused_bytes": 3631
+      },
+      {
+        "bytes": 241664,
+        "name": "coverage_measurements",
+        "object_type": "table",
+        "owner_table": "coverage_measurements",
+        "pages": 59,
+        "payload_bytes": 223181,
+        "unused_bytes": 7117
+      },
+      {
+        "bytes": 192512,
+        "name": "sqlite_autoindex_file_facts_1",
+        "object_type": "index",
+        "owner_table": "file_facts",
+        "pages": 47,
+        "payload_bytes": 181732,
+        "unused_bytes": 2426
+      },
+      {
+        "bytes": 184320,
+        "name": "sqlite_autoindex_semantic_scope_states_1",
+        "object_type": "index",
+        "owner_table": "semantic_scope_states",
+        "pages": 45,
+        "payload_bytes": 172629,
+        "unused_bytes": 2630
+      },
+      {
+        "bytes": 163840,
+        "name": "sqlite_autoindex_relationship_sets_1",
+        "object_type": "index",
+        "owner_table": "relationship_sets",
+        "pages": 40,
+        "payload_bytes": 153102,
+        "unused_bytes": 3695
+      },
+      {
+        "bytes": 147456,
+        "name": "sqlite_autoindex_artifacts_1",
+        "object_type": "index",
+        "owner_table": "artifacts",
+        "pages": 36,
+        "payload_bytes": 134689,
+        "unused_bytes": 4545
+      },
+      {
+        "bytes": 147456,
+        "name": "idx_artifacts_repository",
+        "object_type": "index",
+        "owner_table": "artifacts",
+        "pages": 36,
+        "payload_bytes": 134689,
+        "unused_bytes": 4545
+      },
+      {
+        "bytes": 139264,
+        "name": "idx_semantic_claims_fact",
+        "object_type": "index",
+        "owner_table": "semantic_claims",
+        "pages": 34,
+        "payload_bytes": 116526,
+        "unused_bytes": 6746
+      },
+      {
+        "bytes": 131072,
+        "name": "idx_semantic_jobs_scope",
+        "object_type": "index",
+        "owner_table": "semantic_jobs",
+        "pages": 32,
+        "payload_bytes": 116850,
+        "unused_bytes": 11173
+      },
+      {
+        "bytes": 118784,
+        "name": "idx_semantic_taxonomy_memberships_node",
+        "object_type": "index",
+        "owner_table": "semantic_taxonomy_memberships",
+        "pages": 29,
+        "payload_bytes": 106967,
+        "unused_bytes": 3679
+      },
+      {
+        "bytes": 77824,
+        "name": "idx_semantic_states_snapshot",
+        "object_type": "index",
+        "owner_table": "semantic_scope_states",
+        "pages": 19,
+        "payload_bytes": 56780,
+        "unused_bytes": 12315
+      },
+      {
+        "bytes": 69632,
+        "name": "idx_findings_repository_status",
+        "object_type": "index",
+        "owner_table": "findings",
+        "pages": 17,
+        "payload_bytes": 47536,
+        "unused_bytes": 6008
+      },
+      {
+        "bytes": 65536,
+        "name": "sqlite_autoindex_finding_occurrences_1",
+        "object_type": "index",
+        "owner_table": "finding_occurrences",
+        "pages": 16,
+        "payload_bytes": 42112,
+        "unused_bytes": 7348
+      },
+      {
+        "bytes": 65536,
+        "name": "module_search_docsize",
+        "object_type": "table",
+        "owner_table": "module_search_docsize",
+        "pages": 16,
+        "payload_bytes": 44470,
+        "unused_bytes": 7958
+      },
+      {
+        "bytes": 65536,
+        "name": "idx_semantic_documents_fact",
+        "object_type": "index",
+        "owner_table": "semantic_documents",
+        "pages": 16,
+        "payload_bytes": 39894,
+        "unused_bytes": 7838
+      },
+      {
+        "bytes": 45056,
+        "name": "snapshot_relationship_changes",
+        "object_type": "table",
+        "owner_table": "snapshot_relationship_changes",
+        "pages": 11,
+        "payload_bytes": 26037,
+        "unused_bytes": 8037
+      },
+      {
+        "bytes": 45056,
+        "name": "idx_semantic_jobs_queue",
+        "object_type": "index",
+        "owner_table": "semantic_jobs",
+        "pages": 11,
+        "payload_bytes": 35533,
+        "unused_bytes": 7370
+      },
+      {
+        "bytes": 40960,
+        "name": "idx_file_facts_artifact",
+        "object_type": "index",
+        "owner_table": "file_facts",
+        "pages": 10,
+        "payload_bytes": 25596,
+        "unused_bytes": 7454
+      },
+      {
+        "bytes": 32768,
+        "name": "sqlite_schema",
+        "object_type": null,
+        "owner_table": null,
+        "pages": 8,
+        "payload_bytes": 24741,
+        "unused_bytes": 7433
+      },
+      {
+        "bytes": 32768,
+        "name": "sqlite_autoindex_snapshot_file_changes_1",
+        "object_type": "index",
+        "owner_table": "snapshot_file_changes",
+        "pages": 8,
+        "payload_bytes": 20528,
+        "unused_bytes": 4354
+      },
+      {
+        "bytes": 32768,
+        "name": "sqlite_autoindex_semantic_taxonomy_memberships_1",
+        "object_type": "index",
+        "owner_table": "semantic_taxonomy_memberships",
+        "pages": 8,
+        "payload_bytes": 20528,
+        "unused_bytes": 4354
+      },
+      {
+        "bytes": 32768,
+        "name": "idx_semantic_states_fact",
+        "object_type": "index",
+        "owner_table": "semantic_scope_states",
+        "pages": 8,
+        "payload_bytes": 19378,
+        "unused_bytes": 4793
+      },
+      {
+        "bytes": 32768,
+        "name": "idx_relationship_sets_source",
+        "object_type": "index",
+        "owner_table": "relationship_sets",
+        "pages": 8,
+        "payload_bytes": 21531,
+        "unused_bytes": 4578
+      },
+      {
+        "bytes": 32768,
+        "name": "idx_file_changes_artifact",
+        "object_type": "index",
+        "owner_table": "snapshot_file_changes",
+        "pages": 8,
+        "payload_bytes": 20528,
+        "unused_bytes": 4354
+      },
+      {
+        "bytes": 28672,
+        "name": "sqlite_autoindex_snapshot_relationship_changes_1",
+        "object_type": "index",
+        "owner_table": "snapshot_relationship_changes",
+        "pages": 7,
+        "payload_bytes": 17281,
+        "unused_bytes": 4744
+      },
+      {
+        "bytes": 28672,
+        "name": "idx_relationship_changes_set",
+        "object_type": "index",
+        "owner_table": "snapshot_relationship_changes",
+        "pages": 7,
+        "payload_bytes": 15067,
+        "unused_bytes": 6958
+      },
+      {
+        "bytes": 28672,
+        "name": "idx_file_changes_snapshot",
+        "object_type": "index",
+        "owner_table": "snapshot_file_changes",
+        "pages": 7,
+        "payload_bytes": 12862,
+        "unused_bytes": 7936
+      },
+      {
+        "bytes": 28672,
+        "name": "idx_coverage_relationship_edge",
+        "object_type": "index",
+        "owner_table": "coverage_measurements",
+        "pages": 7,
+        "payload_bytes": 14398,
+        "unused_bytes": 7966
+      },
+      {
+        "bytes": 24576,
+        "name": "semantic_taxonomy_nodes",
+        "object_type": "table",
+        "owner_table": "semantic_taxonomy_nodes",
+        "pages": 6,
+        "payload_bytes": 17270,
+        "unused_bytes": 7086
+      },
+      {
+        "bytes": 24576,
+        "name": "module_search_idx",
+        "object_type": "table",
+        "owner_table": "module_search_idx",
+        "pages": 6,
+        "payload_bytes": 15088,
+        "unused_bytes": 6054
+      },
+      {
+        "bytes": 24576,
+        "name": "idx_relationship_changes_snapshot",
+        "object_type": "index",
+        "owner_table": "snapshot_relationship_changes",
+        "pages": 6,
+        "payload_bytes": 10817,
+        "unused_bytes": 7124
+      },
+      {
+        "bytes": 12288,
+        "name": "idx_semantic_jobs_fact",
+        "object_type": "index",
+        "owner_table": "semantic_jobs",
+        "pages": 3,
+        "payload_bytes": 3773,
+        "unused_bytes": 6458
+      },
+      {
+        "bytes": 4096,
+        "name": "sqlite_autoindex_snapshots_1",
+        "object_type": "index",
+        "owner_table": "snapshots",
+        "pages": 1,
+        "payload_bytes": 69,
+        "unused_bytes": 4016
+      },
+      {
+        "bytes": 4096,
+        "name": "sqlite_autoindex_semantic_taxonomy_reviews_1",
+        "object_type": "index",
+        "owner_table": "semantic_taxonomy_reviews",
+        "pages": 1,
+        "payload_bytes": 10,
+        "unused_bytes": 4072
+      },
+      {
+        "bytes": 4096,
+        "name": "sqlite_autoindex_semantic_taxonomy_nodes_1",
+        "object_type": "index",
+        "owner_table": "semantic_taxonomy_nodes",
+        "pages": 1,
+        "payload_bytes": 1027,
+        "unused_bytes": 2977
+      },
+      {
+        "bytes": 4096,
+        "name": "sqlite_autoindex_semantic_taxonomies_1",
+        "object_type": "index",
+        "owner_table": "semantic_taxonomies",
+        "pages": 1,
+        "payload_bytes": 69,
+        "unused_bytes": 4016
+      },
+      {
+        "bytes": 4096,
+        "name": "sqlite_autoindex_schema_migrations_1",
+        "object_type": "index",
+        "owner_table": "schema_migrations",
+        "pages": 1,
+        "payload_bytes": 0,
+        "unused_bytes": 4088
+      },
+      {
+        "bytes": 4096,
+        "name": "sqlite_autoindex_schema_meta_1",
+        "object_type": "index",
+        "owner_table": "schema_meta",
+        "pages": 1,
+        "payload_bytes": 143,
+        "unused_bytes": 3927
+      },
+      {
+        "bytes": 4096,
+        "name": "sqlite_autoindex_repositories_1",
+        "object_type": "index",
+        "owner_table": "repositories",
+        "pages": 1,
+        "payload_bytes": 33,
+        "unused_bytes": 4052
+      },
+      {
+        "bytes": 4096,
+        "name": "sqlite_autoindex_groups_1",
+        "object_type": "index",
+        "owner_table": "groups",
+        "pages": 1,
+        "payload_bytes": 957,
+        "unused_bytes": 3026
+      },
+      {
+        "bytes": 4096,
+        "name": "sqlite_autoindex_checkpoint_relationships_1",
+        "object_type": "index",
+        "owner_table": "checkpoint_relationships",
+        "pages": 1,
+        "payload_bytes": 0,
+        "unused_bytes": 4088
+      },
+      {
+        "bytes": 4096,
+        "name": "sqlite_autoindex_checkpoint_files_1",
+        "object_type": "index",
+        "owner_table": "checkpoint_files",
+        "pages": 1,
+        "payload_bytes": 0,
+        "unused_bytes": 4088
+      },
+      {
+        "bytes": 4096,
+        "name": "sqlite_autoindex_architecture_rules_1",
+        "object_type": "index",
+        "owner_table": "architecture_rules",
+        "pages": 1,
+        "payload_bytes": 199,
+        "unused_bytes": 3862
+      },
+      {
+        "bytes": 4096,
+        "name": "snapshots",
+        "object_type": "table",
+        "owner_table": "snapshots",
+        "pages": 1,
+        "payload_bytes": 610,
+        "unused_bytes": 3473
+      },
+      {
+        "bytes": 4096,
+        "name": "snapshot_checkpoints",
+        "object_type": "table",
+        "owner_table": "snapshot_checkpoints",
+        "pages": 1,
+        "payload_bytes": 0,
+        "unused_bytes": 4088
+      },
+      {
+        "bytes": 4096,
+        "name": "semantic_taxonomies",
+        "object_type": "table",
+        "owner_table": "semantic_taxonomies",
+        "pages": 1,
+        "payload_bytes": 3347,
+        "unused_bytes": 736
+      },
+      {
+        "bytes": 4096,
+        "name": "schema_migrations",
+        "object_type": "table",
+        "owner_table": "schema_migrations",
+        "pages": 1,
+        "payload_bytes": 0,
+        "unused_bytes": 4088
+      },
+      {
+        "bytes": 4096,
+        "name": "repositories",
+        "object_type": "table",
+        "owner_table": "repositories",
+        "pages": 1,
+        "payload_bytes": 163,
+        "unused_bytes": 3920
+      },
+      {
+        "bytes": 4096,
+        "name": "module_search_config",
+        "object_type": "table",
+        "owner_table": "module_search_config",
+        "pages": 1,
+        "payload_bytes": 11,
+        "unused_bytes": 4074
+      },
+      {
+        "bytes": 4096,
+        "name": "metrics",
+        "object_type": "table",
+        "owner_table": "metrics",
+        "pages": 1,
+        "payload_bytes": 653,
+        "unused_bytes": 3390
+      },
+      {
+        "bytes": 4096,
+        "name": "idx_snapshots_repository",
+        "object_type": "index",
+        "owner_table": "snapshots",
+        "pages": 1,
+        "payload_bytes": 4,
+        "unused_bytes": 4081
+      },
+      {
+        "bytes": 4096,
+        "name": "idx_semantic_taxonomies_snapshot",
+        "object_type": "index",
+        "owner_table": "semantic_taxonomies",
+        "pages": 1,
+        "payload_bytes": 12,
+        "unused_bytes": 4073
+      },
+      {
+        "bytes": 4096,
+        "name": "idx_metrics_snapshot",
+        "object_type": "index",
+        "owner_table": "metrics",
+        "pages": 1,
+        "payload_bytes": 238,
+        "unused_bytes": 3817
+      },
+      {
+        "bytes": 4096,
+        "name": "idx_checkpoints_repository",
+        "object_type": "index",
+        "owner_table": "snapshot_checkpoints",
+        "pages": 1,
+        "payload_bytes": 0,
+        "unused_bytes": 4088
+      },
+      {
+        "bytes": 4096,
+        "name": "idx_checkpoint_relationships_set",
+        "object_type": "index",
+        "owner_table": "checkpoint_relationships",
+        "pages": 1,
+        "payload_bytes": 0,
+        "unused_bytes": 4088
+      },
+      {
+        "bytes": 4096,
+        "name": "groups",
+        "object_type": "table",
+        "owner_table": "groups",
+        "pages": 1,
+        "payload_bytes": 2762,
+        "unused_bytes": 1186
+      },
+      {
+        "bytes": 4096,
+        "name": "checkpoint_relationships",
+        "object_type": "table",
+        "owner_table": "checkpoint_relationships",
+        "pages": 1,
+        "payload_bytes": 0,
+        "unused_bytes": 4088
+      },
+      {
+        "bytes": 4096,
+        "name": "checkpoint_files",
+        "object_type": "table",
+        "owner_table": "checkpoint_files",
+        "pages": 1,
+        "payload_bytes": 0,
+        "unused_bytes": 4088
+      },
+      {
+        "bytes": 4096,
+        "name": "architecture_rules",
+        "object_type": "table",
+        "owner_table": "architecture_rules",
+        "pages": 1,
+        "payload_bytes": 1305,
+        "unused_bytes": 2741
+      },
+      {
+        "bytes": 4096,
+        "name": "analysis_runs",
+        "object_type": "table",
+        "owner_table": "analysis_runs",
+        "pages": 1,
+        "payload_bytes": 495,
+        "unused_bytes": 3588
+      }
+    ],
+    "portable_record_bytes": 4945380,
+    "portable_record_file_count": 12,
+    "portable_record_files": [
+      {
+        "bytes": 34,
+        "path": "anaxigraph/record.json"
+      },
+      {
+        "bytes": 4810,
+        "path": "anaxigraph/manifest.json"
+      },
+      {
+        "bytes": 399512,
+        "path": "anaxigraph/analyses/mixed-20-a3fffc7e61c1b7574592da5b.jsonl.xz"
+      },
+      {
+        "bytes": 437812,
+        "path": "anaxigraph/analyses/mixed-00-0e18eab8d944b634e0887e8f.jsonl.xz"
+      },
+      {
+        "bytes": 1474576,
+        "path": "anaxigraph/analyses/mixed-50-88be878720544c0932326fc3.jsonl.xz"
+      },
+      {
+        "bytes": 363596,
+        "path": "anaxigraph/analyses/mixed-30-253a1492503cf73594a3dd6b.jsonl.xz"
+      },
+      {
+        "bytes": 391488,
+        "path": "anaxigraph/analyses/mixed-60-0ddd388ce4eadc5bcc70bfd9.jsonl.xz"
+      },
+      {
+        "bytes": 404580,
+        "path": "anaxigraph/analyses/mixed-10-fda06d2dea05e55e39fbed2e.jsonl.xz"
+      },
+      {
+        "bytes": 382748,
+        "path": "anaxigraph/analyses/mixed-70-c82529a94e62b52e8839a649.jsonl.xz"
+      },
+      {
+        "bytes": 1066688,
+        "path": "anaxigraph/analyses/mixed-40-6ac3066cb96ba396911e9ca5.jsonl.xz"
+      },
+      {
+        "bytes": 9768,
+        "path": "anaxigraph/views/da38af5db92569246017fe92.txt"
+      },
+      {
+        "bytes": 9768,
+        "path": "anaxigraph/mapping/architecture.json"
+      }
+    ],
+    "recovery_verification_reports_bytes": 1541,
+    "scope_status": [
+      {
+        "rows": 6,
+        "scope_type": "fresh_eyes",
+        "status": "current"
+      },
+      {
+        "rows": 28,
+        "scope_type": "group",
+        "status": "current"
+      },
+      {
+        "rows": 2598,
+        "scope_type": "module",
+        "status": "current"
+      },
+      {
+        "rows": 200,
+        "scope_type": "pattern",
+        "status": "current"
+      },
+      {
+        "rows": 1,
+        "scope_type": "pattern_plan",
+        "status": "current"
+      },
+      {
+        "rows": 1,
+        "scope_type": "repository",
+        "status": "current"
+      },
+      {
+        "rows": 1,
+        "scope_type": "taxonomy",
+        "status": "current"
+      }
+    ],
+    "shm_bytes": 32768,
+    "stored_parser_metadata_json_bytes": 10606433,
+    "table_rows": {
+      "analysis_runs": 1,
+      "architecture_rules": 9,
+      "artifacts": 2598,
+      "checkpoint_files": 0,
+      "checkpoint_relationships": 0,
+      "coverage_measurements": 2076,
+      "fact_symbols": 21097,
+      "file_facts": 2598,
+      "finding_occurrences": 5296,
+      "findings": 5296,
+      "git_changes": 15790,
+      "groups": 35,
+      "metrics": 11,
+      "module_search": 2598,
+      "module_search_config": 1,
+      "module_search_content": 2598,
+      "module_search_data": 1363,
+      "module_search_docsize": 2598,
+      "module_search_idx": 1122,
+      "relationship_edges": 26336,
+      "relationship_sets": 2189,
+      "repositories": 1,
+      "schema_meta": 6,
+      "schema_migrations": 0,
+      "semantic_claims": 5196,
+      "semantic_documents": 5872,
+      "semantic_jobs": 675,
+      "semantic_scope_states": 2835,
+      "semantic_taxonomies": 1,
+      "semantic_taxonomy_memberships": 2598,
+      "semantic_taxonomy_nodes": 28,
+      "semantic_taxonomy_reviews": 2,
+      "snapshot_checkpoints": 0,
+      "snapshot_file_changes": 2598,
+      "snapshot_relationship_changes": 2189,
+      "snapshots": 1
+    },
+    "total_with_shm_and_reports_bytes": 126741481,
+    "wal_bytes": 0
+  },
+  "dataset": {
+    "access": "sqlite3 mode=ro, query_only, read transaction; no AnaxiIndex/no migrations",
+    "documents_include": "model outputs and deterministic grounding; not all paid model calls",
+    "files": 2598,
+    "live_service_modified": false,
+    "name": "complete MaxOS legacy workflow run; not floThink or a synthetic fixture",
+    "new_model_calls": 0,
+    "published_source_schema": 11,
+    "relationships": 26336,
+    "repository_source_baseline": "1e71f17",
+    "saved_analysis_documents": 5872,
+    "service_schema": "12",
+    "service_version": "0.8.5+compact.2 (local patches)",
+    "source_snapshot": {
+      "commit_sha": "0dabcceb414e0ee1b73158aadbbefb385f8ebde5",
+      "dirty": 0,
+      "id": 1,
+      "snapshot_kind": "working_tree"
+    },
+    "symbols": 21097
+  },
+  "format_experiments": {
+    "claim_supporting_evidence_overrides_preserved": 1,
+    "combined_alternative_encodings": {
+      "accounting": "Both local and portable representations counted; select one codec, not both. Static closed SQLite sizes exclude operational WAL/staging/backup peaks.",
+      "sqlite_plus_gzip_bytes": 71480422,
+      "sqlite_plus_gzip_reduction_percent": 43.59,
+      "sqlite_plus_xz_bytes": 67290280,
+      "sqlite_plus_xz_reduction_percent": 46.89
+    },
+    "excluded_or_rebuildable": [
+      "FTS content/shadow tables and rebuildable lookup indexes",
+      "schema_meta local import-ID cache",
+      "full Git-change history except latest known change for current files",
+      "live worker/lease state (terminal model-job provenance remains)",
+      "empty checkpoint/cache tables in this one-snapshot fixture"
+    ],
+    "flat_file_comparison": {
+      "derived_index_bytes": 6766592,
+      "gzip_plus_index_bytes": 25367654,
+      "gzip_plus_index_is_seekable_runtime": false,
+      "raw_plus_derived_index_bytes": 71778171
+    },
+    "future_features_not_measured": [
+      "exhaustive catalogue outputs",
+      "new hierarchical source-blind Fresh Eyes alternatives",
+      "new generated function summaries"
+    ],
+    "limitations": [
+      "No implemented graph API, production migration or product release.",
+      "No production concurrency, incremental updates, whole-agent task parity or recommendation-quality test.",
+      "Retained record checks do not establish new semantic extraction or function-level call correctness.",
+      "Most Git-log rows excluded; historical co-change needs rebuild. Explicit saved analyses and provenance retained.",
+      "New model outputs and final semantic-only graph size cannot be measured before they exist.",
+      "No claim that the seven-hour model workflow has become faster.",
+      "Private source and analysis payloads are not included in this report."
+    ],
+    "not_implemented_product": true,
+    "original_claim_reconstruction_evidence": {
+      "original_semantic_claims_row_roundtrip": {
+        "original_sha256": "00dfc7efdfd6ae29e5acf89e7558091457b5a14fad4dc3dd86947776b804f03a",
+        "roundtrip_sha256": "00dfc7efdfd6ae29e5acf89e7558091457b5a14fad4dc3dd86947776b804f03a",
+        "rows": 5196
+      },
+      "overrides": [
+        {
+          "claim_evidence_bytes": 525,
+          "claim_evidence_equals_value_evidence": true,
+          "claim_evidence_items": 7,
+          "claim_id": 4319,
+          "claim_type": "module_context",
+          "document_evidence_bytes": 431,
+          "document_id": 4319,
+          "document_supporting_evidence_items": 6,
+          "file_fact_id": 4
+        }
+      ],
+      "proof_scope": "All original semantic_claims columns and exact JSON strings restored, including claim id, provenance metadata and supporting-evidence override. Synthetic document_id link is excluded when comparing restored original rows.",
+      "source_db_writes": false,
+      "sqlite_container_verified_claim_rows": {
+        "rows": 5196,
+        "sha256": "00dfc7efdfd6ae29e5acf89e7558091457b5a14fad4dc3dd86947776b804f03a"
+      }
+    },
+    "portable_projection": {
+      "content_warning": "The new projection retains parser/graph facts not in the current selected record; its larger archive is not a portable-size improvement.",
+      "current_record_decoded_bytes": 41661184,
+      "current_record_same_gzip_codec_bytes": 7669567,
+      "gzip_bytes": 18601062,
+      "raw_jsonl_bytes": 65011579,
+      "xz_bytes": 14410920,
+      "xz_preset": 6,
+      "xz_seconds": 39.208
+    },
+    "retained_rows": {
+      "analysis_runs": 1,
+      "architecture_rules": 9,
+      "artifacts": 2598,
+      "claim_links": 5196,
+      "coverage_measurements": 2076,
+      "fact_symbols": 21097,
+      "file_facts": 2598,
+      "finding_occurrences": 5296,
+      "findings": 5296,
+      "groups": 35,
+      "metrics": 11,
+      "relationship_edges": 26336,
+      "relationship_sets": 2189,
+      "repositories": 1,
+      "semantic_documents": 5872,
+      "semantic_jobs": 675,
+      "semantic_scope_states": 2835,
+      "semantic_taxonomies": 1,
+      "semantic_taxonomy_memberships": 2598,
+      "semantic_taxonomy_nodes": 28,
+      "semantic_taxonomy_reviews": 2,
+      "snapshot_file_changes": 2598,
+      "snapshot_relationship_changes": 2189,
+      "snapshots": 1,
+      "source_last_changes": 2594
+    },
+    "retained_rows_total": 92132,
+    "scratch_container": {
+      "build_seconds": 25.067,
+      "kind": "one-compressed-payload-per-record SQLite storage-container experiment",
+      "module_lookup_checks": 20,
+      "physical_objects": [
+        {
+          "bytes": 42450944,
+          "name": "records"
+        },
+        {
+          "bytes": 5574656,
+          "name": "semantic_lookup_data"
+        },
+        {
+          "bytes": 2768896,
+          "name": "sqlite_autoindex_records_1"
+        },
+        {
+          "bytes": 520192,
+          "name": "adjacency"
+        },
+        {
+          "bytes": 475136,
+          "name": "symbol_nodes"
+        },
+        {
+          "bytes": 405504,
+          "name": "symbol_module"
+        },
+        {
+          "bytes": 266240,
+          "name": "adjacency_out"
+        },
+        {
+          "bytes": 237568,
+          "name": "adjacency_in"
+        },
+        {
+          "bytes": 65536,
+          "name": "semantic_lookup_docsize"
+        },
+        {
+          "bytes": 32768,
+          "name": "search_nodes"
+        },
+        {
+          "bytes": 32768,
+          "name": "nodes"
+        },
+        {
+          "bytes": 24576,
+          "name": "semantic_lookup_idx"
+        },
+        {
+          "bytes": 12288,
+          "name": "record_schema"
+        },
+        {
+          "bytes": 4096,
+          "name": "sqlite_schema"
+        },
+        {
+          "bytes": 4096,
+          "name": "sqlite_autoindex_record_schema_1"
+        },
+        {
+          "bytes": 4096,
+          "name": "semantic_lookup_config"
+        }
+      ],
+      "search_artifact_id_equivalence": {
+        "agent": 1294,
+        "cache": 102,
+        "provider": 875,
+        "workflow": 941
+      },
+      "sqlite_bytes_including_indexes": 52879360
+    },
+    "strict_original_row_checks": {
+      "analysis_runs": {
+        "rows": 1,
+        "sha256": "dd314bc44dfb22fe39a77c5c52c9cb2893d54f822f27790bbb556822b1f5ad35"
+      },
+      "architecture_rules": {
+        "rows": 9,
+        "sha256": "fa30e2eadd4c97cab2fdc8370ae339cd7fba1e6fdcc7900615ed24d75001fe92"
+      },
+      "artifacts": {
+        "rows": 2598,
+        "sha256": "ba73398c6982ceb1686ba536e99d050965930dc6ecd67a06351245d492dfcee7"
+      },
+      "claim_links": {
+        "rows": 5196,
+        "sha256": "00dfc7efdfd6ae29e5acf89e7558091457b5a14fad4dc3dd86947776b804f03a"
+      },
+      "coverage_measurements": {
+        "rows": 2076,
+        "sha256": "393c007c448a2982a1a070f307b72c6c6790b5d1b8a855f943ccef678bfd1fa3"
+      },
+      "fact_symbols": {
+        "rows": 21097,
+        "sha256": "27c933bbc3e51501695408e3c1b48fed93624859bbf3340704c1ffdb5e94b5d8"
+      },
+      "file_facts": {
+        "rows": 2598,
+        "sha256": "d5bd7a9d4fb52ae4f181fcec9c11103eff1bf84b2d141a05b263a37e6e39948b"
+      },
+      "finding_occurrences": {
+        "rows": 5296,
+        "sha256": "8cbfef2efc09a70e3843936ea8501612aebd99c539fddda746e6c6c57e4f623e"
+      },
+      "findings": {
+        "rows": 5296,
+        "sha256": "424ba941748e32bcc3c11c02de0ef309d80491349aa450746d63ada1ec8ee8a2"
+      },
+      "groups": {
+        "rows": 35,
+        "sha256": "7268278fd96bb3809aeeb680489ce44bdd3e7052d693eaee9d0aa0b71fefbe4e"
+      },
+      "metrics": {
+        "rows": 11,
+        "sha256": "03ad60d47d7dc0487d1b1301de0652b856f04f044dfab0ccd67d8d21ef5dbdce"
+      },
+      "relationship_edges": {
+        "rows": 26336,
+        "sha256": "150c489031923bb46ff7516fd3bf1ea0b0e11cae391a8ce3ccf5915a5c82e218"
+      },
+      "relationship_sets": {
+        "rows": 2189,
+        "sha256": "15b9e9af968d5a982710c472661d6e436e939608c6e6957152565ba405f22ce8"
+      },
+      "repositories": {
+        "rows": 1,
+        "sha256": "726cd0ea44d946c992de66c1429a0f59b29a4d6e4ea947639af577c781ed571d"
+      },
+      "semantic_documents": {
+        "rows": 5872,
+        "sha256": "51513702c4622e23c07b05e4a0c28f55730c8cd262a85fa780d757a142155e30"
+      },
+      "semantic_jobs": {
+        "rows": 675,
+        "sha256": "09848c5cc7c65e43ab54877960ab81cfe2a4f643e184210174b2af50e0531054"
+      },
+      "semantic_scope_states": {
+        "rows": 2835,
+        "sha256": "0be94106af61898fe80f1744448ec0c48862fb5376e0b730ca23d1f6e1418fed"
+      },
+      "semantic_taxonomies": {
+        "rows": 1,
+        "sha256": "fe85b3e14b79ebe486e52c6d09d771e2fd47d59bce62207c73ea7ea7efc532ea"
+      },
+      "semantic_taxonomy_memberships": {
+        "rows": 2598,
+        "sha256": "174748d01f3dea1ebb3f45c0435a01126dacdb9b12f77a2dfe00c7088c761a42"
+      },
+      "semantic_taxonomy_nodes": {
+        "rows": 28,
+        "sha256": "c90ec649b6207fedf6220d9d5028aa5a9d2ef08762a388d00eb3a233c44564cb"
+      },
+      "semantic_taxonomy_reviews": {
+        "rows": 2,
+        "sha256": "afe78ae0d68b63f7ba7f8373e612b35723cb7733522b541e35deffeff1bcb063"
+      },
+      "snapshot_file_changes": {
+        "rows": 2598,
+        "sha256": "75fbb0058c76ae9b2663494cce0f2abe6570405e5746f251d08ef4f177b3f8db"
+      },
+      "snapshot_relationship_changes": {
+        "rows": 2189,
+        "sha256": "0db3aa684a1ab07f2dae6e6cca4244b4e4514405e9c5369b2ecf45550cab8e20"
+      },
+      "snapshots": {
+        "rows": 1,
+        "sha256": "90efb1c3816ef860916fd1913e8ebb5108a71c5baada8cf30080dc84669285fa"
+      }
+    }
+  },
+  "proposed_budgets_not_measured": {
+    "combined_active_target_bytes": 100000000,
+    "counted": "local graph, derived indexes, parser cache, local portable record and retained legacy analyses; report backup/temporary peak separately",
+    "maximum_configured_ceiling_bytes": 200000000,
+    "portable_data_partition_default_limit": 32
+  },
+  "status": "design-only format experiments; runtime implementation paused",
+  "units": "bytes; decimal MB uses 1000000 bytes"
+}

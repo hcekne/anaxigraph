@@ -2,12 +2,18 @@
 
 **Roadmap version:** 4.4 (4.2 remains closed)
 
-**Updated:** 21 October 2026
+**Updated:** 23 October 2026
 
 **Execution rule:** one phase is active at a time; the next phase does not begin until the current
 phase's exit gate is met.
 
 ## Graph purpose and review quality investigation — 23 October 2026
+
+**Runtime implementation paused by the maintainer for design review.** The
+[semantic-graph proposal](design/semantic-graph-redesign-2026-10-23.md) compares today's architecture,
+exact completed-run storage, offline format experiments and potential gains/losses for coding
+agents. Those experiments are not an implemented replacement or a released product. Review this
+design before resuming the new implementation; prior completed checklists do not cover it.
 
 The maintainer requests analysis of missed architectural opportunities, excessive descriptions and
 cache size, and a graph-centered product direction. Preserve the [full feedback](feedback/2026-10-23-architecture-and-storage.md)
