@@ -36,7 +36,7 @@ module's overview sentence first, expand its short paragraph and function summar
 callers, obligations and relevant tests. People explore the graph in the dashboard; coding agents
 query the same saved understanding through AnaxiMCP without reopening every source file.
 
-Source parsing makes the structural graph available immediately. Mapping adds one compact annotation
+Source parsing builds the structural graph without model calls. Mapping adds one compact annotation
 per changed module, replacing the previous pair of file essays. Evidence, source revision and model
 provenance stay attached; source facts, inferred meaning and proposed designs remain distinguishable.
 
@@ -294,6 +294,26 @@ Use `--restart` for a deliberate new review generation; ordinary code changes re
 functional brief. Read earlier generations with `--generation <n>`. Historical comparisons retain
 original records side by side, without generating a new agreement score. Earlier v1 reviews remain
 read-only archives, including their original conclusions and provenance.
+
+### What the 0.9.1 self-review established
+
+The [completed self-review](https://github.com/hcekne/anaxigraph/tree/986a1a744966a3859cbe48ab22da079f8dcbb637/anaxigraph)
+scanned 845 files in 52 seconds; the first 843 successful annotations took about 14 minutes with
+16 Luna workers. The full Mapping, Patterns and Fresh Eyes run took about 8 hours 15 minutes,
+including stops and recovery. Global taxonomy, reviews and repeated derived work dominate that
+larger figure; it is not the structural graph's build time.
+
+Pattern coverage currently means one repository-level assessment and independent review per
+catalogue card. It does not mean every module was checked against every pattern. The self-review
+covered all 133 cards, with 52 reporting insufficient evidence. The current stale-unreferenced-file
+rule also requires 90-day-old files; it cannot supply a complete audit of newly superseded code.
+
+Fresh Eyes retained 27 alternatives across nine scopes, with two documented operator prompt
+clarifications and validation preserved. Audit found that the product-level packet omitted required
+capabilities and global obligations. Completed stages therefore do not establish complete functional
+coverage. These defects and the scheduling bottlenecks are part of the
+[0.9.2 implementation request](docs/design/0.9.2-performance-and-architecture-request.md), with
+[independent dead-code research](docs/research/2026-10-24-dead-code-detection.md).
 
 ## Carry the architecture with Git
 
