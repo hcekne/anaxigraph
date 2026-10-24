@@ -1,0 +1,617 @@
+{
+  "date": "2026-10-24",
+  "status": "planning_estimates_no_prototype",
+  "units": "physical maintained source lines including normal comments and whitespace",
+  "baseline_production_lines": 79060,
+  "baseline_production_files": 423,
+  "third_party_source_excluded": true,
+  "scope_notes": [
+    "Backend includes model adapters and local SQL lifecycle; transports and portable records are separate.",
+    "Quoted scope is Python first and does not include blind Fresh Eyes, exhaustive matrix, portable records or old import.",
+    "First milestone defers shared physical overlays, general plan assessment, deeper resources and a second model adapter; exact checkout identity remains required.",
+    "Prior requirements profile includes portable sharing and one time known 0.9.1 import; it is not every historical API or SQL schema.",
+    "Tests, delivery helpers and prose are outside production totals.",
+    "Ranges are engineering scenarios, not statistical intervals or measured code.",
+    "Evaluation harness code is separate from functional tests and product runtime; prose and generated data remain separate.",
+    "Broader requirements retain a sentence per supplied function, covered and validated in the annotation work package; the quoted scope permits selected function notes."
+  ],
+  "work_packages": {
+    "backend": [
+      {
+        "id": "startup",
+        "work_package": "Startup configuration and health",
+        "milestone_base": 350,
+        "low": 250,
+        "base": 450,
+        "high": 700
+      },
+      {
+        "id": "domain",
+        "work_package": "Domain records evidence categories and behavioral contracts",
+        "milestone_base": 500,
+        "low": 400,
+        "base": 650,
+        "high": 950
+      },
+      {
+        "id": "store",
+        "work_package": "SQLite FTS transactions and common queries",
+        "milestone_base": 600,
+        "low": 500,
+        "base": 800,
+        "high": 1200
+      },
+      {
+        "id": "identity",
+        "work_package": "Repository identity dirty snapshots and change capture",
+        "milestone_base": 600,
+        "low": 450,
+        "base": 750,
+        "high": 1200
+      },
+      {
+        "id": "overlays",
+        "work_package": "Shared base index and worktree overlays",
+        "milestone_base": 0,
+        "low": 450,
+        "base": 800,
+        "high": 1300
+      },
+      {
+        "id": "incremental",
+        "work_package": "Incremental scanning content cache and publication",
+        "milestone_base": 550,
+        "low": 400,
+        "base": 650,
+        "high": 1050
+      },
+      {
+        "id": "python",
+        "work_package": "Python syntax extraction",
+        "milestone_base": 800,
+        "low": 600,
+        "base": 950,
+        "high": 1500
+      },
+      {
+        "id": "resolution",
+        "work_package": "Scoped reference resolution and dynamic registration facts",
+        "milestone_base": 800,
+        "low": 650,
+        "base": 1100,
+        "high": 1800
+      },
+      {
+        "id": "graph",
+        "work_package": "Bounded graph queries metrics and contract test associations",
+        "milestone_base": 500,
+        "low": 400,
+        "base": 700,
+        "high": 1100
+      },
+      {
+        "id": "fact_import",
+        "work_package": "Compiler linter schema and test fact import",
+        "milestone_base": 300,
+        "low": 250,
+        "base": 450,
+        "high": 750
+      },
+      {
+        "id": "annotations",
+        "work_package": "Compact annotation requests evidence and output validation",
+        "milestone_base": 550,
+        "low": 400,
+        "base": 650,
+        "high": 1000
+      },
+      {
+        "id": "freshness",
+        "work_package": "Dependency aware semantic freshness",
+        "milestone_base": 500,
+        "low": 400,
+        "base": 650,
+        "high": 1050
+      },
+      {
+        "id": "runner",
+        "work_package": "One durable queue leases cancellation retries and CAS",
+        "milestone_base": 750,
+        "low": 650,
+        "base": 1050,
+        "high": 1650
+      },
+      {
+        "id": "providers",
+        "work_package": "Native model runtime adapters",
+        "milestone_base": 450,
+        "low": 500,
+        "base": 850,
+        "high": 1300
+      },
+      {
+        "id": "intent",
+        "work_package": "Corrections accepted intent and contradictions",
+        "milestone_base": 350,
+        "low": 250,
+        "base": 450,
+        "high": 750
+      },
+      {
+        "id": "retrieval",
+        "work_package": "Task retrieval relevance and context budgets",
+        "milestone_base": 600,
+        "low": 500,
+        "base": 850,
+        "high": 1400
+      },
+      {
+        "id": "prepare",
+        "work_package": "prepare_change ownership reuse and obligations",
+        "milestone_base": 400,
+        "low": 300,
+        "base": 500,
+        "high": 800
+      },
+      {
+        "id": "assess",
+        "work_package": "assess_plan placement minimality and contract risk",
+        "milestone_base": 0,
+        "low": 300,
+        "base": 500,
+        "high": 850
+      },
+      {
+        "id": "rules",
+        "work_package": "Architecture rules and existing debt baselines",
+        "milestone_base": 550,
+        "low": 450,
+        "base": 800,
+        "high": 1300
+      },
+      {
+        "id": "validate",
+        "work_package": "validate_change before and after comparison",
+        "milestone_base": 600,
+        "low": 500,
+        "base": 850,
+        "high": 1400
+      },
+      {
+        "id": "check_receipts",
+        "work_package": "Configured verification commands and execution receipts",
+        "milestone_base": 400,
+        "low": 300,
+        "base": 550,
+        "high": 900
+      },
+      {
+        "id": "dead_code",
+        "work_package": "Entrypoint symbol reachability and candidate evidence",
+        "milestone_base": 350,
+        "low": 450,
+        "base": 750,
+        "high": 1250
+      },
+      {
+        "id": "services",
+        "work_package": "Shared application services and operation contracts",
+        "milestone_base": 350,
+        "low": 300,
+        "base": 500,
+        "high": 800
+      },
+      {
+        "id": "resources",
+        "work_package": "Additional table event queue and external resource discovery",
+        "milestone_base": 0,
+        "low": 300,
+        "base": 500,
+        "high": 850
+      },
+      {
+        "id": "telemetry",
+        "work_package": "Usage progress audit events and bounded retention",
+        "milestone_base": 300,
+        "low": 250,
+        "base": 450,
+        "high": 750
+      },
+      {
+        "id": "policy",
+        "work_package": "Safe operation policy and permissions",
+        "milestone_base": 350,
+        "low": 250,
+        "base": 450,
+        "high": 750
+      }
+    ],
+    "dashboard": [
+      {
+        "id": "ui_shell",
+        "work_package": "Shell checkout context run status and responsive styles",
+        "low": 520,
+        "base": 750,
+        "high": 1100
+      },
+      {
+        "id": "ui_table",
+        "work_package": "Sorted paged module table and search",
+        "low": 350,
+        "base": 500,
+        "high": 750
+      },
+      {
+        "id": "ui_inspector",
+        "work_package": "Shared entity contracts consumer tests and evidence inspector",
+        "low": 300,
+        "base": 450,
+        "high": 700
+      },
+      {
+        "id": "ui_graph",
+        "work_package": "Bounded directed graph focus and navigation",
+        "low": 450,
+        "base": 650,
+        "high": 1000
+      },
+      {
+        "id": "ui_change",
+        "work_package": "Task change findings rule and removal views",
+        "low": 300,
+        "base": 500,
+        "high": 750
+      },
+      {
+        "id": "ui_corrections",
+        "work_package": "Corrections settings and delivery status",
+        "low": 180,
+        "base": 300,
+        "high": 450
+      }
+    ],
+    "adapters": [
+      {
+        "id": "cli",
+        "work_package": "CLI arguments output and dispatch",
+        "low": 200,
+        "base": 400,
+        "high": 700
+      },
+      {
+        "id": "http",
+        "work_package": "HTTP routes validation paging errors and assets",
+        "low": 500,
+        "base": 850,
+        "high": 1300
+      },
+      {
+        "id": "mcp",
+        "work_package": "MCP operations compact replies and expansion",
+        "low": 200,
+        "base": 350,
+        "high": 550
+      }
+    ],
+    "parity_backend": [
+      {
+        "id": "matrix",
+        "work_package": "Exhaustive module pattern matrix screening and review",
+        "low": 1500,
+        "base": 2500,
+        "high": 4200
+      },
+      {
+        "id": "blind",
+        "work_package": "Blind Fresh Eyes functional contract designs and comparison",
+        "low": 1500,
+        "base": 2500,
+        "high": 4500
+      },
+      {
+        "id": "target",
+        "work_package": "Source aware target and migration planning",
+        "low": 700,
+        "base": 1200,
+        "high": 2000
+      },
+      {
+        "id": "javascript",
+        "work_package": "JavaScript TypeScript extraction and resolution",
+        "low": 900,
+        "base": 1600,
+        "high": 2800
+      },
+      {
+        "id": "workflow",
+        "work_package": "Manual illustrated workflow backend controls",
+        "low": 300,
+        "base": 600,
+        "high": 1100
+      },
+      {
+        "id": "capacity",
+        "work_package": "50 to 100 call admission profiles",
+        "low": 250,
+        "base": 450,
+        "high": 850
+      },
+      {
+        "id": "grouping",
+        "work_package": "Reviewed global grouping and Charter if retained",
+        "low": 500,
+        "base": 900,
+        "high": 1700
+      }
+    ],
+    "parity_dashboard_increment": [
+      {
+        "id": "rich_ui",
+        "work_package": "Increment to full illustrated workflows matrix alternatives and planning UI",
+        "low": 1400,
+        "base": 2400,
+        "high": 3650
+      }
+    ],
+    "portable": [
+      {
+        "id": "record_codec",
+        "work_package": "Versioned manifest canonical codec and bounded partitions",
+        "low": 250,
+        "base": 400,
+        "high": 650
+      },
+      {
+        "id": "record_export",
+        "work_package": "Current state export exclusions and provenance",
+        "low": 250,
+        "base": 400,
+        "high": 650
+      },
+      {
+        "id": "record_import",
+        "work_package": "Import validation relative identities and compatible reuse",
+        "low": 300,
+        "base": 500,
+        "high": 800
+      },
+      {
+        "id": "record_budget",
+        "work_package": "Budget accounting atomic publication cleanup and last valid record",
+        "low": 250,
+        "base": 400,
+        "high": 650
+      }
+    ],
+    "old_import": [
+      {
+        "id": "old_import",
+        "work_package": "One time known 0.9.1 paid result import bridge",
+        "low": 450,
+        "base": 850,
+        "high": 1400
+      }
+    ],
+    "quoted_tests": [
+      {
+        "id": "test_graph",
+        "work_package": "Python snapshot extraction graph and incremental fixtures",
+        "low": 1200,
+        "base": 2000,
+        "high": 3200
+      },
+      {
+        "id": "test_semantic",
+        "work_package": "Compact semantics freshness provider protocols and malformed output",
+        "low": 900,
+        "base": 1600,
+        "high": 2500
+      },
+      {
+        "id": "test_runner",
+        "work_package": "Interruption cancellation retry escalation and parallel execution",
+        "low": 1200,
+        "base": 2200,
+        "high": 3500
+      },
+      {
+        "id": "test_task",
+        "work_package": "Task briefs plan rules change validation and receipt truthfulness",
+        "low": 1000,
+        "base": 1800,
+        "high": 2800
+      },
+      {
+        "id": "test_worktrees",
+        "work_package": "Real Git dirty and linked worktrees identity and reuse",
+        "low": 900,
+        "base": 1500,
+        "high": 2500
+      },
+      {
+        "id": "test_intent",
+        "work_package": "Corrections accepted intent and contradiction lifecycle",
+        "low": 300,
+        "base": 600,
+        "high": 1000
+      },
+      {
+        "id": "test_adapters",
+        "work_package": "CLI HTTP and MCP contract consistency",
+        "low": 600,
+        "base": 1000,
+        "high": 1600
+      },
+      {
+        "id": "test_browser",
+        "work_package": "Basic browser journeys stale replies and accessibility",
+        "low": 600,
+        "base": 1000,
+        "high": 1600
+      },
+      {
+        "id": "test_install",
+        "work_package": "Opt in live provider and installed package acceptance",
+        "low": 400,
+        "base": 800,
+        "high": 1400
+      }
+    ],
+    "parity_test_increment": [
+      {
+        "id": "test_js",
+        "work_package": "Additional JavaScript TypeScript facts and resolution",
+        "low": 600,
+        "base": 1000,
+        "high": 1300
+      },
+      {
+        "id": "test_matrix",
+        "work_package": "Matrix completeness invalidation and positive negative controls",
+        "low": 1000,
+        "base": 1800,
+        "high": 3000
+      },
+      {
+        "id": "test_blind",
+        "work_package": "Blind contract completeness lineages and planning",
+        "low": 1000,
+        "base": 1800,
+        "high": 3000
+      },
+      {
+        "id": "test_portable",
+        "work_package": "Cross clone record migration and storage bounds",
+        "low": 500,
+        "base": 900,
+        "high": 1700
+      },
+      {
+        "id": "test_rich_ui",
+        "work_package": "Additional rich workflow and alternative views",
+        "low": 300,
+        "base": 600,
+        "high": 800
+      }
+    ],
+    "delivery_code": [
+      {
+        "id": "package",
+        "work_package": "Packaging and build metadata",
+        "low": 100,
+        "base": 180,
+        "high": 300
+      },
+      {
+        "id": "ci",
+        "work_package": "CI release and publishing workflows",
+        "low": 300,
+        "base": 500,
+        "high": 800
+      },
+      {
+        "id": "evidence",
+        "work_package": "Build install and release evidence helpers",
+        "low": 250,
+        "base": 500,
+        "high": 900
+      },
+      {
+        "id": "deploy",
+        "work_package": "uv container launch and deployment files",
+        "low": 75,
+        "base": 120,
+        "high": 180
+      }
+    ],
+    "documentation": [
+      {
+        "id": "docs",
+        "work_package": "README command workflow storage migration and release prose",
+        "low": 2000,
+        "base": 3500,
+        "high": 5500
+      }
+    ],
+    "evaluation_code": [
+      {
+        "id": "eval_fixtures",
+        "work_package": "Frozen task scenarios feature contracts and fixture adapters",
+        "low": 200,
+        "base": 400,
+        "high": 700
+      },
+      {
+        "id": "eval_runs",
+        "work_package": "Four configurations fresh agent task chains and trace collection",
+        "low": 300,
+        "base": 650,
+        "high": 1100
+      },
+      {
+        "id": "eval_reports",
+        "work_package": "Outcome rubrics resource accounting and comparison reports",
+        "low": 150,
+        "base": 300,
+        "high": 550
+      }
+    ]
+  },
+  "profiles": {
+    "first_python_milestone_production": {
+      "low": 10250,
+      "base": 16250,
+      "high": 25700
+    },
+    "full_quoted_production": {
+      "low": 13450,
+      "base": 22400,
+      "high": 35650
+    },
+    "quoted_plus_portability_and_old_import": {
+      "low": 14950,
+      "base": 24950,
+      "high": 39800
+    },
+    "prior_requirements_production": {
+      "low": 22000,
+      "base": 37100,
+      "high": 60600
+    },
+    "quoted_tests": {
+      "low": 7100,
+      "base": 12500,
+      "high": 20100
+    },
+    "prior_requirements_tests": {
+      "low": 10500,
+      "base": 18600,
+      "high": 29900
+    },
+    "delivery_code": {
+      "low": 725,
+      "base": 1300,
+      "high": 2180
+    },
+    "documentation": {
+      "low": 2000,
+      "base": 3500,
+      "high": 5500
+    },
+    "evaluation_code": {
+      "low": 650,
+      "base": 1350,
+      "high": 2350
+    },
+    "full_quoted_maintained_code": {
+      "low": 21925,
+      "base": 37550,
+      "high": 60280
+    },
+    "prior_requirements_maintained_code": {
+      "low": 33875,
+      "base": 58350,
+      "high": 95030
+    }
+  }
+}
