@@ -7,6 +7,30 @@
 **Execution rule:** one phase is active at a time; the next phase does not begin until the current
 phase's exit gate is met.
 
+## Change-loop review of an external redesign proposal — 24 October 2026
+
+An external clean-sheet proposal was checked against `HEAD`. The review is in
+[`change-loop-review-2026-10.md`](change-loop-review-2026-10.md). Most of the proposal already
+exists, and its dead-code ideas are covered by the 0.9.2 request. These items are proposed into
+the existing redesign checklist below, and add no tool, job kind, or table family:
+
+- [ ] **J. Two freshness defects (0.9.2 repair).** `dirty` ignores untracked-only changes, and the
+  non-agent semantic runner commits without re-checking its input fingerprint.
+- [ ] **A. Measure whether AnaxiGraph changes the patch.** Run three arms (none, structural,
+  full guidance) over chained A → B tasks with full-cost accounting, on the existing task harness.
+  The result ranks the 0.9.2 retirement ledger. A surface that does not move outcomes is a deletion
+  candidate.
+- [ ] **B, C. Make baseline verification honest.** A rule that did not run is `unresolved`, not an
+  implicit pass. A size or complexity finding that grows is `worsened`, not unchanged.
+- [ ] **G. Mark each contract claim `declared` or `inferred`** in the canonical contract schema,
+  with one re-map.
+- [ ] **D, E, F, H, I. Strengthen guidance, only if A shows it matters.**
+  - D: governing rules are pinned and survive ranking.
+  - E: `GUIDE` gains an optional edit-plan check.
+  - F: supplied test, lint, and type-check results are attributed by fingerprint.
+  - H: corrections can mark a precedent `preferred_example` or `legacy`.
+  - I: the skill states the loop and when to skip it.
+
 ## Semantic graph redesign — 23 October 2026
 
 **Selected destination: one authoritative semantic graph.** The
@@ -5097,37 +5121,6 @@ carries the user's goal through review, and measures architectural judgment on
 small positive/negative cases. It uses existing workflows and ends with a verified
 0.5.0 PyPI release and production deployment, not merely merged source.
 
-# Phase 14 — prove and tighten the change loop
-
-**Status:** PROPOSED on 24 October 2026. Not active until the owner admits it.
-
-**Goal:** prove that AnaxiGraph changes an agent's patch, then close the honesty gaps in the change
-loop that an external clean-sheet proposal surfaced and the source confirms. The full review,
-evidence, and per-item gates are in
-[`change-loop-review-2026-10.md`](change-loop-review-2026-10.md).
-
-1. **14.1 Measure first.** Run three arms (no AnaxiGraph, structural tools, full guidance) over
-   chained A → B tasks, with consultation and full-cost accounting, on the existing task harness.
-   The result decides whether the remaining items earn their lines.
-2. **14.2** A rule that did not run is `unresolved`, never an implicit pass.
-3. **14.3** Report `worsened` for an existing violation that grows, using the lineage baseline as
-   the freeze.
-4. **14.4** Rules that govern the placement and impact targets survive the payload budget.
-5. **14.5** Add an optional `plan` check inside `GUIDE`, with no new tool and no model call.
-6. **14.6** Attribute supplied test, lint and type-check results by fingerprint. Never run target
-   code.
-7. **14.7** Give each contract claim a `declared` or `inferred` basis, at the next dossier schema
-   bump.
-8. **14.8** Take dead-code roots from packaging entry points, or correct the §6.7 claim.
-9. **14.9** Add `preferred_example` and `legacy` correction dispositions for precedents.
-10. **14.10** The skill states the loop and when to skip it.
-11. **14.11** Fix two freshness defects: untracked-only checkouts are reported clean, and
-    non-agent publication has no input-hash check.
-
-**Exit gate:** a measured 14.1 run is recorded. Each other item passes its gate or is dropped with
-the 14.1 result as the reason. No new MCP tool, job kind, table family, provider path, dashboard
-journey, or search substrate is added. Net production growth is at most 600 lines.
-
 # Nice-to-have ideas — not an implementation queue
 
 These are recorded only so they are not repeatedly rediscovered and mistaken for active work. They
@@ -5264,10 +5257,9 @@ feature-admission rule.
 | 11 | **COMPLETE** | Make a review reproducible and comparable: schema-11 usage and executor provenance, enumerable and selectable generations with per-stage telemetry, snapshot provenance and a dirty-checkout caveat, declared context in the repository-aware packets, bounded scan drift, loud missing-snapshot replies, and measured plan-transaction lock holds | §12.2 |
 | 12 | **COMPLETE** | Compare two generations without judging them: deterministic lexical alignment, a side-by-side reading view, a per-recommendation grounding report, a refute disposition for inferred Charter claims, and cross-provider proposals inside one run | §12.3 |
 | 13 | **COMPLETE** (0.5.0 production rolled back; 0.6.1 verified) | Complete the bounded architecture-intelligence feature list, prove architectural judgment on known cases, and verify the 0.5.0 public release and production deployment | [Phase 13 checklist](architecture-intelligence-0.5.0.md) |
-| 14 | **PROPOSED** | Measure whether AnaxiGraph changes an agent's patch across chained tasks, then make rule results, growing violations, pinned obligations, plan checks, supplied check results, contract basis, dead-code roots, and precedent corrections honest | [Phase 14 review](change-loop-review-2026-10.md) |
 
 All admitted roadmap 4.2 work is complete, and the separately admitted Phase 12 above is complete.
-Phase 14 is proposed and becomes the only active implementation phase once the owner admits it; there is no hidden continuation queue. The retained MaxOS run, the
+Later work is tracked in the dated sections at the top of this document; there is no hidden continuation queue. The retained MaxOS run, the
 public `0.4.0` acceptance record, and the retained September 2026 multi-model review are evidence
 for the completed product, not independent product features. Any further parser expansion, adapter
 family, plugin framework, website, media support, generic operations work, warning-cleanup
