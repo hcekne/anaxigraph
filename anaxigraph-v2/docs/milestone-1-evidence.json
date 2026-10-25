@@ -4,26 +4,26 @@
   "tests": {
     "passed": 106,
     "command": "uv run --no-sync pytest -q",
-    "normal_disk_elapsed_seconds": 5.81
+    "normal_disk_elapsed_seconds": 4.75
   },
   "package": {
     "runtime_files_in_wheel": 24,
     "wheel": {
-      "bytes": 82030,
-      "sha256": "cb2ae3f368506babf77d622d9b9b3f111b26b0055bad2a0d26f5acc2b79cdd3d"
+      "bytes": 82064,
+      "sha256": "d3ed60d1bc9016a415d51770003b07ca0975cf313da54a7c816a608a18f0c8ec"
     },
     "sdist": {
-      "bytes": 91454,
-      "sha256": "8cd32368f502bdc3381942d7caafc830afa251f2a6c6cef449347bc45da5cb96"
+      "bytes": 91613,
+      "sha256": "1a4bc279efac524c37c5405323479e21fdc7071f06b615806a1debb450dda03c"
     },
     "production": {
       "code_files": 23,
-      "physical_lines": 3513,
-      "bytes": 157765
+      "physical_lines": 3517,
+      "bytes": 157942
     },
     "tests": {
       "code_files": 5,
-      "physical_lines": 1503
+      "physical_lines": 1507
     },
     "catalogue_bytes": 91978
   },

@@ -91,6 +91,10 @@ def _patterns(request: dict[str, Any], result: dict[str, Any], graph: Graph) -> 
     if actual != expected_pairs:
         raise ValueError("Pattern coverage contains duplicate, missing or unexpected pairs")
     for evaluation in evaluations:
+        if "opportunity" not in evaluation:
+            raise ValueError(
+                "Every pattern needs an explicit opportunity rating or null for unknown"
+            )
         score = evaluation.get("opportunity")
         if score is not None and (type(score) is not int or not 0 <= score <= 3):
             raise ValueError("Opportunity must be an integer 0–3 or null for insufficient evidence")

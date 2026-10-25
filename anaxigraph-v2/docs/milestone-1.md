@@ -4,8 +4,8 @@
 The development version is `anaxigraph 1.0.0a1`; this is not a published 1.0 release.
 
 The [architecture](architecture.md) records the maintainer's clean-slate decision and selective
-scope. This milestone has **3,513 physical production lines in 23 code files**, including normal
-comments/whitespace, embedded SQL, prompts and validation. Tests add 1,503 lines in five files.
+scope. This milestone has **3,517 physical production lines in 23 code files**, including normal
+comments/whitespace, embedded SQL, prompts and validation. Tests add 1,507 lines in five files.
 The 91,978-byte catalogue is data; neither tests, catalogue, lockfile nor evidence are hidden in
 the production count. The broader earlier estimates describe larger products.
 

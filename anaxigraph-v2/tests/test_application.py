@@ -365,6 +365,10 @@ def test_malformed_annotation_results_fail_as_caller_errors(
 def test_pattern_ids_must_be_strings_and_positive_scores_need_evidence(app: Application) -> None:
     request = app.analysis_request("patterns", ["service.py"])
     result = pattern_result(request)
+    del result["evaluations"][0]["opportunity"]
+    with pytest.raises(ValueError, match="explicit opportunity"):
+        app.submit_analysis(request["request_id"], result)
+    result = pattern_result(request)
     result["evaluations"][0]["module_id"] = []
     with pytest.raises(ValueError):
         app.submit_analysis(request["request_id"], result)
