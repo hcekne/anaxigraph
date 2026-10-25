@@ -31,7 +31,8 @@ Hidden coupling, duplicated responsibilities, inconsistent abstractions, and one
 quietly become spaghetti code.
 
 **V2 development:** a clean replacement targeting `anaxigraph` 1.0 now lives in
-[`anaxigraph-v2/`](anaxigraph-v2/README.md), with its own uv environment and a lean first milestone.
+[the standalone V2 repository](https://github.com/hcekne/anaxigraph-v2), checked out locally at
+`~/repos/anaxigraph-v2`, with its own uv environment and a lean first milestone.
 The instructions below describe the existing 0.9.1 product; V2 is an alpha under active development.
 
 AnaxiGraph builds a semantic graph of your repository: modules, functions, interfaces, contracts,

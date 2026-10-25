@@ -12,7 +12,6 @@ dist/
 .venv/
 .venv-release/
 .anaxigraph/
-.anaxigraph-v2/
 .env
 node_modules/
 test-results/
