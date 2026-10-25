@@ -2,10 +2,31 @@
 
 **Roadmap version:** 4.4 (4.2 remains closed)
 
-**Updated:** 23 October 2026
+**Updated:** 25 October 2026
 
 **Execution rule:** one phase is active at a time; the next phase does not begin until the current
 phase's exit gate is met.
+
+## AnaxiGraph V2, targeting 1.0 — 25 October 2026
+
+**Active direction:** clean slate in [`anaxigraph-v2/`](../anaxigraph-v2/README.md), selectively reuse
+sound pieces, and build the useful minimum. The maintainer explicitly rejected freezing every old
+capability. Earlier feature checklists below are historical evidence and optional inputs, not the
+new product's mandatory scope. Fresh Eyes and pattern discovery remain core capabilities.
+
+The [component contracts and milestone](../anaxigraph-v2/docs/architecture.md) define one uv-first
+application with independent indexing, storage, analysis and shared interfaces. Target the existing
+PyPI project at 1.0 after qualification; the root 0.9.1 release is retained during development.
+
+- [x] Create an isolated V2 project with no legacy runtime imports.
+- [x] Implement source graph, compact canonical annotations and bounded SQLite storage.
+- [x] Share preparation, inspection, placement assessment and candidate verification through CLI/MCP/HTTP.
+- [x] Implement explicit annotation, all-catalogue pattern and blind three-alternative task/result contracts.
+- [x] Implement a basic sortable module table, focused graph and saved-review workflows.
+- [x] Complete first-milestone local installed-package, browser/MCP and storage qualification;
+  see [measured evidence](../anaxigraph-v2/docs/milestone-1.md). Live CI status is linked there.
+- [ ] Evaluate real review usefulness and choose subsequent features from evidence.
+- [ ] Qualify the selected 1.0 product, migration requirements, documentation and release transition.
 
 ## Change-loop review of an external redesign proposal — 24 October 2026
 
