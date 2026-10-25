@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -9,6 +10,7 @@ from anaxigraph.config import load_config
 from anaxigraph.history import import_git_history
 from anaxigraph.languages import detect_language
 from anaxigraph.persistence import snapshot_files
+from anaxigraph.portable_record import save_record
 from anaxigraph.scanner import RepositoryScanner
 from anaxigraph.storage import AnaxiIndex
 from benchmarks.dashboard_fixture import create_dashboard_repository
@@ -138,6 +140,55 @@ def test_mixed_language_fixture_records_analyzer_depth():
         actual[path.name] = {"analyzer": analysis.analyzer, "language": language}
 
     assert actual == expected
+
+
+def test_graph_benchmark_reports_analysis_only_snapshots_without_timing_them(tmp_path):
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "app.py").write_text("def run():\n    return 1\n")
+    original = AnaxiIndex(tmp_path / "original.db")
+    mapped = RepositoryScanner(original).scan(source)
+    save_record(original, mapped.repository_id)
+    clone = tmp_path / "clone"
+    shutil.copytree(source, clone)
+    (clone / "app.py").write_text("def run():\n    return 2\n")
+    database = AnaxiIndex(tmp_path / "clone.db")
+    scanner = RepositoryScanner(database)
+    first = scanner.scan(clone)
+    (clone / "app.py").write_text("def run():\n    return 3\n")
+    latest = scanner.scan(clone)
+    with database.connect() as connection:
+        unavailable = [
+            row["id"]
+            for row in connection.execute(
+                "SELECT id FROM snapshots WHERE repository_id=? AND snapshot_kind='portable_analysis'",
+                (first.repository_id,),
+            )
+        ]
+    assert unavailable
+    report = api_metrics(database, clone)
+    assert report["temporal_scope"]["available_snapshot_count"] == 2
+    assert report["temporal_scope"]["unavailable_snapshot_count"] == len(unavailable)
+    assert report["temporal_scope"]["unavailable_snapshot_ids"] == unavailable
+    measured = {sample["snapshot_id"] for sample in report["temporal_reads"].values()}
+    assert not measured.intersection(unavailable)
+    assert report["temporal_reads"]["current"]["snapshot_id"] == latest.snapshot_id
+    assert report["temporal_reads"]["oldest"]["snapshot_id"] == first.snapshot_id
+
+
+def test_graph_benchmark_samples_only_the_selected_repository(tmp_path):
+    database = AnaxiIndex(tmp_path / "index.db")
+    roots = [tmp_path / "first", tmp_path / "selected"]
+    for root in roots:
+        root.mkdir()
+        (root / "app.py").write_text("def run():\n    return 1\n")
+        selected = RepositoryScanner(database).scan(root)
+    report = api_metrics(database, roots[-1])
+    assert report["temporal_scope"]["repository_id"] == selected.repository_id
+    assert report["temporal_scope"]["available_snapshot_count"] == 1
+    assert {sample["snapshot_id"] for sample in report["temporal_reads"].values()} == {
+        selected.snapshot_id
+    }
 
 
 def test_committed_benchmark_manifest_matches_generator_contract():

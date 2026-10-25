@@ -71,8 +71,11 @@ def measure(function: Callable[[], Any]) -> tuple[Any, dict[str, int]]:
 
 
 def api_metrics(database: AnaxiIndex, repository: Path) -> dict[str, Any]:
+    row = database.repository(repository)
+    if row is None:
+        raise RuntimeError("benchmark repository was not indexed")
     app = create_app(database=database, repository=repository, enable_mcp=False)
-    targets = _graph_targets(database)
+    targets, temporal_scope = _graph_targets(database, int(row["id"]))
     with TestClient(app) as client:
         measurements = {
             name: _graph_request_metrics(client, snapshot_id)
@@ -87,25 +90,40 @@ def api_metrics(database: AnaxiIndex, repository: Path) -> dict[str, Any]:
         "warm_request_median_ms": current["warm_request_median_ms"],
         "reconstruction": current["reconstruction"],
         "temporal_reads": measurements,
+        "temporal_scope": temporal_scope,
     }
 
 
-def _graph_targets(database: AnaxiIndex) -> dict[str, int | None]:
+def _graph_targets(
+    database: AnaxiIndex, repository_id: int
+) -> tuple[dict[str, int], dict[str, Any]]:
+    """Sample locally retained graphs, not analysis-only provenance snapshots."""
     with database.connect() as connection:
         rows = connection.execute(
-            "SELECT id FROM snapshots ORDER BY repository_id, sequence, id"
+            "SELECT id,snapshot_kind FROM snapshots WHERE repository_id=? ORDER BY sequence,id",
+            (repository_id,),
         ).fetchall()
         current = connection.execute(
-            "SELECT current_snapshot_id FROM repositories ORDER BY id LIMIT 1"
+            "SELECT current_snapshot_id FROM repositories WHERE id=?", (repository_id,)
         ).fetchone()
-    snapshot_ids = [int(row["id"]) for row in rows]
+    unavailable = [int(row["id"]) for row in rows if row["snapshot_kind"] == "portable_analysis"]
+    snapshot_ids = [int(row["id"]) for row in rows if row["snapshot_kind"] != "portable_analysis"]
     current_id = int(current[0]) if current and current[0] is not None else None
     if not snapshot_ids:
-        return {"current": None, "oldest": None, "middle": None}
-    return {
-        "current": current_id or snapshot_ids[-1],
+        raise RuntimeError("No local structural graph is available for the benchmark")
+    if current_id is not None and current_id not in snapshot_ids:
+        raise RuntimeError("Current snapshot has no local graph; scan before benchmarking")
+    targets = {
+        "current": current_id if current_id is not None else snapshot_ids[-1],
         "oldest": snapshot_ids[0],
         "middle": snapshot_ids[len(snapshot_ids) // 2],
+    }
+    return targets, {
+        "repository_id": repository_id,
+        "available_snapshot_count": len(snapshot_ids),
+        "unavailable_snapshot_count": len(unavailable),
+        "unavailable_snapshot_ids": unavailable[:50],
+        "selection": "Locally retained structural graphs; analysis-only provenance is not timed.",
     }
 
 
