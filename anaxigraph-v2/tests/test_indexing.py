@@ -4,7 +4,9 @@ import hashlib
 import subprocess
 from pathlib import Path
 
-from anaxigraph.indexing import index
+import pytest
+
+from anaxigraph.indexing import capture_sources, index
 
 
 def write(root: Path, relative: str, content: str) -> None:
@@ -234,3 +236,81 @@ def test_large_default_literal_is_only_truncated_in_display_metadata(tmp_path):
     assert len(function.data["signature"]) == 500
     assert "signature" in function.data["truncated_fields"]
     assert graph.snapshot.files["app.py"] == hashlib.sha256(source.encode()).hexdigest()
+
+
+def test_module_symbol_and_submodule_imports_preserve_resolution_and_unknown_members(tmp_path):
+    write(tmp_path, "src/pkg/__init__.py", "")
+    write(tmp_path, "src/pkg/sub.py", "def work(value):\n    return value\n")
+    write(
+        tmp_path,
+        "src/pkg/app.py",
+        "from pkg import sub as member\nimport pkg.sub\nimport pkg.sub as direct\n"
+        "from pkg.sub import work as imported\n\ndef use():\n"
+        "    member.work(1)\n    pkg.sub.work(1)\n    direct.work(1)\n"
+        "    imported(1)\n    direct.unknown()\n",
+    )
+
+    graph = index(tmp_path)
+    calls = [
+        edge
+        for edge in graph.edges
+        if edge.kind == "calls" and edge.source == "symbol:src/pkg/app.py#use"
+    ]
+
+    resolved = [edge for edge in calls if edge.resolution == "resolved"]
+    assert len(resolved) == 4
+    assert {edge.target for edge in resolved} == {"symbol:src/pkg/sub.py#work"}
+    unknown = [edge for edge in calls if edge.resolution == "unresolved"]
+    assert len(unknown) == 1
+    assert unknown[0].target.startswith("external:")
+
+
+@pytest.mark.parametrize(
+    ("raw", "decoded"),
+    [
+        (b"value = 'plain UTF-8'\n", "value = 'plain UTF-8'\n"),
+        (b"# coding: latin-1\nvalue = 'caf\xe9'\n", "# coding: latin-1\nvalue = 'caf\xe9'\n"),
+        (b"# coding: cp1252\nvalue = '\x80'\n", "# coding: cp1252\nvalue = '\u20ac'\n"),
+        (b"\xef\xbb\xbfvalue = 1\n", "value = 1\n"),
+    ],
+)
+def test_source_capture_preserves_full_source_and_python_encoding(tmp_path, raw, decoded):
+    (tmp_path / "app.py").write_bytes(raw)
+    fingerprints = {"app.py": hashlib.sha256(raw).hexdigest()}
+
+    assert capture_sources(tmp_path, ["app.py"], fingerprints) == {"app.py": decoded}
+
+
+def test_source_capture_rejects_drift_unmapped_paths_and_oversized_packets(tmp_path):
+    original = b"value = 1\n"
+    fingerprints = {"app.py": hashlib.sha256(original).hexdigest()}
+    (tmp_path / "app.py").write_bytes(b"value = 2\n")
+    with pytest.raises(ValueError, match="changed after mapping"):
+        capture_sources(tmp_path, ["app.py"], fingerprints)
+    with pytest.raises(ValueError, match="analyzed snapshot"):
+        capture_sources(tmp_path, ["unmapped.py"], fingerprints)
+    oversized = b"#" * 100_001
+    (tmp_path / "app.py").write_bytes(oversized)
+    fingerprints["app.py"] = hashlib.sha256(oversized).hexdigest()
+    with pytest.raises(ValueError, match="100000-byte input limit"):
+        capture_sources(tmp_path, ["app.py"], fingerprints)
+
+
+def test_source_capture_rejects_symlink_ancestors_even_when_fingerprints_match(tmp_path):
+    root, outside = tmp_path / "repo", tmp_path / "outside"
+    root.mkdir()
+    outside.mkdir()
+    raw = b"value = 1\n"
+    (outside / "app.py").write_bytes(raw)
+    (root / "alias").symlink_to(outside, target_is_directory=True)
+    fingerprints = {"alias/app.py": hashlib.sha256(raw).hexdigest()}
+
+    with pytest.raises(ValueError, match="not a regular repository input"):
+        capture_sources(root, ["alias/app.py"], fingerprints)
+
+
+def test_source_capture_rejects_invalid_python_encoding_instead_of_replacing_bytes(tmp_path):
+    raw = b"value = '\xff'\n"
+    (tmp_path / "app.py").write_bytes(raw)
+    with pytest.raises(ValueError, match="Source encoding"):
+        capture_sources(tmp_path, ["app.py"], {"app.py": hashlib.sha256(raw).hexdigest()})

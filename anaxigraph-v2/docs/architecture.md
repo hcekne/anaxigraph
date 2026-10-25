@@ -33,7 +33,7 @@ flowchart TB
 | Component | Provides | Must not own |
 | --- | --- | --- |
 | `contracts.py` | Immutable snapshot, node, edge and graph records; storage protocol | SQL, frameworks, source parsing or workflows |
-| `indexing/` | `index(root) -> Graph`: exact checkout identity, fingerprints, Python syntax and scoped references | Executing analyzed code, generating semantic prose or saving results |
+| `indexing/` | `index(root) -> Graph`, `capture_snapshot` and `capture_sources`: exact identity, bounded verified source, Python syntax and scoped references | Executing analyzed code, generating semantic prose or saving results |
 | `storage/` | Atomic graph publication, canonical annotations, compact FTS and bounded reviews | Architectural judgment, source parsing or provider execution |
 | `analysis/` | Source/behavior evidence packets, complete-result validation and bounded guidance | SQL, UI, model-provider state or reading project files |
 | `application.py` | Compose operations, guard source/context identity, publish validated results | A separate store, parser, provider engine or transport-specific reasoning |

@@ -4,8 +4,8 @@
 The development version is `anaxigraph 1.0.0a1`; this is not a published 1.0 release.
 
 The [architecture](architecture.md) records the maintainer's clean-slate decision and selective
-scope. This milestone has **3,355 physical production lines in 21 code files**, including normal
-comments/whitespace, embedded SQL, prompts and validation. Tests add 1,423 lines in five files.
+scope. This milestone has **3,513 physical production lines in 23 code files**, including normal
+comments/whitespace, embedded SQL, prompts and validation. Tests add 1,503 lines in five files.
 The 91,978-byte catalogue is data; neither tests, catalogue, lockfile nor evidence are hidden in
 the production count. The broader earlier estimates describe larger products.
 
@@ -26,20 +26,20 @@ entire previous product.
 
 ## Measured structural performance
 
-On the actual combined legacy/V2 working tree, **662 Python modules, 5,960 symbols and 69,368
-relationships** were captured. **33,264 relationships remain unresolved/ambiguous**: the graph is
+On the actual combined legacy/V2 working tree, **664 Python modules, 5,992 symbols and 69,552
+relationships** were captured. **33,337 relationships remain unresolved/ambiguous**: the graph is
 useful scoped evidence, not a complete runtime call graph. JS/TS are explicitly unparsed.
 
 | Operation | Measured result |
 | --- | ---: |
-| Cold structural scan and local publication | 12.073 seconds |
-| Unchanged scan | 8.210 seconds |
-| Retained current database | 4,755,456 bytes |
-| Retained database after unchanged scan | 4,755,456 bytes |
-| Warm status, median of five | 44.59 ms |
-| Warm module page, median of five | 7.23 ms |
-| Warm explicit entity expansion, median of five | 47.50 ms |
-| Warm change preparation, median of five | 38.72 ms |
+| Cold structural scan and local publication | 11.650 seconds |
+| Unchanged scan | 9.237 seconds |
+| Retained current database | 4,780,032 bytes |
+| Retained database after unchanged scan | 4,780,032 bytes |
+| Warm status, median of five | 49.76 ms |
+| Warm module page, median of five | 7.28 ms |
+| Warm explicit entity expansion, median of five | 66.32 ms |
+| Warm change preparation, median of five | 52.95 ms |
 
 These are normal-disk local measurements of an uncommitted candidate, including its then-current
 source. Warm reads are in-process, not HTTP round trips or uv startup. No model work is included.
@@ -48,12 +48,12 @@ They are not a speedup claim against the earlier multi-language scan or a foreca
 The initial large smoke exposed a 71 MB current graph and slow re-materialization. V2 now stores
 canonical compressed node/edge sets inside SQLite with small source indexes, and the application
 caches one current materialization. No observations were removed to achieve the reduction.
-A separate representation check retained actual source facts plus a **synthetic** second snapshot
+A separate earlier-candidate representation check retained actual source facts plus a **synthetic** second snapshot
 fingerprint in 8,241,152 bytes. That check ran on tmpfs and establishes size, not disk latency.
 
 ## Verification
 
-The final local suite passed **96 tests**. Coverage includes real Git/worktree identities, source
+The final local suite passed **106 tests**. Coverage includes real Git/worktree identities, source
 containment, missing/duplicate analysis members, malformed JSON values, source/dependency/input
 staleness, late-result rejection, consistent reads, storage-full rollback and repeated-cycle stability.
 Ruff, JavaScript syntax and existing commit checks also passed.
@@ -68,6 +68,18 @@ README and license were compared with source. Exact artifact hashes and counts a
 The new [V2 workflow](https://github.com/hcekne/anaxigraph/actions/workflows/v2.yml) runs Python
 3.11/3.12 tests, lint, build and an installed-wheel journey. Its live GitHub run is the authority
 for CI status; local checks alone do not establish that new automation works.
+
+The first V2 workflow passed both Python versions. Its repository-wide legacy counterpart exposed
+an import-root collision between the two independent projects; the root legacy config now scopes
+its own application, with an explicit whole-repository override still tested. Its accepted baseline
+and thresholds are unchanged. The audit's genuine V2 complexity findings also prompted smaller
+request/validation, source-capture, resolution, comparison and rendering functions.
+
+A separate pre-existing legacy CI failure had passed all 1,648 tests but collected zero coverage:
+`--cov=anaxigraph` selected the portable-data folder. All four existing command locations now name
+`src/anaxigraph`; the normal 80% floor is unchanged. The same small real test reproduced zero
+coverage with the old target and 2,480 executed lines with the corrected target. The complete
+corrected workflow remains the authority for its final coverage result.
 
 ## Live model work and its limits
 

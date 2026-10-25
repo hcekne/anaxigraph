@@ -48,7 +48,7 @@ def quality_commands(
             "uv",
             "run",
             "pytest",
-            "--cov=anaxigraph",
+            "--cov=src/anaxigraph",
             "--cov-report=term-missing",
             "--cov-report=xml",
             "--cov-fail-under=80",

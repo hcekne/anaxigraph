@@ -71,69 +71,77 @@ function switchPage(name) {
   });
 }
 
-async function refreshStatus() {
-  const data = await api("/api/status");
-  const snapshot = data.snapshot;
-  const root = snapshot?.root || data.root || data.repository || "Checkout";
+function renderCheckout(snapshot, root) {
   $("#repository-name").textContent = String(root).split("/").filter(Boolean).pop() || "Your codebase";
   $("#checkout").textContent = snapshot
     ? `${root} · ${(snapshot.revision || "No Git revision").slice(0, 12)}${snapshot.dirty ? " · working changes" : ""}`
     : `${root} · build the first structural map to begin`;
-  const diagnostics = data.diagnostics || [];
-  $("#map-state").textContent = snapshot ? (diagnostics.length ? "Partial coverage" : "Available") : "Not mapped";
   $("#snapshot-state").textContent = snapshot ? `Snapshot ${snapshot.id.slice(0, 12)}` : "No saved snapshot";
+}
+
+function renderCoverage(data) {
+  const diagnostics = data.diagnostics || [];
+  $("#map-state").textContent = data.snapshot ? (diagnostics.length ? "Partial coverage" : "Available") : "Not mapped";
   $("#coverage-summary").textContent = `${data.coverage || "Python/PYI syntax and scoped references"}. Other languages are not parsed in this milestone. ${data.unresolved_relationships || 0} ambiguous or unresolved relationships.`;
   $("#coverage-diagnostics").hidden = !diagnostics.length;
   $("#diagnostic-count").textContent = `${diagnostics.length} reported analysis diagnostics — inspect coverage gaps`;
   $("#diagnostic-items").replaceChildren(...diagnostics.map((item) => textElement("li", item)));
+}
+
+function renderMetrics(data) {
   $("#entity-count").textContent = `${data.modules || 0} / ${data.symbols || 0}`;
   const annotations = data.annotations || {};
   $("#annotation-count").textContent = `${annotations.current || 0} / ${data.modules || 0}`;
   $("#annotation-state").textContent = `${annotations.stale || 0} stale · ${annotations.missing || 0} awaiting agent annotation`;
   const storage = data.storage || {};
   $("#storage-size").textContent = bytes(storage.bytes ?? storage.database_bytes ?? storage.size_bytes);
+}
+
+async function refreshStatus() {
+  const data = await api("/api/status");
+  renderCheckout(data.snapshot, data.snapshot?.root || data.root || data.repository || "Checkout");
+  renderCoverage(data);
+  renderMetrics(data);
   return data;
 }
 
-async function refreshModules() {
-  const generation = ++moduleGeneration;
-  const query = new URLSearchParams({ sort: state.sort, descending: state.descending, limit: state.limit, offset: state.offset });
-  const data = await api(`/api/modules?${query}`);
-  if (generation !== moduleGeneration) return;
+function moduleRow(node) {
+  const row = document.createElement("tr");
+  row.classList.toggle("selected", node.id === state.selected);
+  const moduleCell = document.createElement("td");
+  const button = textElement("button", title(node), "module-link");
+  button.addEventListener("click", () => selectEntity(node.id).catch((error) => notice(error.message, true)));
+  moduleCell.append(button);
+  const overview = (node.data?.annotation?.overview || "Purpose not annotated yet")
+    + (node.data?.annotation_status === "stale" ? " · stale annotation" : "");
+  moduleCell.append(textElement("div", overview, "module-overview"));
+  row.append(moduleCell);
+  const parseFailed = node.data?.parse_status && node.data.parse_status !== "parsed";
+  for (const value of [node.data?.loc ?? "Unknown", parseFailed ? "Unknown" : (node.data?.function_count ?? "Unknown")]) {
+    row.append(textElement("td", String(value)));
+  }
+  return row;
+}
+
+function renderModulePage(data) {
   const items = data.items || [];
   document.querySelectorAll("[data-sort]").forEach((button) => {
     button.closest("th").setAttribute("aria-sort", button.dataset.sort === state.sort
       ? (state.descending ? "descending" : "ascending") : "none");
   });
   $("#module-total").textContent = `${data.total || 0} modules`;
-  $("#module-rows").replaceChildren();
+  $("#module-rows").replaceChildren(...items.map(moduleRow));
   $("#module-empty").hidden = items.length > 0;
-  for (const node of items) {
-    const row = document.createElement("tr");
-    row.classList.toggle("selected", node.id === state.selected);
-    const moduleCell = document.createElement("td");
-    const button = document.createElement("button");
-    button.className = "module-link";
-    button.textContent = title(node);
-    button.addEventListener("click", () => selectEntity(node.id).catch((error) => notice(error.message, true)));
-    moduleCell.append(button);
-    const summary = document.createElement("div");
-    summary.className = "module-overview";
-    summary.textContent = (node.data?.annotation?.overview || "Purpose not annotated yet")
-      + (node.data?.annotation_status === "stale" ? " · stale annotation" : "");
-    moduleCell.append(summary);
-    row.append(moduleCell);
-    const parseFailed = node.data?.parse_status && node.data.parse_status !== "parsed";
-    for (const value of [node.data?.loc ?? "Unknown", parseFailed ? "Unknown" : (node.data?.function_count ?? "Unknown")]) {
-      const cell = document.createElement("td");
-      cell.textContent = String(value);
-      row.append(cell);
-    }
-    $("#module-rows").append(row);
-  }
   $("#page-label").textContent = `${items.length ? state.offset + 1 : 0}–${state.offset + items.length} of ${data.total || 0}`;
   $("#previous").disabled = state.offset === 0;
   $("#next").disabled = state.offset + items.length >= (data.total || 0);
+}
+
+async function refreshModules() {
+  const generation = ++moduleGeneration;
+  const query = new URLSearchParams({ sort: state.sort, descending: state.descending, limit: state.limit, offset: state.offset });
+  const data = await api(`/api/modules?${query}`);
+  if (generation === moduleGeneration) renderModulePage(data);
 }
 
 function addLinkGroup(name, edges, direction, nodes) {
@@ -292,6 +300,50 @@ function reviewTradeoffs(parent, label, items) {
   parent.append(list);
 }
 
+function alternativeCard(alternative, index) {
+  const card = document.createElement("article");
+  card.className = "design-alternative";
+  card.append(textElement("h3", `${index + 1}. ${alternative.name}`));
+  card.append(textElement("p", alternative.design));
+  reviewTradeoffs(card, "Pros", alternative.pros);
+  reviewTradeoffs(card, "Cons", alternative.cons);
+  card.append(textElement("p", `Requirements: ${(alternative.requirements || []).join(", ")}`, "section-note"));
+  card.append(textElement("h4", "Architecture diagram (Mermaid)"));
+  card.append(textElement("pre", alternative.diagram, "design-diagram"));
+  return card;
+}
+
+function patternCard(evaluation) {
+  const card = document.createElement("details");
+  card.className = "pattern-evaluation";
+  const rating = evaluation.opportunity === null ? "insufficient evidence" : `opportunity ${evaluation.opportunity}/3`;
+  card.append(textElement("summary", `${evaluation.pattern_id} · ${rating} · ${evaluation.module_id}`));
+  if (evaluation.current_fit) card.append(textElement("p", `Current fit: ${evaluation.current_fit}`));
+  if (evaluation.proposed_change) card.append(textElement("p", `Proposed change: ${evaluation.proposed_change}`));
+  reviewTradeoffs(card, "Pros", evaluation.pros);
+  reviewTradeoffs(card, "Cons", evaluation.cons);
+  card.append(textElement("p", `Simpler alternative: ${evaluation.alternative}`));
+  card.append(textElement("p", `Evidence: ${(evaluation.evidence || []).map((item) => `${item.path}:${item.line}`).join(", ") || "No source evidence supplied"}`, "section-note"));
+  return card;
+}
+
+function renderPatternPages(parent, values) {
+  const evaluations = [...values].sort((a, b) => (b.opportunity ?? -1) - (a.opportunity ?? -1));
+  const count = textElement("p", `${evaluations.length} saved module × pattern evaluations`, "section-note");
+  const list = document.createElement("div");
+  let shown = 0;
+  const more = textElement("button", "Show next 25 evaluations", "secondary");
+  function appendPage() {
+    list.append(...evaluations.slice(shown, shown + 25).map(patternCard));
+    shown = Math.min(shown + 25, evaluations.length);
+    count.textContent = `${shown} of ${evaluations.length} saved module × pattern evaluations · highest opportunities first`;
+    more.hidden = shown >= evaluations.length;
+  }
+  more.addEventListener("click", appendPage);
+  parent.append(count, list, more);
+  appendPage();
+}
+
 function renderReview(parent, record) {
   parent.replaceChildren();
   const result = record.result?.result || record.result || {};
@@ -299,47 +351,8 @@ function renderReview(parent, record) {
   if (record.status !== "current") {
     parent.append(textElement("p", record.freshness_reason || "This review belongs to earlier or unknown analysis inputs and has not been refreshed.", "review-stale"));
   }
-  if (Array.isArray(result.alternatives)) {
-    for (const [index, alternative] of result.alternatives.entries()) {
-      const card = document.createElement("article");
-      card.className = "design-alternative";
-      card.append(textElement("h3", `${index + 1}. ${alternative.name}`));
-      card.append(textElement("p", alternative.design));
-      reviewTradeoffs(card, "Pros", alternative.pros);
-      reviewTradeoffs(card, "Cons", alternative.cons);
-      card.append(textElement("p", `Requirements: ${(alternative.requirements || []).join(", ")}`, "section-note"));
-      card.append(textElement("h4", "Architecture diagram (Mermaid)"));
-      card.append(textElement("pre", alternative.diagram, "design-diagram"));
-      parent.append(card);
-    }
-  } else if (Array.isArray(result.evaluations)) {
-    const evaluations = [...result.evaluations].sort((a, b) => (b.opportunity ?? -1) - (a.opportunity ?? -1));
-    const count = textElement("p", `${evaluations.length} saved module × pattern evaluations`, "section-note");
-    const list = document.createElement("div");
-    let shown = 0;
-    const more = textElement("button", "Show next 25 evaluations", "secondary");
-    function appendPage() {
-      for (const evaluation of evaluations.slice(shown, shown + 25)) {
-        const card = document.createElement("details");
-        card.className = "pattern-evaluation";
-        const rating = evaluation.opportunity === null ? "insufficient evidence" : `opportunity ${evaluation.opportunity}/3`;
-        card.append(textElement("summary", `${evaluation.pattern_id} · ${rating} · ${evaluation.module_id}`));
-        if (evaluation.current_fit) card.append(textElement("p", `Current fit: ${evaluation.current_fit}`));
-        if (evaluation.proposed_change) card.append(textElement("p", `Proposed change: ${evaluation.proposed_change}`));
-        reviewTradeoffs(card, "Pros", evaluation.pros);
-        reviewTradeoffs(card, "Cons", evaluation.cons);
-        card.append(textElement("p", `Simpler alternative: ${evaluation.alternative}`));
-        card.append(textElement("p", `Evidence: ${(evaluation.evidence || []).map((item) => `${item.path}:${item.line}`).join(", ") || "No source evidence supplied"}`, "section-note"));
-        list.append(card);
-      }
-      shown = Math.min(shown + 25, evaluations.length);
-      count.textContent = `${shown} of ${evaluations.length} saved module × pattern evaluations · highest opportunities first`;
-      more.hidden = shown >= evaluations.length;
-    }
-    more.addEventListener("click", appendPage);
-    parent.append(count, list, more);
-    appendPage();
-  }
+  if (Array.isArray(result.alternatives)) parent.append(...result.alternatives.map(alternativeCard));
+  else if (Array.isArray(result.evaluations)) renderPatternPages(parent, result.evaluations);
   const raw = document.createElement("details");
   raw.append(textElement("summary", "Full saved record and provenance"));
   raw.append(textElement("pre", formatJSON(record)));

@@ -460,7 +460,7 @@ def test_complete_quality_gate_includes_coverage_compose_benchmark_and_browser_c
     flattened = [" ".join(command) for command in commands]
     browser = _container_browser_command(Path("/workspace"), 9123)
 
-    assert any("pytest --cov=anaxigraph" in command for command in flattened)
+    assert any("pytest --cov=src/anaxigraph" in command for command in flattened)
     assert any(
         "check_changed_coverage.py" in command and "origin/main" in command for command in flattened
     )

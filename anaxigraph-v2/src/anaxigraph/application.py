@@ -12,9 +12,10 @@ from typing import Any
 
 from anaxigraph import __version__
 from anaxigraph.analysis import build_request, validate_result
-from anaxigraph.analysis.guidance import module_for, neighborhood, prepare, structural_findings
+from anaxigraph.analysis.changes import change_review
+from anaxigraph.analysis.guidance import module_for, neighborhood, prepare
 from anaxigraph.contracts import Graph
-from anaxigraph.indexing import capture_snapshot, index
+from anaxigraph.indexing import capture_snapshot, capture_sources, index
 from anaxigraph.storage import Store
 
 
@@ -258,70 +259,7 @@ class Application:
         self._require_live(graph)
         previous_id = self.store.stats(str(self.root)).get("previous_snapshot_id")
         previous = self.store.load_graph(str(self.root), previous_id) if previous_id else None
-        before = previous.snapshot.files if previous else {}
-        after = graph.snapshot.files
-        changed = sorted(p for p in set(before) | set(after) if before.get(p) != after.get(p))
-        if receipts is not None and (not isinstance(receipts, list) or len(receipts) > 50):
-            raise ValueError("receipts must be a list of at most 50 supplied check results")
-        checks = []
-        for receipt in receipts or []:
-            if not isinstance(receipt, dict) or not isinstance(receipt.get("command"), str):
-                raise ValueError("Each check needs a command, snapshot_id and integer exit_code")
-            if not receipt["command"].strip():
-                raise ValueError("Check command must be nonempty")
-            if type(receipt.get("exit_code")) is not int:
-                raise ValueError("Each check needs an integer exit_code")
-            matched = receipt.get("snapshot_id") == graph.snapshot.id
-            checks.append(
-                {
-                    "command": receipt["command"][:1000],
-                    "origin": "agent-or-CI-reported",
-                    "status": "stale"
-                    if not matched
-                    else "passed"
-                    if receipt["exit_code"] == 0
-                    else "failed",
-                    "exit_code": receipt["exit_code"],
-                    "snapshot_id": receipt.get("snapshot_id"),
-                }
-            )
-        old = (
-            {(f["kind"], f["entity"]): f for f in structural_findings(previous)} if previous else {}
-        )
-        findings = []
-        for finding in structural_findings(graph):
-            prior = old.get((finding["kind"], finding["entity"]))
-            finding["change"] = (
-                "introduced"
-                if prior is None
-                else (
-                    "worsened"
-                    if finding["measured"] > prior["measured"]
-                    else "improved"
-                    if finding["measured"] < prior["measured"]
-                    else "unchanged"
-                )
-            )
-            if prior:
-                finding["previous_measured"] = prior["measured"]
-            findings.append(finding)
-        return {
-            "base_snapshot_id": previous_id,
-            "candidate_snapshot_id": graph.snapshot.id,
-            "comparison": "previous scan" if previous else "no saved baseline",
-            "changed_paths": changed[:100],
-            "changed_total": len(changed),
-            "findings": findings[:50],
-            "checks": checks,
-            "behavioral_status": "unchecked"
-            if not checks
-            else "failed"
-            if any(c["status"] == "failed" for c in checks)
-            else "reported-passed"
-            if all(c["status"] == "passed" for c in checks)
-            else "unresolved",
-            "uncertainty": "Supplied checks are attributed reports. AnaxiGraph did not run target code; static facts do not prove behavior.",
-        }
+        return change_review(graph, previous, receipts)
 
     def analysis_request(self, kind: str, scope: list[str] | None = None) -> dict[str, Any]:
         graph = self._current()
@@ -330,22 +268,8 @@ class Application:
         if kind == "annotate":
             modules = [n for n in graph.nodes if n.kind == "module"]
             selected = scope or [modules[0].id] if modules else []
-            sources = {}
-            for node in modules:
-                if node.id not in selected and node.path not in selected:
-                    continue
-                path = self.root / node.path
-                if any(parent.is_symlink() for parent in (path, *path.parents)):
-                    raise ValueError("Source paths with symlink components are not analyzed")
-                if not path.resolve().is_relative_to(self.root):
-                    raise ValueError("Source path escapes the analyzed checkout")
-                with path.open("rb") as stream:
-                    raw = stream.read(100_001)
-                if len(raw) > 100_000:
-                    raise ValueError("Module exceeds the first-milestone source packet limit")
-                if hashlib.sha256(raw).hexdigest() != graph.snapshot.files[node.path]:
-                    raise ValueError("Source changed after mapping; scan again before annotation")
-                sources[node.path] = raw.decode("utf-8", errors="replace")
+            selected_paths = [n.path for n in modules if n.id in selected or n.path in selected]
+            sources = capture_sources(self.root, selected_paths, graph.snapshot.files)
         request = build_request(graph, kind, scope, sources)
         self.store.save_review(
             str(self.root), graph.snapshot.id, request["request_id"], "request", request

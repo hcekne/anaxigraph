@@ -5,8 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from anaxigraph.contracts import Graph, Snapshot
-from anaxigraph.indexing.discovery import discover
-from anaxigraph.indexing.python import Relationships, Resolver, parse_module
+from anaxigraph.indexing.discovery import capture_sources, discover
+from anaxigraph.indexing.python import Relationships, parse_module
+from anaxigraph.indexing.resolution import Resolver
 
 
 def index(root: Path, *, excluded: tuple[str, ...] = ()) -> Graph:
@@ -45,4 +46,4 @@ def capture_snapshot(root: Path) -> Snapshot:
     return discover(root, ())[0]
 
 
-__all__ = ["index", "capture_snapshot"]
+__all__ = ["index", "capture_snapshot", "capture_sources"]

@@ -2,60 +2,60 @@
   "date": "2026-10-25",
   "status": "locally-qualified-first-milestone; live GitHub status is linked in milestone-1.md",
   "tests": {
-    "passed": 96,
+    "passed": 106,
     "command": "uv run --no-sync pytest -q",
-    "normal_disk_elapsed_seconds": 8.55
+    "normal_disk_elapsed_seconds": 5.81
   },
   "package": {
-    "runtime_files_in_wheel": 22,
+    "runtime_files_in_wheel": 24,
     "wheel": {
-      "bytes": 80118,
-      "sha256": "53f600e368e8f8b91b597e5fb67215963f8f4095f29b4e2bfec0bd17f0d71988"
+      "bytes": 82030,
+      "sha256": "cb2ae3f368506babf77d622d9b9b3f111b26b0055bad2a0d26f5acc2b79cdd3d"
     },
     "sdist": {
-      "bytes": 89714,
-      "sha256": "43d6042878809b4046e46a0178208a542d2bad36c013945535c133c467f1e61b"
+      "bytes": 91454,
+      "sha256": "8cd32368f502bdc3381942d7caafc830afa251f2a6c6cef449347bc45da5cb96"
     },
     "production": {
-      "code_files": 21,
-      "physical_lines": 3355,
-      "bytes": 155097
+      "code_files": 23,
+      "physical_lines": 3513,
+      "bytes": 157765
     },
     "tests": {
       "code_files": 5,
-      "physical_lines": 1423
+      "physical_lines": 1503
     },
     "catalogue_bytes": 91978
   },
   "structural_measurement": {
     "scope": "actual combined legacy+V2 working tree; Python-only structural facts; normal /home disk; no models in timings",
-    "cold_scan_seconds": 12.07332,
-    "unchanged_scan_seconds": 8.21022,
-    "modules": 662,
-    "symbols": 5960,
-    "relationships": 69368,
-    "unresolved_relationships": 33264,
-    "database_bytes": 4755456,
-    "database_bytes_after_unchanged_scan": 4755456,
+    "cold_scan_seconds": 11.65022,
+    "unchanged_scan_seconds": 9.23714,
+    "modules": 664,
+    "symbols": 5992,
+    "relationships": 69552,
+    "unresolved_relationships": 33337,
+    "database_bytes": 4780032,
+    "database_bytes_after_unchanged_scan": 4780032,
     "reads": {
       "status": {
-        "p50_seconds": 0.04459,
-        "max_seconds": 0.055,
+        "p50_seconds": 0.04976,
+        "max_seconds": 0.06997,
         "response_bytes": 770
       },
       "module_page": {
-        "p50_seconds": 0.00723,
-        "max_seconds": 0.00832,
-        "response_bytes": 7575
+        "p50_seconds": 0.00728,
+        "max_seconds": 0.00828,
+        "response_bytes": 7422
       },
       "inspect": {
-        "p50_seconds": 0.0475,
-        "max_seconds": 0.05513,
+        "p50_seconds": 0.06632,
+        "max_seconds": 0.07746,
         "response_bytes": 20262
       },
       "prepare": {
-        "p50_seconds": 0.03872,
-        "max_seconds": 0.04487,
+        "p50_seconds": 0.05295,
+        "max_seconds": 0.06387,
         "response_bytes": 7824
       }
     }
@@ -98,5 +98,13 @@
     "Source was an uncommitted milestone candidate; this is not a released-version comparison.",
     "Temporary host journal contention affected one earlier test run; final normal-disk suite and structural timings were recorded separately after it settled.",
     "Do not extrapolate the Python-only scan to semantic mapping, all-catalogue review, Fresh Eyes or supported-language parity."
-  ]
+  ],
+  "integration": {
+    "first_v2_ci": "https://github.com/hcekne/anaxigraph/actions/runs/40180126716",
+    "first_v2_ci_result": "success on Python3.11and3.12 including installedwheel",
+    "legacy_self_analysis": "PASS8governed,189nonblocking,0issues, thresholds/baselineunchanged",
+    "legacy_scope": "Separateprojectconfig avoids mixing two anaxigraph import roots; explicitwholerepo override remains supported",
+    "coverage_repair": "Existing all4coveragecommands now targetsrc/anaxigraph instead of rootportabledata directory; normal80%floorunchanged",
+    "coverage_reproduction": "Same realtest: oldtarget0files/0lines, explicitpath2480executedlines; fullcorrectedCI is authoritative"
+  }
 }

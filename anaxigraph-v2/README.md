@@ -13,7 +13,7 @@ From this repository:
 
 ```bash
 cd anaxigraph-v2
-uv sync --locked --extra dev
+uv sync --locked
 uv run anaxigraph scan --repo /absolute/path/to/your/repo
 uv run anaxigraph serve --repo /absolute/path/to/your/repo
 ```
@@ -119,6 +119,7 @@ interfaces. See [architecture, component contracts and packaging direction](docs
 From this folder:
 
 ```bash
+uv sync --locked --extra dev
 uv run pytest
 uv run ruff check src tests
 uv build

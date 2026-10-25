@@ -16,6 +16,39 @@ def module_for(graph: Graph, value: str) -> Node | None:
     )
 
 
+def _module_edges(
+    graph: Graph, entity: Node, outgoing: list[dict[str, Any]]
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Roll up observed cross-file references, retaining each original witness."""
+    owners = {n.id: n.path for n in graph.nodes}
+    modules = {n.path: n.id for n in graph.nodes if n.kind == "module"}
+    projected = {}
+    for edge in graph.edges:
+        source, target = owners.get(edge.source), owners.get(edge.target)
+        if source == target or source not in modules or target not in modules:
+            continue
+        if entity.path not in {source, target}:
+            continue
+        key = (source, target, edge.kind, edge.resolution)
+        if key not in projected:
+            projected[key] = {
+                **asdict(edge),
+                "source": modules[source],
+                "target": modules[target],
+                "projected_from": asdict(edge),
+                "observations": 0,
+            }
+        projected[key]["observations"] += 1
+    incoming = [e for e in projected.values() if e["target"] == entity.id]
+    local = [
+        e
+        for e in outgoing
+        if owners.get(e["target"]) not in modules or owners.get(e["target"]) == entity.path
+    ]
+    outgoing = [e for e in projected.values() if e["source"] == entity.id] + local
+    return incoming, outgoing
+
+
 def neighborhood(graph: Graph, entity_id: str, limit: int = 30) -> dict[str, Any]:
     entity = next((n for n in graph.nodes if entity_id == n.id), None) or module_for(
         graph, entity_id
@@ -25,34 +58,7 @@ def neighborhood(graph: Graph, entity_id: str, limit: int = 30) -> dict[str, Any
     incoming = [asdict(e) for e in graph.edges if e.target == entity.id and e.kind != "contains"]
     outgoing = [asdict(e) for e in graph.edges if e.source == entity.id]
     if entity.kind == "module":
-        # This is a projection of existing symbol-level observations, not another
-        # inferred relationship store. Preserve each original edge as evidence.
-        owners = {n.id: n.path for n in graph.nodes}
-        modules = {n.path: n.id for n in graph.nodes if n.kind == "module"}
-        projected = {}
-        for edge in graph.edges:
-            source, target = owners.get(edge.source), owners.get(edge.target)
-            if source == target or source not in modules or target not in modules:
-                continue
-            if entity.path not in {source, target}:
-                continue
-            key = (source, target, edge.kind, edge.resolution)
-            if key not in projected:
-                projected[key] = {
-                    **asdict(edge),
-                    "source": modules[source],
-                    "target": modules[target],
-                    "projected_from": asdict(edge),
-                    "observations": 0,
-                }
-            projected[key]["observations"] += 1
-        incoming = [e for e in projected.values() if e["target"] == entity.id]
-        local = [
-            e
-            for e in outgoing
-            if owners.get(e["target"]) not in modules or owners.get(e["target"]) == entity.path
-        ]
-        outgoing = [e for e in projected.values() if e["source"] == entity.id] + local
+        incoming, outgoing = _module_edges(graph, entity, outgoing)
     related = {e["source"] for e in incoming[:limit]} | {e["target"] for e in outgoing[:limit]}
     neighbors = []
     for node in graph.nodes:

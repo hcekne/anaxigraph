@@ -1,6 +1,12 @@
 project:
   name: AnaxiGraph
 
+# This config describes the legacy application. V2 is a separately packaged project
+# with its own tests and CI; mixing both `anaxigraph` import roots changes legacy
+# dependency resolution. Map V2 from its own root, or use an explicit whole-repo config.
+ignore:
+  - anaxigraph-v2/**
+
 architecture:
   policy: docs/coding-patterns.md
   protected_paths:

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from pathlib import Path
 
 import pytest
+import yaml
 
 from anaxigraph.config import load_config
 from scripts.check_self_analysis import analysis_contract, evaluate_gate, scan_repository
@@ -105,6 +107,44 @@ def test_repository_fixture_detects_a_new_governed_regression(repository):
 
     assert result["passed"] is False
     assert any(item["code"] == "new_finding" for item in result["issues"])
+
+
+def test_legacy_project_scope_keeps_v2_independent_without_globally_hiding_it(tmp_path):
+    root_config = Path(__file__).parents[1] / ".anaxigraph.yml"
+    policy = yaml.safe_load(root_config.read_text(encoding="utf-8"))
+    (tmp_path / ".anaxigraph.yml").write_text(yaml.safe_dump(policy), encoding="utf-8")
+    legacy = tmp_path / "src" / "anaxigraph"
+    replacement = tmp_path / "anaxigraph-v2" / "src" / "anaxigraph"
+    legacy.mkdir(parents=True)
+    replacement.mkdir(parents=True)
+    (legacy / "core.py").write_text("def support(): return 1\n", encoding="utf-8")
+    (legacy / "api.py").write_text(
+        "from anaxigraph.core import support\ndef answer(): return support()\n",
+        encoding="utf-8",
+    )
+    branches = "\n".join(f"    if value == {index}: return {index}" for index in range(20))
+    replacement_path = "anaxigraph-v2/src/anaxigraph/core.py"
+    (replacement / "core.py").write_text(
+        f"def branchy(value):\n{branches}\n    return -1\n", encoding="utf-8"
+    )
+
+    scoped_scan, scoped_findings = scan_repository(tmp_path)
+
+    assert scoped_scan["discovered"] == 2
+    assert not any(replacement_path in item["affected_artifacts"] for item in scoped_findings)
+    assert not load_config(tmp_path).is_ignored("src/anaxigraph/core.py")
+    # The scope belongs to this project's policy, not a new global scanner exclusion.
+    all_projects = {**policy, "ignore": []}
+    override = tmp_path / "all-projects.yml"
+    override.write_text(yaml.safe_dump(all_projects), encoding="utf-8")
+
+    _, whole_repo_findings = scan_repository(tmp_path, override)
+
+    assert any(
+        item["finding_type"] == "symbol_complexity"
+        and replacement_path in item["affected_artifacts"]
+        for item in whole_repo_findings
+    )
 
 
 def _governed(findings: list[dict]) -> list[dict]:
